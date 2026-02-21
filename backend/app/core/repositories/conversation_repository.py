@@ -36,6 +36,12 @@ class ConversationRepository(BaseRepository):
             return None
         return _row_to_response(row)
 
+    async def list_all(self) -> list[ConversationResponse]:
+        db = await self._get_db()
+        cursor = await db.execute("SELECT * FROM conversations ORDER BY updated_at DESC")
+        rows = await cursor.fetchall()
+        return [_row_to_response(r) for r in rows]
+
     async def list_by_character(self, character_id: str) -> list[ConversationResponse]:
         db = await self._get_db()
         cursor = await db.execute(
