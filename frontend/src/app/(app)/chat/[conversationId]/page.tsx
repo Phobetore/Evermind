@@ -132,7 +132,13 @@ export default function ChatConversationPage() {
     if (!conversation || !character || streaming) return;
 
     // Find the last user message to re-send
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    let lastUserMsg: Message | undefined;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        lastUserMsg = messages[i];
+        break;
+      }
+    }
     if (!lastUserMsg) return;
 
     // Remove the last assistant message

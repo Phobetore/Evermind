@@ -88,8 +88,13 @@ class MemoryRepository(BaseRepository):
         for field in ("entities", "tags"):
             if field in updates:
                 updates[field] = json.dumps(updates[field])
-        set_clause = ", ".join(f"{k} = ?" for k in updates)
-        values = list(updates.values()) + [memory_id]
+        # Allow-list of columns to prevent any injection via dynamic keys
+        allowed_columns = {"title", "content", "entities", "tags", "importance", "confidence"}
+        safe_updates = {k: v for k, v in updates.items() if k in allowed_columns}
+        if not safe_updates:
+            return existing
+        set_clause = ", ".join(f"{k} = ?" for k in safe_updates)
+        values = list(safe_updates.values()) + [memory_id]
         await db.execute(f"UPDATE memories SET {set_clause} WHERE id = ?", values)
         await db.commit()
         return await self.get(memory_id)
