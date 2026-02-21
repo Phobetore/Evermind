@@ -146,7 +146,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <dt className="text-xs text-zinc-500 mb-1">Context Window</dt>
-                <dd className="text-sm text-zinc-400">8 192 tokens (chat default)</dd>
+                <dd className="text-sm text-zinc-400">8,192 tokens (chat default)</dd>
               </div>
             </dl>
 

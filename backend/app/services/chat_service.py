@@ -25,6 +25,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Minimum confidence score for extracted memories to be persisted.
+MEMORY_CONFIDENCE_THRESHOLD = 0.6
+
 
 def _resolve_llm_client(
     cfg: Any, server_key: str, *, timeout: float = 120.0
@@ -260,7 +263,7 @@ class ChatService:
 
         for mem_type in ("semantic", "episodic"):
             for item in parsed.get(mem_type, []):
-                if item.get("confidence", 0) < 0.6:
+                if item.get("confidence", 0) < MEMORY_CONFIDENCE_THRESHOLD:
                     continue
                 await self.mem_repo.create(
                     MemoryCreate(
@@ -278,7 +281,7 @@ class ChatService:
         for update in parsed.get("world_updates", []):
             field = update.get("field")
             value = update.get("value")
-            if field and value and update.get("confidence", 0) >= 0.6:
+            if field and value and update.get("confidence", 0) >= MEMORY_CONFIDENCE_THRESHOLD:
                 await self.ws_repo.update_field(character_id, field, value)
 
         timing.mark("t_memory_write_end")

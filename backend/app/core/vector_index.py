@@ -1,7 +1,7 @@
 """Lightweight numpy-based vector index for memory retrieval.
 
 This is the v0.2 baseline implementation that uses brute-force cosine
-similarity.  It is suitable for < 50 000 vectors and will be replaced
+similarity.  It is suitable for < 50,000 vectors and will be replaced
 by hnswlib / faiss in a later iteration if performance requires it.
 """
 
