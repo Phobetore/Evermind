@@ -4,24 +4,29 @@ Follows Addendum v1.1 §C.7 assembly order:
   1. System (C.1)
   2. Controller (C.2)
   3. Character Core (C.3)
-  4. Recent chat (C.6)
-  5. User message
+  4. World State (C.4)
+  5. Memory (C.5)
+  6. Recent chat (C.6)
+  7. User message
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.prompting.templates import (
     CHARACTER_CORE,
     CONTROLLER,
+    MEMORY_BLOCK,
     PRODUCT_NAME,
     RECENT_CHAT,
     SYSTEM_RP,
+    WORLD_STATE,
 )
 
 if TYPE_CHECKING:
     from app.models.character import CharacterResponse
+    from app.models.memory import MemoryResponse
     from app.models.message import MessageResponse
 
 
@@ -53,10 +58,39 @@ def _format_recent_messages(
     return "\n".join(lines)
 
 
+def _format_world_state(world_state: dict[str, Any] | None) -> str:
+    """Render the world state block from a state dict, or return empty string."""
+    if not world_state:
+        return ""
+    return WORLD_STATE.format(
+        world_location=world_state.get("location", "(unknown)"),
+        world_relationship_state=world_state.get("relationship_state", "(unknown)"),
+        world_active_goals=world_state.get("active_goals", "(none)"),
+        world_open_threads=world_state.get("open_threads", "(none)"),
+        world_inventory=world_state.get("inventory", "(none)"),
+        world_notes=world_state.get("notes", "(none)"),
+    )
+
+
+def _format_memory_lines(memories: list[MemoryResponse]) -> str:
+    """Render memory items as one-line summaries for the memory block."""
+    if not memories:
+        return ""
+    lines: list[str] = []
+    for m in memories:
+        imp = f"{m.importance:.2f}"
+        conf = f"{m.confidence:.2f}"
+        lines.append(f"- [{m.type}|imp={imp}|conf={conf}] {m.content}")
+    return MEMORY_BLOCK.format(memory_lines="\n".join(lines))
+
+
 def build_chat_messages(
     character: CharacterResponse,
     recent_messages: list[MessageResponse],
     user_message: str,
+    *,
+    world_state: dict[str, Any] | None = None,
+    memories: list[MemoryResponse] | None = None,
 ) -> list[dict[str, str]]:
     """Build the OpenAI-compatible messages list for chat completion.
 
@@ -90,14 +124,21 @@ def build_chat_messages(
         char_example_dialogues=example_dialogues_text,
     )
 
+    world_state_text = _format_world_state(world_state)
+    memory_text = _format_memory_lines(memories or [])
+
     recent_text = ""
     if recent_messages:
         recent_text = RECENT_CHAT.format(
             recent_messages=_format_recent_messages(character.name, recent_messages),
         )
 
-    # Assemble the system message (system + controller + core + history)
+    # Assemble per §C.7: system → controller → core → world → memory → history
     system_parts = [system_text, controller_text, core_text]
+    if world_state_text:
+        system_parts.append(world_state_text)
+    if memory_text:
+        system_parts.append(memory_text)
     if recent_text:
         system_parts.append(recent_text)
     full_system = "\n\n".join(system_parts)

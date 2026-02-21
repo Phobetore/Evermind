@@ -62,6 +62,58 @@ FIRST MESSAGE (for new conversation):
 EXAMPLE DIALOGUES (style anchors):
 {char_example_dialogues}"""
 
+# C.4 — World State Block
+WORLD_STATE = """WORLD STATE (current)
+
+Location: {world_location}
+Relationship state: {world_relationship_state}
+Active goals: {world_active_goals}
+Open threads: {world_open_threads}
+Inventory/props: {world_inventory}
+Notes:
+{world_notes}"""
+
+# C.5 — Memory Block
+MEMORY_BLOCK = """MEMORY (relevant, do not quote verbatim)
+
+{memory_lines}"""
+
 # C.6 — Conversation History Block
 RECENT_CHAT = """RECENT CHAT (most recent last)
 {recent_messages}"""
+
+# D.1 — Memory Extraction Prompt (JSON strict)
+MEMORY_EXTRACTION = """MEMORY EXTRACTOR — STRICT JSON
+
+TASK:
+Extract ONLY long-term memory-worthy information from the latest exchange.
+Be concise. No storytelling. No extra keys. JSON ONLY.
+
+CONTEXT:
+- Character: {char_name}
+- User: {user_label}
+- World State (current): {world_state_json}
+- Recent turns:
+{recent_messages_for_extract}
+
+OUTPUT JSON SCHEMA:
+{{
+  "semantic": [
+    {{ "title": "short", "content": "one sentence fact", "tags": ["..."], "importance": 0.0, "confidence": 0.0 }}
+  ],
+  "episodic": [
+    {{ "title": "short", "content": "one sentence event", "tags": ["..."], "importance": 0.0, "confidence": 0.0 }}
+  ],
+  "world_updates": [
+    {{ "field": "location|relationship_state|active_goals|open_threads|inventory|notes", "value": "short", "confidence": 0.0 }}
+  ],
+  "contradictions": [
+    {{ "content": "one sentence", "severity": 0.0 }}
+  ]
+}}
+
+RULES:
+- importance/confidence are floats in [0,1].
+- If nothing to add, return empty arrays.
+- Do not include private implementation details.
+- JSON must parse."""

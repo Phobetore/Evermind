@@ -5,7 +5,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.repositories.character_repository import CharacterRepository
-from app.models.character import CharacterCreate, CharacterResponse, CharacterUpdate
+from app.models.character import (
+    CharacterCreate,
+    CharacterResponse,
+    CharacterUpdate,
+)
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 
@@ -61,3 +65,39 @@ async def delete_character(
     deleted = await repo.delete(character_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Character not found")
+
+
+@router.get("/{character_id}/export")
+async def export_character(
+    character_id: str,
+    repo: CharacterRepository = Depends(_get_repo),
+) -> dict:
+    """Export a character as a portable JSON object."""
+    character = await repo.get(character_id)
+    if character is None:
+        raise HTTPException(status_code=404, detail="Character not found")
+    data = character.model_dump()
+    # Remove server-side fields that shouldn't be in an export
+    data.pop("id", None)
+    data.pop("created_at", None)
+    data.pop("updated_at", None)
+    return {"version": "1", "character": data}
+
+
+@router.post("/import", response_model=CharacterResponse, status_code=201)
+async def import_character(
+    payload: dict,
+    repo: CharacterRepository = Depends(_get_repo),
+) -> CharacterResponse:
+    """Import a character from a portable JSON export."""
+    character_data = payload.get("character")
+    if not character_data or not isinstance(character_data, dict):
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid import format: expected {\"version\": \"1\", \"character\": {…}}",
+        )
+    # Strip any server-side fields that may have leaked in
+    for key in ("id", "created_at", "updated_at"):
+        character_data.pop(key, None)
+    create_data = CharacterCreate.model_validate(character_data)
+    return await repo.create(create_data)
