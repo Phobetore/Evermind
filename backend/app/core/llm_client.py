@@ -49,12 +49,15 @@ class LLMClient:
     ) -> AsyncIterator[dict[str, Any]]:
         """Streaming chat completion — yields parsed SSE data chunks."""
         payload = {"messages": messages, "stream": True, **params}
-        async with httpx.AsyncClient() as client, client.stream(
-            "POST",
-            f"{self.base_url}/v1/chat/completions",
-            json=payload,
-            timeout=self.timeout,
-        ) as response:
+        async with (
+            httpx.AsyncClient() as client,
+            client.stream(
+                "POST",
+                f"{self.base_url}/v1/chat/completions",
+                json=payload,
+                timeout=self.timeout,
+            ) as response,
+        ):
             response.raise_for_status()
             async for line in response.aiter_lines():
                 if not line.startswith("data: "):

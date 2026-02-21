@@ -32,25 +32,25 @@
 
 ## 3. Phase MVP (v0.1) — Semaines 1–8
 
-### 3.1 Setup SQLite (S1–S2) 🔴
+### 3.1 Setup SQLite (S1–S2) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Créer `data/app.db` | Au premier démarrage, créer le fichier DB | Fichier créé automatiquement |
-| Pragmas | `journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON` | Pragmas appliqués |
-| Module database | `app/core/database.py` — connexion, init, migrations | Module fonctionnel |
-| Pool de connexions | aiosqlite ou sqlite3 avec pool simple | Connexions gérées proprement |
-| Tests | Test de création + connexion + fermeture | Tests verts |
+| Créer `data/app.db` | Au premier démarrage, créer le fichier DB | ✅ Fichier créé automatiquement |
+| Pragmas | `journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON` | ✅ Pragmas appliqués |
+| Module database | `app/core/database.py` — connexion, init, migrations | ✅ Module fonctionnel |
+| Pool de connexions | aiosqlite ou sqlite3 avec pool simple | ✅ Connexions gérées proprement |
+| Tests | Test de création + connexion + fermeture | ✅ Tests verts |
 
-### 3.2 Système de migrations (S2–S3) 🔴
+### 3.2 Système de migrations (S2–S3) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Table `_migrations` | Tracking des migrations appliquées | Table créée |
-| Migration initiale (001) | Schéma complet v0.1 (characters, conversations, messages) | Tables créées |
-| Runner de migrations | Appliquer automatiquement les migrations au démarrage | Migrations exécutées dans l'ordre |
-| Rollback | Support du rollback (optionnel mais recommandé) | Migration réversible |
-| Tests | Test de migration complète sur DB vide | Tests verts |
+| Table `_migrations` | Tracking des migrations appliquées | ✅ Table créée |
+| Migration initiale (001) | Schéma complet v0.1 (characters, conversations, messages) | ✅ Tables créées |
+| Runner de migrations | Appliquer automatiquement les migrations au démarrage | ✅ Migrations exécutées dans l'ordre |
+| Rollback | Support du rollback (optionnel mais recommandé) | 🔴 Migration réversible |
+| Tests | Test de migration complète sur DB vide | ✅ Tests verts |
 
 #### Migration 001 — Schéma initial
 
@@ -104,15 +104,15 @@ CREATE INDEX IF NOT EXISTS idx_messages_conversation
   ON messages(conversation_id, created_at);
 ```
 
-### 3.3 Couche d'accès données — Characters (S2–S4) 🔴
+### 3.3 Couche d'accès données — Characters (S2–S4) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| `CharacterRepository` | CRUD complet (create, get, list, update, delete) | Toutes les opérations fonctionnent |
-| Sérialisation JSON | Tags, example_dialogues, memory_seed → JSON string en DB | Sérialisation/désérialisation correcte |
-| Cascade delete | Supprimer un personnage → supprimer conversations + messages | Cascade vérifiée |
-| Recherche | Recherche par nom (LIKE) | Résultats filtrés |
-| Tests unitaires | Tests pour chaque opération CRUD | Couverture 100% |
+| `CharacterRepository` | CRUD complet (create, get, list, update, delete) | ✅ Toutes les opérations fonctionnent |
+| Sérialisation JSON | Tags, example_dialogues, memory_seed → JSON string en DB | ✅ Sérialisation/désérialisation correcte |
+| Cascade delete | Supprimer un personnage → supprimer conversations + messages | ✅ Cascade vérifiée |
+| Recherche | Recherche par nom (LIKE) | ✅ Résultats filtrés |
+| Tests unitaires | Tests pour chaque opération CRUD | ✅ Couverture 100% |
 
 ```python
 # app/core/repositories/character_repository.py
@@ -125,17 +125,17 @@ class CharacterRepository:
     async def delete(self, character_id: str) -> bool: ...
 ```
 
-### 3.4 Couche d'accès données — Conversations & Messages (S3–S5) 🔴
+### 3.4 Couche d'accès données — Conversations & Messages (S3–S5) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| `ConversationRepository` | CRUD (create, get, list_by_character, delete) | Opérations fonctionnelles |
-| `MessageRepository` | CRUD (create, list_by_conversation, get) | Opérations fonctionnelles |
-| Pagination messages | Limit + offset (ou cursor-based) | Pagination correcte |
-| Fenêtre historique | Fonction `get_recent_messages(conversation_id, limit=20)` | N derniers messages retournés |
-| Tri | Messages triés par `created_at` ASC | Ordre chronologique |
-| Meta JSON | Champ `meta` sérialisé/désérialisé comme dict — schéma strict v1.1 (cf. [Addendum §B](addendum-v1.1.md#b-spécification-exacte-des-champs-meta)) | Correct |
-| Tests | Tests unitaires pour chaque opération | Couverture 100% |
+| `ConversationRepository` | CRUD (create, get, list_all, list_by_character, delete) | ✅ Opérations fonctionnelles |
+| `MessageRepository` | CRUD (create, list_by_conversation, get) | ✅ Opérations fonctionnelles |
+| Pagination messages | Limit + offset (ou cursor-based) | ✅ Pagination correcte |
+| Fenêtre historique | Fonction `get_recent_messages(conversation_id, limit=20)` | ✅ N derniers messages retournés |
+| Tri | Messages triés par `created_at` ASC | ✅ Ordre chronologique |
+| Meta JSON | Champ `meta` sérialisé/désérialisé comme dict — schéma strict v1.1 (cf. [Addendum §B](addendum-v1.1.md#b-spécification-exacte-des-champs-meta)) | ✅ Correct |
+| Tests | Tests unitaires pour chaque opération | ✅ Couverture 100% |
 
 ```python
 # app/core/repositories/conversation_repository.py
@@ -171,15 +171,15 @@ class MessageRepository:
 
 ## 4. Phase v0.2 — Semaines 9–14
 
-### 4.1 Migration 002 — Mémoire (S9–S10) 🔴
+### 4.1 Migration 002 — Mémoire (S9–S10) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Table `memories` | Schéma complet (cf. spec §12.1) | Table créée |
-| Table `world_state` | Schéma complet | Table créée |
-| Index | `idx_memories_character_type` | Index créé |
-| Migration automatique | Appliquée au démarrage | Pas de données perdues |
-| Tests | Test de migration sur DB v0.1 existante | Migration réussie |
+| Table `memories` | Schéma complet (cf. spec §12.1) | ✅ Table créée |
+| Table `world_state` | Schéma complet | ✅ Table créée |
+| Index | `idx_memories_character_type` | ✅ Index créé |
+| Migration automatique | Appliquée au démarrage | ✅ Pas de données perdues |
+| Tests | Test de migration sur DB v0.1 existante | ✅ Migration réussie |
 
 #### Migration 002 — Mémoire
 
@@ -242,21 +242,21 @@ CREATE INDEX IF NOT EXISTS idx_memories_character_active
 > **Recommandation v0.2 :** `hnswlib` ou `faiss-cpu` (pip installable, performant, fiable).
 > Si < 5000 souvenirs, `numpy` brut peut suffire pour le MVP.
 
-### 4.3 `MemoryRepository` (S10–S12) 🔴
+### 4.3 `MemoryRepository` (S10–S12) 🟡
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| `create` | Insérer un souvenir + vecteur | Souvenir créé |
-| `get` | Récupérer un souvenir par ID | Souvenir retourné |
-| `list_by_character` | Liste filtrée (type, is_deleted, is_pinned) | Filtrage correct |
-| `search_similar` | Recherche vectorielle top-K | Résultats par similarité |
-| `update_importance` | Mettre à jour importance/confidence | Valeurs mises à jour |
-| `update_referenced_at` | Mettre à jour `last_referenced_at` | Timestamp mis à jour |
-| `soft_delete` | `is_deleted=1` + retrait du vecteur | Souvenir masqué |
-| `pin` / `unpin` | `is_pinned=1/0` | Statut mis à jour |
-| `get_pinned` | Liste les souvenirs pinned d'un personnage | Souvenirs retournés |
-| `merge` | Fusionner deux souvenirs (dédoublonnage) | Souvenir fusionné, ancien supprimé |
-| Tests | Tests unitaires complets | Couverture 100% |
+| `create` | Insérer un souvenir | ✅ Souvenir créé |
+| `get` | Récupérer un souvenir par ID | ✅ Souvenir retourné |
+| `list_by_character` | Liste filtrée (type, is_deleted, is_pinned) | ✅ Filtrage correct |
+| `search_similar` | Recherche vectorielle top-K | 🔴 Résultats par similarité |
+| `update_importance` | Mettre à jour importance/confidence | 🔴 Valeurs mises à jour |
+| `update_referenced_at` | Mettre à jour `last_referenced_at` | 🔴 Timestamp mis à jour |
+| `soft_delete` | `is_deleted=1` + retrait du vecteur | ✅ Souvenir masqué |
+| `pin` / `unpin` | `is_pinned=1/0` | ✅ Statut mis à jour |
+| `get_pinned` | Liste les souvenirs pinned d'un personnage | 🔴 Souvenirs retournés |
+| `merge` | Fusionner deux souvenirs (dédoublonnage) | 🔴 Souvenir fusionné, ancien supprimé |
+| Tests | Tests unitaires complets | ✅ Couverture des opérations CRUD |
 
 ```python
 # app/core/repositories/memory_repository.py
@@ -285,14 +285,14 @@ class MemoryRepository:
     async def rebuild_index(self, character_id: str): ...
 ```
 
-### 4.4 `WorldStateRepository` (S10–S11) 🟡
+### 4.4 `WorldStateRepository` (S10–S11) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| `get` | Récupérer le world_state d'un personnage | JSON retourné |
-| `upsert` | Créer ou mettre à jour le world_state | Upsert correct |
-| `update_field` | Mettre à jour un champ spécifique du JSON | Champ mis à jour |
-| Tests | Tests unitaires | Couverture 100% |
+| `get` | Récupérer le world_state d'un personnage | ✅ JSON retourné |
+| `upsert` | Créer ou mettre à jour le world_state | ✅ Upsert correct |
+| `update_field` | Mettre à jour un champ spécifique du JSON | ✅ Champ mis à jour |
+| Tests | Tests unitaires | ✅ Couverture 100% |
 
 ```python
 # app/core/repositories/world_state_repository.py

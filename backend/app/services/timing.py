@@ -39,7 +39,5 @@ class TimingContext:
             "dur_judge": self.duration_ms("t_stream_end", "t_judge_end"),
             "dur_self_refine": self.duration_ms("t_judge_end", "t_self_refine_end"),
             "dur_memory_extract": self.duration_ms("t_stream_end", "t_memory_extract_end"),
-            "dur_memory_write": self.duration_ms(
-                "t_memory_extract_end", "t_memory_write_end"
-            ),
+            "dur_memory_write": self.duration_ms("t_memory_extract_end", "t_memory_write_end"),
         }

@@ -32,61 +32,61 @@
 
 ## 3. Phase MVP (v0.1) — Semaines 1–8
 
-### 3.1 Setup projet (S1–S2) 🔴
+### 3.1 Setup projet (S1–S2) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Initialiser le projet Next.js + TypeScript | `npx create-next-app@latest` avec App Router | Build et dev server fonctionnels |
-| Structure dossiers | `app/`, `components/`, `lib/`, `hooks/`, `types/` | Structure créée et documentée |
-| Linting + formatting | ESLint + Prettier configurés | `npm run lint` passe sans erreur |
-| CI basique | Build + lint en CI | Pipeline verte |
-| Types partagés | Définir les interfaces TypeScript (Character, Conversation, Message, etc.) | Fichier `types/` complet |
+| Initialiser le projet Next.js + TypeScript | `npx create-next-app@latest` avec App Router | ✅ Build et dev server fonctionnels |
+| Structure dossiers | `app/`, `components/`, `lib/`, `hooks/`, `types/` | ✅ Structure créée et documentée |
+| Linting + formatting | ESLint + Prettier configurés | ✅ `npm run lint` passe sans erreur |
+| CI basique | Build + lint en CI | ✅ Pipeline verte |
+| Types partagés | Définir les interfaces TypeScript (Character, Conversation, Message, etc.) | ✅ Fichier `types/` complet |
 
-### 3.2 Écran Liste Personnages (S2–S3) 🔴
-
-| Tâche | Détail | CA |
-|-------|--------|-----|
-| Page `/characters` | Liste des personnages avec nom, tags, résumé | Affiche la liste depuis l'API |
-| Card personnage | Composant card avec avatar placeholder, nom, tags | Rendu correct |
-| Actions CRUD | Boutons Créer / Éditer / Supprimer | Appels API fonctionnels |
-| Recherche/filtre | Barre de recherche par nom + filtre par tags | Filtrage côté client |
-| État vide | Message d'accueil quand aucun personnage | Affiché correctement |
-
-### 3.3 Éditeur Personnage (S3–S4) 🔴
+### 3.2 Écran Liste Personnages (S2–S3) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Page `/characters/[id]/edit` | Formulaire complet | Tous les champs du schéma Character |
-| Champs | `name`, `summary`, `persona`, `writing_style`, `scenario`, `first_message`, `boundaries`, `system_rules` | Validation côté client |
-| Tags | Input tags avec auto-complétion | Ajout/suppression de tags |
-| Example dialogues | Éditeur de paires user/assistant (ajout/suppression dynamique) | Liste dynamique fonctionnelle |
-| Sauvegarde | PUT/POST vers l'API avec feedback | Toast succès/erreur |
-| Création | Page `/characters/new` avec formulaire vierge | Redirige vers `/characters/[id]` après création |
+| Page `/characters` | Liste des personnages avec nom, tags, résumé | ✅ Affiche la liste depuis l'API |
+| Card personnage | Composant card avec avatar placeholder, nom, tags | ✅ Rendu correct |
+| Actions CRUD | Boutons Créer / Éditer / Supprimer | ✅ Appels API fonctionnels |
+| Recherche/filtre | Barre de recherche par nom + filtre par tags | ✅ Filtrage côté client |
+| État vide | Message d'accueil quand aucun personnage | ✅ Affiché correctement |
 
-### 3.4 Écran Chat (S4–S7) 🔴
-
-| Tâche | Détail | CA |
-|-------|--------|-----|
-| Page `/chat/[conversationId]` | Interface de chat | Affichage des messages |
-| Liste conversations | Sidebar avec conversations groupées par personnage | Navigation entre conversations |
-| Nouvelle conversation | Bouton + sélection personnage → first_message auto | Conversation créée, first_message affiché |
-| Envoi message | Input + bouton envoyer | Message user envoyé via API |
-| **Streaming SSE** | Connexion `EventSource` vers `/chat/stream` | Tokens affichés progressivement |
-| Event `done` | Parser l'event `done` avec `message_id` + résumé `meta` (cf. [Addendum §A.1](addendum-v1.1.md#a1-tour-complet-sse-streaming-côté-ui)) | Message ID reçu, meta accessible |
-| Indicateur de génération | Spinner / animation pendant la génération | Visible pendant le streaming |
-| Scroll auto | Auto-scroll vers le bas pendant le streaming | Scroll fluide |
-| Formatage messages | Markdown basique (gras, italique, paragraphes) | Rendu Markdown correct |
-| Régénération | Bouton "Regenerate" sur le dernier message assistant | Nouveau message assistant généré |
-| Responsive | Fonctionne sur desktop (min 1024px) | Layout correct |
-
-### 3.5 Navigation & Layout (S2–S3) 🟡
+### 3.3 Éditeur Personnage (S3–S4) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Layout principal | Sidebar + zone principale | Navigation fluide |
-| Sidebar | Personnages + conversations | Collapse/expand |
-| Thème sombre | Dark mode par défaut | Cohérent sur tous les écrans |
-| Loading states | Skeletons + spinners | UX fluide |
+| Page `/characters/[id]/edit` | Formulaire complet | ✅ Tous les champs du schéma Character |
+| Champs | `name`, `summary`, `persona`, `writing_style`, `scenario`, `first_message`, `boundaries`, `system_rules` | ✅ Validation côté client |
+| Tags | Input tags avec auto-complétion | ✅ Ajout/suppression de tags (comma-separated) |
+| Example dialogues | Éditeur de paires user/assistant (ajout/suppression dynamique) | ✅ Liste dynamique fonctionnelle |
+| Sauvegarde | PUT/POST vers l'API avec feedback | ✅ Erreur affichée en cas d'échec |
+| Création | Page `/characters/new` avec formulaire vierge | ✅ Redirige vers `/characters` après création |
+
+### 3.4 Écran Chat (S4–S7) ✅
+
+| Tâche | Détail | CA |
+|-------|--------|-----|
+| Page `/chat/[conversationId]` | Interface de chat | ✅ Affichage des messages |
+| Liste conversations | Sidebar avec conversations groupées par personnage | ✅ Navigation entre conversations |
+| Nouvelle conversation | Bouton + sélection personnage → first_message auto | ✅ Conversation créée, first_message affiché |
+| Envoi message | Input + bouton envoyer | ✅ Message user envoyé via API |
+| **Streaming SSE** | Connexion `EventSource` vers `/chat/stream` | ✅ Tokens affichés progressivement |
+| Event `done` | Parser l'event `done` avec `message_id` + résumé `meta` (cf. [Addendum §A.1](addendum-v1.1.md#a1-tour-complet-sse-streaming-côté-ui)) | ✅ Message ID reçu, meta accessible |
+| Indicateur de génération | Spinner / animation pendant la génération | ✅ Visible pendant le streaming |
+| Scroll auto | Auto-scroll vers le bas pendant le streaming | ✅ Scroll fluide |
+| Formatage messages | Markdown basique (gras, italique, paragraphes) | ✅ Rendu Markdown correct |
+| Régénération | Bouton "Regenerate" sur le dernier message assistant | ✅ Nouveau message assistant généré |
+| Responsive | Fonctionne sur desktop (min 1024px) | ✅ Layout correct |
+
+### 3.5 Navigation & Layout (S2–S3) ✅
+
+| Tâche | Détail | CA |
+|-------|--------|-----|
+| Layout principal | Sidebar + zone principale | ✅ Navigation fluide |
+| Sidebar | Personnages + conversations | ✅ Collapse/expand |
+| Thème sombre | Dark mode par défaut | ✅ Cohérent sur tous les écrans |
+| Loading states | Skeletons + spinners | ✅ UX fluide |
 
 ---
 
@@ -105,11 +105,11 @@
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Page `/settings` | Configuration profil modèle | Sélection du profil (balanced, max_quality, fast, test) |
-| Paramètres génération | Sliders : temperature, top_p, max_tokens | Valeurs envoyées au backend |
-| best-of-N | Slider N (1–7) | Valeur mise à jour |
-| self-refine | Toggle on/off | Valeur mise à jour |
-| Contexte max | Affichage contexte actuel | Informatif |
+| Page `/settings` | Configuration profil modèle | ✅ Sélection du profil (balanced, max_quality, fast, test) |
+| Paramètres génération | Sliders : temperature, top_p, max_tokens | 🔴 Valeurs envoyées au backend |
+| best-of-N | Slider N (1–7) | 🔴 Valeur mise à jour |
+| self-refine | Toggle on/off | 🔴 Valeur mise à jour |
+| Contexte max | Affichage contexte actuel | 🔴 Informatif |
 
 ### 4.3 Bouton "Assistance IA" (S12–S13) 🟡
 

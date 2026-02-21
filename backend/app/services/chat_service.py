@@ -153,18 +153,20 @@ class ChatService:
         )
 
         # 8. Emit done event
-        yield _sse({
-            "done": True,
-            "message_id": assistant_msg.id,
-            "meta": {
-                "request_id": request_id,
-                "profile_id": profile_id,
-                "latency_ms": {
-                    "dur_total": latency_meta["dur_total"],
-                    "dur_generate": latency_meta["dur_generate"],
+        yield _sse(
+            {
+                "done": True,
+                "message_id": assistant_msg.id,
+                "meta": {
+                    "request_id": request_id,
+                    "profile_id": profile_id,
+                    "latency_ms": {
+                        "dur_total": latency_meta["dur_total"],
+                        "dur_generate": latency_meta["dur_generate"],
+                    },
                 },
-            },
-        })
+            }
+        )
 
 
 def _sse(data: dict[str, Any]) -> str:
