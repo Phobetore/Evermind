@@ -112,7 +112,7 @@
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Hook post-génération | Après chaque réponse assistant, déclencher l'extraction mémoire | 🔴 Pipeline appelé automatiquement |
-| Hook pré-génération | Avant génération, retrieval mémoire → injection dans le prompt | 🔴 Souvenirs injectés |
+| Hook pré-génération | Avant génération, retrieval mémoire → injection dans le prompt | ✅ Souvenirs injectés (assembler supporte world_state + memories) |
 | Endpoint mémoire | `GET /characters/{id}/memories?type=...` | ✅ Liste filtrée |
 | Forget | `POST /characters/{id}/memories/forget` (soft delete) | ✅ `is_deleted=1` |
 | Rebuild | `POST /characters/{id}/memories/rebuild` (re-extraction) | 🔴 Pipeline relancé |
@@ -136,14 +136,14 @@
 | Parsing résultat | Extraction JSON depuis la réponse LLM | Parsing robuste |
 | Fallback | Si parsing échoue, retourner les champs partiellement remplis | Pas de crash |
 
-### 4.4 Import / Export (S13–S14) 🟡
+### 4.4 Import / Export (S13–S14) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| `POST /characters/import` | Upload JSON → création personnage | Validation schéma strict |
-| `GET /characters/{id}/export` | Export personnage complet en JSON | Format conforme v1 |
-| Validation | Schéma JSON validé (Pydantic) | Erreur 422 si invalide |
-| Memory seed | Import des `memory_seed` en mémoires initiales | Mémoires créées |
+| `POST /characters/import` | Upload JSON → création personnage | ✅ Validation schéma strict |
+| `GET /characters/{id}/export` | Export personnage complet en JSON | ✅ Format conforme v1 |
+| Validation | Schéma JSON validé (Pydantic) | ✅ Erreur 422 si invalide |
+| Memory seed | Import des `memory_seed` en mémoires initiales | 🔴 Mémoires créées |
 
 ---
 

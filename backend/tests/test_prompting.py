@@ -150,7 +150,14 @@ def test_build_chat_messages_no_world_state_or_memories() -> None:
 def test_build_chat_messages_assembly_order() -> None:
     """Verify the C.7 assembly order: system → controller → core → world → memory → history."""
     char = _make_character()
-    ws = {"location": "TESTLOC", "relationship_state": "", "active_goals": "", "open_threads": "", "inventory": "", "notes": ""}
+    ws = {
+        "location": "TESTLOC",
+        "relationship_state": "",
+        "active_goals": "",
+        "open_threads": "",
+        "inventory": "",
+        "notes": "",
+    }
     mems = [_make_memory(content="TESTMEM")]
     history = [_make_message("user", "TESTHIST")]
     msgs = build_chat_messages(char, history, "Go", world_state=ws, memories=mems)

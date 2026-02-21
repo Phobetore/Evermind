@@ -34,18 +34,18 @@
 
 ## 3. Phase MVP (v0.1) — Semaines 1–8
 
-### 3.1 Fondations prompts (S1–S4) 🔴
+### 3.1 Fondations prompts (S1–S4) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Prompt système RP strict | Template v1.1 avec `{{placeholders}}` (cf. [Addendum §C.1](addendum-v1.1.md#c1-chat--system-prompt-rp-strict-stable)) | Prompt fonctionnel, personnage respecté |
-| Controller prompt | Template orchestration optionnel (cf. [Addendum §C.2](addendum-v1.1.md#c2-chat--developercontroller-prompt-orchestration)) | Injecté si runtime le supporte |
-| Character Core block | Template avec tous les champs personnage (cf. [Addendum §C.3](addendum-v1.1.md#c3-character-core-block-injecté-tel-quel)) | Bloc complet injecté |
-| World State block | Template état du monde (cf. [Addendum §C.4](addendum-v1.1.md#c4-world-state-block-injecté-tel-quel)) | Bloc injecté |
-| Format injection mémoire | Format `[type\|sim=X\|imp=Y\|conf=Z] contenu` (cf. [Addendum §C.5](addendum-v1.1.md#c5-memory-block-format-final-concis)) | Intégré dans le prompt final |
-| Assembleur de prompts | Module qui construit le prompt complet dans l'ordre v1.1 (cf. [Addendum §C.7](addendum-v1.1.md#c7-final-chat-prompt-assemblage-recommandé)) : system → controller → core → world → memory → history → user | Sortie correcte testée |
-| Fenêtre historique | Logique pour sélectionner les N derniers messages (cf. [Addendum §C.6](addendum-v1.1.md#c6-conversation-history-block-fenêtre-courte)) | Configurable (10–20) |
-| Tests unitaires prompts | Vérifier le format de sortie | Tests verts |
+| Prompt système RP strict | Template v1.1 avec `{{placeholders}}` (cf. [Addendum §C.1](addendum-v1.1.md#c1-chat--system-prompt-rp-strict-stable)) | ✅ Prompt fonctionnel, personnage respecté |
+| Controller prompt | Template orchestration optionnel (cf. [Addendum §C.2](addendum-v1.1.md#c2-chat--developercontroller-prompt-orchestration)) | ✅ Injecté si runtime le supporte |
+| Character Core block | Template avec tous les champs personnage (cf. [Addendum §C.3](addendum-v1.1.md#c3-character-core-block-injecté-tel-quel)) | ✅ Bloc complet injecté |
+| World State block | Template état du monde (cf. [Addendum §C.4](addendum-v1.1.md#c4-world-state-block-injecté-tel-quel)) | ✅ Bloc injecté |
+| Format injection mémoire | Format `[type\|sim=X\|imp=Y\|conf=Z] contenu` (cf. [Addendum §C.5](addendum-v1.1.md#c5-memory-block-format-final-concis)) | ✅ Intégré dans le prompt final |
+| Assembleur de prompts | Module qui construit le prompt complet dans l'ordre v1.1 (cf. [Addendum §C.7](addendum-v1.1.md#c7-final-chat-prompt-assemblage-recommandé)) : system → controller → core → world → memory → history → user | ✅ Sortie correcte testée |
+| Fenêtre historique | Logique pour sélectionner les N derniers messages (cf. [Addendum §C.6](addendum-v1.1.md#c6-conversation-history-block-fenêtre-courte)) | ✅ Configurable (limit=20) |
+| Tests unitaires prompts | Vérifier le format de sortie | ✅ Tests verts (8 tests) |
 
 ### 3.2 Mémoire minimale (S4–S7) 🟡
 
@@ -70,14 +70,14 @@
 
 ## 4. Phase v0.2 — Semaines 9–14
 
-### 4.1 Pipeline d'extraction mémoire (S9–S11) 🔴
+### 4.1 Pipeline d'extraction mémoire (S9–S11) 🟡
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Prompt extraction JSON | Template strict v1.1 pour Qwen3-4B (cf. [Addendum §D.1](addendum-v1.1.md#d1-memory-extraction-prompt-json-strict)) | JSON valide : `semantic`, `episodic`, `world_updates`, `contradictions` |
-| Parsing JSON robuste | Parser la sortie LLM avec fallback (regex si JSON cassé) | Taux de parsing > 95% |
-| Filtrage confidence | Ne pas stocker si `confidence < 0.6` | Seuil respecté |
-| Gestion contradictions | Enregistrer sans écraser l'ancien | Contradictions stockées séparément |
+| Prompt extraction JSON | Template strict v1.1 pour Qwen3-4B (cf. [Addendum §D.1](addendum-v1.1.md#d1-memory-extraction-prompt-json-strict)) | ✅ JSON valide : `semantic`, `episodic`, `world_updates`, `contradictions` |
+| Parsing JSON robuste | Parser la sortie LLM avec fallback (regex si JSON cassé) | ✅ Taux de parsing > 95% (markdown fence stripping + fallback) |
+| Filtrage confidence | Ne pas stocker si `confidence < 0.6` | 🔴 Seuil respecté |
+| Gestion contradictions | Enregistrer sans écraser l'ancien | 🔴 Contradictions stockées séparément |
 | Insertion en DB | Créer les `MemoryItem` en base + vecteurs | Mémoires persistées |
 | Hook post-génération | Intégration dans le flux chat (après chaque réponse assistant) — cf. [Addendum §A.1](addendum-v1.1.md#a1-tour-complet-sse-streaming-côté-ui) étapes 14–19 | Pipeline déclenché automatiquement |
 | Tests | Tests avec des conversations simulées | Extraction correcte |

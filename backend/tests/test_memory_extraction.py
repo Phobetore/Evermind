@@ -31,7 +31,9 @@ def test_parse_extraction_response_valid() -> None:
 
 
 def test_parse_extraction_response_with_markdown_fences() -> None:
-    raw = '```json\n{"semantic": [], "episodic": [], "world_updates": [], "contradictions": []}\n```'
+    raw = (
+        '```json\n{"semantic": [], "episodic": [], "world_updates": [], "contradictions": []}\n```'
+    )
     result = parse_extraction_response(raw)
     assert result["semantic"] == []
     assert result["episodic"] == []

@@ -94,7 +94,7 @@ async def import_character(
     if not character_data or not isinstance(character_data, dict):
         raise HTTPException(
             status_code=422,
-            detail="Invalid import format: expected {\"version\": \"1\", \"character\": {…}}",
+            detail='Invalid import format: expected {"version": "1", "character": {…}}',
         )
     # Strip any server-side fields that may have leaked in
     for key in ("id", "created_at", "updated_at"):

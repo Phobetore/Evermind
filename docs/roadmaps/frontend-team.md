@@ -101,12 +101,12 @@
 | UI branches | Indicateur visuel de branchement | Clair pour l'utilisateur |
 | Suppression branche | Supprimer une branche entière | Confirmation + suppression |
 
-### 4.2 Settings (S11–S12) 🟡
+### 4.2 Settings (S11–S12) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Page `/settings` | Configuration profil modèle | ✅ Sélection du profil (balanced, max_quality, fast, test) |
-| Paramètres génération | Sliders : temperature, top_p, max_tokens | 🔴 Valeurs envoyées au backend |
+| Paramètres génération | Sliders : temperature, top_p, max_tokens | ✅ Valeurs envoyées au backend via localStorage |
 | best-of-N | Slider N (1–7) | 🔴 Valeur mise à jour |
 | self-refine | Toggle on/off | 🔴 Valeur mise à jour |
 | Contexte max | Affichage contexte actuel | 🔴 Informatif |
@@ -125,10 +125,10 @@
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Retry (renvoi) | Renvoyer le dernier message user | Nouvelle génération |
-| Édition message user | Modifier un message user passé | Message mis à jour + régénération |
-| Copier message | Bouton copier dans le presse-papier | Feedback visuel |
-| Horodatage | Affichage date/heure des messages | Tooltip ou inline |
+| Retry (renvoi) | Renvoyer le dernier message user | ✅ Nouvelle génération (Regenerate button) |
+| Édition message user | Modifier un message user passé | 🔴 Message mis à jour + régénération |
+| Copier message | Bouton copier dans le presse-papier | ✅ Feedback visuel |
+| Horodatage | Affichage date/heure des messages | ✅ Tooltip ou inline |
 
 ---
 
