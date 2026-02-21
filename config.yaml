@@ -1,0 +1,67 @@
+# Evermind — Configuration
+# See docs/roadmaps/infrastructure-team.md for full schema documentation.
+
+bind_host: "127.0.0.1"
+frontend_port: 3000
+backend_port: 8000
+
+llm_servers:
+  chat:
+    port: 8081
+    model_path: "models/chat/gemma-3-12b-it-heretic.gguf"
+    ctx: 8192
+    n_gpu_layers: -1
+    backend: "vulkan"
+    quant: "q4_k_m"
+    threads: 4
+  memory:
+    port: 8082
+    model_path: "models/memory/qwen3-4b-heretic.gguf"
+    ctx: 4096
+    n_gpu_layers: -1
+    backend: "vulkan"
+    quant: "q4_k_m"
+    threads: 4
+  judge:
+    port: 8083
+    model_path: "models/judge/qwen3-4b-heretic.gguf"
+    ctx: 4096
+    n_gpu_layers: -1
+    backend: "vulkan"
+    quant: "q4_k_m"
+    threads: 4
+
+embeddings:
+  model_name: "intfloat/e5-small-v2"
+  device: "cpu"
+  dimension: 384
+
+profiles:
+  balanced:
+    chat_server: "chat"
+    memory_server: "memory"
+    judge_server: "judge"
+    best_of_n: 3
+    self_refine: true
+  max_quality:
+    chat_server: "chat"
+    memory_server: "memory"
+    judge_server: "judge"
+    best_of_n: 5
+    self_refine: true
+  fast:
+    chat_server: "chat"
+    memory_server: "memory"
+    judge_server: "judge"
+    best_of_n: 1
+    self_refine: false
+  test:
+    chat_server: "chat"
+    memory_server: "memory"
+    judge_server: "judge"
+    best_of_n: 1
+    self_refine: false
+
+logging:
+  level: "INFO"
+  dir: "logs/"
