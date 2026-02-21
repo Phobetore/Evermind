@@ -103,8 +103,12 @@ class VectorIndex:
             sims = np.where(mask, sims, -2.0)
 
         k = min(top_k, len(self._ids))
-        top_indices = np.argpartition(-sims, k)[:k]
-        top_indices = top_indices[np.argsort(-sims[top_indices])]
+        if k >= len(self._ids):
+            # No need to partition — just sort everything
+            top_indices = np.argsort(-sims)[:k]
+        else:
+            top_indices = np.argpartition(-sims, k)[:k]
+            top_indices = top_indices[np.argsort(-sims[top_indices])]
 
         return [(self._ids[i], float(sims[i])) for i in top_indices if sims[i] > -1.0]
 
