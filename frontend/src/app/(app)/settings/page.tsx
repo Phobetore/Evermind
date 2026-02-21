@@ -8,16 +8,16 @@ import {
 } from "@/lib/generation-params";
 import { api } from "@/lib/api";
 import type { Profile } from "@/types";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export default function SettingsPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState("balanced");
   const [genParams, setGenParams] = useState<GenerationParams>(GENERATION_DEFAULTS);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setGenParams(getGenerationParams());
+  const loadProfiles = useCallback(() => {
     api
       .get<Profile[]>("/profiles")
       .then((data) => {
@@ -28,12 +28,35 @@ export default function SettingsPage() {
       })
       .catch(() => setProfiles([]))
       .finally(() => setLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedProfile]);
+
+  useEffect(() => {
+    setGenParams(getGenerationParams());
+    loadProfiles();
+  }, [loadProfiles]);
 
   function updateParam<K extends keyof GenerationParams>(key: K, value: GenerationParams[K]) {
     const updated = { ...genParams, [key]: value };
     setGenParams(updated);
     saveGenerationParams(updated);
+  }
+
+  async function updateProfileField(field: string, value: number | boolean) {
+    const active = profiles.find((p) => p.id === selectedProfile);
+    if (!active) return;
+    setSaving(true);
+    try {
+      const updated = await api.put<Profile>(`/profiles/${active.id}`, {
+        [field]: value,
+      });
+      setProfiles((prev) =>
+        prev.map((p) => (p.id === updated.id ? updated : p))
+      );
+    } catch {
+      // Silently ignore — the backend may not persist changes to disk
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
@@ -98,13 +121,16 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Profile Details */}
+      {/* Profile Details & Controls */}
       {active && (
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-4 text-zinc-200">
             Profile Details
+            {saving && (
+              <span className="ml-2 text-xs text-zinc-500 font-normal">Saving…</span>
+            )}
           </h2>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-6">
             <dl className="grid gap-4 sm:grid-cols-2">
               <div>
                 <dt className="text-xs text-zinc-500 mb-1">Chat Server</dt>
@@ -119,16 +145,70 @@ export default function SettingsPage() {
                 <dd className="text-sm">{active.judge_server}</dd>
               </div>
               <div>
-                <dt className="text-xs text-zinc-500 mb-1">Best-of-N</dt>
-                <dd className="text-sm">{active.best_of_n}</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-zinc-500 mb-1">Self-refine</dt>
-                <dd className="text-sm">
-                  {active.self_refine ? "Enabled" : "Disabled"}
-                </dd>
+                <dt className="text-xs text-zinc-500 mb-1">Context Window</dt>
+                <dd className="text-sm text-zinc-400">8,192 tokens (chat default)</dd>
               </div>
             </dl>
+
+            {/* Best-of-N Slider */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-zinc-300">
+                  Best-of-N
+                </label>
+                <span className="text-sm text-zinc-400 tabular-nums">
+                  {active.best_of_n}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={7}
+                step={1}
+                value={active.best_of_n}
+                onChange={(e) =>
+                  updateProfileField("best_of_n", parseInt(e.target.value))
+                }
+                className="w-full accent-blue-500"
+              />
+              <div className="flex justify-between text-xs text-zinc-500 mt-1">
+                <span>Single (1)</span>
+                <span>Max quality (7)</span>
+              </div>
+              <p className="text-xs text-zinc-500 mt-1">
+                Generate N candidate responses and pick the best one using the
+                judge model.
+              </p>
+            </div>
+
+            {/* Self-refine Toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-zinc-300">
+                  Self-refine
+                </label>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  After selecting the best candidate, refine it using the
+                  judge&apos;s suggestions.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  updateProfileField("self_refine", !active.self_refine)
+                }
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  active.self_refine ? "bg-blue-500" : "bg-zinc-700"
+                }`}
+                role="switch"
+                aria-checked={active.self_refine}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    active.self_refine ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </section>
       )}

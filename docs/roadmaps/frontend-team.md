@@ -107,9 +107,9 @@
 |-------|--------|-----|
 | Page `/settings` | Configuration profil modèle | ✅ Sélection du profil (balanced, max_quality, fast, test) |
 | Paramètres génération | Sliders : temperature, top_p, max_tokens | ✅ Valeurs envoyées au backend via localStorage |
-| best-of-N | Slider N (1–7) | 🔴 Valeur mise à jour |
-| self-refine | Toggle on/off | 🔴 Valeur mise à jour |
-| Contexte max | Affichage contexte actuel | 🔴 Informatif |
+| best-of-N | Slider N (1–7) | ✅ Valeur mise à jour |
+| self-refine | Toggle on/off | ✅ Valeur mise à jour |
+| Contexte max | Affichage contexte actuel | ✅ Informatif |
 
 ### 4.3 Bouton "Assistance IA" (S12–S13) 🟡
 
@@ -138,21 +138,21 @@
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Page `/characters/[id]/memories` | Vue des souvenirs du personnage | Liste paginée |
-| Filtres | Par type (semantic/episodic/world), par tags | Filtrage fonctionnel |
-| Détail souvenir | Modal avec content, importance, confidence, dates | Informations complètes |
-| Actions | Pin / Forget (soft delete) | Appels API fonctionnels |
-| World State | Affichage JSON du world_state | Visualisation lisible |
-| Édition World State | Formulaire d'édition du world_state | PUT API fonctionnel |
+| Page `/characters/[id]/memories` | Vue des souvenirs du personnage | ✅ Liste paginée |
+| Filtres | Par type (semantic/episodic/world), par tags | ✅ Filtrage fonctionnel |
+| Détail souvenir | Modal avec content, importance, confidence, dates | ✅ Informations complètes |
+| Actions | Pin / Forget (soft delete) | ✅ Appels API fonctionnels |
+| World State | Affichage JSON du world_state | ✅ Visualisation lisible |
+| Édition World State | Formulaire d'édition du world_state | 🔴 PUT API fonctionnel |
 
-### 5.2 Import / Export Personnages (S17–S18) 🔴
+### 5.2 Import / Export Personnages (S17–S18) 🟡
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Export | Bouton "Exporter" → téléchargement JSON | Fichier JSON conforme au schéma v1 |
-| Import | Bouton "Importer" → upload fichier JSON | Personnage créé avec toutes les données |
-| Validation import | Vérification du schéma JSON côté client | Erreur claire si format invalide |
-| Preview import | Aperçu du personnage avant confirmation | Modal de preview |
+| Export | Bouton "Exporter" → téléchargement JSON | ✅ Fichier JSON conforme au schéma v1 |
+| Import | Bouton "Importer" → upload fichier JSON | ✅ Personnage créé avec toutes les données |
+| Validation import | Vérification du schéma JSON côté client | ✅ Erreur claire si format invalide |
+| Preview import | Aperçu du personnage avant confirmation | 🔴 Modal de preview |
 
 ### 5.3 Benchmarks UI (S18–S19) 🟢
 

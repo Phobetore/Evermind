@@ -5,12 +5,13 @@ import { CharacterCardSkeleton } from "@/components/ui/Skeleton";
 import { api } from "@/lib/api";
 import type { Character } from "@/types";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export default function CharactersPage() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,16 +40,65 @@ export default function CharactersPage() {
     }
   }
 
+  async function handleExport(id: string) {
+    try {
+      const data = await api.get<Record<string, unknown>>(
+        `/characters/${id}/export`
+      );
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const char = characters.find((c) => c.id === id);
+      a.download = `${char?.name ?? "character"}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Export failed");
+    }
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      await api.post<Character>("/characters/import", json);
+      await load();
+    } catch {
+      alert("Import failed — invalid character file");
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Characters</h1>
-        <Link
-          href="/characters/new"
-          className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200"
-        >
-          + New Character
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800"
+          >
+            📥 Import
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleImport}
+          />
+          <Link
+            href="/characters/new"
+            className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200"
+          >
+            + New Character
+          </Link>
+        </div>
       </div>
 
       <input
@@ -79,6 +129,7 @@ export default function CharactersPage() {
               key={char.id}
               character={char}
               onDelete={handleDelete}
+              onExport={handleExport}
             />
           ))}
         </div>

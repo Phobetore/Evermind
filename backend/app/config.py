@@ -18,6 +18,7 @@ class LLMServerConfig(BaseModel):
     backend: str = "vulkan"
     quant: str = "q4_k_m"
     threads: int = 4
+    timeout: float = 120.0  # per-server request timeout in seconds
 
 
 class EmbeddingsConfig(BaseModel):
