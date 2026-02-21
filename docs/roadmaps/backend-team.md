@@ -3,6 +3,8 @@
 > **Stack :** Python 3.11+ · FastAPI · Uvicorn · SQLite
 > **Port :** `127.0.0.1:8000`
 > **Responsable :** Équipe Backend
+>
+> 📎 Voir aussi : **[Addendum v1.1](addendum-v1.1.md)** — diagramme de séquence (§A), schéma meta JSON (§B), conventions timing (§E)
 
 ---
 
@@ -75,9 +77,11 @@
 | Client LLM | Appel HTTP vers serveur LLM (API OpenAI-like) | Streaming tokens depuis llama.cpp |
 | Assemblage prompt | Concaténation : system + character core + historique | Prompt complet envoyé au LLM |
 | Historique fenêtré | Derniers 10–20 messages de la conversation | Fenêtre configurable |
-| Sauvegarde message assistant | Après fin du stream, insérer en DB | Message persisté |
+| Sauvegarde message assistant | Après fin du stream, insérer en DB avec `meta` JSON complet (cf. [Addendum §B](addendum-v1.1.md#b-spécification-exacte-des-champs-meta)) | Message + meta persistés |
+| Event `done` | Émettre l'event SSE `done` avec `message_id` + résumé meta (cf. [Addendum §A.1](addendum-v1.1.md#a1-tour-complet-sse-streaming-côté-ui)) | Event conforme |
+| Timing pipeline | Implémenter `TimingContext` pour mesurer les latences (cf. [Addendum §E](addendum-v1.1.md#e-conventions-de-timing--tokens-implémentation)) | Latences enregistrées dans meta |
 | Gestion erreurs | Timeout, LLM down, ctx overflow | Événement SSE `error` |
-| Paramètres génération | `temperature`, `top_p`, `max_tokens` depuis le body | Valeurs transmises au LLM |
+| Paramètres génération | `temperature`, `top_p`, `max_tokens`, `seed` depuis le body | Valeurs transmises au LLM + enregistrées dans meta |
 | Tests | Test streaming avec mock LLM | Stream fonctionnel |
 
 ### 3.5 Gestion processus LLM (S3–S4) 🔴
@@ -149,11 +153,12 @@
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Génération N candidats | Appeler le LLM chat N fois en parallèle | N réponses obtenues |
-| Appel juge | Envoyer les N candidats au LLM juge | Scores JSON retournés |
+| Appel juge | Envoyer les N candidats au LLM juge (cf. [Addendum §D.2](addendum-v1.1.md#d2-judge-prompt-rank-candidates--optional-rewrite-suggestion)) | Scores JSON retournés |
 | Sélection meilleur | Choisir le candidat avec le meilleur score | ID best retourné |
-| Self-refine | Si activé, envoyer `rewrite_suggestion` au LLM chat | Réponse finale améliorée |
+| Self-refine | Si activé, envoyer `rewrite_suggestion` au LLM chat (cf. [Addendum §D.3](addendum-v1.1.md#d3-self-refine-prompt-final-pass)) | Réponse finale améliorée |
 | Streaming final | Streamer seulement la réponse finale (ou la meilleure) | UX transparente |
-| Latence | Log de la latence totale (N générations + juge + refine) | Métriques disponibles |
+| Meta complète | Écrire le meta JSON complet (pipeline, usage, latency_ms, retrieval, memory_extract) selon [Addendum §B.2](addendum-v1.1.md#b2-schéma-json-strict--assistant-messagesmeta-pour-roleassistant) | Meta conforme au schéma v1.1 |
+| Latence | Log de la latence totale (N générations + juge + refine) via `TimingContext` (cf. [Addendum §E](addendum-v1.1.md#e-conventions-de-timing--tokens-implémentation)) | Métriques disponibles |
 
 ### 5.2 Benchmarks (S17–S18) 🟡
 
@@ -289,13 +294,16 @@ async def chat_stream(request: ChatStreamRequest):
     async def event_generator():
         async for token in chat_service.generate_stream(request):
             yield f"data: {json.dumps({'token': token})}\n\n"
-        yield f"data: {json.dumps({'done': True})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'message_id': msg_id, 'meta': meta_summary})}\n\n"
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream"
     )
 ```
+
+> **Note v1.1 :** l'event `done` inclut désormais `message_id` et un résumé `meta`
+> (cf. [Addendum §A.1](addendum-v1.1.md#a1-tour-complet-sse-streaming-côté-ui) et [§B.2](addendum-v1.1.md#b2-schéma-json-strict--assistant-messagesmeta-pour-roleassistant)).
 
 ### 6.4 Client LLM
 

@@ -3,6 +3,8 @@
 > **Stack :** SQLite (WAL) · Index vectoriel (sqlite-vss / faiss / hnswlib) · Python
 > **Fichier DB :** `data/app.db`
 > **Responsable :** Équipe Database
+>
+> 📎 Voir aussi : **[Addendum v1.1](addendum-v1.1.md)** — schéma JSON strict pour `messages.meta` (§B), aucune migration nécessaire (champ `meta TEXT` existant)
 
 ---
 
@@ -132,7 +134,7 @@ class CharacterRepository:
 | Pagination messages | Limit + offset (ou cursor-based) | Pagination correcte |
 | Fenêtre historique | Fonction `get_recent_messages(conversation_id, limit=20)` | N derniers messages retournés |
 | Tri | Messages triés par `created_at` ASC | Ordre chronologique |
-| Meta JSON | Champ `meta` sérialisé/désérialisé comme dict | Correct |
+| Meta JSON | Champ `meta` sérialisé/désérialisé comme dict — schéma strict v1.1 (cf. [Addendum §B](addendum-v1.1.md#b-spécification-exacte-des-champs-meta)) | Correct |
 | Tests | Tests unitaires pour chaque opération | Couverture 100% |
 
 ```python

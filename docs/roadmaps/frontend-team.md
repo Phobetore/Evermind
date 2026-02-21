@@ -3,6 +3,8 @@
 > **Stack :** Next.js (ou SvelteKit) · TypeScript · SSE streaming
 > **Port :** `localhost:3000`
 > **Responsable :** Équipe Frontend
+>
+> 📎 Voir aussi : **[Addendum v1.1](addendum-v1.1.md)** — diagramme SSE séquence (§A), format event `done` avec `message_id` + `meta` (§B)
 
 ---
 
@@ -70,6 +72,7 @@
 | Nouvelle conversation | Bouton + sélection personnage → first_message auto | Conversation créée, first_message affiché |
 | Envoi message | Input + bouton envoyer | Message user envoyé via API |
 | **Streaming SSE** | Connexion `EventSource` vers `/chat/stream` | Tokens affichés progressivement |
+| Event `done` | Parser l'event `done` avec `message_id` + résumé `meta` (cf. [Addendum §A.1](addendum-v1.1.md#a1-tour-complet-sse-streaming-côté-ui)) | Message ID reçu, meta accessible |
 | Indicateur de génération | Spinner / animation pendant la génération | Visible pendant le streaming |
 | Scroll auto | Auto-scroll vers le bas pendant le streaming | Scroll fluide |
 | Formatage messages | Markdown basique (gras, italique, paragraphes) | Rendu Markdown correct |
@@ -247,8 +250,39 @@ interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   created_at: string;
-  meta: Record<string, unknown>;
+  meta: MessageMeta;  // v1.1: typed meta (see Addendum §B)
 }
+
+// types/meta.ts (v1.1)
+// See full schema in Addendum §B.2
+interface AssistantMeta {
+  schema_version: string;
+  request_id: string;
+  profile_id: string;
+  pipeline: {
+    best_of_n: number;
+    self_refine: boolean;
+    judge_enabled: boolean;
+    memory_extract_enabled: boolean;
+    memory_write_enabled: boolean;
+  };
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  latency_ms: {
+    dur_total: number;
+    dur_generate: number;
+    dur_judge: number;
+    dur_self_refine: number;
+    dur_memory_extract: number;
+    dur_memory_write: number;
+  };
+  errors: string[];
+}
+
+type MessageMeta = AssistantMeta | Record<string, unknown>;
 
 // types/memory.ts
 interface MemoryItem {

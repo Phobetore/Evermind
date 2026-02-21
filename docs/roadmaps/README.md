@@ -1,6 +1,6 @@
 # Roadmaps Équipes — Projet Evermind
 
-> **Version :** v1.0 (roadmaps)
+> **Version :** v1.1 (roadmaps + addendum)
 > **Date :** Février 2026
 
 ---
@@ -10,6 +10,10 @@
 Ce dossier contient les roadmaps détaillées pour chaque équipe du projet Evermind.
 Chaque document décrit les responsabilités, les livrables par phase (MVP → v0.2 → v1.0),
 les dépendances inter-équipes, et les critères de validation.
+
+L'**[Addendum v1.1](addendum-v1.1.md)** complète les roadmaps v1.0 avec un diagramme de séquence
+du tour complet, la spécification exacte des champs `meta`, les templates prompts finalisés
+(placeholders prêts à copier), et les conventions de timing & tokens.
 
 ---
 
@@ -22,6 +26,7 @@ les dépendances inter-équipes, et les critères de validation.
 | 3 | **AI & Mémoire** | [ai-memory-team.md](ai-memory-team.md) | Pipeline mémoire, prompting, best-of-N, self-refine, juge |
 | 4 | **Infrastructure / DevOps** | [infrastructure-team.md](infrastructure-team.md) | LLM runtime, scripts start/stop, config, logs, déploiement |
 | 5 | **Base de données / Stockage** | [database-team.md](database-team.md) | SQLite, migrations, index vectoriel, backups |
+| — | **Addendum v1.1** | [addendum-v1.1.md](addendum-v1.1.md) | Diagramme séquence, schéma meta, prompts finalisés, timing |
 
 ---
 

@@ -3,6 +3,8 @@
 > **Périmètre :** Pipeline mémoire, prompts, scoring, best-of-N, self-refine, juge
 > **Modèles principaux :** Qwen3-4B (mémoire/juge), modèle embeddings CPU
 > **Responsable :** Équipe AI & Mémoire
+>
+> 📎 Voir aussi : **[Addendum v1.1](addendum-v1.1.md)** — templates prompts finalisés avec `{{placeholders}}` (§C, §D), diagramme pipeline (§A)
 
 ---
 
@@ -36,10 +38,13 @@
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Prompt système RP strict | Template avec placeholders (`{character.name}`, `{persona}`, `{style}`, etc.) | Prompt fonctionnel, personnage respecté |
-| Format injection mémoire | Format `[type\|sim=X\|imp=Y\|conf=Z] contenu` | Intégré dans le prompt final |
-| Assembleur de prompts | Module qui construit le prompt complet (system + core + history) | Sortie correcte testée |
-| Fenêtre historique | Logique pour sélectionner les N derniers messages | Configurable (10–20) |
+| Prompt système RP strict | Template v1.1 avec `{{placeholders}}` (cf. [Addendum §C.1](addendum-v1.1.md#c1-chat--system-prompt-rp-strict-stable)) | Prompt fonctionnel, personnage respecté |
+| Controller prompt | Template orchestration optionnel (cf. [Addendum §C.2](addendum-v1.1.md#c2-chat--developercontroller-prompt-orchestration)) | Injecté si runtime le supporte |
+| Character Core block | Template avec tous les champs personnage (cf. [Addendum §C.3](addendum-v1.1.md#c3-character-core-block-injecté-tel-quel)) | Bloc complet injecté |
+| World State block | Template état du monde (cf. [Addendum §C.4](addendum-v1.1.md#c4-world-state-block-injecté-tel-quel)) | Bloc injecté |
+| Format injection mémoire | Format `[type\|sim=X\|imp=Y\|conf=Z] contenu` (cf. [Addendum §C.5](addendum-v1.1.md#c5-memory-block-format-final-concis)) | Intégré dans le prompt final |
+| Assembleur de prompts | Module qui construit le prompt complet dans l'ordre v1.1 (cf. [Addendum §C.7](addendum-v1.1.md#c7-final-chat-prompt-assemblage-recommandé)) : system → controller → core → world → memory → history → user | Sortie correcte testée |
+| Fenêtre historique | Logique pour sélectionner les N derniers messages (cf. [Addendum §C.6](addendum-v1.1.md#c6-conversation-history-block-fenêtre-courte)) | Configurable (10–20) |
 | Tests unitaires prompts | Vérifier le format de sortie | Tests verts |
 
 ### 3.2 Mémoire minimale (S4–S7) 🟡
@@ -69,12 +74,12 @@
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Prompt extraction JSON | Template strict pour Qwen3-4B (cf. spec §8.3) | JSON valide : `semantic`, `episodic`, `world_updates`, `contradictions` |
+| Prompt extraction JSON | Template strict v1.1 pour Qwen3-4B (cf. [Addendum §D.1](addendum-v1.1.md#d1-memory-extraction-prompt-json-strict)) | JSON valide : `semantic`, `episodic`, `world_updates`, `contradictions` |
 | Parsing JSON robuste | Parser la sortie LLM avec fallback (regex si JSON cassé) | Taux de parsing > 95% |
 | Filtrage confidence | Ne pas stocker si `confidence < 0.6` | Seuil respecté |
 | Gestion contradictions | Enregistrer sans écraser l'ancien | Contradictions stockées séparément |
 | Insertion en DB | Créer les `MemoryItem` en base + vecteurs | Mémoires persistées |
-| Hook post-génération | Intégration dans le flux chat (après chaque réponse assistant) | Pipeline déclenché automatiquement |
+| Hook post-génération | Intégration dans le flux chat (après chaque réponse assistant) — cf. [Addendum §A.1](addendum-v1.1.md#a1-tour-complet-sse-streaming-côté-ui) étapes 14–19 | Pipeline déclenché automatiquement |
 | Tests | Tests avec des conversations simulées | Extraction correcte |
 
 ### 4.2 Embeddings & indexation (S9–S10) 🔴
@@ -130,7 +135,7 @@
 |-------|--------|-----|
 | Génération N candidats | Appeler le LLM chat N fois (séquentiel ou parallèle) | N réponses distinctes |
 | Diversité | Varier légèrement les paramètres (temp, seed) pour chaque candidat | Réponses variées |
-| Prompt juge | Template strict (cf. spec §8.4) : notation sur 5 critères | JSON valide retourné |
+| Prompt juge | Template strict v1.1 (cf. [Addendum §D.2](addendum-v1.1.md#d2-judge-prompt-rank-candidates--optional-rewrite-suggestion)) : notation sur 5 critères avec subscores | JSON valide retourné |
 | Parsing scores | Extraire les scores + ranking + best_id | Parsing robuste |
 | Sélection finale | Retourner le candidat avec le meilleur score total | Correct |
 | Latence tracking | Log du temps total (N × génération + juge) | Métriques disponibles |
@@ -140,7 +145,7 @@
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Consigne de réécriture | Le juge fournit `rewrite_suggestion` | Suggestion extraite du JSON |
-| Prompt refine | Envoyer le meilleur candidat + suggestion au LLM chat | Réponse améliorée |
+| Prompt refine | Template v1.1 (cf. [Addendum §D.3](addendum-v1.1.md#d3-self-refine-prompt-final-pass)) : envoyer le meilleur candidat + suggestion au LLM chat | Réponse améliorée |
 | Comparaison avant/après | Log du score avant et après refine | Amélioration mesurée |
 | Toggle | Activable/désactivable par profil | Config respectée |
 | Fallback | Si refine échoue, garder le candidat original | Pas de crash |
@@ -293,7 +298,10 @@ generation:
   self_refine: true
 ```
 
-### 6.4 Prompt extraction mémoire (complet)
+### 6.4 Prompt extraction mémoire (v1.1 finalisé)
+
+> **⚠️ Le template v1.1 finalisé (en anglais, avec `{{placeholders}}`) se trouve dans [Addendum §D.1](addendum-v1.1.md#d1-memory-extraction-prompt-json-strict).**
+> Le template ci-dessous est la version v1.0 (français) conservée comme référence historique.
 
 ```text
 Tu es un moteur d'extraction de mémoire à long terme.
@@ -330,7 +338,10 @@ Retourne UNIQUEMENT du JSON valide, sans texte avant ni après :
 }
 ```
 
-### 6.5 Prompt juge (complet)
+### 6.5 Prompt juge (v1.1 finalisé)
+
+> **⚠️ Le template v1.1 finalisé (en anglais, avec `{{placeholders}}` et subscores) se trouve dans [Addendum §D.2](addendum-v1.1.md#d2-judge-prompt-rank-candidates--optional-rewrite-suggestion).**
+> Le template ci-dessous est la version v1.0 (français) conservée comme référence historique.
 
 ```text
 Tu es un juge de qualité pour un dialogue roleplay immersif.
