@@ -1,7 +1,24 @@
 "use client";
 
 import type { Message } from "@/types";
+import { useState } from "react";
 import Markdown from "react-markdown";
+
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString();
+}
 
 interface Props {
   message: Message;
@@ -18,6 +35,14 @@ export default function ChatMessage({
 }: Props) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(message.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   if (isSystem) {
     return (
@@ -79,9 +104,25 @@ export default function ChatMessage({
           )}
         </div>
 
-        {/* Actions on last assistant message */}
-        {!isUser && isLast && onRegenerate && (
-          <div className="flex gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Timestamp + Actions */}
+        <div
+          className={`flex items-center gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${
+            isUser ? "flex-row-reverse" : ""
+          }`}
+        >
+          <span className="text-[10px] text-zinc-600" title={message.created_at}>
+            {formatRelativeTime(message.created_at)}
+          </span>
+
+          <button
+            onClick={handleCopy}
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            title="Copy message"
+          >
+            {copied ? "✓ Copied" : "⧉ Copy"}
+          </button>
+
+          {!isUser && isLast && onRegenerate && (
             <button
               onClick={onRegenerate}
               className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
@@ -89,8 +130,8 @@ export default function ChatMessage({
             >
               ↻ Regenerate
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

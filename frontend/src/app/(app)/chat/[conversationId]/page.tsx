@@ -4,6 +4,7 @@ import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage from "@/components/chat/ChatMessage";
 import { ChatMessageSkeleton } from "@/components/ui/Skeleton";
 import { api } from "@/lib/api";
+import { getGenerationParams } from "@/lib/generation-params";
 import {
   isChatDone,
   isChatError,
@@ -71,11 +72,14 @@ export default function ChatConversationPage() {
 
     try {
       let fullContent = "";
+      const genParams = getGenerationParams();
 
       for await (const event of streamChat(
         conversationId,
         character.id,
-        userMessage
+        userMessage,
+        "balanced",
+        { ...genParams },
       )) {
         if (isChatToken(event)) {
           fullContent += event.token;

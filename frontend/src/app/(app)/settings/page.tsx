@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  type GenerationParams,
+  GENERATION_DEFAULTS,
+  getGenerationParams,
+  saveGenerationParams,
+} from "@/lib/generation-params";
 import { api } from "@/lib/api";
 import type { Profile } from "@/types";
 import { useEffect, useState } from "react";
@@ -8,8 +14,10 @@ export default function SettingsPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState("balanced");
+  const [genParams, setGenParams] = useState<GenerationParams>(GENERATION_DEFAULTS);
 
   useEffect(() => {
+    setGenParams(getGenerationParams());
     api
       .get<Profile[]>("/profiles")
       .then((data) => {
@@ -21,6 +29,12 @@ export default function SettingsPage() {
       .catch(() => setProfiles([]))
       .finally(() => setLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function updateParam<K extends keyof GenerationParams>(key: K, value: GenerationParams[K]) {
+    const updated = { ...genParams, [key]: value };
+    setGenParams(updated);
+    saveGenerationParams(updated);
+  }
 
   if (loading) {
     return (
@@ -86,7 +100,7 @@ export default function SettingsPage() {
 
       {/* Profile Details */}
       {active && (
-        <section>
+        <section className="mb-8">
           <h2 className="text-lg font-semibold mb-4 text-zinc-200">
             Profile Details
           </h2>
@@ -118,6 +132,104 @@ export default function SettingsPage() {
           </div>
         </section>
       )}
+
+      {/* Generation Parameters */}
+      <section>
+        <h2 className="text-lg font-semibold mb-4 text-zinc-200">
+          Generation Parameters
+        </h2>
+        <p className="text-sm text-zinc-400 mb-4">
+          Fine-tune how the LLM generates responses. Changes are saved automatically.
+        </p>
+
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-6">
+          {/* Temperature */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-zinc-300">
+                Temperature
+              </label>
+              <span className="text-sm text-zinc-400 tabular-nums">
+                {genParams.temperature.toFixed(2)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={2}
+              step={0.05}
+              value={genParams.temperature}
+              onChange={(e) => updateParam("temperature", parseFloat(e.target.value))}
+              className="w-full accent-blue-500"
+            />
+            <div className="flex justify-between text-xs text-zinc-500 mt-1">
+              <span>Precise</span>
+              <span>Creative</span>
+            </div>
+          </div>
+
+          {/* Top P */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-zinc-300">
+                Top P
+              </label>
+              <span className="text-sm text-zinc-400 tabular-nums">
+                {genParams.top_p.toFixed(2)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={genParams.top_p}
+              onChange={(e) => updateParam("top_p", parseFloat(e.target.value))}
+              className="w-full accent-blue-500"
+            />
+            <div className="flex justify-between text-xs text-zinc-500 mt-1">
+              <span>Focused</span>
+              <span>Diverse</span>
+            </div>
+          </div>
+
+          {/* Max Tokens */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-zinc-300">
+                Max Tokens
+              </label>
+              <span className="text-sm text-zinc-400 tabular-nums">
+                {genParams.max_tokens}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={100}
+              max={4096}
+              step={100}
+              value={genParams.max_tokens}
+              onChange={(e) => updateParam("max_tokens", parseInt(e.target.value))}
+              className="w-full accent-blue-500"
+            />
+            <div className="flex justify-between text-xs text-zinc-500 mt-1">
+              <span>Short (100)</span>
+              <span>Long (4096)</span>
+            </div>
+          </div>
+
+          {/* Reset button */}
+          <button
+            onClick={() => {
+              setGenParams({ ...GENERATION_DEFAULTS });
+              saveGenerationParams(GENERATION_DEFAULTS);
+            }}
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            Reset to defaults
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
