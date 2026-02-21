@@ -140,6 +140,38 @@ class MemoryRepository(BaseRepository):
         await db.commit()
         return cursor.rowcount > 0
 
+    async def update_importance(
+        self, memory_id: str, importance: float, confidence: float
+    ) -> bool:
+        """Update the importance and confidence scores of a memory."""
+        db = await self._get_db()
+        cursor = await db.execute(
+            "UPDATE memories SET importance = ?, confidence = ? WHERE id = ?",
+            (importance, confidence, memory_id),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+    async def merge(
+        self, source_id: str, target_id: str, merged_content: str
+    ) -> MemoryResponse | None:
+        """Merge *source* into *target*: update target content, soft-delete source."""
+        target = await self.get(target_id)
+        if target is None:
+            return None
+        db = await self._get_db()
+        now = datetime.now(UTC).isoformat()
+        # Update target with merged content and bump confidence
+        new_confidence = min(1.0, target.confidence + 0.1)
+        await db.execute(
+            "UPDATE memories SET content = ?, confidence = ?, last_referenced_at = ? WHERE id = ?",
+            (merged_content, new_confidence, now, target_id),
+        )
+        # Soft-delete the source
+        await db.execute("UPDATE memories SET is_deleted = 1 WHERE id = ?", (source_id,))
+        await db.commit()
+        return await self.get(target_id)
+
 
 def _row_to_response(row: aiosqlite.Row) -> MemoryResponse:
     return MemoryResponse(

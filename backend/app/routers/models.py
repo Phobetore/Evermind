@@ -1,14 +1,12 @@
-"""Model status endpoint — GET /models/status."""
+"""Model status and management endpoints."""
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
-import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
-from app.config import get_config
+from app.services.model_manager import get_model_manager
 
 router = APIRouter(prefix="/models", tags=["models"])
 
@@ -18,23 +16,16 @@ logger = logging.getLogger(__name__)
 @router.get("/status")
 async def models_status() -> dict:
     """Return the health status of every configured LLM server."""
-    cfg = get_config()
-    results: dict[str, dict] = {}
+    manager = get_model_manager()
+    servers = await manager.status_all()
+    return {"servers": servers}
 
-    async def _check(client: httpx.AsyncClient, name: str, port: int) -> None:
-        base_url = f"http://{cfg.bind_host}:{port}"
-        try:
-            resp = await client.get(f"{base_url}/health", timeout=5.0)
-            healthy = resp.status_code == 200
-        except httpx.HTTPError:
-            healthy = False
-        results[name] = {
-            "port": port,
-            "status": "ok" if healthy else "unreachable",
-        }
 
-    async with httpx.AsyncClient() as client:
-        tasks = [_check(client, name, srv.port) for name, srv in cfg.llm_servers.items()]
-        await asyncio.gather(*tasks)
-
-    return {"servers": results}
+@router.post("/restart")
+async def restart_model(server_name: str) -> dict:
+    """Request a restart of a specific LLM server by name."""
+    manager = get_model_manager()
+    if server_name not in manager.server_names:
+        raise HTTPException(status_code=404, detail=f"Server '{server_name}' not configured")
+    result = await manager.restart(server_name)
+    return result
