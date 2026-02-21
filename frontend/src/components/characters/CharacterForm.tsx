@@ -1,6 +1,6 @@
 "use client";
 
-import type { Character, CharacterCreate } from "@/types";
+import type { Character, CharacterCreate, ExampleDialogue } from "@/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -23,6 +23,9 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
   const [boundaries, setBoundaries] = useState(initial?.boundaries ?? "");
   const [systemRules, setSystemRules] = useState(initial?.system_rules ?? "");
   const [tagsInput, setTagsInput] = useState(initial?.tags?.join(", ") ?? "");
+  const [exampleDialogues, setExampleDialogues] = useState<ExampleDialogue[]>(
+    initial?.example_dialogues ?? [],
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,6 +43,9 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
         writing_style: writingStyle,
         scenario,
         first_message: firstMessage,
+        example_dialogues: exampleDialogues.filter(
+          (d) => d.user.trim() || d.assistant.trim(),
+        ),
         boundaries,
         system_rules: systemRules,
       });
@@ -125,6 +131,80 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
           placeholder="The character's opening message"
         />
       </Field>
+
+      {/* Example Dialogues */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-zinc-300">
+            Example Dialogues
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              setExampleDialogues((prev) => [
+                ...prev,
+                { user: "", assistant: "" },
+              ])
+            }
+            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            + Add dialogue
+          </button>
+        </div>
+        {exampleDialogues.length === 0 && (
+          <p className="text-xs text-zinc-500">
+            No example dialogues. Add one to help shape the character&apos;s voice.
+          </p>
+        )}
+        {exampleDialogues.map((dialogue, idx) => (
+          <div
+            key={idx}
+            className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-500">
+                Example {idx + 1}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setExampleDialogues((prev) =>
+                    prev.filter((_, i) => i !== idx),
+                  )
+                }
+                className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                aria-label={`Remove example ${idx + 1}`}
+              >
+                ✕
+              </button>
+            </div>
+            <textarea
+              value={dialogue.user}
+              onChange={(e) =>
+                setExampleDialogues((prev) =>
+                  prev.map((d, i) =>
+                    i === idx ? { ...d, user: e.target.value } : d,
+                  ),
+                )
+              }
+              className="input min-h-[40px] text-sm"
+              placeholder="User says…"
+            />
+            <textarea
+              value={dialogue.assistant}
+              onChange={(e) =>
+                setExampleDialogues((prev) =>
+                  prev.map((d, i) =>
+                    i === idx ? { ...d, assistant: e.target.value } : d,
+                  ),
+                )
+              }
+              className="input min-h-[40px] text-sm"
+              placeholder="Character responds…"
+            />
+          </div>
+        ))}
+      </div>
 
       <Field label="Boundaries">
         <textarea
