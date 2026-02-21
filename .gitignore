@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+.eggs/
+
+# Node.js
+node_modules/
+.next/
+out/
+.turbo/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Project data
+data/app.db
+data/app.db-wal
+data/app.db-shm
+data/vectors/
+data/.pids
+logs/*.log
+
+# Models (large files)
+models/chat/
+models/memory/
+models/judge/
+models/embeddings/
+
+# Binaries
+bin/
+
+# Environment
+.env
+.env.local
+.env.production
