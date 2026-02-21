@@ -35,9 +35,11 @@ async def update_profile(profile_id: str, data: ProfileUpdate) -> ProfileRespons
     if profile is None:
         raise HTTPException(status_code=404, detail=f"Profile '{profile_id}' not found")
 
+    allowed_fields = {"chat_server", "memory_server", "judge_server", "best_of_n", "self_refine"}
     updates = data.model_dump(exclude_unset=True)
     for key, value in updates.items():
-        setattr(profile, key, value)
+        if key in allowed_fields:
+            setattr(profile, key, value)
 
     return ProfileResponse(
         id=profile_id,

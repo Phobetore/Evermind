@@ -277,11 +277,20 @@ class ChatService:
                     )
                 )
 
-        # Apply world state updates
+        # Apply world state updates (allow-list fields to prevent injection)
+        allowed_ws_fields = {
+            "location", "relationship_state", "active_goals",
+            "open_threads", "inventory", "notes",
+        }
         for update in parsed.get("world_updates", []):
             field = update.get("field")
             value = update.get("value")
-            if field and value and update.get("confidence", 0) >= MEMORY_CONFIDENCE_THRESHOLD:
+            if (
+                field
+                and field in allowed_ws_fields
+                and value
+                and update.get("confidence", 0) >= MEMORY_CONFIDENCE_THRESHOLD
+            ):
                 await self.ws_repo.update_field(character_id, field, value)
 
         timing.mark("t_memory_write_end")
