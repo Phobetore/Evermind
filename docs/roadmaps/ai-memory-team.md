@@ -76,10 +76,10 @@
 |-------|--------|-----|
 | Prompt extraction JSON | Template strict v1.1 pour Qwen3-4B (cf. [Addendum §D.1](addendum-v1.1.md#d1-memory-extraction-prompt-json-strict)) | ✅ JSON valide : `semantic`, `episodic`, `world_updates`, `contradictions` |
 | Parsing JSON robuste | Parser la sortie LLM avec fallback (regex si JSON cassé) | ✅ Taux de parsing > 95% (markdown fence stripping + fallback) |
-| Filtrage confidence | Ne pas stocker si `confidence < 0.6` | 🔴 Seuil respecté |
+| Filtrage confidence | Ne pas stocker si `confidence < 0.6` (MEMORY_CONFIDENCE_THRESHOLD = 0.6) | ✅ Seuil respecté |
 | Gestion contradictions | Enregistrer sans écraser l'ancien | 🔴 Contradictions stockées séparément |
 | Insertion en DB | Créer les `MemoryItem` en base + vecteurs | Mémoires persistées |
-| Hook post-génération | Intégration dans le flux chat (après chaque réponse assistant) — cf. [Addendum §A.1](addendum-v1.1.md#a1-tour-complet-sse-streaming-côté-ui) étapes 14–19 | Pipeline déclenché automatiquement |
+| Hook post-génération | Intégration dans le flux chat (après chaque réponse assistant) — cf. [Addendum §A.1](addendum-v1.1.md#a1-tour-complet-sse-streaming-côté-ui) étapes 14–19 | ✅ Pipeline déclenché automatiquement (intégré dans chat_service) |
 | Tests | Tests avec des conversations simulées | Extraction correcte |
 
 ### 4.2 Embeddings & indexation (S9–S10) 🔴
@@ -104,22 +104,22 @@
 | Injection dans le prompt | Formater et insérer dans le prompt final | Format correct (cf. spec §8.2) |
 | Hook pré-génération | Intégration dans le flux chat (avant chaque génération) | Pipeline déclenché automatiquement |
 
-### 4.4 Consolidation & dédoublonnage (S11–S13) 🔴
+### 4.4 Consolidation & dédoublonnage (S11–S13) 🟡
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Dédoublonnage | Si similarité > 0.90 avec existant → fusion | Pas de doublons |
-| Fusion | Combiner les contenus, augmenter confidence si corroboré | Contenu fusionné cohérent |
-| Mise à jour `last_referenced_at` | À chaque fois qu'un souvenir est rappelé | Timestamp mis à jour |
-| Décroissance (decay) | `recency_factor = exp(-age_days / tau)` | Facteur calculé correctement |
-| Pin | Priorité haute, inclusion quasi-systématique | Souvenirs pinned toujours inclus |
-| Forget (soft delete) | `is_deleted=1` + suppression vecteur de l'index | Souvenir masqué |
+| Dédoublonnage | Si similarité > 0.90 avec existant → fusion (consolidator.py) | ✅ Pas de doublons |
+| Fusion | Combiner les contenus, augmenter confidence si corroboré | ✅ Contenu fusionné cohérent |
+| Mise à jour `last_referenced_at` | À chaque fois qu'un souvenir est rappelé | ✅ Timestamp mis à jour |
+| Décroissance (decay) | `recency_factor = exp(-age_days / tau)` | 🔴 Facteur calculé correctement |
+| Pin | Priorité haute, inclusion quasi-systématique | 🔴 Souvenirs pinned toujours inclus |
+| Forget (soft delete) | `is_deleted=1` + suppression vecteur de l'index | 🔴 Souvenir masqué |
 
 ### 4.5 Calibration (S13–S14) 🟡
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Poids scoring | Ajuster w_sim, w_imp, w_rec, w_ref, w_del | Valeurs optimales documentées |
+| Poids scoring | Ajuster w_sim, w_imp, w_rec, w_ref, w_del (défauts : w_sim=0.35, w_imp=0.25, w_rec=0.20, w_ref=0.15, w_del=10.0) | ✅ Valeurs optimales documentées |
 | Seuil dédoublonnage | Tester 0.85, 0.90, 0.95 | Seuil choisi et justifié |
 | Tau décroissance | Tester différentes valeurs de tau | Valeur optimale documentée |
 | Top-K / Top-N | Tester différentes tailles (K=20–40, N=6–15) | Valeurs optimales |

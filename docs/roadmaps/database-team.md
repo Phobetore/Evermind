@@ -218,17 +218,17 @@ CREATE INDEX IF NOT EXISTS idx_memories_character_active
   ON memories(character_id, is_deleted);
 ```
 
-### 4.2 Index vectoriel (S9–S11) 🔴
+### 4.2 Index vectoriel (S9–S11) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Choix de lib | Évaluer : sqlite-vss, faiss (via faiss-cpu), hnswlib | Choix documenté et justifié |
-| Table/fichier vectoriel | Stockage `memory_id → embedding[D]` | Données persistées |
-| Insertion | Ajouter un vecteur lors de l'indexation d'un souvenir | Vecteur stocké |
-| Recherche top-K | Recherche par similarité cosinus, top-K résultats | Résultats corrects |
-| Suppression | Supprimer un vecteur (soft delete / forget) | Vecteur retiré de l'index |
-| Reconstruction | Reconstruire l'index à partir de la DB | Index reconstruit |
-| Tests | Tests de recherche avec données connues | Rappel correct |
+| Choix de lib | Évaluer : sqlite-vss, faiss (via faiss-cpu), hnswlib | ✅ **numpy** retenu (adapté pour <50k vecteurs ; upgrade path vers hnswlib/faiss ultérieur) |
+| Table/fichier vectoriel | Stockage `memory_id → embedding[D]` | ✅ Données persistées |
+| Insertion | Ajouter un vecteur lors de l'indexation d'un souvenir | ✅ Vecteur stocké |
+| Recherche top-K | Recherche par similarité cosinus, top-K résultats | ✅ Résultats corrects |
+| Suppression | Supprimer un vecteur (soft delete / forget) | ✅ Vecteur retiré de l'index |
+| Reconstruction | Reconstruire l'index à partir de la DB | ✅ Index reconstruit |
+| Tests | Tests de recherche avec données connues | ✅ Rappel correct |
 
 #### Options d'index vectoriel
 
@@ -237,10 +237,10 @@ CREATE INDEX IF NOT EXISTS idx_memories_character_active
 | **sqlite-vss** | Intégré à SQLite, requêtes SQL | Extension C à compiler, moins mature |
 | **faiss-cpu** | Très rapide, bien maintenu | Fichier séparé, pas dans SQLite |
 | **hnswlib** | Léger, rapide, pip install | Fichier séparé |
-| **numpy brut** | 0 dépendance | Lent au-delà de ~10k vecteurs |
+| **numpy brut** ✅ | 0 dépendance | Lent au-delà de ~10k vecteurs |
 
-> **Recommandation v0.2 :** `hnswlib` ou `faiss-cpu` (pip installable, performant, fiable).
-> Si < 5000 souvenirs, `numpy` brut peut suffire pour le MVP.
+> **Choix v0.2 :** `numpy` brut retenu — suffisant pour <50k vecteurs, zéro dépendance externe.
+> Upgrade path vers `hnswlib` ou `faiss-cpu` prévu si les volumes augmentent.
 
 ### 4.3 `MemoryRepository` (S10–S12) 🟡
 
@@ -251,10 +251,10 @@ CREATE INDEX IF NOT EXISTS idx_memories_character_active
 | `list_by_character` | Liste filtrée (type, is_deleted, is_pinned) | ✅ Filtrage correct |
 | `search_similar` | Recherche vectorielle top-K | 🔴 Résultats par similarité |
 | `update_importance` | Mettre à jour importance/confidence | ✅ Valeurs mises à jour |
-| `update_referenced_at` | Mettre à jour `last_referenced_at` | 🔴 Timestamp mis à jour |
+| `update_referenced_at` | Mettre à jour `last_referenced_at` | ✅ Timestamp mis à jour |
 | `soft_delete` | `is_deleted=1` + retrait du vecteur | ✅ Souvenir masqué |
 | `pin` / `unpin` | `is_pinned=1/0` | ✅ Statut mis à jour |
-| `get_pinned` | Liste les souvenirs pinned d'un personnage | 🔴 Souvenirs retournés |
+| `get_pinned` | Liste les souvenirs pinned d'un personnage | ✅ Souvenirs retournés |
 | `merge` | Fusionner deux souvenirs (dédoublonnage) | ✅ Souvenir fusionné, ancien supprimé |
 | Tests | Tests unitaires complets | ✅ Couverture des opérations CRUD |
 

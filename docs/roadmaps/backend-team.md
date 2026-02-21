@@ -118,23 +118,23 @@
 | Rebuild | `POST /characters/{id}/memories/rebuild` (re-extraction) | 🔴 Pipeline relancé |
 | World State | `GET /characters/{id}/world_state` + `PUT` | ✅ CRUD world_state |
 
-### 4.2 Orchestration multi-serveurs (S10–S12) 🔴
+### 4.2 Orchestration multi-serveurs (S10–S12) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Routage par rôle | Chat → port 8081, Mémoire → 8082, Juge → 8083 | Appels au bon serveur |
-| Client LLM générique | Client HTTP réutilisable pour tout serveur LLM | Code DRY |
-| Failover | Si un serveur LLM est down, erreur claire (pas de crash) | Gestion d'erreur gracieuse |
-| Timeouts configurables | Timeout par rôle (chat plus long que mémoire) | Config respectée |
+| Routage par rôle | Chat → port 8081, Mémoire → 8082, Juge → 8083 | ✅ Appels au bon serveur |
+| Client LLM générique | Client HTTP réutilisable pour tout serveur LLM | ✅ Code DRY |
+| Failover | Si un serveur LLM est down, erreur claire (pas de crash) | ✅ Gestion d'erreur gracieuse |
+| Timeouts configurables | Timeout par rôle (chat plus long que mémoire) | ✅ Config respectée |
 
-### 4.3 Character assistant (S12–S13) 🟡
+### 4.3 Character assistant (S12–S13) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| `POST /tools/character_assistant` | Reçoit inputs (nom, thème, style, limites) | 200, JSON complet |
-| Prompt assistant | Utilise le LLM chat pour générer les champs | Résultat cohérent |
-| Parsing résultat | Extraction JSON depuis la réponse LLM | Parsing robuste |
-| Fallback | Si parsing échoue, retourner les champs partiellement remplis | Pas de crash |
+| `POST /tools/character_assistant` | Reçoit inputs (nom, thème, style, limites) | ✅ 200, JSON complet |
+| Prompt assistant | Utilise le LLM chat pour générer les champs | ✅ Résultat cohérent |
+| Parsing résultat | Extraction JSON depuis la réponse LLM | ✅ Parsing robuste |
+| Fallback | Si parsing échoue, retourner les champs partiellement remplis | ✅ Pas de crash |
 
 ### 4.4 Import / Export (S13–S14) ✅
 
