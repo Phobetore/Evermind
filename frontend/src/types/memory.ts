@@ -10,8 +10,9 @@ export interface MemoryItem {
   tags: string[];
   importance: number;
   confidence: number;
+  is_pinned: boolean;
+  is_deleted: boolean;
   created_at: string;
   last_referenced_at: string | null;
   source_turn_id: string | null;
-  is_deleted: boolean;
 }

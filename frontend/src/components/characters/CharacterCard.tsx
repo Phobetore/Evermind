@@ -4,9 +4,10 @@ import Link from "next/link";
 interface Props {
   character: Character;
   onDelete?: (id: string) => void;
+  onExport?: (id: string) => void;
 }
 
-export default function CharacterCard({ character, onDelete }: Props) {
+export default function CharacterCard({ character, onDelete, onExport }: Props) {
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-zinc-700">
       <div className="flex items-start justify-between">
@@ -36,15 +37,35 @@ export default function CharacterCard({ character, onDelete }: Props) {
             )}
           </div>
         </div>
-        {onDelete && (
-          <button
-            onClick={() => onDelete(character.id)}
-            className="text-zinc-500 hover:text-red-400 text-sm transition-colors"
-            aria-label={`Delete ${character.name}`}
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/characters/${character.id}/memories`}
+            className="text-zinc-500 hover:text-blue-400 text-sm transition-colors"
+            title="Memory Inspector"
           >
-            ✕
-          </button>
-        )}
+            🧠
+          </Link>
+          {onExport && (
+            <button
+              onClick={() => onExport(character.id)}
+              className="text-zinc-500 hover:text-green-400 text-sm transition-colors"
+              aria-label={`Export ${character.name}`}
+              title="Export"
+            >
+              📤
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(character.id)}
+              className="text-zinc-500 hover:text-red-400 text-sm transition-colors"
+              aria-label={`Delete ${character.name}`}
+              title="Delete"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
       {character.summary && (
         <p className="mt-3 text-sm text-zinc-400 line-clamp-2">
