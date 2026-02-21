@@ -30,14 +30,18 @@ MEMORY_CONFIDENCE_THRESHOLD = 0.6
 
 
 def _resolve_llm_client(
-    cfg: Any, server_key: str, *, timeout: float = 120.0
+    cfg: Any, server_key: str, *, timeout: float | None = None
 ) -> LLMClient | None:
-    """Build an :class:`LLMClient` for the given server key, or *None*."""
+    """Build an :class:`LLMClient` for the given server key, or *None*.
+
+    Uses the per-server ``timeout`` from config if no explicit timeout is given.
+    """
     server_cfg = cfg.llm_servers.get(server_key)
     if server_cfg is None:
         return None
     base_url = f"http://{cfg.bind_host}:{server_cfg.port}"
-    return LLMClient(base_url=base_url, timeout=timeout)
+    effective_timeout = timeout if timeout is not None else server_cfg.timeout
+    return LLMClient(base_url=base_url, timeout=effective_timeout)
 
 
 class ChatService:
