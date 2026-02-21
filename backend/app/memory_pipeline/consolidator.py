@@ -109,11 +109,9 @@ async def consolidate_memories(
             continue
 
         # We need the embedding from the vector index
-        if mem.id not in [vid for vid in vector_index._ids]:
+        embedding = vector_index.get_embedding(mem.id)
+        if embedding is None:
             continue
-
-        idx = vector_index._ids.index(mem.id)
-        embedding = vector_index._vectors[idx].tolist()
 
         results = vector_index.search(embedding, top_k=5, filter_ids=active_ids)
 

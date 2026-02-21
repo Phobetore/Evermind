@@ -75,6 +75,7 @@ async def retrieve_relevant_memories(
     # Build the final selection
     selected: list[MemoryResponse] = []
     selected_ids: set[str] = set()
+    pinned: list[MemoryResponse] = []
 
     # Always include pinned memories first
     if include_pinned:

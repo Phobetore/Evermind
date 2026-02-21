@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -50,7 +51,7 @@ async def character_assistant(request: CharacterAssistantRequest) -> dict[str, A
             limits=request.limits,
             notes=request.notes,
         )
-    except Exception:
+    except (httpx.ConnectError, httpx.TimeoutException, ConnectionError):
         logger.exception("Character assistant LLM call failed")
         raise HTTPException(
             status_code=503,

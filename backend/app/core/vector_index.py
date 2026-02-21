@@ -81,6 +81,13 @@ class VectorIndex:
 
     # --- Search ----------------------------------------------------------
 
+    def get_embedding(self, memory_id: str) -> list[float] | None:
+        """Return the stored embedding for *memory_id*, or *None* if absent."""
+        if memory_id not in self._ids:
+            return None
+        idx = self._ids.index(memory_id)
+        return self._vectors[idx].tolist()
+
     def search(
         self,
         query_embedding: list[float],
