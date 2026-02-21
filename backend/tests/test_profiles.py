@@ -1,0 +1,18 @@
+"""Tests for profiles endpoint."""
+
+from __future__ import annotations
+
+import pytest
+from httpx import AsyncClient
+
+
+@pytest.mark.asyncio
+async def test_list_profiles(client: AsyncClient) -> None:
+    resp = await client.get("/profiles")
+    assert resp.status_code == 200
+    profiles = resp.json()
+    assert isinstance(profiles, list)
+    # config.yaml has at least balanced, max_quality, fast, test
+    ids = [p["id"] for p in profiles]
+    assert "balanced" in ids
+    assert "fast" in ids

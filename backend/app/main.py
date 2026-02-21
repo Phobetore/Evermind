@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_config
 from app.core.database import init_db
 from app.core.logging import setup_logging
-from app.routers import characters, conversations, health, messages
+from app.routers import characters, chat, conversations, health, messages, profiles
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -57,3 +57,5 @@ app.include_router(health.router)
 app.include_router(characters.router)
 app.include_router(conversations.router)
 app.include_router(messages.router)
+app.include_router(chat.router)
+app.include_router(profiles.router)
