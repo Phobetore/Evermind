@@ -39,7 +39,9 @@ class WorldStateRepository(BaseRepository):
         await db.commit()
         return await self.get(character_id)  # type: ignore[return-value]
 
-    async def update_field(self, character_id: str, field: str, value: object) -> WorldStateResponse | None:
+    async def update_field(
+        self, character_id: str, field: str, value: object
+    ) -> WorldStateResponse | None:
         existing = await self.get(character_id)
         if existing is None:
             return None

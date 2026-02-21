@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.models.character import CharacterResponse
+from app.models.memory import MemoryResponse
 from app.models.message import MessageResponse
 from app.prompting.assembler import build_chat_messages
 
@@ -37,6 +38,27 @@ def _make_message(role: str, content: str) -> MessageResponse:
         created_at="2026-01-01T00:00:00",
         meta={},
     )
+
+
+def _make_memory(**overrides: object) -> MemoryResponse:
+    defaults = {
+        "id": "mem1",
+        "character_id": "c1",
+        "type": "semantic",
+        "title": "Likes tea",
+        "content": "The user enjoys herbal tea.",
+        "entities": ["user"],
+        "tags": ["preferences"],
+        "importance": 0.7,
+        "confidence": 0.9,
+        "is_pinned": False,
+        "is_deleted": False,
+        "created_at": "2026-01-01T00:00:00",
+        "last_referenced_at": None,
+        "source_turn_id": None,
+    }
+    defaults.update(overrides)
+    return MemoryResponse.model_validate(defaults)
 
 
 def test_build_chat_messages_basic() -> None:
@@ -75,3 +97,74 @@ def test_build_chat_messages_includes_tags() -> None:
     char = _make_character(tags=["sci-fi", "witty"])
     msgs = build_chat_messages(char, [], "Hi")
     assert "sci-fi, witty" in msgs[0]["content"]
+
+
+def test_build_chat_messages_with_world_state() -> None:
+    char = _make_character()
+    ws = {
+        "location": "The enchanted grove",
+        "relationship_state": "friendly acquaintances",
+        "active_goals": "Find the lost amulet",
+        "open_threads": "Mystery of the disappearing deer",
+        "inventory": "Map, lantern",
+        "notes": "It is nighttime.",
+    }
+    msgs = build_chat_messages(char, [], "Where are we?", world_state=ws)
+    system_content = msgs[0]["content"]
+    assert "WORLD STATE" in system_content
+    assert "The enchanted grove" in system_content
+    assert "friendly acquaintances" in system_content
+    assert "Find the lost amulet" in system_content
+
+
+def test_build_chat_messages_with_memories() -> None:
+    char = _make_character()
+    mems = [
+        _make_memory(content="The user enjoys herbal tea.", importance=0.7, confidence=0.9),
+        _make_memory(
+            id="mem2",
+            type="episodic",
+            content="User visited the river yesterday.",
+            importance=0.5,
+            confidence=0.8,
+        ),
+    ]
+    msgs = build_chat_messages(char, [], "Hi", memories=mems)
+    system_content = msgs[0]["content"]
+    assert "MEMORY" in system_content
+    assert "herbal tea" in system_content
+    assert "river yesterday" in system_content
+    assert "[semantic|imp=0.70|conf=0.90]" in system_content
+    assert "[episodic|imp=0.50|conf=0.80]" in system_content
+
+
+def test_build_chat_messages_no_world_state_or_memories() -> None:
+    """When no world state or memories, those blocks should be absent."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "WORLD STATE (current)" not in system_content
+    assert "MEMORY (relevant" not in system_content
+
+
+def test_build_chat_messages_assembly_order() -> None:
+    """Verify the C.7 assembly order: system → controller → core → world → memory → history."""
+    char = _make_character()
+    ws = {
+        "location": "TESTLOC",
+        "relationship_state": "",
+        "active_goals": "",
+        "open_threads": "",
+        "inventory": "",
+        "notes": "",
+    }
+    mems = [_make_memory(content="TESTMEM")]
+    history = [_make_message("user", "TESTHIST")]
+    msgs = build_chat_messages(char, history, "Go", world_state=ws, memories=mems)
+    system_content = msgs[0]["content"]
+    # Check ordering using the unique block headers
+    idx_core = system_content.index("CHARACTER CORE")
+    idx_world = system_content.index("WORLD STATE (current)")
+    idx_memory = system_content.index("MEMORY (relevant")
+    idx_recent = system_content.index("RECENT CHAT")
+    assert idx_core < idx_world < idx_memory < idx_recent

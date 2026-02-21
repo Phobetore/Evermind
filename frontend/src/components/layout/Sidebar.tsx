@@ -11,6 +11,7 @@ export default function Sidebar() {
   const navItems = [
     { href: "/characters", label: "Characters", icon: "👤" },
     { href: "/chat", label: "Chat", icon: "💬" },
+    { href: "/settings", label: "Settings", icon: "⚙" },
   ];
 
   return (

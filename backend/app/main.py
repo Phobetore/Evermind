@@ -11,8 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_config
 from app.core.database import init_db
+from app.core.errors import register_error_handlers
 from app.core.logging import setup_logging
-from app.routers import characters, chat, conversations, health, memory, messages, profiles
+from app.routers import characters, chat, conversations, health, memory, messages, models, profiles
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -60,3 +61,7 @@ app.include_router(messages.router)
 app.include_router(chat.router)
 app.include_router(profiles.router)
 app.include_router(memory.router)
+app.include_router(models.router)
+
+# Structured error responses
+register_error_handlers(app)

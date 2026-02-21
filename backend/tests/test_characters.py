@@ -46,9 +46,7 @@ async def test_get_character_not_found(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_character(client: AsyncClient) -> None:
-    create_resp = await client.post(
-        "/characters", json={"name": "Diana", "summary": "Original"}
-    )
+    create_resp = await client.post("/characters", json={"name": "Diana", "summary": "Original"})
     cid = create_resp.json()["id"]
     resp = await client.put(f"/characters/{cid}", json={"summary": "Updated"})
     assert resp.status_code == 200

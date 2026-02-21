@@ -101,25 +101,19 @@ class MemoryRepository(BaseRepository):
 
     async def soft_delete(self, memory_id: str) -> bool:
         db = await self._get_db()
-        cursor = await db.execute(
-            "UPDATE memories SET is_deleted = 1 WHERE id = ?", (memory_id,)
-        )
+        cursor = await db.execute("UPDATE memories SET is_deleted = 1 WHERE id = ?", (memory_id,))
         await db.commit()
         return cursor.rowcount > 0
 
     async def pin(self, memory_id: str) -> bool:
         db = await self._get_db()
-        cursor = await db.execute(
-            "UPDATE memories SET is_pinned = 1 WHERE id = ?", (memory_id,)
-        )
+        cursor = await db.execute("UPDATE memories SET is_pinned = 1 WHERE id = ?", (memory_id,))
         await db.commit()
         return cursor.rowcount > 0
 
     async def unpin(self, memory_id: str) -> bool:
         db = await self._get_db()
-        cursor = await db.execute(
-            "UPDATE memories SET is_pinned = 0 WHERE id = ?", (memory_id,)
-        )
+        cursor = await db.execute("UPDATE memories SET is_pinned = 0 WHERE id = ?", (memory_id,))
         await db.commit()
         return cursor.rowcount > 0
 

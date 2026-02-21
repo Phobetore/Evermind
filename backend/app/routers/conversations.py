@@ -32,7 +32,7 @@ async def list_conversations(
 ) -> list[ConversationResponse]:
     if character_id:
         return await repo.list_by_character(character_id)
-    return []
+    return await repo.list_all()
 
 
 @router.post("", response_model=ConversationResponse, status_code=201)

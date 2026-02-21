@@ -5,7 +5,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.repositories.character_repository import CharacterRepository
-from app.models.character import CharacterCreate, CharacterResponse, CharacterUpdate
+from app.models.character import (
+    CharacterCreate,
+    CharacterImport,
+    CharacterResponse,
+    CharacterUpdate,
+)
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 
@@ -61,3 +66,29 @@ async def delete_character(
     deleted = await repo.delete(character_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Character not found")
+
+
+@router.get("/{character_id}/export")
+async def export_character(
+    character_id: str,
+    repo: CharacterRepository = Depends(_get_repo),
+) -> dict:
+    """Export a character as a portable JSON object."""
+    character = await repo.get(character_id)
+    if character is None:
+        raise HTTPException(status_code=404, detail="Character not found")
+    data = character.model_dump()
+    # Remove server-side fields that shouldn't be in an export
+    data.pop("id", None)
+    data.pop("created_at", None)
+    data.pop("updated_at", None)
+    return {"version": "1", "character": data}
+
+
+@router.post("/import", response_model=CharacterResponse, status_code=201)
+async def import_character(
+    payload: CharacterImport,
+    repo: CharacterRepository = Depends(_get_repo),
+) -> CharacterResponse:
+    """Import a character from a portable JSON export."""
+    return await repo.create(payload.character)

@@ -97,9 +97,7 @@ async def test_memory_soft_delete(client: AsyncClient) -> None:
     memory_id = resp.json()["id"]
 
     # Forget it
-    resp = await client.post(
-        f"/characters/{char_id}/memories/forget?memory_id={memory_id}"
-    )
+    resp = await client.post(f"/characters/{char_id}/memories/forget?memory_id={memory_id}")
     assert resp.status_code == 200
 
     # Should not appear in normal list

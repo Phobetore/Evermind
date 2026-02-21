@@ -16,9 +16,7 @@ async def test_create_conversation(client: AsyncClient) -> None:
     char_resp = await client.post("/characters", json={"name": "Test Char"})
     char_id = char_resp.json()["id"]
 
-    resp = await client.post(
-        "/conversations", json={"character_id": char_id, "title": "Hello"}
-    )
+    resp = await client.post("/conversations", json={"character_id": char_id, "title": "Hello"})
     assert resp.status_code == 201
     body = resp.json()
     assert body["character_id"] == char_id
