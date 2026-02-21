@@ -2,6 +2,7 @@
 
 import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage from "@/components/chat/ChatMessage";
+import { ChatMessageSkeleton } from "@/components/ui/Skeleton";
 import { api } from "@/lib/api";
 import {
   isChatDone,
@@ -63,19 +64,8 @@ export default function ChatConversationPage() {
     scrollToBottom();
   }, [messages, streamingContent, scrollToBottom]);
 
-  async function handleSend(content: string) {
-    if (!conversation || !character || streaming) return;
-
-    // Optimistically add user message
-    const userMsg: Message = {
-      id: `temp-${Date.now()}`,
-      conversation_id: conversationId,
-      role: "user",
-      content,
-      created_at: new Date().toISOString(),
-      meta: {},
-    };
-    setMessages((prev) => [...prev, userMsg]);
+  async function doStream(userMessage: string) {
+    if (!conversation || !character) return;
     setStreaming(true);
     setStreamingContent("");
 
@@ -85,13 +75,12 @@ export default function ChatConversationPage() {
       for await (const event of streamChat(
         conversationId,
         character.id,
-        content
+        userMessage
       )) {
         if (isChatToken(event)) {
           fullContent += event.token;
           setStreamingContent(fullContent);
         } else if (isChatDone(event)) {
-          // Replace streaming content with the final message
           const assistantMsg: Message = {
             id: event.message_id,
             conversation_id: conversationId,
@@ -103,7 +92,6 @@ export default function ChatConversationPage() {
           setMessages((prev) => [...prev, assistantMsg]);
           setStreamingContent("");
         } else if (isChatError(event)) {
-          // Show error as a system message
           const errorMsg: Message = {
             id: `error-${Date.now()}`,
             conversation_id: conversationId,
@@ -117,16 +105,73 @@ export default function ChatConversationPage() {
         }
       }
     } catch {
-      // Network error
       setStreamingContent("");
     } finally {
       setStreaming(false);
     }
   }
 
-  if (loading) return <div className="p-6 text-zinc-500">Loading…</div>;
+  async function handleSend(content: string) {
+    if (!conversation || !character || streaming) return;
+
+    // Optimistically add user message
+    const userMsg: Message = {
+      id: `temp-${Date.now()}`,
+      conversation_id: conversationId,
+      role: "user",
+      content,
+      created_at: new Date().toISOString(),
+      meta: {},
+    };
+    setMessages((prev) => [...prev, userMsg]);
+
+    await doStream(content);
+  }
+
+  async function handleRegenerate() {
+    if (!conversation || !character || streaming) return;
+
+    // Find the last user message to re-send
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    if (!lastUserMsg) return;
+
+    // Remove the last assistant message
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last && last.role === "assistant") {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
+
+    await doStream(lastUserMsg.content);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="shrink-0 border-b border-zinc-800 px-6 py-3 flex items-center gap-3">
+          <div className="animate-pulse h-8 w-8 rounded-full bg-zinc-800" />
+          <div className="space-y-1">
+            <div className="animate-pulse h-4 w-24 rounded bg-zinc-800" />
+            <div className="animate-pulse h-3 w-16 rounded bg-zinc-800" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto p-6 space-y-4">
+          <ChatMessageSkeleton />
+          <ChatMessageSkeleton isUser />
+          <ChatMessageSkeleton />
+        </div>
+      </div>
+    );
+  }
+
   if (!conversation || !character)
     return <div className="p-6 text-zinc-500">Conversation not found</div>;
+
+  // Determine if last message is assistant (for regenerate button)
+  const lastMsg = messages[messages.length - 1];
+  const lastIsAssistant = lastMsg?.role === "assistant";
 
   return (
     <div className="flex flex-col h-full">
@@ -145,11 +190,19 @@ export default function ChatConversationPage() {
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-auto p-6 space-y-4">
-        {messages.map((msg) => (
+        {messages.length === 0 && !streaming && (
+          <div className="text-center py-12 text-zinc-500 text-sm">
+            Start the conversation by sending a message.
+          </div>
+        )}
+
+        {messages.map((msg, idx) => (
           <ChatMessage
             key={msg.id}
             message={msg}
             characterName={character.name}
+            isLast={idx === messages.length - 1 && lastIsAssistant && !streaming}
+            onRegenerate={handleRegenerate}
           />
         ))}
 

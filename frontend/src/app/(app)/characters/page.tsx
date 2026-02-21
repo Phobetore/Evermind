@@ -1,6 +1,7 @@
 "use client";
 
 import CharacterCard from "@/components/characters/CharacterCard";
+import { CharacterCardSkeleton } from "@/components/ui/Skeleton";
 import { api } from "@/lib/api";
 import type { Character } from "@/types";
 import Link from "next/link";
@@ -59,7 +60,11 @@ export default function CharactersPage() {
       />
 
       {loading ? (
-        <div className="text-zinc-500 text-sm">Loading…</div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[1, 2, 3, 4].map((i) => (
+            <CharacterCardSkeleton key={i} />
+          ))}
+        </div>
       ) : characters.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-zinc-400 text-lg mb-4">No characters yet</p>
