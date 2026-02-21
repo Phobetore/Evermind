@@ -20,7 +20,7 @@ sequenceDiagram
   participant API as Backend API (FastAPI)
   participant DB as SQLite + Vector Index
   participant LLMc as LLM Chat Server
-  participant LMM as LLM Memory Server
+  participant LLMm as LLM Memory Server
   participant LJM as LLM Judge Server (optional)
 
   UI->>API: POST /chat/stream {conversation_id, character_id, user_message, profile_id, gen_params}
@@ -50,8 +50,8 @@ sequenceDiagram
 
   API-->>UI: stream final tokens (SSE)
   API->>DB: Insert assistant message + generation meta
-  API->>LMM: Extract memory JSON (semantic/episodic/world_updates/contradictions)
-  LMM-->>API: memory_extract.json
+  API->>LLMm: Extract memory JSON (semantic/episodic/world_updates/contradictions)
+  LLMm-->>API: memory_extract.json
   API->>API: Consolidate (dedupe/merge/score/confidence)
   API->>DB: Upsert world_state updates
   API->>DB: Insert/Update memories
@@ -223,7 +223,8 @@ Chaque message (user/assistant/system) dans `messages.meta` contient un JSON str
 
 #### Si le runtime ne renvoie pas les tokens
 
-`usage.*_tokens` restent à 0. Option : `usage.estimated_tokens` calculé côté backend (approx) :
+`usage.*_tokens` restent à 0. Option : `usage.estimated_tokens` calculé côté backend (approx).
+Les valeurs ci-dessous sont des **exemples** illustrant des estimations non nulles :
 
 ```json
 "usage": {
