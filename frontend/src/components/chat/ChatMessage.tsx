@@ -110,7 +110,7 @@ export default function ChatMessage({
             isUser ? "flex-row-reverse" : ""
           }`}
         >
-          <span className="text-[10px] text-zinc-600" title={message.created_at}>
+          <span className="text-[10px] text-zinc-600" title={new Date(message.created_at).toLocaleString()}>
             {formatRelativeTime(message.created_at)}
           </span>
 

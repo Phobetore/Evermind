@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.core.repositories.character_repository import CharacterRepository
 from app.models.character import (
     CharacterCreate,
+    CharacterImport,
     CharacterResponse,
     CharacterUpdate,
 )
@@ -86,18 +87,8 @@ async def export_character(
 
 @router.post("/import", response_model=CharacterResponse, status_code=201)
 async def import_character(
-    payload: dict,
+    payload: CharacterImport,
     repo: CharacterRepository = Depends(_get_repo),
 ) -> CharacterResponse:
     """Import a character from a portable JSON export."""
-    character_data = payload.get("character")
-    if not character_data or not isinstance(character_data, dict):
-        raise HTTPException(
-            status_code=422,
-            detail='Invalid import format: expected {"version": "1", "character": {…}}',
-        )
-    # Strip any server-side fields that may have leaked in
-    for key in ("id", "created_at", "updated_at"):
-        character_data.pop(key, None)
-    create_data = CharacterCreate.model_validate(character_data)
-    return await repo.create(create_data)
+    return await repo.create(payload.character)

@@ -65,3 +65,14 @@ def test_parse_extraction_response_non_list_values() -> None:
     assert result["episodic"] == []
     assert result["world_updates"] == []
     assert result["contradictions"] == []
+
+
+def test_parse_extraction_response_fence_no_newline() -> None:
+    result = parse_extraction_response("```json")
+    assert result == {
+        "semantic": [],
+        "episodic": [],
+        "world_updates": [],
+        "contradictions": [],
+    }
+    assert result["contradictions"] == []

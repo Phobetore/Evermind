@@ -44,6 +44,13 @@ class CharacterUpdate(BaseModel):
     memory_seed: list[MemorySeed] | None = None
 
 
+class CharacterImport(BaseModel):
+    """Payload for character import — wraps a version and character data."""
+
+    version: str = "1"
+    character: CharacterCreate
+
+
 class CharacterResponse(BaseModel):
     id: str
     name: str

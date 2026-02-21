@@ -49,7 +49,11 @@ def parse_extraction_response(raw_text: str) -> dict[str, Any]:
     text = raw_text.strip()
     if text.startswith("```"):
         # Remove opening fence (```json or ```)
-        first_newline = text.index("\n") if "\n" in text else len(text)
+        first_newline = text.find("\n")
+        if first_newline == -1:
+            # No newline after opening fence — nothing useful to parse
+            logger.warning("Malformed markdown fence in extraction: %s", raw_text[:200])
+            return empty
         text = text[first_newline + 1 :]
         # Remove closing fence
         if text.rstrip().endswith("```"):
