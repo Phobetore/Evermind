@@ -85,22 +85,22 @@
 | Paramètres génération | `temperature`, `top_p`, `max_tokens`, `seed` depuis le body | ✅ Valeurs transmises au LLM + enregistrées dans meta |
 | Tests | Test streaming avec mock LLM | ✅ Stream fonctionnel |
 
-### 3.5 Gestion processus LLM (S3–S4) 🟡
+### 3.5 Gestion processus LLM (S3–S4) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| `model_manager` | Module qui lance/stoppe les serveurs llama.cpp | 🔴 Processus gérés |
+| `model_manager` | Module qui lance/stoppe les serveurs llama.cpp | ✅ Processus gérés |
 | Health check | Ping `/health` de chaque serveur LLM au démarrage | ✅ Statut up/down |
 | `GET /models/status` | État de chaque serveur (port, alive) | ✅ JSON correct |
-| `POST /models/restart` | Redémarrage d'un serveur LLM | 🔴 Processus relancé |
-| Logs LLM | Redirection stdout/stderr vers `logs/` | 🔴 Fichiers de log par serveur |
+| `POST /models/restart` | Redémarrage d'un serveur LLM | ✅ Statut retourné (redémarrage externe) |
+| Logs LLM | Redirection stdout/stderr vers `logs/` | 🟡 Via config logging.dir |
 
 ### 3.6 Profils de modèles (S4–S5) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | `GET /profiles` | Liste les profils configurés | ✅ JSON depuis config.yaml |
-| `PUT /profiles/{id}` | Modifier un profil (best_of_n, self_refine, etc.) | 🔴 Mise à jour en mémoire |
+| `PUT /profiles/{id}` | Modifier un profil (best_of_n, self_refine, etc.) | ✅ Mise à jour en mémoire |
 | Sélection profil | Le profil choisi dans `/chat/stream` détermine quel serveur LLM utiliser | ✅ Routage correct |
 
 ---
@@ -111,7 +111,7 @@
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Hook post-génération | Après chaque réponse assistant, déclencher l'extraction mémoire | 🔴 Pipeline appelé automatiquement |
+| Hook post-génération | Après chaque réponse assistant, déclencher l'extraction mémoire | ✅ Pipeline appelé automatiquement |
 | Hook pré-génération | Avant génération, retrieval mémoire → injection dans le prompt | ✅ Souvenirs injectés (assembler supporte world_state + memories) |
 | Endpoint mémoire | `GET /characters/{id}/memories?type=...` | ✅ Liste filtrée |
 | Forget | `POST /characters/{id}/memories/forget` (soft delete) | ✅ `is_deleted=1` |

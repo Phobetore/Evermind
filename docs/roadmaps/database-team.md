@@ -250,12 +250,12 @@ CREATE INDEX IF NOT EXISTS idx_memories_character_active
 | `get` | Récupérer un souvenir par ID | ✅ Souvenir retourné |
 | `list_by_character` | Liste filtrée (type, is_deleted, is_pinned) | ✅ Filtrage correct |
 | `search_similar` | Recherche vectorielle top-K | 🔴 Résultats par similarité |
-| `update_importance` | Mettre à jour importance/confidence | 🔴 Valeurs mises à jour |
+| `update_importance` | Mettre à jour importance/confidence | ✅ Valeurs mises à jour |
 | `update_referenced_at` | Mettre à jour `last_referenced_at` | 🔴 Timestamp mis à jour |
 | `soft_delete` | `is_deleted=1` + retrait du vecteur | ✅ Souvenir masqué |
 | `pin` / `unpin` | `is_pinned=1/0` | ✅ Statut mis à jour |
 | `get_pinned` | Liste les souvenirs pinned d'un personnage | 🔴 Souvenirs retournés |
-| `merge` | Fusionner deux souvenirs (dédoublonnage) | 🔴 Souvenir fusionné, ancien supprimé |
+| `merge` | Fusionner deux souvenirs (dédoublonnage) | ✅ Souvenir fusionné, ancien supprimé |
 | Tests | Tests unitaires complets | ✅ Couverture des opérations CRUD |
 
 ```python

@@ -107,9 +107,9 @@
 |-------|--------|-----|
 | Page `/settings` | Configuration profil modèle | ✅ Sélection du profil (balanced, max_quality, fast, test) |
 | Paramètres génération | Sliders : temperature, top_p, max_tokens | ✅ Valeurs envoyées au backend via localStorage |
-| best-of-N | Slider N (1–7) | 🔴 Valeur mise à jour |
-| self-refine | Toggle on/off | 🔴 Valeur mise à jour |
-| Contexte max | Affichage contexte actuel | 🔴 Informatif |
+| best-of-N | Slider N (1–7) | ✅ Valeur mise à jour |
+| self-refine | Toggle on/off | ✅ Valeur mise à jour |
+| Contexte max | Affichage contexte actuel | ✅ Informatif |
 
 ### 4.3 Bouton "Assistance IA" (S12–S13) 🟡
 
