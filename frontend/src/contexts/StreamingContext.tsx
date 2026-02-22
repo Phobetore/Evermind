@@ -1,7 +1,7 @@
 "use client";
 
 import type { Message } from "@/types";
-import { getGenerationParams } from "@/lib/generation-params";
+import { getGenerationParams, getSelectedProfile } from "@/lib/generation-params";
 import {
   isChatDone,
   isChatError,
@@ -69,12 +69,13 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
         try {
           let fullContent = "";
           const genParams = getGenerationParams();
+          const profileId = getSelectedProfile();
 
           for await (const event of streamChat(
             conversationId,
             characterId,
             userMessage,
-            "balanced",
+            profileId,
             { ...genParams },
           )) {
             if (controller.signal.aborted) break;

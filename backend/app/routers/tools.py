@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Maximum wall-clock time the character assistant endpoint may spend waiting
 # for the LLM to generate a response before returning a timeout error.
-_ASSISTANT_TIMEOUT_SECONDS = 90
+_ASSISTANT_TIMEOUT_SECONDS = 180
 
 
 class CharacterAssistantRequest(BaseModel):
