@@ -99,6 +99,26 @@ function Test-PortFree {
     return ($null -eq $conn)
 }
 
+function Test-GpuAvailable {
+    # Check for Vulkan support via vulkaninfo (most reliable for Vulkan-backed llama.cpp)
+    try {
+        $vkOutput = & vulkaninfo --summary 2>$null
+        if ($LASTEXITCODE -eq 0 -and $vkOutput -match 'GPU') {
+            return $true
+        }
+    } catch { }
+    # Fallback: check for a dedicated GPU via WMI
+    try {
+        $gpus = Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue
+        foreach ($gpu in $gpus) {
+            if ($gpu.AdapterRAM -gt 1GB -and $gpu.Name -notmatch 'Microsoft Basic|Remote Desktop') {
+                return $true
+            }
+        }
+    } catch { }
+    return $false
+}
+
 # ── Pre-flight checks ────────────────────────────────────────────────────────
 
 Write-Host ""
@@ -203,6 +223,14 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
         Remove-Item (Join-Path $LogDir "llm-preflight-err.log") -Force -ErrorAction SilentlyContinue
         Log-Ok "llama-server binary verified"
 
+        # Detect GPU availability once before starting servers
+        $GpuDetected = Test-GpuAvailable
+        if ($GpuDetected) {
+            Log-Ok "GPU detected -- GPU offloading enabled"
+        } else {
+            Log-Info "No compatible GPU detected -- LLM servers will run on CPU"
+        }
+
         foreach ($ServerName in @("chat", "memory", "judge")) {
             $ServerPort = Read-Config "llm_servers.$ServerName.port"
             $ModelPath  = Read-Config "llm_servers.$ServerName.model_path"
@@ -214,6 +242,11 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
             if ([string]::IsNullOrEmpty($Ctx))        { $Ctx = "8192" }
             if ([string]::IsNullOrEmpty($NGpuLayers))  { $NGpuLayers = "-1" }
             if ([string]::IsNullOrEmpty($Threads))     { $Threads = "4" }
+
+            # If GPU was not detected, force CPU-only mode
+            if ((-Not $GpuDetected) -and ($NGpuLayers -ne "0")) {
+                $NGpuLayers = "0"
+            }
 
             $FullModelPath = Join-Path $ProjectRoot $ModelPath
 

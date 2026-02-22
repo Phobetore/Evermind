@@ -129,6 +129,27 @@ check_port_free() {
     return 0
 }
 
+# Detect whether a compatible GPU is available.
+check_gpu_available() {
+    # Check for Vulkan support (preferred backend)
+    if command -v vulkaninfo > /dev/null 2>&1; then
+        if vulkaninfo --summary 2>/dev/null | grep -qi 'gpu'; then
+            return 0
+        fi
+    fi
+    # Fallback: check for NVIDIA GPU via nvidia-smi
+    if command -v nvidia-smi > /dev/null 2>&1; then
+        if nvidia-smi > /dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    # Fallback: check for GPU render devices
+    if [ -d /dev/dri ] && ls /dev/dri/renderD* > /dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
 # ── Pre-flight checks ────────────────────────────────────────────────────────
 
 echo ""
@@ -229,6 +250,15 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
         fi
         log_ok "llama-server binary verified"
 
+        # Detect GPU availability once before starting servers
+        GPU_DETECTED=false
+        if check_gpu_available; then
+            GPU_DETECTED=true
+            log_ok "GPU detected — GPU offloading enabled"
+        else
+            log_info "No compatible GPU detected — LLM servers will run on CPU"
+        fi
+
         for SERVER_NAME in chat memory judge; do
             SERVER_PORT=$(read_config "llm_servers.${SERVER_NAME}.port")
             MODEL_PATH=$(read_config "llm_servers.${SERVER_NAME}.model_path")
@@ -240,6 +270,11 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
             CTX="${CTX:-8192}"
             N_GPU_LAYERS="${N_GPU_LAYERS:-"-1"}"
             THREADS="${THREADS:-4}"
+
+            # If GPU was not detected, force CPU-only mode
+            if [ "${GPU_DETECTED}" = false ] && [ "${N_GPU_LAYERS}" != "0" ]; then
+                N_GPU_LAYERS="0"
+            fi
 
             FULL_MODEL_PATH="${PROJECT_ROOT}/${MODEL_PATH}"
 
