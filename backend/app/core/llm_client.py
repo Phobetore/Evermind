@@ -22,13 +22,31 @@ class LLMClient:
         self.timeout = timeout
 
     async def health(self) -> bool:
-        """Return *True* if the LLM server is reachable."""
+        """Return *True* if the LLM server is reachable and ready."""
+        return (await self.health_status()) == "ok"
+
+    async def health_status(self) -> str:
+        """Return ``'ok'``, ``'loading'``, or ``'unavailable'``.
+
+        llama.cpp returns HTTP 200 when the model is ready and HTTP 503
+        with ``{"status": "loading model"}`` while the model is still
+        being loaded into memory.
+        """
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(f"{self.base_url}/health", timeout=5.0)
-                return resp.status_code == 200
+                if resp.status_code == 200:
+                    return "ok"
+                # llama.cpp sends 503 while the model is loading
+                try:
+                    body = resp.json()
+                    if "loading" in str(body.get("status", "")).lower():
+                        return "loading"
+                except (ValueError, AttributeError):
+                    pass
+                return "unavailable"
         except (httpx.HTTPError, OSError):
-            return False
+            return "unavailable"
 
     async def chat_completion(
         self, messages: list[dict[str, str]], **params: Any

@@ -56,16 +56,28 @@ class ModelManager:
         return list(self._servers)
 
     async def health(self, name: str) -> bool:
-        """Return *True* if the server *name* responds to ``/health``."""
+        """Return *True* if the server *name* responds to ``/health`` with 200."""
+        return (await self.health_status(name)) == "ok"
+
+    async def health_status(self, name: str) -> str:
+        """Return ``'ok'``, ``'loading'``, or ``'unavailable'`` for server *name*."""
         handle = self._servers.get(name)
         if handle is None:
-            return False
+            return "unavailable"
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(f"{handle.base_url}/health", timeout=5.0)
-                return resp.status_code == 200
+                if resp.status_code == 200:
+                    return "ok"
+                try:
+                    body = resp.json()
+                    if "loading" in str(body.get("status", "")).lower():
+                        return "loading"
+                except (ValueError, AttributeError):
+                    pass
+                return "unavailable"
         except httpx.HTTPError:
-            return False
+            return "unavailable"
 
     async def get_props(self, name: str) -> dict[str, Any] | None:
         """Query the ``/props`` endpoint of the server *name*.
@@ -90,11 +102,11 @@ class ModelManager:
         results: dict[str, dict[str, Any]] = {}
 
         async def _probe(handle: _ServerHandle) -> None:
-            alive = await self.health(handle.name)
+            status = await self.health_status(handle.name)
             results[handle.name] = {
                 "port": handle.port,
                 "model_path": handle.model_path,
-                "status": "ok" if alive else "unreachable",
+                "status": status,
             }
 
         await asyncio.gather(*[_probe(h) for h in self._servers.values()])

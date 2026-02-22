@@ -117,7 +117,42 @@ async def test_character_assistant_endpoint_validation(client: AsyncClient) -> N
 async def test_character_assistant_read_error_returns_503(client: AsyncClient) -> None:
     """POST /tools/character_assistant should return 503 on httpx.ReadError."""
     mock_llm = AsyncMock()
+    mock_llm.health_status = AsyncMock(return_value="ok")
     mock_llm.chat_completion = AsyncMock(side_effect=httpx.ReadError("peer closed"))
+
+    with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
+        resp = await client.post(
+            "/tools/character_assistant",
+            json={"name": "TestChar", "theme": "sci-fi"},
+        )
+    assert resp.status_code == 503
+    assert "unreachable" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_character_assistant_loading_returns_503(client: AsyncClient) -> None:
+    """POST /tools/character_assistant should return 503 when the LLM is still loading."""
+    mock_llm = AsyncMock()
+    mock_llm.health_status = AsyncMock(return_value="loading")
+
+    with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
+        resp = await client.post(
+            "/tools/character_assistant",
+            json={"name": "TestChar", "theme": "sci-fi"},
+        )
+    assert resp.status_code == 503
+    assert "loading" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_character_assistant_http_status_error_returns_503(client: AsyncClient) -> None:
+    """POST /tools/character_assistant should return 503 on httpx.HTTPStatusError."""
+    mock_llm = AsyncMock()
+    mock_llm.health_status = AsyncMock(return_value="ok")
+    mock_resp = httpx.Response(503, request=httpx.Request("POST", "http://test"))
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=httpx.HTTPStatusError("Server Error", request=mock_resp.request, response=mock_resp)
+    )
 
     with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
         resp = await client.post(

@@ -41,6 +41,19 @@ async def character_assistant(request: CharacterAssistantRequest) -> dict[str, A
             detail="Chat LLM server is not configured — cannot generate character",
         )
 
+    # Pre-flight: verify the LLM server is reachable and ready
+    status = await llm.health_status()
+    if status == "loading":
+        raise HTTPException(
+            status_code=503,
+            detail="LLM server is still loading the model — please try again in a moment",
+        )
+    if status == "unavailable":
+        raise HTTPException(
+            status_code=503,
+            detail="LLM server is unreachable — please ensure the llama.cpp server is running",
+        )
+
     try:
         result = await generate_character(
             llm,
@@ -51,7 +64,13 @@ async def character_assistant(request: CharacterAssistantRequest) -> dict[str, A
             limits=request.limits,
             notes=request.notes,
         )
-    except (httpx.ConnectError, httpx.ReadError, httpx.TimeoutException, ConnectionError):
+    except (
+        httpx.ConnectError,
+        httpx.ReadError,
+        httpx.HTTPStatusError,
+        httpx.TimeoutException,
+        ConnectionError,
+    ):
         logger.exception("Character assistant LLM call failed")
         raise HTTPException(
             status_code=503,
