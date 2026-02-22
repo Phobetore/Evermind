@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import TYPE_CHECKING
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -70,8 +70,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        # {client_ip: [timestamp, ...]}
-        self._hits: dict[str, list[float]] = defaultdict(list)
+        # {client_ip: deque([timestamp, ...])}
+        self._hits: dict[str, deque[float]] = defaultdict(deque)
 
     def _client_ip(self, request: Request) -> str:
         """Extract the client IP from the request."""
@@ -84,17 +84,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         now = time.monotonic()
         cutoff = now - self.window_seconds
 
-        # Prune timestamps outside the current window
+        # Prune timestamps outside the current window (O(1) per removal)
         timestamps = self._hits[client_ip]
-        self._hits[client_ip] = [t for t in timestamps if t > cutoff]
+        while timestamps and timestamps[0] <= cutoff:
+            timestamps.popleft()
 
-        if len(self._hits[client_ip]) >= self.max_requests:
+        if len(timestamps) >= self.max_requests:
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests", "status": 429},
             )
 
-        self._hits[client_ip].append(now)
+        timestamps.append(now)
         return await call_next(request)
 
     def reset(self) -> None:

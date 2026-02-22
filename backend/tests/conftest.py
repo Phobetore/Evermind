@@ -22,9 +22,9 @@ from app.core.middleware import RateLimitMiddleware  # noqa: E402
 from app.main import app  # noqa: E402
 
 
-def _reset_rate_limiter(app_instance) -> None:  # noqa: ANN001
+def _reset_rate_limiter(asgi_app) -> None:  # noqa: ANN001
     """Walk the ASGI middleware stack and reset any RateLimitMiddleware."""
-    current = getattr(app_instance, "middleware_stack", None)
+    current = getattr(asgi_app, "middleware_stack", None)
     while current is not None:
         if isinstance(current, RateLimitMiddleware):
             current.reset()
