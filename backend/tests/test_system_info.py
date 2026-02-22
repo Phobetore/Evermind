@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -70,7 +70,7 @@ def test_get_gpu_summary_no_vulkaninfo() -> None:
 
 def test_get_gpu_summary_with_vulkaninfo() -> None:
     """get_gpu_summary should detect devices when vulkaninfo is available."""
-    fake_result = type("R", (), {"returncode": 0, "stdout": VULKANINFO_SAMPLE})()
+    fake_result = Mock(returncode=0, stdout=VULKANINFO_SAMPLE)
     with (
         patch("app.core.gpu_info.shutil.which", return_value="/usr/bin/vulkaninfo"),
         patch("app.core.gpu_info.subprocess.run", return_value=fake_result),
