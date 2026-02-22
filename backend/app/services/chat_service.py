@@ -129,8 +129,8 @@ class ChatService:
         best_of_n = profile.best_of_n if profile else 1
         do_self_refine = profile.self_refine if profile else False
         # Allow generation_params to override profile settings
-        best_of_n = gen_params.pop("best_of_n", best_of_n)
-        do_self_refine = gen_params.pop("self_refine", do_self_refine)
+        best_of_n = gen_params.get("best_of_n", best_of_n)
+        do_self_refine = gen_params.get("self_refine", do_self_refine)
         use_pipeline = best_of_n > 1 or do_self_refine
 
         # Resolve judge LLM for the pipeline (if needed)
@@ -138,6 +138,13 @@ class ChatService:
         judge_llm: LLMClient | None = None
         if use_pipeline:
             judge_llm = _resolve_llm_client(cfg, judge_server_key)
+            if judge_llm is None:
+                logger.warning(
+                    "Judge server '%s' not configured — falling back to simple generation",
+                    judge_server_key,
+                )
+                # Degrade gracefully: no judge means best-of-N returns first candidate
+                # and self-refine is skipped.
 
         collected_tokens: list[str] = []
         request_id = str(uuid.uuid4())
@@ -205,9 +212,10 @@ class ChatService:
                 yield _sse({"error": "Generation produced empty response"})
                 return
 
-            # Emit the final response as tokens for the SSE protocol
+            # Emit the final response as chunks for a streaming-like UX
             timing.mark("t_first_token")
-            yield _sse({"token": final_text})
+            for chunk in _chunk_text(final_text):
+                yield _sse({"token": chunk})
             collected_tokens.append(final_text)
         else:
             # --- Simple streaming path (best_of_n == 1, no self-refine) ---
@@ -432,6 +440,25 @@ class ChatService:
 def _sse(data: dict[str, Any]) -> str:
     """Format a dict as an SSE ``data:`` line."""
     return f"data: {json.dumps(data)}\n\n"
+
+
+def _chunk_text(text: str, max_chunk: int = 6) -> list[str]:
+    """Split *text* into word-sized chunks for a streaming-like UX.
+
+    When the best-of-N pipeline produces a complete response, this function
+    breaks it into small pieces so the frontend receives a gradual stream
+    rather than a single large payload.
+    """
+    if not text:
+        return []
+    words = text.split(" ")
+    chunks: list[str] = []
+    for i in range(0, len(words), max_chunk):
+        chunk = " ".join(words[i : i + max_chunk])
+        if chunks:
+            chunk = " " + chunk
+        chunks.append(chunk)
+    return chunks
 
 
 def _format_memory_lines_text(memories: list[Any]) -> str:

@@ -39,7 +39,7 @@ async def test_chat_meta_reflects_profile_settings(client: AsyncClient) -> None:
     # Without a real LLM server the chat will error, but we can verify
     # the service reads profile settings correctly by mocking the LLM
     # health check + run_pipeline.
-    mock_result = None  # No judge result for simple fallback
+    mock_judge_result = None  # No judge result for simple fallback
 
     with (
         patch("app.services.chat_service.LLMClient") as mock_llm_class,
@@ -48,7 +48,7 @@ async def test_chat_meta_reflects_profile_settings(client: AsyncClient) -> None:
         # Make the LLM client healthy + mock pipeline return
         instance = mock_llm_class.return_value
         instance.health = AsyncMock(return_value=True)
-        mock_pipeline.return_value = ("Mocked pipeline response.", mock_result)
+        mock_pipeline.return_value = ("Mocked pipeline response.", mock_judge_result)
 
         # Also mock _resolve_llm_client to return our mock
         with patch(
