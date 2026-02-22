@@ -335,8 +335,8 @@ $Step++
 if (-Not $BackendOnly) {
     Log-Info "[$Step/$TotalSteps] Starting frontend (port $FrontendPort)..."
 
-    $frontendProc = Start-Process -FilePath "npm" `
-        -ArgumentList "run start -- --port $FrontendPort" `
+    $frontendProc = Start-Process -FilePath "cmd.exe" `
+        -ArgumentList "/c", "npm run start -- --port $FrontendPort" `
         -WorkingDirectory (Join-Path $ProjectRoot "frontend") `
         -PassThru -NoNewWindow `
         -RedirectStandardOutput (Join-Path $LogDir "frontend.log") `
