@@ -13,7 +13,7 @@ from app.config import get_config
 from app.core.database import init_db
 from app.core.errors import register_error_handlers
 from app.core.logging import setup_logging
-from app.core.middleware import RequestIDMiddleware
+from app.core.middleware import RateLimitMiddleware, RequestIDMiddleware
 from app.routers import (
     benchmarks,
     characters,
@@ -25,6 +25,7 @@ from app.routers import (
     models,
     profiles,
     tools,
+    variants,
 )
 
 if TYPE_CHECKING:
@@ -70,6 +71,7 @@ app = FastAPI(
         {"name": "models", "description": "LLM server status and management"},
         {"name": "tools", "description": "AI-powered utilities (character assistant)"},
         {"name": "benchmarks", "description": "Benchmark runs and scoring reports"},
+        {"name": "variants", "description": "Message variants (alternates / swipes)"},
     ],
 )
 
@@ -89,6 +91,9 @@ app.add_middleware(
 # Request-ID — observability header on every request
 app.add_middleware(RequestIDMiddleware)
 
+# Rate limiting — protect against excessive requests
+app.add_middleware(RateLimitMiddleware)
+
 # Register routers
 app.include_router(health.router)
 app.include_router(characters.router)
@@ -100,6 +105,7 @@ app.include_router(memory.router)
 app.include_router(models.router)
 app.include_router(tools.router)
 app.include_router(benchmarks.router)
+app.include_router(variants.router)
 
 # Structured error responses
 register_error_handlers(app)

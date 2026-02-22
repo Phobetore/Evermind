@@ -375,7 +375,7 @@ CREATE TABLE IF NOT EXISTS benchmark_scores (
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| `MessageVariantRepository` | CRUD variantes (create, list_by_message, select) | 🟡 Opérations à implémenter (table créée) |
+| `MessageVariantRepository` | CRUD variantes (create, list_by_message, select) | ✅ Opérations implémentées (variant_repository.py + router /messages/{id}/variants) |
 | `BenchmarkRepository` | CRUD runs + scores | ✅ Opérations fonctionnelles (create_run, get_run, list_runs, update_run_status, add_score, get_scores, delete_run) |
 | Tests | Tests unitaires | ✅ Couverture des endpoints benchmarks (test_benchmarks.py) |
 
