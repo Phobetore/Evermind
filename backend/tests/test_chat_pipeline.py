@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.services.chat_service import ChatService
+
 if TYPE_CHECKING:
     from httpx import AsyncClient
 
@@ -260,21 +262,20 @@ async def test_memory_extraction_does_not_block_done_event(client: AsyncClient) 
     assert conv_resp.status_code == 201
     conv_id = conv_resp.json()["id"]
 
-    # Track whether memory extraction was dispatched
-    extraction_started = asyncio.Event()
+    # Track whether memory extraction was dispatched as a background task
+    extraction_dispatched = asyncio.Event()
+    original_safe = ChatService._extract_and_store_memories_safe
 
-    original_create_task = asyncio.create_task
-
-    def patched_create_task(coro):
-        extraction_started.set()
-        return original_create_task(coro)
+    async def tracking_wrapper(self, **kwargs):
+        extraction_dispatched.set()
+        return await original_safe(self, **kwargs)
 
     async def mock_stream(messages, **params):
         yield {"choices": [{"delta": {"content": "Quick reply."}}]}
 
     with (
         patch("app.services.chat_service._resolve_llm_client") as mock_resolve,
-        patch("app.services.chat_service.asyncio.create_task", side_effect=patched_create_task),
+        patch.object(ChatService, "_extract_and_store_memories_safe", tracking_wrapper),
     ):
         mock_llm = AsyncMock()
         mock_llm.health_status = AsyncMock(return_value="ok")
@@ -299,4 +300,4 @@ async def test_memory_extraction_does_not_block_done_event(client: AsyncClient) 
     assert len(done_events) == 1
 
     # Memory extraction should have been dispatched as a background task
-    assert extraction_started.is_set()
+    assert extraction_dispatched.is_set()

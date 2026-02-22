@@ -36,6 +36,10 @@ MEMORY_CONFIDENCE_THRESHOLD = 0.6
 # Keeps the connection alive through proxies while the LLM is generating.
 _HEARTBEAT_INTERVAL = 15.0
 
+# Weak set of fire-and-forget background tasks to prevent garbage collection
+# before completion (see https://docs.python.org/3/library/asyncio-task.html#creating-tasks).
+_background_tasks: set[asyncio.Task[None]] = set()
+
 
 def _resolve_llm_client(
     cfg: Any, server_key: str, *, timeout: float | None = None
@@ -309,7 +313,7 @@ class ChatService:
 
         if mem_llm is not None:
             memory_extract_enabled = True
-            asyncio.create_task(
+            task = asyncio.create_task(
                 self._extract_and_store_memories_safe(
                     character_id=character_id,
                     char_name=character.name,
@@ -321,6 +325,8 @@ class ChatService:
                     request_id=request_id,
                 )
             )
+            _background_tasks.add(task)
+            task.add_done_callback(_background_tasks.discard)
         else:
             logger.debug(
                 "Memory server '%s' not configured — skipping extraction", memory_server_key
