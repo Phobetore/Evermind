@@ -274,36 +274,61 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
 
             $healthOk = Wait-ForHealth "http://${BindHost}:${ServerPort}/health" $ServerName 60 $proc
 
-            # GPU fallback: if startup failed and GPU layers were requested, retry CPU-only
+            # GPU fallback: if startup failed and GPU layers were requested, try
+            # partial offloading first, then fall back to CPU-only.
             if ((-Not $healthOk) -and ($NGpuLayers -ne "0")) {
-                Log-Warn "GPU mode failed for '$ServerName' -- retrying with --n-gpu-layers 0 (CPU-only)..."
-                try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch { }
-                # Wait for the process to fully exit
-                try { $null = $proc.WaitForExit(10000) } catch { }
-                # Preserve the GPU-mode logs for diagnostics
-                $gpuStdout = Join-Path $LogDir "llm-$ServerName.log"
-                $gpuStderr = Join-Path $LogDir "llm-$ServerName-err.log"
-                if (Test-Path $gpuStdout) { Move-Item $gpuStdout (Join-Path $LogDir "llm-$ServerName-gpu-failed.log") -Force -ErrorAction SilentlyContinue }
-                if (Test-Path $gpuStderr) { Move-Item $gpuStderr (Join-Path $LogDir "llm-$ServerName-gpu-failed-err.log") -Force -ErrorAction SilentlyContinue }
-                # Wait for the port to be released before retrying
-                $portWait = 0
-                while (($portWait -lt 10) -and (-Not (Test-PortFree $ServerPort))) {
-                    Start-Sleep -Seconds 1
-                    $portWait++
+                # Build a list of fallback values to try before giving up.
+                # When the user requested all layers (-1), try a partial offload
+                # (32 layers covers most mid-size models) then CPU-only.
+                if ($NGpuLayers -eq "-1") {
+                    $FallbackValues = @(32, 0)
+                } else {
+                    $FallbackValues = @(0)
                 }
 
-                $proc = Start-Process -FilePath $LlamaServer `
-                    -ArgumentList "--model `"$FullModelPath`" --host $BindHost --port $ServerPort --ctx-size $Ctx --n-gpu-layers 0 --threads $Threads" `
-                    -PassThru -NoNewWindow `
-                    -RedirectStandardOutput (Join-Path $LogDir "llm-$ServerName.log") `
-                    -RedirectStandardError (Join-Path $LogDir "llm-$ServerName-err.log")
+                foreach ($FallbackNgl in $FallbackValues) {
+                    if ($FallbackNgl -eq 0) {
+                        Log-Warn "GPU mode failed for '$ServerName' -- retrying with --n-gpu-layers 0 (CPU-only)..."
+                    } else {
+                        Log-Warn "Full GPU offload failed for '$ServerName' -- retrying with --n-gpu-layers $FallbackNgl (partial)..."
+                    }
+                    try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch { }
+                    # Wait for the process to fully exit
+                    try { $null = $proc.WaitForExit(10000) } catch { }
+                    # Preserve the previous attempt's logs for diagnostics
+                    $gpuStdout = Join-Path $LogDir "llm-$ServerName.log"
+                    $gpuStderr = Join-Path $LogDir "llm-$ServerName-err.log"
+                    if (Test-Path $gpuStdout) { Move-Item $gpuStdout (Join-Path $LogDir "llm-$ServerName-gpu-failed.log") -Force -ErrorAction SilentlyContinue }
+                    if (Test-Path $gpuStderr) { Move-Item $gpuStderr (Join-Path $LogDir "llm-$ServerName-gpu-failed-err.log") -Force -ErrorAction SilentlyContinue }
+                    # Wait for the port to be released before retrying
+                    $portWait = 0
+                    while (($portWait -lt 10) -and (-Not (Test-PortFree $ServerPort))) {
+                        Start-Sleep -Seconds 1
+                        $portWait++
+                    }
 
-                $Pids[$Pids.Count - 1] = "llm-$ServerName=$($proc.Id)"
+                    $proc = Start-Process -FilePath $LlamaServer `
+                        -ArgumentList "--model `"$FullModelPath`" --host $BindHost --port $ServerPort --ctx-size $Ctx --n-gpu-layers $FallbackNgl --threads $Threads" `
+                        -PassThru -NoNewWindow `
+                        -RedirectStandardOutput (Join-Path $LogDir "llm-$ServerName.log") `
+                        -RedirectStandardError (Join-Path $LogDir "llm-$ServerName-err.log")
 
-                $healthOk = Wait-ForHealth "http://${BindHost}:${ServerPort}/health" $ServerName 60 $proc
+                    $Pids[$Pids.Count - 1] = "llm-$ServerName=$($proc.Id)"
+
+                    $healthOk = Wait-ForHealth "http://${BindHost}:${ServerPort}/health" $ServerName 60 $proc
+                    if ($healthOk) {
+                        if ($FallbackNgl -eq 0) {
+                            Log-Ok "LLM server '$ServerName' is healthy in CPU-only mode (PID $($proc.Id))"
+                            Log-Warn "GPU offloading failed -- '$ServerName' is running on CPU (this will be slower)."
+                        } else {
+                            Log-Ok "LLM server '$ServerName' is healthy with --n-gpu-layers $FallbackNgl (PID $($proc.Id))"
+                            Log-Warn "Full GPU offload failed -- '$ServerName' is running with partial GPU offloading."
+                        }
+                        break
+                    }
+                }
+
                 if ($healthOk) {
-                    Log-Ok "LLM server '$ServerName' is healthy in CPU-only mode (PID $($proc.Id))"
-                    Log-Warn "GPU offloading failed -- '$ServerName' is running on CPU (this will be slower)."
                     continue
                 }
             }
@@ -375,6 +400,23 @@ if (-Not $BackendOnly) {
         Log-Error "Next.js binary not found: $NextBin"
         Log-Error "Run 'cd frontend && npm install' first."
         Cleanup-OnError
+    }
+
+    # next start requires a production build (.next directory)
+    $NextBuild = Join-Path $FrontendDir ".next"
+    if (-Not (Test-Path $NextBuild)) {
+        Log-Info "Frontend build not found -- running 'npm run build'..."
+        $buildProc = Start-Process -FilePath "npm" `
+            -ArgumentList "run", "build" `
+            -WorkingDirectory $FrontendDir `
+            -Wait -PassThru -NoNewWindow `
+            -RedirectStandardOutput (Join-Path $LogDir "frontend-build.log") `
+            -RedirectStandardError (Join-Path $LogDir "frontend-build-err.log")
+        if ($null -eq $buildProc.ExitCode -or $buildProc.ExitCode -ne 0) {
+            Log-Error "Frontend build failed. Check logs: $(Join-Path $LogDir 'frontend-build.log')"
+            Cleanup-OnError
+        }
+        Log-Ok "Frontend build completed"
     }
 
     $frontendProc = Start-Process -FilePath "node" `
