@@ -7,7 +7,7 @@ packages = ["app"]
 
 [project]
 name = "evermind-backend"
-version = "0.1.0"
+version = "0.2.0"
 description = "Evermind — AI companion backend API"
 requires-python = ">=3.11"
 dependencies = [

@@ -22,5 +22,5 @@ async def test_version(client: AsyncClient) -> None:
     resp = await client.get("/version")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["version"] == "0.1.0"
+    assert body["version"] == "0.2.0"
     assert body["name"] == "evermind-backend"

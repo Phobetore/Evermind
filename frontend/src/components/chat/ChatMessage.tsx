@@ -3,7 +3,7 @@
 import type { Message } from "@/types";
 import { useState } from "react";
 import Markdown from "react-markdown";
-import { Check, Copy, RotateCcw } from "lucide-react";
+import { Check, Copy, Pencil, RotateCcw, X } from "lucide-react";
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -26,6 +26,7 @@ interface Props {
   characterName: string;
   isLast?: boolean;
   onRegenerate?: () => void;
+  onEditMessage?: (messageId: string, newContent: string) => void;
 }
 
 export default function ChatMessage({
@@ -33,16 +34,42 @@ export default function ChatMessage({
   characterName,
   isLast,
   onRegenerate,
+  onEditMessage,
 }: Props) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(message.content);
 
   function handleCopy() {
     navigator.clipboard.writeText(message.content).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  function handleEditSave() {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== message.content && onEditMessage) {
+      onEditMessage(message.id, trimmed);
+    }
+    setEditing(false);
+  }
+
+  function handleEditCancel() {
+    setEditValue(message.content);
+    setEditing(false);
+  }
+
+  function handleEditKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleEditSave();
+    }
+    if (e.key === "Escape") {
+      handleEditCancel();
+    }
   }
 
   if (isSystem) {
@@ -74,11 +101,39 @@ export default function ChatMessage({
           }`}
         >
           {isUser ? (
-            message.content.split("\n").map((line, i) => (
-              <p key={i} className={i > 0 ? "mt-2" : ""}>
-                {line || "\u00A0"}
-              </p>
-            ))
+            editing ? (
+              <div className="space-y-2">
+                <textarea
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleEditKeyDown}
+                  className="w-full bg-blue-700 text-white rounded-lg px-2 py-1 text-sm resize-none min-h-[40px] focus:outline-none focus:ring-1 focus:ring-blue-300"
+                  rows={2}
+                  autoFocus
+                />
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={handleEditCancel}
+                    className="text-xs text-blue-200 hover:text-white transition-colors flex items-center gap-1"
+                  >
+                    <X size={12} /> Cancel
+                  </button>
+                  <button
+                    onClick={handleEditSave}
+                    disabled={!editValue.trim()}
+                    className="text-xs text-blue-200 hover:text-white transition-colors flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <Check size={12} /> Save &amp; Resend
+                  </button>
+                </div>
+              </div>
+            ) : (
+              message.content.split("\n").map((line, i) => (
+                <p key={i} className={i > 0 ? "mt-2" : ""}>
+                  {line || "\u00A0"}
+                </p>
+              ))
+            )
           ) : (
             <Markdown
               components={{
@@ -122,6 +177,16 @@ export default function ChatMessage({
           >
             {copied ? <><Check size={12} className="inline" /> Copied</> : <><Copy size={12} className="inline" /> Copy</>}
           </button>
+
+          {isUser && onEditMessage && !editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+              title="Edit message"
+            >
+              <Pencil size={12} className="inline" /> Edit
+            </button>
+          )}
 
           {!isUser && isLast && onRegenerate && (
             <button

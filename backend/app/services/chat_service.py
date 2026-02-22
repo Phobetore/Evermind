@@ -7,6 +7,8 @@ import logging
 import uuid
 from typing import TYPE_CHECKING, Any
 
+import httpx
+
 from app.config import get_config
 from app.core.llm_client import LLMClient
 from app.core.repositories.character_repository import CharacterRepository
@@ -124,6 +126,23 @@ class ChatService:
         first_token_sent = False
         errors: list[str] = []
 
+        # Pre-flight: verify LLM server is reachable before streaming
+        base_url = f"http://{cfg.bind_host}:{server_cfg.port}"
+        if not await llm.health():
+            logger.error(
+                "LLM server '%s' unreachable at %s for request %s",
+                chat_server_key,
+                base_url,
+                request_id,
+            )
+            yield _sse({
+                "error": (
+                    f"LLM server '{chat_server_key}' is not reachable at {base_url}. "
+                    "Please ensure the llama.cpp server is running on the configured port."
+                ),
+            })
+            return
+
         try:
             async for chunk in llm.chat_completion_stream(messages, **gen_params):
                 choices = chunk.get("choices", [])
@@ -137,11 +156,33 @@ class ChatService:
                         first_token_sent = True
                     collected_tokens.append(token)
                     yield _sse({"token": token})
+        except (httpx.ConnectError, ConnectionError, OSError):
+            logger.exception("LLM connection failed for request %s at %s", request_id, base_url)
+            timing.mark("t_stream_end")
+            timing.mark("t_request_end")
+            yield _sse({
+                "error": (
+                    f"Cannot connect to LLM server '{chat_server_key}' at {base_url}. "
+                    "Please verify the llama.cpp server is running."
+                ),
+            })
+            return
+        except httpx.TimeoutException:
+            logger.exception("LLM request timed out for request %s at %s", request_id, base_url)
+            timing.mark("t_stream_end")
+            timing.mark("t_request_end")
+            yield _sse({
+                "error": (
+                    f"LLM server '{chat_server_key}' at {base_url} timed out. "
+                    "The model may be loading or the request is too large."
+                ),
+            })
+            return
         except Exception:
             logger.exception("LLM streaming error for request %s", request_id)
             timing.mark("t_stream_end")
             timing.mark("t_request_end")
-            yield _sse({"error": "LLM streaming failed"})
+            yield _sse({"error": "LLM streaming failed unexpectedly"})
             return
 
         timing.mark("t_stream_end")

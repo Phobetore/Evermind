@@ -13,7 +13,9 @@ from app.config import get_config
 from app.core.database import init_db
 from app.core.errors import register_error_handlers
 from app.core.logging import setup_logging
+from app.core.middleware import RequestIDMiddleware
 from app.routers import (
+    benchmarks,
     characters,
     chat,
     conversations,
@@ -45,9 +47,30 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="Evermind API",
-    version="0.1.0",
-    description="AI companion backend — multi-character, long-term memory, text only.",
+    version="0.2.0",
+    description=(
+        "AI companion backend — multi-character, long-term memory, text only.\n\n"
+        "## Features\n"
+        "- Character management (CRUD, import/export)\n"
+        "- Conversation & message handling\n"
+        "- LLM-powered chat with SSE streaming\n"
+        "- Memory pipeline (extraction, retrieval, consolidation)\n"
+        "- Benchmark scoring system\n"
+        "- AI-assisted character generation\n"
+    ),
     lifespan=lifespan,
+    openapi_tags=[
+        {"name": "health", "description": "Liveness and version probes"},
+        {"name": "characters", "description": "CRUD operations for characters"},
+        {"name": "conversations", "description": "Manage conversations linked to characters"},
+        {"name": "messages", "description": "Read and create messages within conversations"},
+        {"name": "chat", "description": "LLM-powered streaming chat generation (SSE)"},
+        {"name": "profiles", "description": "Generation profiles (balanced, max_quality, fast)"},
+        {"name": "memory", "description": "Memory management — list, pin, forget, rebuild"},
+        {"name": "models", "description": "LLM server status and management"},
+        {"name": "tools", "description": "AI-powered utilities (character assistant)"},
+        {"name": "benchmarks", "description": "Benchmark runs and scoring reports"},
+    ],
 )
 
 # CORS — allow only the local frontend by default
@@ -63,6 +86,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request-ID — observability header on every request
+app.add_middleware(RequestIDMiddleware)
+
 # Register routers
 app.include_router(health.router)
 app.include_router(characters.router)
@@ -73,6 +99,7 @@ app.include_router(profiles.router)
 app.include_router(memory.router)
 app.include_router(models.router)
 app.include_router(tools.router)
+app.include_router(benchmarks.router)
 
 # Structured error responses
 register_error_handlers(app)

@@ -157,6 +157,24 @@ export default function ChatConversationPage() {
     await doStream(lastUserMsg.content);
   }
 
+  async function handleEditMessage(messageId: string, newContent: string) {
+    if (!conversation || !character || streaming) return;
+
+    // Find the edited message index
+    const editIdx = messages.findIndex((m) => m.id === messageId);
+    if (editIdx === -1) return;
+
+    // Replace the edited message and remove all messages after it
+    const editedMsg: Message = {
+      ...messages[editIdx],
+      content: newContent,
+    };
+    setMessages((prev) => [...prev.slice(0, editIdx), editedMsg]);
+
+    // Re-generate assistant response with the edited content
+    await doStream(newContent);
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col h-full">
@@ -213,6 +231,7 @@ export default function ChatConversationPage() {
             characterName={character.name}
             isLast={idx === messages.length - 1 && lastIsAssistant && !streaming}
             onRegenerate={handleRegenerate}
+            onEditMessage={handleEditMessage}
           />
         ))}
 

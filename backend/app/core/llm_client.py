@@ -27,7 +27,7 @@ class LLMClient:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(f"{self.base_url}/health", timeout=5.0)
                 return resp.status_code == 200
-        except httpx.HTTPError:
+        except (httpx.HTTPError, OSError):
             return False
 
     async def chat_completion(
