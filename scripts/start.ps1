@@ -413,8 +413,8 @@ if (-Not $BackendOnly) {
             Log-Error "npm not found in PATH. Ensure Node.js/npm is installed."
             Cleanup-OnError
         }
-        $buildProc = Start-Process -FilePath $NpmCmd `
-            -ArgumentList "run", "build" `
+        $buildProc = Start-Process -FilePath "cmd.exe" `
+            -ArgumentList "/c", "`"$NpmCmd`"", "run", "build" `
             -WorkingDirectory $FrontendDir `
             -Wait -PassThru -NoNewWindow `
             -RedirectStandardOutput (Join-Path $LogDir "frontend-build.log") `
