@@ -1,6 +1,6 @@
 import type { Character } from "@/types";
 import Link from "next/link";
-import { Brain, Upload, X } from "lucide-react";
+import { Brain, Download, X } from "lucide-react";
 
 interface Props {
   character: Character;
@@ -53,7 +53,7 @@ export default function CharacterCard({ character, onDelete, onExport }: Props) 
               aria-label={`Export ${character.name}`}
               title="Export"
             >
-              <Upload size={16} />
+              <Download size={16} />
             </button>
           )}
           {onDelete && (
