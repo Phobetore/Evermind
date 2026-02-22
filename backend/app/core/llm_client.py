@@ -82,7 +82,8 @@ class LLMClient:
                 )
                 if attempt < _DEFAULT_RETRIES:
                     await asyncio.sleep(2**attempt)
-        raise last_exc  # type: ignore[misc]
+        assert last_exc is not None  # loop always runs; satisfies type checker
+        raise last_exc
 
     async def chat_completion_stream(
         self, messages: list[dict[str, str]], **params: Any
