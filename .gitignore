@@ -43,9 +43,6 @@ models/memory/
 models/judge/
 models/embeddings/
 
-# Binaries
-bin/
-
 # Environment
 .env
 .env.local
