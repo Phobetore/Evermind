@@ -1,6 +1,6 @@
 # Roadmaps Équipes — Projet Evermind
 
-> **Version :** v1.1 (roadmaps + addendum)
+> **Version :** v1.2 (roadmaps + addendum)
 > **Date :** Février 2026
 
 ---

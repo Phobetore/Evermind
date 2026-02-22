@@ -165,10 +165,10 @@
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Endpoint benchmark | `POST /benchmarks/run` | Lancement d'un run de test |
+| Endpoint benchmark | `POST /benchmarks` | ✅ CRUD complet (list, create, get, report, scores, delete) |
 | Scénarios | Drift persona, rappel faits, continuité, style, immersion | 5 scénarios minimum |
 | Scoring automatique | Utilisation du juge (Qwen3-4B) pour scorer | Scores JSON |
-| Rapport | `GET /benchmarks/{id}/report` | JSON exportable |
+| Rapport | `GET /benchmarks/{id}/report` | ✅ JSON exportable (run + scores) |
 
 ### 5.3 Hardening (S18–S20) 🟡
 
@@ -178,8 +178,9 @@
 | Rate limiting | Limite de requêtes (optionnel, protection locale) | 429 si dépassé |
 | Gestion VRAM OOM | Détection erreur LLM → fallback ctx réduit | Retry automatique |
 | Tests d'intégration | Tests end-to-end (API + LLM mock) | Suite complète |
-| Documentation API | OpenAPI spec auto-générée (Swagger UI) | `/docs` accessible |
+| Documentation API | OpenAPI spec auto-générée (Swagger UI) | ✅ `/docs` accessible avec tags et descriptions structurés |
 | Anti-prompt-injection | Messages user jamais dans le bloc system | Vérification en code |
+| Request-ID | Header `X-Request-ID` sur chaque requête | ✅ Middleware implémenté |
 
 ---
 

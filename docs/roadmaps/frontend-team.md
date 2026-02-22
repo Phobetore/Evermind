@@ -111,22 +111,22 @@
 | self-refine | Toggle on/off | ✅ Valeur mise à jour |
 | Contexte max | Affichage contexte actuel | ✅ Informatif |
 
-### 4.3 Bouton "Assistance IA" (S12–S13) 🟡
+### 4.3 Bouton "Assistance IA" (S12–S13) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Bouton dans l'éditeur personnage | "Générer avec l'IA" | Ouvre un modal/panel |
-| Formulaire inputs | Nom, thème, relation, style, limites | Champs remplis par l'utilisateur |
-| Appel API | `POST /tools/character_assistant` | Réponse JSON parsée |
-| Remplissage auto | Les champs de l'éditeur se remplissent avec les suggestions | Pré-remplissage correct |
-| Édition manuelle | L'utilisateur peut modifier les suggestions avant de sauvegarder | Champs éditables |
+| Bouton dans l'éditeur personnage | "AI Assist" avec icône Sparkles | ✅ Ouvre un panel inline |
+| Formulaire inputs | Thème, relation, style, limites, notes | ✅ Champs remplis par l'utilisateur |
+| Appel API | `POST /tools/character_assistant` | ✅ Réponse JSON parsée |
+| Remplissage auto | Les champs de l'éditeur se remplissent avec les suggestions | ✅ Pré-remplissage correct |
+| Édition manuelle | L'utilisateur peut modifier les suggestions avant de sauvegarder | ✅ Champs éditables |
 
 ### 4.4 Améliorations Chat (S13–S14) 🟡
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Retry (renvoi) | Renvoyer le dernier message user | ✅ Nouvelle génération (Regenerate button) |
-| Édition message user | Modifier un message user passé | 🔴 Message mis à jour + régénération |
+| Édition message user | Modifier un message user passé | ✅ Inline editing avec Enter/Escape, régénère la réponse |
 | Copier message | Bouton copier dans le presse-papier | ✅ Feedback visuel |
 | Horodatage | Affichage date/heure des messages | ✅ Tooltip ou inline |
 
