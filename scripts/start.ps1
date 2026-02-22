@@ -69,7 +69,8 @@ function Wait-ForHealth {
     param(
         [string]$Url,
         [string]$Name,
-        [int]$Timeout = 60
+        [int]$Timeout = 60,
+        [System.Diagnostics.Process]$Process = $null
     )
     $elapsed = 0
     while ($elapsed -lt $Timeout) {
@@ -77,6 +78,11 @@ function Wait-ForHealth {
             $response = Invoke-WebRequest -Uri $Url -TimeoutSec 2 -UseBasicParsing -ErrorAction SilentlyContinue
             if ($response.StatusCode -eq 200) { return $true }
         } catch { }
+        # If a process was provided, check that it is still running
+        if ($null -ne $Process -and $Process.HasExited) {
+            Log-Error "$Name process (PID $($Process.Id)) exited unexpectedly with code $($Process.ExitCode)."
+            return $false
+        }
         Start-Sleep -Seconds 2
         $elapsed += 2
     }
@@ -200,17 +206,35 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
             Log-Info "[$Step/$TotalSteps] Starting LLM server: $ServerName (port $ServerPort)..."
 
             $proc = Start-Process -FilePath $LlamaServer `
-                -ArgumentList "--model `"$FullModelPath`" --port $ServerPort --ctx-size $Ctx --n-gpu-layers $NGpuLayers --threads $Threads" `
+                -ArgumentList "--model `"$FullModelPath`" --host $BindHost --port $ServerPort --ctx-size $Ctx --n-gpu-layers $NGpuLayers --threads $Threads" `
                 -PassThru -NoNewWindow `
                 -RedirectStandardOutput (Join-Path $LogDir "llm-$ServerName.log") `
                 -RedirectStandardError (Join-Path $LogDir "llm-$ServerName-err.log")
 
             $Pids += "llm-$ServerName=$($proc.Id)"
 
-            if (Wait-ForHealth "http://${BindHost}:${ServerPort}/health" $ServerName 60) {
+            if (Wait-ForHealth "http://${BindHost}:${ServerPort}/health" $ServerName 60 $proc) {
                 Log-Ok "LLM server '$ServerName' is healthy (PID $($proc.Id))"
             } else {
                 Log-Error "LLM server '$ServerName' failed to start within 60 seconds."
+                $stdoutLog = Join-Path $LogDir "llm-$ServerName.log"
+                $stderrLog = Join-Path $LogDir "llm-$ServerName-err.log"
+                $hasOutput = $false
+                if ((Test-Path $stderrLog) -and (Get-Item $stderrLog).Length -gt 0) {
+                    Log-Error "Last 20 lines of ${stderrLog}:"
+                    Get-Content $stderrLog -Tail 20 | ForEach-Object { Write-Host "         $_" }
+                    $hasOutput = $true
+                }
+                if ((Test-Path $stdoutLog) -and (Get-Item $stdoutLog).Length -gt 0) {
+                    Log-Error "Last 20 lines of ${stdoutLog}:"
+                    Get-Content $stdoutLog -Tail 20 | ForEach-Object { Write-Host "         $_" }
+                    $hasOutput = $true
+                }
+                if (-Not $hasOutput) {
+                    Log-Error "Log files are empty."
+                    Log-Error "The server process may have crashed before producing output."
+                    Log-Error "Verify that the llama-server binary is compatible with your system."
+                }
                 Cleanup-OnError
             }
         }
@@ -231,7 +255,7 @@ $backendProc = Start-Process -FilePath "python3" `
 
 $Pids += "backend=$($backendProc.Id)"
 
-if (Wait-ForHealth "http://${BindHost}:${BackendPort}/health" "backend" 30) {
+if (Wait-ForHealth "http://${BindHost}:${BackendPort}/health" "backend" 30 $backendProc) {
     Log-Ok "Backend is healthy (PID $($backendProc.Id))"
 } else {
     Log-Error "Backend failed to start within 30 seconds."
@@ -254,7 +278,7 @@ if (-Not $BackendOnly) {
 
     $Pids += "frontend=$($frontendProc.Id)"
 
-    if (Wait-ForHealth "http://${BindHost}:${FrontendPort}" "frontend" 60) {
+    if (Wait-ForHealth "http://${BindHost}:${FrontendPort}" "frontend" 60 $frontendProc) {
         Log-Ok "Frontend is healthy (PID $($frontendProc.Id))"
     } else {
         Log-Warn "Frontend may still be starting -- check logs: $(Join-Path $LogDir 'frontend.log')"

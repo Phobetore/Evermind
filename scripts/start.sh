@@ -83,15 +83,24 @@ print(val if val is not None else '')
 }
 
 # Wait for an HTTP endpoint to respond 200 OK.
+# Arguments: url name timeout [pid]
+# If pid is provided, the function checks that the process is still running
+# on each iteration and returns immediately if it has exited.
 wait_for_health() {
     local url="$1"
     local name="$2"
     local timeout="${3:-60}"
+    local pid="${4:-}"
     local elapsed=0
 
     while [ "$elapsed" -lt "$timeout" ]; do
         if curl -sf --max-time 2 "${url}" > /dev/null 2>&1; then
             return 0
+        fi
+        # If a PID was provided, check that the process is still alive
+        if [ -n "${pid}" ] && ! kill -0 "${pid}" 2>/dev/null; then
+            log_error "${name} process (PID ${pid}) exited unexpectedly."
+            return 1
         fi
         sleep 2
         elapsed=$((elapsed + 2))
@@ -234,6 +243,7 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
 
             "${LLAMA_SERVER}" \
                 --model "${FULL_MODEL_PATH}" \
+                --host "${BIND_HOST}" \
                 --port "${SERVER_PORT}" \
                 --ctx-size "${CTX}" \
                 --n-gpu-layers "${N_GPU_LAYERS}" \
@@ -244,11 +254,22 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
             PIDS+=("${LLM_PID}")
             PID_LABELS+=("llm-${SERVER_NAME}")
 
-            # Wait for health
-            if wait_for_health "http://${BIND_HOST}:${SERVER_PORT}/health" "${SERVER_NAME}" 60; then
+            # Wait for health (also checks process liveness)
+            if wait_for_health "http://${BIND_HOST}:${SERVER_PORT}/health" "${SERVER_NAME}" 60 "${LLM_PID}"; then
                 log_ok "LLM server '${SERVER_NAME}' is healthy (PID ${LLM_PID})"
             else
                 log_error "LLM server '${SERVER_NAME}' failed to start within 60 seconds."
+                LOG_FILE="${LOG_DIR}/llm-${SERVER_NAME}.log"
+                if [ -s "${LOG_FILE}" ]; then
+                    log_error "Last 20 lines of ${LOG_FILE}:"
+                    tail -n 20 "${LOG_FILE}" | while IFS= read -r line; do
+                        echo "         ${line}"
+                    done
+                else
+                    log_error "Log file is empty: ${LOG_FILE}"
+                    log_error "The server process may have crashed before producing output."
+                    log_error "Verify that the llama-server binary is compatible with your system."
+                fi
                 cleanup_on_error
             fi
         done
@@ -272,7 +293,7 @@ PIDS+=("${BACKEND_PID}")
 PID_LABELS+=("backend")
 cd "${PROJECT_ROOT}"
 
-if wait_for_health "http://${BIND_HOST}:${BACKEND_PORT}/health" "backend" 30; then
+if wait_for_health "http://${BIND_HOST}:${BACKEND_PORT}/health" "backend" 30 "${BACKEND_PID}"; then
     log_ok "Backend is healthy (PID ${BACKEND_PID})"
 else
     log_error "Backend failed to start within 30 seconds."
@@ -297,7 +318,7 @@ if [ "${BACKEND_ONLY}" = false ]; then
     cd "${PROJECT_ROOT}"
 
     # Frontend takes longer to start — give it more time
-    if wait_for_health "http://${BIND_HOST}:${FRONTEND_PORT}" "frontend" 60; then
+    if wait_for_health "http://${BIND_HOST}:${FRONTEND_PORT}" "frontend" 60 "${FRONTEND_PID}"; then
         log_ok "Frontend is healthy (PID ${FRONTEND_PID})"
     else
         log_warn "Frontend may still be starting — check logs: ${LOG_DIR}/frontend.log"
