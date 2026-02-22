@@ -121,14 +121,14 @@
 | Remplissage auto | Les champs de l'éditeur se remplissent avec les suggestions | ✅ Pré-remplissage correct |
 | Édition manuelle | L'utilisateur peut modifier les suggestions avant de sauvegarder | ✅ Champs éditables |
 
-### 4.4 Améliorations Chat (S13–S14) 🟡
+### 4.4 Améliorations Chat (S13–S14) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Retry (renvoi) | Renvoyer le dernier message user | ✅ Nouvelle génération (Regenerate button) |
 | Édition message user | Modifier un message user passé | ✅ Inline editing avec Enter/Escape, régénère la réponse |
-| Copier message | Bouton copier dans le presse-papier | ✅ Feedback visuel |
-| Horodatage | Affichage date/heure des messages | ✅ Tooltip ou inline |
+| Copier message | Bouton copier dans le presse-papier | ✅ Feedback visuel (icône Check) |
+| Horodatage | Affichage date/heure des messages | ✅ Format relatif (ex: "5m ago") + date complète en tooltip |
 
 ---
 
@@ -145,14 +145,14 @@
 | World State | Affichage JSON du world_state | ✅ Visualisation lisible |
 | Édition World State | Formulaire d'édition du world_state | 🔴 PUT API fonctionnel |
 
-### 5.2 Import / Export Personnages (S17–S18) 🟡
+### 5.2 Import / Export Personnages (S17–S18) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Export | Bouton "Exporter" → téléchargement JSON | ✅ Fichier JSON conforme au schéma v1 |
 | Import | Bouton "Importer" → upload fichier JSON | ✅ Personnage créé avec toutes les données |
 | Validation import | Vérification du schéma JSON côté client | ✅ Erreur claire si format invalide |
-| Preview import | Aperçu du personnage avant confirmation | 🔴 Modal de preview |
+| Preview import | Aperçu du personnage avant confirmation | 🟡 Modal de preview |
 
 ### 5.3 Benchmarks UI (S18–S19) 🟢
 

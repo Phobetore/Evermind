@@ -242,21 +242,21 @@ CREATE INDEX IF NOT EXISTS idx_memories_character_active
 > **Choix v0.2 :** `numpy` brut retenu — suffisant pour <50k vecteurs, zéro dépendance externe.
 > Upgrade path vers `hnswlib` ou `faiss-cpu` prévu si les volumes augmentent.
 
-### 4.3 `MemoryRepository` (S10–S12) 🟡
+### 4.3 `MemoryRepository` (S10–S12) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | `create` | Insérer un souvenir | ✅ Souvenir créé |
 | `get` | Récupérer un souvenir par ID | ✅ Souvenir retourné |
 | `list_by_character` | Liste filtrée (type, is_deleted, is_pinned) | ✅ Filtrage correct |
-| `search_similar` | Recherche vectorielle top-K | 🔴 Résultats par similarité |
+| `search_similar` | Recherche vectorielle top-K | ✅ Résultats par similarité (via VectorIndex) |
 | `update_importance` | Mettre à jour importance/confidence | ✅ Valeurs mises à jour |
 | `update_referenced_at` | Mettre à jour `last_referenced_at` | ✅ Timestamp mis à jour |
 | `soft_delete` | `is_deleted=1` + retrait du vecteur | ✅ Souvenir masqué |
 | `pin` / `unpin` | `is_pinned=1/0` | ✅ Statut mis à jour |
 | `get_pinned` | Liste les souvenirs pinned d'un personnage | ✅ Souvenirs retournés |
 | `merge` | Fusionner deux souvenirs (dédoublonnage) | ✅ Souvenir fusionné, ancien supprimé |
-| Tests | Tests unitaires complets | ✅ Couverture des opérations CRUD |
+| Tests | Tests unitaires complets | ✅ Couverture des opérations CRUD (test_memory_repo.py) |
 
 ```python
 # app/core/repositories/memory_repository.py
@@ -317,14 +317,14 @@ class WorldStateRepository:
 
 ## 5. Phase v1.0 — Semaines 15–20
 
-### 5.1 Migration 003 — Benchmarks & variantes (S15–S16) 🟡
+### 5.1 Migration 003 — Benchmarks & variantes (S15–S16) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Table `message_variants` | Stocker les variantes/alternates d'un message | ✅ Migration SQL créée |
 | Table `benchmark_runs` | Stocker les résultats de benchmarks | ✅ Migration SQL créée |
 | Table `benchmark_scores` | Scores détaillés par run | ✅ Migration SQL créée |
-| Migration | Appliquée automatiquement | Pas de données perdues |
+| Migration | Appliquée automatiquement | ✅ Pas de données perdues |
 
 #### Migration 003
 
@@ -371,23 +371,23 @@ CREATE TABLE IF NOT EXISTS benchmark_scores (
 );
 ```
 
-### 5.2 Repositories variantes & benchmarks (S16–S17) 🟡
+### 5.2 Repositories variantes & benchmarks (S16–S17) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| `MessageVariantRepository` | CRUD variantes (create, list_by_message, select) | Opérations fonctionnelles |
+| `MessageVariantRepository` | CRUD variantes (create, list_by_message, select) | 🟡 Opérations à implémenter (table créée) |
 | `BenchmarkRepository` | CRUD runs + scores | ✅ Opérations fonctionnelles (create_run, get_run, list_runs, update_run_status, add_score, get_scores, delete_run) |
-| Tests | Tests unitaires | ✅ Couverture des endpoints benchmarks |
+| Tests | Tests unitaires | ✅ Couverture des endpoints benchmarks (test_benchmarks.py) |
 
-### 5.3 Import / Export (S17–S18) 🔴
+### 5.3 Import / Export (S17–S18) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Export personnage complet | Character + memories + world_state → JSON | JSON conforme au schéma v1 |
-| Import personnage | JSON → Character + memories + world_state | Données importées correctement |
-| Validation schéma | Vérifier la conformité du JSON à l'import | Erreur claire si invalide |
-| Re-indexation | Après import, recréer les vecteurs des memories | Index à jour |
-| Tests | Test d'export → import roundtrip | Données identiques |
+| Export personnage complet | Character + memories + world_state → JSON | ✅ JSON conforme au schéma v1 (`GET /characters/{id}/export`) |
+| Import personnage | JSON → Character + memories + world_state | ✅ Données importées correctement (`POST /characters/import`) |
+| Validation schéma | Vérifier la conformité du JSON à l'import | ✅ Erreur claire si invalide (Pydantic validation 422) |
+| Re-indexation | Après import, recréer les vecteurs des memories | ✅ Index à jour (memory_seed importé) |
+| Tests | Test d'export → import roundtrip | ✅ Données identiques (test_character_export_import.py) |
 
 ### 5.4 Hardening (S18–S20) 🟡
 

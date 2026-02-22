@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from app.chat_orchestrator.orchestrator import run_pipeline
 from app.config import get_config
 from app.core.llm_client import LLMClient
 from app.core.repositories.character_repository import CharacterRepository
@@ -70,6 +71,10 @@ class ChatService:
           ``data: {"token": "…"}``   — incremental tokens
           ``data: {"done": true, "message_id": "…", "meta": {…}}`` — final event
           ``data: {"error": "…"}``   — on failure
+
+        When the profile enables best-of-N (> 1) or self-refine, the service
+        uses the full orchestrator pipeline (non-streaming generation → judge
+        → optional refine) before emitting the final response as tokens.
         """
         timing = TimingContext()
         gen_params = generation_params or {}
@@ -120,11 +125,32 @@ class ChatService:
             yield _sse({"error": f"LLM server '{chat_server_key}' not configured"})
             return
 
-        # 7. Stream tokens from LLM
+        # Determine pipeline settings from profile
+        best_of_n = profile.best_of_n if profile else 1
+        do_self_refine = profile.self_refine if profile else False
+        # Allow generation_params to override profile settings
+        best_of_n = gen_params.get("best_of_n", best_of_n)
+        do_self_refine = gen_params.get("self_refine", do_self_refine)
+        use_pipeline = best_of_n > 1 or do_self_refine
+
+        # Resolve judge LLM for the pipeline (if needed)
+        judge_server_key = profile.judge_server if profile else "judge"
+        judge_llm: LLMClient | None = None
+        if use_pipeline:
+            judge_llm = _resolve_llm_client(cfg, judge_server_key)
+            if judge_llm is None:
+                logger.warning(
+                    "Judge server '%s' not configured — falling back to simple generation",
+                    judge_server_key,
+                )
+                # Degrade gracefully: no judge means best-of-N returns first candidate
+                # and self-refine is skipped.
+
         collected_tokens: list[str] = []
         request_id = str(uuid.uuid4())
         first_token_sent = False
         errors: list[str] = []
+        judge_enabled = False
 
         # Pre-flight: verify LLM server is reachable before streaming
         base_url = f"http://{cfg.bind_host}:{server_cfg.port}"
@@ -143,49 +169,103 @@ class ChatService:
             })
             return
 
-        try:
-            async for chunk in llm.chat_completion_stream(messages, **gen_params):
-                choices = chunk.get("choices", [])
-                if not choices:
-                    continue
-                delta = choices[0].get("delta", {})
-                token = delta.get("content", "")
-                if token:
-                    if not first_token_sent:
-                        timing.mark("t_first_token")
-                        first_token_sent = True
-                    collected_tokens.append(token)
-                    yield _sse({"token": token})
-        except (httpx.ConnectError, ConnectionError, OSError):
-            logger.exception("LLM connection failed for request %s at %s", request_id, base_url)
-            timing.mark("t_stream_end")
-            timing.mark("t_request_end")
-            yield _sse({
-                "error": (
-                    f"Cannot connect to LLM server '{chat_server_key}' at {base_url}. "
-                    "Please verify the llama.cpp server is running."
-                ),
-            })
-            return
-        except httpx.TimeoutException:
-            logger.exception("LLM request timed out for request %s at %s", request_id, base_url)
-            timing.mark("t_stream_end")
-            timing.mark("t_request_end")
-            yield _sse({
-                "error": (
-                    f"LLM server '{chat_server_key}' at {base_url} timed out. "
-                    "The model may be loading or the request is too large."
-                ),
-            })
-            return
-        except Exception:
-            logger.exception("LLM streaming error for request %s", request_id)
-            timing.mark("t_stream_end")
-            timing.mark("t_request_end")
-            yield _sse({"error": "LLM streaming failed unexpectedly"})
-            return
+        if use_pipeline:
+            # --- Best-of-N / self-refine pipeline (non-streaming) ---
+            judge_enabled = judge_llm is not None
+            world_state_json = json.dumps(world_state) if world_state else "{}"
+            memory_lines_text = _format_memory_lines_text(memories or [])
 
-        timing.mark("t_stream_end")
+            try:
+                final_text, judge_result = await run_pipeline(
+                    chat_llm=llm,
+                    judge_llm=judge_llm,
+                    messages=messages,
+                    best_of_n=best_of_n,
+                    do_self_refine=do_self_refine,
+                    char_name=character.name,
+                    writing_style=character.writing_style or "",
+                    boundaries=character.boundaries or "",
+                    world_state_json=world_state_json,
+                    world_state_block=world_state_json,
+                    memory_lines_text=memory_lines_text,
+                    user_message=user_message,
+                    base_temperature=gen_params.get("temperature", 0.7),
+                    max_tokens=gen_params.get("max_tokens", 1024),
+                    base_seed=gen_params.get("seed"),
+                )
+            except Exception:
+                logger.exception("Pipeline failed for request %s", request_id)
+                timing.mark("t_stream_end")
+                timing.mark("t_request_end")
+                yield _sse({"error": "Generation pipeline failed unexpectedly"})
+                return
+
+            timing.mark("t_stream_end")
+
+            if judge_result is not None:
+                timing.mark("t_judge_end")
+                if do_self_refine and judge_result.rewrite_suggestion:
+                    timing.mark("t_self_refine_end")
+
+            if not final_text:
+                timing.mark("t_request_end")
+                yield _sse({"error": "Generation produced empty response"})
+                return
+
+            # Emit the final response as chunks for a streaming-like UX
+            timing.mark("t_first_token")
+            for chunk in _chunk_text(final_text):
+                yield _sse({"token": chunk})
+            collected_tokens.append(final_text)
+        else:
+            # --- Simple streaming path (best_of_n == 1, no self-refine) ---
+            try:
+                async for chunk in llm.chat_completion_stream(messages, **gen_params):
+                    choices = chunk.get("choices", [])
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta", {})
+                    token = delta.get("content", "")
+                    if token:
+                        if not first_token_sent:
+                            timing.mark("t_first_token")
+                            first_token_sent = True
+                        collected_tokens.append(token)
+                        yield _sse({"token": token})
+            except (httpx.ConnectError, ConnectionError, OSError):
+                logger.exception(
+                    "LLM connection failed for request %s at %s", request_id, base_url
+                )
+                timing.mark("t_stream_end")
+                timing.mark("t_request_end")
+                yield _sse({
+                    "error": (
+                        f"Cannot connect to LLM server '{chat_server_key}' at {base_url}. "
+                        "Please verify the llama.cpp server is running."
+                    ),
+                })
+                return
+            except httpx.TimeoutException:
+                logger.exception(
+                    "LLM request timed out for request %s at %s", request_id, base_url
+                )
+                timing.mark("t_stream_end")
+                timing.mark("t_request_end")
+                yield _sse({
+                    "error": (
+                        f"LLM server '{chat_server_key}' at {base_url} timed out. "
+                        "The model may be loading or the request is too large."
+                    ),
+                })
+                return
+            except Exception:
+                logger.exception("LLM streaming error for request %s", request_id)
+                timing.mark("t_stream_end")
+                timing.mark("t_request_end")
+                yield _sse({"error": "LLM streaming failed unexpectedly"})
+                return
+
+            timing.mark("t_stream_end")
 
         # 8. Post-generation: trigger memory extraction (async, non-blocking)
         full_response = "".join(collected_tokens)
@@ -210,7 +290,9 @@ class ChatService:
                 logger.exception("Memory extraction failed for request %s", request_id)
                 errors.append("memory_extraction_failed")
         else:
-            logger.debug("Memory server '%s' not configured — skipping extraction", memory_server_key)
+            logger.debug(
+                "Memory server '%s' not configured — skipping extraction", memory_server_key
+            )
 
         timing.mark("t_memory_extract_end")
 
@@ -223,9 +305,9 @@ class ChatService:
             "request_id": request_id,
             "profile_id": profile_id,
             "pipeline": {
-                "best_of_n": 1,
-                "self_refine": False,
-                "judge_enabled": False,
+                "best_of_n": best_of_n,
+                "self_refine": do_self_refine,
+                "judge_enabled": judge_enabled,
                 "memory_extract_enabled": memory_extract_enabled,
                 "memory_write_enabled": memory_extract_enabled,
             },
@@ -265,9 +347,16 @@ class ChatService:
                 "meta": {
                     "request_id": request_id,
                     "profile_id": profile_id,
+                    "pipeline": {
+                        "best_of_n": best_of_n,
+                        "self_refine": do_self_refine,
+                        "judge_enabled": judge_enabled,
+                    },
                     "latency_ms": {
                         "dur_total": latency_meta["dur_total"],
                         "dur_generate": latency_meta["dur_generate"],
+                        "dur_judge": latency_meta.get("dur_judge", 0),
+                        "dur_self_refine": latency_meta.get("dur_self_refine", 0),
                         "dur_memory_extract": latency_meta["dur_memory_extract"],
                     },
                 },
@@ -351,3 +440,34 @@ class ChatService:
 def _sse(data: dict[str, Any]) -> str:
     """Format a dict as an SSE ``data:`` line."""
     return f"data: {json.dumps(data)}\n\n"
+
+
+def _chunk_text(text: str, max_chunk: int = 6) -> list[str]:
+    """Split *text* into word-sized chunks for a streaming-like UX.
+
+    When the best-of-N pipeline produces a complete response, this function
+    breaks it into small pieces so the frontend receives a gradual stream
+    rather than a single large payload.
+    """
+    if not text:
+        return []
+    words = text.split(" ")
+    chunks: list[str] = []
+    for i in range(0, len(words), max_chunk):
+        chunk = " ".join(words[i : i + max_chunk])
+        if chunks:
+            chunk = " " + chunk
+        chunks.append(chunk)
+    return chunks
+
+
+def _format_memory_lines_text(memories: list[Any]) -> str:
+    """Build a plain-text representation of memories for the judge/refine prompts."""
+    if not memories:
+        return "(none)"
+    lines: list[str] = []
+    for m in memories:
+        imp = f"{m.importance:.2f}"
+        conf = f"{m.confidence:.2f}"
+        lines.append(f"- [{m.type}|imp={imp}|conf={conf}] {m.content}")
+    return "\n".join(lines)

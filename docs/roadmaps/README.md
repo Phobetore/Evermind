@@ -1,6 +1,6 @@
 # Roadmaps Équipes — Projet Evermind
 
-> **Version :** v1.2 (roadmaps + addendum)
+> **Version :** v1.3 (roadmaps + addendum — mise à jour Février 2026)
 > **Date :** Février 2026
 
 ---
@@ -14,6 +14,14 @@ les dépendances inter-équipes, et les critères de validation.
 L'**[Addendum v1.1](addendum-v1.1.md)** complète les roadmaps v1.0 avec un diagramme de séquence
 du tour complet, la spécification exacte des champs `meta`, les templates prompts finalisés
 (placeholders prêts à copier), et les conventions de timing & tokens.
+
+### État d'avancement actuel
+
+| Phase | Statut |
+|-------|--------|
+| **MVP (v0.1)** | ✅ Complété — UI chat, CRUD personnages, 1+ serveur LLM, SQLite, prompts |
+| **v0.2 — Mémoire** | ✅ Complété — 3 serveurs LLM, extraction mémoire, retrieval vectoriel, consolidation |
+| **v1.0 — Release** | 🟡 En cours — best-of-N, self-refine, orchestrateur, benchmarks CRUD, import/export |
 
 ---
 
