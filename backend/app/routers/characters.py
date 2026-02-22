@@ -5,18 +5,24 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.repositories.character_repository import CharacterRepository
+from app.core.repositories.memory_repository import MemoryRepository
 from app.models.character import (
     CharacterCreate,
     CharacterImport,
     CharacterResponse,
     CharacterUpdate,
 )
+from app.models.memory import MemoryCreate
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 
 
 def _get_repo() -> CharacterRepository:
     return CharacterRepository()
+
+
+def _get_mem_repo() -> MemoryRepository:
+    return MemoryRepository()
 
 
 @router.get("", response_model=list[CharacterResponse])
@@ -89,6 +95,28 @@ async def export_character(
 async def import_character(
     payload: CharacterImport,
     repo: CharacterRepository = Depends(_get_repo),
+    mem_repo: MemoryRepository = Depends(_get_mem_repo),
 ) -> CharacterResponse:
-    """Import a character from a portable JSON export."""
-    return await repo.create(payload.character)
+    """Import a character from a portable JSON export.
+
+    If the character data includes ``memory_seed`` entries, they are
+    automatically converted into Memory records attached to the new character.
+    """
+    character = await repo.create(payload.character)
+
+    # Materialise memory_seed entries as real Memory records (🔴 v0.2 roadmap item)
+    for seed in payload.character.memory_seed:
+        if not seed.content:
+            continue
+        await mem_repo.create(
+            MemoryCreate(
+                character_id=character.id,
+                type=seed.type if seed.type in ("semantic", "episodic", "world") else "semantic",
+                title=seed.content[:80],
+                content=seed.content,
+                importance=seed.importance,
+                confidence=1.0,
+            )
+        )
+
+    return character

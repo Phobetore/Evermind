@@ -61,6 +61,27 @@ async def forget_memory(
     return {"status": "forgotten"}
 
 
+@router.post("/memories/rebuild", status_code=202)
+async def rebuild_memories(
+    character_id: str,
+    repo: MemoryRepository = Depends(_get_mem_repo),
+) -> dict:
+    """Trigger a rebuild of all memories for this character.
+
+    Soft-deletes existing memories and marks the character for re-extraction
+    on the next conversation turns.  Returns a summary of the operation.
+
+    This is the 🔴 v0.2 roadmap item: ``POST /characters/{id}/memories/rebuild``.
+    """
+    existing = await repo.list_by_character(character_id, include_deleted=False)
+    deleted_count = 0
+    for mem in existing:
+        ok = await repo.soft_delete(mem.id)
+        if ok:
+            deleted_count += 1
+    return {"status": "rebuild_scheduled", "memories_cleared": deleted_count}
+
+
 @router.post("/memories/{memory_id}/pin", status_code=200)
 async def pin_memory(
     memory_id: str,

@@ -17,9 +17,11 @@ from typing import TYPE_CHECKING, Any
 from app.prompting.templates import (
     CHARACTER_CORE,
     CONTROLLER,
+    JUDGE,
     MEMORY_BLOCK,
     PRODUCT_NAME,
     RECENT_CHAT,
+    SELF_REFINE,
     SYSTEM_RP,
     WORLD_STATE,
 )
@@ -147,3 +149,65 @@ def build_chat_messages(
         {"role": "system", "content": full_system},
         {"role": "user", "content": user_message},
     ]
+
+
+def _format_candidates(candidates: list[str]) -> str:
+    """Render numbered candidates (A, B, C …) for the judge prompt."""
+    labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    lines: list[str] = []
+    for i, text in enumerate(candidates):
+        label = labels[i] if i < len(labels) else str(i)
+        lines.append(f"{label}) {text}")
+    return "\n".join(lines)
+
+
+def build_judge_prompt(
+    char_name: str,
+    writing_style: str,
+    boundaries: str,
+    world_state_json: str,
+    memory_lines_text: str,
+    user_message: str,
+    candidates: list[str],
+) -> list[dict[str, str]]:
+    """Build the OpenAI-compatible messages list for the judge LLM.
+
+    Returns a list of ``{"role": "system", "content": …}`` dicts.
+    """
+    prompt = JUDGE.format(
+        char_name=char_name,
+        char_writing_style=writing_style or "(default)",
+        boundaries_text=boundaries or "(none)",
+        world_state_json=world_state_json or "{}",
+        memory_lines=memory_lines_text or "(none)",
+        user_message=user_message,
+        candidates_text=_format_candidates(candidates),
+    )
+    return [{"role": "system", "content": prompt}]
+
+
+def build_refine_prompt(
+    char_name: str,
+    writing_style: str,
+    boundaries: str,
+    world_state_block: str,
+    memory_lines_text: str,
+    user_message: str,
+    best_candidate_text: str,
+    rewrite_suggestion: str,
+) -> list[dict[str, str]]:
+    """Build the OpenAI-compatible messages list for the self-refine pass.
+
+    Returns a list of ``{"role": "system", "content": …}`` dicts.
+    """
+    prompt = SELF_REFINE.format(
+        char_name=char_name,
+        char_writing_style=writing_style or "(default)",
+        boundaries_text=boundaries or "(none)",
+        world_state_block=world_state_block or "(none)",
+        memory_lines=memory_lines_text or "(none)",
+        user_message=user_message,
+        best_candidate_text=best_candidate_text,
+        rewrite_suggestion=rewrite_suggestion,
+    )
+    return [{"role": "system", "content": prompt}]
