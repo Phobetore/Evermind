@@ -4,7 +4,22 @@ Application web locale de type "AI companion" — multi-personnages, mémoire lo
 
 ## Quick Start
 
-### Backend
+### Automated setup
+
+```bash
+# Install all dependencies and create directories
+make setup
+
+# Start all services (production mode)
+make start
+
+# Stop all services
+make stop
+```
+
+### Manual setup
+
+#### Backend
 
 ```bash
 cd backend
@@ -12,7 +27,7 @@ pip install -e ".[dev]"
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-### Frontend
+#### Frontend
 
 ```bash
 cd frontend
@@ -21,6 +36,60 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `scripts/setup.sh` | Install dependencies, create directories, validate config |
+| `scripts/start.sh` | Start all services (LLM servers, backend, frontend) |
+| `scripts/stop.sh` | Gracefully stop all services |
+| `scripts/health-check.sh` | Check health status of all services |
+| `scripts/start.ps1` | Windows equivalent of `start.sh` |
+| `scripts/stop.ps1` | Windows equivalent of `stop.sh` |
+
+### Start script options
+
+```bash
+./scripts/start.sh                  # Start all services
+./scripts/start.sh --backend-only   # Start only the backend API
+./scripts/start.sh --skip-llm       # Start backend + frontend without LLM servers
+```
+
+## Makefile
+
+Run `make help` to see all available commands:
+
+```
+make setup           Install dependencies and create directories
+make dev             Start backend + frontend (dev mode with hot reload)
+make start           Start all services (production)
+make stop            Stop all services
+make test            Run all tests
+make lint            Run linters
+make health          Check health of all services
+make validate-config Validate config.yaml
+make clean           Remove logs and caches
+```
+
+## Configuration
+
+All services are configured via `config.yaml` at the project root. See the
+[infrastructure roadmap](docs/roadmaps/infrastructure-team.md) for the full schema.
+
+Override the config file location with the `EVERMIND_CONFIG` environment variable.
+
+### Validate configuration
+
+```bash
+# Quick validation
+make validate-config
+
+# Detailed validation (from backend directory)
+cd backend
+python -m app.validate_config ../config.yaml
+python -m app.validate_config --check-dirs --check-ports ../config.yaml
+```
 
 ## Project Structure
 
@@ -32,8 +101,17 @@ Evermind/
 │   └── tests/        # pytest test suite
 ├── frontend/         # Next.js + TypeScript
 │   └── src/          # Application source
+├── scripts/          # Start/stop/setup scripts (Linux + Windows)
 ├── docs/             # Roadmaps & specifications
+├── models/           # LLM model files (git-ignored)
+│   ├── chat/         # Chat model (e.g. Gemma-3 12B)
+│   ├── memory/       # Memory extraction model (e.g. Qwen3-4B)
+│   ├── judge/        # Judge/scoring model (e.g. Qwen3-4B)
+│   └── embeddings/   # Sentence-transformer cache
+├── data/             # Runtime data (SQLite DB, PID files)
+├── logs/             # Service log files
 ├── config.yaml       # Shared configuration
+├── Makefile          # Common operations
 └── README.md
 ```
 
