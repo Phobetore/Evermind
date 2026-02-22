@@ -30,6 +30,9 @@ _LLAMA_SERVER_NAMES = (
     "server.exe",
 )
 
+# Windows process creation flag for clean shutdown support.
+_WIN_CREATE_NEW_PROCESS_GROUP = 0x00000200
+
 
 def _find_llama_server(configured_path: str) -> str | None:
     """Locate the llama-server binary.
@@ -210,10 +213,9 @@ class ModelManager:
         log_fh = open(log_file, "a")  # noqa: SIM115
 
         try:
-            # Use CREATE_NEW_PROCESS_GROUP on Windows for clean shutdown
             kwargs: dict[str, Any] = {}
             if sys.platform == "win32":
-                kwargs["creationflags"] = 0x00000200  # CREATE_NEW_PROCESS_GROUP
+                kwargs["creationflags"] = _WIN_CREATE_NEW_PROCESS_GROUP
 
             handle.process = await asyncio.create_subprocess_exec(
                 *args,
@@ -222,13 +224,13 @@ class ModelManager:
                 **kwargs,
             )
         except FileNotFoundError:
-            log_fh.close()
             logger.error("Failed to start llama-server — binary not executable: %s", args[0])
             return {"server": name, "status": "binary_not_found"}
         except Exception:
-            log_fh.close()
             logger.exception("Failed to start LLM server '%s'", name)
             return {"server": name, "status": "start_failed"}
+        finally:
+            log_fh.close()
 
         # Wait for health check
         healthy = await self._wait_for_health(name, timeout=self._start_timeout)
@@ -314,8 +316,8 @@ class ModelManager:
                 "status": "ok" if alive else "unreachable",
                 "managed": managed,
             }
-            if managed:
-                result["pid"] = handle.process.pid  # type: ignore[union-attr]
+            if managed and handle.process is not None:
+                result["pid"] = handle.process.pid
             results[handle.name] = result
 
         await asyncio.gather(*[_probe(h) for h in self._servers.values()])
