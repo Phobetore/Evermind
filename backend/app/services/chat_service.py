@@ -189,7 +189,7 @@ class ChatService:
             # frontend can show a status indicator while candidates generate.
             yield _sse({
                 "status": "generating",
-                "detail": f"Generating {best_of_n} candidate(s)…",
+                "detail": f"Generating {best_of_n} candidate(s)...",
             })
 
             try:
