@@ -94,6 +94,38 @@ def test_parse_assistant_response_missing_fields() -> None:
 
 
 @pytest.mark.asyncio
+async def test_character_assistant_streaming_success(client: AsyncClient) -> None:
+    """POST /tools/character_assistant should stream LLM output and return parsed profile."""
+    mock_llm = AsyncMock()
+    mock_llm.health_status = AsyncMock(return_value="ok")
+
+    json_body = (
+        '{"name":"Luna","tags":["elf"],"summary":"An elf.","persona":"Kind.",'
+        '"writing_style":"Poetic.","scenario":"Forest.","first_message":"Hello.",'
+        '"example_dialogues":[{"user":"Hi","assistant":"Hey"}],'
+        '"boundaries":"None.","system_rules":"Stay in character.",'
+        '"memory_seed":[{"type":"semantic","title":"Elf","content":"Luna is an elf."}]}'
+    )
+
+    async def _stream(*_a: object, **_kw: object):  # type: ignore[no-untyped-def]
+        for char in json_body:
+            yield {"choices": [{"delta": {"content": char}}]}
+
+    mock_llm.chat_completion_stream = _stream
+
+    with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
+        resp = await client.post(
+            "/tools/character_assistant",
+            json={"name": "Luna", "theme": "fantasy"},
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["name"] == "Luna"
+    assert "elf" in data["tags"]
+    assert data["persona"] == "Kind."
+
+
+@pytest.mark.asyncio
 async def test_character_assistant_endpoint_no_server(client: AsyncClient) -> None:
     """POST /tools/character_assistant should return 503 when LLM is not configured."""
     resp = await client.post(
@@ -119,7 +151,12 @@ async def test_character_assistant_read_error_returns_503(client: AsyncClient) -
     """POST /tools/character_assistant should return 503 on httpx.ReadError."""
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
-    mock_llm.chat_completion = AsyncMock(side_effect=httpx.ReadError("peer closed"))
+
+    async def _error_stream(*_a: object, **_kw: object):  # type: ignore[no-untyped-def]
+        raise httpx.ReadError("peer closed")
+        yield  # pragma: no cover – makes this an async generator
+
+    mock_llm.chat_completion_stream = _error_stream
 
     with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
         resp = await client.post(
@@ -151,9 +188,12 @@ async def test_character_assistant_http_status_error_returns_503(client: AsyncCl
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
     mock_resp = httpx.Response(503, request=httpx.Request("POST", "http://test"))
-    mock_llm.chat_completion = AsyncMock(
-        side_effect=httpx.HTTPStatusError("Server Error", request=mock_resp.request, response=mock_resp)
-    )
+
+    async def _error_stream(*_a: object, **_kw: object):  # type: ignore[no-untyped-def]
+        raise httpx.HTTPStatusError("Server Error", request=mock_resp.request, response=mock_resp)
+        yield  # pragma: no cover – makes this an async generator
+
+    mock_llm.chat_completion_stream = _error_stream
 
     with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
         resp = await client.post(
@@ -170,11 +210,11 @@ async def test_character_assistant_timeout_returns_504(client: AsyncClient) -> N
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
 
-    async def _slow_completion(*_args: object, **_kwargs: object) -> dict:
+    async def _slow_stream(*_args: object, **_kwargs: object):  # type: ignore[no-untyped-def]
         await asyncio.sleep(999)
-        return {}
+        yield {}  # pragma: no cover – makes this an async generator
 
-    mock_llm.chat_completion = _slow_completion
+    mock_llm.chat_completion_stream = _slow_stream
 
     with (
         patch("app.routers.tools._resolve_llm_client", return_value=mock_llm),
@@ -193,7 +233,12 @@ async def test_character_assistant_unexpected_error_returns_500(client: AsyncCli
     """POST /tools/character_assistant should return 500 on unexpected exceptions."""
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
-    mock_llm.chat_completion = AsyncMock(side_effect=RuntimeError("something unexpected"))
+
+    async def _error_stream(*_a: object, **_kw: object):  # type: ignore[no-untyped-def]
+        raise RuntimeError("something unexpected")
+        yield  # pragma: no cover – makes this an async generator
+
+    mock_llm.chat_completion_stream = _error_stream
 
     with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
         resp = await client.post(

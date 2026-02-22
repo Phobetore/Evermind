@@ -52,8 +52,8 @@ fences, no extra text).  The JSON must contain exactly these keys:
 }}
 
 GUIDELINES:
-- Produce 5–10 example dialogues showing the character's voice.
-- Produce 5–15 memory_seed items (mix of semantic and episodic).
+- Produce 2–4 example dialogues showing the character's voice.
+- Produce 3–5 memory_seed items (mix of semantic and episodic).
 - Keep the persona immersive — no meta or AI references.
 - The writing_style should be distinctive and consistent.
 - Boundaries should respect the limits provided by the user.
@@ -151,14 +151,19 @@ async def generate_character(
         notes=notes,
     )
 
-    response = await llm.chat_completion(
+    # Use streaming so that httpx's read timeout applies per-chunk rather
+    # than to the entire response.  Local LLMs generating large JSON
+    # profiles can easily exceed a flat read timeout even though tokens
+    # are being produced continuously.
+    chunks: list[str] = []
+    async for chunk in llm.chat_completion_stream(
         messages, temperature=0.8, max_tokens=2048
-    )
-    raw = (
-        response.get("choices", [{}])[0]
-        .get("message", {})
-        .get("content", "")
-    )
+    ):
+        delta = chunk.get("choices", [{}])[0].get("delta", {})
+        token = delta.get("content", "")
+        if token:
+            chunks.append(token)
+    raw = "".join(chunks)
 
     result = parse_assistant_response(raw)
     # Ensure name is set from input
