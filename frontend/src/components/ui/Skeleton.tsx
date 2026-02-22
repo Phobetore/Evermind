@@ -7,7 +7,7 @@ interface Props {
 export default function Skeleton({ className = "" }: Props) {
   return (
     <div
-      className={`animate-pulse rounded-lg bg-zinc-800 ${className}`}
+      className={`animate-pulse rounded-lg bg-[#1e1a2e] ${className}`}
       aria-hidden="true"
     />
   );
@@ -16,7 +16,7 @@ export default function Skeleton({ className = "" }: Props) {
 /** Pre-built skeleton for a character card. */
 export function CharacterCardSkeleton() {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+    <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5">
       <div className="flex items-start gap-3">
         <Skeleton className="h-10 w-10 rounded-full" />
         <div className="flex-1 space-y-2">

@@ -10,6 +10,10 @@ class ConversationCreate(BaseModel):
     title: str = ""
 
 
+class ConversationUpdate(BaseModel):
+    title: str
+
+
 class ConversationResponse(BaseModel):
     id: str
     character_id: str

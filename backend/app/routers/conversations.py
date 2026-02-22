@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.core.repositories.character_repository import CharacterRepository
 from app.core.repositories.conversation_repository import ConversationRepository
 from app.core.repositories.message_repository import MessageRepository
-from app.models.conversation import ConversationCreate, ConversationResponse
+from app.models.conversation import ConversationCreate, ConversationResponse, ConversationUpdate
 from app.models.message import MessageCreate
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
@@ -68,6 +68,18 @@ async def get_conversation(
     repo: ConversationRepository = Depends(_get_conv_repo),
 ) -> ConversationResponse:
     conversation = await repo.get(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conversation
+
+
+@router.patch("/{conversation_id}", response_model=ConversationResponse)
+async def update_conversation(
+    conversation_id: str,
+    data: ConversationUpdate,
+    repo: ConversationRepository = Depends(_get_conv_repo),
+) -> ConversationResponse:
+    conversation = await repo.update(conversation_id, data)
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conversation

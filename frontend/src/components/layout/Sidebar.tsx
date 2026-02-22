@@ -17,20 +17,25 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`flex flex-col border-r border-zinc-800 bg-zinc-900 transition-all duration-200 ${
+      className={`flex flex-col border-r border-[#2a2440] bg-[#0f0d18] transition-all duration-200 ${
         collapsed ? "w-16" : "w-64"
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800">
+      <div className="flex items-center justify-between p-4 border-b border-[#2a2440]">
         {!collapsed && (
-          <Link href="/" className="text-lg font-bold tracking-tight">
-            Evermind
+          <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
+            <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-xs shadow-md shadow-violet-900/20">
+              ✦
+            </span>
+            <span className="bg-gradient-to-r from-violet-300 to-purple-400 bg-clip-text text-transparent">
+              Evermind
+            </span>
           </Link>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+          className="p-1.5 rounded-md hover:bg-[#1e1a2e] text-zinc-400 hover:text-zinc-200 transition-colors"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -47,8 +52,8 @@ export default function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                 isActive
-                  ? "bg-zinc-800 text-zinc-100"
-                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                  ? "bg-violet-600/15 text-violet-300 border border-violet-500/20"
+                  : "text-zinc-400 hover:bg-[#1e1a2e] hover:text-zinc-200"
               }`}
             >
               <item.icon size={18} />

@@ -49,3 +49,28 @@ async def test_delete_conversation(client: AsyncClient) -> None:
 
     resp = await client.get(f"/conversations/{conv_id}")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_rename_conversation(client: AsyncClient) -> None:
+    char_resp = await client.post("/characters", json={"name": "Char C"})
+    char_id = char_resp.json()["id"]
+    conv_resp = await client.post(
+        "/conversations", json={"character_id": char_id, "title": "Old Title"}
+    )
+    conv_id = conv_resp.json()["id"]
+
+    resp = await client.patch(f"/conversations/{conv_id}", json={"title": "New Title"})
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "New Title"
+
+    # Verify the change persists
+    resp = await client.get(f"/conversations/{conv_id}")
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "New Title"
+
+
+@pytest.mark.asyncio
+async def test_rename_nonexistent_conversation(client: AsyncClient) -> None:
+    resp = await client.patch("/conversations/nonexistent-id", json={"title": "X"})
+    assert resp.status_code == 404

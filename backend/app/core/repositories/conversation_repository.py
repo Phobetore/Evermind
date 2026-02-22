@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from app.core.repositories.base import BaseRepository
-from app.models.conversation import ConversationCreate, ConversationResponse
+from app.models.conversation import ConversationCreate, ConversationResponse, ConversationUpdate
 
 if TYPE_CHECKING:
     import aiosqlite
@@ -50,6 +50,18 @@ class ConversationRepository(BaseRepository):
         )
         rows = await cursor.fetchall()
         return [_row_to_response(r) for r in rows]
+
+    async def update(self, conversation_id: str, data: ConversationUpdate) -> ConversationResponse | None:
+        db = await self._get_db()
+        now = datetime.now(UTC).isoformat()
+        cursor = await db.execute(
+            "UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?",
+            (data.title, now, conversation_id),
+        )
+        await db.commit()
+        if cursor.rowcount == 0:
+            return None
+        return await self.get(conversation_id)
 
     async def delete(self, conversation_id: str) -> bool:
         db = await self._get_db()

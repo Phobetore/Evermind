@@ -82,7 +82,7 @@ export default function CharactersPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800"
+            className="flex items-center gap-1.5 rounded-lg border border-[#2a2440] px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-[#1e1a2e]"
           >
             <Upload size={14} /> Import
           </button>
@@ -95,7 +95,7 @@ export default function CharactersPage() {
           />
           <Link
             href="/characters/new"
-            className="flex items-center gap-1.5 rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200"
+            className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-500"
           >
             <Plus size={14} /> New Character
           </Link>

@@ -92,7 +92,7 @@ export default function MemoryInspectorPage() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="animate-pulse h-20 rounded-xl bg-zinc-800"
+              className="animate-pulse h-20 rounded-xl bg-[#1e1a2e]"
             />
           ))}
         </div>
@@ -119,7 +119,7 @@ export default function MemoryInspectorPage() {
         </div>
         <a
           href={`/characters/${characterId}/edit`}
-          className="text-sm text-blue-400 hover:text-blue-300"
+          className="text-sm text-violet-400 hover:text-violet-300"
         >
           <ArrowLeft size={14} className="inline" /> Back to editor
         </a>
@@ -134,8 +134,8 @@ export default function MemoryInspectorPage() {
               onClick={() => setTypeFilter(t)}
               className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 typeFilter === t
-                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/50"
-                  : "bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-600"
+                  ? "bg-violet-500/20 text-violet-400 border border-violet-500/50"
+                  : "bg-[#1e1a2e] text-zinc-400 border border-[#2a2440] hover:border-violet-500/30"
               }`}
             >
               {t === "all" ? "All types" : t.charAt(0).toUpperCase() + t.slice(1)}
@@ -147,7 +147,7 @@ export default function MemoryInspectorPage() {
             type="checkbox"
             checked={showDeleted}
             onChange={(e) => setShowDeleted(e.target.checked)}
-            className="rounded bg-zinc-800 border-zinc-600"
+            className="rounded bg-[#1e1a2e] border-[#2a2440]"
           />
           Show deleted
         </label>
@@ -167,10 +167,10 @@ export default function MemoryInspectorPage() {
               onClick={() => setSelectedMemory(mem)}
               className={`w-full text-left rounded-xl border p-4 transition-colors ${
                 selectedMemory?.id === mem.id
-                  ? "border-blue-500 bg-blue-500/10"
+                  ? "border-violet-500 bg-violet-500/10"
                   : mem.is_deleted
                     ? "border-red-900/50 bg-red-950/20 opacity-60"
-                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                    : "border-[#2a2440] bg-[#14111f] hover:border-violet-500/30"
               }`}
             >
               <div className="flex items-center justify-between mb-1">
@@ -205,7 +205,7 @@ export default function MemoryInspectorPage() {
                   {mem.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500"
+                      className="text-xs px-1.5 py-0.5 rounded bg-[#1e1a2e] text-zinc-500"
                     >
                       {tag}
                     </span>
@@ -219,7 +219,7 @@ export default function MemoryInspectorPage() {
         {/* Detail panel */}
         <div className="space-y-4">
           {selectedMemory ? (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5">
               <h3 className="font-semibold mb-3">{selectedMemory.title}</h3>
               <dl className="space-y-3 text-sm">
                 <div>
@@ -272,7 +272,7 @@ export default function MemoryInspectorPage() {
                           ? handleUnpin(selectedMemory.id)
                           : handlePin(selectedMemory.id)
                       }
-                      className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors"
+                      className="px-3 py-1.5 text-xs rounded-lg bg-[#1e1a2e] hover:bg-[#2a2440] transition-colors"
                     >
                       <Pin size={14} className="inline" /> {selectedMemory.is_pinned ? "Unpin" : "Pin"}
                     </button>
@@ -287,14 +287,14 @@ export default function MemoryInspectorPage() {
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 text-center text-sm text-zinc-500">
+            <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5 text-center text-sm text-zinc-500">
               Select a memory to view details
             </div>
           )}
 
           {/* World State */}
           {worldState && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5">
               <h3 className="font-semibold mb-3 text-sm">World State</h3>
               <pre className="text-xs text-zinc-400 whitespace-pre-wrap overflow-auto max-h-64">
                 {JSON.stringify(worldState, null, 2)}
