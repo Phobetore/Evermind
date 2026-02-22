@@ -16,4 +16,4 @@ async def health() -> dict[str, str]:
 @router.get("/version")
 async def version() -> dict[str, str]:
     """Return the application version."""
-    return {"version": "0.1.0", "name": "evermind-backend"}
+    return {"version": "0.2.0", "name": "evermind-backend"}
