@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { User, MessageSquare, Settings, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
-    { href: "/characters", label: "Characters", icon: "👤" },
-    { href: "/chat", label: "Chat", icon: "💬" },
-    { href: "/settings", label: "Settings", icon: "⚙" },
+    { href: "/characters", label: "Characters", icon: User },
+    { href: "/chat", label: "Chat", icon: MessageSquare },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 
   return (
@@ -32,7 +33,7 @@ export default function Sidebar() {
           className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? "→" : "←"}
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
       </div>
 
@@ -50,7 +51,7 @@ export default function Sidebar() {
                   : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
               }`}
             >
-              <span className="text-base">{item.icon}</span>
+              <item.icon size={18} />
               {!collapsed && <span>{item.label}</span>}
             </Link>
           );

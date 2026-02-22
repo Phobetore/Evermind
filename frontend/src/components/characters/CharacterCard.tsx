@@ -1,5 +1,6 @@
 import type { Character } from "@/types";
 import Link from "next/link";
+import { Brain, Upload, X } from "lucide-react";
 
 interface Props {
   character: Character;
@@ -43,7 +44,7 @@ export default function CharacterCard({ character, onDelete, onExport }: Props) 
             className="text-zinc-500 hover:text-blue-400 text-sm transition-colors"
             title="Memory Inspector"
           >
-            🧠
+            <Brain size={16} />
           </Link>
           {onExport && (
             <button
@@ -52,7 +53,7 @@ export default function CharacterCard({ character, onDelete, onExport }: Props) 
               aria-label={`Export ${character.name}`}
               title="Export"
             >
-              📤
+              <Upload size={16} />
             </button>
           )}
           {onDelete && (
@@ -62,7 +63,7 @@ export default function CharacterCard({ character, onDelete, onExport }: Props) 
               aria-label={`Delete ${character.name}`}
               title="Delete"
             >
-              ✕
+              <X size={16} />
             </button>
           )}
         </div>

@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import type { Character, MemoryItem } from "@/types";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Pin, Trash2 } from "lucide-react";
 
 type MemoryType = "all" | "semantic" | "episodic" | "world";
 
@@ -120,7 +121,7 @@ export default function MemoryInspectorPage() {
           href={`/characters/${characterId}/edit`}
           className="text-sm text-blue-400 hover:text-blue-300"
         >
-          ← Back to editor
+          <ArrowLeft size={14} className="inline" /> Back to editor
         </a>
       </div>
 
@@ -273,13 +274,13 @@ export default function MemoryInspectorPage() {
                       }
                       className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors"
                     >
-                      {selectedMemory.is_pinned ? "📌 Unpin" : "📌 Pin"}
+                      <Pin size={14} className="inline" /> {selectedMemory.is_pinned ? "Unpin" : "Pin"}
                     </button>
                     <button
                       onClick={() => handleForget(selectedMemory.id)}
                       className="px-3 py-1.5 text-xs rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/50 transition-colors"
                     >
-                      🗑 Forget
+                      <Trash2 size={14} className="inline" /> Forget
                     </button>
                   </>
                 )}
