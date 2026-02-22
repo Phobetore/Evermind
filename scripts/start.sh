@@ -433,8 +433,8 @@ if [ "${BACKEND_ONLY}" = false ]; then
 
     FRONTEND_DIR="${PROJECT_ROOT}/frontend"
 
-    # next start requires a production build (.next directory)
-    if [ ! -d "${FRONTEND_DIR}/.next" ]; then
+    # next start requires a production build (.next/BUILD_ID is created by 'next build')
+    if [ ! -f "${FRONTEND_DIR}/.next/BUILD_ID" ]; then
         log_info "Frontend build not found — running 'npm run build'..."
         cd "${FRONTEND_DIR}"
         if npm run build > "${LOG_DIR}/frontend-build.log" 2>&1; then

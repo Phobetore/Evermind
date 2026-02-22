@@ -404,9 +404,9 @@ if (-Not $BackendOnly) {
         Cleanup-OnError
     }
 
-    # next start requires a production build (.next directory)
-    $NextBuild = Join-Path $FrontendDir ".next"
-    if (-Not (Test-Path $NextBuild)) {
+    # next start requires a production build (.next/BUILD_ID is created by 'next build')
+    $NextBuildId = Join-Path $FrontendDir ".next" "BUILD_ID"
+    if (-Not (Test-Path $NextBuildId)) {
         Log-Info "Frontend build not found -- running 'npm run build'..."
         $buildProc = Start-Process -FilePath "npm" `
             -ArgumentList "run", "build" `
