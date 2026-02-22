@@ -99,8 +99,14 @@ wait_for_health() {
         fi
         # If a PID was provided, check that the process is still alive
         if [ -n "${pid}" ] && ! kill -0 "${pid}" 2>/dev/null; then
-            log_error "${name} process (PID ${pid}) exited unexpectedly."
-            return 1
+            wait "${pid}" 2>/dev/null
+            local exit_code=$?
+            # wait returns 127 if the PID is not a child of this shell
+            if [ "${exit_code}" -eq 127 ]; then
+                exit_code="unknown"
+            fi
+            log_error "${name} process (PID ${pid}) exited unexpectedly with code ${exit_code}."
+            return 2
         fi
         sleep 2
         elapsed=$((elapsed + 2))
@@ -255,10 +261,14 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
             PID_LABELS+=("llm-${SERVER_NAME}")
 
             # Wait for health (also checks process liveness)
-            if wait_for_health "http://${BIND_HOST}:${SERVER_PORT}/health" "${SERVER_NAME}" 60 "${LLM_PID}"; then
+            health_result=0
+            wait_for_health "http://${BIND_HOST}:${SERVER_PORT}/health" "${SERVER_NAME}" 60 "${LLM_PID}" || health_result=$?
+            if [ $health_result -eq 0 ]; then
                 log_ok "LLM server '${SERVER_NAME}' is healthy (PID ${LLM_PID})"
             else
-                log_error "LLM server '${SERVER_NAME}' failed to start within 60 seconds."
+                if [ $health_result -ne 2 ]; then
+                    log_error "LLM server '${SERVER_NAME}' failed to start within 60 seconds."
+                fi
                 LOG_FILE="${LOG_DIR}/llm-${SERVER_NAME}.log"
                 if [ -s "${LOG_FILE}" ]; then
                     log_error "Last 20 lines of ${LOG_FILE}:"
@@ -293,10 +303,14 @@ PIDS+=("${BACKEND_PID}")
 PID_LABELS+=("backend")
 cd "${PROJECT_ROOT}"
 
-if wait_for_health "http://${BIND_HOST}:${BACKEND_PORT}/health" "backend" 30 "${BACKEND_PID}"; then
+backend_result=0
+wait_for_health "http://${BIND_HOST}:${BACKEND_PORT}/health" "backend" 30 "${BACKEND_PID}" || backend_result=$?
+if [ $backend_result -eq 0 ]; then
     log_ok "Backend is healthy (PID ${BACKEND_PID})"
 else
-    log_error "Backend failed to start within 30 seconds."
+    if [ $backend_result -ne 2 ]; then
+        log_error "Backend failed to start within 30 seconds."
+    fi
     log_error "Check logs: ${LOG_DIR}/backend.log"
     cleanup_on_error
 fi

@@ -72,6 +72,7 @@ function Wait-ForHealth {
         [int]$Timeout = 60,
         [System.Diagnostics.Process]$Process = $null
     )
+    $script:HealthFailureReason = "timeout"
     $elapsed = 0
     while ($elapsed -lt $Timeout) {
         try {
@@ -80,7 +81,10 @@ function Wait-ForHealth {
         } catch { }
         # If a process was provided, check that it is still running
         if ($null -ne $Process -and $Process.HasExited) {
-            Log-Error "$Name process (PID $($Process.Id)) exited unexpectedly with code $($Process.ExitCode)."
+            $Process.WaitForExit()
+            $exitCode = if ($null -ne $Process.ExitCode) { $Process.ExitCode } else { "unknown" }
+            Log-Error "$Name process (PID $($Process.Id)) exited unexpectedly with code $exitCode."
+            $script:HealthFailureReason = "exited"
             return $false
         }
         Start-Sleep -Seconds 2
@@ -216,7 +220,9 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
             if (Wait-ForHealth "http://${BindHost}:${ServerPort}/health" $ServerName 60 $proc) {
                 Log-Ok "LLM server '$ServerName' is healthy (PID $($proc.Id))"
             } else {
-                Log-Error "LLM server '$ServerName' failed to start within 60 seconds."
+                if ($script:HealthFailureReason -eq "timeout") {
+                    Log-Error "LLM server '$ServerName' failed to start within 60 seconds."
+                }
                 $stdoutLog = Join-Path $LogDir "llm-$ServerName.log"
                 $stderrLog = Join-Path $LogDir "llm-$ServerName-err.log"
                 $hasOutput = $false
@@ -258,7 +264,9 @@ $Pids += "backend=$($backendProc.Id)"
 if (Wait-ForHealth "http://${BindHost}:${BackendPort}/health" "backend" 30 $backendProc) {
     Log-Ok "Backend is healthy (PID $($backendProc.Id))"
 } else {
-    Log-Error "Backend failed to start within 30 seconds."
+    if ($script:HealthFailureReason -eq "timeout") {
+        Log-Error "Backend failed to start within 30 seconds."
+    }
     Log-Error "Check logs: $(Join-Path $LogDir 'backend.log')"
     Cleanup-OnError
 }
