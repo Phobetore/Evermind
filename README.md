@@ -4,8 +4,6 @@ Application web locale de type "AI companion" — multi-personnages, mémoire lo
 
 ## Quick Start
 
-### Automated setup
-
 ```bash
 # Install all dependencies and create directories
 make setup
@@ -15,24 +13,6 @@ make start
 
 # Stop all services
 make stop
-```
-
-### Manual setup
-
-#### Backend
-
-```bash
-cd backend
-pip install -e ".[dev]"
-uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
-
-#### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
