@@ -101,6 +101,10 @@ wait_for_health() {
         if [ -n "${pid}" ] && ! kill -0 "${pid}" 2>/dev/null; then
             wait "${pid}" 2>/dev/null
             local exit_code=$?
+            # wait returns 127 if the PID is not a child of this shell
+            if [ "${exit_code}" -eq 127 ]; then
+                exit_code="unknown"
+            fi
             log_error "${name} process (PID ${pid}) exited unexpectedly with code ${exit_code}."
             return 2
         fi
