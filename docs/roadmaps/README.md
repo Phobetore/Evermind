@@ -21,7 +21,9 @@ du tour complet, la spécification exacte des champs `meta`, les templates promp
 |-------|--------|
 | **MVP (v0.1)** | ✅ Complété — UI chat, CRUD personnages, 1+ serveur LLM, SQLite, prompts |
 | **v0.2 — Mémoire** | ✅ Complété — 3 serveurs LLM, extraction mémoire, retrieval vectoriel, consolidation |
-| **v1.0 — Release** | 🟡 En cours — best-of-N, self-refine, orchestrateur, benchmarks CRUD, import/export |
+| **v1.0 — Release** | 🟡 ~85 % — best-of-N ✅, self-refine ✅, orchestrateur ✅, benchmarks CRUD ✅, import/export ✅ |
+
+> 📊 Pour un état d'avancement détaillé section par section, voir **[PROJECT_STATUS.md](../PROJECT_STATUS.md)**.
 
 ---
 
