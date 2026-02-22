@@ -16,8 +16,9 @@ def test_build_judge_prompt_structure() -> None:
         user_message="Hello!",
         candidates=["Response A", "Response B"],
     )
-    assert len(msgs) == 1
+    assert len(msgs) == 2
     assert msgs[0]["role"] == "system"
+    assert msgs[1]["role"] == "user"
     content = msgs[0]["content"]
     assert "Alice" in content
     assert "Flowery prose" in content
@@ -59,8 +60,9 @@ def test_build_refine_prompt_structure() -> None:
         best_candidate_text="Original draft text",
         rewrite_suggestion="Add more emotional depth",
     )
-    assert len(msgs) == 1
+    assert len(msgs) == 2
     assert msgs[0]["role"] == "system"
+    assert msgs[1]["role"] == "user"
     content = msgs[0]["content"]
     assert "Alice" in content
     assert "Flowery prose" in content

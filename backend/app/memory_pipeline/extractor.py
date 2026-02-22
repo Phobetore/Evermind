@@ -28,7 +28,10 @@ def build_extraction_prompt(
         world_state_json=world_state_json,
         recent_messages_for_extract=recent_messages_text,
     )
-    return [{"role": "system", "content": prompt}]
+    return [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": "Extract memories from the exchange and respond with the JSON."},
+    ]
 
 
 def parse_extraction_response(raw_text: str) -> dict[str, Any]:

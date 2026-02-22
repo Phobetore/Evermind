@@ -183,7 +183,10 @@ def build_judge_prompt(
         user_message=user_message,
         candidates_text=_format_candidates(candidates),
     )
-    return [{"role": "system", "content": prompt}]
+    return [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": "Evaluate the candidates and respond with the JSON."},
+    ]
 
 
 def build_refine_prompt(
@@ -210,4 +213,7 @@ def build_refine_prompt(
         best_candidate_text=best_candidate_text,
         rewrite_suggestion=rewrite_suggestion,
     )
-    return [{"role": "system", "content": prompt}]
+    return [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": "Write the refined response now."},
+    ]
