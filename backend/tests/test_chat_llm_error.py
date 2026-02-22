@@ -73,8 +73,11 @@ async def test_chat_stream_llm_read_error(client: AsyncClient) -> None:
     conv_id = conv_resp.json()["id"]
 
     async def _raise_read_error(messages, **params):
+        # The yield is unreachable but necessary to make Python treat
+        # this function as an async generator (matching the return type
+        # of chat_completion_stream).
         raise httpx.ReadError("peer closed connection")
-        yield  # noqa: RET503 — make this an async generator  # pragma: no cover
+        yield  # pragma: no cover
 
     with patch("app.services.chat_service._resolve_llm_client") as mock_resolve:
         mock_llm = AsyncMock()
@@ -100,7 +103,7 @@ async def test_chat_stream_llm_read_error(client: AsyncClient) -> None:
             if "error" in data:
                 found_error = True
                 error_msg = data["error"]
-                assert "Cannot connect" in error_msg or "not reachable" in error_msg
+                assert "Cannot connect" in error_msg
                 assert "LLM streaming failed" not in error_msg
                 break
 
