@@ -115,7 +115,7 @@
 | Hook pré-génération | Avant génération, retrieval mémoire → injection dans le prompt | ✅ Souvenirs injectés (assembler supporte world_state + memories) |
 | Endpoint mémoire | `GET /characters/{id}/memories?type=...` | ✅ Liste filtrée |
 | Forget | `POST /characters/{id}/memories/forget` (soft delete) | ✅ `is_deleted=1` |
-| Rebuild | `POST /characters/{id}/memories/rebuild` (re-extraction) | 🔴 Pipeline relancé |
+| Rebuild | `POST /characters/{id}/memories/rebuild` (re-extraction) | ✅ Pipeline relancé (soft-delete + reschedule) |
 | World State | `GET /characters/{id}/world_state` + `PUT` | ✅ CRUD world_state |
 
 ### 4.2 Orchestration multi-serveurs (S10–S12) ✅
@@ -143,23 +143,23 @@
 | `POST /characters/import` | Upload JSON → création personnage | ✅ Validation schéma strict |
 | `GET /characters/{id}/export` | Export personnage complet en JSON | ✅ Format conforme v1 |
 | Validation | Schéma JSON validé (Pydantic) | ✅ Erreur 422 si invalide |
-| Memory seed | Import des `memory_seed` en mémoires initiales | 🔴 Mémoires créées |
+| Memory seed | Import des `memory_seed` en mémoires initiales | ✅ Mémoires créées à l'import |
 
 ---
 
 ## 5. Phase v1.0 — Semaines 15–20
 
-### 5.1 Best-of-N + Self-refine (S15–S17) 🔴
+### 5.1 Best-of-N + Self-refine (S15–S17) 🟡
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Génération N candidats | Appeler le LLM chat N fois en parallèle | N réponses obtenues |
-| Appel juge | Envoyer les N candidats au LLM juge (cf. [Addendum §D.2](addendum-v1.1.md#d2-judge-prompt-rank-candidates--optional-rewrite-suggestion)) | Scores JSON retournés |
-| Sélection meilleur | Choisir le candidat avec le meilleur score | ID best retourné |
-| Self-refine | Si activé, envoyer `rewrite_suggestion` au LLM chat (cf. [Addendum §D.3](addendum-v1.1.md#d3-self-refine-prompt-final-pass)) | Réponse finale améliorée |
-| Streaming final | Streamer seulement la réponse finale (ou la meilleure) | UX transparente |
-| Meta complète | Écrire le meta JSON complet (pipeline, usage, latency_ms, retrieval, memory_extract) selon [Addendum §B.2](addendum-v1.1.md#b2-schéma-json-strict--assistant-messagesmeta-pour-roleassistant) | Meta conforme au schéma v1.1 |
-| Latence | Log de la latence totale (N générations + juge + refine) via `TimingContext` (cf. [Addendum §E](addendum-v1.1.md#e-conventions-de-timing--tokens-implémentation)) | Métriques disponibles |
+| Génération N candidats | Appeler le LLM chat N fois en parallèle | ✅ `orchestrator.generate_best_of_n()` implémenté |
+| Appel juge | Envoyer les N candidats au LLM juge (cf. [Addendum §D.2](addendum-v1.1.md#d2-judge-prompt-rank-candidates--optional-rewrite-suggestion)) | ✅ `judge.evaluate_candidates()` + template D.2 |
+| Sélection meilleur | Choisir le candidat avec le meilleur score | ✅ `run_pipeline()` sélection par `best_id` |
+| Self-refine | Si activé, envoyer `rewrite_suggestion` au LLM chat (cf. [Addendum §D.3](addendum-v1.1.md#d3-self-refine-prompt-final-pass)) | ✅ `orchestrator.self_refine()` + template D.3 |
+| Streaming final | Streamer seulement la réponse finale (ou la meilleure) | 🔴 UX transparente |
+| Meta complète | Écrire le meta JSON complet (pipeline, usage, latency_ms, retrieval, memory_extract) selon [Addendum §B.2](addendum-v1.1.md#b2-schéma-json-strict--assistant-messagesmeta-pour-roleassistant) | 🔴 Meta conforme au schéma v1.1 |
+| Latence | Log de la latence totale (N générations + juge + refine) via `TimingContext` (cf. [Addendum §E](addendum-v1.1.md#e-conventions-de-timing--tokens-implémentation)) | 🔴 Métriques disponibles |
 
 ### 5.2 Benchmarks (S17–S18) 🟡
 

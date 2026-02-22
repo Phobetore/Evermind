@@ -129,26 +129,26 @@
 
 ## 5. Phase v1.0 — Semaines 15–20
 
-### 5.1 Best-of-N (S15–S16) 🔴
+### 5.1 Best-of-N (S15–S16) 🟡
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Génération N candidats | Appeler le LLM chat N fois (séquentiel ou parallèle) | N réponses distinctes |
-| Diversité | Varier légèrement les paramètres (temp, seed) pour chaque candidat | Réponses variées |
-| Prompt juge | Template strict v1.1 (cf. [Addendum §D.2](addendum-v1.1.md#d2-judge-prompt-rank-candidates--optional-rewrite-suggestion)) : notation sur 5 critères avec subscores | JSON valide retourné |
-| Parsing scores | Extraire les scores + ranking + best_id | Parsing robuste |
-| Sélection finale | Retourner le candidat avec le meilleur score total | Correct |
-| Latence tracking | Log du temps total (N × génération + juge) | Métriques disponibles |
+| Génération N candidats | Appeler le LLM chat N fois (séquentiel ou parallèle) | ✅ `orchestrator.generate_best_of_n()` avec seed variation |
+| Diversité | Varier légèrement les paramètres (temp, seed) pour chaque candidat | ✅ Seed incrémenté par candidat |
+| Prompt juge | Template strict v1.1 (cf. [Addendum §D.2](addendum-v1.1.md#d2-judge-prompt-rank-candidates--optional-rewrite-suggestion)) : notation sur 5 critères avec subscores | ✅ Template JUDGE ajouté dans templates.py |
+| Parsing scores | Extraire les scores + ranking + best_id | ✅ `judge.parse_judge_response()` avec fallback |
+| Sélection finale | Retourner le candidat avec le meilleur score total | ✅ `run_pipeline()` sélection par `best_id` |
+| Latence tracking | Log du temps total (N × génération + juge) | 🔴 Métriques disponibles |
 
-### 5.2 Self-refine (S16–S17) 🔴
+### 5.2 Self-refine (S16–S17) 🟡
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Consigne de réécriture | Le juge fournit `rewrite_suggestion` | Suggestion extraite du JSON |
-| Prompt refine | Template v1.1 (cf. [Addendum §D.3](addendum-v1.1.md#d3-self-refine-prompt-final-pass)) : envoyer le meilleur candidat + suggestion au LLM chat | Réponse améliorée |
-| Comparaison avant/après | Log du score avant et après refine | Amélioration mesurée |
-| Toggle | Activable/désactivable par profil | Config respectée |
-| Fallback | Si refine échoue, garder le candidat original | Pas de crash |
+| Consigne de réécriture | Le juge fournit `rewrite_suggestion` | ✅ Extrait par `parse_judge_response()` |
+| Prompt refine | Template v1.1 (cf. [Addendum §D.3](addendum-v1.1.md#d3-self-refine-prompt-final-pass)) : envoyer le meilleur candidat + suggestion au LLM chat | ✅ Template SELF_REFINE + `build_refine_prompt()` |
+| Comparaison avant/après | Log du score avant et après refine | 🔴 Amélioration mesurée |
+| Toggle | Activable/désactivable par profil | ✅ Config respectée via `run_pipeline(do_self_refine=…)` |
+| Fallback | Si refine échoue, garder le candidat original | ✅ Fallback implémenté |
 
 ### 5.3 Prompt juge avancé (S17–S18) 🟡
 

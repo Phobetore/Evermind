@@ -321,9 +321,9 @@ class WorldStateRepository:
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Table `message_variants` | Stocker les variantes/alternates d'un message | Table créée |
-| Table `benchmark_runs` | Stocker les résultats de benchmarks | Table créée |
-| Table `benchmark_scores` | Scores détaillés par run | Table créée |
+| Table `message_variants` | Stocker les variantes/alternates d'un message | ✅ Migration SQL créée |
+| Table `benchmark_runs` | Stocker les résultats de benchmarks | ✅ Migration SQL créée |
+| Table `benchmark_scores` | Scores détaillés par run | ✅ Migration SQL créée |
 | Migration | Appliquée automatiquement | Pas de données perdues |
 
 #### Migration 003
