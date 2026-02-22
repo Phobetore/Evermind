@@ -3,6 +3,7 @@
 import type { Message } from "@/types";
 import { useState } from "react";
 import Markdown from "react-markdown";
+import { Check, Copy, RotateCcw } from "lucide-react";
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -119,7 +120,7 @@ export default function ChatMessage({
             className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
             title="Copy message"
           >
-            {copied ? "✓ Copied" : "⧉ Copy"}
+            {copied ? <><Check size={12} className="inline" /> Copied</> : <><Copy size={12} className="inline" /> Copy</>}
           </button>
 
           {!isUser && isLast && onRegenerate && (
@@ -128,7 +129,7 @@ export default function ChatMessage({
               className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
               title="Regenerate"
             >
-              ↻ Regenerate
+              <RotateCcw size={12} className="inline" /> Regenerate
             </button>
           )}
         </div>

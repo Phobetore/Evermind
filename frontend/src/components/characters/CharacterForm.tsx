@@ -3,6 +3,7 @@
 import type { Character, CharacterCreate, ExampleDialogue } from "@/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { X } from "lucide-react";
 
 interface Props {
   initial?: Character;
@@ -175,7 +176,7 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
                 className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
                 aria-label={`Remove example ${idx + 1}`}
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
             <textarea
