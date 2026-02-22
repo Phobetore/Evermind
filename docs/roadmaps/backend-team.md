@@ -175,9 +175,9 @@
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Validation entrées | Toutes les entrées validées (Pydantic strict) | ✅ Pas d'injection (Pydantic + SQLite paramétré) |
-| Rate limiting | Limite de requêtes (optionnel, protection locale) | 🟡 429 si dépassé |
+| Rate limiting | Limite de requêtes (optionnel, protection locale) | ✅ 429 si dépassé (RateLimitMiddleware sliding-window) |
 | Gestion VRAM OOM | Détection erreur LLM → fallback ctx réduit | 🟡 Retry automatique |
-| Tests d'intégration | Tests end-to-end (API + LLM mock) | ✅ Suite complète (128 tests) |
+| Tests d'intégration | Tests end-to-end (API + LLM mock) | ✅ Suite complète (138 tests) |
 | Documentation API | OpenAPI spec auto-générée (Swagger UI) | ✅ `/docs` accessible avec tags et descriptions structurés |
 | Anti-prompt-injection | Messages user jamais dans le bloc system | ✅ Vérification en code (assembler.py) |
 | Request-ID | Header `X-Request-ID` sur chaque requête | ✅ Middleware implémenté |

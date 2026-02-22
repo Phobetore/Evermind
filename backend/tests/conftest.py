@@ -18,13 +18,25 @@ import pytest_asyncio  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 
 from app.core.database import init_db  # noqa: E402
+from app.core.middleware import RateLimitMiddleware  # noqa: E402
 from app.main import app  # noqa: E402
+
+
+def _reset_rate_limiter(asgi_app) -> None:  # noqa: ANN001
+    """Walk the ASGI middleware stack and reset any RateLimitMiddleware."""
+    current = getattr(asgi_app, "middleware_stack", None)
+    while current is not None:
+        if isinstance(current, RateLimitMiddleware):
+            current.reset()
+            return
+        current = getattr(current, "app", None)
 
 
 @pytest_asyncio.fixture
 async def client() -> AsyncIterator[AsyncClient]:
     """Yield a test HTTP client backed by the ASGI app."""
     await init_db()
+    _reset_rate_limiter(app)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
