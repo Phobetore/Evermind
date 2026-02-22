@@ -232,7 +232,7 @@ class ChatService:
                             first_token_sent = True
                         collected_tokens.append(token)
                         yield _sse({"token": token})
-            except (httpx.ConnectError, ConnectionError, OSError):
+            except (httpx.NetworkError, ConnectionError, OSError):
                 logger.exception(
                     "LLM connection failed for request %s at %s", request_id, base_url
                 )

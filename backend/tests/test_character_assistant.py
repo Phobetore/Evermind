@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 
 from app.tools.character_assistant import (
@@ -109,3 +111,20 @@ async def test_character_assistant_endpoint_validation(client: AsyncClient) -> N
         json={"name": ""},
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_character_assistant_read_error(client: AsyncClient) -> None:
+    """POST /tools/character_assistant should return 503 on httpx.ReadError."""
+    mock_llm = AsyncMock()
+    mock_llm.chat_completion = AsyncMock(
+        side_effect=httpx.ReadError("peer closed connection"),
+    )
+
+    with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
+        resp = await client.post(
+            "/tools/character_assistant",
+            json={"name": "ReadErrChar", "theme": "sci-fi"},
+        )
+    assert resp.status_code == 503
+    assert "unreachable" in resp.json()["detail"].lower()
