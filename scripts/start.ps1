@@ -408,13 +408,13 @@ if (-Not $BackendOnly) {
     $NextBuildId = Join-Path (Join-Path $FrontendDir ".next") "BUILD_ID"
     if (-Not (Test-Path $NextBuildId)) {
         Log-Info "Frontend build not found -- running 'npm run build'..."
-        $NpmCmd = (Get-Command npm -ErrorAction SilentlyContinue).Source
+        $NpmCmd = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source
         if (-Not $NpmCmd) {
             Log-Error "npm not found in PATH. Ensure Node.js/npm is installed."
             Cleanup-OnError
         }
-        $buildProc = Start-Process -FilePath "cmd.exe" `
-            -ArgumentList "/c", "cd /d `"$FrontendDir`" && `"$NpmCmd`" run build" `
+        $buildProc = Start-Process -FilePath $NpmCmd `
+            -ArgumentList "run", "build" `
             -WorkingDirectory $FrontendDir `
             -Wait -PassThru -NoNewWindow `
             -RedirectStandardOutput (Join-Path $LogDir "frontend-build.log") `
