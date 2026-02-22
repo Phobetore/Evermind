@@ -422,7 +422,7 @@ if (-Not $BackendOnly) {
     }
 
     $frontendProc = Start-Process -FilePath "node" `
-        -ArgumentList "`"$NextBin`"", "start", "--port", "$FrontendPort" `
+        -ArgumentList "`"$NextBin`"", "start", "--port", "$FrontendPort", "--hostname", "$BindHost" `
         -WorkingDirectory $FrontendDir `
         -PassThru -NoNewWindow `
         -RedirectStandardOutput (Join-Path $LogDir "frontend.log") `

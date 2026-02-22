@@ -446,7 +446,7 @@ if [ "${BACKEND_ONLY}" = false ]; then
     fi
 
     cd "${FRONTEND_DIR}"
-    npm run start -- --port "${FRONTEND_PORT}" \
+    npm run start -- --port "${FRONTEND_PORT}" --hostname "${BIND_HOST}" \
         > "${LOG_DIR}/frontend.log" 2>&1 &
 
     FRONTEND_PID=$!
