@@ -154,19 +154,29 @@ class ChatService:
 
         # Pre-flight: verify LLM server is reachable before streaming
         base_url = f"http://{cfg.bind_host}:{server_cfg.port}"
-        if not await llm.health():
+        status = await llm.health_status()
+        if status != "ok":
             logger.error(
-                "LLM server '%s' unreachable at %s for request %s",
+                "LLM server '%s' %s at %s for request %s",
                 chat_server_key,
+                status,
                 base_url,
                 request_id,
             )
-            yield _sse({
-                "error": (
-                    f"LLM server '{chat_server_key}' is not reachable at {base_url}. "
-                    "Please ensure the llama.cpp server is running on the configured port."
-                ),
-            })
+            if status == "loading":
+                yield _sse({
+                    "error": (
+                        f"LLM server '{chat_server_key}' is still loading the model at {base_url}. "
+                        "Please wait for the model to finish loading and try again."
+                    ),
+                })
+            else:
+                yield _sse({
+                    "error": (
+                        f"LLM server '{chat_server_key}' is not reachable at {base_url}. "
+                        "Please ensure the llama.cpp server is running on the configured port."
+                    ),
+                })
             return
 
         if use_pipeline:
@@ -232,7 +242,7 @@ class ChatService:
                             first_token_sent = True
                         collected_tokens.append(token)
                         yield _sse({"token": token})
-            except (httpx.ConnectError, httpx.ReadError, ConnectionError, OSError):
+            except (httpx.ConnectError, httpx.ReadError, httpx.HTTPStatusError, ConnectionError, OSError):
                 logger.exception(
                     "LLM connection failed for request %s at %s", request_id, base_url
                 )

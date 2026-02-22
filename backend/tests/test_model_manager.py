@@ -25,7 +25,7 @@ async def test_models_status_returns_servers(client: AsyncClient) -> None:
     for info in servers.values():
         assert "port" in info
         assert "model_path" in info
-        assert info["status"] in ("ok", "unreachable")
+        assert info["status"] in ("ok", "loading", "unavailable")
 
 
 @pytest.mark.asyncio

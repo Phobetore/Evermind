@@ -77,7 +77,7 @@ async def test_chat_stream_read_error_returns_descriptive_sse(client: AsyncClien
         yield  # pragma: no cover – make this an async generator
 
     mock_llm = AsyncMock()
-    mock_llm.health = AsyncMock(return_value=True)
+    mock_llm.health_status = AsyncMock(return_value="ok")
     mock_llm.chat_completion_stream = _exploding_stream
 
     with patch("app.services.chat_service._resolve_llm_client", return_value=mock_llm):
@@ -104,3 +104,46 @@ async def test_chat_stream_read_error_returns_descriptive_sse(client: AsyncClien
                 break
 
     assert found_error, "Expected a descriptive SSE error for ReadError"
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_loading_returns_descriptive_sse(client: AsyncClient) -> None:
+    """When the LLM server is loading, the SSE error should mention loading."""
+    char_resp = await client.post("/characters", json={"name": "LoadingChar"})
+    assert char_resp.status_code == 201
+    char_id = char_resp.json()["id"]
+
+    conv_resp = await client.post(
+        "/conversations",
+        json={"character_id": char_id, "title": "Loading conv"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    mock_llm = AsyncMock()
+    mock_llm.health_status = AsyncMock(return_value="loading")
+
+    with patch("app.services.chat_service._resolve_llm_client", return_value=mock_llm):
+        resp = await client.post(
+            "/chat/stream",
+            json={
+                "conversation_id": conv_id,
+                "character_id": char_id,
+                "user_message": "Hello!",
+                "profile_id": "fast",
+            },
+        )
+    assert resp.status_code == 200
+
+    found_error = False
+    for line in resp.text.strip().split("\n"):
+        if line.startswith("data: "):
+            data = json.loads(line[6:])
+            if "error" in data:
+                found_error = True
+                error_msg = data["error"]
+                assert "loading" in error_msg
+                assert "LLM streaming failed" not in error_msg
+                break
+
+    assert found_error, "Expected a descriptive SSE error about model loading"

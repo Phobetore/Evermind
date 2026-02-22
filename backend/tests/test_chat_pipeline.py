@@ -47,7 +47,7 @@ async def test_chat_meta_reflects_profile_settings(client: AsyncClient) -> None:
     ):
         # Make the LLM client healthy + mock pipeline return
         instance = mock_llm_class.return_value
-        instance.health = AsyncMock(return_value=True)
+        instance.health_status = AsyncMock(return_value="ok")
         mock_pipeline.return_value = ("Mocked pipeline response.", mock_judge_result)
 
         # Also mock _resolve_llm_client to return our mock
@@ -103,7 +103,7 @@ async def test_chat_simple_streaming_for_fast_profile(client: AsyncClient) -> No
         patch("app.services.chat_service._resolve_llm_client") as mock_resolve,
     ):
         mock_llm = AsyncMock()
-        mock_llm.health = AsyncMock(return_value=True)
+        mock_llm.health_status = AsyncMock(return_value="ok")
         mock_llm.chat_completion_stream = mock_stream
         mock_resolve.return_value = mock_llm
 
