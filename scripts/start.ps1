@@ -182,6 +182,27 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
         Log-Warn "llama-server.exe not found at $LlamaServer"
         Log-Warn "Skipping LLM server startup. Ensure LLM servers are started externally."
     } else {
+        # Verify the binary can execute at all (catches missing DLLs / arch mismatch)
+        try {
+            $testProc = Start-Process -FilePath $LlamaServer -ArgumentList "--help" `
+                -Wait -PassThru -NoNewWindow `
+                -RedirectStandardOutput (Join-Path $LogDir "llm-preflight.log") `
+                -RedirectStandardError (Join-Path $LogDir "llm-preflight-err.log")
+            if ($null -ne $testProc.ExitCode -and $testProc.ExitCode -ne 0) {
+                throw "llama-server --help exited with code $($testProc.ExitCode)"
+            }
+        } catch {
+            Log-Error "llama-server.exe failed to execute: $LlamaServer"
+            Log-Error "The binary may be incompatible with your system or missing DLLs."
+            Log-Error "Try running '$LlamaServer --help' manually to diagnose."
+            Remove-Item (Join-Path $LogDir "llm-preflight.log") -Force -ErrorAction SilentlyContinue
+            Remove-Item (Join-Path $LogDir "llm-preflight-err.log") -Force -ErrorAction SilentlyContinue
+            exit 1
+        }
+        Remove-Item (Join-Path $LogDir "llm-preflight.log") -Force -ErrorAction SilentlyContinue
+        Remove-Item (Join-Path $LogDir "llm-preflight-err.log") -Force -ErrorAction SilentlyContinue
+        Log-Ok "llama-server binary verified"
+
         foreach ($ServerName in @("chat", "memory", "judge")) {
             $ServerPort = Read-Config "llm_servers.$ServerName.port"
             $ModelPath  = Read-Config "llm_servers.$ServerName.model_path"
@@ -208,6 +229,7 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
             }
 
             Log-Info "[$Step/$TotalSteps] Starting LLM server: $ServerName (port $ServerPort)..."
+            Log-Info "  Command: $LlamaServer --model `"$FullModelPath`" --host $BindHost --port $ServerPort --ctx-size $Ctx --n-gpu-layers $NGpuLayers --threads $Threads"
 
             $proc = Start-Process -FilePath $LlamaServer `
                 -ArgumentList "--model `"$FullModelPath`" --host $BindHost --port $ServerPort --ctx-size $Ctx --n-gpu-layers $NGpuLayers --threads $Threads" `
@@ -217,7 +239,31 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
 
             $Pids += "llm-$ServerName=$($proc.Id)"
 
-            if (Wait-ForHealth "http://${BindHost}:${ServerPort}/health" $ServerName 60 $proc) {
+            $healthOk = Wait-ForHealth "http://${BindHost}:${ServerPort}/health" $ServerName 60 $proc
+
+            # GPU fallback: if startup failed and GPU layers were requested, retry CPU-only
+            if ((-Not $healthOk) -and ($NGpuLayers -ne "0")) {
+                Log-Warn "GPU mode failed for '$ServerName' -- retrying with --n-gpu-layers 0 (CPU-only)..."
+                try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch { }
+                Start-Sleep -Seconds 1
+
+                $proc = Start-Process -FilePath $LlamaServer `
+                    -ArgumentList "--model `"$FullModelPath`" --host $BindHost --port $ServerPort --ctx-size $Ctx --n-gpu-layers 0 --threads $Threads" `
+                    -PassThru -NoNewWindow `
+                    -RedirectStandardOutput (Join-Path $LogDir "llm-$ServerName.log") `
+                    -RedirectStandardError (Join-Path $LogDir "llm-$ServerName-err.log")
+
+                $Pids[$Pids.Count - 1] = "llm-$ServerName=$($proc.Id)"
+
+                $healthOk = Wait-ForHealth "http://${BindHost}:${ServerPort}/health" $ServerName 60 $proc
+                if ($healthOk) {
+                    Log-Ok "LLM server '$ServerName' is healthy in CPU-only mode (PID $($proc.Id))"
+                    Log-Warn "GPU offloading failed -- '$ServerName' is running on CPU (this will be slower)."
+                    continue
+                }
+            }
+
+            if ($healthOk) {
                 Log-Ok "LLM server '$ServerName' is healthy (PID $($proc.Id))"
             } else {
                 if ($script:HealthFailureReason -eq "timeout") {

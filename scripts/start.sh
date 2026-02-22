@@ -220,6 +220,15 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
         log_warn "llama-server binary not found at ${LLAMA_SERVER}"
         log_warn "Skipping LLM server startup. Ensure LLM servers are started externally."
     else
+        # Verify the binary can execute at all (catches missing libs / arch mismatch)
+        if ! "${LLAMA_SERVER}" --help > /dev/null 2>&1; then
+            log_error "llama-server binary failed to execute: ${LLAMA_SERVER}"
+            log_error "The binary may be incompatible with your system or missing shared libraries."
+            log_error "Try running '${LLAMA_SERVER} --help' manually to diagnose."
+            exit 1
+        fi
+        log_ok "llama-server binary verified"
+
         for SERVER_NAME in chat memory judge; do
             SERVER_PORT=$(read_config "llm_servers.${SERVER_NAME}.port")
             MODEL_PATH=$(read_config "llm_servers.${SERVER_NAME}.model_path")
@@ -246,6 +255,7 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
             fi
 
             log_info "[${STEP}/${TOTAL_STEPS}] Starting LLM server: ${SERVER_NAME} (port ${SERVER_PORT})..."
+            log_info "  Command: ${LLAMA_SERVER} --model ${FULL_MODEL_PATH} --host ${BIND_HOST} --port ${SERVER_PORT} --ctx-size ${CTX} --n-gpu-layers ${N_GPU_LAYERS} --threads ${THREADS}"
 
             "${LLAMA_SERVER}" \
                 --model "${FULL_MODEL_PATH}" \
@@ -263,6 +273,35 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
             # Wait for health (also checks process liveness)
             health_result=0
             wait_for_health "http://${BIND_HOST}:${SERVER_PORT}/health" "${SERVER_NAME}" 60 "${LLM_PID}" || health_result=$?
+
+            # GPU fallback: if startup failed and GPU layers were requested, retry CPU-only
+            if [ $health_result -ne 0 ] && [ "${N_GPU_LAYERS}" != "0" ]; then
+                log_warn "GPU mode failed for '${SERVER_NAME}' — retrying with --n-gpu-layers 0 (CPU-only)..."
+                kill "${LLM_PID}" 2>/dev/null || true
+                wait "${LLM_PID}" 2>/dev/null || true
+                : > "${LOG_DIR}/llm-${SERVER_NAME}.log"
+
+                "${LLAMA_SERVER}" \
+                    --model "${FULL_MODEL_PATH}" \
+                    --host "${BIND_HOST}" \
+                    --port "${SERVER_PORT}" \
+                    --ctx-size "${CTX}" \
+                    --n-gpu-layers 0 \
+                    --threads "${THREADS}" \
+                    > "${LOG_DIR}/llm-${SERVER_NAME}.log" 2>&1 &
+
+                LLM_PID=$!
+                PIDS[${#PIDS[@]}-1]="${LLM_PID}"
+
+                health_result=0
+                wait_for_health "http://${BIND_HOST}:${SERVER_PORT}/health" "${SERVER_NAME}" 60 "${LLM_PID}" || health_result=$?
+                if [ $health_result -eq 0 ]; then
+                    log_ok "LLM server '${SERVER_NAME}' is healthy in CPU-only mode (PID ${LLM_PID})"
+                    log_warn "GPU offloading failed — '${SERVER_NAME}' is running on CPU (this will be slower)."
+                    continue
+                fi
+            fi
+
             if [ $health_result -eq 0 ]; then
                 log_ok "LLM server '${SERVER_NAME}' is healthy (PID ${LLM_PID})"
             else
