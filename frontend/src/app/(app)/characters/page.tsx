@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import type { Character } from "@/types";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Upload, Plus } from "lucide-react";
 
 export default function CharactersPage() {
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -81,9 +82,9 @@ export default function CharactersPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800"
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800"
           >
-            📥 Import
+            <Upload size={14} /> Import
           </button>
           <input
             ref={fileInputRef}
@@ -94,9 +95,9 @@ export default function CharactersPage() {
           />
           <Link
             href="/characters/new"
-            className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200"
+            className="flex items-center gap-1.5 rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200"
           >
-            + New Character
+            <Plus size={14} /> New Character
           </Link>
         </div>
       </div>

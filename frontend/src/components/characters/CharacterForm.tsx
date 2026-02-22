@@ -4,7 +4,7 @@ import type { Character, CharacterCreate, ExampleDialogue } from "@/types";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { X, Sparkles, Loader2 } from "lucide-react";
+import { X, Sparkles, Loader2, Plus } from "lucide-react";
 
 interface AssistantRequest {
   name: string;
@@ -317,9 +317,9 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
                 { user: "", assistant: "" },
               ])
             }
-            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
           >
-            + Add dialogue
+            <Plus size={12} /> Add dialogue
           </button>
         </div>
         {exampleDialogues.length === 0 && (
