@@ -101,13 +101,15 @@ if (-Not (Test-Path $ConfigFile)) {
     exit 1
 }
 
+$backendPath = ($ProjectRoot -replace '\\', '/') + '/backend'
+$configPath = $ConfigFile -replace '\\', '/'
 $validationResult = python3 -c @"
 import sys
-sys.path.insert(0, '$($ProjectRoot -replace '\\', '\\\\')\\backend')
+sys.path.insert(0, '$backendPath')
 from app.config import load_config
 from pathlib import Path
 try:
-    cfg = load_config(Path('$($ConfigFile -replace '\\', '\\\\')'))
+    cfg = load_config(Path('$configPath'))
     servers = list(cfg.llm_servers.keys())
     profiles = list(cfg.profiles.keys())
     sep = ','
@@ -171,6 +173,11 @@ Write-Host ""
 
 Push-Location (Join-Path $ProjectRoot "backend")
 pip3 install -e ".[dev]" --quiet 2>&1 | Select-Object -Last 2
+if ($LASTEXITCODE -ne 0) {
+    Log-Error "Backend dependency installation failed (exit code $LASTEXITCODE)"
+    Pop-Location
+    exit 1
+}
 Log-Ok "Backend dependencies installed"
 Pop-Location
 
@@ -183,6 +190,11 @@ Write-Host ""
 
 Push-Location (Join-Path $ProjectRoot "frontend")
 npm install --silent 2>&1 | Select-Object -Last 2
+if ($LASTEXITCODE -ne 0) {
+    Log-Error "Frontend dependency installation failed (exit code $LASTEXITCODE)"
+    Pop-Location
+    exit 1
+}
 Log-Ok "Frontend dependencies installed"
 Pop-Location
 

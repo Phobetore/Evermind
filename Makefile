@@ -22,12 +22,8 @@
 # ── OS detection ──────────────────────────────────────────────────────────────
 ifeq ($(OS),Windows_NT)
     SHELL_CMD = powershell -ExecutionPolicy Bypass -File
-    SCRIPT_EXT = .ps1
-    RM_RF = powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue"
 else
     SHELL_CMD =
-    SCRIPT_EXT = .sh
-    RM_RF = rm -rf
 endif
 
 # Default target
@@ -153,10 +149,20 @@ validate-config:
 
 # ── Maintenance ───────────────────────────────────────────────────────────────
 
+ifeq ($(OS),Windows_NT)
+clean:
+	@echo Cleaning generated files...
+	@powershell -Command "Remove-Item -Path 'logs\*.log' -Force -ErrorAction SilentlyContinue"
+	@powershell -Command "Remove-Item -Path 'backend\__pycache__','backend\app\__pycache__' -Recurse -Force -ErrorAction SilentlyContinue"
+	@powershell -Command "Remove-Item -Path 'frontend\.next' -Recurse -Force -ErrorAction SilentlyContinue"
+	@powershell -Command "Remove-Item -Path 'data\.pids' -Force -ErrorAction SilentlyContinue"
+	@echo Done.
+else
 clean:
 	@echo "Cleaning generated files..."
-	$(RM_RF) logs/*.log
-	$(RM_RF) backend/__pycache__ backend/app/__pycache__ backend/app/**/__pycache__
-	$(RM_RF) frontend/.next
-	$(RM_RF) data/.pids
+	rm -rf logs/*.log
+	rm -rf backend/__pycache__ backend/app/__pycache__ backend/app/**/__pycache__
+	rm -rf frontend/.next
+	rm -f data/.pids
 	@echo "Done."
+endif
