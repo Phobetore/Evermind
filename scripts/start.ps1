@@ -97,7 +97,7 @@ Write-Host ""
 # Check config file
 if (-Not (Test-Path $ConfigFile)) {
     Log-Error "Configuration file not found: $ConfigFile"
-    Log-Error "Run '.\scripts\setup.sh' first or set EVERMIND_CONFIG."
+    Log-Error "Run '.\scripts\setup.sh' (Linux) or ensure config.yaml exists, then set EVERMIND_CONFIG."
     exit 1
 }
 Log-Ok "Configuration: $ConfigFile"
