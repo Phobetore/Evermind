@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -15,6 +16,10 @@ from app.tools.character_assistant import generate_character
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 logger = logging.getLogger(__name__)
+
+# Maximum wall-clock time the character assistant endpoint may spend waiting
+# for the LLM to generate a response before returning a timeout error.
+_ASSISTANT_TIMEOUT_SECONDS = 90
 
 
 class CharacterAssistantRequest(BaseModel):
@@ -55,15 +60,27 @@ async def character_assistant(request: CharacterAssistantRequest) -> dict[str, A
         )
 
     try:
-        result = await generate_character(
-            llm,
-            name=request.name,
-            theme=request.theme,
-            relationship=request.relationship,
-            style=request.style,
-            limits=request.limits,
-            notes=request.notes,
+        result = await asyncio.wait_for(
+            generate_character(
+                llm,
+                name=request.name,
+                theme=request.theme,
+                relationship=request.relationship,
+                style=request.style,
+                limits=request.limits,
+                notes=request.notes,
+            ),
+            timeout=_ASSISTANT_TIMEOUT_SECONDS,
         )
+    except TimeoutError:
+        logger.warning("Character assistant timed out after %ss", _ASSISTANT_TIMEOUT_SECONDS)
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                f"Character generation timed out after {_ASSISTANT_TIMEOUT_SECONDS}s "
+                "— the LLM server may be overloaded. Please try again."
+            ),
+        ) from None
     except (
         httpx.ConnectError,
         httpx.ReadError,
@@ -75,5 +92,11 @@ async def character_assistant(request: CharacterAssistantRequest) -> dict[str, A
         raise HTTPException(
             status_code=503,
             detail="LLM server is unreachable — cannot generate character",
+        ) from None
+    except Exception:
+        logger.exception("Unexpected error in character assistant")
+        raise HTTPException(
+            status_code=500,
+            detail="Character generation failed unexpectedly — please try again",
         ) from None
     return result
