@@ -4,13 +4,7 @@ import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage from "@/components/chat/ChatMessage";
 import { ChatMessageSkeleton } from "@/components/ui/Skeleton";
 import { api } from "@/lib/api";
-import { getGenerationParams } from "@/lib/generation-params";
-import {
-  isChatDone,
-  isChatError,
-  isChatToken,
-  streamChat,
-} from "@/lib/sse";
+import { useStreaming } from "@/contexts/StreamingContext";
 import type { Character, Conversation, Message } from "@/types";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,14 +12,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export default function ChatConversationPage() {
   const params = useParams();
   const conversationId = params?.conversationId as string;
+  const { startStream, isStreaming, getStreamContent } = useStreaming();
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [character, setCharacter] = useState<Character | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [streaming, setStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const streaming = isStreaming(conversationId);
+  const streamingContent = getStreamContent(conversationId);
+
+  // Stable callback ref for message handling
+  const onMessageRef = useRef<(msg: Message) => void>(() => {});
+  onMessageRef.current = (msg: Message) => {
+    setMessages((prev) => [...prev, msg]);
+  };
 
   // Load conversation, character, and messages
   useEffect(() => {
@@ -65,57 +67,17 @@ export default function ChatConversationPage() {
     scrollToBottom();
   }, [messages, streamingContent, scrollToBottom]);
 
-  async function doStream(userMessage: string) {
+  function doStream(userMessage: string) {
     if (!conversation || !character) return;
-    setStreaming(true);
-    setStreamingContent("");
-
-    try {
-      let fullContent = "";
-      const genParams = getGenerationParams();
-
-      for await (const event of streamChat(
-        conversationId,
-        character.id,
-        userMessage,
-        "balanced",
-        { ...genParams },
-      )) {
-        if (isChatToken(event)) {
-          fullContent += event.token;
-          setStreamingContent(fullContent);
-        } else if (isChatDone(event)) {
-          const assistantMsg: Message = {
-            id: event.message_id,
-            conversation_id: conversationId,
-            role: "assistant",
-            content: fullContent,
-            created_at: new Date().toISOString(),
-            meta: event.meta,
-          };
-          setMessages((prev) => [...prev, assistantMsg]);
-          setStreamingContent("");
-        } else if (isChatError(event)) {
-          const errorMsg: Message = {
-            id: `error-${Date.now()}`,
-            conversation_id: conversationId,
-            role: "system",
-            content: `Error: ${event.error}`,
-            created_at: new Date().toISOString(),
-            meta: {},
-          };
-          setMessages((prev) => [...prev, errorMsg]);
-          setStreamingContent("");
-        }
-      }
-    } catch {
-      setStreamingContent("");
-    } finally {
-      setStreaming(false);
-    }
+    startStream(
+      conversationId,
+      character.id,
+      userMessage,
+      (msg) => onMessageRef.current(msg),
+    );
   }
 
-  async function handleSend(content: string) {
+  function handleSend(content: string) {
     if (!conversation || !character || streaming) return;
 
     // Optimistically add user message
@@ -129,10 +91,10 @@ export default function ChatConversationPage() {
     };
     setMessages((prev) => [...prev, userMsg]);
 
-    await doStream(content);
+    doStream(content);
   }
 
-  async function handleRegenerate() {
+  function handleRegenerate() {
     if (!conversation || !character || streaming) return;
 
     // Find the last user message to re-send
@@ -154,10 +116,10 @@ export default function ChatConversationPage() {
       return prev;
     });
 
-    await doStream(lastUserMsg.content);
+    doStream(lastUserMsg.content);
   }
 
-  async function handleEditMessage(messageId: string, newContent: string) {
+  function handleEditMessage(messageId: string, newContent: string) {
     if (!conversation || !character || streaming) return;
 
     // Find the edited message index
@@ -172,7 +134,7 @@ export default function ChatConversationPage() {
     setMessages((prev) => [...prev.slice(0, editIdx), editedMsg]);
 
     // Re-generate assistant response with the edited content
-    await doStream(newContent);
+    doStream(newContent);
   }
 
   if (loading) {
