@@ -1,0 +1,58 @@
+diff --git a/node_modules/next/dist/esm/server/web/sandbox/context.js b/node_modules/next/dist/esm/server/web/sandbox/context.js
+index 2a0d0f3..5aeba13 100644
+--- a/node_modules/next/dist/esm/server/web/sandbox/context.js
++++ b/node_modules/next/dist/esm/server/web/sandbox/context.js
+@@ -183,14 +183,16 @@ const NativeModuleMap = (()=>{
+             'strictEqual',
+             'throws'
+         ]),
+-        'node:util': pick(UtilImplementation, [
+-            '_extend',
+-            'callbackify',
+-            'format',
+-            'inherits',
+-            'promisify',
+-            'types'
+-        ])
++        'node:util': Object.assign(
++            pick(UtilImplementation, [
++                'callbackify',
++                'format',
++                'inherits',
++                'promisify',
++                'types'
++            ]),
++            { _extend: function(target, source) { return Object.assign(target, source); } }
++        )
+     };
+     return new Map(Object.entries(mods));
+ })();
+diff --git a/node_modules/next/dist/server/web/sandbox/context.js b/node_modules/next/dist/server/web/sandbox/context.js
+index cc301c5..b462472 100644
+--- a/node_modules/next/dist/server/web/sandbox/context.js
++++ b/node_modules/next/dist/server/web/sandbox/context.js
+@@ -213,14 +213,16 @@ const NativeModuleMap = (()=>{
+             'strictEqual',
+             'throws'
+         ]),
+-        'node:util': (0, _pick.pick)(_nodeutil.default, [
+-            '_extend',
+-            'callbackify',
+-            'format',
+-            'inherits',
+-            'promisify',
+-            'types'
+-        ])
++        'node:util': Object.assign(
++            (0, _pick.pick)(_nodeutil.default, [
++                'callbackify',
++                'format',
++                'inherits',
++                'promisify',
++                'types'
++            ]),
++            { _extend: function(target, source) { return Object.assign(target, source); } }
++        )
+     };
+     return new Map(Object.entries(mods));
+ })();
