@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export default function ChatConversationPage() {
   const params = useParams();
   const conversationId = params?.conversationId as string;
-  const { startStream, isStreaming, getStreamContent } = useStreaming();
+  const { startStream, isStreaming, getStreamContent, getStatusDetail } = useStreaming();
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [character, setCharacter] = useState<Character | null>(null);
@@ -22,6 +22,7 @@ export default function ChatConversationPage() {
 
   const streaming = isStreaming(conversationId);
   const streamingContent = getStreamContent(conversationId);
+  const statusDetail = getStatusDetail(conversationId);
 
   // Stable callback ref for message handling
   // Ref-based callback avoids re-creating startStream closure when messages change
@@ -216,14 +217,19 @@ export default function ChatConversationPage() {
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-sm font-medium">
               {character.name.charAt(0).toUpperCase()}
             </div>
-            <div className="flex gap-1">
-              {[0, 150, 300].map((delay) => (
-                <span
-                  key={delay}
-                  className="w-2 h-2 rounded-full bg-violet-400 animate-bounce"
-                  style={{ animationDelay: `${delay}ms` }}
-                />
-              ))}
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1">
+                {[0, 150, 300].map((delay) => (
+                  <span
+                    key={delay}
+                    className="w-2 h-2 rounded-full bg-violet-400 animate-bounce"
+                    style={{ animationDelay: `${delay}ms` }}
+                  />
+                ))}
+              </div>
+              {statusDetail && (
+                <span className="text-xs text-zinc-500">{statusDetail}</span>
+              )}
             </div>
           </div>
         )}

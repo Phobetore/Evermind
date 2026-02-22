@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
+from app.services.chat_service import ChatService
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -133,3 +136,168 @@ async def test_chat_simple_streaming_for_fast_profile(client: AsyncClient) -> No
     pipeline = meta.get("pipeline", {})
     assert pipeline.get("best_of_n") == 1
     assert pipeline.get("self_refine") is False
+
+
+@pytest.mark.asyncio
+async def test_pipeline_emits_status_events(client: AsyncClient) -> None:
+    """Pipeline path should emit status events including the initial generating event."""
+    char_resp = await client.post("/characters", json={"name": "StatusChar"})
+    assert char_resp.status_code == 201
+    char_id = char_resp.json()["id"]
+
+    conv_resp = await client.post(
+        "/conversations",
+        json={"character_id": char_id, "title": "Status test"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    with (
+        patch("app.services.chat_service.LLMClient") as mock_llm_class,
+        patch("app.services.chat_service.run_pipeline", new_callable=AsyncMock) as mock_pipeline,
+    ):
+        instance = mock_llm_class.return_value
+        instance.health_status = AsyncMock(return_value="ok")
+        mock_pipeline.return_value = ("Pipeline response.", None)
+
+        with patch(
+            "app.services.chat_service._resolve_llm_client",
+            return_value=instance,
+        ):
+            resp = await client.post(
+                "/chat/stream",
+                json={
+                    "conversation_id": conv_id,
+                    "character_id": char_id,
+                    "user_message": "Hello!",
+                    "profile_id": "balanced",
+                },
+            )
+            assert resp.status_code == 200
+
+    events = _parse_sse_events(resp.text)
+
+    # Should contain at least one status event (the initial "Generating N candidate(s)" event)
+    status_events = [e for e in events if "status" in e]
+    assert len(status_events) >= 1
+    assert status_events[0]["status"] == "generating"
+    assert "candidate" in status_events[0]["detail"].lower()
+
+    # Should also have token events and a done event
+    token_events = [e for e in events if "token" in e]
+    assert len(token_events) >= 1
+    done_events = [e for e in events if e.get("done")]
+    assert len(done_events) == 1
+
+
+@pytest.mark.asyncio
+async def test_pipeline_heartbeat_during_slow_pipeline(client: AsyncClient) -> None:
+    """Pipeline should emit heartbeat events when generation takes longer than the heartbeat interval."""
+    char_resp = await client.post("/characters", json={"name": "HeartbeatChar"})
+    assert char_resp.status_code == 201
+    char_id = char_resp.json()["id"]
+
+    conv_resp = await client.post(
+        "/conversations",
+        json={"character_id": char_id, "title": "Heartbeat test"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    async def _slow_pipeline(*_args, **_kwargs):
+        """Simulate a pipeline that takes a bit longer than the heartbeat interval."""
+        await asyncio.sleep(0.15)
+        return ("Slow pipeline response.", None)
+
+    with (
+        patch("app.services.chat_service.LLMClient") as mock_llm_class,
+        patch("app.services.chat_service.run_pipeline", side_effect=_slow_pipeline),
+        # Use a very short heartbeat interval for fast test
+        patch("app.services.chat_service._HEARTBEAT_INTERVAL", 0.05),
+    ):
+        instance = mock_llm_class.return_value
+        instance.health_status = AsyncMock(return_value="ok")
+
+        with patch(
+            "app.services.chat_service._resolve_llm_client",
+            return_value=instance,
+        ):
+            resp = await client.post(
+                "/chat/stream",
+                json={
+                    "conversation_id": conv_id,
+                    "character_id": char_id,
+                    "user_message": "Hello!",
+                    "profile_id": "balanced",
+                },
+            )
+            assert resp.status_code == 200
+
+    events = _parse_sse_events(resp.text)
+
+    # Should contain at least 2 status events (initial + heartbeat(s))
+    status_events = [e for e in events if "status" in e]
+    assert len(status_events) >= 2
+
+    # The heartbeat events should have "Still generating..." detail
+    heartbeats = [e for e in status_events if "still" in e.get("detail", "").lower()]
+    assert len(heartbeats) >= 1
+
+    # Should still have a done event
+    done_events = [e for e in events if e.get("done")]
+    assert len(done_events) == 1
+
+
+@pytest.mark.asyncio
+async def test_memory_extraction_does_not_block_done_event(client: AsyncClient) -> None:
+    """Memory extraction should run as a background task, not block the done event."""
+    char_resp = await client.post("/characters", json={"name": "MemNonBlockChar"})
+    assert char_resp.status_code == 201
+    char_id = char_resp.json()["id"]
+
+    conv_resp = await client.post(
+        "/conversations",
+        json={"character_id": char_id, "title": "MemNonBlock test"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    # Track whether memory extraction was dispatched as a background task
+    extraction_dispatched = asyncio.Event()
+    original_safe = ChatService._extract_and_store_memories_safe
+
+    async def tracking_wrapper(self, **kwargs):
+        extraction_dispatched.set()
+        return await original_safe(self, **kwargs)
+
+    async def mock_stream(messages, **params):
+        yield {"choices": [{"delta": {"content": "Quick reply."}}]}
+
+    with (
+        patch("app.services.chat_service._resolve_llm_client") as mock_resolve,
+        patch.object(ChatService, "_extract_and_store_memories_safe", tracking_wrapper),
+    ):
+        mock_llm = AsyncMock()
+        mock_llm.health_status = AsyncMock(return_value="ok")
+        mock_llm.chat_completion_stream = mock_stream
+        mock_resolve.return_value = mock_llm
+
+        resp = await client.post(
+            "/chat/stream",
+            json={
+                "conversation_id": conv_id,
+                "character_id": char_id,
+                "user_message": "Quick test!",
+                "profile_id": "fast",
+            },
+        )
+        assert resp.status_code == 200
+
+    events = _parse_sse_events(resp.text)
+
+    # The done event should be present (not blocked by memory extraction)
+    done_events = [e for e in events if e.get("done")]
+    assert len(done_events) == 1
+
+    # Memory extraction should have been dispatched as a background task
+    assert extraction_dispatched.is_set()

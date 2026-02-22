@@ -5,6 +5,7 @@ import { getGenerationParams } from "@/lib/generation-params";
 import {
   isChatDone,
   isChatError,
+  isChatStatus,
   isChatToken,
   streamChat,
 } from "@/lib/sse";
@@ -20,6 +21,7 @@ import {
 interface StreamState {
   streaming: boolean;
   content: string;
+  statusDetail: string;
 }
 
 interface StreamingContextValue {
@@ -36,6 +38,8 @@ interface StreamingContextValue {
   isStreaming: (conversationId: string) => boolean;
   /** Get the current streaming content for a conversation. */
   getStreamContent: (conversationId: string) => string;
+  /** Get the current status detail for a conversation (e.g. "Generating 3 candidate(s)..."). */
+  getStatusDetail: (conversationId: string) => string;
 }
 
 const StreamingContext = createContext<StreamingContextValue | null>(null);
@@ -58,7 +62,7 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
 
       setStreams((prev) => ({
         ...prev,
-        [conversationId]: { streaming: true, content: "" },
+        [conversationId]: { streaming: true, content: "", statusDetail: "" },
       }));
 
       (async () => {
@@ -79,7 +83,7 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
               fullContent += event.token;
               setStreams((prev) => ({
                 ...prev,
-                [conversationId]: { streaming: true, content: fullContent },
+                [conversationId]: { streaming: true, content: fullContent, statusDetail: "" },
               }));
             } else if (isChatDone(event)) {
               const assistantMsg: Message = {
@@ -93,7 +97,7 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
               onMessage(assistantMsg);
               setStreams((prev) => ({
                 ...prev,
-                [conversationId]: { streaming: false, content: "" },
+                [conversationId]: { streaming: false, content: "", statusDetail: "" },
               }));
             } else if (isChatError(event)) {
               const errorMsg: Message = {
@@ -107,7 +111,16 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
               onMessage(errorMsg);
               setStreams((prev) => ({
                 ...prev,
-                [conversationId]: { streaming: false, content: "" },
+                [conversationId]: { streaming: false, content: "", statusDetail: "" },
+              }));
+            } else if (isChatStatus(event)) {
+              setStreams((prev) => ({
+                ...prev,
+                [conversationId]: {
+                  ...prev[conversationId],
+                  streaming: true,
+                  statusDetail: event.detail,
+                },
               }));
             }
           }
@@ -119,7 +132,7 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
             if (current?.streaming) {
               return {
                 ...prev,
-                [conversationId]: { streaming: false, content: "" },
+                [conversationId]: { streaming: false, content: "", statusDetail: "" },
               };
             }
             return prev;
@@ -141,9 +154,14 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
     [streams],
   );
 
+  const getStatusDetail = useCallback(
+    (conversationId: string) => streams[conversationId]?.statusDetail ?? "",
+    [streams],
+  );
+
   return (
     <StreamingContext.Provider
-      value={{ streams, startStream, isStreaming, getStreamContent }}
+      value={{ streams, startStream, isStreaming, getStreamContent, getStatusDetail }}
     >
       {children}
     </StreamingContext.Provider>

@@ -14,7 +14,12 @@ export interface ChatStreamError {
   error: string;
 }
 
-export type ChatStreamEvent = ChatStreamToken | ChatStreamDone | ChatStreamError;
+export interface ChatStreamStatus {
+  status: string;
+  detail: string;
+}
+
+export type ChatStreamEvent = ChatStreamToken | ChatStreamDone | ChatStreamError | ChatStreamStatus;
 
 export function isChatDone(event: ChatStreamEvent): event is ChatStreamDone {
   return "done" in event && event.done === true;
@@ -26,6 +31,10 @@ export function isChatError(event: ChatStreamEvent): event is ChatStreamError {
 
 export function isChatToken(event: ChatStreamEvent): event is ChatStreamToken {
   return "token" in event && !("done" in event);
+}
+
+export function isChatStatus(event: ChatStreamEvent): event is ChatStreamStatus {
+  return "status" in event && !("done" in event) && !("error" in event) && !("token" in event);
 }
 
 /**

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import uuid
@@ -30,6 +31,14 @@ logger = logging.getLogger(__name__)
 
 # Minimum confidence score for extracted memories to be persisted.
 MEMORY_CONFIDENCE_THRESHOLD = 0.6
+
+# Interval (seconds) between heartbeat SSE events during pipeline execution.
+# Keeps the connection alive through proxies while the LLM is generating.
+_HEARTBEAT_INTERVAL = 15.0
+
+# Weak set of fire-and-forget background tasks to prevent garbage collection
+# before completion (see https://docs.python.org/3/library/asyncio-task.html#creating-tasks).
+_background_tasks: set[asyncio.Task[None]] = set()
 
 
 def _resolve_llm_client(
@@ -192,8 +201,10 @@ class ChatService:
                 "detail": f"Generating {best_of_n} candidate(s)...",
             })
 
-            try:
-                final_text, judge_result = await run_pipeline(
+            # Run the pipeline in a task and send periodic heartbeat events
+            # to keep the SSE connection alive through any proxies.
+            pipeline_task: asyncio.Task[tuple[str, Any]] = asyncio.create_task(
+                run_pipeline(
                     chat_llm=llm,
                     judge_llm=judge_llm,
                     messages=messages,
@@ -210,6 +221,16 @@ class ChatService:
                     max_tokens=gen_params.get("max_tokens", 1024),
                     base_seed=gen_params.get("seed"),
                 )
+            )
+
+            try:
+                while not pipeline_task.done():
+                    try:
+                        await asyncio.wait_for(asyncio.shield(pipeline_task), timeout=_HEARTBEAT_INTERVAL)
+                    except TimeoutError:
+                        # Pipeline still running — send a heartbeat to keep the connection alive
+                        yield _sse({"status": "generating", "detail": "Still generating..."})
+                final_text, judge_result = pipeline_task.result()
             except Exception:
                 logger.exception("Pipeline failed for request %s", request_id)
                 timing.mark("t_stream_end")
@@ -284,7 +305,7 @@ class ChatService:
 
             timing.mark("t_stream_end")
 
-        # 8. Post-generation: trigger memory extraction (async, non-blocking)
+        # 8. Post-generation: trigger memory extraction (fire-and-forget background task)
         full_response = "".join(collected_tokens)
         memory_extract_enabled = False
         memory_server_key = profile.memory_server if profile else "memory"
@@ -292,8 +313,8 @@ class ChatService:
 
         if mem_llm is not None:
             memory_extract_enabled = True
-            try:
-                await self._extract_and_store_memories(
+            task = asyncio.create_task(
+                self._extract_and_store_memories_safe(
                     character_id=character_id,
                     char_name=character.name,
                     user_message=user_message,
@@ -301,11 +322,11 @@ class ChatService:
                     recent_messages=recent,
                     world_state=world_state,
                     mem_llm=mem_llm,
-                    timing=timing,
+                    request_id=request_id,
                 )
-            except Exception:
-                logger.exception("Memory extraction failed for request %s", request_id)
-                errors.append("memory_extraction_failed")
+            )
+            _background_tasks.add(task)
+            task.add_done_callback(_background_tasks.discard)
         else:
             logger.debug(
                 "Memory server '%s' not configured — skipping extraction", memory_server_key
@@ -380,6 +401,36 @@ class ChatService:
             }
         )
 
+    async def _extract_and_store_memories_safe(
+        self,
+        *,
+        character_id: str,
+        char_name: str,
+        user_message: str,
+        assistant_response: str,
+        recent_messages: list[Any],
+        world_state: dict[str, Any] | None,
+        mem_llm: LLMClient,
+        request_id: str,
+    ) -> None:
+        """Fire-and-forget wrapper around memory extraction.
+
+        Catches all exceptions so a background task failure never crashes the
+        event loop.
+        """
+        try:
+            await self._extract_and_store_memories(
+                character_id=character_id,
+                char_name=char_name,
+                user_message=user_message,
+                assistant_response=assistant_response,
+                recent_messages=recent_messages,
+                world_state=world_state,
+                mem_llm=mem_llm,
+            )
+        except Exception:
+            logger.exception("Background memory extraction failed for request %s", request_id)
+
     async def _extract_and_store_memories(
         self,
         *,
@@ -390,7 +441,6 @@ class ChatService:
         recent_messages: list[Any],
         world_state: dict[str, Any] | None,
         mem_llm: LLMClient,
-        timing: TimingContext,
     ) -> None:
         """Call the memory-extraction LLM and persist the results."""
         # Build extraction input text from the latest exchange
@@ -406,8 +456,6 @@ class ChatService:
         # Call the memory LLM (non-streaming)
         response = await mem_llm.chat_completion(extraction_messages, temperature=0.1, max_tokens=1024)
         raw_content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
-
-        timing.mark("t_memory_extract_end")
 
         # Parse and store extracted memories
         parsed = parse_extraction_response(raw_content)
@@ -444,7 +492,6 @@ class ChatService:
             ):
                 await self.ws_repo.update_field(character_id, field, value)
 
-        timing.mark("t_memory_write_end")
         logger.info(
             "Memory extraction complete for %s: %d semantic, %d episodic, %d world updates",
             char_name,
