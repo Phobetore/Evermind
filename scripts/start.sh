@@ -279,7 +279,14 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
                 log_warn "GPU mode failed for '${SERVER_NAME}' — retrying with --n-gpu-layers 0 (CPU-only)..."
                 kill "${LLM_PID}" 2>/dev/null || true
                 wait "${LLM_PID}" 2>/dev/null || true
-                : > "${LOG_DIR}/llm-${SERVER_NAME}.log"
+                # Preserve the GPU-mode log for diagnostics
+                mv "${LOG_DIR}/llm-${SERVER_NAME}.log" "${LOG_DIR}/llm-${SERVER_NAME}-gpu-failed.log" 2>/dev/null || true
+                # Wait for the port to be released before retrying
+                port_wait=0
+                while [ $port_wait -lt 10 ] && ! check_port_free "${SERVER_PORT}"; do
+                    sleep 1
+                    port_wait=$((port_wait + 1))
+                done
 
                 "${LLAMA_SERVER}" \
                     --model "${FULL_MODEL_PATH}" \

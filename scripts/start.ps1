@@ -245,7 +245,19 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
             if ((-Not $healthOk) -and ($NGpuLayers -ne "0")) {
                 Log-Warn "GPU mode failed for '$ServerName' -- retrying with --n-gpu-layers 0 (CPU-only)..."
                 try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch { }
-                Start-Sleep -Seconds 1
+                # Wait for the process to fully exit
+                try { $proc.WaitForExit(10000) } catch { }
+                # Preserve the GPU-mode logs for diagnostics
+                $gpuStdout = Join-Path $LogDir "llm-$ServerName.log"
+                $gpuStderr = Join-Path $LogDir "llm-$ServerName-err.log"
+                if (Test-Path $gpuStdout) { Move-Item $gpuStdout (Join-Path $LogDir "llm-$ServerName-gpu-failed.log") -Force -ErrorAction SilentlyContinue }
+                if (Test-Path $gpuStderr) { Move-Item $gpuStderr (Join-Path $LogDir "llm-$ServerName-gpu-failed-err.log") -Force -ErrorAction SilentlyContinue }
+                # Wait for the port to be released before retrying
+                $portWait = 0
+                while (($portWait -lt 10) -and (-Not (Test-PortFree $ServerPort))) {
+                    Start-Sleep -Seconds 1
+                    $portWait++
+                }
 
                 $proc = Start-Process -FilePath $LlamaServer `
                     -ArgumentList "--model `"$FullModelPath`" --host $BindHost --port $ServerPort --ctx-size $Ctx --n-gpu-layers 0 --threads $Threads" `
