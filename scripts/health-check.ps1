@@ -135,7 +135,7 @@ if ($Json) {
     $jsonObj | ConvertTo-Json
 } else {
     Write-Host ""
-    Write-Host "=== Evermind — Health Check ===" -ForegroundColor Cyan
+    Write-Host "=== Evermind -- Health Check ===" -ForegroundColor Cyan
     Write-Host ""
     foreach ($key in $ServiceOrder) {
         $status = $Results[$key]

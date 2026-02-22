@@ -63,7 +63,7 @@ function Check-Command {
 }
 
 Write-Host ""
-Write-Host "=== Evermind — Setup ===" -ForegroundColor Cyan
+Write-Host "=== Evermind -- Setup ===" -ForegroundColor Cyan
 Write-Host ""
 
 # ── 1. Check system dependencies ─────────────────────────────────────────────
@@ -81,7 +81,7 @@ $LlamaServer = Join-Path $ProjectRoot "bin\llama-server.exe"
 if (Test-Path $LlamaServer) {
     Log-Ok "llama-server: $LlamaServer"
 } else {
-    Log-Warn "llama-server not found at $LlamaServer (optional — for LLM serving)"
+    Log-Warn "llama-server not found at $LlamaServer (optional -- for LLM serving)"
 }
 
 Write-Host ""

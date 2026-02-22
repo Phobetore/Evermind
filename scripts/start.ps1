@@ -91,7 +91,7 @@ function Test-PortFree {
 # ── Pre-flight checks ────────────────────────────────────────────────────────
 
 Write-Host ""
-Write-Host "=== Evermind — Demarrage ===" -ForegroundColor Cyan
+Write-Host "=== Evermind -- Demarrage ===" -ForegroundColor Cyan
 Write-Host ""
 
 # Check config file
@@ -147,7 +147,7 @@ function Save-Pids {
 }
 
 function Cleanup-OnError {
-    Log-Error "Startup failed — stopping already-launched services..."
+    Log-Error "Startup failed -- stopping already-launched services..."
     foreach ($entry in $Pids) {
         $parts = $entry -split "="
         $pid = [int]$parts[1]
@@ -192,7 +192,7 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
             }
 
             if (-Not (Test-PortFree $ServerPort)) {
-                Log-Warn "Port $ServerPort in use — skipping $ServerName server."
+                Log-Warn "Port $ServerPort in use -- skipping $ServerName server."
                 continue
             }
 
@@ -256,7 +256,7 @@ if (-Not $BackendOnly) {
     if (Wait-ForHealth "http://${BindHost}:${FrontendPort}" "frontend" 60) {
         Log-Ok "Frontend is healthy (PID $($frontendProc.Id))"
     } else {
-        Log-Warn "Frontend may still be starting — check logs: $(Join-Path $LogDir 'frontend.log')"
+        Log-Warn "Frontend may still be starting -- check logs: $(Join-Path $LogDir 'frontend.log')"
     }
 }
 
