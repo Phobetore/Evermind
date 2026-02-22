@@ -405,7 +405,7 @@ if (-Not $BackendOnly) {
     }
 
     # next start requires a production build (.next/BUILD_ID is created by 'next build')
-    $NextBuildId = Join-Path $FrontendDir ".next" "BUILD_ID"
+    $NextBuildId = Join-Path (Join-Path $FrontendDir ".next") "BUILD_ID"
     if (-Not (Test-Path $NextBuildId)) {
         Log-Info "Frontend build not found -- running 'npm run build'..."
         $buildProc = Start-Process -FilePath "npm" `
