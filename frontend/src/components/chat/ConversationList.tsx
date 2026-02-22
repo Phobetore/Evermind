@@ -5,7 +5,7 @@ import { useStreaming } from "@/contexts/StreamingContext";
 import type { Character, Conversation } from "@/types";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
 interface ConversationEntry extends Conversation {
@@ -24,6 +24,17 @@ export default function ConversationList() {
   const [menuId, setMenuId] = useState<string | null>(null);
   const [menuAbove, setMenuAbove] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Callback ref that measures menu position on mount and adjusts if needed
+  const menuCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    (menuRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    if (node) {
+      const rect = node.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight) {
+        setMenuAbove(true);
+      }
+    }
+  }, []);
 
   // Rename state
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -56,20 +67,11 @@ export default function ConversationList() {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuId(null);
+        setMenuAbove(false);
       }
     }
     if (menuId) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [menuId]);
-
-  // Reposition menu above if it would overflow the viewport
-  useEffect(() => {
-    if (menuId && menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect();
-      setMenuAbove(rect.bottom > window.innerHeight);
-    } else {
-      setMenuAbove(false);
-    }
   }, [menuId]);
 
   // Focus rename input
@@ -176,6 +178,7 @@ export default function ConversationList() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    setMenuAbove(false);
                     setMenuId(menuId === entry.id ? null : entry.id);
                   }}
                   className="opacity-0 group-hover/item:opacity-100 shrink-0 p-1 rounded hover:bg-[#2a2440] text-zinc-500 hover:text-zinc-300 transition-all"
@@ -188,7 +191,7 @@ export default function ConversationList() {
             {/* Context menu */}
             {menuId === entry.id && (
               <div
-                ref={menuRef}
+                ref={menuCallbackRef}
                 className={`absolute right-2 z-20 w-36 rounded-lg border border-[#2a2440] bg-[#14111f] py-1 shadow-xl ${
                   menuAbove ? "bottom-full mb-1" : "top-full mt-1"
                 }`}
