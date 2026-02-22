@@ -1,9 +1,19 @@
 "use client";
 
 import type { Character, CharacterCreate, ExampleDialogue } from "@/types";
+import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { X } from "lucide-react";
+import { X, Sparkles, Loader2 } from "lucide-react";
+
+interface AssistantRequest {
+  name: string;
+  theme: string;
+  relationship: string;
+  style: string;
+  limits: string;
+  notes: string;
+}
 
 interface Props {
   initial?: Character;
@@ -27,6 +37,15 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
   const [exampleDialogues, setExampleDialogues] = useState<ExampleDialogue[]>(
     initial?.example_dialogues ?? [],
   );
+
+  // AI Assistant state
+  const [showAssistant, setShowAssistant] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [assistantTheme, setAssistantTheme] = useState("");
+  const [assistantRelationship, setAssistantRelationship] = useState("");
+  const [assistantStyle, setAssistantStyle] = useState("");
+  const [assistantLimits, setAssistantLimits] = useState("");
+  const [assistantNotes, setAssistantNotes] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +77,60 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
     }
   }
 
+  async function handleGenerate() {
+    if (!name.trim()) {
+      setError("Please enter a character name before generating.");
+      return;
+    }
+    setGenerating(true);
+    setError(null);
+    try {
+      const req: AssistantRequest = {
+        name,
+        theme: assistantTheme,
+        relationship: assistantRelationship,
+        style: assistantStyle,
+        limits: assistantLimits,
+        notes: assistantNotes,
+      };
+      const result = await api.post<Record<string, unknown>>(
+        "/tools/character_assistant",
+        req,
+      );
+      // Fill form fields with generated data
+      if (result.summary && typeof result.summary === "string")
+        setSummary(result.summary);
+      if (result.persona && typeof result.persona === "string")
+        setPersona(result.persona);
+      if (result.writing_style && typeof result.writing_style === "string")
+        setWritingStyle(result.writing_style);
+      if (result.scenario && typeof result.scenario === "string")
+        setScenario(result.scenario);
+      if (result.first_message && typeof result.first_message === "string")
+        setFirstMessage(result.first_message);
+      if (result.boundaries && typeof result.boundaries === "string")
+        setBoundaries(result.boundaries);
+      if (result.system_rules && typeof result.system_rules === "string")
+        setSystemRules(result.system_rules);
+      if (Array.isArray(result.tags))
+        setTagsInput(result.tags.join(", "));
+      if (Array.isArray(result.example_dialogues))
+        setExampleDialogues(
+          result.example_dialogues.map((d: Record<string, string>) => ({
+            user: d.user ?? "",
+            assistant: d.assistant ?? "",
+          })),
+        );
+      setShowAssistant(false);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "AI generation failed",
+      );
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
       {error && (
@@ -66,17 +139,114 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
         </div>
       )}
 
-      <Field label="Name" required>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          maxLength={200}
-          className="input"
-          placeholder="Character name"
-        />
-      </Field>
+      {/* AI Assistant Panel */}
+      {showAssistant && (
+        <div className="rounded-lg border border-indigo-800 bg-indigo-950/30 p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-indigo-300 flex items-center gap-1.5">
+              <Sparkles size={16} /> AI Character Assistant
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowAssistant(false)}
+              className="text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <p className="text-xs text-zinc-400">
+            Describe what you want and the AI will fill in the character fields.
+            You can edit everything afterwards.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="block space-y-1">
+              <span className="text-xs text-zinc-400">Theme / Setting</span>
+              <input
+                type="text"
+                value={assistantTheme}
+                onChange={(e) => setAssistantTheme(e.target.value)}
+                className="input text-sm"
+                placeholder="e.g. dark fantasy, sci-fi"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs text-zinc-400">Relationship</span>
+              <input
+                type="text"
+                value={assistantRelationship}
+                onChange={(e) => setAssistantRelationship(e.target.value)}
+                className="input text-sm"
+                placeholder="e.g. rival, mentor, friend"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs text-zinc-400">Writing Style</span>
+              <input
+                type="text"
+                value={assistantStyle}
+                onChange={(e) => setAssistantStyle(e.target.value)}
+                className="input text-sm"
+                placeholder="e.g. poetic, concise, dramatic"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs text-zinc-400">Limits / Boundaries</span>
+              <input
+                type="text"
+                value={assistantLimits}
+                onChange={(e) => setAssistantLimits(e.target.value)}
+                className="input text-sm"
+                placeholder="e.g. no violence, family-friendly"
+              />
+            </label>
+          </div>
+          <label className="block space-y-1">
+            <span className="text-xs text-zinc-400">Additional Notes</span>
+            <textarea
+              value={assistantNotes}
+              onChange={(e) => setAssistantNotes(e.target.value)}
+              className="input text-sm min-h-[60px]"
+              placeholder="Any extra details about the character you want…"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={generating || !name.trim()}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {generating ? (
+              <><Loader2 size={14} className="animate-spin" /> Generating…</>
+            ) : (
+              <><Sparkles size={14} /> Generate with AI</>
+            )}
+          </button>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <Field label="Name" required>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            maxLength={200}
+            className="input"
+            placeholder="Character name"
+          />
+        </Field>
+        {!showAssistant && (
+          <button
+            type="button"
+            onClick={() => setShowAssistant(true)}
+            className="mt-6 shrink-0 flex items-center gap-1.5 rounded-lg border border-indigo-800 bg-indigo-950/30 px-3 py-2 text-xs text-indigo-300 transition-colors hover:bg-indigo-900/40"
+            title="Generate character fields with AI"
+          >
+            <Sparkles size={14} /> AI Assist
+          </button>
+        )}
+      </div>
 
       <Field label="Tags" hint="Comma-separated">
         <input
