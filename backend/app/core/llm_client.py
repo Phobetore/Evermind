@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import TYPE_CHECKING, Any
@@ -13,13 +14,21 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Number of attempts for non-streaming chat completion calls.
+_DEFAULT_RETRIES = 2
+
 
 class LLMClient:
     """Async HTTP client that speaks the OpenAI-compatible API served by llama.cpp."""
 
     def __init__(self, base_url: str, timeout: float = 120.0) -> None:
         self.base_url = base_url.rstrip("/")
-        self.timeout = timeout
+        self.timeout = httpx.Timeout(
+            connect=10.0,
+            read=timeout,
+            write=10.0,
+            pool=10.0,
+        )
 
     async def health(self) -> bool:
         """Return *True* if the LLM server is reachable and ready."""
@@ -51,16 +60,29 @@ class LLMClient:
     async def chat_completion(
         self, messages: list[dict[str, str]], **params: Any
     ) -> dict[str, Any]:
-        """Non-streaming chat completion."""
+        """Non-streaming chat completion with retry on transient read timeouts."""
         payload = {"messages": messages, "stream": False, **params}
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{self.base_url}/v1/chat/completions",
-                json=payload,
-                timeout=self.timeout,
-            )
-            resp.raise_for_status()
-            return resp.json()
+        last_exc: httpx.ReadTimeout | None = None
+        for attempt in range(1, _DEFAULT_RETRIES + 1):
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(
+                        f"{self.base_url}/v1/chat/completions",
+                        json=payload,
+                        timeout=self.timeout,
+                    )
+                    resp.raise_for_status()
+                    return resp.json()
+            except httpx.ReadTimeout as exc:
+                last_exc = exc
+                logger.warning(
+                    "LLM read timeout on attempt %d/%d",
+                    attempt,
+                    _DEFAULT_RETRIES,
+                )
+                if attempt < _DEFAULT_RETRIES:
+                    await asyncio.sleep(2**attempt)
+        raise last_exc  # type: ignore[misc]
 
     async def chat_completion_stream(
         self, messages: list[dict[str, str]], **params: Any
