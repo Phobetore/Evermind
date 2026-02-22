@@ -414,7 +414,7 @@ if (-Not $BackendOnly) {
             Cleanup-OnError
         }
         $buildProc = Start-Process -FilePath "cmd.exe" `
-            -ArgumentList "/c", "`"$NpmCmd`"", "run", "build" `
+            -ArgumentList "/c", "cd /d `"$FrontendDir`" && `"$NpmCmd`" run build" `
             -WorkingDirectory $FrontendDir `
             -Wait -PassThru -NoNewWindow `
             -RedirectStandardOutput (Join-Path $LogDir "frontend-build.log") `
@@ -423,11 +423,16 @@ if (-Not $BackendOnly) {
             Log-Error "Frontend build failed. Check logs: $(Join-Path $LogDir 'frontend-build.log')"
             Cleanup-OnError
         }
+        if (-Not (Test-Path $NextBuildId)) {
+            Log-Error "Build completed but .next/BUILD_ID was not created in: $FrontendDir"
+            Log-Error "Check logs: $(Join-Path $LogDir 'frontend-build.log')"
+            Cleanup-OnError
+        }
         Log-Ok "Frontend build completed"
     }
 
     $frontendProc = Start-Process -FilePath "node" `
-        -ArgumentList "`"$NextBin`"", "start", "--port", "$FrontendPort", "--hostname", "$BindHost" `
+        -ArgumentList "`"$NextBin`"", "start", "`"$FrontendDir`"", "--port", "$FrontendPort", "--hostname", "$BindHost" `
         -WorkingDirectory $FrontendDir `
         -PassThru -NoNewWindow `
         -RedirectStandardOutput (Join-Path $LogDir "frontend.log") `
