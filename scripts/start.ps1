@@ -246,7 +246,7 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
                 Log-Warn "GPU mode failed for '$ServerName' -- retrying with --n-gpu-layers 0 (CPU-only)..."
                 try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch { }
                 # Wait for the process to fully exit
-                try { $proc.WaitForExit(10000) } catch { }
+                try { $null = $proc.WaitForExit(10000) } catch { }
                 # Preserve the GPU-mode logs for diagnostics
                 $gpuStdout = Join-Path $LogDir "llm-$ServerName.log"
                 $gpuStderr = Join-Path $LogDir "llm-$ServerName-err.log"
@@ -335,9 +335,18 @@ $Step++
 if (-Not $BackendOnly) {
     Log-Info "[$Step/$TotalSteps] Starting frontend (port $FrontendPort)..."
 
-    $frontendProc = Start-Process -FilePath "cmd.exe" `
-        -ArgumentList "/c", "npm run start -- --port $FrontendPort" `
-        -WorkingDirectory (Join-Path $ProjectRoot "frontend") `
+    $FrontendDir = Join-Path $ProjectRoot "frontend"
+    $NextBin = Join-Path $FrontendDir "node_modules\next\dist\bin\next"
+
+    if (-Not (Test-Path $NextBin)) {
+        Log-Error "Next.js binary not found: $NextBin"
+        Log-Error "Run 'cd frontend && npm install' first."
+        Cleanup-OnError
+    }
+
+    $frontendProc = Start-Process -FilePath "node" `
+        -ArgumentList "`"$NextBin`"", "start", "--port", "$FrontendPort" `
+        -WorkingDirectory $FrontendDir `
         -PassThru -NoNewWindow `
         -RedirectStandardOutput (Join-Path $LogDir "frontend.log") `
         -RedirectStandardError (Join-Path $LogDir "frontend-err.log")
