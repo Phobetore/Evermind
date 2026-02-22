@@ -322,6 +322,7 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
                     FALLBACK_VALUES=(0)
                 fi
 
+                PREV_NGL="${N_GPU_LAYERS}"
                 for FALLBACK_NGL in "${FALLBACK_VALUES[@]}"; do
                     if [ "${FALLBACK_NGL}" = "0" ]; then
                         log_warn "GPU mode failed for '${SERVER_NAME}' — retrying with --n-gpu-layers 0 (CPU-only)..."
@@ -331,7 +332,7 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
                     kill "${LLM_PID}" 2>/dev/null || true
                     wait "${LLM_PID}" 2>/dev/null || true
                     # Preserve the previous attempt's log for diagnostics
-                    mv "${LOG_DIR}/llm-${SERVER_NAME}.log" "${LOG_DIR}/llm-${SERVER_NAME}-gpu-failed.log" 2>/dev/null || true
+                    mv "${LOG_DIR}/llm-${SERVER_NAME}.log" "${LOG_DIR}/llm-${SERVER_NAME}-gpu-failed-ngl${PREV_NGL}.log" 2>/dev/null || true
                     # Wait for the port to be released before retrying
                     port_wait=0
                     while [ $port_wait -lt 10 ] && ! check_port_free "${SERVER_PORT}"; do
@@ -363,6 +364,7 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
                         fi
                         break
                     fi
+                    PREV_NGL="${FALLBACK_NGL}"
                 done
 
                 if [ $health_result -eq 0 ]; then

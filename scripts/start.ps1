@@ -286,6 +286,7 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
                     $FallbackValues = @(0)
                 }
 
+                $prevNgl = $NGpuLayers
                 foreach ($FallbackNgl in $FallbackValues) {
                     if ($FallbackNgl -eq 0) {
                         Log-Warn "GPU mode failed for '$ServerName' -- retrying with --n-gpu-layers 0 (CPU-only)..."
@@ -298,8 +299,8 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
                     # Preserve the previous attempt's logs for diagnostics
                     $gpuStdout = Join-Path $LogDir "llm-$ServerName.log"
                     $gpuStderr = Join-Path $LogDir "llm-$ServerName-err.log"
-                    if (Test-Path $gpuStdout) { Move-Item $gpuStdout (Join-Path $LogDir "llm-$ServerName-gpu-failed.log") -Force -ErrorAction SilentlyContinue }
-                    if (Test-Path $gpuStderr) { Move-Item $gpuStderr (Join-Path $LogDir "llm-$ServerName-gpu-failed-err.log") -Force -ErrorAction SilentlyContinue }
+                    if (Test-Path $gpuStdout) { Move-Item $gpuStdout (Join-Path $LogDir "llm-$ServerName-gpu-failed-ngl$prevNgl.log") -Force -ErrorAction SilentlyContinue }
+                    if (Test-Path $gpuStderr) { Move-Item $gpuStderr (Join-Path $LogDir "llm-$ServerName-gpu-failed-ngl$prevNgl-err.log") -Force -ErrorAction SilentlyContinue }
                     # Wait for the port to be released before retrying
                     $portWait = 0
                     while (($portWait -lt 10) -and (-Not (Test-PortFree $ServerPort))) {
@@ -326,6 +327,7 @@ if ((-Not $BackendOnly) -and (-Not $SkipLLM)) {
                         }
                         break
                     }
+                    $prevNgl = $FallbackNgl
                 }
 
                 if ($healthOk) {
