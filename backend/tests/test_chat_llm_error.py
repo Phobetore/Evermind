@@ -50,6 +50,7 @@ async def test_chat_stream_llm_unreachable(client: AsyncClient) -> None:
                 # The error should mention the server is unreachable or not configured,
                 # not just a generic "LLM streaming failed"
                 assert "not configured" in error_msg or "not reachable" in error_msg
+                assert "LLM streaming failed" not in error_msg
                 break
 
     assert found_error, "Expected an error SSE event about LLM server unreachability"
