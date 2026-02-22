@@ -51,7 +51,7 @@ async def character_assistant(request: CharacterAssistantRequest) -> dict[str, A
             limits=request.limits,
             notes=request.notes,
         )
-    except (httpx.ConnectError, httpx.TimeoutException, ConnectionError):
+    except (httpx.ConnectError, httpx.ReadError, httpx.TimeoutException, ConnectionError):
         logger.exception("Character assistant LLM call failed")
         raise HTTPException(
             status_code=503,
