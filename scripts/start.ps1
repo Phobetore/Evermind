@@ -47,9 +47,10 @@ function Log-Error { param([string]$Msg) Write-Host "[ERROR] $Msg" -ForegroundCo
 
 function Read-Config {
     param([string]$KeyPath)
+    $configPath = $ConfigFile -replace '\\', '/'
     $result = python3 -c @"
 import yaml, sys
-with open('$ConfigFile') as f:
+with open('$configPath') as f:
     cfg = yaml.safe_load(f)
 keys = '$KeyPath'.split('.')
 val = cfg
