@@ -1,0 +1,324 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Evermind — Start Script (Linux/macOS)
+# ==============================================================================
+# Starts all Evermind services in the correct order:
+#   1) LLM servers (chat, memory, judge) via llama-server
+#   2) Backend (FastAPI / Uvicorn)
+#   3) Frontend (Next.js)
+#
+# Usage:
+#   ./scripts/start.sh                  # Start all services
+#   ./scripts/start.sh --backend-only   # Start only the backend (no LLM/frontend)
+#   ./scripts/start.sh --skip-llm       # Start backend + frontend without LLM servers
+#
+# Environment variables:
+#   EVERMIND_CONFIG  — Path to config.yaml (default: auto-detected)
+# ==============================================================================
+
+set -euo pipefail
+
+# ── Colours ───────────────────────────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Colour
+
+# ── Paths ─────────────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+CONFIG_FILE="${EVERMIND_CONFIG:-${PROJECT_ROOT}/config.yaml}"
+PID_FILE="${PROJECT_ROOT}/data/.pids"
+LOG_DIR="${PROJECT_ROOT}/logs"
+
+# ── Flags ─────────────────────────────────────────────────────────────────────
+BACKEND_ONLY=false
+SKIP_LLM=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --backend-only) BACKEND_ONLY=true ;;
+        --skip-llm)    SKIP_LLM=true ;;
+        --help|-h)
+            echo "Usage: $0 [--backend-only] [--skip-llm] [--help]"
+            echo ""
+            echo "Options:"
+            echo "  --backend-only   Start only the backend API server"
+            echo "  --skip-llm       Start backend + frontend without LLM servers"
+            echo "  --help, -h       Show this help message"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $arg${NC}"
+            exit 1
+            ;;
+    esac
+done
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+log_info()  { echo -e "${CYAN}[INFO]${NC}  $*"; }
+log_ok()    { echo -e "${GREEN}[OK]${NC}    $*"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
+
+# Read a value from config.yaml using Python (no extra dependencies).
+read_config() {
+    python3 -c "
+import yaml, sys
+with open('${CONFIG_FILE}') as f:
+    cfg = yaml.safe_load(f)
+keys = '$1'.split('.')
+val = cfg
+for k in keys:
+    if isinstance(val, dict):
+        val = val.get(k)
+    else:
+        val = None
+        break
+print(val if val is not None else '')
+"
+}
+
+# Wait for an HTTP endpoint to respond 200 OK.
+wait_for_health() {
+    local url="$1"
+    local name="$2"
+    local timeout="${3:-60}"
+    local elapsed=0
+
+    while [ "$elapsed" -lt "$timeout" ]; do
+        if curl -sf --max-time 2 "${url}" > /dev/null 2>&1; then
+            return 0
+        fi
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+    return 1
+}
+
+# Check if a port is already in use.
+check_port_free() {
+    local port="$1"
+    if command -v ss > /dev/null 2>&1; then
+        if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
+            return 1
+        fi
+    elif command -v lsof > /dev/null 2>&1; then
+        if lsof -i ":${port}" > /dev/null 2>&1; then
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# ── Pre-flight checks ────────────────────────────────────────────────────────
+
+echo ""
+echo -e "${CYAN}=== Evermind — Démarrage ===${NC}"
+echo ""
+
+# Check config file exists
+if [ ! -f "${CONFIG_FILE}" ]; then
+    log_error "Configuration file not found: ${CONFIG_FILE}"
+    log_error "Run './scripts/setup.sh' first or set EVERMIND_CONFIG."
+    exit 1
+fi
+log_ok "Configuration: ${CONFIG_FILE}"
+
+# Check if already running
+if [ -f "${PID_FILE}" ]; then
+    log_warn "PID file already exists: ${PID_FILE}"
+    log_warn "Evermind may already be running. Use './scripts/stop.sh' first."
+    exit 1
+fi
+
+# Read configuration values
+BIND_HOST=$(read_config "bind_host")
+BACKEND_PORT=$(read_config "backend_port")
+FRONTEND_PORT=$(read_config "frontend_port")
+
+BIND_HOST="${BIND_HOST:-127.0.0.1}"
+BACKEND_PORT="${BACKEND_PORT:-8000}"
+FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+
+# Create required directories
+mkdir -p "${PROJECT_ROOT}/data"
+mkdir -p "${LOG_DIR}"
+mkdir -p "${PROJECT_ROOT}/models/chat"
+mkdir -p "${PROJECT_ROOT}/models/memory"
+mkdir -p "${PROJECT_ROOT}/models/judge"
+mkdir -p "${PROJECT_ROOT}/models/embeddings"
+
+log_ok "Directories verified"
+
+# Check required ports
+PORTS_TO_CHECK=("${BACKEND_PORT}")
+if [ "${BACKEND_ONLY}" = false ]; then
+    PORTS_TO_CHECK+=("${FRONTEND_PORT}")
+fi
+
+for port in "${PORTS_TO_CHECK[@]}"; do
+    if ! check_port_free "${port}"; then
+        log_error "Port ${port} is already in use."
+        exit 1
+    fi
+done
+log_ok "Required ports are available"
+
+# ── Track PIDs ────────────────────────────────────────────────────────────────
+declare -a PIDS=()
+declare -a PID_LABELS=()
+
+save_pids() {
+    : > "${PID_FILE}"
+    for i in "${!PIDS[@]}"; do
+        echo "${PID_LABELS[$i]}=${PIDS[$i]}" >> "${PID_FILE}"
+    done
+}
+
+cleanup_on_error() {
+    log_error "Startup failed — stopping already-launched services..."
+    for pid in "${PIDS[@]}"; do
+        kill "${pid}" 2>/dev/null || true
+    done
+    rm -f "${PID_FILE}"
+    exit 1
+}
+
+# ── Step 1: Start LLM servers ────────────────────────────────────────────────
+
+STEP=1
+TOTAL_STEPS=3
+if [ "${BACKEND_ONLY}" = true ]; then
+    TOTAL_STEPS=1
+elif [ "${SKIP_LLM}" = true ]; then
+    TOTAL_STEPS=2
+fi
+
+if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
+    LLAMA_SERVER="${PROJECT_ROOT}/bin/llama-server"
+
+    if [ ! -x "${LLAMA_SERVER}" ]; then
+        log_warn "llama-server binary not found at ${LLAMA_SERVER}"
+        log_warn "Skipping LLM server startup. Ensure LLM servers are started externally."
+    else
+        for SERVER_NAME in chat memory judge; do
+            SERVER_PORT=$(read_config "llm_servers.${SERVER_NAME}.port")
+            MODEL_PATH=$(read_config "llm_servers.${SERVER_NAME}.model_path")
+            CTX=$(read_config "llm_servers.${SERVER_NAME}.ctx")
+            N_GPU_LAYERS=$(read_config "llm_servers.${SERVER_NAME}.n_gpu_layers")
+            THREADS=$(read_config "llm_servers.${SERVER_NAME}.threads")
+
+            SERVER_PORT="${SERVER_PORT:-8081}"
+            CTX="${CTX:-8192}"
+            N_GPU_LAYERS="${N_GPU_LAYERS:-"-1"}"
+            THREADS="${THREADS:-4}"
+
+            FULL_MODEL_PATH="${PROJECT_ROOT}/${MODEL_PATH}"
+
+            if [ ! -f "${FULL_MODEL_PATH}" ]; then
+                log_warn "Model file not found for ${SERVER_NAME}: ${FULL_MODEL_PATH}"
+                log_warn "Skipping ${SERVER_NAME} server."
+                continue
+            fi
+
+            if ! check_port_free "${SERVER_PORT}"; then
+                log_warn "Port ${SERVER_PORT} in use — skipping ${SERVER_NAME} server."
+                continue
+            fi
+
+            log_info "[${STEP}/${TOTAL_STEPS}] Starting LLM server: ${SERVER_NAME} (port ${SERVER_PORT})..."
+
+            "${LLAMA_SERVER}" \
+                --model "${FULL_MODEL_PATH}" \
+                --port "${SERVER_PORT}" \
+                --ctx-size "${CTX}" \
+                --n-gpu-layers "${N_GPU_LAYERS}" \
+                --threads "${THREADS}" \
+                > "${LOG_DIR}/llm-${SERVER_NAME}.log" 2>&1 &
+
+            LLM_PID=$!
+            PIDS+=("${LLM_PID}")
+            PID_LABELS+=("llm-${SERVER_NAME}")
+
+            # Wait for health
+            if wait_for_health "http://${BIND_HOST}:${SERVER_PORT}/health" "${SERVER_NAME}" 60; then
+                log_ok "LLM server '${SERVER_NAME}' is healthy (PID ${LLM_PID})"
+            else
+                log_error "LLM server '${SERVER_NAME}' failed to start within 60 seconds."
+                cleanup_on_error
+            fi
+        done
+    fi
+
+    STEP=$((STEP + 1))
+fi
+
+# ── Step 2: Start Backend ────────────────────────────────────────────────────
+
+log_info "[${STEP}/${TOTAL_STEPS}] Starting backend (port ${BACKEND_PORT})..."
+
+cd "${PROJECT_ROOT}/backend"
+python3 -m uvicorn app.main:app \
+    --host "${BIND_HOST}" \
+    --port "${BACKEND_PORT}" \
+    > "${LOG_DIR}/backend.log" 2>&1 &
+
+BACKEND_PID=$!
+PIDS+=("${BACKEND_PID}")
+PID_LABELS+=("backend")
+cd "${PROJECT_ROOT}"
+
+if wait_for_health "http://${BIND_HOST}:${BACKEND_PORT}/health" "backend" 30; then
+    log_ok "Backend is healthy (PID ${BACKEND_PID})"
+else
+    log_error "Backend failed to start within 30 seconds."
+    log_error "Check logs: ${LOG_DIR}/backend.log"
+    cleanup_on_error
+fi
+
+STEP=$((STEP + 1))
+
+# ── Step 3: Start Frontend ───────────────────────────────────────────────────
+
+if [ "${BACKEND_ONLY}" = false ]; then
+    log_info "[${STEP}/${TOTAL_STEPS}] Starting frontend (port ${FRONTEND_PORT})..."
+
+    cd "${PROJECT_ROOT}/frontend"
+    npm run start -- --port "${FRONTEND_PORT}" \
+        > "${LOG_DIR}/frontend.log" 2>&1 &
+
+    FRONTEND_PID=$!
+    PIDS+=("${FRONTEND_PID}")
+    PID_LABELS+=("frontend")
+    cd "${PROJECT_ROOT}"
+
+    # Frontend takes longer to start — give it more time
+    if wait_for_health "http://${BIND_HOST}:${FRONTEND_PORT}" "frontend" 60; then
+        log_ok "Frontend is healthy (PID ${FRONTEND_PID})"
+    else
+        log_warn "Frontend may still be starting — check logs: ${LOG_DIR}/frontend.log"
+    fi
+fi
+
+# ── Save PIDs & summary ──────────────────────────────────────────────────────
+
+save_pids
+
+echo ""
+echo -e "${GREEN}=== Evermind is running! ===${NC}"
+echo ""
+echo -e "  Backend:  ${CYAN}http://${BIND_HOST}:${BACKEND_PORT}${NC}"
+if [ "${BACKEND_ONLY}" = false ]; then
+    echo -e "  Frontend: ${CYAN}http://${BIND_HOST}:${FRONTEND_PORT}${NC}"
+fi
+echo -e "  API docs: ${CYAN}http://${BIND_HOST}:${BACKEND_PORT}/docs${NC}"
+echo ""
+echo -e "  PIDs:     ${PID_FILE}"
+echo -e "  Logs:     ${LOG_DIR}/"
+echo ""
+echo -e "  Stop:     ${CYAN}./scripts/stop.sh${NC}"
+echo ""
