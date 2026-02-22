@@ -7,6 +7,8 @@ export interface GenerationParams {
 }
 
 const STORAGE_KEY = "evermind_generation_params";
+const PROFILE_KEY = "evermind_selected_profile";
+const DEFAULT_PROFILE = "balanced";
 
 const DEFAULTS: GenerationParams = {
   temperature: 0.7,
@@ -33,3 +35,13 @@ export function saveGenerationParams(params: Partial<GenerationParams>): void {
 }
 
 export const GENERATION_DEFAULTS = DEFAULTS;
+
+export function getSelectedProfile(): string {
+  if (typeof window === "undefined") return DEFAULT_PROFILE;
+  return localStorage.getItem(PROFILE_KEY) || DEFAULT_PROFILE;
+}
+
+export function saveSelectedProfile(profileId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PROFILE_KEY, profileId);
+}

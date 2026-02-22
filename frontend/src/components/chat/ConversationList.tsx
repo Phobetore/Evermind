@@ -22,6 +22,7 @@ export default function ConversationList() {
 
   // Context menu state
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [menuAbove, setMenuAbove] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Rename state
@@ -59,6 +60,16 @@ export default function ConversationList() {
     }
     if (menuId) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuId]);
+
+  // Reposition menu above if it would overflow the viewport
+  useEffect(() => {
+    if (menuId && menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      setMenuAbove(rect.bottom > window.innerHeight);
+    } else {
+      setMenuAbove(false);
+    }
   }, [menuId]);
 
   // Focus rename input
@@ -178,7 +189,9 @@ export default function ConversationList() {
             {menuId === entry.id && (
               <div
                 ref={menuRef}
-                className="absolute right-2 top-full z-20 mt-1 w-36 rounded-lg border border-[#2a2440] bg-[#14111f] py-1 shadow-xl"
+                className={`absolute right-2 z-20 w-36 rounded-lg border border-[#2a2440] bg-[#14111f] py-1 shadow-xl ${
+                  menuAbove ? "bottom-full mb-1" : "top-full mt-1"
+                }`}
               >
                 <button
                   onClick={() => {

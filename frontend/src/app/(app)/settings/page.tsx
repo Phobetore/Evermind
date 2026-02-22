@@ -4,7 +4,9 @@ import {
   type GenerationParams,
   GENERATION_DEFAULTS,
   getGenerationParams,
+  getSelectedProfile,
   saveGenerationParams,
+  saveSelectedProfile,
 } from "@/lib/generation-params";
 import { api } from "@/lib/api";
 import type { Profile } from "@/types";
@@ -32,6 +34,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setGenParams(getGenerationParams());
+    setSelectedProfile(getSelectedProfile());
     loadProfiles();
   }, [loadProfiles]);
 
@@ -94,7 +97,10 @@ export default function SettingsPage() {
           {profiles.map((profile) => (
             <button
               key={profile.id}
-              onClick={() => setSelectedProfile(profile.id)}
+              onClick={() => {
+                setSelectedProfile(profile.id);
+                saveSelectedProfile(profile.id);
+              }}
               className={`text-left rounded-xl border p-4 transition-colors ${
                 profile.id === selectedProfile
                   ? "border-violet-500 bg-violet-500/10"
