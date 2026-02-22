@@ -46,6 +46,9 @@ class AppConfig(BaseModel):
     bind_host: str = "127.0.0.1"
     frontend_port: int = 3000
     backend_port: int = 8000
+    llama_server_path: str = ""
+    auto_start_servers: bool = True
+    server_start_timeout: int = 120
     llm_servers: dict[str, LLMServerConfig] = Field(default_factory=dict)
     embeddings: EmbeddingsConfig = Field(default_factory=EmbeddingsConfig)
     profiles: dict[str, ProfileConfig] = Field(default_factory=dict)

@@ -41,8 +41,31 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("Evermind backend starting (port=%s)", cfg.backend_port)
     await init_db()
     logger.info("Database initialised")
+
+    # Auto-start LLM servers if configured
+    from app.services.model_manager import get_model_manager
+
+    manager = get_model_manager()
+    if cfg.auto_start_servers and manager.can_manage_processes:
+        logger.info("Auto-starting LLM servers...")
+        results = await manager.start_all()
+        for name, result in results.items():
+            status = result.get("status", "unknown")
+            if status in ("started", "started_unhealthy", "already_running"):
+                logger.info("  %s: %s", name, status)
+            else:
+                logger.warning("  %s: %s", name, status)
+    elif cfg.auto_start_servers:
+        logger.info(
+            "auto_start_servers is enabled but no llama-server binary was found. "
+            "LLM servers must be started externally."
+        )
+
     yield
+
+    # Graceful shutdown: stop managed LLM servers
     logger.info("Evermind backend shutting down")
+    await manager.stop_all()
 
 
 app = FastAPI(

@@ -5,6 +5,14 @@ bind_host: "127.0.0.1"
 frontend_port: 3000
 backend_port: 8000
 
+# Path to the llama-server binary.  Leave empty to auto-detect in bin/ or PATH.
+llama_server_path: ""
+# Automatically start llama-server processes when the backend starts.
+# Requires llama-server to be available (see llama_server_path).
+auto_start_servers: true
+# Maximum seconds to wait for a llama-server to become healthy at startup.
+server_start_timeout: 120
+
 llm_servers:
   chat:
     port: 8081
