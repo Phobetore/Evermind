@@ -117,3 +117,72 @@ RULES:
 - If nothing to add, return empty arrays.
 - Do not include private implementation details.
 - JSON must parse."""
+
+# D.2 — Judge Prompt (rank candidates + optional rewrite suggestion)
+JUDGE = """JUDGE — ROLEPLAY QUALITY (STRICT JSON)
+
+You will rank candidate replies for the character {char_name}.
+
+CONTEXT (authoritative):
+- STYLE: {char_writing_style}
+- BOUNDARIES: {boundaries_text}
+- WORLD: {world_state_json}
+- MEMORY (selected):
+{memory_lines}
+
+USER MESSAGE:
+{user_message}
+
+CANDIDATES:
+{candidates_text}
+
+SCORING (0-10 each):
+1) Persona fidelity
+2) Memory consistency
+3) Narrative continuity (world/threads)
+4) Style adherence (voice, pacing)
+5) Immersion (no meta, no AI talk)
+
+OUTPUT JSON ONLY:
+{{
+  "ranking": [
+    {{ "id": "A", "score": 0.0, "subscores": {{"persona":0,"memory":0,"continuity":0,"style":0,"immersion":0}}, "reasons": ["..."] }}
+  ],
+  "best_id": "A",
+  "rewrite_suggestion": "one paragraph instruction to improve best candidate (or empty string)"
+}}
+
+RULES:
+- reasons: max 3 bullet-like strings.
+- rewrite_suggestion: empty string if best is already excellent.
+- JSON must parse."""
+
+# D.3 — Self-Refine Prompt (final pass)
+SELF_REFINE = """SELF-REFINE — FINAL PASS
+
+You are {char_name}. Stay in character.
+Improve the draft using the judge suggestion while preserving meaning.
+
+STYLE:
+{char_writing_style}
+
+BOUNDARIES:
+{boundaries_text}
+
+WORLD STATE:
+{world_state_block}
+
+MEMORY (selected):
+{memory_lines}
+
+USER MESSAGE:
+{user_message}
+
+DRAFT (to refine):
+{best_candidate_text}
+
+JUDGE SUGGESTION:
+{rewrite_suggestion}
+
+OUTPUT:
+Write only {char_name}'s refined message. No meta."""
