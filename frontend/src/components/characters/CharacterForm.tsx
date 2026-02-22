@@ -317,7 +317,7 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
                 { user: "", assistant: "" },
               ])
             }
-            className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 transition-colors"
           >
             <Plus size={12} /> Add dialogue
           </button>
@@ -330,7 +330,7 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
         {exampleDialogues.map((dialogue, idx) => (
           <div
             key={idx}
-            className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 space-y-2"
+            className="rounded-lg border border-[#2a2440] bg-[#14111f]/50 p-3 space-y-2"
           >
             <div className="flex items-center justify-between">
               <span className="text-xs text-zinc-500">
@@ -399,14 +399,14 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
         <button
           type="submit"
           disabled={saving || !name.trim()}
-          className="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200 disabled:opacity-50"
+          className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
         >
           {saving ? "Saving…" : initial ? "Update" : "Create"}
         </button>
         <button
           type="button"
           onClick={() => router.push("/characters")}
-          className="rounded-lg border border-zinc-700 px-5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
+          className="rounded-lg border border-[#2a2440] px-5 py-2.5 text-sm text-zinc-300 hover:bg-[#1e1a2e] transition-colors"
         >
           Cancel
         </button>

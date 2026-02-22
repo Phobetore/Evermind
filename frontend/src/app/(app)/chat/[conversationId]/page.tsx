@@ -140,11 +140,11 @@ export default function ChatConversationPage() {
   if (loading) {
     return (
       <div className="flex flex-col h-full">
-        <div className="shrink-0 border-b border-zinc-800 px-6 py-3 flex items-center gap-3">
-          <div className="animate-pulse h-8 w-8 rounded-full bg-zinc-800" />
+        <div className="shrink-0 border-b border-[#2a2440] px-6 py-3 flex items-center gap-3">
+          <div className="animate-pulse h-8 w-8 rounded-full bg-[#1e1a2e]" />
           <div className="space-y-1">
-            <div className="animate-pulse h-4 w-24 rounded bg-zinc-800" />
-            <div className="animate-pulse h-3 w-16 rounded bg-zinc-800" />
+            <div className="animate-pulse h-4 w-24 rounded bg-[#1e1a2e]" />
+            <div className="animate-pulse h-3 w-16 rounded bg-[#1e1a2e]" />
           </div>
         </div>
         <div className="flex-1 overflow-auto p-6 space-y-4">
@@ -166,8 +166,8 @@ export default function ChatConversationPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="shrink-0 border-b border-zinc-800 px-6 py-3 flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-sm">
+      <div className="shrink-0 border-b border-[#2a2440] px-6 py-3 flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-sm font-medium">
           {character.name.charAt(0).toUpperCase()}
         </div>
         <div>
@@ -200,26 +200,26 @@ export default function ChatConversationPage() {
         {/* Streaming indicator */}
         {streaming && streamingContent && (
           <div className="flex gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-sm">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-sm font-medium">
               {character.name.charAt(0).toUpperCase()}
             </div>
-            <div className="max-w-[75%] rounded-2xl bg-zinc-800 px-4 py-2.5 text-sm leading-relaxed text-zinc-100">
+            <div className="max-w-[75%] rounded-2xl bg-[#1e1a2e] px-4 py-2.5 text-sm leading-relaxed text-zinc-100">
               {streamingContent}
-              <span className="inline-block w-2 h-4 ml-0.5 bg-zinc-400 animate-pulse" />
+              <span className="inline-block w-2 h-4 ml-0.5 bg-violet-400 animate-pulse" />
             </div>
           </div>
         )}
 
         {streaming && !streamingContent && (
           <div className="flex gap-3 items-center">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-sm">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-sm font-medium">
               {character.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex gap-1">
               {[0, 150, 300].map((delay) => (
                 <span
                   key={delay}
-                  className="w-2 h-2 rounded-full bg-zinc-500 animate-bounce"
+                  className="w-2 h-2 rounded-full bg-violet-400 animate-bounce"
                   style={{ animationDelay: `${delay}ms` }}
                 />
               ))}
@@ -229,7 +229,7 @@ export default function ChatConversationPage() {
       </div>
 
       {/* Input */}
-      <div className="shrink-0 border-t border-zinc-800 p-4">
+      <div className="shrink-0 border-t border-[#2a2440] p-4">
         <ChatInput onSend={handleSend} disabled={streaming} />
       </div>
     </div>

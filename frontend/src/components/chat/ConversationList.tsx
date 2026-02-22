@@ -100,7 +100,7 @@ export default function ConversationList() {
     return (
       <div className="p-3 space-y-2">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="animate-pulse h-12 rounded-lg bg-zinc-800" />
+          <div key={i} className="animate-pulse h-12 rounded-lg bg-[#1e1a2e]" />
         ))}
       </div>
     );
@@ -136,7 +136,7 @@ export default function ConversationList() {
                     if (e.key === "Enter") handleRename(entry.id);
                     if (e.key === "Escape") setRenamingId(null);
                   }}
-                  className="w-full bg-zinc-800 text-zinc-100 rounded px-2 py-1 text-xs outline-none ring-1 ring-violet-500/50"
+                  className="w-full bg-[#1e1a2e] text-zinc-100 rounded px-2 py-1 text-xs outline-none ring-1 ring-violet-500/50"
                 />
               </div>
             ) : (
@@ -144,8 +144,8 @@ export default function ConversationList() {
                 href={`/chat/${entry.id}`}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                   isActive
-                    ? "bg-zinc-800 text-zinc-100"
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                    ? "bg-violet-600/15 text-violet-200 border border-violet-500/20"
+                    : "text-zinc-400 hover:bg-[#1e1a2e] hover:text-zinc-200"
                 }`}
               >
                 <div className="flex-1 min-w-0">
@@ -167,7 +167,7 @@ export default function ConversationList() {
                     e.stopPropagation();
                     setMenuId(menuId === entry.id ? null : entry.id);
                   }}
-                  className="opacity-0 group-hover/item:opacity-100 shrink-0 p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-all"
+                  className="opacity-0 group-hover/item:opacity-100 shrink-0 p-1 rounded hover:bg-[#2a2440] text-zinc-500 hover:text-zinc-300 transition-all"
                 >
                   <MoreHorizontal size={14} />
                 </button>
@@ -178,7 +178,7 @@ export default function ConversationList() {
             {menuId === entry.id && (
               <div
                 ref={menuRef}
-                className="absolute right-2 top-full z-20 mt-1 w-36 rounded-lg border border-zinc-700 bg-zinc-800 py-1 shadow-xl"
+                className="absolute right-2 top-full z-20 mt-1 w-36 rounded-lg border border-[#2a2440] bg-[#14111f] py-1 shadow-xl"
               >
                 <button
                   onClick={() => {
@@ -186,13 +186,13 @@ export default function ConversationList() {
                     setRenamingId(entry.id);
                     setMenuId(null);
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 transition-colors"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-zinc-300 hover:bg-[#1e1a2e] transition-colors"
                 >
                   <Pencil size={12} /> Rename
                 </button>
                 <button
                   onClick={() => handleDelete(entry.id)}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-zinc-700 transition-colors"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-[#1e1a2e] transition-colors"
                 >
                   <Trash2 size={12} /> Delete
                 </button>

@@ -42,7 +42,7 @@ export default function ChatIndexPage() {
           <p className="text-zinc-400 text-lg mb-4">No characters available</p>
           <Link
             href="/characters/new"
-            className="text-blue-400 hover:underline"
+            className="text-violet-400 hover:underline"
           >
             Create a character first
           </Link>
@@ -57,10 +57,10 @@ export default function ChatIndexPage() {
               <button
                 key={char.id}
                 onClick={() => startChat(char.id)}
-                className="text-left rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-800"
+                className="text-left rounded-xl border border-[#2a2440] bg-[#14111f] p-4 transition-colors hover:border-violet-500/30 hover:bg-[#1e1a2e]"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-lg">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-lg font-medium">
                     {char.name.charAt(0).toUpperCase()}
                   </div>
                   <div>

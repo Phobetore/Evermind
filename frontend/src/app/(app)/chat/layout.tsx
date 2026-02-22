@@ -10,7 +10,7 @@ export default function ChatLayout({
   return (
     <div className="flex h-full">
       {/* Conversation sidebar */}
-      <aside className="w-56 shrink-0 border-r border-zinc-800 bg-zinc-900/50 overflow-auto hidden md:block">
+      <aside className="w-56 shrink-0 border-r border-[#2a2440] bg-[#0f0d18]/80 overflow-auto hidden md:block">
         <ConversationList />
       </aside>
       {/* Chat content */}

@@ -1,13 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
+  --background: #0c0a12;
   --foreground: #ededed;
+  --accent: #8b5cf6;
+  --accent-soft: #7c3aed;
+  --surface: #14111f;
+  --surface-light: #1e1a2e;
+  --border: #2a2440;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-surface: var(--surface);
 }
 
 body {
@@ -21,19 +28,38 @@ body {
   display: block;
   width: 100%;
   border-radius: 0.5rem;
-  border: 1px solid #3f3f46; /* zinc-700 */
-  background-color: #18181b; /* zinc-900 */
+  border: 1px solid var(--border);
+  background-color: var(--surface);
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  color: #e4e4e7; /* zinc-200 */
+  color: #e4e4e7;
   outline: none;
   transition: border-color 0.15s;
 }
 
 .input:focus {
-  border-color: #71717a; /* zinc-500 */
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
 }
 
 .input::placeholder {
-  color: #52525b; /* zinc-600 */
+  color: #52525b;
+}
+
+/* Custom scrollbar for the mind/memory theme */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2440;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3d3560;
 }

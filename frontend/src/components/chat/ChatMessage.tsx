@@ -84,8 +84,8 @@ export default function ChatMessage({
     <div className={`group flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
       {/* Avatar */}
       <div
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ${
-          isUser ? "bg-blue-600" : "bg-zinc-700"
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium ${
+          isUser ? "bg-violet-600" : "bg-gradient-to-br from-violet-600 to-purple-800"
         }`}
       >
         {isUser ? "U" : characterName.charAt(0).toUpperCase()}
@@ -96,8 +96,8 @@ export default function ChatMessage({
         <div
           className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
             isUser
-              ? "bg-blue-600 text-white"
-              : "bg-zinc-800 text-zinc-100"
+              ? "bg-violet-600 text-white"
+              : "bg-[#1e1a2e] text-zinc-100"
           }`}
         >
           {isUser ? (
@@ -107,21 +107,21 @@ export default function ChatMessage({
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
                   onKeyDown={handleEditKeyDown}
-                  className="w-full bg-blue-700 text-white rounded-lg px-2 py-1 text-sm resize-none min-h-[40px] focus:outline-none focus:ring-1 focus:ring-blue-300"
+                  className="w-full bg-violet-700 text-white rounded-lg px-2 py-1 text-sm resize-none min-h-[40px] focus:outline-none focus:ring-1 focus:ring-violet-300"
                   rows={2}
                   autoFocus
                 />
                 <div className="flex gap-2 justify-end">
                   <button
                     onClick={handleEditCancel}
-                    className="text-xs text-blue-200 hover:text-white transition-colors flex items-center gap-1"
+                    className="text-xs text-violet-200 hover:text-white transition-colors flex items-center gap-1"
                   >
                     <X size={12} /> Cancel
                   </button>
                   <button
                     onClick={handleEditSave}
                     disabled={!editValue.trim()}
-                    className="text-xs text-blue-200 hover:text-white transition-colors flex items-center gap-1 disabled:opacity-50"
+                    className="text-xs text-violet-200 hover:text-white transition-colors flex items-center gap-1 disabled:opacity-50"
                   >
                     <Check size={12} /> Save &amp; Resend
                   </button>
@@ -149,7 +149,7 @@ export default function ChatMessage({
                   <ol className="list-decimal ml-4 mb-2">{children}</ol>
                 ),
                 code: ({ children }) => (
-                  <code className="bg-zinc-700 px-1 py-0.5 rounded text-xs">
+                  <code className="bg-[#14111f] px-1 py-0.5 rounded text-xs">
                     {children}
                   </code>
                 ),

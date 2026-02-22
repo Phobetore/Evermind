@@ -67,7 +67,7 @@ export default function SettingsPage() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="animate-pulse h-24 rounded-xl bg-zinc-800"
+              className="animate-pulse h-24 rounded-xl bg-[#1e1a2e]"
             />
           ))}
         </div>
@@ -97,14 +97,14 @@ export default function SettingsPage() {
               onClick={() => setSelectedProfile(profile.id)}
               className={`text-left rounded-xl border p-4 transition-colors ${
                 profile.id === selectedProfile
-                  ? "border-blue-500 bg-blue-500/10"
-                  : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                  ? "border-violet-500 bg-violet-500/10"
+                  : "border-[#2a2440] bg-[#14111f] hover:border-violet-500/30"
               }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium capitalize">{profile.id}</span>
                 {profile.id === selectedProfile && (
-                  <span className="text-xs text-blue-400 font-medium">
+                  <span className="text-xs text-violet-400 font-medium">
                     Active
                   </span>
                 )}
@@ -130,7 +130,7 @@ export default function SettingsPage() {
               <span className="ml-2 text-xs text-zinc-500 font-normal">Saving…</span>
             )}
           </h2>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-6">
+          <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5 space-y-6">
             <dl className="grid gap-4 sm:grid-cols-2">
               <div>
                 <dt className="text-xs text-zinc-500 mb-1">Chat Server</dt>
@@ -169,7 +169,7 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   updateProfileField("best_of_n", parseInt(e.target.value))
                 }
-                className="w-full accent-blue-500"
+                className="w-full accent-violet-500"
               />
               <div className="flex justify-between text-xs text-zinc-500 mt-1">
                 <span>Single (1)</span>
@@ -197,7 +197,7 @@ export default function SettingsPage() {
                   updateProfileField("self_refine", !active.self_refine)
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  active.self_refine ? "bg-blue-500" : "bg-zinc-700"
+                  active.self_refine ? "bg-violet-500" : "bg-[#2a2440]"
                 }`}
                 role="switch"
                 aria-checked={active.self_refine}
@@ -222,7 +222,7 @@ export default function SettingsPage() {
           Fine-tune how the LLM generates responses. Changes are saved automatically.
         </p>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-6">
+        <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5 space-y-6">
           {/* Temperature */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -240,7 +240,7 @@ export default function SettingsPage() {
               step={0.05}
               value={genParams.temperature}
               onChange={(e) => updateParam("temperature", parseFloat(e.target.value))}
-              className="w-full accent-blue-500"
+              className="w-full accent-violet-500"
             />
             <div className="flex justify-between text-xs text-zinc-500 mt-1">
               <span>Precise</span>
@@ -265,7 +265,7 @@ export default function SettingsPage() {
               step={0.05}
               value={genParams.top_p}
               onChange={(e) => updateParam("top_p", parseFloat(e.target.value))}
-              className="w-full accent-blue-500"
+              className="w-full accent-violet-500"
             />
             <div className="flex justify-between text-xs text-zinc-500 mt-1">
               <span>Focused</span>
@@ -290,7 +290,7 @@ export default function SettingsPage() {
               step={100}
               value={genParams.max_tokens}
               onChange={(e) => updateParam("max_tokens", parseInt(e.target.value))}
-              className="w-full accent-blue-500"
+              className="w-full accent-violet-500"
             />
             <div className="flex justify-between text-xs text-zinc-500 mt-1">
               <span>Short (100)</span>

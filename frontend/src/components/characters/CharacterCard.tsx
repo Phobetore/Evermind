@@ -10,17 +10,17 @@ interface Props {
 
 export default function CharacterCard({ character, onDelete, onExport }: Props) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-zinc-700">
+    <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5 transition-colors hover:border-violet-500/30">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           {/* Avatar placeholder */}
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-lg">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-lg font-medium">
             {character.name.charAt(0).toUpperCase()}
           </div>
           <div>
             <Link
               href={`/characters/${character.id}/edit`}
-              className="font-medium hover:underline"
+              className="font-medium hover:text-violet-300 transition-colors"
             >
               {character.name}
             </Link>
@@ -29,7 +29,7 @@ export default function CharacterCard({ character, onDelete, onExport }: Props) 
                 {character.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-block rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400"
+                    className="inline-block rounded-full bg-[#1e1a2e] px-2 py-0.5 text-xs text-zinc-400"
                   >
                     {tag}
                   </span>
@@ -41,7 +41,7 @@ export default function CharacterCard({ character, onDelete, onExport }: Props) 
         <div className="flex items-center gap-2">
           <Link
             href={`/characters/${character.id}/memories`}
-            className="text-zinc-500 hover:text-blue-400 text-sm transition-colors"
+            className="text-zinc-500 hover:text-violet-400 text-sm transition-colors"
             title="Memory Inspector"
           >
             <Brain size={16} />
