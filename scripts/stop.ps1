@@ -22,7 +22,7 @@ function Log-Warn  { param([string]$Msg) Write-Host "[WARN]  $Msg" -ForegroundCo
 function Log-Error { param([string]$Msg) Write-Host "[ERROR] $Msg" -ForegroundColor Red }
 
 Write-Host ""
-Write-Host "=== Evermind — Arret ===" -ForegroundColor Cyan
+Write-Host "=== Evermind -- Arret ===" -ForegroundColor Cyan
 Write-Host ""
 
 # ── Check PID file ───────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ foreach ($Line in $Lines) {
         # Force-kill if still running
         $proc = Get-Process -Id $Pid -ErrorAction SilentlyContinue
         if ($null -ne $proc) {
-            Log-Warn "$Label did not stop gracefully — force-killing..."
+            Log-Warn "$Label did not stop gracefully -- force-killing..."
             try {
                 Stop-Process -Id $Pid -Force -ErrorAction SilentlyContinue
             } catch { }
