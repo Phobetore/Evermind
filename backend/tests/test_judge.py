@@ -88,3 +88,17 @@ def test_candidate_score_defaults() -> None:
     assert cs.score == 0.0
     assert cs.subscores == {}
     assert cs.reasons == []
+
+
+def test_parse_judge_response_non_numeric_score() -> None:
+    """Non-numeric score values should not crash — default to 0.0."""
+    raw = json.dumps(
+        {
+            "ranking": [{"id": "A", "score": "not_a_number", "subscores": {}, "reasons": []}],
+            "best_id": "A",
+            "rewrite_suggestion": "",
+        }
+    )
+    result = parse_judge_response(raw)
+    assert len(result.ranking) == 1
+    assert result.ranking[0].score == 0.0

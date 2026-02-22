@@ -73,10 +73,14 @@ def parse_judge_response(raw_text: str) -> JudgeResult:
     for entry in data.get("ranking", []):
         if not isinstance(entry, dict):
             continue
+        try:
+            score = float(entry.get("score", 0.0))
+        except (TypeError, ValueError):
+            score = 0.0
         result.ranking.append(
             CandidateScore(
                 id=str(entry.get("id", "")),
-                score=float(entry.get("score", 0.0)),
+                score=score,
                 subscores=entry.get("subscores", {}),
                 reasons=entry.get("reasons", []),
             )

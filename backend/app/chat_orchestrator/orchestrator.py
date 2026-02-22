@@ -22,6 +22,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Upper bound for random seed generation (fits in a signed 32-bit integer).
+_MAX_SEED = 2**31 - 1
+
 
 async def generate_single(
     llm: LLMClient,
@@ -71,7 +74,7 @@ async def generate_best_of_n(
     if n < 1:
         n = 1
 
-    seed = base_seed if base_seed is not None else random.randint(0, 2**31)
+    seed = base_seed if base_seed is not None else random.randint(0, _MAX_SEED)
     candidates: list[str] = []
 
     for i in range(n):

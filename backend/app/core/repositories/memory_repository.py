@@ -172,6 +172,19 @@ class MemoryRepository(BaseRepository):
         await db.commit()
         return await self.get(target_id)
 
+    async def soft_delete_by_character(self, character_id: str) -> int:
+        """Bulk soft-delete all active memories for a character.
+
+        Returns the number of memories affected.
+        """
+        db = await self._get_db()
+        cursor = await db.execute(
+            "UPDATE memories SET is_deleted = 1 WHERE character_id = ? AND is_deleted = 0",
+            (character_id,),
+        )
+        await db.commit()
+        return cursor.rowcount
+
 
 def _row_to_response(row: aiosqlite.Row) -> MemoryResponse:
     return MemoryResponse(

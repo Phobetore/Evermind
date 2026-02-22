@@ -73,12 +73,7 @@ async def rebuild_memories(
 
     This is the 🔴 v0.2 roadmap item: ``POST /characters/{id}/memories/rebuild``.
     """
-    existing = await repo.list_by_character(character_id, include_deleted=False)
-    deleted_count = 0
-    for mem in existing:
-        ok = await repo.soft_delete(mem.id)
-        if ok:
-            deleted_count += 1
+    deleted_count = await repo.soft_delete_by_character(character_id)
     return {"status": "rebuild_scheduled", "memories_cleared": deleted_count}
 
 
