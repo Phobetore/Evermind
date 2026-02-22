@@ -11,8 +11,9 @@ def test_build_extraction_prompt_structure() -> None:
         recent_messages_text="User: Hello\nAlice: Hi there!",
         world_state_json='{"location": "forest"}',
     )
-    assert len(msgs) == 1
+    assert len(msgs) == 2
     assert msgs[0]["role"] == "system"
+    assert msgs[1]["role"] == "user"
     content = msgs[0]["content"]
     assert "MEMORY EXTRACTOR" in content
     assert "Alice" in content

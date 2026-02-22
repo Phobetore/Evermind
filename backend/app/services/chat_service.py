@@ -185,6 +185,13 @@ class ChatService:
             world_state_json = json.dumps(world_state) if world_state else "{}"
             memory_lines_text = _format_memory_lines_text(memories or [])
 
+            # Emit a progress event so the connection stays alive and the
+            # frontend can show a status indicator while candidates generate.
+            yield _sse({
+                "status": "generating",
+                "detail": f"Generating {best_of_n} candidate(s)...",
+            })
+
             try:
                 final_text, judge_result = await run_pipeline(
                     chat_llm=llm,
