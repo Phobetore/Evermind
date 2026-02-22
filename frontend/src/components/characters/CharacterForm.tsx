@@ -84,6 +84,8 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
     }
     setGenerating(true);
     setError(null);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120_000);
     try {
       const req: AssistantRequest = {
         name,
@@ -96,6 +98,7 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
       const result = await api.post<Record<string, unknown>>(
         "/tools/character_assistant",
         req,
+        { signal: controller.signal },
       );
       // Fill form fields with generated data
       if (result.summary && typeof result.summary === "string")
@@ -123,10 +126,15 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
         );
       setShowAssistant(false);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "AI generation failed",
-      );
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Generation timed out — the AI server may be busy. Please try again.");
+      } else {
+        setError(
+          err instanceof Error ? err.message : "AI generation failed",
+        );
+      }
     } finally {
+      clearTimeout(timeoutId);
       setGenerating(false);
     }
   }

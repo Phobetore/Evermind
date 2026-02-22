@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
@@ -161,3 +162,43 @@ async def test_character_assistant_http_status_error_returns_503(client: AsyncCl
         )
     assert resp.status_code == 503
     assert "unreachable" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_character_assistant_timeout_returns_504(client: AsyncClient) -> None:
+    """POST /tools/character_assistant should return 504 when LLM generation takes too long."""
+    mock_llm = AsyncMock()
+    mock_llm.health_status = AsyncMock(return_value="ok")
+
+    async def _slow_completion(*_args: object, **_kwargs: object) -> dict:
+        await asyncio.sleep(999)
+        return {}
+
+    mock_llm.chat_completion = _slow_completion
+
+    with (
+        patch("app.routers.tools._resolve_llm_client", return_value=mock_llm),
+        patch("app.routers.tools._ASSISTANT_TIMEOUT_SECONDS", 0.05),
+    ):
+        resp = await client.post(
+            "/tools/character_assistant",
+            json={"name": "TestChar", "theme": "sci-fi"},
+        )
+    assert resp.status_code == 504
+    assert "timed out" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_character_assistant_unexpected_error_returns_500(client: AsyncClient) -> None:
+    """POST /tools/character_assistant should return 500 on unexpected exceptions."""
+    mock_llm = AsyncMock()
+    mock_llm.health_status = AsyncMock(return_value="ok")
+    mock_llm.chat_completion = AsyncMock(side_effect=RuntimeError("something unexpected"))
+
+    with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
+        resp = await client.post(
+            "/tools/character_assistant",
+            json={"name": "TestChar", "theme": "sci-fi"},
+        )
+    assert resp.status_code == 500
+    assert "unexpectedly" in resp.json()["detail"]
