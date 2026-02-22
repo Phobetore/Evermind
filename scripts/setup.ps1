@@ -172,7 +172,10 @@ Write-Host "--- Installing backend dependencies ---" -ForegroundColor Cyan
 Write-Host ""
 
 Push-Location (Join-Path $ProjectRoot "backend")
+$savedEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 pip3 install -e ".[dev]" --quiet 2>&1 | Select-Object -Last 2
+$ErrorActionPreference = $savedEAP
 if ($LASTEXITCODE -ne 0) {
     Log-Error "Backend dependency installation failed (exit code $LASTEXITCODE)"
     Pop-Location
@@ -189,7 +192,10 @@ Write-Host "--- Installing frontend dependencies ---" -ForegroundColor Cyan
 Write-Host ""
 
 Push-Location (Join-Path $ProjectRoot "frontend")
+$savedEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 npm install --silent 2>&1 | Select-Object -Last 2
+$ErrorActionPreference = $savedEAP
 if ($LASTEXITCODE -ne 0) {
     Log-Error "Frontend dependency installation failed (exit code $LASTEXITCODE)"
     Pop-Location
