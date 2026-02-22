@@ -48,46 +48,46 @@ foreach ($Line in $Lines) {
 
     $parts = $Line -split "=", 2
     $Label = $parts[0]
-    $Pid = [int]$parts[1]
+    $processId = [int]$parts[1]
 
-    $proc = Get-Process -Id $Pid -ErrorAction SilentlyContinue
+    $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
 
     if ($null -ne $proc) {
-        Log-Info "Stopping $Label (PID $Pid)..."
+        Log-Info "Stopping $Label (PID $processId)..."
 
         try {
-            Stop-Process -Id $Pid -ErrorAction SilentlyContinue
+            Stop-Process -Id $processId -ErrorAction SilentlyContinue
         } catch { }
 
         # Wait up to 10 seconds for graceful shutdown
         $elapsed = 0
         while ($elapsed -lt 10) {
-            $proc = Get-Process -Id $Pid -ErrorAction SilentlyContinue
+            $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
             if ($null -eq $proc) { break }
             Start-Sleep -Seconds 1
             $elapsed++
         }
 
         # Force-kill if still running
-        $proc = Get-Process -Id $Pid -ErrorAction SilentlyContinue
+        $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
         if ($null -ne $proc) {
             Log-Warn "$Label did not stop gracefully -- force-killing..."
             try {
-                Stop-Process -Id $Pid -Force -ErrorAction SilentlyContinue
+                Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
             } catch { }
             Start-Sleep -Seconds 1
         }
 
-        $proc = Get-Process -Id $Pid -ErrorAction SilentlyContinue
+        $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
         if ($null -eq $proc) {
             Log-Ok "$Label stopped"
             $Stopped++
         } else {
-            Log-Error "Failed to stop $Label (PID $Pid)"
+            Log-Error "Failed to stop $Label (PID $processId)"
             $Failed++
         }
     } else {
-        Log-Warn "$Label (PID $Pid) is not running"
+        Log-Warn "$Label (PID $processId) is not running"
     }
 }
 

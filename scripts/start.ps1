@@ -151,8 +151,8 @@ function Cleanup-OnError {
     Log-Error "Startup failed -- stopping already-launched services..."
     foreach ($entry in $Pids) {
         $parts = $entry -split "="
-        $pid = [int]$parts[1]
-        try { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue } catch { }
+        $processId = [int]$parts[1]
+        try { Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue } catch { }
     }
     Remove-Item -Path $PidFile -Force -ErrorAction SilentlyContinue
     exit 1
