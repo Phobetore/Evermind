@@ -67,6 +67,24 @@ class ModelManager:
         except httpx.HTTPError:
             return False
 
+    async def get_props(self, name: str) -> dict[str, Any] | None:
+        """Query the ``/props`` endpoint of the server *name*.
+
+        Returns the parsed JSON response, or ``None`` if the server is
+        unreachable or does not support the endpoint.
+        """
+        handle = self._servers.get(name)
+        if handle is None:
+            return None
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(f"{handle.base_url}/props", timeout=5.0)
+                if resp.status_code == 200:
+                    return resp.json()
+        except (httpx.HTTPError, ValueError):
+            pass
+        return None
+
     async def status_all(self) -> dict[str, dict[str, Any]]:
         """Return a ``{server_name: {port, model_path, status}}`` dict."""
         results: dict[str, dict[str, Any]] = {}
@@ -80,6 +98,18 @@ class ModelManager:
             }
 
         await asyncio.gather(*[_probe(h) for h in self._servers.values()])
+        return results
+
+    async def system_info_all(self) -> dict[str, dict[str, Any]]:
+        """Return ``/props`` data from every reachable LLM server."""
+        results: dict[str, dict[str, Any]] = {}
+
+        async def _fetch(handle: _ServerHandle) -> None:
+            props = await self.get_props(handle.name)
+            if props is not None:
+                results[handle.name] = props
+
+        await asyncio.gather(*[_fetch(h) for h in self._servers.values()])
         return results
 
     async def restart(self, name: str) -> dict[str, str]:
