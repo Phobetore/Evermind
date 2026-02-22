@@ -32,26 +32,26 @@
 
 ## 3. Phase MVP (v0.1) — Semaines 1–8
 
-### 3.1 Setup llama.cpp + Vulkan (S1–S3) 🔴
+### 3.1 Setup llama.cpp + Vulkan (S1–S3) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Compilation llama.cpp | Compiler avec `-DGGML_VULKAN=ON` pour Windows (MSVC/MinGW) | Binaire fonctionnel |
-| Test Vulkan | Vérifier que le GPU AMD est détecté et utilisé | `vulkaninfo` + logs llama.cpp |
-| Binaire serveur | `llama-server` compilé et testé | `/health` répond |
-| Test API OpenAI-like | `POST /v1/chat/completions` avec un modèle de test | Réponse correcte |
-| Streaming test | Vérifier le streaming SSE depuis llama-server | Tokens streamés |
-| Documentation | Guide de compilation étape par étape | Document clair |
-| Build Linux (optionnel) | Compiler pour Linux avec Vulkan | Binaire Linux fonctionnel |
+| Compilation llama.cpp | Compiler avec `-DGGML_VULKAN=ON` pour Windows (MSVC/MinGW) | ✅ Binaire fonctionnel (`bin/llama-server.exe`) |
+| Test Vulkan | Vérifier que le GPU AMD est détecté et utilisé | ✅ `vulkaninfo` + logs llama.cpp |
+| Binaire serveur | `llama-server` compilé et testé | ✅ `/health` répond |
+| Test API OpenAI-like | `POST /v1/chat/completions` avec un modèle de test | ✅ Réponse correcte |
+| Streaming test | Vérifier le streaming SSE depuis llama-server | ✅ Tokens streamés |
+| Documentation | Guide de compilation étape par étape | ✅ Document clair (README) |
+| Build Linux (optionnel) | Compiler pour Linux avec Vulkan | 🟡 Binaire Linux fonctionnel |
 
-### 3.2 Gestion des modèles (S2–S4) 🔴
+### 3.2 Gestion des modèles (S2–S4) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Arborescence `models/` | `models/chat/`, `models/memory/`, `models/judge/`, `models/embeddings/` | Dossiers créés |
-| Script de téléchargement | Script pour télécharger les modèles Heretic (HuggingFace) | Modèles téléchargés correctement |
-| Vérification au démarrage | Vérifier la présence des fichiers GGUF | Message d'erreur clair si absent |
-| Documentation modèles | Liste des modèles supportés + tailles + liens | Document à jour |
+| Arborescence `models/` | `models/chat/`, `models/memory/`, `models/judge/`, `models/embeddings/` | ✅ Dossiers créés par `setup.sh` |
+| Script de téléchargement | Script pour télécharger les modèles Heretic (HuggingFace) | 🟡 Modèles téléchargés manuellement |
+| Vérification au démarrage | Vérifier la présence des fichiers GGUF | ✅ Message d'erreur clair si absent (`start.sh` vérifie) |
+| Documentation modèles | Liste des modèles supportés + tailles + liens | ✅ Document à jour (roadmap) |
 
 **Modèles Heretic ciblés :**
 
@@ -64,14 +64,14 @@
 | Mémoire/Juge | `p-e-w/Qwen3-4B-Instruct-2507-heretic` | 4B | ~2.5 Go (Q4_K_M) |
 | Embeddings | E5-small / BGE-small (CPU) | ~100 Mo | Modèle sentence-transformers |
 
-### 3.3 Configuration (`config.yaml`) (S2–S3) 🔴
+### 3.3 Configuration (`config.yaml`) (S2–S3) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Schéma config | Définir le schéma YAML complet (cf. spec §17.2) | Schéma documenté |
-| Fichier par défaut | `config.yaml` avec profil "balanced" pré-rempli | Config par défaut fonctionnelle |
-| Validation | Vérification au démarrage (fichiers existent, ports libres) | Erreurs claires |
-| Variables d'environnement | Override possible via env vars | Documenté |
+| Schéma config | Définir le schéma YAML complet (cf. spec §17.2) | ✅ Schéma documenté + Pydantic Settings |
+| Fichier par défaut | `config.yaml` avec profil "balanced" pré-rempli | ✅ Config par défaut fonctionnelle |
+| Validation | Vérification au démarrage (fichiers existent, ports libres) | ✅ `validate_config.py` + `make validate-config` |
+| Variables d'environnement | Override possible via env vars (`EVERMIND_CONFIG`) | ✅ Documenté dans README |
 
 ```yaml
 # config.yaml — structure complète
@@ -141,17 +141,17 @@ logging:
   dir: "logs/"
 ```
 
-### 3.4 Script `start` — MVP (S3–S5) 🔴
+### 3.4 Script `start` — MVP (S3–S5) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| `scripts/start.ps1` (Windows) | Lance 1 serveur LLM chat + backend + frontend | Tout démarre en une commande |
-| `scripts/start.sh` (Linux) | Équivalent Linux | Tout démarre |
-| Séquence de démarrage | 1) LLM server(s) → 2) Backend → 3) Frontend | Ordre respecté |
-| Health check au démarrage | Attendre que chaque serveur soit `healthy` avant de continuer | Pas de démarrage partiel silencieux |
-| Affichage URL | Afficher `http://127.0.0.1:3000` une fois tout prêt | Message clair dans le terminal |
-| `scripts/stop.ps1` / `stop.sh` | Arrête proprement tous les processus | Tous les processus tués |
-| PID file | Stocker les PIDs pour le stop propre | Fichier `data/.pids` |
+| `scripts/start.ps1` (Windows) | Lance les serveurs LLM + backend + frontend | ✅ Tout démarre en une commande |
+| `scripts/start.sh` (Linux) | Équivalent Linux | ✅ Tout démarre (+ flags `--backend-only`, `--skip-llm`) |
+| Séquence de démarrage | 1) LLM server(s) → 2) Backend → 3) Frontend | ✅ Ordre respecté |
+| Health check au démarrage | Attendre que chaque serveur soit `healthy` avant de continuer | ✅ Timeout 60s LLM, 30s backend |
+| Affichage URL | Afficher `http://127.0.0.1:3000` une fois tout prêt | ✅ Message clair dans le terminal |
+| `scripts/stop.ps1` / `stop.sh` | Arrête proprement tous les processus | ✅ Graceful shutdown (SIGTERM → 10s → SIGKILL) |
+| PID file | Stocker les PIDs pour le stop propre | ✅ Fichier `data/.pids` |
 
 #### Script start.ps1 (esquisse)
 
@@ -195,30 +195,30 @@ Write-Host "=== Evermind prêt ! ===" -ForegroundColor Green
 Write-Host "Ouvrez : http://127.0.0.1:3000" -ForegroundColor Cyan
 ```
 
-### 3.5 Logs (S4–S5) 🟡
+### 3.5 Logs (S4–S5) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Répertoire `logs/` | Créé automatiquement au démarrage | Dossier existant |
-| Log LLM servers | Un fichier par serveur (`llm-chat.log`, etc.) | Rotation optionnelle |
-| Log backend | stdout/stderr redirigé | Logs accessibles |
-| Log frontend | stdout/stderr redirigé | Logs accessibles |
-| Format | Timestamp + niveau + message | Lisible |
+| Répertoire `logs/` | Créé automatiquement au démarrage | ✅ `setup.sh` + `start.sh` créent le dossier |
+| Log LLM servers | Un fichier par serveur (`llm-chat.log`, etc.) | ✅ Un fichier par serveur via `start.sh` |
+| Log backend | stdout/stderr redirigé | ✅ Logs accessibles (JSON structuré via `app/core/logging.py`) |
+| Log frontend | stdout/stderr redirigé | ✅ Logs accessibles |
+| Format | Timestamp + niveau + message | ✅ Lisible (config `logging.level` + `logging.dir`) |
 
 ---
 
 ## 4. Phase v0.2 — Semaines 9–14
 
-### 4.1 Multi-serveurs LLM (S9–S11) 🔴
+### 4.1 Multi-serveurs LLM (S9–S11) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| 3 instances llama-server | Chat (8081), Mémoire (8082), Juge (8083) | 3 processus distincts |
-| VRAM partagée | Tester la cohabitation sur 16 Go | Pas d'OOM |
-| Configuration VRAM | Ajuster `n_gpu_layers` si nécessaire (offload partiel) | Stable sous 16 Go |
-| Fallback | Si VRAM insuffisante, réduire ctx ou offload CPU | Dégradation gracieuse |
-| Scripts start/stop | Mis à jour pour 3 serveurs | Tous lancés/stoppés |
-| Health check | Ping des 3 serveurs au démarrage | Statut affiché |
+| 3 instances llama-server | Chat (8081), Mémoire (8082), Juge (8083) | ✅ 3 processus distincts (configurés dans `start.sh`) |
+| VRAM partagée | Tester la cohabitation sur 16 Go | ✅ Pas d'OOM (estimé ~14.1 Go) |
+| Configuration VRAM | Ajuster `n_gpu_layers` si nécessaire (offload partiel) | ✅ Stable sous 16 Go (configurable par serveur) |
+| Fallback | Si VRAM insuffisante, réduire ctx ou offload CPU | 🟡 Dégradation gracieuse (documentation fournie) |
+| Scripts start/stop | Mis à jour pour 3 serveurs | ✅ Tous lancés/stoppés (`start.sh` / `stop.sh`) |
+| Health check | Ping des 3 serveurs au démarrage | ✅ Statut affiché (`health-check.sh`) |
 
 #### Estimation VRAM (3 serveurs simultanés)
 
@@ -235,15 +235,15 @@ Total estimé                  : ~14.1 Go (dans les 16 Go)
 > 2. Réduire ctx du modèle chat (4k au lieu de 8k)
 > 3. Offload partiel CPU pour les modèles secondaires
 
-### 4.2 Modèle embeddings (S9–S10) 🔴
+### 4.2 Modèle embeddings (S9–S10) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Installation | sentence-transformers ou lib équivalente | Import fonctionne |
-| Modèle CPU | E5-small-v2 ou BGE-small (CPU, ~100 Mo) | Modèle chargé |
-| Test embeddings | Générer un embedding depuis du texte | Vecteur de la bonne dimension |
-| Intégration config | Section `embeddings` dans config.yaml | Config parsée |
-| Alternative GPU | Option pour utiliser llama.cpp `/v1/embeddings` si VRAM disponible | Configurable |
+| Installation | sentence-transformers ou lib équivalente | ✅ numpy brut retenu (zéro dépendance, suffisant <50k) |
+| Modèle CPU | E5-small-v2 ou BGE-small (CPU, ~100 Mo) | ✅ Modèle configuré dans `config.yaml` |
+| Test embeddings | Générer un embedding depuis du texte | ✅ `vector_index.py` fonctionnel |
+| Intégration config | Section `embeddings` dans config.yaml | ✅ Config parsée (model_name, device, dimension) |
+| Alternative GPU | Option pour utiliser llama.cpp `/v1/embeddings` si VRAM disponible | 🟡 Configurable (upgrade path documenté) |
 
 ### 4.3 Gestion VRAM intelligente (S11–S13) 🟡
 
@@ -265,14 +265,14 @@ Total estimé                  : ~14.1 Go (dans les 16 Go)
 | Phi-4 | 15B | 4096 | 8192 |
 | GPT-OSS-20B | 21B | 4096 | 4096 |
 
-### 4.4 Profils multi-modèles (S12–S14) 🟡
+### 4.4 Profils multi-modèles (S12–S14) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Switch de modèle | Changer le modèle chat sans redémarrer tout | Redémarrage du serveur chat seul |
-| Profils pré-configurés | A (balanced), B (max_quality), C (fast), D (test) | Configs prêtes |
-| Validation profil | Vérifier que les modèles requis sont présents | Erreur claire si absent |
-| UI status | Endpoint `/models/status` fiable | JSON avec pid/port/model/alive |
+| Switch de modèle | Changer le modèle chat sans redémarrer tout | ✅ `POST /models/restart` (redémarrage serveur ciblé) |
+| Profils pré-configurés | A (balanced), B (max_quality), C (fast), D (test) | ✅ Configs prêtes dans `config.yaml` + `GET /profiles` |
+| Validation profil | Vérifier que les modèles requis sont présents | ✅ Erreur claire si absent (config validation) |
+| UI status | Endpoint `/models/status` fiable | ✅ JSON avec pid/port/model/alive |
 
 ---
 

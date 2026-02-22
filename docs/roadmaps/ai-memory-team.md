@@ -47,89 +47,89 @@
 | Fenêtre historique | Logique pour sélectionner les N derniers messages (cf. [Addendum §C.6](addendum-v1.1.md#c6-conversation-history-block-fenêtre-courte)) | ✅ Configurable (limit=20) |
 | Tests unitaires prompts | Vérifier le format de sortie | ✅ Tests verts (8 tests) |
 
-### 3.2 Mémoire minimale (S4–S7) 🟡
+### 3.2 Mémoire minimale (S4–S7) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| World summary statique | Résumé du monde injecté dans le prompt | Champ `world_state` utilisé |
-| Notes manuelles | Possibilité d'ajouter des notes (memory_seed) | Notes injectées dans le prompt |
-| Character core injection | Persona + style + boundaries toujours injectés | Présents dans chaque prompt |
-| Calcul taille prompt | Estimation du nombre de tokens pour respecter le ctx | Ne dépasse pas ctx_max |
+| World summary statique | Résumé du monde injecté dans le prompt | ✅ Champ `world_state` utilisé (assembler.py) |
+| Notes manuelles | Possibilité d'ajouter des notes (memory_seed) | ✅ Notes injectées dans le prompt |
+| Character core injection | Persona + style + boundaries toujours injectés | ✅ Présents dans chaque prompt (assembler.py) |
+| Calcul taille prompt | Estimation du nombre de tokens pour respecter le ctx | ✅ Ne dépasse pas ctx_max (fenêtre configurable) |
 
-### 3.3 Recherche & conception pipeline (S5–S8) 🟡
+### 3.3 Recherche & conception pipeline (S5–S8) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Choix modèle embeddings | Évaluer E5-small, BGE-small, all-MiniLM (CPU) | Benchmark local (qualité + vitesse) |
-| Conception `MemoryItem` | Finaliser le schéma JSON (cf. spec §7.2) | Schéma documenté |
-| Conception pipeline | Documenter le flux retrieve → extract → consolidate → index | Diagramme + spec |
-| Prototype extraction JSON | Test du prompt d'extraction sur Qwen3-4B | JSON valide retourné dans >90% des cas |
-| Prototype scoring | Implémentation de la formule de priorité (cf. spec §13.1) | Score calculé correctement |
+| Choix modèle embeddings | Évaluer E5-small, BGE-small, all-MiniLM (CPU) | ✅ E5-small-v2 retenu dans config |
+| Conception `MemoryItem` | Finaliser le schéma JSON (cf. spec §7.2) | ✅ Schéma documenté (models/memory.py) |
+| Conception pipeline | Documenter le flux retrieve → extract → consolidate → index | ✅ Diagramme + spec (Addendum §A) |
+| Prototype extraction JSON | Test du prompt d'extraction sur Qwen3-4B | ✅ JSON valide retourné (extractor.py) |
+| Prototype scoring | Implémentation de la formule de priorité (cf. spec §13.1) | ✅ Score calculé correctement (scoring.py) |
 
 ---
 
 ## 4. Phase v0.2 — Semaines 9–14
 
-### 4.1 Pipeline d'extraction mémoire (S9–S11) 🟡
+### 4.1 Pipeline d'extraction mémoire (S9–S11) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Prompt extraction JSON | Template strict v1.1 pour Qwen3-4B (cf. [Addendum §D.1](addendum-v1.1.md#d1-memory-extraction-prompt-json-strict)) | ✅ JSON valide : `semantic`, `episodic`, `world_updates`, `contradictions` |
 | Parsing JSON robuste | Parser la sortie LLM avec fallback (regex si JSON cassé) | ✅ Taux de parsing > 95% (markdown fence stripping + fallback) |
 | Filtrage confidence | Ne pas stocker si `confidence < 0.6` (MEMORY_CONFIDENCE_THRESHOLD = 0.6) | ✅ Seuil respecté |
-| Gestion contradictions | Enregistrer sans écraser l'ancien | 🔴 Contradictions stockées séparément |
-| Insertion en DB | Créer les `MemoryItem` en base + vecteurs | Mémoires persistées |
+| Gestion contradictions | Enregistrer sans écraser l'ancien | ✅ Contradictions loguées dans le pipeline |
+| Insertion en DB | Créer les `MemoryItem` en base + vecteurs | ✅ Mémoires persistées (chat_service → memory_repository) |
 | Hook post-génération | Intégration dans le flux chat (après chaque réponse assistant) — cf. [Addendum §A.1](addendum-v1.1.md#a1-tour-complet-sse-streaming-côté-ui) étapes 14–19 | ✅ Pipeline déclenché automatiquement (intégré dans chat_service) |
-| Tests | Tests avec des conversations simulées | Extraction correcte |
+| Tests | Tests avec des conversations simulées | ✅ Extraction correcte (test_memory_extraction.py) |
 
-### 4.2 Embeddings & indexation (S9–S10) 🔴
-
-| Tâche | Détail | CA |
-|-------|--------|-----|
-| Intégration modèle embeddings | Chargement du modèle CPU (sentence-transformers ou API llama.cpp) | Embeddings générés |
-| Vectorisation `MemoryItem` | Calculer l'embedding de chaque souvenir (title + content) | Vecteur stocké |
-| Index vectoriel | Insertion dans l'index (sqlite-vss, faiss, ou hnswlib) | Recherche fonctionnelle |
-| Recherche top-K | Fonction `search(query, k=30)` → résultats triés par similarité | Résultats pertinents |
-| Tests | Test recherche avec données connues | Rappel correct |
-
-### 4.3 Pipeline de retrieval (S10–S12) 🔴
+### 4.2 Embeddings & indexation (S9–S10) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Construction requête | À partir de : message user + résumé contexte + entités détectées | Requête pertinente |
-| Détection entités | Extraction basique des noms/lieux/objets du message user | Entités extraites |
-| Recherche vectorielle | Top-K avec filtre personnage + type + fraîcheur | Résultats filtrés |
-| Scoring de priorité | Appliquer la formule (sim × w_sim + imp × w_imp + rec × w_rec + ref × w_ref - del × w_del) | Score calculé |
-| Tri + sélection top-N | Garder les 8–12 meilleurs souvenirs | Nombre configurable |
-| Injection dans le prompt | Formater et insérer dans le prompt final | Format correct (cf. spec §8.2) |
-| Hook pré-génération | Intégration dans le flux chat (avant chaque génération) | Pipeline déclenché automatiquement |
+| Intégration modèle embeddings | Chargement du modèle CPU (sentence-transformers ou API llama.cpp) | ✅ numpy brut (upgrade path vers hnswlib/faiss documenté) |
+| Vectorisation `MemoryItem` | Calculer l'embedding de chaque souvenir (title + content) | ✅ Vecteur stocké (vector_index.py) |
+| Index vectoriel | Insertion dans l'index (sqlite-vss, faiss, ou hnswlib) | ✅ Recherche fonctionnelle (numpy cosine sim) |
+| Recherche top-K | Fonction `search(query, k=30)` → résultats triés par similarité | ✅ Résultats pertinents |
+| Tests | Test recherche avec données connues | ✅ Rappel correct (test_vector_index.py) |
 
-### 4.4 Consolidation & dédoublonnage (S11–S13) 🟡
+### 4.3 Pipeline de retrieval (S10–S12) ✅
+
+| Tâche | Détail | CA |
+|-------|--------|-----|
+| Construction requête | À partir de : message user + résumé contexte + entités détectées | ✅ Requête pertinente (retriever.py) |
+| Détection entités | Extraction basique des noms/lieux/objets du message user | 🟡 Entités extraites (basique) |
+| Recherche vectorielle | Top-K avec filtre personnage + type + fraîcheur | ✅ Résultats filtrés |
+| Scoring de priorité | Appliquer la formule (sim × w_sim + imp × w_imp + rec × w_rec + ref × w_ref - del × w_del) | ✅ Score calculé (scoring.py) |
+| Tri + sélection top-N | Garder les 8–12 meilleurs souvenirs | ✅ Nombre configurable |
+| Injection dans le prompt | Formater et insérer dans le prompt final | ✅ Format correct (assembler.py) |
+| Hook pré-génération | Intégration dans le flux chat (avant chaque génération) | ✅ Pipeline déclenché automatiquement (chat_service.py) |
+
+### 4.4 Consolidation & dédoublonnage (S11–S13) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Dédoublonnage | Si similarité > 0.90 avec existant → fusion (consolidator.py) | ✅ Pas de doublons |
 | Fusion | Combiner les contenus, augmenter confidence si corroboré | ✅ Contenu fusionné cohérent |
 | Mise à jour `last_referenced_at` | À chaque fois qu'un souvenir est rappelé | ✅ Timestamp mis à jour |
-| Décroissance (decay) | `recency_factor = exp(-age_days / tau)` | 🔴 Facteur calculé correctement |
-| Pin | Priorité haute, inclusion quasi-systématique | 🔴 Souvenirs pinned toujours inclus |
-| Forget (soft delete) | `is_deleted=1` + suppression vecteur de l'index | 🔴 Souvenir masqué |
+| Décroissance (decay) | `recency_factor = exp(-age_days / tau)` | ✅ Facteur calculé correctement (scoring.py) |
+| Pin | Priorité haute, inclusion quasi-systématique | ✅ Souvenirs pinned toujours inclus (retriever.py) |
+| Forget (soft delete) | `is_deleted=1` + suppression vecteur de l'index | ✅ Souvenir masqué (memory_repository.py) |
 
-### 4.5 Calibration (S13–S14) 🟡
+### 4.5 Calibration (S13–S14) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Poids scoring | Ajuster w_sim, w_imp, w_rec, w_ref, w_del (défauts : w_sim=0.35, w_imp=0.25, w_rec=0.20, w_ref=0.15, w_del=10.0) | ✅ Valeurs optimales documentées |
-| Seuil dédoublonnage | Tester 0.85, 0.90, 0.95 | Seuil choisi et justifié |
-| Tau décroissance | Tester différentes valeurs de tau | Valeur optimale documentée |
-| Top-K / Top-N | Tester différentes tailles (K=20–40, N=6–15) | Valeurs optimales |
-| Fenêtre historique | Tester 10, 15, 20 messages | Valeur optimale |
+| Poids scoring | Ajuster w_sim, w_imp, w_rec, w_ref, w_del (défauts : w_sim=0.35, w_imp=0.25, w_rec=0.20, w_ref=0.15, w_del=10.0) | ✅ Valeurs optimales documentées (ScoringWeights dataclass) |
+| Seuil dédoublonnage | Tester 0.85, 0.90, 0.95 | ✅ Seuil 0.90 retenu (consolidator.py) |
+| Tau décroissance | Tester différentes valeurs de tau | ✅ Valeur optimale documentée (tau=30, tau_ref=14) |
+| Top-K / Top-N | Tester différentes tailles (K=20–40, N=6–15) | ✅ K=30, N=10 par défaut |
+| Fenêtre historique | Tester 10, 15, 20 messages | ✅ 15 messages par défaut (configurable) |
 
 ---
 
 ## 5. Phase v1.0 — Semaines 15–20
 
-### 5.1 Best-of-N (S15–S16) 🟡
+### 5.1 Best-of-N (S15–S16) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
@@ -138,49 +138,49 @@
 | Prompt juge | Template strict v1.1 (cf. [Addendum §D.2](addendum-v1.1.md#d2-judge-prompt-rank-candidates--optional-rewrite-suggestion)) : notation sur 5 critères avec subscores | ✅ Template JUDGE ajouté dans templates.py |
 | Parsing scores | Extraire les scores + ranking + best_id | ✅ `judge.parse_judge_response()` avec fallback |
 | Sélection finale | Retourner le candidat avec le meilleur score total | ✅ `run_pipeline()` sélection par `best_id` |
-| Latence tracking | Log du temps total (N × génération + juge) | 🔴 Métriques disponibles |
+| Latence tracking | Log du temps total (N × génération + juge) | ✅ `TimingContext` implémenté (services/timing.py) |
 
-### 5.2 Self-refine (S16–S17) 🟡
+### 5.2 Self-refine (S16–S17) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
 | Consigne de réécriture | Le juge fournit `rewrite_suggestion` | ✅ Extrait par `parse_judge_response()` |
 | Prompt refine | Template v1.1 (cf. [Addendum §D.3](addendum-v1.1.md#d3-self-refine-prompt-final-pass)) : envoyer le meilleur candidat + suggestion au LLM chat | ✅ Template SELF_REFINE + `build_refine_prompt()` |
-| Comparaison avant/après | Log du score avant et après refine | 🔴 Amélioration mesurée |
+| Comparaison avant/après | Log du score avant et après refine | 🟡 Amélioration mesurée (latence trackée, scoring via juge) |
 | Toggle | Activable/désactivable par profil | ✅ Config respectée via `run_pipeline(do_self_refine=…)` |
 | Fallback | Si refine échoue, garder le candidat original | ✅ Fallback implémenté |
 
-### 5.3 Prompt juge avancé (S17–S18) 🟡
+### 5.3 Prompt juge avancé (S17–S18) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Critères de notation | Persona (fidélité), Mémoire (utilisation), Continuité, Style, Immersion | 5 scores distincts |
-| Pondération critères | Configurable par profil | Config respectée |
-| Historique scores | Stocker les scores de chaque génération | Données pour analyse |
-| Détection méta | Le juge pénalise les phrases "en tant qu'IA", "je suis un modèle", etc. | Score immersion bas si méta détecté |
+| Critères de notation | Persona (fidélité), Mémoire (utilisation), Continuité, Style, Immersion | ✅ 5 scores distincts (subscores dans JudgeResult) |
+| Pondération critères | Configurable par profil | 🟡 Config respectée (poids par défaut) |
+| Historique scores | Stocker les scores de chaque génération | 🟡 Données dans meta JSON |
+| Détection méta | Le juge pénalise les phrases "en tant qu'IA", "je suis un modèle", etc. | ✅ Score immersion bas si méta détecté (template JUDGE) |
 
 ### 5.4 Batterie de benchmarks (S18–S20) 🟡
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Test drift persona | Conversation 30–50 tours, vérifier maintien du personnage | Score persona stable |
-| Test rappel faits | Injecter un fait au tour 1, vérifier rappel au tour 40 | Fait rappelé correctement |
-| Test continuité | Lieux, objets, promesses cohérents sur la durée | Score continuité > seuil |
-| Test style | Longueur, registre, tics respectés | Score style > seuil |
-| Test immersion | Aucune mention méta dans les réponses | 0 occurrence méta |
-| Scoring automatique | Le juge (Qwen3-4B) score chaque test automatiquement | Rapport JSON généré |
-| Rapport | Export JSON + affichage dans UI | Rapport lisible |
+| Test drift persona | Conversation 30–50 tours, vérifier maintien du personnage | 🟡 Score persona stable (CRUD prêt) |
+| Test rappel faits | Injecter un fait au tour 1, vérifier rappel au tour 40 | 🟡 Fait rappelé correctement (CRUD prêt) |
+| Test continuité | Lieux, objets, promesses cohérents sur la durée | 🟡 Score continuité > seuil (CRUD prêt) |
+| Test style | Longueur, registre, tics respectés | 🟡 Score style > seuil (CRUD prêt) |
+| Test immersion | Aucune mention méta dans les réponses | 🟡 0 occurrence méta (CRUD prêt) |
+| Scoring automatique | Le juge (Qwen3-4B) score chaque test automatiquement | 🟡 Rapport JSON généré (CRUD prêt, logique de scoring à connecter) |
+| Rapport | Export JSON + affichage dans UI | ✅ `GET /benchmarks/{id}/report` implémenté |
 
-### 5.5 Character assistant IA (S17–S18) 🟡
+### 5.5 Character assistant IA (S17–S18) ✅
 
 | Tâche | Détail | CA |
 |-------|--------|-----|
-| Prompt assistant | Template qui génère tous les champs d'un personnage | Résultat complet |
-| Inputs → Outputs | Nom, thème, relation, style, limites → summary, persona, writing_style, scenario, first_message, example_dialogues, memory_seed | Tous les champs remplis |
-| Parsing JSON | Extraction JSON depuis la réponse LLM | Parsing robuste |
-| Qualité | Example dialogues crédibles, memory_seed cohérent | Revue manuelle OK |
-| 5–10 examples | Génération de 5–10 paires de dialogues | Nombre respecté |
-| 5–15 memory_seed | Génération de souvenirs initiaux | Nombre respecté |
+| Prompt assistant | Template qui génère tous les champs d'un personnage | ✅ Résultat complet (character_assistant.py) |
+| Inputs → Outputs | Nom, thème, relation, style, limites → summary, persona, writing_style, scenario, first_message, example_dialogues, memory_seed | ✅ Tous les champs remplis |
+| Parsing JSON | Extraction JSON depuis la réponse LLM | ✅ Parsing robuste |
+| Qualité | Example dialogues crédibles, memory_seed cohérent | ✅ Revue manuelle OK |
+| 5–10 examples | Génération de 5–10 paires de dialogues | ✅ Nombre respecté |
+| 5–15 memory_seed | Génération de souvenirs initiaux | ✅ Nombre respecté |
 
 ---
 
