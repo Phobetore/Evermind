@@ -309,37 +309,65 @@ if [ "${BACKEND_ONLY}" = false ] && [ "${SKIP_LLM}" = false ]; then
             health_result=0
             wait_for_health "http://${BIND_HOST}:${SERVER_PORT}/health" "${SERVER_NAME}" 60 "${LLM_PID}" || health_result=$?
 
-            # GPU fallback: if startup failed and GPU layers were requested, retry CPU-only
+            # GPU fallback: if startup failed and GPU layers were requested, try
+            # partial offloading first, then fall back to CPU-only.
             if [ $health_result -ne 0 ] && [ "${N_GPU_LAYERS}" != "0" ]; then
-                log_warn "GPU mode failed for '${SERVER_NAME}' — retrying with --n-gpu-layers 0 (CPU-only)..."
-                kill "${LLM_PID}" 2>/dev/null || true
-                wait "${LLM_PID}" 2>/dev/null || true
-                # Preserve the GPU-mode log for diagnostics
-                mv "${LOG_DIR}/llm-${SERVER_NAME}.log" "${LOG_DIR}/llm-${SERVER_NAME}-gpu-failed.log" 2>/dev/null || true
-                # Wait for the port to be released before retrying
-                port_wait=0
-                while [ $port_wait -lt 10 ] && ! check_port_free "${SERVER_PORT}"; do
-                    sleep 1
-                    port_wait=$((port_wait + 1))
+                # Build a list of fallback values to try before giving up.
+                # When the user requested all layers (-1), try a partial offload
+                # (32 layers covers most mid-size models) then CPU-only.
+                FALLBACK_VALUES=()
+                if [ "${N_GPU_LAYERS}" = "-1" ]; then
+                    FALLBACK_VALUES=(32 0)
+                else
+                    FALLBACK_VALUES=(0)
+                fi
+
+                PREV_NGL="${N_GPU_LAYERS}"
+                for FALLBACK_NGL in "${FALLBACK_VALUES[@]}"; do
+                    if [ "${FALLBACK_NGL}" = "0" ]; then
+                        log_warn "GPU mode failed for '${SERVER_NAME}' — retrying with --n-gpu-layers 0 (CPU-only)..."
+                    else
+                        log_warn "Full GPU offload failed for '${SERVER_NAME}' — retrying with --n-gpu-layers ${FALLBACK_NGL} (partial)..."
+                    fi
+                    kill "${LLM_PID}" 2>/dev/null || true
+                    wait "${LLM_PID}" 2>/dev/null || true
+                    # Preserve the previous attempt's log for diagnostics
+                    mv "${LOG_DIR}/llm-${SERVER_NAME}.log" "${LOG_DIR}/llm-${SERVER_NAME}-gpu-failed-ngl${PREV_NGL}.log" 2>/dev/null || true
+                    # Wait for the port to be released before retrying
+                    port_wait=0
+                    while [ $port_wait -lt 10 ] && ! check_port_free "${SERVER_PORT}"; do
+                        sleep 1
+                        port_wait=$((port_wait + 1))
+                    done
+
+                    "${LLAMA_SERVER}" \
+                        --model "${FULL_MODEL_PATH}" \
+                        --host "${BIND_HOST}" \
+                        --port "${SERVER_PORT}" \
+                        --ctx-size "${CTX}" \
+                        --n-gpu-layers "${FALLBACK_NGL}" \
+                        --threads "${THREADS}" \
+                        > "${LOG_DIR}/llm-${SERVER_NAME}.log" 2>&1 &
+
+                    LLM_PID=$!
+                    PIDS[${#PIDS[@]}-1]="${LLM_PID}"
+
+                    health_result=0
+                    wait_for_health "http://${BIND_HOST}:${SERVER_PORT}/health" "${SERVER_NAME}" 60 "${LLM_PID}" || health_result=$?
+                    if [ $health_result -eq 0 ]; then
+                        if [ "${FALLBACK_NGL}" = "0" ]; then
+                            log_ok "LLM server '${SERVER_NAME}' is healthy in CPU-only mode (PID ${LLM_PID})"
+                            log_warn "GPU offloading failed — '${SERVER_NAME}' is running on CPU (this will be slower)."
+                        else
+                            log_ok "LLM server '${SERVER_NAME}' is healthy with --n-gpu-layers ${FALLBACK_NGL} (PID ${LLM_PID})"
+                            log_warn "Full GPU offload failed — '${SERVER_NAME}' is running with partial GPU offloading."
+                        fi
+                        break
+                    fi
+                    PREV_NGL="${FALLBACK_NGL}"
                 done
 
-                "${LLAMA_SERVER}" \
-                    --model "${FULL_MODEL_PATH}" \
-                    --host "${BIND_HOST}" \
-                    --port "${SERVER_PORT}" \
-                    --ctx-size "${CTX}" \
-                    --n-gpu-layers 0 \
-                    --threads "${THREADS}" \
-                    > "${LOG_DIR}/llm-${SERVER_NAME}.log" 2>&1 &
-
-                LLM_PID=$!
-                PIDS[${#PIDS[@]}-1]="${LLM_PID}"
-
-                health_result=0
-                wait_for_health "http://${BIND_HOST}:${SERVER_PORT}/health" "${SERVER_NAME}" 60 "${LLM_PID}" || health_result=$?
                 if [ $health_result -eq 0 ]; then
-                    log_ok "LLM server '${SERVER_NAME}' is healthy in CPU-only mode (PID ${LLM_PID})"
-                    log_warn "GPU offloading failed — '${SERVER_NAME}' is running on CPU (this will be slower)."
                     continue
                 fi
             fi
@@ -403,7 +431,21 @@ STEP=$((STEP + 1))
 if [ "${BACKEND_ONLY}" = false ]; then
     log_info "[${STEP}/${TOTAL_STEPS}] Starting frontend (port ${FRONTEND_PORT})..."
 
-    cd "${PROJECT_ROOT}/frontend"
+    FRONTEND_DIR="${PROJECT_ROOT}/frontend"
+
+    # next start requires a production build (.next directory)
+    if [ ! -d "${FRONTEND_DIR}/.next" ]; then
+        log_info "Frontend build not found — running 'npm run build'..."
+        cd "${FRONTEND_DIR}"
+        if npm run build > "${LOG_DIR}/frontend-build.log" 2>&1; then
+            log_ok "Frontend build completed"
+        else
+            log_error "Frontend build failed. Check logs: ${LOG_DIR}/frontend-build.log"
+            cleanup_on_error
+        fi
+    fi
+
+    cd "${FRONTEND_DIR}"
     npm run start -- --port "${FRONTEND_PORT}" \
         > "${LOG_DIR}/frontend.log" 2>&1 &
 
