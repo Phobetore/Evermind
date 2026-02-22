@@ -24,6 +24,7 @@ export default function ChatConversationPage() {
   const streamingContent = getStreamContent(conversationId);
 
   // Stable callback ref for message handling
+  // Ref-based callback avoids re-creating startStream closure when messages change
   const onMessageRef = useRef<(msg: Message) => void>(() => {});
   onMessageRef.current = (msg: Message) => {
     setMessages((prev) => [...prev, msg]);

@@ -112,7 +112,7 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
             }
           }
         } catch {
-          // Stream was likely aborted or failed
+          // Stream aborted (navigation away) or network error — state is cleaned up in finally
         } finally {
           setStreams((prev) => {
             const current = prev[conversationId];
@@ -150,6 +150,7 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Hook to access the global streaming state for managing chat streams across navigation. */
 export function useStreaming() {
   const ctx = useContext(StreamingContext);
   if (!ctx) throw new Error("useStreaming must be used within StreamingProvider");
