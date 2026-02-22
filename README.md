@@ -45,8 +45,10 @@ Open [http://localhost:3000](http://localhost:3000).
 | `scripts/start.sh` | Start all services (LLM servers, backend, frontend) |
 | `scripts/stop.sh` | Gracefully stop all services |
 | `scripts/health-check.sh` | Check health status of all services |
+| `scripts/setup.ps1` | Windows equivalent of `setup.sh` |
 | `scripts/start.ps1` | Windows equivalent of `start.sh` |
 | `scripts/stop.ps1` | Windows equivalent of `stop.sh` |
+| `scripts/health-check.ps1` | Windows equivalent of `health-check.sh` |
 
 ### Start script options
 

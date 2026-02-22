@@ -19,6 +19,17 @@
         dev-backend dev-frontend build-frontend \
         check validate-config
 
+# ── OS detection ──────────────────────────────────────────────────────────────
+ifeq ($(OS),Windows_NT)
+    SHELL_CMD = powershell -ExecutionPolicy Bypass -File
+    SCRIPT_EXT = .ps1
+    RM_RF = powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue"
+else
+    SHELL_CMD =
+    SCRIPT_EXT = .sh
+    RM_RF = rm -rf
+endif
+
 # Default target
 help:
 	@echo ""
@@ -56,11 +67,19 @@ help:
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
+ifeq ($(OS),Windows_NT)
+setup:
+	@$(SHELL_CMD) scripts/setup.ps1
+
+check:
+	@$(SHELL_CMD) scripts/setup.ps1 -CheckOnly
+else
 setup:
 	@./scripts/setup.sh
 
 check:
 	@./scripts/setup.sh --check
+endif
 
 # ── Development ───────────────────────────────────────────────────────────────
 
@@ -80,6 +99,16 @@ dev:
 
 # ── Production ────────────────────────────────────────────────────────────────
 
+ifeq ($(OS),Windows_NT)
+start:
+	@$(SHELL_CMD) scripts/start.ps1
+
+stop:
+	@$(SHELL_CMD) scripts/stop.ps1
+
+health:
+	@$(SHELL_CMD) scripts/health-check.ps1
+else
 start:
 	@./scripts/start.sh
 
@@ -88,6 +117,7 @@ stop:
 
 health:
 	@./scripts/health-check.sh
+endif
 
 # ── Quality ───────────────────────────────────────────────────────────────────
 
@@ -125,8 +155,8 @@ validate-config:
 
 clean:
 	@echo "Cleaning generated files..."
-	rm -rf logs/*.log
-	rm -rf backend/__pycache__ backend/app/__pycache__ backend/app/**/__pycache__
-	rm -rf frontend/.next
-	rm -f data/.pids
+	$(RM_RF) logs/*.log
+	$(RM_RF) backend/__pycache__ backend/app/__pycache__ backend/app/**/__pycache__
+	$(RM_RF) frontend/.next
+	$(RM_RF) data/.pids
 	@echo "Done."
