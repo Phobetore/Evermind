@@ -8,7 +8,7 @@ import {
   saveSelectedProfile,
 } from "@/lib/generation-params";
 import { api } from "@/lib/api";
-import type { Profile } from "@/types";
+import type { Profile, ServerModels } from "@/types";
 import PageContainer from "@/components/ui/PageContainer";
 import ProfileDetailsSection from "@/components/settings/ProfileDetailsSection";
 import GenerationParamsSection from "@/components/settings/GenerationParamsSection";
@@ -16,16 +16,20 @@ import { useCallback, useEffect, useState } from "react";
 
 export default function SettingsPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [serverModels, setServerModels] = useState<ServerModels>({});
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState("balanced");
   const [genParams, setGenParams] = useState<GenerationParams>(GENERATION_DEFAULTS);
   const [saving, setSaving] = useState(false);
 
   const loadProfiles = useCallback(() => {
-    api
-      .get<Profile[]>("/profiles")
-      .then((data) => {
+    Promise.all([
+      api.get<Profile[]>("/profiles"),
+      api.get<ServerModels>("/profiles/llm-servers"),
+    ])
+      .then(([data, models]) => {
         setProfiles(data);
+        setServerModels(models);
         if (data.length > 0 && !data.find((p) => p.id === selectedProfile)) {
           setSelectedProfile(data[0].id);
         }
@@ -127,6 +131,7 @@ export default function SettingsPage() {
       {active && (
         <ProfileDetailsSection
           profile={active}
+          serverModels={serverModels}
           saving={saving}
           onUpdateField={updateProfileField}
         />
