@@ -5,6 +5,8 @@ import type { Character, MemoryItem } from "@/types";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Pin, Trash2 } from "lucide-react";
+import PageContainer from "@/components/ui/PageContainer";
+import Card from "@/components/ui/Card";
 
 type MemoryType = "all" | "semantic" | "episodic" | "world";
 
@@ -86,17 +88,17 @@ export default function MemoryInspectorPage() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <PageContainer wide>
         <h1 className="text-2xl font-bold mb-6">Memory Inspector</h1>
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="animate-pulse h-20 rounded-xl bg-[#1e1a2e]"
+              className="animate-pulse h-20 rounded-xl bg-surface-light"
             />
           ))}
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -107,7 +109,7 @@ export default function MemoryInspectorPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <PageContainer wide>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">
@@ -135,7 +137,7 @@ export default function MemoryInspectorPage() {
               className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 typeFilter === t
                   ? "bg-violet-500/20 text-violet-400 border border-violet-500/50"
-                  : "bg-[#1e1a2e] text-zinc-400 border border-[#2a2440] hover:border-violet-500/30"
+                  : "bg-surface-light text-zinc-400 border border-border hover:border-violet-500/30"
               }`}
             >
               {t === "all" ? "All types" : t.charAt(0).toUpperCase() + t.slice(1)}
@@ -147,7 +149,7 @@ export default function MemoryInspectorPage() {
             type="checkbox"
             checked={showDeleted}
             onChange={(e) => setShowDeleted(e.target.checked)}
-            className="rounded bg-[#1e1a2e] border-[#2a2440]"
+            className="rounded bg-surface-light border-border"
           />
           Show deleted
         </label>
@@ -170,7 +172,7 @@ export default function MemoryInspectorPage() {
                   ? "border-violet-500 bg-violet-500/10"
                   : mem.is_deleted
                     ? "border-red-900/50 bg-red-950/20 opacity-60"
-                    : "border-[#2a2440] bg-[#14111f] hover:border-violet-500/30"
+                    : "border-border bg-surface hover:border-violet-500/30"
               }`}
             >
               <div className="flex items-center justify-between mb-1">
@@ -205,7 +207,7 @@ export default function MemoryInspectorPage() {
                   {mem.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="text-xs px-1.5 py-0.5 rounded bg-[#1e1a2e] text-zinc-500"
+                      className="text-xs px-1.5 py-0.5 rounded bg-surface-light text-zinc-500"
                     >
                       {tag}
                     </span>
@@ -219,7 +221,7 @@ export default function MemoryInspectorPage() {
         {/* Detail panel */}
         <div className="space-y-4">
           {selectedMemory ? (
-            <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5">
+            <Card>
               <h3 className="font-semibold mb-3">{selectedMemory.title}</h3>
               <dl className="space-y-3 text-sm">
                 <div>
@@ -272,7 +274,7 @@ export default function MemoryInspectorPage() {
                           ? handleUnpin(selectedMemory.id)
                           : handlePin(selectedMemory.id)
                       }
-                      className="px-3 py-1.5 text-xs rounded-lg bg-[#1e1a2e] hover:bg-[#2a2440] transition-colors"
+                      className="px-3 py-1.5 text-xs rounded-lg bg-surface-light hover:bg-border transition-colors"
                     >
                       <Pin size={14} className="inline" /> {selectedMemory.is_pinned ? "Unpin" : "Pin"}
                     </button>
@@ -285,24 +287,24 @@ export default function MemoryInspectorPage() {
                   </>
                 )}
               </div>
-            </div>
+            </Card>
           ) : (
-            <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5 text-center text-sm text-zinc-500">
+            <Card className="text-center text-sm text-zinc-500">
               Select a memory to view details
-            </div>
+            </Card>
           )}
 
           {/* World State */}
           {worldState && (
-            <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5">
+            <Card>
               <h3 className="font-semibold mb-3 text-sm">World State</h3>
               <pre className="text-xs text-zinc-400 whitespace-pre-wrap overflow-auto max-h-64">
                 {JSON.stringify(worldState, null, 2)}
               </pre>
-            </div>
+            </Card>
           )}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

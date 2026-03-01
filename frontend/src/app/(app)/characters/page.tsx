@@ -2,6 +2,7 @@
 
 import CharacterCard from "@/components/characters/CharacterCard";
 import { CharacterCardSkeleton } from "@/components/ui/Skeleton";
+import PageContainer from "@/components/ui/PageContainer";
 import { api } from "@/lib/api";
 import type { Character } from "@/types";
 import Link from "next/link";
@@ -76,13 +77,13 @@ export default function CharactersPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <PageContainer>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Characters</h1>
         <div className="flex items-center gap-3">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 rounded-lg border border-[#2a2440] px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-[#1e1a2e]"
+            className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-surface-light"
           >
             <Upload size={14} /> Import
           </button>
@@ -135,6 +136,6 @@ export default function CharactersPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

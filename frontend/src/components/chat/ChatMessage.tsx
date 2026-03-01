@@ -4,6 +4,7 @@ import type { Message } from "@/types";
 import { useState } from "react";
 import { Check, Copy, Pencil, RotateCcw, X } from "lucide-react";
 import { parseRPContent, type RPSegment } from "@/lib/rp-parser";
+import CharacterAvatar from "@/components/ui/CharacterAvatar";
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -109,13 +110,11 @@ export default function ChatMessage({
   return (
     <div className={`group flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
       {/* Avatar */}
-      <div
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium ${
-          isUser ? "bg-violet-600" : "bg-gradient-to-br from-violet-600 to-purple-800"
-        }`}
-      >
-        {isUser ? "U" : characterName.charAt(0).toUpperCase()}
-      </div>
+      <CharacterAvatar
+        name={isUser ? "U" : characterName}
+        size="sm"
+        flat={isUser}
+      />
 
       {/* Bubble */}
       <div className="flex flex-col max-w-[75%]">
@@ -123,7 +122,7 @@ export default function ChatMessage({
           className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
             isUser
               ? "bg-violet-600 text-white"
-              : "bg-[#1e1a2e] text-zinc-100"
+              : "bg-surface-light text-zinc-100"
           }`}
         >
           {isUser ? (

@@ -1,7 +1,9 @@
 "use client";
 
 import ChatInput from "@/components/chat/ChatInput";
+import ChatHeader from "@/components/chat/ChatHeader";
 import ChatMessage from "@/components/chat/ChatMessage";
+import StreamingBubble from "@/components/chat/StreamingBubble";
 import { ChatMessageSkeleton } from "@/components/ui/Skeleton";
 import { api } from "@/lib/api";
 import { getSelectedProfile } from "@/lib/generation-params";
@@ -148,11 +150,11 @@ export default function ChatConversationPage() {
   if (loading) {
     return (
       <div className="flex flex-col h-full">
-        <div className="shrink-0 border-b border-[#2a2440] px-6 py-3 flex items-center gap-3">
-          <div className="animate-pulse h-8 w-8 rounded-full bg-[#1e1a2e]" />
+        <div className="shrink-0 border-b border-border px-6 py-3 flex items-center gap-3">
+          <div className="animate-pulse h-8 w-8 rounded-full bg-surface-light" />
           <div className="space-y-1">
-            <div className="animate-pulse h-4 w-24 rounded bg-[#1e1a2e]" />
-            <div className="animate-pulse h-3 w-16 rounded bg-[#1e1a2e]" />
+            <div className="animate-pulse h-4 w-24 rounded bg-surface-light" />
+            <div className="animate-pulse h-3 w-16 rounded bg-surface-light" />
           </div>
         </div>
         <div className="flex-1 overflow-auto p-6 space-y-4">
@@ -174,6 +176,7 @@ export default function ChatConversationPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
+      <ChatHeader character={character} conversation={conversation} />
       <div className="shrink-0 border-b border-[#2a2440] px-6 py-3 flex items-center gap-3">
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-sm font-medium">
           {character.name.charAt(0).toUpperCase()}
@@ -211,43 +214,17 @@ export default function ChatConversationPage() {
         ))}
 
         {/* Streaming indicator */}
-        {streaming && streamingContent && (
-          <div className="flex gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-sm font-medium">
-              {character.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="max-w-[75%] rounded-2xl bg-[#1e1a2e] px-4 py-2.5 text-sm leading-relaxed text-zinc-100">
-              {streamingContent}
-              <span className="inline-block w-2 h-4 ml-0.5 bg-violet-400 animate-pulse" />
-            </div>
-          </div>
-        )}
-
-        {streaming && !streamingContent && (
-          <div className="flex gap-3 items-center">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-sm font-medium">
-              {character.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {[0, 150, 300].map((delay) => (
-                  <span
-                    key={delay}
-                    className="w-2 h-2 rounded-full bg-violet-400 animate-bounce"
-                    style={{ animationDelay: `${delay}ms` }}
-                  />
-                ))}
-              </div>
-              {statusDetail && (
-                <span className="text-xs text-zinc-500">{statusDetail}</span>
-              )}
-            </div>
-          </div>
+        {streaming && (
+          <StreamingBubble
+            characterName={character.name}
+            content={streamingContent}
+            statusDetail={statusDetail}
+          />
         )}
       </div>
 
       {/* Input */}
-      <div className="shrink-0 border-t border-[#2a2440] p-4">
+      <div className="shrink-0 border-t border-border p-4">
         <ChatInput onSend={handleSend} disabled={streaming} />
       </div>
     </div>

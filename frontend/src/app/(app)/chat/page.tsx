@@ -5,6 +5,8 @@ import type { Character, Conversation } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import CharacterAvatar from "@/components/ui/CharacterAvatar";
+import PageContainer from "@/components/ui/PageContainer";
 
 export default function ChatIndexPage() {
   const router = useRouter();
@@ -34,7 +36,7 @@ export default function ChatIndexPage() {
   if (loading) return <div className="p-6 text-zinc-500">Loading…</div>;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <PageContainer>
       <h1 className="text-2xl font-bold mb-6">Chat</h1>
 
       {characters.length === 0 ? (
@@ -57,12 +59,10 @@ export default function ChatIndexPage() {
               <button
                 key={char.id}
                 onClick={() => startChat(char.id)}
-                className="text-left rounded-xl border border-[#2a2440] bg-[#14111f] p-4 transition-colors hover:border-violet-500/30 hover:bg-[#1e1a2e]"
+                className="text-left rounded-xl border border-border bg-surface p-4 transition-colors hover:border-violet-500/30 hover:bg-surface-light"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-lg font-medium">
-                    {char.name.charAt(0).toUpperCase()}
-                  </div>
+                  <CharacterAvatar name={char.name} />
                   <div>
                     <div className="font-medium">{char.name}</div>
                     {char.summary && (
@@ -77,6 +77,6 @@ export default function ChatIndexPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
