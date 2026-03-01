@@ -195,7 +195,7 @@ async def test_character_assistant_http_status_error_returns_503(client: AsyncCl
 
 @pytest.mark.asyncio
 async def test_character_assistant_timeout_returns_504(client: AsyncClient) -> None:
-    """POST /tools/character_assistant should return 504 when LLM generation takes too long."""
+    """POST /tools/character_assistant should return 504 when LLM generation stalls."""
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
 
@@ -207,7 +207,7 @@ async def test_character_assistant_timeout_returns_504(client: AsyncClient) -> N
 
     with (
         patch("app.routers.tools._resolve_llm_client", return_value=mock_llm),
-        patch("app.routers.tools._ASSISTANT_TIMEOUT_SECONDS", 0.05),
+        patch("app.tools.character_assistant._INACTIVITY_TIMEOUT", 0.05),
     ):
         resp = await client.post(
             "/tools/character_assistant",
@@ -236,3 +236,42 @@ async def test_character_assistant_unexpected_error_returns_500(client: AsyncCli
         )
     assert resp.status_code == 500
     assert "unexpectedly" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_generate_character_inactivity_timeout() -> None:
+    """generate_character should raise TimeoutError when the stream stalls."""
+
+    async def _stalling_stream(*_a: object, **_kw: object):  # type: ignore[misc]
+        yield {"choices": [{"delta": {"content": "{"}}]}
+        # Stall indefinitely after first token
+        await asyncio.sleep(999)
+        yield {}  # pragma: no cover
+
+    mock_llm = AsyncMock()
+    mock_llm.chat_completion_stream = _stalling_stream
+
+    with pytest.raises(TimeoutError):
+        await generate_character(mock_llm, name="Luna", inactivity_timeout=0.05)
+
+
+@pytest.mark.asyncio
+async def test_generate_character_slow_but_active_succeeds() -> None:
+    """Slow-but-active generation should succeed — no wall-clock cap."""
+    json_str = '{"name":"Luna","tags":["elf"],"summary":"An elf.","persona":"Kind."}'
+
+    async def _slow_but_active_stream(*_a: object, **_kw: object):  # type: ignore[misc]
+        for ch in json_str:
+            await asyncio.sleep(0.01)  # slow but steady token production
+            yield {"choices": [{"delta": {"content": ch}}]}
+
+    mock_llm = AsyncMock()
+    mock_llm.chat_completion_stream = _slow_but_active_stream
+
+    # Total time: ~len(json_str)*0.01s ≈ 0.7s, well above the
+    # inactivity_timeout if it were used as a wall-clock cap.
+    result = await generate_character(
+        mock_llm, name="Luna", inactivity_timeout=0.2,
+    )
+    assert result["name"] == "Luna"
+    assert "elf" in result["tags"]

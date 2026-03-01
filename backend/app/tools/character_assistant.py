@@ -7,6 +7,7 @@ response into a ``CharacterCreate``-compatible dict.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import TYPE_CHECKING, Any
@@ -15,6 +16,12 @@ if TYPE_CHECKING:
     from app.core.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
+
+# Maximum seconds of *inactivity* (no new token) before we consider the
+# generation stalled.  This is deliberately independent of total wall-clock
+# time: as long as the LLM keeps producing tokens the generation is allowed
+# to continue.
+_INACTIVITY_TIMEOUT: float = 90.0
 
 CHARACTER_ASSISTANT_PROMPT = """CHARACTER CREATION ASSISTANT
 
@@ -52,8 +59,8 @@ fences, no extra text).  The JSON must contain exactly these keys:
 }}
 
 GUIDELINES:
-- Produce 5–10 example dialogues showing the character's voice.
-- Produce 5–15 memory_seed items (mix of semantic and episodic).
+- Produce 3–5 example dialogues showing the character's voice.
+- Produce 3–8 memory_seed items (mix of semantic and episodic).
 - Keep the persona immersive — no meta or AI references.
 - The writing_style should be distinctive and consistent.
 - Boundaries should respect the limits provided by the user.
@@ -137,15 +144,20 @@ async def generate_character(
     style: str = "",
     limits: str = "",
     notes: str = "",
+    *,
+    inactivity_timeout: float | None = None,
 ) -> dict[str, Any]:
     """Call the LLM to generate a complete character profile.
 
-    Uses **streaming** so that the per-read timeout acts as an inactivity
-    deadline rather than a wall-clock cap on total generation time.  This
-    avoids spurious 504s when the model is slow but still producing tokens.
+    Uses **streaming** so that only *inactivity* (no new data for
+    *inactivity_timeout* seconds) causes a timeout.  Total wall-clock
+    time is unlimited as long as the LLM keeps producing tokens, which
+    avoids spurious 504s on slow-but-active servers.
 
     Returns a dict compatible with ``CharacterCreate``.
     """
+    if inactivity_timeout is None:
+        inactivity_timeout = _INACTIVITY_TIMEOUT
     messages = build_assistant_prompt(
         name=name,
         theme=theme,
@@ -156,16 +168,35 @@ async def generate_character(
     )
 
     tokens: list[str] = []
-    async for chunk in llm.chat_completion_stream(
+    stream = llm.chat_completion_stream(
         messages, temperature=0.8, max_tokens=2048
-    ):
-        choices = chunk.get("choices", [])
-        if not choices:
-            continue
-        delta = choices[0].get("delta", {})
-        token = delta.get("content", "")
-        if token:
-            tokens.append(token)
+    )
+    ait = stream.__aiter__()
+    try:
+        deadline = asyncio.get_event_loop().time() + inactivity_timeout
+        async with asyncio.timeout_at(deadline) as cm:
+            while True:
+                try:
+                    chunk = await ait.__anext__()
+                except StopAsyncIteration:
+                    break
+                choices = chunk.get("choices", [])
+                if not choices:
+                    continue
+                delta = choices[0].get("delta", {})
+                token = delta.get("content", "")
+                if token:
+                    tokens.append(token)
+                    # Reset the inactivity deadline on every received token
+                    cm.reschedule(asyncio.get_event_loop().time() + inactivity_timeout)
+    except TimeoutError:
+        logger.warning(
+            "Character generation stalled — no data received for %ss",
+            inactivity_timeout,
+        )
+        raise
+    finally:
+        await ait.aclose()
 
     raw = "".join(tokens)
 
