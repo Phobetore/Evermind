@@ -143,6 +143,11 @@ class ChatService:
                 "Profile '%s' not found in config — falling back to defaults",
                 profile_id,
             )
+
+        # Merge profile generation defaults (user-supplied params take precedence).
+        if profile is not None:
+            gen_params = {**profile.generation_defaults, **gen_params}
+
         chat_server_key = profile.chat_server if profile else "chat"
         server_cfg = cfg.llm_servers.get(chat_server_key)
         if server_cfg is None:
@@ -232,6 +237,10 @@ class ChatService:
 
             # Run the pipeline in a task and send periodic heartbeat events
             # to keep the SSE connection alive through any proxies.
+            # Build extra generation params (penalties, etc.) for the pipeline.
+            _pipeline_skip = {"temperature", "max_tokens", "seed", "best_of_n", "self_refine"}
+            extra_gen_params = {k: v for k, v in gen_params.items() if k not in _pipeline_skip}
+
             pipeline_task: asyncio.Task[tuple[str, Any]] = asyncio.create_task(
                 run_pipeline(
                     chat_llm=llm,
@@ -249,6 +258,7 @@ class ChatService:
                     base_temperature=gen_params.get("temperature", 0.7),
                     max_tokens=gen_params.get("max_tokens", 1024),
                     base_seed=gen_params.get("seed"),
+                    extra_params=extra_gen_params,
                 )
             )
 

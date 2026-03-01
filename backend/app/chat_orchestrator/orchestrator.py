@@ -33,6 +33,7 @@ async def generate_single(
     temperature: float = 0.7,
     max_tokens: int = 1024,
     seed: int | None = None,
+    extra_params: dict[str, Any] | None = None,
 ) -> str:
     """Generate a single non-streaming response from the LLM.
 
@@ -44,6 +45,8 @@ async def generate_single(
     }
     if seed is not None:
         params["seed"] = seed
+    if extra_params:
+        params.update(extra_params)
 
     try:
         response = await llm.chat_completion(messages, **params)
@@ -65,6 +68,7 @@ async def generate_best_of_n(
     base_temperature: float = 0.7,
     max_tokens: int = 1024,
     base_seed: int | None = None,
+    extra_params: dict[str, Any] | None = None,
 ) -> list[str]:
     """Generate *n* candidate responses with slight parameter variation.
 
@@ -85,6 +89,7 @@ async def generate_best_of_n(
             temperature=base_temperature,
             max_tokens=max_tokens,
             seed=candidate_seed,
+            extra_params=extra_params,
         )
         if text:
             candidates.append(text)
@@ -104,6 +109,7 @@ async def self_refine(
     best_candidate_text: str,
     rewrite_suggestion: str,
     max_tokens: int = 1024,
+    extra_params: dict[str, Any] | None = None,
 ) -> str:
     """Run a self-refine pass on the best candidate using the judge's suggestion.
 
@@ -124,9 +130,11 @@ async def self_refine(
     )
 
     try:
-        response = await llm.chat_completion(
-            messages, temperature=0.5, max_tokens=max_tokens
-        )
+        refine_params: dict[str, Any] = {"max_tokens": max_tokens}
+        if extra_params:
+            refine_params.update(extra_params)
+        refine_params["temperature"] = 0.5  # always use low temperature for refine
+        response = await llm.chat_completion(messages, **refine_params)
         refined = (
             response.get("choices", [{}])[0]
             .get("message", {})
@@ -155,6 +163,7 @@ async def run_pipeline(
     base_temperature: float = 0.7,
     max_tokens: int = 1024,
     base_seed: int | None = None,
+    extra_params: dict[str, Any] | None = None,
 ) -> tuple[str, JudgeResult | None]:
     """Run the full generation pipeline: generate → judge → refine.
 
@@ -172,6 +181,7 @@ async def run_pipeline(
             temperature=base_temperature,
             max_tokens=max_tokens,
             seed=base_seed,
+            extra_params=extra_params,
         )
         if not text:
             return ("", None)
@@ -190,6 +200,7 @@ async def run_pipeline(
             base_temperature=base_temperature,
             max_tokens=max_tokens,
             base_seed=base_seed,
+            extra_params=extra_params,
         )
         if not candidates:
             return ("", None)
@@ -233,6 +244,7 @@ async def run_pipeline(
             best_candidate_text=best_text,
             rewrite_suggestion=judge_result.rewrite_suggestion,
             max_tokens=max_tokens,
+            extra_params=extra_params,
         )
 
     return (best_text, judge_result)

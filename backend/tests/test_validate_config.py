@@ -170,3 +170,27 @@ def test_check_dirs_missing_model(tmp_path):
         issues = _validate_config(cfg, check_dirs=True)
         # Model files don't exist → should flag each server
         assert len([i for i in issues if "model file not found" in i]) == len(cfg.llm_servers)
+
+
+def test_profile_generation_defaults():
+    """ProfileConfig must provide default repetition penalty parameters."""
+    from app.config import ProfileConfig
+
+    profile = ProfileConfig()
+    assert "frequency_penalty" in profile.generation_defaults
+    assert "presence_penalty" in profile.generation_defaults
+    assert "repeat_penalty" in profile.generation_defaults
+    assert profile.generation_defaults["frequency_penalty"] > 0
+    assert profile.generation_defaults["presence_penalty"] > 0
+    assert profile.generation_defaults["repeat_penalty"] > 1.0
+
+
+def test_profile_generation_defaults_overridable():
+    """User-supplied generation_defaults in config.yaml replaces the default_factory entirely
+    (Pydantic field replacement, not merge)."""
+    from app.config import ProfileConfig
+
+    profile = ProfileConfig(generation_defaults={"frequency_penalty": 1.2})
+    assert profile.generation_defaults["frequency_penalty"] == 1.2
+    # Pydantic replaces the entire dict, so other defaults are not present
+    assert "presence_penalty" not in profile.generation_defaults
