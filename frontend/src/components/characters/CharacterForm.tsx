@@ -338,7 +338,7 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
         {exampleDialogues.map((dialogue, idx) => (
           <div
             key={idx}
-            className="rounded-lg border border-[#2a2440] bg-[#14111f]/50 p-3 space-y-2"
+            className="rounded-lg border border-border bg-surface/50 p-3 space-y-2"
           >
             <div className="flex items-center justify-between">
               <span className="text-xs text-zinc-500">
@@ -414,7 +414,7 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
         <button
           type="button"
           onClick={() => router.push("/characters")}
-          className="rounded-lg border border-[#2a2440] px-5 py-2.5 text-sm text-zinc-300 hover:bg-[#1e1a2e] transition-colors"
+          className="rounded-lg border border-border px-5 py-2.5 text-sm text-zinc-300 hover:bg-surface-light transition-colors"
         >
           Cancel
         </button>

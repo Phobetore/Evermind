@@ -17,12 +17,12 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`flex flex-col border-r border-[#2a2440] bg-[#0f0d18] transition-all duration-200 ${
+      className={`flex flex-col border-r border-border bg-sidebar transition-all duration-200 ${
         collapsed ? "w-16" : "w-64"
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-[#2a2440]">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         {!collapsed && (
           <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
             <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-xs shadow-md shadow-violet-900/20">
@@ -35,7 +35,7 @@ export default function Sidebar() {
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-md hover:bg-[#1e1a2e] text-zinc-400 hover:text-zinc-200 transition-colors"
+          className="p-1.5 rounded-md hover:bg-surface-light text-zinc-400 hover:text-zinc-200 transition-colors"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -53,7 +53,7 @@ export default function Sidebar() {
               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                 isActive
                   ? "bg-violet-600/15 text-violet-300 border border-violet-500/20"
-                  : "text-zinc-400 hover:bg-[#1e1a2e] hover:text-zinc-200"
+                  : "text-zinc-400 hover:bg-surface-light hover:text-zinc-200"
               }`}
             >
               <item.icon size={18} />

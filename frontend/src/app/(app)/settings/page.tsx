@@ -10,6 +10,8 @@ import {
 } from "@/lib/generation-params";
 import { api } from "@/lib/api";
 import type { Profile } from "@/types";
+import PageContainer from "@/components/ui/PageContainer";
+import Card from "@/components/ui/Card";
 import { useCallback, useEffect, useState } from "react";
 
 export default function SettingsPage() {
@@ -64,24 +66,24 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <PageContainer>
         <h1 className="text-2xl font-bold mb-6">Settings</h1>
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="animate-pulse h-24 rounded-xl bg-[#1e1a2e]"
+              className="animate-pulse h-24 rounded-xl bg-surface-light"
             />
           ))}
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   const active = profiles.find((p) => p.id === selectedProfile);
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <PageContainer>
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
       {/* Generation Profiles */}
@@ -104,7 +106,7 @@ export default function SettingsPage() {
               className={`text-left rounded-xl border p-4 transition-colors ${
                 profile.id === selectedProfile
                   ? "border-violet-500 bg-violet-500/10"
-                  : "border-[#2a2440] bg-[#14111f] hover:border-violet-500/30"
+                  : "border-border bg-surface hover:border-violet-500/30"
               }`}
             >
               <div className="flex items-center justify-between mb-2">
@@ -136,8 +138,7 @@ export default function SettingsPage() {
               <span className="ml-2 text-xs text-zinc-500 font-normal">Saving…</span>
             )}
           </h2>
-          <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5 space-y-6">
-            <dl className="grid gap-4 sm:grid-cols-2">
+          <Card className="space-y-6">            <dl className="grid gap-4 sm:grid-cols-2">
               <div>
                 <dt className="text-xs text-zinc-500 mb-1">Chat Server</dt>
                 <dd className="text-sm">{active.chat_server}</dd>
@@ -203,7 +204,7 @@ export default function SettingsPage() {
                   updateProfileField("self_refine", !active.self_refine)
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  active.self_refine ? "bg-violet-500" : "bg-[#2a2440]"
+                  active.self_refine ? "bg-violet-500" : "bg-border"
                 }`}
                 role="switch"
                 aria-checked={active.self_refine}
@@ -215,7 +216,7 @@ export default function SettingsPage() {
                 />
               </button>
             </div>
-          </div>
+           </Card>
         </section>
       )}
 
@@ -228,7 +229,7 @@ export default function SettingsPage() {
           Fine-tune how the LLM generates responses. Changes are saved automatically.
         </p>
 
-        <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5 space-y-6">
+        <Card className="space-y-6">
           {/* Temperature */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -314,8 +315,8 @@ export default function SettingsPage() {
           >
             Reset to defaults
           </button>
-        </div>
+        </Card>
       </section>
-    </div>
+    </PageContainer>
   );
 }

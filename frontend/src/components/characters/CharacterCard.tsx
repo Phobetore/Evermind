@@ -1,6 +1,7 @@
 import type { Character } from "@/types";
 import Link from "next/link";
 import { Brain, Download, X } from "lucide-react";
+import CharacterAvatar from "@/components/ui/CharacterAvatar";
 
 interface Props {
   character: Character;
@@ -10,13 +11,10 @@ interface Props {
 
 export default function CharacterCard({ character, onDelete, onExport }: Props) {
   return (
-    <div className="rounded-xl border border-[#2a2440] bg-[#14111f] p-5 transition-colors hover:border-violet-500/30">
+    <div className="rounded-xl border border-border bg-surface p-5 transition-colors hover:border-violet-500/30">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          {/* Avatar placeholder */}
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-lg font-medium">
-            {character.name.charAt(0).toUpperCase()}
-          </div>
+          <CharacterAvatar name={character.name} />
           <div>
             <Link
               href={`/characters/${character.id}/edit`}
@@ -29,7 +27,7 @@ export default function CharacterCard({ character, onDelete, onExport }: Props) 
                 {character.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-block rounded-full bg-[#1e1a2e] px-2 py-0.5 text-xs text-zinc-400"
+                    className="inline-block rounded-full bg-surface-light px-2 py-0.5 text-xs text-zinc-400"
                   >
                     {tag}
                   </span>

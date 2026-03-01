@@ -8,13 +8,20 @@
   --surface: #14111f;
   --surface-light: #1e1a2e;
   --border: #2a2440;
+  --sidebar: #0f0d18;
+  --muted: #52525b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-surface: var(--surface);
+  --color-surface-light: var(--surface-light);
+  --color-border: var(--border);
+  --color-sidebar: var(--sidebar);
+  --color-muted: var(--muted);
 }
 
 body {
