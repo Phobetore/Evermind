@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../"),
   // Allow long-running API requests (LLM generation pipelines can take 2+ minutes)
   experimental: {
-    proxyTimeout: 300_000, // 5 minutes in ms
+    proxyTimeout: 660_000, // 11 minutes in ms — must exceed backend safety-net (600 s)
   },
   async rewrites() {
     return [

@@ -85,7 +85,7 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
     setGenerating(true);
     setError(null);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 180_000);
+    const timeoutId = setTimeout(() => controller.abort(), 660_000);
     try {
       const req: AssistantRequest = {
         name,
