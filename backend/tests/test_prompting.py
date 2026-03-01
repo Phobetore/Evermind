@@ -203,3 +203,24 @@ def test_build_chat_messages_controller_emotional_weight() -> None:
     system_content = msgs[0]["content"]
     assert "emotional weight" in system_content.lower()
     assert "aggressive" in system_content.lower()
+
+
+def test_build_chat_messages_includes_narrative_style() -> None:
+    """System prompt must include narrative style instructions for immersive responses."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "NARRATIVE STYLE" in system_content
+    assert "sensory details" in system_content.lower()
+    assert "body language" in system_content.lower()
+    assert "multi-paragraph" in system_content.lower()
+    assert "immersive" in system_content.lower()
+
+
+def test_build_chat_messages_controller_immersive_storytelling() -> None:
+    """Controller should instruct prioritizing immersive storytelling."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "immersive storytelling" in system_content.lower()
+    assert "vivid narration" in system_content.lower()
