@@ -36,7 +36,12 @@ class ProfileConfig(BaseModel):
     generation_defaults: dict[str, Any] = Field(default_factory=lambda: {
         "frequency_penalty": 1.5,
         "presence_penalty": 0.6,
+        # llama.cpp-specific: multiplicative penalty on tokens seen in the last
+        # repeat_last_n tokens.  Ignored by OpenAI-compatible backends that don't
+        # recognise the parameter.  1.0 = disabled; 1.1–1.3 is a useful range.
         "repeat_penalty": 1.3,
+        # llama.cpp-specific: minimum token probability threshold.  Tokens below
+        # this probability are discarded, which helps prevent degenerate loops.
         "min_p": 0.05,
     })
 
