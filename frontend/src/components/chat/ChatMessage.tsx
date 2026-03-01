@@ -23,21 +23,21 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 /** Render a single line of RP-formatted content with visual styling. */
-function RPContent({ text }: { text: string }) {
+function RPContent({ text, isUser = false }: { text: string; isUser?: boolean }) {
   const segments = parseRPContent(text);
   return (
     <>
       {segments.map((seg: RPSegment, i: number) => {
         if (seg.type === "action") {
           return (
-            <span key={i} className="italic text-violet-300">
+            <span key={i} className={isUser ? "italic text-white/80" : "italic text-violet-300"}>
               {seg.text}
             </span>
           );
         }
         if (seg.type === "context") {
           return (
-            <span key={i} className="text-zinc-400 text-xs bg-white/5 rounded px-1 py-0.5">
+            <span key={i} className={isUser ? "text-white/70 text-xs bg-white/10 rounded px-1 py-0.5" : "text-zinc-400 text-xs bg-white/5 rounded px-1 py-0.5"}>
               {seg.text}
             </span>
           );
@@ -155,7 +155,7 @@ export default function ChatMessage({
             ) : (
               message.content.split("\n").map((line, i) => (
                 <p key={i} className={i > 0 ? "mt-2" : ""}>
-                  {line ? <RPContent text={line} /> : "\u00A0"}
+                  {line ? <RPContent text={line} isUser /> : "\u00A0"}
                 </p>
               ))
             )

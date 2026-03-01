@@ -21,7 +21,15 @@ export function getGenerationParams(): GenerationParams {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULTS };
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    // Only pick known generation-param keys so that stale or unexpected
+    // fields (e.g. best_of_n, self_refine) never leak into the request
+    // and accidentally override profile settings.
+    return {
+      temperature: typeof parsed.temperature === "number" ? parsed.temperature : DEFAULTS.temperature,
+      top_p: typeof parsed.top_p === "number" ? parsed.top_p : DEFAULTS.top_p,
+      max_tokens: typeof parsed.max_tokens === "number" ? parsed.max_tokens : DEFAULTS.max_tokens,
+    };
   } catch {
     return { ...DEFAULTS };
   }

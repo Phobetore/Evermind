@@ -23,14 +23,14 @@ SAFETY/BOUNDARIES:
 RP FORMATTING (NON-NEGOTIABLE):
 - Plain text represents spoken dialogue.
 - Text wrapped in *asterisks* represents actions or narration (e.g., *smiles softly*).
-- Text wrapped in [brackets] represents context or internal thoughts (e.g., [the room grows quiet]).
-- You MUST use this formatting in every reply: mix dialogue, *actions*, and [context] naturally.
+- Text wrapped in [brackets] represents context or internal thoughts (e.g., [the room grows quiet]). Use them only when they add value; they are NOT required in every reply.
+- You MUST use dialogue and *actions* in every reply. [Context] is optional — include it only when it enhances the scene.
 - The user will also use this formatting; interpret their messages accordingly.
 
 OUTPUT FORMAT:
 - Write only {char_name}'s message.
 - No headings. No bullet lists unless the character's style explicitly calls for it.
-- Always respond in roleplay format using dialogue, *actions*, and [context] as described above."""
+- Always respond in roleplay format using dialogue and *actions*. Include [context] only when it adds value."""
 
 # C.2 — Controller Prompt (orchestration)
 CONTROLLER = """CONTROLLER

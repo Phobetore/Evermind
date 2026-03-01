@@ -123,6 +123,11 @@ class ChatService:
         # 6. Resolve LLM server (multi-server routing by role)
         cfg = get_config()
         profile = cfg.profiles.get(profile_id)
+        if profile is None:
+            logger.warning(
+                "Profile '%s' not found in config — falling back to defaults",
+                profile_id,
+            )
         chat_server_key = profile.chat_server if profile else "chat"
         server_cfg = cfg.llm_servers.get(chat_server_key)
         if server_cfg is None:
@@ -138,8 +143,8 @@ class ChatService:
         best_of_n = profile.best_of_n if profile else 1
         do_self_refine = profile.self_refine if profile else False
         # Allow generation_params to override profile settings
-        best_of_n = gen_params.get("best_of_n", best_of_n)
-        do_self_refine = gen_params.get("self_refine", do_self_refine)
+        best_of_n = gen_params.pop("best_of_n", best_of_n)
+        do_self_refine = gen_params.pop("self_refine", do_self_refine)
         use_pipeline = best_of_n > 1 or do_self_refine
 
         # Resolve judge LLM for the pipeline (if needed)
@@ -160,6 +165,15 @@ class ChatService:
         first_token_sent = False
         errors: list[str] = []
         judge_enabled = False
+
+        logger.info(
+            "Chat request %s: profile=%s best_of_n=%d self_refine=%s pipeline=%s",
+            request_id,
+            profile_id,
+            best_of_n,
+            do_self_refine,
+            use_pipeline,
+        )
 
         # Pre-flight: verify LLM server is reachable before streaming
         base_url = f"http://{cfg.bind_host}:{server_cfg.port}"
