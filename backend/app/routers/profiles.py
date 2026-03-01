@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import PurePosixPath
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
@@ -58,6 +58,6 @@ async def list_llm_servers() -> dict[str, str]:
     """Return a mapping of server key → model name (filename stem from model_path)."""
     cfg = get_config()
     return {
-        name: PurePosixPath(srv.model_path).stem
+        name: Path(srv.model_path).stem
         for name, srv in cfg.llm_servers.items()
     }
