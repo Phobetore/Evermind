@@ -130,10 +130,10 @@ async def self_refine(
     )
 
     try:
-        refine_params: dict[str, Any] = {"temperature": 0.5, "max_tokens": max_tokens}
+        refine_params: dict[str, Any] = {"max_tokens": max_tokens}
         if extra_params:
             refine_params.update(extra_params)
-            refine_params["temperature"] = 0.5  # keep deterministic for refine
+        refine_params["temperature"] = 0.5  # always use low temperature for refine
         response = await llm.chat_completion(messages, **refine_params)
         refined = (
             response.get("choices", [{}])[0]

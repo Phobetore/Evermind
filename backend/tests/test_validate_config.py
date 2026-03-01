@@ -184,10 +184,11 @@ def test_profile_generation_defaults():
 
 
 def test_profile_generation_defaults_overridable():
-    """User-supplied generation_defaults in config.yaml must override built-in defaults."""
+    """User-supplied generation_defaults in config.yaml replaces the default_factory entirely
+    (Pydantic field replacement, not merge)."""
     from app.config import ProfileConfig
 
     profile = ProfileConfig(generation_defaults={"frequency_penalty": 1.2})
     assert profile.generation_defaults["frequency_penalty"] == 1.2
-    # When user overrides completely, the other defaults aren't injected
+    # Pydantic replaces the entire dict, so other defaults are not present
     assert "presence_penalty" not in profile.generation_defaults
