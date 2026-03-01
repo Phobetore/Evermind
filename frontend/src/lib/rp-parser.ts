@@ -13,6 +13,9 @@ export interface RPSegment {
  * - `*text*` → action
  * - `[text]` → context
  * - Everything else → speech
+ *
+ * Note: Nested delimiters (e.g. `*text with * inside*`) are not supported.
+ * Empty delimiters (`**`, `[]`) are intentionally ignored.
  */
 export function parseRPContent(content: string): RPSegment[] {
   const segments: RPSegment[] = [];
