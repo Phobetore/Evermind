@@ -52,7 +52,29 @@ make lint            Run linters
 make health          Check health of all services
 make validate-config Validate config.yaml
 make clean           Remove logs and caches
+make reset-db        Delete the database (recreated on next start)
 ```
+
+## Database
+
+The SQLite database lives at `data/app.db`. Migrations are applied automatically
+on every start.
+
+### Reset the database
+
+```bash
+# Via make (works on Linux, macOS, and Windows/PowerShell)
+make reset-db
+
+# Or manually in PowerShell
+Remove-Item data\app.db, data\app.db-wal, data\app.db-shm -Force -ErrorAction SilentlyContinue
+
+# Or manually on Linux / macOS
+rm -f data/app.db data/app.db-wal data/app.db-shm
+```
+
+The database will be recreated with all migrations on the next `make dev` or
+`make start`.
 
 ## Configuration
 

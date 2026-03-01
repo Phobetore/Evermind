@@ -14,7 +14,7 @@
 #   make clean        Remove generated files (logs, caches)
 # ==============================================================================
 
-.PHONY: help setup dev start stop test lint lint-fix health clean \
+.PHONY: help setup dev start stop test lint lint-fix health clean reset-db \
         test-backend lint-backend lint-backend-fix \
         dev-backend dev-frontend build-frontend \
         check validate-config
@@ -59,6 +59,7 @@ help:
 	@echo ""
 	@echo "  Maintenance:"
 	@echo "    make clean           Remove logs and caches"
+	@echo "    make reset-db        Delete the database (recreated on next start)"
 	@echo ""
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -157,6 +158,11 @@ clean:
 	@powershell -Command "Remove-Item -Path 'frontend\.next' -Recurse -Force -ErrorAction SilentlyContinue"
 	@powershell -Command "Remove-Item -Path 'data\.pids' -Force -ErrorAction SilentlyContinue"
 	@echo Done.
+
+reset-db:
+	@echo Resetting database...
+	@powershell -Command "Remove-Item -Path 'data\app.db','data\app.db-wal','data\app.db-shm' -Force -ErrorAction SilentlyContinue"
+	@echo Database deleted. It will be recreated on next start.
 else
 clean:
 	@echo "Cleaning generated files..."
@@ -165,4 +171,9 @@ clean:
 	rm -rf frontend/.next
 	rm -f data/.pids
 	@echo "Done."
+
+reset-db:
+	@echo "Resetting database..."
+	rm -f data/app.db data/app.db-wal data/app.db-shm
+	@echo "Database deleted. It will be recreated on next start."
 endif
