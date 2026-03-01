@@ -179,8 +179,10 @@ def test_profile_generation_defaults():
     profile = ProfileConfig()
     assert "frequency_penalty" in profile.generation_defaults
     assert "presence_penalty" in profile.generation_defaults
+    assert "repeat_penalty" in profile.generation_defaults
     assert profile.generation_defaults["frequency_penalty"] > 0
     assert profile.generation_defaults["presence_penalty"] > 0
+    assert profile.generation_defaults["repeat_penalty"] > 1.0
 
 
 def test_profile_generation_defaults_overridable():

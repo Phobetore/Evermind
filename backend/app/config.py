@@ -34,8 +34,10 @@ class ProfileConfig(BaseModel):
     best_of_n: int = 3
     self_refine: bool = True
     generation_defaults: dict[str, Any] = Field(default_factory=lambda: {
-        "frequency_penalty": 0.8,
-        "presence_penalty": 0.3,
+        "frequency_penalty": 1.5,
+        "presence_penalty": 0.6,
+        "repeat_penalty": 1.3,
+        "min_p": 0.05,
     })
 
 

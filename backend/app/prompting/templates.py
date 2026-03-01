@@ -224,4 +224,4 @@ JUDGE SUGGESTION:
 {rewrite_suggestion}
 
 OUTPUT:
-Write only {char_name}'s refined message. No meta. Ensure the response is richly descriptive with vivid narration, sensory details, and expressive body language alongside dialogue."""
+Write only {char_name}'s refined message. No meta. Ensure the response is richly descriptive with vivid narration, sensory details, and expressive body language alongside dialogue. Eliminate any repeated phrases, looping structures, or recycled descriptors — every sentence must use fresh, varied language."""
