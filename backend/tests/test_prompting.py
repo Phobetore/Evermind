@@ -224,3 +224,37 @@ def test_build_chat_messages_controller_immersive_storytelling() -> None:
     system_content = msgs[0]["content"]
     assert "immersive storytelling" in system_content.lower()
     assert "vivid narration" in system_content.lower()
+
+
+def test_build_chat_messages_first_message_suppressed_when_history_exists() -> None:
+    """When recent messages exist, the first message in CHARACTER CORE must be
+    replaced with a 'do NOT repeat' note so the LLM does not echo it."""
+    char = _make_character(first_message="Hello, traveler.")
+    history = [
+        _make_message("assistant", "Hello, traveler."),
+        _make_message("user", "Hi there!"),
+    ]
+    msgs = build_chat_messages(char, history, "How are you?")
+    system_content = msgs[0]["content"]
+    # The actual first-message text must NOT appear in CHARACTER CORE
+    # (it will still appear in RECENT CHAT via the history messages).
+    core_section = system_content.split("RECENT CHAT")[0]
+    assert "Hello, traveler." not in core_section
+    assert "do NOT repeat" in core_section
+
+
+def test_build_chat_messages_first_message_shown_when_no_history() -> None:
+    """When there is no conversation history yet, the first message must
+    remain in CHARACTER CORE for the LLM to use."""
+    char = _make_character(first_message="Hello, traveler.")
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "Hello, traveler." in system_content
+
+
+def test_build_chat_messages_no_echo_instruction() -> None:
+    """System prompt must instruct the AI to never echo the user's text."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "never echo" in system_content.lower() or "NEVER echo" in system_content

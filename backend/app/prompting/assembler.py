@@ -128,6 +128,14 @@ def build_chat_messages(
 
     controller_text = CONTROLLER
 
+    # When the conversation already has messages, the first message has
+    # already been delivered and appears in RECENT CHAT — suppress it in
+    # CHARACTER CORE so the LLM does not repeat it.
+    if recent_messages and character.first_message:
+        first_message_text = "(already delivered — do NOT repeat)"
+    else:
+        first_message_text = character.first_message or "(none)"
+
     core_text = CHARACTER_CORE.format(
         char_name=character.name,
         char_tags_csv=", ".join(character.tags) if character.tags else "(none)",
@@ -137,7 +145,7 @@ def build_chat_messages(
         char_scenario=character.scenario or "(none)",
         char_system_rules=character.system_rules or "(none)",
         boundaries_text=boundaries,
-        char_first_message=character.first_message or "(none)",
+        char_first_message=first_message_text,
         char_example_dialogues=example_dialogues_text,
     )
 
