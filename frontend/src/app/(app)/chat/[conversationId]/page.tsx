@@ -1,9 +1,10 @@
 "use client";
 
 import ChatInput from "@/components/chat/ChatInput";
+import ChatHeader from "@/components/chat/ChatHeader";
 import ChatMessage from "@/components/chat/ChatMessage";
+import StreamingBubble from "@/components/chat/StreamingBubble";
 import { ChatMessageSkeleton } from "@/components/ui/Skeleton";
-import CharacterAvatar from "@/components/ui/CharacterAvatar";
 import { api } from "@/lib/api";
 import { useStreaming } from "@/contexts/StreamingContext";
 import type { Character, Conversation, Message } from "@/types";
@@ -169,15 +170,7 @@ export default function ChatConversationPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="shrink-0 border-b border-border px-6 py-3 flex items-center gap-3">
-        <CharacterAvatar name={character.name} size="sm" />
-        <div>
-          <div className="font-medium text-sm">{character.name}</div>
-          <div className="text-xs text-zinc-500">
-            {conversation.title || "Conversation"}
-          </div>
-        </div>
-      </div>
+      <ChatHeader character={character} conversation={conversation} />
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-auto p-6 space-y-4">
@@ -199,34 +192,12 @@ export default function ChatConversationPage() {
         ))}
 
         {/* Streaming indicator */}
-        {streaming && streamingContent && (
-          <div className="flex gap-3">
-            <CharacterAvatar name={character.name} size="sm" />
-            <div className="max-w-[75%] rounded-2xl bg-surface-light px-4 py-2.5 text-sm leading-relaxed text-zinc-100">
-              {streamingContent}
-              <span className="inline-block w-2 h-4 ml-0.5 bg-violet-400 animate-pulse" />
-            </div>
-          </div>
-        )}
-
-        {streaming && !streamingContent && (
-          <div className="flex gap-3 items-center">
-            <CharacterAvatar name={character.name} size="sm" />
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {[0, 150, 300].map((delay) => (
-                  <span
-                    key={delay}
-                    className="w-2 h-2 rounded-full bg-violet-400 animate-bounce"
-                    style={{ animationDelay: `${delay}ms` }}
-                  />
-                ))}
-              </div>
-              {statusDetail && (
-                <span className="text-xs text-zinc-500">{statusDetail}</span>
-              )}
-            </div>
-          </div>
+        {streaming && (
+          <StreamingBubble
+            characterName={character.name}
+            content={streamingContent}
+            statusDetail={statusDetail}
+          />
         )}
       </div>
 
