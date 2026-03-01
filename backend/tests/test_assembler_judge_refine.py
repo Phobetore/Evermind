@@ -89,3 +89,20 @@ def test_build_refine_prompt_defaults() -> None:
     content = msgs[0]["content"]
     assert "(default)" in content
     assert "(none)" in content
+
+
+def test_build_judge_prompt_narrative_richness_criterion() -> None:
+    """Judge prompt should include narrative richness as a scoring criterion."""
+    msgs = build_judge_prompt(
+        char_name="Alice",
+        writing_style="Flowery prose",
+        boundaries="No violence",
+        world_state_json="{}",
+        memory_lines_text="",
+        user_message="Hello!",
+        candidates=["Response A"],
+    )
+    content = msgs[0]["content"]
+    assert "Narrative richness" in content
+    assert "narrative" in content.lower()
+    assert '"narrative":0' in content or '"narrative": 0' in content
