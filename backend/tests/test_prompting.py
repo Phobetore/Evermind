@@ -74,6 +74,17 @@ def test_build_chat_messages_basic() -> None:
     assert "CONTROLLER" in msgs[0]["content"]
 
 
+def test_build_chat_messages_includes_rp_formatting() -> None:
+    """RP formatting rules should be present in the system prompt."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "RP FORMATTING" in system_content
+    assert "*asterisks*" in system_content
+    assert "[brackets]" in system_content
+    assert "dialogue" in system_content.lower()
+
+
 def test_build_chat_messages_with_history() -> None:
     char = _make_character()
     history = [

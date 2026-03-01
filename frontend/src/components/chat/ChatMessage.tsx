@@ -2,8 +2,8 @@
 
 import type { Message } from "@/types";
 import { useState } from "react";
-import Markdown from "react-markdown";
 import { Check, Copy, Pencil, RotateCcw, X } from "lucide-react";
+import { parseRPContent, type RPSegment } from "@/lib/rp-parser";
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -19,6 +19,32 @@ function formatRelativeTime(dateStr: string): string {
   const diffDay = Math.floor(diffHr / 24);
   if (diffDay < 7) return `${diffDay}d ago`;
   return date.toLocaleDateString();
+}
+
+/** Render a single line of RP-formatted content with visual styling. */
+function RPContent({ text }: { text: string }) {
+  const segments = parseRPContent(text);
+  return (
+    <>
+      {segments.map((seg: RPSegment, i: number) => {
+        if (seg.type === "action") {
+          return (
+            <span key={i} className="italic text-violet-300">
+              {seg.text}
+            </span>
+          );
+        }
+        if (seg.type === "context") {
+          return (
+            <span key={i} className="text-zinc-400 text-xs bg-white/5 rounded px-1 py-0.5">
+              {seg.text}
+            </span>
+          );
+        }
+        return <span key={i}>{seg.text}</span>;
+      })}
+    </>
+  );
 }
 
 interface Props {
@@ -130,33 +156,16 @@ export default function ChatMessage({
             ) : (
               message.content.split("\n").map((line, i) => (
                 <p key={i} className={i > 0 ? "mt-2" : ""}>
-                  {line || "\u00A0"}
+                  {line ? <RPContent text={line} /> : "\u00A0"}
                 </p>
               ))
             )
           ) : (
-            <Markdown
-              components={{
-                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                strong: ({ children }) => (
-                  <strong className="font-semibold">{children}</strong>
-                ),
-                em: ({ children }) => <em className="italic">{children}</em>,
-                ul: ({ children }) => (
-                  <ul className="list-disc ml-4 mb-2">{children}</ul>
-                ),
-                ol: ({ children }) => (
-                  <ol className="list-decimal ml-4 mb-2">{children}</ol>
-                ),
-                code: ({ children }) => (
-                  <code className="bg-[#14111f] px-1 py-0.5 rounded text-xs">
-                    {children}
-                  </code>
-                ),
-              }}
-            >
-              {message.content}
-            </Markdown>
+            message.content.split("\n").map((line, i) => (
+              <p key={i} className={`${i > 0 ? "mt-2" : ""} last:mb-0`}>
+                {line ? <RPContent text={line} /> : "\u00A0"}
+              </p>
+            ))
           )}
         </div>
 
