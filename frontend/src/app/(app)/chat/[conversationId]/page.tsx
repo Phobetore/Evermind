@@ -176,23 +176,7 @@ export default function ChatConversationPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <ChatHeader character={character} conversation={conversation} />
-      <div className="shrink-0 border-b border-[#2a2440] px-6 py-3 flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-sm font-medium">
-          {character.name.charAt(0).toUpperCase()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm">{character.name}</div>
-          <div className="text-xs text-zinc-500">
-            {conversation.title || "Conversation"}
-          </div>
-        </div>
-        {activeProfile && (
-          <span className="shrink-0 text-[10px] text-zinc-500 border border-[#2a2440] rounded-full px-2 py-0.5 capitalize">
-            {activeProfile}
-          </span>
-        )}
-      </div>
+      <ChatHeader character={character} conversation={conversation} activeProfile={activeProfile} />
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-auto p-6 space-y-4">
