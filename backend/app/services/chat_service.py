@@ -17,6 +17,7 @@ from app.core.repositories.character_repository import CharacterRepository
 from app.core.repositories.conversation_repository import ConversationRepository
 from app.core.repositories.memory_repository import MemoryRepository
 from app.core.repositories.message_repository import MessageRepository
+from app.core.repositories.user_persona_repository import UserPersonaRepository
 from app.core.repositories.world_state_repository import WorldStateRepository
 from app.memory_pipeline.extractor import build_extraction_prompt, parse_extraction_response
 from app.models.memory import MemoryCreate
@@ -65,6 +66,7 @@ class ChatService:
         self.msg_repo = MessageRepository()
         self.mem_repo = MemoryRepository()
         self.ws_repo = WorldStateRepository()
+        self.persona_repo = UserPersonaRepository()
 
     async def stream_chat(
         self,
@@ -117,13 +119,20 @@ class ChatService:
         world_state = world_state_obj.state if world_state_obj else None
         memories = await self.mem_repo.list_by_conversation(conversation_id, character_id)
 
-        # 5. Assemble prompt (with world state + memories)
+        # 4b. Load user persona if linked to this conversation
+        user_persona = None
+        conv = await self.conv_repo.get(conversation_id)
+        if conv and conv.user_persona_id:
+            user_persona = await self.persona_repo.get(conv.user_persona_id)
+
+        # 5. Assemble prompt (with world state + memories + user persona)
         messages = build_chat_messages(
             character,
             recent,
             user_message,
             world_state=world_state,
             memories=memories,
+            user_persona=user_persona,
         )
 
         # 6. Resolve LLM server (multi-server routing by role)

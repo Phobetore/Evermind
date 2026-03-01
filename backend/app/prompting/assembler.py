@@ -23,6 +23,7 @@ from app.prompting.templates import (
     RECENT_CHAT,
     SELF_REFINE,
     SYSTEM_RP,
+    USER_PERSONA,
     WORLD_STATE,
 )
 
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
     from app.models.character import CharacterResponse
     from app.models.memory import MemoryResponse
     from app.models.message import MessageResponse
+    from app.models.user_persona import UserPersonaResponse
 
 
 def _format_example_dialogues(
@@ -86,6 +88,18 @@ def _format_memory_lines(memories: list[MemoryResponse]) -> str:
     return MEMORY_BLOCK.format(memory_lines="\n".join(lines))
 
 
+def _format_user_persona(persona: UserPersonaResponse) -> str:
+    """Render the user persona block, or return empty string."""
+    return USER_PERSONA.format(
+        persona_name=persona.name or "(unknown)",
+        persona_age=persona.age or "(unspecified)",
+        persona_physical_description=persona.physical_description or "(unspecified)",
+        persona_personality=persona.personality or "(unspecified)",
+        persona_backstory=persona.backstory or "(unspecified)",
+        persona_notes=persona.notes or "(none)",
+    )
+
+
 def build_chat_messages(
     character: CharacterResponse,
     recent_messages: list[MessageResponse],
@@ -93,6 +107,7 @@ def build_chat_messages(
     *,
     world_state: dict[str, Any] | None = None,
     memories: list[MemoryResponse] | None = None,
+    user_persona: UserPersonaResponse | None = None,
 ) -> list[dict[str, str]]:
     """Build the OpenAI-compatible messages list for chat completion.
 
@@ -128,6 +143,7 @@ def build_chat_messages(
 
     world_state_text = _format_world_state(world_state)
     memory_text = _format_memory_lines(memories or [])
+    persona_text = _format_user_persona(user_persona) if user_persona else ""
 
     recent_text = ""
     if recent_messages:
@@ -135,8 +151,10 @@ def build_chat_messages(
             recent_messages=_format_recent_messages(character.name, recent_messages),
         )
 
-    # Assemble per §C.7: system → controller → core → world → memory → history
+    # Assemble per §C.7: system → controller → core → persona → world → memory → history
     system_parts = [system_text, controller_text, core_text]
+    if persona_text:
+        system_parts.append(persona_text)
     if world_state_text:
         system_parts.append(world_state_text)
     if memory_text:
