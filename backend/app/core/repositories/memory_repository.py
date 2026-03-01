@@ -22,13 +22,14 @@ class MemoryRepository(BaseRepository):
         await db.execute(
             """
             INSERT INTO memories
-                (id, character_id, type, title, content, entities, tags,
+                (id, character_id, conversation_id, type, title, content, entities, tags,
                  importance, confidence, created_at, source_turn_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 memory_id,
                 data.character_id,
+                data.conversation_id,
                 data.type,
                 data.title,
                 data.content,
@@ -60,6 +61,33 @@ class MemoryRepository(BaseRepository):
         db = await self._get_db()
         conditions = ["character_id = ?"]
         params: list = [character_id]
+
+        if not include_deleted:
+            conditions.append("is_deleted = 0")
+
+        if type_filter:
+            conditions.append("type = ?")
+            params.append(type_filter)
+
+        where = " AND ".join(conditions)
+        cursor = await db.execute(
+            f"SELECT * FROM memories WHERE {where} ORDER BY importance DESC, created_at DESC",
+            params,
+        )
+        rows = await cursor.fetchall()
+        return [_row_to_response(r) for r in rows]
+
+    async def list_by_conversation(
+        self,
+        conversation_id: str,
+        character_id: str,
+        type_filter: str | None = None,
+        include_deleted: bool = False,
+    ) -> list[MemoryResponse]:
+        """Return memories scoped to a conversation plus global character-level memories."""
+        db = await self._get_db()
+        conditions = ["character_id = ?", "(conversation_id = ? OR conversation_id IS NULL)"]
+        params: list = [character_id, conversation_id]
 
         if not include_deleted:
             conditions.append("is_deleted = 0")
@@ -190,6 +218,7 @@ def _row_to_response(row: aiosqlite.Row) -> MemoryResponse:
     return MemoryResponse(
         id=row["id"],
         character_id=row["character_id"],
+        conversation_id=row["conversation_id"],
         type=row["type"],
         title=row["title"],
         content=row["content"],

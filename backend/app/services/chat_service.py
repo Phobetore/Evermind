@@ -109,7 +109,7 @@ class ChatService:
         # 4. Load world state and memories for context injection
         world_state_obj = await self.ws_repo.get(character_id)
         world_state = world_state_obj.state if world_state_obj else None
-        memories = await self.mem_repo.list_by_character(character_id)
+        memories = await self.mem_repo.list_by_conversation(conversation_id, character_id)
 
         # 5. Assemble prompt (with world state + memories)
         messages = build_chat_messages(
@@ -330,6 +330,7 @@ class ChatService:
             task = asyncio.create_task(
                 self._extract_and_store_memories_safe(
                     character_id=character_id,
+                    conversation_id=conversation_id,
                     char_name=character.name,
                     user_message=user_message,
                     assistant_response=full_response,
@@ -419,6 +420,7 @@ class ChatService:
         self,
         *,
         character_id: str,
+        conversation_id: str,
         char_name: str,
         user_message: str,
         assistant_response: str,
@@ -435,6 +437,7 @@ class ChatService:
         try:
             await self._extract_and_store_memories(
                 character_id=character_id,
+                conversation_id=conversation_id,
                 char_name=char_name,
                 user_message=user_message,
                 assistant_response=assistant_response,
@@ -449,6 +452,7 @@ class ChatService:
         self,
         *,
         character_id: str,
+        conversation_id: str,
         char_name: str,
         user_message: str,
         assistant_response: str,
@@ -481,6 +485,7 @@ class ChatService:
                 await self.mem_repo.create(
                     MemoryCreate(
                         character_id=character_id,
+                        conversation_id=conversation_id,
                         type=mem_type,
                         title=item.get("title", "Untitled"),
                         content=item.get("content", ""),

@@ -30,6 +30,7 @@ async def retrieve_relevant_memories(
     character_id: str,
     query_embedding: list[float],
     *,
+    conversation_id: str | None = None,
     vector_index: VectorIndex | None = None,
     mem_repo: MemoryRepository | None = None,
     top_k: int = DEFAULT_TOP_K,
@@ -53,14 +54,24 @@ async def retrieve_relevant_memories(
     sim_map: dict[str, float] = {}
 
     if vector_index is not None and query_embedding:
-        # Fetch IDs of all active memories for this character
-        all_memories = await repo.list_by_character(character_id, include_deleted=False)
+        # Fetch IDs of all active memories for this character/conversation
+        if conversation_id:
+            all_memories = await repo.list_by_conversation(
+                conversation_id, character_id, include_deleted=False
+            )
+        else:
+            all_memories = await repo.list_by_character(character_id, include_deleted=False)
         active_ids = {m.id for m in all_memories}
         search_results = vector_index.search(query_embedding, top_k=top_k, filter_ids=active_ids)
         sim_map = dict(search_results)
 
-    # Load candidate memories (all non-deleted for this character)
-    candidates = await repo.list_by_character(character_id, include_deleted=False)
+    # Load candidate memories (scoped to conversation when possible)
+    if conversation_id:
+        candidates = await repo.list_by_conversation(
+            conversation_id, character_id, include_deleted=False
+        )
+    else:
+        candidates = await repo.list_by_character(character_id, include_deleted=False)
 
     # Score each candidate
     scored: list[tuple[MemoryResponse, float]] = []
