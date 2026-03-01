@@ -13,3 +13,4 @@ class ChatStreamRequest(BaseModel):
     user_message: str = Field(..., min_length=1)
     profile_id: str = "balanced"
     generation_params: dict[str, Any] = Field(default_factory=dict)
+    regenerate: bool = False

@@ -33,6 +33,7 @@ interface StreamingContextValue {
     characterId: string,
     userMessage: string,
     onMessage: (msg: Message) => void,
+    regenerate?: boolean,
   ) => void;
   /** Whether a specific conversation is currently streaming. */
   isStreaming: (conversationId: string) => boolean;
@@ -54,6 +55,7 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
       characterId: string,
       userMessage: string,
       onMessage: (msg: Message) => void,
+      regenerate: boolean = false,
     ) => {
       // Abort any existing stream for this conversation
       abortControllers.current[conversationId]?.abort();
@@ -77,6 +79,7 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
             userMessage,
             profileId,
             { ...genParams },
+            regenerate,
           )) {
             if (controller.signal.aborted) break;
 

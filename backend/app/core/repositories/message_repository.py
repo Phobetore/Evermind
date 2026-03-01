@@ -63,6 +63,23 @@ class MessageRepository(BaseRepository):
         rows = await cursor.fetchall()
         return [_row_to_response(r) for r in rows]
 
+    async def delete_last_assistant_message(self, conversation_id: str) -> None:
+        """Delete the most recent assistant message in a conversation."""
+        db = await self._get_db()
+        await db.execute(
+            """
+            DELETE FROM messages
+            WHERE id = (
+                SELECT id FROM messages
+                WHERE conversation_id = ? AND role = 'assistant'
+                ORDER BY created_at DESC
+                LIMIT 1
+            )
+            """,
+            (conversation_id,),
+        )
+        await db.commit()
+
     async def get_recent(
         self,
         conversation_id: str,

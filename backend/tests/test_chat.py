@@ -47,3 +47,26 @@ async def test_chat_stream_validation(client: AsyncClient) -> None:
         },
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_regenerate_accepted(client: AsyncClient) -> None:
+    """Regenerate flag is accepted by the endpoint (character still missing → error SSE)."""
+    resp = await client.post(
+        "/chat/stream",
+        json={
+            "conversation_id": "fake-conv",
+            "character_id": "nonexistent",
+            "user_message": "Hello!",
+            "regenerate": True,
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/event-stream")
+    body = resp.text
+    # Should still surface the character-not-found error
+    for line in body.strip().split("\n"):
+        if line.startswith("data: "):
+            data = json.loads(line[6:])
+            assert "error" in data
+            break

@@ -74,7 +74,7 @@ export default function ChatConversationPage() {
     scrollToBottom();
   }, [messages, streamingContent, scrollToBottom]);
 
-  function doStream(userMessage: string) {
+  function doStream(userMessage: string, regenerate: boolean = false) {
     if (!conversation || !character) return;
     // Re-read the profile from localStorage so the UI stays in sync
     // with the value that StreamingContext will actually send.
@@ -84,6 +84,7 @@ export default function ChatConversationPage() {
       character.id,
       userMessage,
       (msg) => onMessageRef.current(msg),
+      regenerate,
     );
   }
 
@@ -126,7 +127,7 @@ export default function ChatConversationPage() {
       return prev;
     });
 
-    doStream(lastUserMsg.content);
+    doStream(lastUserMsg.content, true);
   }
 
   function handleEditMessage(messageId: string, newContent: string) {
