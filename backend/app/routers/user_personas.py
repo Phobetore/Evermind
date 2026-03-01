@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import uuid
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
+from app.core.database import _PROJECT_ROOT
 from app.core.repositories.user_persona_repository import UserPersonaRepository
 from app.models.user_persona import UserPersonaCreate, UserPersonaResponse, UserPersonaUpdate
 
 router = APIRouter(prefix="/user_personas", tags=["user_personas"])
 
 # Avatar images are stored under data/avatars/
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _AVATARS_DIR = _PROJECT_ROOT / "data" / "avatars"
 
 _ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}

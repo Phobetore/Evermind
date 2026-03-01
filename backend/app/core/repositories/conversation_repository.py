@@ -71,11 +71,12 @@ class ConversationRepository(BaseRepository):
 
 
 def _row_to_response(row: aiosqlite.Row) -> ConversationResponse:
+    keys = row.keys()
     return ConversationResponse(
         id=row["id"],
         character_id=row["character_id"],
         title=row["title"],
-        user_persona_id=row["user_persona_id"] if "user_persona_id" in row.keys() else None,
+        user_persona_id=row["user_persona_id"] if "user_persona_id" in keys else None,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
