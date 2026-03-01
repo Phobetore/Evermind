@@ -20,9 +20,17 @@ SAFETY/BOUNDARIES:
 - Respect {boundaries_text}.
 - Consent and boundaries are part of the roleplay constraints.
 
+RP FORMATTING (NON-NEGOTIABLE):
+- Plain text represents spoken dialogue.
+- Text wrapped in *asterisks* represents actions or narration (e.g., *smiles softly*).
+- Text wrapped in [brackets] represents context or internal thoughts (e.g., [the room grows quiet]).
+- You MUST use this formatting in every reply: mix dialogue, *actions*, and [context] naturally.
+- The user will also use this formatting; interpret their messages accordingly.
+
 OUTPUT FORMAT:
 - Write only {char_name}'s message.
-- No headings. No bullet lists unless the character's style explicitly calls for it."""
+- No headings. No bullet lists unless the character's style explicitly calls for it.
+- Always respond in roleplay format using dialogue, *actions*, and [context] as described above."""
 
 # C.2 — Controller Prompt (orchestration)
 CONTROLLER = """CONTROLLER
