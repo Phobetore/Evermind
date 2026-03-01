@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -318,7 +318,7 @@ async def test_profile_switch_changes_pipeline_settings(client: AsyncClient) -> 
     conv_id = conv_resp.json()["id"]
 
     # Helper: send a chat request with the given profile and return pipeline meta
-    async def get_pipeline_meta(profile_id: str, extra_gen_params: dict | None = None) -> dict:
+    async def get_pipeline_meta(profile_id: str, generation_params: dict | None = None) -> dict:
         async def mock_stream(messages, **params):
             yield {"choices": [{"delta": {"content": "reply"}}]}
 
@@ -334,8 +334,8 @@ async def test_profile_switch_changes_pipeline_settings(client: AsyncClient) -> 
                 "user_message": f"test with {profile_id}",
                 "profile_id": profile_id,
             }
-            if extra_gen_params:
-                body["generation_params"] = extra_gen_params
+            if generation_params:
+                body["generation_params"] = generation_params
 
             resp = await client.post("/chat/stream", json=body)
             assert resp.status_code == 200
@@ -390,7 +390,7 @@ async def test_gen_params_best_of_n_does_not_leak_to_llm(client: AsyncClient) ->
     assert conv_resp.status_code == 201
     conv_id = conv_resp.json()["id"]
 
-    captured_params: dict = {}
+    captured_params: dict[str, Any] = {}
 
     async def capturing_stream(messages, **params):
         captured_params.update(params)
