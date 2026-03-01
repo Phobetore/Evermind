@@ -85,6 +85,17 @@ def test_build_chat_messages_includes_rp_formatting() -> None:
     assert "dialogue" in system_content.lower()
 
 
+def test_build_chat_messages_includes_realistic_reaction_rule() -> None:
+    """System prompt must instruct the AI to react realistically to user actions."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "React realistically" in system_content
+    assert "hostile" in system_content.lower()
+    assert "violent" in system_content.lower()
+    assert "threatening" in system_content.lower()
+
+
 def test_build_chat_messages_with_history() -> None:
     char = _make_character()
     history = [
