@@ -41,3 +41,28 @@ async def test_create_and_list_messages(client: AsyncClient) -> None:
     messages = resp.json()
     assert len(messages) >= 1
     assert messages[0]["content"] == "Hello there!"
+
+
+@pytest.mark.asyncio
+async def test_delete_last_assistant_message(client: AsyncClient) -> None:
+    """delete_last_assistant_message removes only the latest assistant reply."""
+    from app.core.repositories.message_repository import MessageRepository
+    from app.models.message import MessageCreate
+
+    _, conv_id = await _create_conversation(client)
+    repo = MessageRepository()
+
+    # Seed a user message + assistant reply
+    await repo.create(MessageCreate(conversation_id=conv_id, role="user", content="Hi"))
+    await repo.create(
+        MessageCreate(conversation_id=conv_id, role="assistant", content="Hello!")
+    )
+
+    msgs_before = await repo.list_by_conversation(conv_id)
+    assert len(msgs_before) == 2
+
+    await repo.delete_last_assistant_message(conv_id)
+
+    msgs_after = await repo.list_by_conversation(conv_id)
+    assert len(msgs_after) == 1
+    assert msgs_after[0].role == "user"

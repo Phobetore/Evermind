@@ -48,6 +48,7 @@ export async function* streamChat(
   userMessage: string,
   profileId: string = "balanced",
   generationParams: Record<string, unknown> = {},
+  regenerate: boolean = false,
 ): AsyncGenerator<ChatStreamEvent> {
   const response = await fetch("/api/chat/stream", {
     method: "POST",
@@ -58,6 +59,7 @@ export async function* streamChat(
       user_message: userMessage,
       profile_id: profileId,
       generation_params: generationParams,
+      regenerate,
     }),
   });
 

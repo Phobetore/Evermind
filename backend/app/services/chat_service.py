@@ -73,6 +73,7 @@ class ChatService:
         user_message: str,
         profile_id: str = "balanced",
         generation_params: dict[str, Any] | None = None,
+        regenerate: bool = False,
     ) -> AsyncIterator[str]:
         """Yield SSE-formatted lines for a streaming chat response.
 
@@ -94,14 +95,19 @@ class ChatService:
             yield _sse({"error": "Character not found"})
             return
 
-        # 2. Persist the user message
-        await self.msg_repo.create(
-            MessageCreate(
-                conversation_id=conversation_id,
-                role="user",
-                content=user_message,
+        # 2. Handle regeneration: delete the previous assistant message
+        #    and skip saving the user message (it already exists in the DB).
+        if regenerate:
+            await self.msg_repo.delete_last_assistant_message(conversation_id)
+        else:
+            # Persist the user message
+            await self.msg_repo.create(
+                MessageCreate(
+                    conversation_id=conversation_id,
+                    role="user",
+                    content=user_message,
+                )
             )
-        )
 
         # 3. Load recent history (windowed)
         recent = await self.msg_repo.get_recent(conversation_id, limit=20)

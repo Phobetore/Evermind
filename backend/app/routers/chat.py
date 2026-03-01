@@ -22,6 +22,7 @@ async def chat_stream(request: ChatStreamRequest) -> StreamingResponse:
             user_message=request.user_message,
             profile_id=request.profile_id,
             generation_params=request.generation_params,
+            regenerate=request.regenerate,
         ),
         media_type="text/event-stream",
         headers={
