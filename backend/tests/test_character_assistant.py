@@ -20,13 +20,14 @@ if TYPE_CHECKING:
 
 
 def test_build_assistant_prompt_structure() -> None:
-    """Prompt should be a single system message with the character name embedded."""
+    """Prompt should be a system message + user message with the character name embedded."""
     messages = build_assistant_prompt(name="Luna", theme="fantasy", style="poetic")
-    assert len(messages) == 1
+    assert len(messages) == 2
     assert messages[0]["role"] == "system"
     assert "Luna" in messages[0]["content"]
     assert "fantasy" in messages[0]["content"]
     assert "poetic" in messages[0]["content"]
+    assert messages[1]["role"] == "user"
 
 
 def test_parse_assistant_response_valid_json() -> None:
