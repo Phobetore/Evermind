@@ -10,7 +10,9 @@ import aiosqlite
 
 logger = logging.getLogger(__name__)
 
-DATABASE_PATH = os.getenv("DATABASE_PATH", "data/app.db")
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+DATABASE_PATH = os.getenv("DATABASE_PATH", str(_PROJECT_ROOT / "data" / "app.db"))
 
 MIGRATIONS_DIR = Path(__file__).resolve().parents[1] / ".." / "migrations"
 

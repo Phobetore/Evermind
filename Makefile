@@ -162,6 +162,7 @@ clean:
 reset-db:
 	@echo Resetting database...
 	@powershell -Command "Remove-Item -Path 'data\app.db','data\app.db-wal','data\app.db-shm' -Force -ErrorAction SilentlyContinue; exit 0"
+	@powershell -Command "Remove-Item -Path 'backend\data\app.db','backend\data\app.db-wal','backend\data\app.db-shm' -Force -ErrorAction SilentlyContinue; exit 0"
 	@echo Database deleted. It will be recreated on next start.
 else
 clean:
@@ -175,5 +176,6 @@ clean:
 reset-db:
 	@echo "Resetting database..."
 	rm -f data/app.db data/app.db-wal data/app.db-shm
+	rm -f backend/data/app.db backend/data/app.db-wal backend/data/app.db-shm
 	@echo "Database deleted. It will be recreated on next start."
 endif
