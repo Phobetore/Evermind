@@ -153,15 +153,15 @@ validate-config:
 ifeq ($(OS),Windows_NT)
 clean:
 	@echo Cleaning generated files...
-	@powershell -Command "Remove-Item -Path 'logs\*.log' -Force -ErrorAction SilentlyContinue"
-	@powershell -Command "Remove-Item -Path 'backend\__pycache__','backend\app\__pycache__' -Recurse -Force -ErrorAction SilentlyContinue"
-	@powershell -Command "Remove-Item -Path 'frontend\.next' -Recurse -Force -ErrorAction SilentlyContinue"
-	@powershell -Command "Remove-Item -Path 'data\.pids' -Force -ErrorAction SilentlyContinue"
+	@powershell -Command "Remove-Item -Path 'logs\*.log' -Force -ErrorAction SilentlyContinue; exit 0"
+	@powershell -Command "Remove-Item -Path 'backend\__pycache__','backend\app\__pycache__' -Recurse -Force -ErrorAction SilentlyContinue; exit 0"
+	@powershell -Command "Remove-Item -Path 'frontend\.next' -Recurse -Force -ErrorAction SilentlyContinue; exit 0"
+	@powershell -Command "Remove-Item -Path 'data\.pids' -Force -ErrorAction SilentlyContinue; exit 0"
 	@echo Done.
 
 reset-db:
 	@echo Resetting database...
-	@powershell -Command "Remove-Item -Path 'data\app.db','data\app.db-wal','data\app.db-shm' -Force -ErrorAction SilentlyContinue"
+	@powershell -Command "Remove-Item -Path 'data\app.db','data\app.db-wal','data\app.db-shm' -Force -ErrorAction SilentlyContinue; exit 0"
 	@echo Database deleted. It will be recreated on next start.
 else
 clean:
