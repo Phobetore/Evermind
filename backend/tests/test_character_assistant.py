@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import json
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
@@ -12,11 +14,23 @@ import pytest
 from app.tools.character_assistant import (
     build_assistant_prompt,
     generate_character,
+    generate_character_stream,
     parse_assistant_response,
 )
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
+
+
+def _parse_sse_events(text: str) -> list[dict]:
+    """Parse SSE text into a list of JSON event dicts."""
+    events = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("data: "):
+            with contextlib.suppress(json.JSONDecodeError):
+                events.append(json.loads(line[6:]))
+    return events
 
 
 def test_build_assistant_prompt_structure() -> None:
@@ -135,8 +149,8 @@ async def test_character_assistant_endpoint_validation(client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
-async def test_character_assistant_read_error_returns_503(client: AsyncClient) -> None:
-    """POST /tools/character_assistant should return 503 on httpx.ReadError."""
+async def test_character_assistant_read_error_returns_error_event(client: AsyncClient) -> None:
+    """POST /tools/character_assistant should send an SSE error event on httpx.ReadError."""
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
 
@@ -151,8 +165,10 @@ async def test_character_assistant_read_error_returns_503(client: AsyncClient) -
             "/tools/character_assistant",
             json={"name": "TestChar", "theme": "sci-fi"},
         )
-    assert resp.status_code == 503
-    assert "unreachable" in resp.json()["detail"]
+    assert resp.status_code == 200
+    events = _parse_sse_events(resp.text)
+    assert any("error" in e for e in events)
+    assert any("unreachable" in e.get("error", "") for e in events)
 
 
 @pytest.mark.asyncio
@@ -171,8 +187,8 @@ async def test_character_assistant_loading_returns_503(client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
-async def test_character_assistant_http_status_error_returns_503(client: AsyncClient) -> None:
-    """POST /tools/character_assistant should return 503 on httpx.HTTPStatusError."""
+async def test_character_assistant_http_status_error_returns_error_event(client: AsyncClient) -> None:
+    """POST /tools/character_assistant should send an SSE error event on httpx.HTTPStatusError."""
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
     mock_resp = httpx.Response(503, request=httpx.Request("POST", "http://test"))
@@ -190,37 +206,46 @@ async def test_character_assistant_http_status_error_returns_503(client: AsyncCl
             "/tools/character_assistant",
             json={"name": "TestChar", "theme": "sci-fi"},
         )
-    assert resp.status_code == 503
-    assert "unreachable" in resp.json()["detail"]
+    assert resp.status_code == 200
+    events = _parse_sse_events(resp.text)
+    assert any("unreachable" in e.get("error", "") for e in events)
 
 
 @pytest.mark.asyncio
-async def test_character_assistant_timeout_returns_504(client: AsyncClient) -> None:
-    """POST /tools/character_assistant should return 504 when LLM generation stalls."""
+async def test_character_assistant_endpoint_streams_sse(client: AsyncClient) -> None:
+    """POST /tools/character_assistant should stream SSE token events then a done event."""
+    json_str = '{"name":"Luna","tags":["elf"],"summary":"An elf.","persona":"Kind."}'
+
+    async def _fake_stream(*_a: object, **_kw: object):  # type: ignore[misc]
+        for ch in json_str:
+            yield {"choices": [{"delta": {"content": ch}}]}
+
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
+    mock_llm.chat_completion_stream = _fake_stream
 
-    async def _slow_stream(*_args: object, **_kwargs: object):  # type: ignore[misc]
-        await asyncio.sleep(999)
-        yield {}  # pragma: no cover — never reached
-
-    mock_llm.chat_completion_stream = _slow_stream
-
-    with (
-        patch("app.routers.tools._resolve_llm_client", return_value=mock_llm),
-        patch("app.tools.character_assistant._INACTIVITY_TIMEOUT", 0.05),
-    ):
+    with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
         resp = await client.post(
             "/tools/character_assistant",
-            json={"name": "TestChar", "theme": "sci-fi"},
+            json={"name": "Luna", "theme": "fantasy"},
         )
-    assert resp.status_code == 504
-    assert "timed out" in resp.json()["detail"]
+    assert resp.status_code == 200
+    assert "text/event-stream" in resp.headers.get("content-type", "")
+
+    events = _parse_sse_events(resp.text)
+    # Should have token events followed by a done event
+    token_events = [e for e in events if "token" in e]
+    done_events = [e for e in events if e.get("done") is True]
+    assert len(token_events) > 0
+    assert len(done_events) == 1
+    result = done_events[0]["result"]
+    assert result["name"] == "Luna"
+    assert "elf" in result["tags"]
 
 
 @pytest.mark.asyncio
-async def test_character_assistant_unexpected_error_returns_500(client: AsyncClient) -> None:
-    """POST /tools/character_assistant should return 500 on unexpected exceptions."""
+async def test_character_assistant_unexpected_error_returns_error_event(client: AsyncClient) -> None:
+    """POST /tools/character_assistant should send an SSE error event on unexpected exceptions."""
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
 
@@ -235,8 +260,9 @@ async def test_character_assistant_unexpected_error_returns_500(client: AsyncCli
             "/tools/character_assistant",
             json={"name": "TestChar", "theme": "sci-fi"},
         )
-    assert resp.status_code == 500
-    assert "unexpectedly" in resp.json()["detail"]
+    assert resp.status_code == 200
+    events = _parse_sse_events(resp.text)
+    assert any("unexpectedly" in e.get("error", "") for e in events)
 
 
 @pytest.mark.asyncio
@@ -276,3 +302,22 @@ async def test_generate_character_slow_but_active_succeeds() -> None:
     )
     assert result["name"] == "Luna"
     assert "elf" in result["tags"]
+
+
+@pytest.mark.asyncio
+async def test_generate_character_stream_yields_tokens() -> None:
+    """generate_character_stream should yield each token individually."""
+    json_str = '{"name":"Luna","tags":["elf"],"summary":"An elf.","persona":"Kind."}'
+
+    async def _fake_stream(*_a: object, **_kw: object):  # type: ignore[misc]
+        for ch in json_str:
+            yield {"choices": [{"delta": {"content": ch}}]}
+
+    mock_llm = AsyncMock()
+    mock_llm.chat_completion_stream = _fake_stream
+
+    tokens: list[str] = []
+    async for token in generate_character_stream(mock_llm, name="Luna"):
+        tokens.append(token)
+
+    assert "".join(tokens) == json_str

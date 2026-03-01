@@ -14,6 +14,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
     from app.core.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
@@ -213,3 +215,41 @@ async def generate_character(
         result["name"] = name
 
     return result
+
+
+async def generate_character_stream(
+    llm: LLMClient,
+    name: str,
+    theme: str = "",
+    relationship: str = "",
+    style: str = "",
+    limits: str = "",
+    notes: str = "",
+) -> AsyncGenerator[str, None]:
+    """Yield raw tokens from the LLM as they arrive.
+
+    Unlike :func:`generate_character` this function streams individual
+    tokens to the caller so that an SSE endpoint can forward them
+    immediately — keeping the HTTP connection alive and eliminating
+    idle-connection timeouts.
+    """
+    messages = build_assistant_prompt(
+        name=name,
+        theme=theme,
+        relationship=relationship,
+        style=style,
+        limits=limits,
+        notes=notes,
+    )
+
+    stream = llm.chat_completion_stream(
+        messages, temperature=0.8, max_tokens=2048
+    )
+    async for chunk in stream:
+        choices = chunk.get("choices", [])
+        if not choices:
+            continue
+        delta = choices[0].get("delta", {})
+        token = delta.get("content", "")
+        if token:
+            yield token
