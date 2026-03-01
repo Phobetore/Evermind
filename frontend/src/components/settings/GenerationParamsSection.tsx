@@ -108,8 +108,9 @@ export default function GenerationParamsSection({ params, onChange }: Props) {
         {/* Reset button */}
         <button
           onClick={() => {
-            onChange({ ...GENERATION_DEFAULTS });
-            saveGenerationParams(GENERATION_DEFAULTS);
+            const defaults = { ...GENERATION_DEFAULTS };
+            onChange(defaults);
+            saveGenerationParams(defaults);
           }}
           className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
         >
