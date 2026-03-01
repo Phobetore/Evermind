@@ -4,6 +4,7 @@ import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage from "@/components/chat/ChatMessage";
 import { ChatMessageSkeleton } from "@/components/ui/Skeleton";
 import { api } from "@/lib/api";
+import { getSelectedProfile } from "@/lib/generation-params";
 import { useStreaming } from "@/contexts/StreamingContext";
 import type { Character, Conversation, Message } from "@/types";
 import { useParams } from "next/navigation";
@@ -18,6 +19,7 @@ export default function ChatConversationPage() {
   const [character, setCharacter] = useState<Character | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeProfile, setActiveProfile] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const streaming = isStreaming(conversationId);
@@ -33,6 +35,7 @@ export default function ChatConversationPage() {
 
   // Load conversation, character, and messages
   useEffect(() => {
+    setActiveProfile(getSelectedProfile());
     if (!conversationId) return;
     (async () => {
       try {
@@ -71,6 +74,9 @@ export default function ChatConversationPage() {
 
   function doStream(userMessage: string) {
     if (!conversation || !character) return;
+    // Re-read the profile from localStorage so the UI stays in sync
+    // with the value that StreamingContext will actually send.
+    setActiveProfile(getSelectedProfile());
     startStream(
       conversationId,
       character.id,
@@ -172,12 +178,17 @@ export default function ChatConversationPage() {
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-800 text-sm font-medium">
           {character.name.charAt(0).toUpperCase()}
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="font-medium text-sm">{character.name}</div>
           <div className="text-xs text-zinc-500">
             {conversation.title || "Conversation"}
           </div>
         </div>
+        {activeProfile && (
+          <span className="shrink-0 text-[10px] text-zinc-500 border border-[#2a2440] rounded-full px-2 py-0.5 capitalize">
+            {activeProfile}
+          </span>
+        )}
       </div>
 
       {/* Messages */}
