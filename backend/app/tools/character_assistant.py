@@ -140,6 +140,10 @@ async def generate_character(
 ) -> dict[str, Any]:
     """Call the LLM to generate a complete character profile.
 
+    Uses **streaming** so that the per-read timeout acts as an inactivity
+    deadline rather than a wall-clock cap on total generation time.  This
+    avoids spurious 504s when the model is slow but still producing tokens.
+
     Returns a dict compatible with ``CharacterCreate``.
     """
     messages = build_assistant_prompt(
@@ -151,14 +155,19 @@ async def generate_character(
         notes=notes,
     )
 
-    response = await llm.chat_completion(
+    tokens: list[str] = []
+    async for chunk in llm.chat_completion_stream(
         messages, temperature=0.8, max_tokens=2048
-    )
-    raw = (
-        response.get("choices", [{}])[0]
-        .get("message", {})
-        .get("content", "")
-    )
+    ):
+        choices = chunk.get("choices", [])
+        if not choices:
+            continue
+        delta = choices[0].get("delta", {})
+        token = delta.get("content", "")
+        if token:
+            tokens.append(token)
+
+    raw = "".join(tokens)
 
     result = parse_assistant_response(raw)
     # Ensure name is set from input
