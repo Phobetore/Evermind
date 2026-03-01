@@ -2,5 +2,5 @@ export type { Character, CharacterCreate, CharacterUpdate, ExampleDialogue } fro
 export type { Conversation, ConversationCreate } from "./conversation";
 export type { Message, AssistantMeta, MessageMeta } from "./message";
 export type { MemoryItem } from "./memory";
-export type { Profile } from "./config";
+export type { Profile, ServerModels } from "./config";
 export type { UserPersona, UserPersonaCreate, UserPersonaUpdate } from "./user-persona";

@@ -8,3 +8,6 @@ export interface Profile {
   best_of_n: number;
   self_refine: boolean;
 }
+
+/** Mapping of server key (e.g. "chat") → model name (e.g. "gemma-3-12b-it-heretic"). */
+export type ServerModels = Record<string, string>;

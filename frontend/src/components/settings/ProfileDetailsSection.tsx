@@ -1,16 +1,17 @@
 "use client";
 
-import type { Profile } from "@/types";
+import type { Profile, ServerModels } from "@/types";
 import Card from "@/components/ui/Card";
 
 interface Props {
   profile: Profile;
+  serverModels: ServerModels;
   saving: boolean;
   onUpdateField: (field: string, value: number | boolean) => void;
 }
 
 /** Details and controls for the active generation profile. */
-export default function ProfileDetailsSection({ profile, saving, onUpdateField }: Props) {
+export default function ProfileDetailsSection({ profile, serverModels, saving, onUpdateField }: Props) {
   return (
     <section className="mb-8">
       <h2 className="text-lg font-semibold mb-4 text-zinc-200">
@@ -23,15 +24,15 @@ export default function ProfileDetailsSection({ profile, saving, onUpdateField }
         <dl className="grid gap-4 sm:grid-cols-2">
           <div>
             <dt className="text-xs text-zinc-500 mb-1">Chat Server</dt>
-            <dd className="text-sm">{profile.chat_server}</dd>
+            <dd className="text-sm">{serverModels[profile.chat_server] ?? profile.chat_server}</dd>
           </div>
           <div>
             <dt className="text-xs text-zinc-500 mb-1">Memory Server</dt>
-            <dd className="text-sm">{profile.memory_server}</dd>
+            <dd className="text-sm">{serverModels[profile.memory_server] ?? profile.memory_server}</dd>
           </div>
           <div>
             <dt className="text-xs text-zinc-500 mb-1">Judge Server</dt>
-            <dd className="text-sm">{profile.judge_server}</dd>
+            <dd className="text-sm">{serverModels[profile.judge_server] ?? profile.judge_server}</dd>
           </div>
           <div>
             <dt className="text-xs text-zinc-500 mb-1">Context Window</dt>
