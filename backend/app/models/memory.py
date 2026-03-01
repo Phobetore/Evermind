@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class MemoryCreate(BaseModel):
     character_id: str
+    conversation_id: str | None = None
     type: Literal["semantic", "episodic", "world"]
     title: str = Field(..., min_length=1)
     content: str = Field(..., min_length=1)
@@ -31,6 +32,7 @@ class MemoryUpdate(BaseModel):
 class MemoryResponse(BaseModel):
     id: str
     character_id: str
+    conversation_id: str | None = None
     type: str
     title: str
     content: str
