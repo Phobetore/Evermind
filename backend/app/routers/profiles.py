@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
+
 from fastapi import APIRouter, HTTPException
 
 from app.config import get_config
@@ -49,3 +51,13 @@ async def update_profile(profile_id: str, data: ProfileUpdate) -> ProfileRespons
         best_of_n=profile.best_of_n,
         self_refine=profile.self_refine,
     )
+
+
+@router.get("/llm-servers", response_model=dict[str, str])
+async def list_llm_servers() -> dict[str, str]:
+    """Return a mapping of server key → model name (filename stem from model_path)."""
+    cfg = get_config()
+    return {
+        name: PurePosixPath(srv.model_path).stem
+        for name, srv in cfg.llm_servers.items()
+    }
