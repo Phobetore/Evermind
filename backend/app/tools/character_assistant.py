@@ -8,6 +8,7 @@ response into a ``CharacterCreate``-compatible dict.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 from typing import TYPE_CHECKING, Any
@@ -196,7 +197,10 @@ async def generate_character(
         )
         raise
     finally:
-        await ait.aclose()
+        # Ensure the async generator is closed even on timeout/error so that
+        # the underlying httpx stream context managers are cleaned up.
+        with contextlib.suppress(Exception):
+            await ait.aclose()
 
     raw = "".join(tokens)
 
