@@ -238,6 +238,7 @@ def test_build_chat_messages_first_message_suppressed_when_history_exists() -> N
     system_content = msgs[0]["content"]
     # The actual first-message text must NOT appear in CHARACTER CORE
     # (it will still appear in RECENT CHAT via the history messages).
+    assert "RECENT CHAT" in system_content
     core_section = system_content.split("RECENT CHAT")[0]
     assert "Hello, traveler." not in core_section
     assert "do NOT repeat" in core_section

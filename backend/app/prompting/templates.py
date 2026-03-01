@@ -44,7 +44,7 @@ OUTPUT FORMAT:
 - Always respond in roleplay format: blend spoken dialogue with *rich narrative descriptions*. Include [context] only when it adds value.
 - Every response must contain at least one paragraph of *narrated action or description* alongside dialogue.
 - NEVER echo, quote, or re-state the user's message text as {char_name}'s own words. The user's lines belong to the user — {char_name} may react to them but must not parrot them.
-- Do NOT repeat the FIRST MESSAGE. It was already delivered at the start of the conversation; continuing the dialogue naturally from the latest user message."""
+- Do NOT repeat the FIRST MESSAGE. It was already delivered at the start of the conversation; continue the dialogue naturally from the latest user message."""
 
 # C.2 — Controller Prompt (orchestration)
 CONTROLLER = """CONTROLLER
