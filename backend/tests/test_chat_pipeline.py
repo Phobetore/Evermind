@@ -470,3 +470,233 @@ async def test_profile_generation_defaults_injected_into_stream(client: AsyncCli
     assert captured_params["frequency_penalty"] > 0
     assert "presence_penalty" in captured_params
     assert captured_params["presence_penalty"] > 0
+
+
+@pytest.mark.asyncio
+async def test_gen_params_quality_mode_does_not_leak_to_llm(client: AsyncClient) -> None:
+    """quality_mode should be consumed by the backend and not forwarded to the LLM runtime."""
+    char_resp = await client.post("/characters", json={"name": "ModeLeakChar"})
+    assert char_resp.status_code == 201
+    char_id = char_resp.json()["id"]
+
+    conv_resp = await client.post(
+        "/conversations",
+        json={"character_id": char_id, "title": "Mode leak test"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    captured_params: dict[str, Any] = {}
+
+    async def capturing_stream(messages, **params):
+        captured_params.update(params)
+        yield {"choices": [{"delta": {"content": "ok"}}]}
+
+    with patch("app.services.chat_service._resolve_llm_client") as mock_resolve:
+        mock_llm = AsyncMock()
+        mock_llm.health_status = AsyncMock(return_value="ok")
+        mock_llm.chat_completion_stream = capturing_stream
+        mock_resolve.return_value = mock_llm
+
+        resp = await client.post(
+            "/chat/stream",
+            json={
+                "conversation_id": conv_id,
+                "character_id": char_id,
+                "user_message": "mode leak",
+                "profile_id": "fast",
+                "generation_params": {
+                    "quality_mode": "fast",
+                    "temperature": 0.51,
+                },
+            },
+        )
+        assert resp.status_code == 200
+
+    assert "quality_mode" not in captured_params
+    assert captured_params.get("temperature") == 0.51
+
+
+@pytest.mark.asyncio
+async def test_quality_mode_meta_is_reported(client: AsyncClient) -> None:
+    """The done-event meta should report the selected quality_mode."""
+    char_resp = await client.post("/characters", json={"name": "ModeMetaChar"})
+    assert char_resp.status_code == 201
+    char_id = char_resp.json()["id"]
+
+    conv_resp = await client.post(
+        "/conversations",
+        json={"character_id": char_id, "title": "Mode meta test"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    with (
+        patch("app.services.chat_service._resolve_llm_client") as mock_resolve,
+        patch("app.services.chat_service.run_pipeline", new_callable=AsyncMock) as mock_pipeline,
+    ):
+        mock_llm = AsyncMock()
+        mock_llm.health_status = AsyncMock(return_value="ok")
+        mock_resolve.return_value = mock_llm
+        mock_pipeline.return_value = ("meta ok", None)
+
+        resp = await client.post(
+            "/chat/stream",
+            json={
+                "conversation_id": conv_id,
+                "character_id": char_id,
+                "user_message": "meta mode",
+                "profile_id": "fast",
+                "generation_params": {
+                    "quality_mode": "immersive",
+                },
+            },
+        )
+        assert resp.status_code == 200
+
+    events = _parse_sse_events(resp.text)
+    done = [e for e in events if e.get("done")][0]
+    assert done["meta"]["pipeline"]["quality_mode"] == "immersive"
+
+
+@pytest.mark.asyncio
+async def test_memory_extraction_non_dict_response_is_ignored(client: AsyncClient) -> None:
+    """Non-dict responses from memory extraction should be ignored without failing the turn."""
+    char_resp = await client.post("/characters", json={"name": "MemGuardChar"})
+    assert char_resp.status_code == 201
+    char_id = char_resp.json()["id"]
+
+    conv_resp = await client.post(
+        "/conversations",
+        json={"character_id": char_id, "title": "Mem guard test"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    async def mock_stream(messages, **params):
+        yield {"choices": [{"delta": {"content": "guarded reply"}}]}
+
+    with patch("app.services.chat_service._resolve_llm_client") as mock_resolve:
+        mock_llm = AsyncMock()
+        mock_llm.health_status = AsyncMock(return_value="ok")
+        mock_llm.chat_completion_stream = mock_stream
+        mock_llm.chat_completion = AsyncMock(return_value=["invalid-response-shape"])
+        mock_resolve.return_value = mock_llm
+
+        resp = await client.post(
+            "/chat/stream",
+            json={
+                "conversation_id": conv_id,
+                "character_id": char_id,
+                "user_message": "memory guard",
+                "profile_id": "fast",
+            },
+        )
+        assert resp.status_code == 200
+
+    events = _parse_sse_events(resp.text)
+    done = [e for e in events if e.get("done")][0]
+    assert done["meta"]["pipeline"]["memory_extract_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_done_meta_includes_quality_signals(client: AsyncClient) -> None:
+    """Done-event meta should include lightweight quality telemetry fields."""
+    char_resp = await client.post("/characters", json={"name": "QualitySignalsChar"})
+    assert char_resp.status_code == 201
+    char_id = char_resp.json()["id"]
+
+    conv_resp = await client.post(
+        "/conversations",
+        json={"character_id": char_id, "title": "Quality signals test"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    async def mock_stream(messages, **params):
+        yield {"choices": [{"delta": {"content": "hello hello world"}}]}
+
+    with patch("app.services.chat_service._resolve_llm_client") as mock_resolve:
+        mock_llm = AsyncMock()
+        mock_llm.health_status = AsyncMock(return_value="ok")
+        mock_llm.chat_completion_stream = mock_stream
+        mock_resolve.return_value = mock_llm
+
+        resp = await client.post(
+            "/chat/stream",
+            json={
+                "conversation_id": conv_id,
+                "character_id": char_id,
+                "user_message": "quality?",
+                "profile_id": "fast",
+            },
+        )
+        assert resp.status_code == 200
+
+    events = _parse_sse_events(resp.text)
+    done = [e for e in events if e.get("done")][0]
+    signals = done["meta"].get("quality_signals", {})
+
+    assert "response_words" in signals
+    assert "repetition_ratio" in signals
+    assert "lexical_diversity" in signals
+    assert signals["response_words"] >= 1
+    assert 0.0 <= signals["repetition_ratio"] <= 1.0
+    assert 0.0 <= signals["lexical_diversity"] <= 1.0
+
+
+@pytest.mark.asyncio
+async def test_done_meta_includes_retrieval_summary(client: AsyncClient) -> None:
+    """Done-event meta should include retrieval explainability summary."""
+    char_resp = await client.post("/characters", json={"name": "RetrievalMetaChar"})
+    assert char_resp.status_code == 201
+    char_id = char_resp.json()["id"]
+
+    conv_resp = await client.post(
+        "/conversations",
+        json={"character_id": char_id, "title": "Retrieval meta test"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    async def mock_stream(messages, **params):
+        yield {"choices": [{"delta": {"content": "retrieval meta"}}]}
+
+    with patch("app.services.chat_service._resolve_llm_client") as mock_resolve:
+        mock_llm = AsyncMock()
+        mock_llm.health_status = AsyncMock(return_value="ok")
+        mock_llm.chat_completion_stream = mock_stream
+        mock_resolve.return_value = mock_llm
+
+        resp = await client.post(
+            "/chat/stream",
+            json={
+                "conversation_id": conv_id,
+                "character_id": char_id,
+                "user_message": "retrieval?",
+                "profile_id": "fast",
+            },
+        )
+        assert resp.status_code == 200
+
+    events = _parse_sse_events(resp.text)
+    done = [e for e in events if e.get("done")][0]
+    retrieval = done["meta"].get("retrieval", {})
+
+    assert "selected_n" in retrieval
+    assert "memory_ids_selected" in retrieval
+    assert "memory_summaries" in retrieval
+    assert "scoring" in retrieval
+    assert isinstance(retrieval["memory_ids_selected"], list)
+    assert isinstance(retrieval["memory_summaries"], list)
+    assert isinstance(retrieval["scoring"], dict)
+    assert retrieval["scoring"].get("formula") == "score = importance * confidence"
+    assert retrieval["scoring"].get("strategy") == "static"
+    assert retrieval["scoring"].get("weight_importance") == 1.0
+    assert retrieval["scoring"].get("weight_confidence") == 1.0
+    if retrieval["memory_summaries"]:
+        first = retrieval["memory_summaries"][0]
+        assert "rank" in first
+        assert "score" in first
+        assert isinstance(first.get("importance"), float)
+        assert isinstance(first.get("confidence"), float)

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Message, UserPersona } from "@/types";
+import type { AssistantMeta, Message, UserPersona } from "@/types";
 import { useState } from "react";
 import { Check, Copy, Pencil, RotateCcw, X } from "lucide-react";
 import { parseRPContent, type RPSegment } from "@/lib/rp-parser";
@@ -20,6 +20,17 @@ function formatRelativeTime(dateStr: string): string {
   const diffDay = Math.floor(diffHr / 24);
   if (diffDay < 7) return `${diffDay}d ago`;
   return date.toLocaleDateString();
+}
+
+function asAssistantMeta(meta: Message["meta"]): AssistantMeta {
+  if (meta && typeof meta === "object") {
+    return meta as AssistantMeta;
+  }
+  return {};
+}
+
+function toNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
 /** Render a single line of RP-formatted content with visual styling. */
@@ -70,6 +81,8 @@ export default function ChatMessage({
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(message.content);
+  const [showWhy, setShowWhy] = useState(false);
+  const meta = asAssistantMeta(message.meta);
 
   function handleCopy() {
     navigator.clipboard.writeText(message.content).then(() => {
@@ -108,6 +121,15 @@ export default function ChatMessage({
       </div>
     );
   }
+
+  const words = meta.quality_signals?.response_words;
+  const repetition = meta.quality_signals?.repetition_ratio;
+  const diversity = meta.quality_signals?.lexical_diversity;
+  const qualityMode = meta.pipeline?.quality_mode;
+  const memoryUsed = meta.retrieval?.selected_n;
+  const memorySummaries = meta.retrieval?.memory_summaries ?? [];
+  const canShowWhy = !isUser && memorySummaries.length > 0;
+  const scoringFormula = meta.retrieval?.scoring?.formula;
 
   return (
     <div className={`group flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -177,6 +199,79 @@ export default function ChatMessage({
             ))
           )}
         </div>
+
+        {!isUser && (words || repetition !== undefined || diversity !== undefined || qualityMode || memoryUsed) && (
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {qualityMode && (
+              <span className="rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-violet-200">
+                {qualityMode}
+              </span>
+            )}
+            {typeof words === "number" && (
+              <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] text-zinc-300">
+                {words} words
+              </span>
+            )}
+            {typeof diversity === "number" && (
+              <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] text-zinc-300">
+                diversity {diversity.toFixed(2)}
+              </span>
+            )}
+            {typeof repetition === "number" && (
+              <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] text-zinc-300">
+                repetition {(repetition * 100).toFixed(0)}%
+              </span>
+            )}
+            {typeof memoryUsed === "number" && (
+              <span
+                className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] text-zinc-300"
+                title={
+                  memorySummaries.length > 0
+                    ? memorySummaries
+                        .slice(0, 6)
+                        .map((m) => `${m.type ?? "memory"}: ${m.title ?? "(untitled)"} (score ${toNumber(m.score).toFixed(2)})`)
+                        .join("\n")
+                    : undefined
+                }
+              >
+                memories {memoryUsed}
+              </span>
+            )}
+            {canShowWhy && (
+              <button
+                type="button"
+                onClick={() => setShowWhy((v) => !v)}
+                aria-expanded={showWhy}
+                aria-controls={`memory-why-${message.id}`}
+                title="Show memory selection reasons"
+                className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] text-zinc-300 hover:border-violet-500/50"
+              >
+                {showWhy ? "hide why" : "why"}
+              </button>
+            )}
+          </div>
+        )}
+        {canShowWhy && showWhy && (
+          <div id={`memory-why-${message.id}`} className="mt-2 rounded-xl border border-border/70 bg-surface/70 p-2.5 space-y-1.5">
+            <p className="text-[10px] uppercase tracking-wider text-zinc-500">Memory reasons</p>
+            {scoringFormula && (
+              <p className="text-[10px] text-zinc-500">Scoring: {scoringFormula}</p>
+            )}
+            {memorySummaries.slice(0, 5).map((m, i) => {
+              const score = toNumber(m.score);
+              const importance = toNumber(m.importance);
+              const confidence = toNumber(m.confidence);
+              const rank = toNumber(m.rank, i + 1);
+              return (
+                <div key={m.id ?? `${i}-${m.title ?? "memory"}`} className="text-[11px] text-zinc-300 leading-snug">
+                  <span className="text-zinc-500">#{rank} {m.type ?? "memory"}</span>{" "}
+                  <span className="text-zinc-100">{m.title ?? "(untitled)"}</span>{" "}
+                  <span className="text-zinc-500">(score {score.toFixed(2)}, imp {importance.toFixed(2)}, conf {confidence.toFixed(2)})</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Timestamp + Actions */}
         <div
