@@ -1,6 +1,6 @@
 "use client";
 
-import type { Message } from "@/types";
+import type { Message, UserPersona } from "@/types";
 import { useState } from "react";
 import { Check, Copy, Pencil, RotateCcw, X } from "lucide-react";
 import { parseRPContent, type RPSegment } from "@/lib/rp-parser";
@@ -54,6 +54,7 @@ interface Props {
   isLast?: boolean;
   onRegenerate?: () => void;
   onEditMessage?: (messageId: string, newContent: string) => void;
+  userPersona?: UserPersona | null;
 }
 
 export default function ChatMessage({
@@ -62,6 +63,7 @@ export default function ChatMessage({
   isLast,
   onRegenerate,
   onEditMessage,
+  userPersona,
 }: Props) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
@@ -110,11 +112,19 @@ export default function ChatMessage({
   return (
     <div className={`group flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
       {/* Avatar */}
-      <CharacterAvatar
-        name={isUser ? "U" : characterName}
-        size="sm"
-        flat={isUser}
-      />
+      {isUser && userPersona?.avatar_path ? (
+        <img
+          src={`/api/user_personas/${userPersona.id}/avatar/file`}
+          alt={userPersona.name}
+          className="h-8 w-8 rounded-full object-cover shrink-0"
+        />
+      ) : (
+        <CharacterAvatar
+          name={isUser ? (userPersona?.name ?? "U") : characterName}
+          size="sm"
+          flat={isUser}
+        />
+      )}
 
       {/* Bubble */}
       <div className="flex flex-col max-w-[75%]">

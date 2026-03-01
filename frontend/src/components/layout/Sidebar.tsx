@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { User, MessageSquare, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { User, MessageSquare, Settings, ChevronLeft, ChevronRight, Users } from "lucide-react";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -12,6 +12,7 @@ export default function Sidebar() {
   const navItems = [
     { href: "/characters", label: "Characters", icon: User },
     { href: "/chat", label: "Chat", icon: MessageSquare },
+    { href: "/personas", label: "Personas", icon: Users },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
 

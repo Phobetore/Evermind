@@ -8,7 +8,7 @@ import { ChatMessageSkeleton } from "@/components/ui/Skeleton";
 import { api } from "@/lib/api";
 import { getSelectedProfile } from "@/lib/generation-params";
 import { useStreaming } from "@/contexts/StreamingContext";
-import type { Character, Conversation, Message } from "@/types";
+import type { Character, Conversation, Message, UserPersona } from "@/types";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -19,6 +19,7 @@ export default function ChatConversationPage() {
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [character, setCharacter] = useState<Character | null>(null);
+  const [persona, setPersona] = useState<UserPersona | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeProfile, setActiveProfile] = useState("");
@@ -35,7 +36,7 @@ export default function ChatConversationPage() {
     setMessages((prev) => [...prev, msg]);
   };
 
-  // Load conversation, character, and messages
+  // Load conversation, character, persona, and messages
   useEffect(() => {
     setActiveProfile(getSelectedProfile());
     if (!conversationId) return;
@@ -46,14 +47,22 @@ export default function ChatConversationPage() {
         );
         setConversation(conv);
 
-        const [char, msgs] = await Promise.all([
+        const fetches: Promise<unknown>[] = [
           api.get<Character>(`/characters/${conv.character_id}`),
           api.get<Message[]>(
             `/conversations/${conversationId}/messages?limit=100`
           ),
-        ]);
-        setCharacter(char);
-        setMessages(msgs);
+        ];
+        if (conv.user_persona_id) {
+          fetches.push(
+            api.get<UserPersona>(`/user_personas/${conv.user_persona_id}`).catch(() => null),
+          );
+        }
+
+        const [char, msgs, pers] = await Promise.all(fetches);
+        setCharacter(char as Character);
+        setMessages(msgs as Message[]);
+        if (pers) setPersona(pers as UserPersona);
       } catch {
         // conversation may not exist
       } finally {
@@ -177,7 +186,7 @@ export default function ChatConversationPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <ChatHeader character={character} conversation={conversation} activeProfile={activeProfile} />
+      <ChatHeader character={character} conversation={conversation} activeProfile={activeProfile} persona={persona} />
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-auto p-6 space-y-4">
@@ -195,6 +204,7 @@ export default function ChatConversationPage() {
             isLast={idx === messages.length - 1 && lastIsAssistant && !streaming}
             onRegenerate={handleRegenerate}
             onEditMessage={handleEditMessage}
+            userPersona={persona}
           />
         ))}
 
