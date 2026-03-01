@@ -11,6 +11,7 @@ import pytest
 
 from app.tools.character_assistant import (
     build_assistant_prompt,
+    generate_character,
     parse_assistant_response,
 )
 
@@ -94,6 +95,24 @@ def test_parse_assistant_response_missing_fields() -> None:
 
 
 @pytest.mark.asyncio
+async def test_generate_character_accumulates_streamed_tokens() -> None:
+    """generate_character should collect streamed tokens and parse the final JSON."""
+    json_str = '{"name":"Luna","tags":["elf"],"summary":"An elf.","persona":"Kind."}'
+
+    async def _fake_stream(*_a: object, **_kw: object):  # type: ignore[misc]
+        for ch in json_str:
+            yield {"choices": [{"delta": {"content": ch}}]}
+
+    mock_llm = AsyncMock()
+    mock_llm.chat_completion_stream = _fake_stream
+
+    result = await generate_character(mock_llm, name="Luna")
+    assert result["name"] == "Luna"
+    assert "elf" in result["tags"]
+    assert result["summary"] == "An elf."
+
+
+@pytest.mark.asyncio
 async def test_character_assistant_endpoint_no_server(client: AsyncClient) -> None:
     """POST /tools/character_assistant should return 503 when LLM is not configured."""
     resp = await client.post(
@@ -119,7 +138,12 @@ async def test_character_assistant_read_error_returns_503(client: AsyncClient) -
     """POST /tools/character_assistant should return 503 on httpx.ReadError."""
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
-    mock_llm.chat_completion = AsyncMock(side_effect=httpx.ReadError("peer closed"))
+
+    async def _error_stream(*_a: object, **_kw: object):  # type: ignore[misc]
+        raise httpx.ReadError("peer closed")
+        yield  # pragma: no cover — makes this an async generator
+
+    mock_llm.chat_completion_stream = _error_stream
 
     with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
         resp = await client.post(
@@ -151,9 +175,14 @@ async def test_character_assistant_http_status_error_returns_503(client: AsyncCl
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
     mock_resp = httpx.Response(503, request=httpx.Request("POST", "http://test"))
-    mock_llm.chat_completion = AsyncMock(
-        side_effect=httpx.HTTPStatusError("Server Error", request=mock_resp.request, response=mock_resp)
-    )
+
+    async def _status_error_stream(*_a: object, **_kw: object):  # type: ignore[misc]
+        raise httpx.HTTPStatusError(
+            "Server Error", request=mock_resp.request, response=mock_resp
+        )
+        yield  # pragma: no cover — makes this an async generator
+
+    mock_llm.chat_completion_stream = _status_error_stream
 
     with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
         resp = await client.post(
@@ -170,11 +199,11 @@ async def test_character_assistant_timeout_returns_504(client: AsyncClient) -> N
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
 
-    async def _slow_completion(*_args: object, **_kwargs: object) -> dict:
+    async def _slow_stream(*_args: object, **_kwargs: object):  # type: ignore[misc]
         await asyncio.sleep(999)
-        return {}
+        yield {}  # pragma: no cover — never reached
 
-    mock_llm.chat_completion = _slow_completion
+    mock_llm.chat_completion_stream = _slow_stream
 
     with (
         patch("app.routers.tools._resolve_llm_client", return_value=mock_llm),
@@ -193,7 +222,12 @@ async def test_character_assistant_unexpected_error_returns_500(client: AsyncCli
     """POST /tools/character_assistant should return 500 on unexpected exceptions."""
     mock_llm = AsyncMock()
     mock_llm.health_status = AsyncMock(return_value="ok")
-    mock_llm.chat_completion = AsyncMock(side_effect=RuntimeError("something unexpected"))
+
+    async def _unexpected_stream(*_a: object, **_kw: object):  # type: ignore[misc]
+        raise RuntimeError("something unexpected")
+        yield  # pragma: no cover — makes this an async generator
+
+    mock_llm.chat_completion_stream = _unexpected_stream
 
     with patch("app.routers.tools._resolve_llm_client", return_value=mock_llm):
         resp = await client.post(
