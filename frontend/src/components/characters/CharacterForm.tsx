@@ -1,7 +1,6 @@
 "use client";
 
 import type { Character, CharacterCreate, ExampleDialogue } from "@/types";
-import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { X, Sparkles, Loader2, Plus } from "lucide-react";
@@ -85,7 +84,6 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
     setGenerating(true);
     setError(null);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 180_000);
     try {
       const req: AssistantRequest = {
         name,
@@ -95,11 +93,54 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
         limits: assistantLimits,
         notes: assistantNotes,
       };
-      const result = await api.post<Record<string, unknown>>(
-        "/tools/character_assistant",
-        req,
-        { signal: controller.signal },
-      );
+      const res = await fetch("/api/tools/character_assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const detail = await res.text().catch(() => res.statusText);
+        throw new Error(`API ${res.status}: ${detail}`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let result: Record<string, unknown> | null = null;
+      let streamError: string | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(trimmed.slice(6)) as Record<string, unknown>;
+            if (typeof event.error === "string") {
+              streamError = event.error;
+            }
+            if (event.done === true && event.result) {
+              result = event.result as Record<string, unknown>;
+            }
+          } catch {
+            // skip malformed SSE lines
+          }
+        }
+      }
+
+      if (streamError) throw new Error(streamError);
+      if (!result) throw new Error("AI generation produced no result");
+
       // Fill form fields with generated data
       if (result.summary && typeof result.summary === "string")
         setSummary(result.summary);
@@ -116,10 +157,10 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
       if (result.system_rules && typeof result.system_rules === "string")
         setSystemRules(result.system_rules);
       if (Array.isArray(result.tags))
-        setTagsInput(result.tags.join(", "));
+        setTagsInput((result.tags as string[]).join(", "));
       if (Array.isArray(result.example_dialogues))
         setExampleDialogues(
-          result.example_dialogues.map((d: Record<string, string>) => ({
+          (result.example_dialogues as Record<string, string>[]).map((d) => ({
             user: d.user ?? "",
             assistant: d.assistant ?? "",
           })),
@@ -127,14 +168,14 @@ export default function CharacterForm({ initial, onSubmit }: Props) {
       setShowAssistant(false);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Generation timed out — the AI server may be busy. Please try again.");
+        setError("Generation was cancelled.");
       } else {
         setError(
           err instanceof Error ? err.message : "AI generation failed",
         );
       }
     } finally {
-      clearTimeout(timeoutId);
+      controller.abort();
       setGenerating(false);
     }
   }

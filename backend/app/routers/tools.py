@@ -2,25 +2,29 @@
 
 from __future__ import annotations
 
-import asyncio
+import json
 import logging
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import get_config
 from app.services.chat_service import _resolve_llm_client
-from app.tools.character_assistant import generate_character
+from app.tools.character_assistant import (
+    generate_character_stream,
+    parse_assistant_response,
+)
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 logger = logging.getLogger(__name__)
 
-# Maximum wall-clock time the character assistant endpoint may spend waiting
-# for the LLM to generate a response.  This is a *safety net* — the primary
-# timeout is the per-chunk inactivity deadline inside generate_character().
-_ASSISTANT_TIMEOUT_SECONDS = 600
+
+def _sse(data: dict[str, Any]) -> str:
+    """Format a dict as an SSE ``data:`` frame."""
+    return f"data: {json.dumps(data)}\n\n"
 
 
 class CharacterAssistantRequest(BaseModel):
@@ -35,8 +39,19 @@ class CharacterAssistantRequest(BaseModel):
 
 
 @router.post("/character_assistant")
-async def character_assistant(request: CharacterAssistantRequest) -> dict[str, Any]:
-    """Generate a complete character profile using the chat LLM."""
+async def character_assistant(request: CharacterAssistantRequest) -> StreamingResponse:
+    """Generate a complete character profile using the chat LLM.
+
+    Returns a **Server-Sent Events** stream so that data flows
+    continuously from backend → frontend, preventing idle-connection
+    timeouts in the proxy chain.
+
+    Events emitted:
+
+    - ``{"token": "..."}`` — a raw token from the LLM
+    - ``{"done": true, "result": {...}}`` — the final parsed character
+    - ``{"error": "..."}`` — on failure
+    """
     cfg = get_config()
 
     # Use the default chat server for generation
@@ -60,9 +75,10 @@ async def character_assistant(request: CharacterAssistantRequest) -> dict[str, A
             detail="LLM server is unreachable — please ensure the llama.cpp server is running",
         )
 
-    try:
-        result = await asyncio.wait_for(
-            generate_character(
+    async def _event_stream():
+        tokens: list[str] = []
+        try:
+            async for token in generate_character_stream(
                 llm,
                 name=request.name,
                 theme=request.theme,
@@ -70,34 +86,36 @@ async def character_assistant(request: CharacterAssistantRequest) -> dict[str, A
                 style=request.style,
                 limits=request.limits,
                 notes=request.notes,
-            ),
-            timeout=_ASSISTANT_TIMEOUT_SECONDS,
-        )
-    except TimeoutError:
-        logger.warning("Character assistant timed out after %ss", _ASSISTANT_TIMEOUT_SECONDS)
-        raise HTTPException(
-            status_code=504,
-            detail=(
-                "Character generation timed out — the LLM server may be "
-                "overloaded or unresponsive. Please try again."
-            ),
-        ) from None
-    except (
-        httpx.ConnectError,
-        httpx.ReadError,
-        httpx.HTTPStatusError,
-        httpx.TimeoutException,
-        ConnectionError,
-    ):
-        logger.exception("Character assistant LLM call failed")
-        raise HTTPException(
-            status_code=503,
-            detail="LLM server is unreachable — cannot generate character",
-        ) from None
-    except Exception:
-        logger.exception("Unexpected error in character assistant")
-        raise HTTPException(
-            status_code=500,
-            detail="Character generation failed unexpectedly — please try again",
-        ) from None
-    return result
+            ):
+                tokens.append(token)
+                yield _sse({"token": token})
+        except (
+            httpx.ConnectError,
+            httpx.ReadError,
+            httpx.HTTPStatusError,
+            httpx.TimeoutException,
+            ConnectionError,
+        ):
+            logger.exception("Character assistant LLM call failed")
+            yield _sse({"error": "LLM server is unreachable — cannot generate character"})
+            return
+        except Exception:
+            logger.exception("Unexpected error in character assistant")
+            yield _sse({"error": "Character generation failed unexpectedly — please try again"})
+            return
+
+        raw = "".join(tokens)
+        result = parse_assistant_response(raw)
+        if not result.get("name"):
+            result["name"] = request.name
+        yield _sse({"done": True, "result": result})
+
+    return StreamingResponse(
+        _event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
