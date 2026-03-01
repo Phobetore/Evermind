@@ -20,10 +20,10 @@ class ConversationRepository(BaseRepository):
         conversation_id = str(uuid.uuid4())
         await db.execute(
             """
-            INSERT INTO conversations (id, character_id, title, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO conversations (id, character_id, title, user_persona_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (conversation_id, data.character_id, data.title, now, now),
+            (conversation_id, data.character_id, data.title, data.user_persona_id, now, now),
         )
         await db.commit()
         return await self.get(conversation_id)  # type: ignore[return-value]
@@ -71,10 +71,12 @@ class ConversationRepository(BaseRepository):
 
 
 def _row_to_response(row: aiosqlite.Row) -> ConversationResponse:
+    keys = row.keys()
     return ConversationResponse(
         id=row["id"],
         character_id=row["character_id"],
         title=row["title"],
+        user_persona_id=row["user_persona_id"] if "user_persona_id" in keys else None,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

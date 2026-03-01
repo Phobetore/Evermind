@@ -19,6 +19,7 @@ dependencies = [
     "aiosqlite>=0.20.0,<1.0.0",
     "httpx>=0.28.0,<1.0.0",
     "numpy>=1.26.0,<3.0.0",
+    "python-multipart>=0.0.9,<1.0.0",
 ]
 
 [project.optional-dependencies]

@@ -25,6 +25,7 @@ from app.routers import (
     models,
     profiles,
     tools,
+    user_personas,
     variants,
 )
 
@@ -67,6 +68,7 @@ app = FastAPI(
         {"name": "messages", "description": "Read and create messages within conversations"},
         {"name": "chat", "description": "LLM-powered streaming chat generation (SSE)"},
         {"name": "profiles", "description": "Generation profiles (balanced, max_quality, fast)"},
+        {"name": "user_personas", "description": "User persona profiles for RP interactions"},
         {"name": "memory", "description": "Memory management — list, pin, forget, rebuild"},
         {"name": "models", "description": "LLM server status and management"},
         {"name": "tools", "description": "AI-powered utilities (character assistant)"},
@@ -101,6 +103,7 @@ app.include_router(conversations.router)
 app.include_router(messages.router)
 app.include_router(chat.router)
 app.include_router(profiles.router)
+app.include_router(user_personas.router)
 app.include_router(memory.router)
 app.include_router(models.router)
 app.include_router(tools.router)

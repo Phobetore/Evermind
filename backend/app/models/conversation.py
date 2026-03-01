@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class ConversationCreate(BaseModel):
     character_id: str
     title: str = ""
+    user_persona_id: str | None = None
 
 
 class ConversationUpdate(BaseModel):
@@ -18,5 +19,6 @@ class ConversationResponse(BaseModel):
     id: str
     character_id: str
     title: str
+    user_persona_id: str | None = None
     created_at: str
     updated_at: str

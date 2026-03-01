@@ -87,7 +87,10 @@ def build_assistant_prompt(
         limits=limits or "(standard safe defaults)",
         notes=notes or "(none)",
     )
-    return [{"role": "system", "content": content}]
+    return [
+        {"role": "system", "content": content},
+        {"role": "user", "content": "Generate the character profile now."},
+    ]
 
 
 def parse_assistant_response(raw_text: str) -> dict[str, Any]:

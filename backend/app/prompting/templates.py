@@ -93,6 +93,16 @@ MEMORY_BLOCK = """MEMORY (relevant, do not quote verbatim)
 RECENT_CHAT = """RECENT CHAT (most recent last)
 {recent_messages}"""
 
+# C.7 — User Persona Block
+USER_PERSONA = """USER PROFILE (the person you are talking to)
+
+Name: {persona_name}
+Age: {persona_age}
+Physical description: {persona_physical_description}
+Personality: {persona_personality}
+Backstory: {persona_backstory}
+Notes: {persona_notes}"""
+
 # D.1 — Memory Extraction Prompt (JSON strict)
 MEMORY_EXTRACTION = """MEMORY EXTRACTOR — STRICT JSON
 
