@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0c0a12;
+  --background: #0b0911;
   --foreground: #ededed;
   --accent: #8b5cf6;
   --accent-soft: #7c3aed;
@@ -25,35 +25,36 @@
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(circle at 10% -10%, rgba(139, 92, 246, 0.2), transparent 30%),
+    radial-gradient(circle at 90% -20%, rgba(59, 130, 246, 0.12), transparent 35%),
+    var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
 }
 
-/* Shared input/textarea styles */
 .input {
   display: block;
   width: 100%;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
-  background-color: var(--surface);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--border), white 8%);
+  background-color: color-mix(in srgb, var(--surface), black 6%);
+  padding: 0.65rem 0.8rem;
+  font-size: 0.9rem;
   color: #e4e4e7;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
 }
 
 .input::placeholder {
-  color: #52525b;
+  color: #666674;
 }
 
-/* Custom scrollbar for the mind/memory theme */
 ::-webkit-scrollbar {
   width: 6px;
 }

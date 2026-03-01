@@ -54,11 +54,12 @@ def _format_recent_messages(
 ) -> str:
     """Render recent messages as User: … / CharName: … lines."""
     lines: list[str] = []
-    for m in messages:
+    for m in messages[-MAX_RECENT_MESSAGES:]:
+        clipped = _truncate(m.content, limit=MAX_MESSAGE_CHARS)
         if m.role == "user":
-            lines.append(f"User: {m.content}")
+            lines.append(f"User: {clipped}")
         elif m.role == "assistant":
-            lines.append(f"{char_name}: {m.content}")
+            lines.append(f"{char_name}: {clipped}")
     return "\n".join(lines)
 
 
@@ -81,10 +82,12 @@ def _format_memory_lines(memories: list[MemoryResponse]) -> str:
     if not memories:
         return ""
     lines: list[str] = []
-    for m in memories:
+    for m in memories[:MAX_MEMORY_ITEMS]:
         imp = f"{m.importance:.2f}"
         conf = f"{m.confidence:.2f}"
-        lines.append(f"- [{m.type}|imp={imp}|conf={conf}] {m.content}")
+        lines.append(
+            f"- [{m.type}|imp={imp}|conf={conf}] {_truncate(m.content, limit=220)}"
+        )
     return MEMORY_BLOCK.format(memory_lines="\n".join(lines))
 
 
@@ -243,3 +246,14 @@ def build_refine_prompt(
         {"role": "system", "content": prompt},
         {"role": "user", "content": "Write the refined response now."},
     ]
+MAX_RECENT_MESSAGES = 14
+MAX_MESSAGE_CHARS = 500
+MAX_MEMORY_ITEMS = 10
+
+
+def _truncate(text: str, *, limit: int) -> str:
+    """Trim long text blocks to keep prompt budgets stable."""
+    stripped = text.strip()
+    if len(stripped) <= limit:
+        return stripped
+    return f"{stripped[:limit].rstrip()}…"

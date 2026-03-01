@@ -270,3 +270,23 @@ def test_build_chat_messages_anti_repetition_instruction() -> None:
     assert "repeat the same phrase" in system_content.lower()
     # CONTROLLER rule
     assert "repetitive phrasing" in system_content.lower()
+
+
+def test_build_chat_messages_truncates_long_messages() -> None:
+    """Recent messages should be clipped to control prompt size."""
+    char = _make_character()
+    long_text = "x" * 900
+    history = [_make_message("user", long_text)]
+    msgs = build_chat_messages(char, history, "Hi")
+    system_content = msgs[0]["content"]
+    assert "x" * 650 not in system_content
+    assert "…" in system_content
+
+
+def test_build_chat_messages_limits_memory_lines() -> None:
+    """Memory injection should keep only the top configured number of lines."""
+    char = _make_character()
+    mems = [_make_memory(id=f"m{i}", content=f"memory-{i}") for i in range(20)]
+    msgs = build_chat_messages(char, [], "Hi", memories=mems)
+    system_content = msgs[0]["content"]
+    assert system_content.count("[semantic|imp=") <= 10

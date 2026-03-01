@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import uuid
+from collections import Counter
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -36,6 +38,34 @@ MEMORY_CONFIDENCE_THRESHOLD = 0.6
 # Interval (seconds) between heartbeat SSE events during pipeline execution.
 # Keeps the connection alive through proxies while the LLM is generating.
 _HEARTBEAT_INTERVAL = 15.0
+
+
+QUALITY_MODE_PRESETS: dict[str, dict[str, Any]] = {
+    "balanced": {
+        "temperature": 0.72,
+        "top_p": 0.9,
+        "max_tokens": 900,
+        "best_of_n": 3,
+        "self_refine": True,
+        "repeat_penalty": 1.08,
+    },
+    "immersive": {
+        "temperature": 0.78,
+        "top_p": 0.92,
+        "max_tokens": 1100,
+        "best_of_n": 5,
+        "self_refine": True,
+        "repeat_penalty": 1.12,
+    },
+    "fast": {
+        "temperature": 0.68,
+        "top_p": 0.88,
+        "max_tokens": 700,
+        "best_of_n": 1,
+        "self_refine": False,
+        "repeat_penalty": 1.04,
+    },
+}
 
 # Weak set of fire-and-forget background tasks to prevent garbage collection
 # before completion (see https://docs.python.org/3/library/asyncio-task.html#creating-tasks).
@@ -159,6 +189,14 @@ class ChatService:
             yield _sse({"error": f"LLM server '{chat_server_key}' not configured"})
             return
 
+        quality_mode = str(gen_params.pop("quality_mode", "")).strip().lower()
+        if quality_mode in QUALITY_MODE_PRESETS:
+            # Quality mode presets are applied as an explicit generation policy.
+            gen_params = {
+                **QUALITY_MODE_PRESETS[quality_mode],
+                **gen_params,
+            }
+
         # Determine pipeline settings from profile
         best_of_n = profile.best_of_n if profile else 1
         do_self_refine = profile.self_refine if profile else False
@@ -170,6 +208,8 @@ class ChatService:
         # Resolve judge LLM for the pipeline (if needed)
         judge_server_key = profile.judge_server if profile else "judge"
         judge_llm: LLMClient | None = None
+        memory_injected_count = len(memories or [])
+
         if use_pipeline:
             judge_llm = _resolve_llm_client(cfg, judge_server_key)
             if judge_llm is None:
@@ -238,7 +278,14 @@ class ChatService:
             # Run the pipeline in a task and send periodic heartbeat events
             # to keep the SSE connection alive through any proxies.
             # Build extra generation params (penalties, etc.) for the pipeline.
-            _pipeline_skip = {"temperature", "max_tokens", "seed", "best_of_n", "self_refine"}
+            _pipeline_skip = {
+                "temperature",
+                "max_tokens",
+                "seed",
+                "best_of_n",
+                "self_refine",
+                "quality_mode",
+            }
             extra_gen_params = {k: v for k, v in gen_params.items() if k not in _pipeline_skip}
 
             pipeline_task: asyncio.Task[tuple[str, Any]] = asyncio.create_task(
@@ -280,8 +327,10 @@ class ChatService:
             timing.mark("t_stream_end")
 
             if judge_result is not None:
+                yield _sse({"status": "judging", "detail": "Judge scoring completed."})
                 timing.mark("t_judge_end")
                 if do_self_refine and judge_result.rewrite_suggestion:
+                    yield _sse({"status": "refining", "detail": "Running final self-refine pass."})
                     timing.mark("t_self_refine_end")
 
             if not final_text:
@@ -352,6 +401,7 @@ class ChatService:
 
         if mem_llm is not None:
             memory_extract_enabled = True
+            yield _sse({"status": "memory", "detail": "Extracting and writing long-term memory..."})
             task = asyncio.create_task(
                 self._extract_and_store_memories_safe(
                     character_id=character_id,
@@ -378,6 +428,38 @@ class ChatService:
         timing.mark("t_request_end")
         latency_meta = timing.to_meta()
 
+        quality_signals = _compute_quality_signals(
+            full_response,
+            memory_items_injected=memory_injected_count,
+        )
+        def _safe_num(value: float | None) -> float:
+            return float(value) if value is not None else 0.0
+
+        retrieval_meta = {
+            "top_k": memory_injected_count,
+            "selected_n": memory_injected_count,
+            "memory_ids_selected": [m.id for m in (memories or [])],
+            "scoring": {
+                "method": "importance_x_confidence",
+                "formula": "score = importance * confidence",
+                "strategy": "static",
+                "weight_importance": 1.0,
+                "weight_confidence": 1.0,
+            },
+            "memory_summaries": [
+                {
+                    "id": m.id,
+                    "rank": idx + 1,
+                    "type": m.type,
+                    "title": m.title,
+                    "importance": _safe_num(m.importance),
+                    "confidence": _safe_num(m.confidence),
+                    "score": round(_safe_num(m.importance) * _safe_num(m.confidence), 4),
+                }
+                for idx, m in enumerate(memories or [])
+            ],
+        }
+
         meta: dict[str, Any] = {
             "schema_version": "1.1",
             "request_id": request_id,
@@ -385,6 +467,7 @@ class ChatService:
             "pipeline": {
                 "best_of_n": best_of_n,
                 "self_refine": do_self_refine,
+                "quality_mode": quality_mode or "custom",
                 "judge_enabled": judge_enabled,
                 "memory_extract_enabled": memory_extract_enabled,
                 "memory_write_enabled": memory_extract_enabled,
@@ -405,6 +488,8 @@ class ChatService:
                 "total_tokens": 0,
             },
             "latency_ms": latency_meta,
+            "quality_signals": quality_signals,
+            "retrieval": retrieval_meta,
             "errors": errors,
         }
 
@@ -428,8 +513,13 @@ class ChatService:
                     "pipeline": {
                         "best_of_n": best_of_n,
                         "self_refine": do_self_refine,
+                        "quality_mode": quality_mode or "custom",
                         "judge_enabled": judge_enabled,
+                        "memory_extract_enabled": memory_extract_enabled,
+                        "memory_write_enabled": memory_extract_enabled,
                     },
+                    "quality_signals": quality_signals,
+                    "retrieval": retrieval_meta,
                     "latency_ms": {
                         "dur_total": latency_meta["dur_total"],
                         "dur_generate": latency_meta["dur_generate"],
@@ -497,7 +587,19 @@ class ChatService:
         )
 
         # Call the memory LLM (non-streaming)
-        response = await mem_llm.chat_completion(extraction_messages, temperature=0.1, max_tokens=1024)
+        response = await mem_llm.chat_completion(
+            extraction_messages,
+            temperature=0.1,
+            max_tokens=1024,
+        )
+        # Defensive: some mocked or non-conforming clients may return an awaitable
+        # payload or a non-dict response object.
+        if inspect.isawaitable(response):
+            response = await response
+        if not isinstance(response, dict):
+            logger.warning("Memory extraction returned non-dict response: %s", type(response))
+            return
+
         raw_content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
 
         # Parse and store extracted memories
@@ -543,6 +645,41 @@ class ChatService:
             len(parsed.get("episodic", [])),
             len(parsed.get("world_updates", [])),
         )
+
+
+
+
+def _compute_quality_signals(response_text: str, *, memory_items_injected: int) -> dict[str, float | int]:
+    """Compute lightweight per-turn quality telemetry signals.
+
+    These heuristics are intentionally cheap and deterministic so they can run
+    on every turn without extra model calls.
+    """
+    words = [
+        w.strip(".,!?;:()[]{}\"'\n\t").lower()
+        for w in response_text.split()
+    ]
+    words = [w for w in words if w]
+    word_count = len(words)
+    unique_count = len(set(words))
+
+    if word_count <= 1:
+        repetition_ratio = 0.0
+        lexical_diversity = 1.0 if word_count == 1 else 0.0
+    else:
+        counts = Counter(words)
+        repeated_tokens = sum(c - 1 for c in counts.values() if c > 1)
+        repetition_ratio = repeated_tokens / word_count
+        lexical_diversity = unique_count / word_count
+
+    return {
+        "response_chars": len(response_text),
+        "response_words": word_count,
+        "unique_words": unique_count,
+        "lexical_diversity": round(lexical_diversity, 4),
+        "repetition_ratio": round(repetition_ratio, 4),
+        "memory_items_injected": memory_items_injected,
+    }
 
 
 def _sse(data: dict[str, Any]) -> str:
