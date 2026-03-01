@@ -29,6 +29,9 @@ def test_build_judge_prompt_structure() -> None:
     assert "A) Response A" in content
     assert "B) Response B" in content
     assert "JUDGE" in content
+    # Reaction realism must be a scoring criterion
+    assert "Reaction realism" in content
+    assert "reaction" in content.lower()
 
 
 def test_build_judge_prompt_many_candidates() -> None:

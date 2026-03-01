@@ -94,6 +94,10 @@ def test_build_chat_messages_includes_realistic_reaction_rule() -> None:
     assert "hostile" in system_content.lower()
     assert "violent" in system_content.lower()
     assert "threatening" in system_content.lower()
+    # Strengthened: must forbid casual acceptance of physical violence
+    assert "casual acceptance" in system_content.lower()
+    # Strengthened: must forbid deflecting with pleasantries
+    assert "pleasantries" in system_content.lower()
 
 
 def test_build_chat_messages_with_history() -> None:
@@ -190,3 +194,12 @@ def test_build_chat_messages_assembly_order() -> None:
     idx_memory = system_content.index("MEMORY (relevant")
     idx_recent = system_content.index("RECENT CHAT")
     assert idx_core < idx_world < idx_memory < idx_recent
+
+
+def test_build_chat_messages_controller_emotional_weight() -> None:
+    """Controller should instruct analysis of emotional weight of user actions."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "emotional weight" in system_content.lower()
+    assert "aggressive" in system_content.lower()
