@@ -259,3 +259,14 @@ def test_build_chat_messages_no_echo_instruction() -> None:
     msgs = build_chat_messages(char, [], "Hi")
     system_content = msgs[0]["content"]
     assert "never echo" in system_content.lower() or "NEVER echo" in system_content
+
+
+def test_build_chat_messages_anti_repetition_instruction() -> None:
+    """System prompt must instruct the AI to avoid repeating phrases within a response."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    # OUTPUT FORMAT rule
+    assert "repeat the same phrase" in system_content.lower()
+    # CONTROLLER rule
+    assert "repetitive phrasing" in system_content.lower()

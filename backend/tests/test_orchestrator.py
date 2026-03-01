@@ -163,3 +163,70 @@ async def test_run_pipeline_no_judge_returns_first() -> None:
     )
     assert text == "A"
     assert judge_result is None
+
+
+@pytest.mark.asyncio
+async def test_generate_single_forwards_extra_params() -> None:
+    """Extra params (e.g. frequency_penalty) must be forwarded to the LLM."""
+    llm = _mock_llm("Test")
+    await generate_single(
+        llm,
+        [{"role": "user", "content": "Hi"}],
+        extra_params={"frequency_penalty": 0.8, "presence_penalty": 0.3},
+    )
+    call_kwargs = llm.chat_completion.call_args[1]
+    assert call_kwargs["frequency_penalty"] == 0.8
+    assert call_kwargs["presence_penalty"] == 0.3
+
+
+@pytest.mark.asyncio
+async def test_generate_best_of_n_forwards_extra_params() -> None:
+    """Extra params must reach every candidate generation."""
+    llm = _mock_llm_sequence(["A", "B"])
+    await generate_best_of_n(
+        llm,
+        [{"role": "user", "content": "Hi"}],
+        n=2,
+        extra_params={"frequency_penalty": 0.8},
+    )
+    for call in llm.chat_completion.call_args_list:
+        assert call[1]["frequency_penalty"] == 0.8
+
+
+@pytest.mark.asyncio
+async def test_self_refine_forwards_extra_params() -> None:
+    """Extra params must be sent during the self-refine LLM call."""
+    llm = _mock_llm("Refined")
+    await self_refine(
+        llm,
+        char_name="Alice",
+        writing_style="Flowery",
+        boundaries="none",
+        world_state_block="",
+        memory_lines_text="",
+        user_message="Hello",
+        best_candidate_text="Draft",
+        rewrite_suggestion="Add more emotion",
+        extra_params={"frequency_penalty": 0.8},
+    )
+    call_kwargs = llm.chat_completion.call_args[1]
+    assert call_kwargs["frequency_penalty"] == 0.8
+    # Temperature must stay at 0.5 for self-refine
+    assert call_kwargs["temperature"] == 0.5
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_forwards_extra_params() -> None:
+    """Extra params must propagate through the full pipeline."""
+    llm = _mock_llm("Response")
+    text, _ = await run_pipeline(
+        llm,
+        None,
+        [{"role": "user", "content": "Hi"}],
+        best_of_n=1,
+        do_self_refine=False,
+        extra_params={"frequency_penalty": 0.8},
+    )
+    assert text == "Response"
+    call_kwargs = llm.chat_completion.call_args[1]
+    assert call_kwargs["frequency_penalty"] == 0.8

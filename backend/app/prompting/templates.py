@@ -44,7 +44,8 @@ OUTPUT FORMAT:
 - Always respond in roleplay format: blend spoken dialogue with *rich narrative descriptions*. Include [context] only when it adds value.
 - Every response must contain at least one paragraph of *narrated action or description* alongside dialogue.
 - NEVER echo, quote, or re-state the user's message text as {char_name}'s own words. The user's lines belong to the user — {char_name} may react to them but must not parrot them.
-- Do NOT repeat the FIRST MESSAGE. It was already delivered at the start of the conversation; continue the dialogue naturally from the latest user message."""
+- Do NOT repeat the FIRST MESSAGE. It was already delivered at the start of the conversation; continue the dialogue naturally from the latest user message.
+- NEVER repeat the same phrase, descriptor, or sentence structure more than once in a single response. Vary your vocabulary and phrasing throughout — if you already used a description or turn of phrase, find a different way to express the next idea."""
 
 # C.2 — Controller Prompt (orchestration)
 CONTROLLER = """CONTROLLER
@@ -55,7 +56,8 @@ You must follow this structure internally:
 - Do not repeat the memory block verbatim.
 - If the user contradicts memory, respond naturally (clarify, question, or adapt) without breaking character.
 - Analyse the emotional weight of the user's latest action. If it is aggressive, violent, or threatening, the character's response must reflect the gravity — do not deflect with humour or hospitality.
-- Prioritize immersive storytelling: every response should read like a scene from a novel, with vivid narration, sensory details, and expressive body language woven around dialogue."""
+- Prioritize immersive storytelling: every response should read like a scene from a novel, with vivid narration, sensory details, and expressive body language woven around dialogue.
+- Avoid repetitive phrasing: never re-use the same descriptive phrase, adjective cluster, or sentence pattern more than once in a single reply. Each sentence should bring fresh language."""
 
 # C.3 — Character Core Block
 CHARACTER_CORE = """CHARACTER CORE
@@ -178,11 +180,12 @@ SCORING (0-10 each):
 5) Immersion (no meta, no AI talk)
 6) Reaction realism (proportional emotional/physical response to user actions, especially hostile, violent, or threatening ones)
 7) Narrative richness (vivid descriptions, sensory details, body language, scene-setting, multi-paragraph depth)
+8) Repetition avoidance (penalise repeated phrases, looping sentence structures, echoed user text, and recycled descriptors; each idea should use fresh wording)
 
 OUTPUT JSON ONLY:
 {{
   "ranking": [
-    {{ "id": "A", "score": 0.0, "subscores": {{"persona":0,"memory":0,"continuity":0,"style":0,"immersion":0,"reaction":0,"narrative":0}}, "reasons": ["..."] }}
+    {{ "id": "A", "score": 0.0, "subscores": {{"persona":0,"memory":0,"continuity":0,"style":0,"immersion":0,"reaction":0,"narrative":0,"repetition":0}}, "reasons": ["..."] }}
   ],
   "best_id": "A",
   "rewrite_suggestion": "one paragraph instruction to improve best candidate (or empty string)"

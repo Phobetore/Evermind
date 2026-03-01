@@ -425,3 +425,48 @@ async def test_gen_params_best_of_n_does_not_leak_to_llm(client: AsyncClient) ->
     assert "best_of_n" not in captured_params
     assert "self_refine" not in captured_params
     assert captured_params.get("temperature") == 0.5
+
+
+@pytest.mark.asyncio
+async def test_profile_generation_defaults_injected_into_stream(client: AsyncClient) -> None:
+    """Profile generation_defaults (frequency_penalty, presence_penalty) must be
+    forwarded to the LLM streaming call even when the user doesn't supply them."""
+    char_resp = await client.post("/characters", json={"name": "PenaltyChar"})
+    assert char_resp.status_code == 201
+    char_id = char_resp.json()["id"]
+
+    conv_resp = await client.post(
+        "/conversations",
+        json={"character_id": char_id, "title": "Penalty test"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    captured_params: dict[str, Any] = {}
+
+    async def capturing_stream(messages, **params):
+        captured_params.update(params)
+        yield {"choices": [{"delta": {"content": "ok"}}]}
+
+    with patch("app.services.chat_service._resolve_llm_client") as mock_resolve:
+        mock_llm = AsyncMock()
+        mock_llm.health_status = AsyncMock(return_value="ok")
+        mock_llm.chat_completion_stream = capturing_stream
+        mock_resolve.return_value = mock_llm
+
+        resp = await client.post(
+            "/chat/stream",
+            json={
+                "conversation_id": conv_id,
+                "character_id": char_id,
+                "user_message": "penalty test",
+                "profile_id": "fast",  # No custom generation_params
+            },
+        )
+        assert resp.status_code == 200
+
+    # Default penalties from ProfileConfig should be present
+    assert "frequency_penalty" in captured_params
+    assert captured_params["frequency_penalty"] > 0
+    assert "presence_penalty" in captured_params
+    assert captured_params["presence_penalty"] > 0
