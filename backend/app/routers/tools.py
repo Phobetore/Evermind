@@ -18,8 +18,9 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 logger = logging.getLogger(__name__)
 
 # Maximum wall-clock time the character assistant endpoint may spend waiting
-# for the LLM to generate a response before returning a timeout error.
-_ASSISTANT_TIMEOUT_SECONDS = 180
+# for the LLM to generate a response.  This is a *safety net* — the primary
+# timeout is the per-chunk inactivity deadline inside generate_character().
+_ASSISTANT_TIMEOUT_SECONDS = 600
 
 
 class CharacterAssistantRequest(BaseModel):
@@ -77,8 +78,8 @@ async def character_assistant(request: CharacterAssistantRequest) -> dict[str, A
         raise HTTPException(
             status_code=504,
             detail=(
-                f"Character generation timed out after {_ASSISTANT_TIMEOUT_SECONDS}s "
-                "— the LLM server may be overloaded. Please try again."
+                "Character generation timed out — the LLM server may be "
+                "overloaded or unresponsive. Please try again."
             ),
         ) from None
     except (
