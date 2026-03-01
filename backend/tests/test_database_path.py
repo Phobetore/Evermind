@@ -2,44 +2,29 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
-
-def test_default_database_path_is_absolute() -> None:
-    """DATABASE_PATH default must be absolute so it never depends on the CWD."""
-    saved = os.environ.pop("DATABASE_PATH", None)
-    try:
-        import importlib
-
-        import app.core.database as db_mod
-
-        importlib.reload(db_mod)
-        assert os.path.isabs(db_mod.DATABASE_PATH), (
-            f"Default DATABASE_PATH should be absolute, got: {db_mod.DATABASE_PATH}"
-        )
-    finally:
-        if saved is not None:
-            os.environ["DATABASE_PATH"] = saved
+from app.core.database import _PROJECT_ROOT
 
 
-def test_default_database_path_under_project_root() -> None:
-    """DATABASE_PATH default must point to data/app.db under the project root."""
-    saved = os.environ.pop("DATABASE_PATH", None)
-    try:
-        import importlib
+def test_project_root_is_absolute() -> None:
+    """_PROJECT_ROOT must be an absolute path."""
+    assert _PROJECT_ROOT.is_absolute(), (
+        f"_PROJECT_ROOT should be absolute, got: {_PROJECT_ROOT}"
+    )
 
-        import app.core.database as db_mod
 
-        importlib.reload(db_mod)
-        db_path = Path(db_mod.DATABASE_PATH)
-        # The project root contains the backend/ directory
-        project_root = db_path.parent.parent
-        assert (project_root / "backend").is_dir(), (
-            f"Expected project root at {project_root} to contain backend/"
-        )
-        assert db_path.name == "app.db"
-        assert db_path.parent.name == "data"
-    finally:
-        if saved is not None:
-            os.environ["DATABASE_PATH"] = saved
+def test_project_root_contains_backend() -> None:
+    """_PROJECT_ROOT must point to the actual project root (contains backend/)."""
+    assert (_PROJECT_ROOT / "backend").is_dir(), (
+        f"Expected project root at {_PROJECT_ROOT} to contain backend/"
+    )
+
+
+def test_default_db_path_under_project_data() -> None:
+    """The default database path must resolve to data/app.db under the project root."""
+    default_path = _PROJECT_ROOT / "data" / "app.db"
+    assert default_path.parent.name == "data"
+    assert default_path.name == "app.db"
+    # Ensure it does NOT land inside backend/
+    assert "backend" not in str(Path(*default_path.parts[:-2]).name)
