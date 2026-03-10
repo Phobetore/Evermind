@@ -12,7 +12,7 @@ export default function PageContainer({ children, wide, className }: Props) {
   return (
     <div
       className={cn(
-        "p-6 mx-auto",
+        "mx-auto px-4 py-6 sm:px-6 sm:py-8",
         wide ? "max-w-5xl" : "max-w-4xl",
         className,
       )}

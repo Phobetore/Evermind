@@ -18,12 +18,12 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`flex flex-col border-r border-border bg-sidebar transition-all duration-200 ${
+      className={`flex flex-col border-r border-border bg-sidebar/90 backdrop-blur transition-all duration-200 ${
         collapsed ? "w-16" : "w-64"
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
+      <div className="flex items-center justify-between border-b border-border px-3 py-4">
         {!collapsed && (
           <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
             <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-xs shadow-md shadow-violet-900/20">
@@ -44,17 +44,17 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1">
+      <nav className="flex-1 p-2.5 space-y-1.5">
         {navItems.map((item) => {
           const isActive = pathname?.startsWith(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all ${
                 isActive
-                  ? "bg-violet-600/15 text-violet-300 border border-violet-500/20"
-                  : "text-zinc-400 hover:bg-surface-light hover:text-zinc-200"
+                  ? "border border-violet-500/30 bg-violet-600/20 text-violet-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                  : "text-zinc-400 hover:bg-surface-light/80 hover:text-zinc-100"
               }`}
             >
               <item.icon size={18} />
