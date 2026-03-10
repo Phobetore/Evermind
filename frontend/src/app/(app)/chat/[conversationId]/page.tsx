@@ -152,12 +152,12 @@ export default function ChatConversationPage() {
   ];
 
   return (
-    <div className="h-full p-4 md:p-5 bg-[radial-gradient(circle_at_20%_0%,rgba(124,58,237,0.2),transparent_40%)]">
-      <div className="h-full grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4">
+    <div className="h-full overflow-hidden p-3 md:p-4 bg-[radial-gradient(circle_at_20%_0%,rgba(124,58,237,0.2),transparent_40%)]">
+      <div className="grid h-full grid-cols-1 gap-3 xl:grid-cols-[1fr_300px] md:gap-4">
         <div className="flex flex-col h-full rounded-2xl border border-border bg-surface/85 backdrop-blur">
           <ChatHeader character={character} conversation={conversation} activeProfile={activeProfile} persona={persona} />
 
-          <div ref={scrollRef} className="flex-1 overflow-auto p-6 space-y-4">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
             {messages.length === 0 && !streaming && (
               <div className="text-center py-12 text-zinc-500 text-sm">Start the conversation by sending a message.</div>
             )}
@@ -184,12 +184,12 @@ export default function ChatConversationPage() {
             )}
           </div>
 
-          <div className="shrink-0 border-t border-border p-4">
+          <div className="shrink-0 border-t border-border bg-surface/90 p-3 md:p-4">
             <ChatInput onSend={handleSend} disabled={streaming} />
           </div>
         </div>
 
-        <aside className="hidden xl:flex flex-col gap-4 rounded-2xl border border-border bg-surface/70 p-4">
+        <aside className="hidden xl:flex h-full overflow-y-auto flex-col gap-4 rounded-2xl border border-border bg-surface/70 p-4">
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">Scene Anchor</h3>
             <p className="text-xs text-zinc-400 mt-2 leading-relaxed">{character.summary || "Add a stronger summary in character settings for better immersion and narrative consistency."}</p>

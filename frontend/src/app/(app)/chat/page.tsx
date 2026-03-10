@@ -54,7 +54,10 @@ export default function ChatIndexPage() {
 
   return (
     <PageContainer>
-      <h1 className="text-2xl font-bold mb-6">Chat</h1>
+      <div className="mb-6 rounded-2xl border border-border bg-surface/80 p-5 shadow-[0_8px_24px_rgba(0,0,0,0.22)]">
+        <h1 className="text-2xl font-bold">Chat</h1>
+        <p className="mt-2 text-sm text-zinc-400">Démarre une conversation en choisissant un personnage et, si souhaité, une persona.</p>
+      </div>
 
       {characters.length === 0 ? (
         <div className="text-center py-12">
@@ -76,7 +79,7 @@ export default function ChatIndexPage() {
               <button
                 key={char.id}
                 onClick={() => handleCharacterClick(char.id)}
-                className="text-left rounded-xl border border-border bg-surface p-4 transition-colors hover:border-violet-500/30 hover:bg-surface-light"
+                className="text-left rounded-2xl border border-border bg-surface/90 p-4 shadow-[0_6px_18px_rgba(0,0,0,0.2)] transition-all hover:-translate-y-0.5 hover:border-violet-500/30 hover:bg-surface-light"
               >
                 <div className="flex items-center gap-3">
                   <CharacterAvatar name={char.name} />

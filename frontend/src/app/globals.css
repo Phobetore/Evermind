@@ -33,6 +33,19 @@ body {
   font-family: Inter, system-ui, -apple-system, sans-serif;
 }
 
+a,
+button,
+textarea,
+input,
+select {
+  transition: background-color 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s, transform 0.18s;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(139, 92, 246, 0.95);
+  outline-offset: 2px;
+}
+
 .input {
   display: block;
   width: 100%;
