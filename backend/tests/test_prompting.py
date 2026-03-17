@@ -283,6 +283,29 @@ def test_build_chat_messages_truncates_long_messages() -> None:
     assert "…" in system_content
 
 
+
+
+def test_build_chat_messages_allows_adult_erotic_roleplay_with_boundaries() -> None:
+    """System prompt should allow consensual adult erotic RP while respecting boundaries."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "adult roleplay product" in system_content.lower()
+    assert "explicit sexual content is allowed" in system_content.lower()
+    assert "participants as adults (18+)" in system_content
+
+
+def test_build_chat_messages_avoids_sanitizing_erotic_turns() -> None:
+    """Prompt should instruct direct in-character handling of erotic escalation."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "flirtation, seduction, or explicit roleplay" in system_content.lower()
+    assert "instead of sanitizing" in system_content.lower()
+    assert "consensual erotic turns" in system_content.lower()
+
+
+
 def test_build_chat_messages_limits_memory_lines() -> None:
     """Memory injection should keep only the top configured number of lines."""
     char = _make_character()
@@ -290,3 +313,30 @@ def test_build_chat_messages_limits_memory_lines() -> None:
     msgs = build_chat_messages(char, [], "Hi", memories=mems)
     system_content = msgs[0]["content"]
     assert system_content.count("[semantic|imp=") <= 10
+
+
+def test_build_chat_messages_enforces_latest_action_coherence() -> None:
+    """System prompt should force explicit response to the latest user action without scene resets."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "latest concrete action" in system_content.lower()
+    assert "do not rewind" in system_content.lower()
+    assert "never contradict immediate scene reality" in system_content.lower()
+
+
+def test_build_chat_messages_controller_requires_turn_causality() -> None:
+    """Controller must require direct causal continuity with the latest turn."""
+    char = _make_character()
+    msgs = build_chat_messages(char, [], "Hi")
+    system_content = msgs[0]["content"]
+    assert "turn-by-turn causality" in system_content.lower()
+    assert "never reset scene state" in system_content.lower()
+
+
+def test_judge_prompt_scores_scene_coherence_dimension() -> None:
+    """Judge schema should include a coherence subscore to penalize continuity breaks."""
+    from app.prompting.templates import JUDGE
+
+    assert "action coherence and causality" in JUDGE.lower()
+    assert '"coherence":0' in JUDGE
