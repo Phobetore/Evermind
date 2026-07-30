@@ -1,0 +1,38 @@
+# Data (local database, uploaded media)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+frontend/next-env.d.ts
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs & env
+logs/
+*.log
+.env
+.env.local
+.env.production
+
+# Editor and tooling config
+.claude/

@@ -1,0 +1,405 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "close": "Close",
+    "loading": "Loading…"
+  },
+  "nav": {
+    "discover": "Discover",
+    "conversations": "Conversations",
+    "personas": "Personas",
+    "settings": "Settings",
+    "tagline": "Your characters, your models, your rules.",
+    "language": "Language"
+  },
+  "home": {
+    "tabs": {
+      "all": "All",
+      "characters": "Characters",
+      "scenarios": "Scenarios"
+    },
+    "hero": {
+      "title": "Choose your story",
+      "subtitle": "Characters to meet, worlds to explore, brought to life by the AI model of your choice, all running at home."
+    },
+    "searchPlaceholder": "Search by name, mood…",
+    "favoritesOnlyTitle": "Show favorites only",
+    "favorites": "Favorites",
+    "libraryTitle": "Starter library",
+    "library": "Library",
+    "importTitle": "Import a card (JSON / PNG)",
+    "import": "Import",
+    "create": "Create",
+    "loadError": "Failed to load",
+    "importError": "Import failed",
+    "emptyState": {
+      "title": "The stage is empty",
+      "before": "Install a ready-to-play card from the",
+      "libraryLink": "library",
+      "after": ", create your own, or import an existing card (JSON / PNG). Cards from other platforms are compatible."
+    }
+  },
+  "chatList": {
+    "subtitle": "Pick up your stories right where you left them.",
+    "emptyState": {
+      "title": "No stories yet",
+      "body": "Choose a character or scenario from the Discover tab to start your first conversation."
+    },
+    "forkedBadge": "branch",
+    "draftTooltip": "An unfinished message is waiting in this conversation",
+    "draftBadge": "draft",
+    "deletedCharacter": "Deleted character",
+    "newConversationFallback": "New conversation",
+    "messageCount": "{count} messages",
+    "renameLabel": "Rename",
+    "confirmDelete": "Delete the conversation \"{title}\"?",
+    "untitled": "Untitled"
+  },
+  "personas": {
+    "subtitle": "Who are you in your stories?",
+    "newPersona": "New persona",
+    "emptyState": {
+      "title": "No personas",
+      "body": "Create an identity (name and description) that your characters will know during roleplay."
+    },
+    "defaultTag": "Default",
+    "noDescription": "No description.",
+    "nameRequired": "Name is required.",
+    "saveError": "Save failed",
+    "confirmDelete": "Delete \"{name}\"?",
+    "editTitle": "Edit {name}",
+    "avatarLabel": "Avatar",
+    "nameLabel": "Name",
+    "descriptionLabel": "Description",
+    "descriptionHint": "Appearance, personality, background: what your characters will know about you.",
+    "useAsDefaultLabel": "Use by default in new conversations"
+  },
+  "settings": {
+    "subtitle": "Your models, your rules: Evermind connects to the AI you choose.",
+    "connectionsTitle": "LLM connections",
+    "addConnection": "Add",
+    "emptyState": {
+      "title": "No connections",
+      "body": "Connect a local model (Ollama, LM Studio, llama.cpp, KoboldCpp) or an API (OpenRouter, OpenAI, Anthropic…). Without a connection, characters stay silent."
+    },
+    "defaultTag": "Default",
+    "noModel": "no model set",
+    "keyHint": "key {hint}",
+    "noKey": "no key",
+    "defaultPersonaLabel": "Default persona",
+    "noneOption": "None",
+    "defaultConnectionLabel": "Default connection",
+    "firstAvailableOption": "First available",
+    "replyLengthLabel": "Reply length",
+    "replyLengthHint": "Applies to every conversation. Remember to raise your connection's \"Max response (tokens)\" for long replies.",
+    "replyLengthOptions": {
+      "short": "Short: one dense paragraph",
+      "medium": "Medium: 1 to 3 paragraphs",
+      "long": "Long: 3 to 5 rich paragraphs"
+    },
+    "historyLimitLabel": "Recent messages sent to the model",
+    "historyLimitHint": "Beyond this, older turns only live on in the summary and established facts. Short window (16–30): the model stays focused on instructions instead of imitating its own replies. Long window: more raw continuity, but small models start to ramble.",
+    "passageBudgetLabel": "Passage recall (tokens)",
+    "passageBudgetHint": "Retrieves verbatim excerpts from older messages that are semantically related to the current scene (requires the \"semantic\" extra). ~1500 ≈ 10% of a 16k context. Set to 0 to disable. Every recall token is one less token of recent history.",
+    "autoMemoryTitle": "Automatic memory",
+    "autoMemoryHint": {
+      "before": "The model automatically extracts",
+      "emphasis": "established facts",
+      "after": "and updates the summary every ~6 replies. Facts stay visible and editable in each conversation's panel."
+    },
+    "globalInstructionsTitle": "General roleplay instructions",
+    "globalInstructionsHint": {
+      "part1": "Added to every conversation, after the character's rules. This is where you set",
+      "emphasis": "your",
+      "part2": "preferences and",
+      "part3": "limits: style, length, themes, language. Evermind imposes nothing."
+    },
+    "globalInstructionsPlaceholder": "E.g.: Always reply in English. Replies of 2 paragraphs maximum.\nStay dark and realistic, never ask my permission to move the story forward.",
+    "saveInstructions": "Save instructions",
+    "savedFlash": "Saved."
+  },
+  "connections": {
+    "newConnectionTitle": "New connection",
+    "editConnectionTitle": "Edit {name}",
+    "quickStartLabel": "Quick start",
+    "presetHintLocal": "Local, free",
+    "presetHintOpenRouter": "Every model on the market",
+    "nameLabel": "Name",
+    "namePlaceholder": "My Ollama",
+    "providerTypeLabel": "API type",
+    "baseUrlLabel": "Base URL",
+    "baseUrlHintAnthropic": "Without /v1, e.g. https://api.anthropic.com",
+    "baseUrlHintOpenAICompatible": "With /v1, e.g. http://localhost:11434/v1",
+    "apiKeyLabel": "API key",
+    "apiKeySetHint": "Saved ({hint}), leave blank to keep it.",
+    "apiKeyEmptyHint": "Blank for local servers.",
+    "modelLabel": "Model",
+    "testButton": "Test connection",
+    "benchmarkButton": "Measure speed",
+    "benchmarkHint": "A small real generation to measure latency and throughput",
+    "benchmarkResult": "{tokensPerSecond} t/s · first token in {firstTokenSeconds}s",
+    "testFailed": "Test failed",
+    "benchmarkFailed": "Measurement failed",
+    "advancedSettingsToggle": "Generation settings",
+    "contextSizeLabel": "Context (tokens)",
+    "contextSizeHint": "Match it exactly to the context size served by your server, otherwise your conversations get truncated without warning.",
+    "maxTokensLabel": "Max response (tokens)",
+    "maxTokensHint": "A ceiling, not a target: style is set in Settings → Reply length.",
+    "temperatureLabel": "Temperature",
+    "temperatureHint": "Lower = more coherent. 0.8 is a good balance for roleplay.",
+    "topPLabel": "Top-p",
+    "frequencyPenaltyLabel": "Frequency penalty",
+    "presencePenaltyLabel": "Presence penalty",
+    "isDefaultLabel": "Default connection",
+    "nameUrlRequired": "Name and URL are required.",
+    "saveFailed": "Save failed",
+    "confirmDelete": "Delete the connection \"{name}\"?"
+  },
+  "chat": {
+    "openingScene": "Opening the scene…",
+    "header": {
+      "backAriaLabel": "Back to conversations",
+      "renameTitle": "Rename conversation",
+      "memorySettingsAriaLabel": "Conversation memory and settings",
+      "openPanelAriaLabel": "Open panel"
+    },
+    "context": {
+      "tooltipUsage": "Context: {used} / {budget} tokens (window {size})",
+      "tooltipMessages": "{included}/{total} messages in context",
+      "tooltipOlderInMemory": "(older ones are covered by memory)",
+      "tooltipLore": "{count} active lorebook entries",
+      "percent": "{pct}%",
+      "perSecond": "{tps} t/s"
+    },
+    "stream": {
+      "assistantTyping": "{name} is typing…"
+    },
+    "errors": {
+      "connectionFailed": "Server connection error.",
+      "retryButton": "Retry"
+    },
+    "input": {
+      "modes": {
+        "say": {
+          "label": "Say / action (click to change mode)",
+          "placeholder": "Write to {name}… (*asterisks* for your actions)"
+        },
+        "narrate": {
+          "label": "Narration: you describe the world, the scene, the events",
+          "placeholder": "Describe the scene, the world, an event…"
+        },
+        "ooc": {
+          "label": "Out-of-character instruction: a note for the AI, invisible in the story",
+          "placeholder": "Instruction for the AI (e.g.: always finish your sentences)…"
+        }
+      },
+      "ghostwriteTitle": "Write my reply for me (editable before sending)",
+      "ghostwriteError": "Could not write your reply for you.",
+      "stopTitle": "Stop generation",
+      "sendTitle": "Send",
+      "hintDefault": "Enter to send · Shift+Enter for a new line · quill: the AI drafts your reply",
+      "draftRestored": "Draft restored"
+    },
+    "message": {
+      "youFallback": "You",
+      "modeBadge": {
+        "narrate": "narration",
+        "ooc": "instruction"
+      },
+      "interrupted": "interrupted",
+      "regenerateTitle": "Regenerate",
+      "continueTitle": "Continue the reply",
+      "editTitle": "Edit",
+      "copyTitle": "Copy",
+      "copiedTitle": "Copied!",
+      "branchTitle": "Branch the story from here",
+      "deleteFromTitle": "Delete from here",
+      "prevVariantAriaLabel": "Previous variant",
+      "nextVariantAriaLabel": "Next variant or regenerate",
+      "confirmDeleteFrom": "Delete this message and all that follow?",
+      "confirmBranch": "Branch the story from here?"
+    },
+    "panel": {
+      "closeAriaLabel": "Close panel",
+      "kindScenario": "Scenario",
+      "kindCharacter": "Character",
+      "youArePlaying": "You are playing as",
+      "modelLabel": "Model for this conversation",
+      "chooseModelOption": "Choose a model",
+      "directive": {
+        "title": "Scene directive",
+        "description": "A standing instruction reminded to the AI on every reply. It's the strongest lever for correcting a stubborn tic (\"always finish your sentences\", \"vary your phrasing\", \"stay explicit\"…).",
+        "placeholder": "E.g.: every reply must be a complete sentence, never leave a character hanging mid-thought.",
+        "applyButton": "Apply directive"
+      },
+      "summary": {
+        "title": "Story summary",
+        "generateTitle": "Ask the model to summarize the conversation",
+        "generateButton": "Summarize",
+        "placeholder": "Updated automatically by memory; freely editable. Injected into every turn.",
+        "saveButton": "Save summary",
+        "saved": "Summary saved.",
+        "generated": "Summary generated by the model.",
+        "generateError": "Summary failed"
+      },
+      "facts": {
+        "title": "Established facts",
+        "consolidateTitle": "Merge redundant facts into a denser set",
+        "consolidateButton": "Condense",
+        "extractTitle": "Extract facts from the latest turns now",
+        "extractButton": "Remember",
+        "description": "Hard canon re-injected on every turn: the character never forgets or contradicts them. Extracted automatically as the story goes.",
+        "dormantWarning": "{count} fact(s) over budget (dimmed below): covered by the summary, but no longer injected verbatim. Pin the crucial ones, or use \"{consolidateLabel}\".",
+        "dormantTitle": "Dormant: over the injection budget",
+        "pinTitle": "Pin (always injected)",
+        "unpinTitle": "Unpin",
+        "turnBadge": "t.{turn}",
+        "forgetAriaLabel": "Forget this fact",
+        "empty": "No facts recorded yet.",
+        "addPlaceholder": "Add a fact manually…",
+        "addAriaLabel": "Add fact",
+        "addedCount": "{count} new fact(s) recorded.",
+        "noneNew": "Nothing new to remember.",
+        "extractError": "Memory extraction failed",
+        "tooFewToConsolidate": "Too few facts to consolidate.",
+        "consolidated": "Memory condensed: {before} → {after} facts.",
+        "consolidateError": "Consolidation failed",
+        "addError": "Could not add fact"
+      },
+      "sceneAnchor": {
+        "title": "Scene anchor",
+        "youFallback": "you"
+      }
+    }
+  },
+  "characters": {
+    "addFavoriteTitle": "Add to favorites",
+    "removeFavoriteTitle": "Remove from favorites",
+    "favoritedLabel": "Favorited",
+    "creatorNotesLabel": "Creator notes",
+    "card": {
+      "startButton": "Start"
+    },
+    "detail": {
+      "startConversationButton": "Start a conversation",
+      "editButton": "Edit",
+      "aboutHeading": "About",
+      "universeHeading": "The world",
+      "openingHeading": "Opening",
+      "yourConversationsHeading": "Your conversations"
+    },
+    "form": {
+      "editCardTitle": "Edit {name}",
+      "newCardTitle": "New card",
+      "chooseAvatarAriaLabel": "Choose an avatar",
+      "portraitPlaceholder": "Portrait",
+      "namePlaceholderCharacter": "Verity Ash",
+      "namePlaceholderScenario": "The Elmswood Vigil",
+      "taglineLabel": "Tagline",
+      "taglineHint": "A catchy sentence, shown on the card.",
+      "descriptionLabel": "Description",
+      "descriptionHint": "Who is this character? Appearance, backstory, way of speaking. Use {{char}} and {{user}}.",
+      "personalityLabel": "Personality",
+      "personalityHint": "Short traits separated by commas.",
+      "startingSituationLabel": "Starting situation",
+      "startingSituationHint": "The context at the start of the conversation.",
+      "greetingLabel": "First message",
+      "greetingHint": "The message that opens the scene. *actions* in asterisks.",
+      "worldLabel": "World & situation",
+      "worldHint": "The world, the plot, the characters the AI will play as narrator.",
+      "toneLabel": "Tone & themes",
+      "toneHint": "The story's mood: dark, epic, romantic…",
+      "playerRoleLabel": "Player's role",
+      "playerRoleHint": "Who is {{user}} in this story?",
+      "openingSceneLabel": "Opening scene",
+      "openingSceneHint": "The narration that kicks off the adventure.",
+      "alternateGreetingsLabel": "Alternate openings",
+      "addGreetingButton": "Add",
+      "deleteGreetingAriaLabel": "Delete this opening",
+      "alternateGreetingsEmptyHint": "Optional: other scene openings, swappable with the first message.",
+      "tagsLabel": "Tags",
+      "exampleDialoguesLabel": "Example dialogues",
+      "exampleDialoguesHint": "Show the writing style. Separate each example with <START>. Macros {{char}} / {{user}}.",
+      "exampleDialoguesPlaceholder": "<START>\n{{user}}: Are you okay?\n{{char}}: *She dusted off her cloak.* Define \"okay.\"",
+      "advancedSettingsToggle": "Advanced settings",
+      "systemPromptLabel": "Custom system prompt",
+      "systemPromptHint": "Replaces Evermind's default roleplay rules. {{original}} re-injects them.",
+      "postHistoryLabel": "End-of-context instructions",
+      "postHistoryHint": "Injected after the history, as close as possible to generation (the \"jailbreak\" of V2 cards).",
+      "creatorNotesHint": "Visible on the card, never sent to the model.",
+      "creatorLabel": "Creator",
+      "versionLabel": "Version",
+      "confirmDelete": "Delete \"{name}\" and all its conversations?",
+      "savingButton": "Saving…",
+      "createButton": "Create card"
+    },
+    "assist": {
+      "heading": "AI-assisted creation",
+      "briefPlaceholderCharacter": "Describe the character you want: who they are, mood, relationship with you, starting situation… The AI fills in the whole card, you adjust it afterward.",
+      "briefPlaceholderScenario": "Describe the adventure you want: setting, mood, the player's role, stakes… The AI fills in the whole card, you adjust it afterward.",
+      "connectionSelectTitle": "Model used to write the card",
+      "fieldsKeptHint": "Fields already filled in are kept.",
+      "generateButton": "Generate the card",
+      "generatingButton": "Writing…",
+      "generateError": "Generation failed"
+    }
+  },
+  "lorebook": {
+    "title": "Lorebook",
+    "description": "World knowledge injected only when its keywords appear in the scene. Exported with the card (standard format).",
+    "descriptionUnsavedSuffix": " Saved together with the card.",
+    "enabledLabel": "enabled",
+    "deleteEntryAriaLabel": "Delete entry",
+    "emptyState": "No entries yet.",
+    "keysPlaceholder": "Trigger keywords, then Enter",
+    "contentPlaceholder": "What the model should know when these words appear…",
+    "addEntryButton": "Add entry",
+    "entryRequiredError": "An entry needs at least one keyword and some content.",
+    "addFailedError": "Could not add entry"
+  },
+  "cards": {
+    "startChatModal": {
+      "title": "Join {name}",
+      "personaHint": "Manage your identities in the Personas tab.",
+      "noPersonaOption": "No persona",
+      "noConnectionOption": "No connection configured",
+      "mainGreetingOption": "Main",
+      "alternateGreetingOption": "Alternate {index}",
+      "noConnectionWarning": "Set up an LLM connection in Settings first (Ollama, LM Studio, OpenRouter, Anthropic…). You choose.",
+      "startError": "Could not start",
+      "enterButton": "Enter the story"
+    },
+    "libraryModal": {
+      "description": "Ready-to-play cards, bundled with Evermind. Install, edit, delete: they become yours.",
+      "emptyState": "The library is empty (library/ folder missing).",
+      "lorebookTag": "lorebook",
+      "installedLabel": "Installed",
+      "installButton": "Install",
+      "installError": "Installation failed"
+    }
+  },
+  "ui": {
+    "tagInput": {
+      "placeholder": "Add a tag, then Enter",
+      "removeAriaLabel": "Remove {tag}"
+    }
+  },
+  "login": {
+    "accessDenied": "Access denied.",
+    "serverUnreachable": "The server isn't responding.",
+    "tagline": "Your characters are waiting on the other side.",
+    "passwordLabel": "Password",
+    "enterButton": "Enter",
+    "localAccessNote": "Shared access on the local network. Your data never leaves this machine."
+  },
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "{count} min ago",
+    "hoursAgo": "{count} h ago",
+    "daysAgo": "{count} d ago",
+    "monthsAgo": "{count} month(s) ago",
+    "yearsAgo": "{count} year(s) ago"
+  }
+}

@@ -1,0 +1,15 @@
+# The Docker build context is the repository ROOT (see docker-compose.yml:
+# both services use `context: .`). This root .dockerignore is therefore the
+# only one that applies — the per-service backend/.dockerignore and
+# frontend/.dockerignore are not consulted with a root context. Keep the
+# context small and free of local data/secrets.
+.git
+docs
+data
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/node_modules
+**/.next
+.env

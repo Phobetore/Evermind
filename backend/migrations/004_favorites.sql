@@ -1,0 +1,1 @@
+ALTER TABLE characters ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;

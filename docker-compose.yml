@@ -1,0 +1,38 @@
+# Evermind — self-hosted immersive AI roleplay.
+#   cp .env.example .env   # then edit
+#   docker compose up -d --build
+# Then open http://localhost:3000 (or the PORT you set).
+#
+# Your LLM (LM Studio / Ollama / …) runs on the HOST, not in a container:
+# in the app's LLM connection use http://host.docker.internal:PORT/v1
+# (e.g. LM Studio -> http://host.docker.internal:1234/v1).
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SEMANTIC: "${SEMANTIC:-false}"
+    volumes:
+      - evermind-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      # No colon: an explicitly empty EVERMIND_GATE_PASSWORD must pass through as
+      # "" (disables the gate) rather than falling back to the default. The
+      # ${VAR-default} form only substitutes when VAR is UNSET.
+      EVERMIND_GATE_PASSWORD: "${EVERMIND_GATE_PASSWORD-ouistiti}"
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  evermind-data: {}

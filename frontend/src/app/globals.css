@@ -1,0 +1,279 @@
+@import "tailwindcss";
+
+/* ————— Evermind « Velvet & Ember » design system —————
+   Deep warm ink darkness, candlelight copper, literary serifs.       */
+
+@theme {
+  /* Surfaces — warm aubergine-black, never neutral gray */
+  --color-ink-950: #0f0d12;
+  --color-ink-900: #14111a;
+  --color-ink-850: #191521;
+  --color-ink-800: #1f1a29;
+  --color-ink-700: #2a2336;
+  --color-ink-600: #382f47;
+  --color-ink-500: #4a3f5c;
+
+  /* Text — warm ivory & muted mauve */
+  --color-parchment: #ece5da;
+  --color-parchment-dim: #c9bfb2;
+  --color-mist: #9d92ab;
+  --color-mist-dim: #6e6480;
+
+  /* Ember — candlelight copper accent */
+  --color-ember-300: #f4c98a;
+  --color-ember-400: #edb05f;
+  --color-ember-500: #e29a3e;
+  --color-ember-600: #c77f2a;
+  --color-ember-glow: rgba(226, 154, 62, 0.14);
+
+  /* Arcane — deep violet, scenario accent & RP actions */
+  --color-arcane-300: #c4afdd;
+  --color-arcane-400: #a98cc9;
+  --color-arcane-500: #8b66b3;
+  --color-arcane-glow: rgba(139, 102, 179, 0.16);
+
+  --color-blood: #d96a5f;
+  --color-moss: #8fae7e;
+
+  --font-display: var(--font-fraunces), "Georgia", serif;
+  --font-body: var(--font-newsreader), "Georgia", serif;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 28px -8px rgba(0, 0, 0, 0.55);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 18px 44px -10px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(226, 154, 62, 0.25), 0 0 34px -4px var(--color-ember-glow);
+
+  --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade: fade 0.35s ease both;
+  --animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  height: 100%;
+}
+
+html {
+  background-color: var(--color-ink-950);
+}
+
+body {
+  color: var(--color-parchment);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Candlelight atmosphere: faint ember halo top-left, arcane breath
+   bottom-right. A fixed pseudo-element rather than background-attachment:
+   fixed, which iOS Safari does not support. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1100px 640px at 12% -8%, rgba(226, 154, 62, 0.07), transparent 60%),
+    radial-gradient(900px 700px at 105% 105%, rgba(139, 102, 179, 0.055), transparent 55%);
+}
+
+/* Film grain — data-URI SVG noise, barely there */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: rgba(226, 154, 62, 0.32);
+}
+
+/* Scrollbars that belong to the night */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-600) transparent;
+}
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--color-ink-600);
+  border-radius: 9999px;
+  border: 2px solid var(--color-ink-950);
+}
+*::-webkit-scrollbar-track { background: transparent; }
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 60, "WONK" 0;
+  letter-spacing: -0.01em;
+}
+
+input, textarea, select, button {
+  font-family: inherit;
+}
+
+/* Component classes live in the components layer so Tailwind utilities
+   (pl-9, !py-1.5, …) can override them. */
+@layer components {
+
+/* UI chrome labels: small caps feel without a third font */
+.ui-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-mist);
+}
+
+.field {
+  width: 100%;
+  background: var(--color-ink-900);
+  border: 1px solid var(--color-ink-600);
+  border-radius: 0.625rem;
+  padding: 0.55rem 0.85rem;
+  color: var(--color-parchment);
+  font-size: 0.98rem;
+  line-height: 1.5;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+/* iOS zooms into any focused input under 16px — never let that happen. */
+@media (max-width: 767px) {
+  .field { font-size: 16px; }
+}
+
+/* Actions revealed on hover on desktop; touch screens have no hover,
+   so they stay visible (slightly dimmed) there. */
+.hover-actions {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.group:hover .hover-actions,
+.group\/fact:hover .hover-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .hover-actions { opacity: 0.75; }
+}
+.field::placeholder { color: var(--color-mist-dim); }
+.field:focus {
+  outline: none;
+  border-color: var(--color-ember-500);
+  box-shadow: 0 0 0 3px var(--color-ember-glow);
+}
+textarea.field { resize: vertical; min-height: 5.5rem; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.625rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary {
+  background: linear-gradient(180deg, var(--color-ember-400), var(--color-ember-600));
+  color: #1c1206;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 18px -4px var(--color-ember-glow);
+}
+.btn-primary:not(:disabled):hover {
+  filter: brightness(1.08);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 6px 26px -4px rgba(226, 154, 62, 0.35);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--color-parchment-dim);
+  border-color: var(--color-ink-600);
+}
+.btn-ghost:not(:disabled):hover {
+  color: var(--color-parchment);
+  border-color: var(--color-ink-500);
+  background: var(--color-ink-800);
+}
+.btn-danger {
+  background: transparent;
+  color: var(--color-blood);
+  border-color: rgba(217, 106, 95, 0.35);
+}
+.btn-danger:not(:disabled):hover { background: rgba(217, 106, 95, 0.12); }
+
+.panel {
+  background: linear-gradient(180deg, var(--color-ink-850), var(--color-ink-900));
+  border: 1px solid var(--color-ink-700);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+}
+
+/* Roleplay text rendering */
+.rp-prose { font-size: 1.05rem; }
+.rp-prose p { margin: 0 0 0.65em; }
+.rp-prose p:last-child { margin-bottom: 0; }
+.rp-prose em {
+  color: var(--color-arcane-300);
+  font-style: italic;
+}
+.rp-prose strong { color: var(--color-ember-300); font-weight: 600; }
+.rp-prose code {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 0.85em;
+  background: var(--color-ink-800);
+  padding: 0.1em 0.35em;
+  border-radius: 0.3em;
+}
+.rp-prose blockquote {
+  border-left: 2px solid var(--color-ember-600);
+  padding-left: 0.9em;
+  color: var(--color-parchment-dim);
+  margin: 0.65em 0;
+}
+
+/* Streaming caret: the writing quill */
+.stream-caret::after {
+  content: "▋";
+  color: var(--color-ember-400);
+  animation: pulse-soft 0.9s ease-in-out infinite;
+  margin-left: 1px;
+}
+
+/* Staggered card entrance */
+.stagger > * { animation: var(--animate-rise); }
+.stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.stagger > *:nth-child(4) { animation-delay: 0.14s; }
+.stagger > *:nth-child(5) { animation-delay: 0.18s; }
+.stagger > *:nth-child(6) { animation-delay: 0.22s; }
+.stagger > *:nth-child(7) { animation-delay: 0.26s; }
+.stagger > *:nth-child(8) { animation-delay: 0.3s; }
+.stagger > *:nth-child(n + 9) { animation-delay: 0.34s; }
+
+} /* end @layer components */

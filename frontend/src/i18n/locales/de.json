@@ -1,0 +1,405 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "close": "Schließen",
+    "loading": "Wird geladen…"
+  },
+  "nav": {
+    "discover": "Entdecken",
+    "conversations": "Unterhaltungen",
+    "personas": "Personas",
+    "settings": "Einstellungen",
+    "tagline": "Deine Charaktere, deine Modelle, deine Regeln.",
+    "language": "Sprache"
+  },
+  "home": {
+    "tabs": {
+      "all": "Alle",
+      "characters": "Charaktere",
+      "scenarios": "Szenarien"
+    },
+    "hero": {
+      "title": "Wähle deine Geschichte",
+      "subtitle": "Charaktere zum Kennenlernen, Welten zum Entdecken – zum Leben erweckt vom KI-Modell deiner Wahl, direkt bei dir zu Hause."
+    },
+    "searchPlaceholder": "Nach Name, Stimmung suchen…",
+    "favoritesOnlyTitle": "Nur Favoriten anzeigen",
+    "favorites": "Favoriten",
+    "libraryTitle": "Einsteiger-Bibliothek",
+    "library": "Bibliothek",
+    "importTitle": "Karte importieren (JSON / PNG)",
+    "import": "Importieren",
+    "create": "Erstellen",
+    "loadError": "Laden fehlgeschlagen",
+    "importError": "Import fehlgeschlagen",
+    "emptyState": {
+      "title": "Die Bühne ist leer",
+      "before": "Installiere eine spielfertige Karte aus der",
+      "libraryLink": "Bibliothek",
+      "after": ", erstelle deine eigene oder importiere eine vorhandene Karte (JSON / PNG). Karten von anderen Plattformen sind kompatibel."
+    }
+  },
+  "chatList": {
+    "subtitle": "Setze deine Geschichten genau dort fort, wo du aufgehört hast.",
+    "emptyState": {
+      "title": "Noch keine Geschichten",
+      "body": "Wähle im Tab „Entdecken“ einen Charakter oder ein Szenario, um deine erste Unterhaltung zu beginnen."
+    },
+    "forkedBadge": "Verzweigung",
+    "draftTooltip": "In dieser Unterhaltung wartet eine unfertige Nachricht",
+    "draftBadge": "Entwurf",
+    "deletedCharacter": "Gelöschter Charakter",
+    "newConversationFallback": "Neue Unterhaltung",
+    "messageCount": "{count} Nachrichten",
+    "renameLabel": "Umbenennen",
+    "confirmDelete": "Unterhaltung „{title}“ löschen?",
+    "untitled": "Ohne Titel"
+  },
+  "personas": {
+    "subtitle": "Wer bist du in deinen Geschichten?",
+    "newPersona": "Neue Persona",
+    "emptyState": {
+      "title": "Keine Personas",
+      "body": "Erstelle eine Identität (Name und Beschreibung), die deine Charaktere im Rollenspiel kennen werden."
+    },
+    "defaultTag": "Standard",
+    "noDescription": "Keine Beschreibung.",
+    "nameRequired": "Name ist erforderlich.",
+    "saveError": "Speichern fehlgeschlagen",
+    "confirmDelete": "„{name}“ löschen?",
+    "editTitle": "{name} bearbeiten",
+    "avatarLabel": "Avatar",
+    "nameLabel": "Name",
+    "descriptionLabel": "Beschreibung",
+    "descriptionHint": "Aussehen, Persönlichkeit, Hintergrund: was deine Charaktere über dich wissen werden.",
+    "useAsDefaultLabel": "Standardmäßig in neuen Unterhaltungen verwenden"
+  },
+  "settings": {
+    "subtitle": "Deine Modelle, deine Regeln: Evermind verbindet sich mit der KI deiner Wahl.",
+    "connectionsTitle": "LLM-Verbindungen",
+    "addConnection": "Hinzufügen",
+    "emptyState": {
+      "title": "Keine Verbindungen",
+      "body": "Verbinde ein lokales Modell (Ollama, LM Studio, llama.cpp, KoboldCpp) oder eine API (OpenRouter, OpenAI, Anthropic…). Ohne Verbindung bleiben die Charaktere stumm."
+    },
+    "defaultTag": "Standard",
+    "noModel": "kein Modell gesetzt",
+    "keyHint": "Schlüssel {hint}",
+    "noKey": "kein Schlüssel",
+    "defaultPersonaLabel": "Standard-Persona",
+    "noneOption": "Keine",
+    "defaultConnectionLabel": "Standardverbindung",
+    "firstAvailableOption": "Erste verfügbare",
+    "replyLengthLabel": "Antwortlänge",
+    "replyLengthHint": "Gilt für alle Unterhaltungen. Denke daran, „Max. Antwort (Tokens)“ deiner Verbindung für lange Antworten zu erhöhen.",
+    "replyLengthOptions": {
+      "short": "Kurz: ein dichter Absatz",
+      "medium": "Mittel: 1 bis 3 Absätze",
+      "long": "Lang: 3 bis 5 ausführliche Absätze"
+    },
+    "historyLimitLabel": "Aktuelle Nachrichten an das Modell",
+    "historyLimitHint": "Darüber hinaus leben ältere Züge nur noch in der Zusammenfassung und den etablierten Fakten weiter. Kleines Fenster (16–30): Das Modell bleibt auf die Anweisungen konzentriert, statt seine eigenen Antworten nachzuahmen. Großes Fenster: mehr ungefilterter Verlauf, aber kleine Modelle fangen an zu schwafeln.",
+    "passageBudgetLabel": "Passagen-Erinnerung (Tokens)",
+    "passageBudgetHint": "Holt wörtliche Auszüge aus älteren Nachrichten hervor, die inhaltlich zur aktuellen Szene passen (erfordert das Extra „semantic“). ~1500 ≈ 10 % eines 16k-Kontexts. 0 zum Deaktivieren. Jedes Token für Erinnerungen fehlt dem aktuellen Verlauf.",
+    "autoMemoryTitle": "Automatisches Gedächtnis",
+    "autoMemoryHint": {
+      "before": "Das Modell extrahiert automatisch",
+      "emphasis": "etablierte Fakten",
+      "after": "und aktualisiert die Zusammenfassung alle ~6 Antworten. Die Fakten bleiben im Panel jeder Unterhaltung sichtbar und bearbeitbar."
+    },
+    "globalInstructionsTitle": "Allgemeine Rollenspiel-Anweisungen",
+    "globalInstructionsHint": {
+      "part1": "Wird jeder Unterhaltung hinzugefügt, nach den Regeln des Charakters. Hier legst du",
+      "emphasis": "deine",
+      "part2": "Vorlieben und",
+      "part3": "Grenzen fest: Stil, Länge, Themen, Sprache. Evermind gibt nichts vor."
+    },
+    "globalInstructionsPlaceholder": "Z. B.: Antworte immer auf Deutsch. Antworten von maximal 2 Absätzen.\nBleib düster und realistisch, frag mich nie um Erlaubnis, die Geschichte voranzutreiben.",
+    "saveInstructions": "Anweisungen speichern",
+    "savedFlash": "Gespeichert."
+  },
+  "connections": {
+    "newConnectionTitle": "Neue Verbindung",
+    "editConnectionTitle": "{name} bearbeiten",
+    "quickStartLabel": "Schnellstart",
+    "presetHintLocal": "Lokal, kostenlos",
+    "presetHintOpenRouter": "Alle Modelle am Markt",
+    "nameLabel": "Name",
+    "namePlaceholder": "Mein Ollama",
+    "providerTypeLabel": "API-Typ",
+    "baseUrlLabel": "Basis-URL",
+    "baseUrlHintAnthropic": "Ohne /v1, z. B. https://api.anthropic.com",
+    "baseUrlHintOpenAICompatible": "Mit /v1, z. B. http://localhost:11434/v1",
+    "apiKeyLabel": "API-Schlüssel",
+    "apiKeySetHint": "Gespeichert ({hint}), leer lassen, um ihn zu behalten.",
+    "apiKeyEmptyHint": "Leer bei lokalen Servern.",
+    "modelLabel": "Modell",
+    "testButton": "Verbindung testen",
+    "benchmarkButton": "Geschwindigkeit messen",
+    "benchmarkHint": "Eine kleine echte Generierung, um Latenz und Durchsatz zu messen",
+    "benchmarkResult": "{tokensPerSecond} T/s · erstes Token in {firstTokenSeconds}s",
+    "testFailed": "Test fehlgeschlagen",
+    "benchmarkFailed": "Messung fehlgeschlagen",
+    "advancedSettingsToggle": "Generierungseinstellungen",
+    "contextSizeLabel": "Kontext (Tokens)",
+    "contextSizeHint": "Stelle ihn genau auf die Kontextgröße deines Servers ein, sonst werden deine Unterhaltungen ohne Warnung abgeschnitten.",
+    "maxTokensLabel": "Max. Antwort (Tokens)",
+    "maxTokensHint": "Eine Obergrenze, kein Ziel: Der Stil wird unter Einstellungen → Antwortlänge festgelegt.",
+    "temperatureLabel": "Temperatur",
+    "temperatureHint": "Niedriger = kohärenter. 0.8 ist eine gute Balance fürs Rollenspiel.",
+    "topPLabel": "Top-p",
+    "frequencyPenaltyLabel": "Frequenz-Strafe",
+    "presencePenaltyLabel": "Präsenz-Strafe",
+    "isDefaultLabel": "Standardverbindung",
+    "nameUrlRequired": "Name und URL sind erforderlich.",
+    "saveFailed": "Speichern fehlgeschlagen",
+    "confirmDelete": "Verbindung „{name}“ löschen?"
+  },
+  "chat": {
+    "openingScene": "Die Szene wird eröffnet…",
+    "header": {
+      "backAriaLabel": "Zurück zu den Unterhaltungen",
+      "renameTitle": "Unterhaltung umbenennen",
+      "memorySettingsAriaLabel": "Gedächtnis und Einstellungen der Unterhaltung",
+      "openPanelAriaLabel": "Panel öffnen"
+    },
+    "context": {
+      "tooltipUsage": "Kontext: {used} / {budget} Tokens (Fenster {size})",
+      "tooltipMessages": "{included}/{total} Nachrichten im Kontext",
+      "tooltipOlderInMemory": "(ältere sind durch das Gedächtnis abgedeckt)",
+      "tooltipLore": "{count} aktive Lorebook-Einträge",
+      "percent": "{pct} %",
+      "perSecond": "{tps} T/s"
+    },
+    "stream": {
+      "assistantTyping": "{name} schreibt…"
+    },
+    "errors": {
+      "connectionFailed": "Fehler bei der Serververbindung.",
+      "retryButton": "Erneut versuchen"
+    },
+    "input": {
+      "modes": {
+        "say": {
+          "label": "Sprechen / Handlung (klicken, um den Modus zu wechseln)",
+          "placeholder": "Schreib an {name}… (*Sternchen* für deine Handlungen)"
+        },
+        "narrate": {
+          "label": "Erzählung: Du beschreibst die Welt, die Szene, die Ereignisse",
+          "placeholder": "Beschreibe die Szene, die Welt, ein Ereignis…"
+        },
+        "ooc": {
+          "label": "Anweisung außerhalb der Rolle: eine Notiz für die KI, in der Geschichte unsichtbar",
+          "placeholder": "Anweisung für die KI (z. B.: Beende immer deine Sätze)…"
+        }
+      },
+      "ghostwriteTitle": "Meine Antwort für mich schreiben (vor dem Senden bearbeitbar)",
+      "ghostwriteError": "Deine Antwort konnte nicht geschrieben werden.",
+      "stopTitle": "Generierung stoppen",
+      "sendTitle": "Senden",
+      "hintDefault": "Enter zum Senden · Umschalt+Enter für eine neue Zeile · Feder: Die KI entwirft deine Antwort",
+      "draftRestored": "Entwurf wiederhergestellt"
+    },
+    "message": {
+      "youFallback": "Du",
+      "modeBadge": {
+        "narrate": "Erzählung",
+        "ooc": "Anweisung"
+      },
+      "interrupted": "unterbrochen",
+      "regenerateTitle": "Neu generieren",
+      "continueTitle": "Antwort fortsetzen",
+      "editTitle": "Bearbeiten",
+      "copyTitle": "Kopieren",
+      "copiedTitle": "Kopiert!",
+      "branchTitle": "Geschichte ab hier verzweigen",
+      "deleteFromTitle": "Ab hier löschen",
+      "prevVariantAriaLabel": "Vorherige Variante",
+      "nextVariantAriaLabel": "Nächste Variante oder neu generieren",
+      "confirmDeleteFrom": "Diese Nachricht und alle folgenden löschen?",
+      "confirmBranch": "Die Geschichte ab hier verzweigen?"
+    },
+    "panel": {
+      "closeAriaLabel": "Panel schließen",
+      "kindScenario": "Szenario",
+      "kindCharacter": "Charakter",
+      "youArePlaying": "Du spielst als",
+      "modelLabel": "Modell für diese Unterhaltung",
+      "chooseModelOption": "Modell wählen",
+      "directive": {
+        "title": "Szenen-Anweisung",
+        "description": "Eine dauerhafte Anweisung, an die die KI bei jeder Antwort erinnert wird. Der stärkste Hebel, um einen hartnäckigen Tick zu korrigieren („beende immer deine Sätze“, „variiere deine Formulierungen“, „bleib explizit“…).",
+        "placeholder": "Z. B.: Jede Antwort muss ein vollständiger Satz sein, lass eine Figur nie mitten im Gedanken hängen.",
+        "applyButton": "Anweisung anwenden"
+      },
+      "summary": {
+        "title": "Zusammenfassung der Geschichte",
+        "generateTitle": "Das Modell bitten, die Unterhaltung zusammenzufassen",
+        "generateButton": "Zusammenfassen",
+        "placeholder": "Wird vom Gedächtnis automatisch aktualisiert; frei bearbeitbar. Wird in jeden Zug eingefügt.",
+        "saveButton": "Zusammenfassung speichern",
+        "saved": "Zusammenfassung gespeichert.",
+        "generated": "Zusammenfassung vom Modell erstellt.",
+        "generateError": "Zusammenfassung fehlgeschlagen"
+      },
+      "facts": {
+        "title": "Etablierte Fakten",
+        "consolidateTitle": "Redundante Fakten zu einem dichteren Satz zusammenführen",
+        "consolidateButton": "Verdichten",
+        "extractTitle": "Jetzt Fakten aus den letzten Zügen extrahieren",
+        "extractButton": "Merken",
+        "description": "Unumstößlicher Kanon, der bei jedem Zug erneut eingefügt wird: Der Charakter vergisst sie nie und widerspricht ihnen nie. Wird im Verlauf der Geschichte automatisch extrahiert.",
+        "dormantWarning": "{count} Fakt(en) über dem Budget (unten abgeblendet): von der Zusammenfassung abgedeckt, aber nicht mehr wörtlich eingefügt. Hefte die entscheidenden an oder nutze „{consolidateLabel}“.",
+        "dormantTitle": "Ruhend: über dem Einfüge-Budget",
+        "pinTitle": "Anheften (immer eingefügt)",
+        "unpinTitle": "Lösen",
+        "turnBadge": "Z.{turn}",
+        "forgetAriaLabel": "Diesen Fakt vergessen",
+        "empty": "Noch keine Fakten erfasst.",
+        "addPlaceholder": "Fakt manuell hinzufügen…",
+        "addAriaLabel": "Fakt hinzufügen",
+        "addedCount": "{count} neue(r) Fakt(en) erfasst.",
+        "noneNew": "Nichts Neues zu merken.",
+        "extractError": "Gedächtnis-Extraktion fehlgeschlagen",
+        "tooFewToConsolidate": "Zu wenige Fakten zum Verdichten.",
+        "consolidated": "Gedächtnis verdichtet: {before} → {after} Fakten.",
+        "consolidateError": "Verdichtung fehlgeschlagen",
+        "addError": "Fakt konnte nicht hinzugefügt werden"
+      },
+      "sceneAnchor": {
+        "title": "Szenen-Anker",
+        "youFallback": "du"
+      }
+    }
+  },
+  "characters": {
+    "addFavoriteTitle": "Zu Favoriten hinzufügen",
+    "removeFavoriteTitle": "Aus Favoriten entfernen",
+    "favoritedLabel": "Favorisiert",
+    "creatorNotesLabel": "Notizen des Erstellers",
+    "card": {
+      "startButton": "Starten"
+    },
+    "detail": {
+      "startConversationButton": "Unterhaltung beginnen",
+      "editButton": "Bearbeiten",
+      "aboutHeading": "Über",
+      "universeHeading": "Die Welt",
+      "openingHeading": "Eröffnung",
+      "yourConversationsHeading": "Deine Unterhaltungen"
+    },
+    "form": {
+      "editCardTitle": "{name} bearbeiten",
+      "newCardTitle": "Neue Karte",
+      "chooseAvatarAriaLabel": "Avatar wählen",
+      "portraitPlaceholder": "Porträt",
+      "namePlaceholderCharacter": "Verity Ash",
+      "namePlaceholderScenario": "The Elmswood Vigil",
+      "taglineLabel": "Slogan",
+      "taglineHint": "Ein prägnanter Satz, der auf der Karte erscheint.",
+      "descriptionLabel": "Beschreibung",
+      "descriptionHint": "Wer ist dieser Charakter? Aussehen, Vorgeschichte, Sprechweise. Verwende {{char}} und {{user}}.",
+      "personalityLabel": "Persönlichkeit",
+      "personalityHint": "Kurze Eigenschaften, durch Kommas getrennt.",
+      "startingSituationLabel": "Ausgangssituation",
+      "startingSituationHint": "Der Kontext zu Beginn der Unterhaltung.",
+      "greetingLabel": "Erste Nachricht",
+      "greetingHint": "Die Nachricht, die die Szene eröffnet. *Handlungen* in Sternchen.",
+      "worldLabel": "Welt & Situation",
+      "worldHint": "Die Welt, die Handlung, die Figuren, die die KI als Erzähler spielt.",
+      "toneLabel": "Ton & Themen",
+      "toneHint": "Die Stimmung der Geschichte: düster, episch, romantisch…",
+      "playerRoleLabel": "Rolle der Spielerin / des Spielers",
+      "playerRoleHint": "Wer ist {{user}} in dieser Geschichte?",
+      "openingSceneLabel": "Eröffnungsszene",
+      "openingSceneHint": "Die Erzählung, die das Abenteuer in Gang setzt.",
+      "alternateGreetingsLabel": "Alternative Eröffnungen",
+      "addGreetingButton": "Hinzufügen",
+      "deleteGreetingAriaLabel": "Diese Eröffnung löschen",
+      "alternateGreetingsEmptyHint": "Optional: andere Szenen-Eröffnungen, austauschbar mit der ersten Nachricht.",
+      "tagsLabel": "Tags",
+      "exampleDialoguesLabel": "Beispieldialoge",
+      "exampleDialoguesHint": "Zeig den Schreibstil. Trenne jedes Beispiel mit <START>. Makros {{char}} / {{user}}.",
+      "exampleDialoguesPlaceholder": "<START>\n{{user}}: Geht es dir gut?\n{{char}}: *Sie klopfte den Staub von ihrem Umhang.* Definiere „gut“.",
+      "advancedSettingsToggle": "Erweiterte Einstellungen",
+      "systemPromptLabel": "Eigener System-Prompt",
+      "systemPromptHint": "Ersetzt die Standard-Rollenspielregeln von Evermind. {{original}} fügt sie wieder ein.",
+      "postHistoryLabel": "Anweisungen am Kontextende",
+      "postHistoryHint": "Wird nach dem Verlauf eingefügt, so nah wie möglich an der Generierung (der „Jailbreak“ der V2-Karten).",
+      "creatorNotesHint": "Auf der Karte sichtbar, wird nie an das Modell gesendet.",
+      "creatorLabel": "Ersteller",
+      "versionLabel": "Version",
+      "confirmDelete": "„{name}“ und alle zugehörigen Unterhaltungen löschen?",
+      "savingButton": "Wird gespeichert…",
+      "createButton": "Karte erstellen"
+    },
+    "assist": {
+      "heading": "KI-gestützte Erstellung",
+      "briefPlaceholderCharacter": "Beschreibe den gewünschten Charakter: wer er ist, Stimmung, Beziehung zu dir, Ausgangssituation… Die KI füllt die ganze Karte aus, du passt sie danach an.",
+      "briefPlaceholderScenario": "Beschreibe das gewünschte Abenteuer: Schauplatz, Stimmung, Rolle der Spielenden, Einsatz… Die KI füllt die ganze Karte aus, du passt sie danach an.",
+      "connectionSelectTitle": "Modell zum Schreiben der Karte",
+      "fieldsKeptHint": "Bereits ausgefüllte Felder bleiben erhalten.",
+      "generateButton": "Karte generieren",
+      "generatingButton": "Wird geschrieben…",
+      "generateError": "Generierung fehlgeschlagen"
+    }
+  },
+  "lorebook": {
+    "title": "Lorebook",
+    "description": "Weltwissen, das nur eingefügt wird, wenn seine Stichwörter in der Szene auftauchen. Wird mit der Karte exportiert (Standardformat).",
+    "descriptionUnsavedSuffix": " Wird zusammen mit der Karte gespeichert.",
+    "enabledLabel": "aktiv",
+    "deleteEntryAriaLabel": "Eintrag löschen",
+    "emptyState": "Noch keine Einträge.",
+    "keysPlaceholder": "Auslösende Stichwörter, dann Enter",
+    "contentPlaceholder": "Was das Modell wissen soll, wenn diese Wörter auftauchen…",
+    "addEntryButton": "Eintrag hinzufügen",
+    "entryRequiredError": "Ein Eintrag braucht mindestens ein Stichwort und etwas Inhalt.",
+    "addFailedError": "Eintrag konnte nicht hinzugefügt werden"
+  },
+  "cards": {
+    "startChatModal": {
+      "title": "{name} beitreten",
+      "personaHint": "Verwalte deine Identitäten im Tab „Personas“.",
+      "noPersonaOption": "Keine Persona",
+      "noConnectionOption": "Keine Verbindung konfiguriert",
+      "mainGreetingOption": "Haupt",
+      "alternateGreetingOption": "Alternative {index}",
+      "noConnectionWarning": "Richte zuerst in den Einstellungen eine LLM-Verbindung ein (Ollama, LM Studio, OpenRouter, Anthropic…). Du entscheidest.",
+      "startError": "Konnte nicht gestartet werden",
+      "enterButton": "Die Geschichte betreten"
+    },
+    "libraryModal": {
+      "description": "Spielfertige Karten, die Evermind beiliegen. Installieren, bearbeiten, löschen: Sie gehören dann dir.",
+      "emptyState": "Die Bibliothek ist leer (Ordner library/ fehlt).",
+      "lorebookTag": "Lorebook",
+      "installedLabel": "Installiert",
+      "installButton": "Installieren",
+      "installError": "Installation fehlgeschlagen"
+    }
+  },
+  "ui": {
+    "tagInput": {
+      "placeholder": "Tag hinzufügen, dann Enter",
+      "removeAriaLabel": "{tag} entfernen"
+    }
+  },
+  "login": {
+    "accessDenied": "Zugriff verweigert.",
+    "serverUnreachable": "Der Server antwortet nicht.",
+    "tagline": "Deine Charaktere warten auf der anderen Seite.",
+    "passwordLabel": "Passwort",
+    "enterButton": "Eintreten",
+    "localAccessNote": "Gemeinsamer Zugriff im lokalen Netzwerk. Deine Daten verlassen diesen Rechner nie."
+  },
+  "time": {
+    "justNow": "gerade eben",
+    "minutesAgo": "vor {count} Min.",
+    "hoursAgo": "vor {count} Std.",
+    "daysAgo": "vor {count} T.",
+    "monthsAgo": "vor {count} Monat(en)",
+    "yearsAgo": "vor {count} Jahr(en)"
+  }
+}
