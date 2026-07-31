@@ -1,9 +1,11 @@
 # Evermind - self-hosted immersive AI roleplay.
-#   cp .env.example .env   # then edit
 #   docker compose up -d
-# Then open http://localhost:3000 (or the PORT you set).
+# Then open http://localhost:3000.
 #
-# That pulls ready-made images and takes seconds. To compile from source
+# No .env is needed to start. Copy .env.example to .env only to change the port,
+# reach Evermind from another device, or turn on semantic memory.
+#
+# Starting pulls ready-made images and takes seconds. To compile from source
 # instead, add --build. You need --build if you want SEMANTIC=true, because
 # the published images are the light ones.
 #
@@ -36,12 +38,14 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     environment:
-      # No colon: an explicitly empty EVERMIND_GATE_PASSWORD must pass through as
-      # "" (disables the gate) rather than falling back to the default. The
-      # ${VAR-default} form only substitutes when VAR is UNSET.
-      EVERMIND_GATE_PASSWORD: "${EVERMIND_GATE_PASSWORD-ouistiti}"
+      # No default. Unset means the gate is off, which is the right answer while
+      # BIND keeps this on localhost.
+      EVERMIND_GATE_PASSWORD: "${EVERMIND_GATE_PASSWORD-}"
     ports:
-      - "${PORT:-3000}:3000"
+      # Localhost only unless BIND says otherwise. Publishing a port binds every
+      # interface by default, so without this a fresh install would be sitting on
+      # the Wi-Fi from its first run, which is not something anyone asked for.
+      - "${BIND:-127.0.0.1}:${PORT:-3000}:3000"
     depends_on:
       - backend
     restart: unless-stopped

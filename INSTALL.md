@@ -153,14 +153,12 @@ install it once and never think about it again.
 2. Download Evermind: on the project page on GitHub, click the green **Code**
    button, then **Download ZIP**. Unzip it somewhere sensible, such as your
    Documents folder.
-3. Open the unzipped folder. Find the file named `.env.example` and make a copy
-   of it named exactly `.env` (same folder, no other change needed for now).
-4. Open a terminal **in that folder**:
+3. Open a terminal **in the unzipped folder**:
    - **Windows**: click the address bar at the top of the folder window, type
      `powershell`, press Enter.
    - **macOS**: right-click the folder, then Services, then New Terminal at Folder.
    - **Linux**: right-click inside the folder, then Open in Terminal.
-5. Type this and press Enter:
+4. Type this and press Enter:
 
    ```bash
    docker compose up -d
@@ -168,7 +166,11 @@ install it once and never think about it again.
 
    It downloads two ready-made images, which takes under a minute on a normal
    connection. Later starts take seconds.
-6. Open your browser at **http://localhost:3000**
+5. Open your browser at **http://localhost:3000**
+
+There is nothing to configure first and no password to get past. Evermind
+listens on this computer only, so nothing else on your network can reach it
+until you decide otherwise.
 
 Evermind is running. It will keep running in the background, and restart with
 your computer, until you stop it with `docker compose down`.
@@ -248,11 +250,28 @@ Two things worth knowing early:
 
 ## Optional extras
 
-**Play from your phone or tablet.** Start Evermind with `scripts\prod.ps1 -Lan`
-(or `./scripts/prod.sh --lan`) and it will print an address to open on your other
-device, on the same Wi-Fi. A password page protects it; set the password with
-`EVERMIND_GATE_PASSWORD` in your `.env` file. Leave it empty to turn the password
-off entirely. This is meant for your home network, not the open internet.
+**Play from your phone or tablet.** Evermind stays on your computer by default,
+so this takes two deliberate changes. Copy `.env.example` to `.env`, then set
+both:
+
+```
+BIND=0.0.0.0
+EVERMIND_GATE_PASSWORD=something-only-you-know
+```
+
+Run `docker compose up -d` again, and open your computer's local address on the
+other device, on the same Wi-Fi. It looks like `http://192.168.1.42:3000`;
+`ipconfig` on Windows or `ip addr` on macOS and Linux will tell you the number.
+The password page appears first, once per device.
+
+Set the password. Without it, everyone on that Wi-Fi can read your
+conversations. And keep this to your home network rather than the open internet:
+it is one shared password over plain HTTP, which is a speed bump and not real
+protection.
+
+Running without Docker instead? `scripts\prod.ps1 -Lan` (or
+`./scripts/prod.sh --lan`) does the same thing and prints the address for you.
+Set `EVERMIND_GATE_PASSWORD` in your `.env` there too.
 
 **Sharper long-term memory.** By default, Evermind recalls the most recent facts.
 It can instead recall facts and old passages *by meaning*, so the right memory
@@ -277,8 +296,8 @@ of existing cards work; use **Import** on the Discover page.
 | Replies are cut off mid-sentence | The **Max response (tokens)** value on your connection is too low. Raise it. |
 | The character forgets things, or repeats itself | Your **Context (tokens)** is probably set higher than your AI really offers. Match it to the real value. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
 | Replies are very slow | Normal for a large model on a modest machine. Try a smaller one, or an online service. |
-| Your phone cannot reach it | Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. The launch script tells you the exact command if the rule is missing. |
-| The page asks for a password you never set | The default is `ouistiti`. Change it, or switch it off, with `EVERMIND_GATE_PASSWORD` in your `.env`. |
+| Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you restarted afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. The launch script tells you the exact command if the rule is missing. |
+| A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Clear that line and restart to remove it. |
 
 **Want to try Evermind before setting up a real AI?** Run
 `python scripts/mock_llm.py`, then add a connection of type OpenAI-compatible

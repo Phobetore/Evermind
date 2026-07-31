@@ -9,7 +9,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (request.nextUrl.pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "Accès verrouillé." }, { status: 401 });
+    return NextResponse.json({ error: "Locked." }, { status: 401 });
   }
 
   const url = request.nextUrl.clone();
