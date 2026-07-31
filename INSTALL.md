@@ -163,11 +163,11 @@ install it once and never think about it again.
 5. Type this and press Enter:
 
    ```bash
-   docker compose up -d --build
+   docker compose up -d
    ```
 
-   The first time takes a few minutes: it is assembling everything. Later starts
-   take seconds.
+   It downloads two ready-made images, which takes under a minute on a normal
+   connection. Later starts take seconds.
 6. Open your browser at **http://localhost:3000**
 
 Evermind is running. It will keep running in the background, and restart with
@@ -257,8 +257,10 @@ off entirely. This is meant for your home network, not the open internet.
 **Sharper long-term memory.** By default, Evermind recalls the most recent facts.
 It can instead recall facts and old passages *by meaning*, so the right memory
 comes back even three hundred messages later. With Docker, set `SEMANTIC=true` in
-your `.env` and run `docker compose up -d --build` again. It adds a couple of
-gigabytes to the install and downloads a small language model once.
+your `.env` and run `docker compose up -d --build` again. The `--build` matters
+here: the ready-made images are the light ones, so this option only takes effect
+when you compile locally. It adds a couple of gigabytes and downloads a small
+language model once.
 
 **Cards from elsewhere.** Evermind reads and writes the standard Character Card
 V2 format, the JSON and PNG files used across the roleplay community. Thousands

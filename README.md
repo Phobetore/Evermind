@@ -8,6 +8,10 @@
 
 [**Get started**](INSTALL.md) &nbsp;·&nbsp; [A look around](#a-look-around) &nbsp;·&nbsp; [What makes it different](#what-makes-it-different) &nbsp;·&nbsp; [Licence](LICENSE)
 
+<a href="https://github.com/Phobetore/Evermind/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Phobetore/Evermind/ci.yml?branch=main&label=tests&style=flat-square&labelColor=1f1a29&color=c77f2a" alt="Tests"></a>
+<a href="https://github.com/Phobetore/Evermind/pkgs/container/evermind-frontend"><img src="https://img.shields.io/badge/docker-ghcr.io-c77f2a?style=flat-square&labelColor=1f1a29" alt="Docker images"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/licence-AGPL--3.0-c77f2a?style=flat-square&labelColor=1f1a29" alt="Licence AGPL-3.0"></a>
+
 </div>
 
 <br>

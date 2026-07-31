@@ -1,13 +1,18 @@
-# Evermind — self-hosted immersive AI roleplay.
+# Evermind - self-hosted immersive AI roleplay.
 #   cp .env.example .env   # then edit
-#   docker compose up -d --build
+#   docker compose up -d
 # Then open http://localhost:3000 (or the PORT you set).
 #
-# Your LLM (LM Studio / Ollama / …) runs on the HOST, not in a container:
+# That pulls ready-made images and takes seconds. To compile from source
+# instead, add --build. You need --build if you want SEMANTIC=true, because
+# the published images are the light ones.
+#
+# Your LLM (LM Studio / Ollama / ...) runs on the HOST, not in a container:
 # in the app's LLM connection use http://host.docker.internal:PORT/v1
 # (e.g. LM Studio -> http://host.docker.internal:1234/v1).
 services:
   backend:
+    image: ghcr.io/phobetore/evermind-backend:${EVERMIND_VERSION:-latest}
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -20,6 +25,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: ghcr.io/phobetore/evermind-frontend:${EVERMIND_VERSION:-latest}
     build:
       context: .
       dockerfile: frontend/Dockerfile
