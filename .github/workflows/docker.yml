@@ -26,6 +26,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Needed to emulate arm64 on an amd64 runner.
+      - uses: docker/setup-qemu-action@v4
+
       - uses: docker/setup-buildx-action@v4
 
       - uses: docker/login-action@v4
@@ -34,6 +37,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # "latest" only moves on a real version tag: .env.example promises it
+      # tracks the newest release, so a manual run must not claim it.
       - id: meta
         uses: docker/metadata-action@v6
         with:
@@ -41,13 +46,16 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       # Build context is the repository root: the backend image needs library/.
       - uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          # arm64 covers Apple Silicon and the small ARM boxes people self-host
+          # on. It is emulated here, so it is slow, but it only runs on a tag.
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
