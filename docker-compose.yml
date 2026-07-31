@@ -13,6 +13,11 @@
 services:
   backend:
     image: ghcr.io/phobetore/evermind-backend:${EVERMIND_VERSION:-latest}
+    # Explicit: fetch the published image, and only fall back to the build
+    # section when asked with --build. Left to the default, a service that
+    # declares both image and build can decide to compile instead, which is a
+    # very long first run for someone who just unzipped this.
+    pull_policy: missing
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -26,6 +31,7 @@ services:
 
   frontend:
     image: ghcr.io/phobetore/evermind-frontend:${EVERMIND_VERSION:-latest}
+    pull_policy: missing
     build:
       context: .
       dockerfile: frontend/Dockerfile
