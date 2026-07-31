@@ -1,11 +1,13 @@
 from fastapi import APIRouter, FastAPI
 
+from .. import __version__
+
 health_router = APIRouter()
 
 
 @health_router.get("/api/health")
 async def health() -> dict:
-    return {"status": "ok", "app": "evermind", "version": "2.0.0"}
+    return {"status": "ok", "app": "evermind", "version": __version__}
 
 
 def register_routers(app: FastAPI) -> None:
