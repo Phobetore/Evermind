@@ -147,30 +147,46 @@ Two ways. The first asks less of you.
 Docker is a free tool that runs applications in a tidy, self-contained box. You
 install it once and never think about it again.
 
+You do not need the source code for this. Evermind is published as ready-made
+images, and one small file tells Docker how to fetch them.
+
 1. Download and install **Docker Desktop** from
    [docker.com](https://www.docker.com/products/docker-desktop/). Start it and
    let it finish loading (its icon stops animating).
-2. Download Evermind: on the project page on GitHub, click the green **Code**
-   button, then **Download ZIP**. Unzip it somewhere sensible, such as your
-   Documents folder.
-3. Open a terminal **in the unzipped folder**:
+2. Make an empty folder for Evermind somewhere sensible, such as
+   `Documents\Evermind`. One file is going to live in it.
+3. Download
+   **[docker-compose.yml](https://github.com/Phobetore/Evermind/releases/latest/download/docker-compose.yml)**
+   and move it into that folder. That is the whole download: about two kilobytes,
+   listing the pieces Docker should fetch and how to wire them together.
+4. Open a terminal **in that folder**:
    - **Windows**: click the address bar at the top of the folder window, type
      `powershell`, press Enter.
    - **macOS**: right-click the folder, then Services, then New Terminal at Folder.
    - **Linux**: right-click inside the folder, then Open in Terminal.
-4. Type this and press Enter:
+5. Type this and press Enter:
 
    ```bash
    docker compose up -d
    ```
 
-   It downloads two ready-made images, which takes under a minute on a normal
-   connection. Later starts take seconds.
-5. Open your browser at **http://localhost:3000**
+   It downloads the two ready-made images, which takes under a minute on a
+   normal connection. Later starts take seconds.
+6. Open your browser at **http://localhost:3000**
 
 There is nothing to configure first and no password to get past. Evermind
 listens on this computer only, so nothing else on your network can reach it
 until you decide otherwise.
+
+If you would rather type than click, steps 2 and 3 are one line:
+
+```bash
+mkdir evermind && cd evermind && curl -LO https://github.com/Phobetore/Evermind/releases/latest/download/docker-compose.yml
+```
+
+On Windows use `curl.exe`, spelled out with the extension. Plain `curl` in
+PowerShell is a different command wearing the same name, and it will not do what
+you want here.
 
 Evermind is running. It will keep running in the background, and restart with
 your computer, until you stop it with `docker compose down`.
@@ -184,7 +200,10 @@ your computer, until you stop it with `docker compose down`.
 ### The other way: run it directly
 
 If you would rather not use Docker, you can run Evermind straight from the code.
-You need two free tools installed first: **Python 3.11 or newer**
+This is the one route that needs the source: on the project page on GitHub, click
+the green **Code** button, then **Download ZIP**, and unzip it somewhere sensible.
+
+You also need two free tools installed: **Python 3.11 or newer**
 ([python.org](https://www.python.org/downloads/)) and **Node.js 20 or newer**
 ([nodejs.org](https://nodejs.org)).
 
@@ -251,13 +270,17 @@ Two things worth knowing early:
 ## Optional extras
 
 **Play from your phone or tablet.** Evermind stays on your computer by default,
-so this takes two deliberate changes. Copy `.env.example` to `.env`, then set
-both:
+so this takes two deliberate changes. Next to your `docker-compose.yml`, make a
+file named exactly `.env` containing these two lines:
 
 ```
 BIND=0.0.0.0
 EVERMIND_GATE_PASSWORD=something-only-you-know
 ```
+
+(That `.env` is where every setting lives. For the full annotated list, download
+[env.example](https://github.com/Phobetore/Evermind/releases/latest/download/env.example)
+and rename it to `.env`.)
 
 Run `docker compose up -d` again, and open your computer's local address on the
 other device, on the same Wi-Fi. It looks like `http://192.168.1.42:3000`;
@@ -275,11 +298,14 @@ Set `EVERMIND_GATE_PASSWORD` in your `.env` there too.
 
 **Sharper long-term memory.** By default, Evermind recalls the most recent facts.
 It can instead recall facts and old passages *by meaning*, so the right memory
-comes back even three hundred messages later. With Docker, set `SEMANTIC=true` in
-your `.env` and run `docker compose up -d --build` again. The `--build` matters
-here: the ready-made images are the light ones, so this option only takes effect
-when you compile locally. It adds a couple of gigabytes and downloads a small
-language model once.
+comes back even three hundred messages later.
+
+This is the one option the ready-made images cannot give you, because it would
+add two or three gigabytes to a download everybody else pays for. So it means
+building your own copy: get the source (green **Code** button, then **Download
+ZIP**), put `SEMANTIC=true` in your `.env`, and from the unzipped folder run
+`docker compose up -d --build`. Expect a long first build, and a small language
+model downloaded once on first start.
 
 **Cards from elsewhere.** Evermind reads and writes the standard Character Card
 V2 format, the JSON and PNG files used across the roleplay community. Thousands
@@ -299,10 +325,11 @@ of existing cards work; use **Import** on the Discover page.
 | Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you restarted afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. The launch script tells you the exact command if the rule is missing. |
 | A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Clear that line and restart to remove it. |
 
-**Want to try Evermind before setting up a real AI?** Run
-`python scripts/mock_llm.py`, then add a connection of type OpenAI-compatible
-pointing at `http://localhost:5599/v1`. It replies with placeholder roleplay text,
-which is enough to check that everything is wired up correctly.
+**Want to try Evermind before setting up a real AI?** Grab the source (green
+**Code** button, then **Download ZIP**) and run `python scripts/mock_llm.py`,
+then add a connection of type OpenAI-compatible pointing at
+`http://localhost:5599/v1`. It replies with placeholder roleplay text, which is
+enough to check that everything is wired up correctly.
 
 ---
 

@@ -119,6 +119,20 @@ Both images build from the **repository root** as context (the backend needs
 `next build`; `EVERMIND_GATE_PASSWORD` on the other hand is read at runtime, so
 the password can be changed without rebuilding.
 
+## Cutting a release
+
+1. Bump the version in `backend/pyproject.toml`, `frontend/package.json` and the
+   two project entries in `frontend/package-lock.json`. `/api/health` reads its
+   number from the installed distribution, so nothing else needs touching.
+2. Push a `v*` tag. That builds both images for amd64 and arm64, pushes them to
+   ghcr.io, and attaches `docker-compose.yml` and `env.example` to the release,
+   creating an empty release first if the tag arrived before it.
+3. Write the notes.
+
+The attached files are not decoration: INSTALL.md tells people to install by
+downloading `releases/latest/download/docker-compose.yml` and nothing else, so a
+release missing them breaks the documented path for everyone who follows it.
+
 ## Conventions
 
 - Migrations are append-only; never edit one that has shipped.
