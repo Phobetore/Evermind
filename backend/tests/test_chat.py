@@ -1,6 +1,7 @@
 """Chat service tests with a mocked provider (no network)."""
 
 import json
+from typing import ClassVar
 
 import pytest
 
@@ -10,7 +11,9 @@ from app.providers.base import ProviderEvent
 class FakeProvider:
     """Yields scripted events; records the payload it received."""
 
-    captured: dict = {}
+    # Shared on the class on purpose: the service instantiates the provider
+    # itself, so the tests have nowhere else to read the captured payload from.
+    captured: ClassVar[dict] = {}
 
     def __init__(self, connection):
         self.connection = connection

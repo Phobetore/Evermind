@@ -1,7 +1,7 @@
 import aiosqlite
 
-from .base import new_id, now_iso
 from ..prompting import embeddings
+from .base import new_id, now_iso
 
 _ALLOWED_KINDS = {"fact", "event", "relationship", "promise", "state"}
 

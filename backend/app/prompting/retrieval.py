@@ -34,7 +34,9 @@ async def rank(query_text: str, embedding_map: dict[str, bytes]) -> dict[str, fl
         matrix = np.vstack([embeddings.unpack(embedding_map[i]) for i in ids])
         scores = _cosine_scores(query[0], matrix)
         return {i: s for i, s in zip(ids, scores)}
-    except Exception:  # corrupt/mismatched blob -> degrade to recency, never break the turn
+    # Deliberately blind: a corrupt or mismatched blob degrades to recency
+    # ranking. Ranking is an optimisation, and it must never break the turn.
+    except Exception:  # noqa: BLE001
         return None
 
 

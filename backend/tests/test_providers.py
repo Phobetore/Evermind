@@ -164,12 +164,12 @@ async def test_anthropic_stream_and_message_shaping():
         captured["body"] = json.loads(request.content)
         captured["key"] = request.headers.get("x-api-key")
         body = (
-            'event: message_start\ndata: {"type":"message_start"}\n\n'
-            'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hi "}}\n\n'
-            'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"you"}}\n\n'
-            'event: message_delta\ndata: {"type":"message_delta","usage":{"output_tokens":7}}\n\n'
-            'event: message_stop\ndata: {"type":"message_stop"}\n\n'
-        ).encode()
+            b'event: message_start\ndata: {"type":"message_start"}\n\n'
+            b'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hi "}}\n\n'
+            b'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"you"}}\n\n'
+            b'event: message_delta\ndata: {"type":"message_delta","usage":{"output_tokens":7}}\n\n'
+            b'event: message_stop\ndata: {"type":"message_stop"}\n\n'
+        )
         return httpx.Response(200, content=body, headers={"content-type": "text/event-stream"})
 
     events = await collect(anth_provider(handler))

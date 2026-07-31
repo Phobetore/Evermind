@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def new_id() -> str:
@@ -10,7 +10,7 @@ def new_id() -> str:
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def loads(value, default):

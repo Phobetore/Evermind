@@ -9,8 +9,18 @@ async def health() -> dict:
 
 
 def register_routers(app: FastAPI) -> None:
-    from . import (characters, chat, connections, conversations, library, lore, media,
-                   memories, personas, settings_router)
+    from . import (
+        characters,
+        chat,
+        connections,
+        conversations,
+        library,
+        lore,
+        media,
+        memories,
+        personas,
+        settings_router,
+    )
 
     app.include_router(health_router)
     app.include_router(chat.router)

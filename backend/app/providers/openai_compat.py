@@ -61,37 +61,36 @@ class OpenAICompatProvider(Provider):
         usage = None
         finish_reason = None
         try:
-            async with self._client_factory() as client:
-                async with client.stream(
-                    "POST",
-                    f"{self.base_url}/chat/completions",
-                    headers=self._headers(),
-                    json=self._build_body(payload),
-                ) as response:
-                    if response.status_code >= 400:
-                        detail = await _read_error(response)
-                        yield ProviderEvent(type="error", message=_http_error_message(
-                            response.status_code, detail, self.model))
-                        return
-                    async for line in response.aiter_lines():
-                        if not line.startswith("data:"):
-                            continue
-                        data = line[5:].strip()
-                        if data == "[DONE]":
-                            break
-                        try:
-                            obj = json.loads(data)
-                        except json.JSONDecodeError:
-                            continue
-                        if obj.get("usage"):
-                            usage = obj["usage"]
-                        choices = obj.get("choices") or []
-                        if not choices:
-                            continue
-                        finish_reason = choices[0].get("finish_reason") or finish_reason
-                        text = (choices[0].get("delta") or {}).get("content")
-                        if text:
-                            yield ProviderEvent(type="delta", text=text)
+            async with self._client_factory() as client, client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers=self._headers(),
+                json=self._build_body(payload),
+            ) as response:
+                if response.status_code >= 400:
+                    detail = await _read_error(response)
+                    yield ProviderEvent(type="error", message=_http_error_message(
+                        response.status_code, detail, self.model))
+                    return
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        obj = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    if obj.get("usage"):
+                        usage = obj["usage"]
+                    choices = obj.get("choices") or []
+                    if not choices:
+                        continue
+                    finish_reason = choices[0].get("finish_reason") or finish_reason
+                    text = (choices[0].get("delta") or {}).get("content")
+                    if text:
+                        yield ProviderEvent(type="delta", text=text)
         except httpx.ConnectError:
             yield ProviderEvent(type="error", message=self._connect_error_message())
             return

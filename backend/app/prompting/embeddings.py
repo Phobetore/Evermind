@@ -45,7 +45,10 @@ async def warmup() -> bool:
         _model = await asyncio.to_thread(_load)
         logger.info("semantic memory enabled: loaded %s", MODEL_NAME)
         return True
-    except Exception:
+    # Deliberately blind: the extra is optional, so a missing package, a failed
+    # download or an incompatible torch build all mean the same thing here, which
+    # is that the feature stays off and the app runs on recency.
+    except Exception:  # noqa: BLE001
         logger.info("semantic memory disabled: could not load %s", MODEL_NAME)
         return False
 

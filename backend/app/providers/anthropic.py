@@ -66,41 +66,40 @@ class AnthropicProvider(Provider):
         usage = None
         stop_reason = None
         try:
-            async with self._client_factory() as client:
-                async with client.stream(
-                    "POST",
-                    f"{self.base_url}/v1/messages",
-                    headers=self._headers(),
-                    json=self._build_body(payload),
-                ) as response:
-                    if response.status_code >= 400:
-                        detail = await _read_error(response)
-                        yield ProviderEvent(
-                            type="error",
-                            message=f"Anthropic error ({response.status_code}). {detail}".strip(),
-                        )
+            async with self._client_factory() as client, client.stream(
+                "POST",
+                f"{self.base_url}/v1/messages",
+                headers=self._headers(),
+                json=self._build_body(payload),
+            ) as response:
+                if response.status_code >= 400:
+                    detail = await _read_error(response)
+                    yield ProviderEvent(
+                        type="error",
+                        message=f"Anthropic error ({response.status_code}). {detail}".strip(),
+                    )
+                    return
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    try:
+                        obj = json.loads(line[5:].strip())
+                    except json.JSONDecodeError:
+                        continue
+                    kind = obj.get("type")
+                    if kind == "content_block_delta":
+                        text = (obj.get("delta") or {}).get("text")
+                        if text:
+                            yield ProviderEvent(type="delta", text=text)
+                    elif kind == "message_delta":
+                        usage = obj.get("usage") or usage
+                        stop_reason = (obj.get("delta") or {}).get("stop_reason") or stop_reason
+                    elif kind == "error":
+                        message = (obj.get("error") or {}).get("message") or "Anthropic stream error."
+                        yield ProviderEvent(type="error", message=message)
                         return
-                    async for line in response.aiter_lines():
-                        if not line.startswith("data:"):
-                            continue
-                        try:
-                            obj = json.loads(line[5:].strip())
-                        except json.JSONDecodeError:
-                            continue
-                        kind = obj.get("type")
-                        if kind == "content_block_delta":
-                            text = (obj.get("delta") or {}).get("text")
-                            if text:
-                                yield ProviderEvent(type="delta", text=text)
-                        elif kind == "message_delta":
-                            usage = obj.get("usage") or usage
-                            stop_reason = (obj.get("delta") or {}).get("stop_reason") or stop_reason
-                        elif kind == "error":
-                            message = (obj.get("error") or {}).get("message") or "Anthropic stream error."
-                            yield ProviderEvent(type="error", message=message)
-                            return
-                        elif kind == "message_stop":
-                            break
+                    elif kind == "message_stop":
+                        break
         except httpx.ConnectError:
             yield ProviderEvent(type="error", message=self._connect_error_message())
             return

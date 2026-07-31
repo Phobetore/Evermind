@@ -18,7 +18,10 @@ dependencies = [
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
-    "ruff>=0.8",
+    # Upper bound on purpose: ruff widens its default rule set on minor releases,
+    # so an unpinned range turns CI red on code nobody touched. Raise it
+    # deliberately and fix what the new rules find.
+    "ruff>=0.8,<0.17",
 ]
 semantic = [
     "sentence-transformers>=3.0",
@@ -38,3 +41,8 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency injection *is* a call in an argument default. B008 exists
+# to catch mutable defaults, which these are not.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Path"]
