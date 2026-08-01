@@ -37,8 +37,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # "latest" only moves on a real version tag: .env.example promises it
-      # tracks the newest release, so a manual run must not claim it.
+      # "latest" only moves on a real version tag, and never on a prerelease:
+      # .env.example promises it tracks the newest release, so neither a manual
+      # run nor a v2.1.0-rc1 may claim it.
       - id: meta
         uses: docker/metadata-action@v6
         with:
@@ -46,7 +47,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
 
       # Build context is the repository root: the backend image needs library/.
       - uses: docker/build-push-action@v7
@@ -80,7 +81,13 @@ jobs:
         run: |
           # A leading dot is stripped from asset names, so ship it renamed.
           cp .env.example env.example
+          # A dash means a prerelease. Marking it as one keeps it out of
+          # /releases/latest/, which INSTALL.md sends every newcomer to.
+          case "$GITHUB_REF_NAME" in
+            *-*) PRE=--prerelease ;;
+            *)   PRE= ;;
+          esac
           # The release usually exists already; create it empty if the tag came first.
-          gh release create "$GITHUB_REF_NAME" --title "Evermind ${GITHUB_REF_NAME#v}" --notes "" \
+          gh release create "$GITHUB_REF_NAME" --title "Evermind ${GITHUB_REF_NAME#v}" --notes "" $PRE \
             || echo "release already exists, keeping its notes"
           gh release upload "$GITHUB_REF_NAME" docker-compose.yml env.example --clobber
