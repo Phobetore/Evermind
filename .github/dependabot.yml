@@ -1,0 +1,17 @@
+version: 2
+
+# Deliberately narrow. Security fixes for npm and pip arrive through Dependabot
+# security updates, which do not need a config file. What needs watching here is
+# the actions themselves: they were several majors behind within weeks, and a
+# deprecated action runtime is the kind of thing that goes unnoticed until a
+# workflow stops running.
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"

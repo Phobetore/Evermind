@@ -1,0 +1,87 @@
+name: Bug report
+description: Something in Evermind behaves wrongly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: if a character is repeating itself, forgetting things or
+        breaking character, that is usually the model or the context size rather
+        than Evermind. The troubleshooting table in
+        [INSTALL.md](https://github.com/Phobetore/Evermind/blob/main/INSTALL.md#if-something-goes-wrong)
+        covers those, and it is worth two minutes.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: And what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      placeholder: |
+        1. Install the card ...
+        2. Send ...
+        3. The reply ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run Evermind
+      options:
+        - Docker, published images
+        - Docker, built from source with --build
+        - Directly, with the prod scripts
+        - Development server
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The number at http://localhost:3000/api/health
+      placeholder: "2.0.1"
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model and provider
+      description: >
+        Which model, at what size and quantisation, through which connection.
+        This matters more than anything else here.
+      placeholder: "Cydonia 24B Q4_K_M via LM Studio"
+    validations:
+      required: true
+
+  - type: input
+    id: context
+    attributes:
+      label: Context size configured on the connection
+      description: >
+        And what the model actually offers, if you know. A mismatch here causes
+        most of the memory complaints.
+      placeholder: "16384, model offers 32768"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >
+        `docker compose logs --tail 50` on Docker, or whatever the terminal
+        printed. Browser console errors too, if the problem is visual.
+      render: shell
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "Windows 11, macOS 15, Debian 13"

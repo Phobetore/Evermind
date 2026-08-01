@@ -202,8 +202,11 @@ so that trust and resentment carry weight of their own. Generated portraits and
 voice, eventually. Possibly somewhere to share cards, if people turn out to want
 one.
 
-Contributions are welcome. If you are here to work on the code,
-[start here](docs/DEVELOPING.md).
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers how to get
+a change accepted and the few things this project declines on principle;
+[docs/DEVELOPING.md](docs/DEVELOPING.md) is the technical tour. Questions about
+setting it up belong in
+[Discussions](https://github.com/Phobetore/Evermind/discussions).
 
 <br>
 

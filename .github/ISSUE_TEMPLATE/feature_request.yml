@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest something Evermind should do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A few things are declined on principle rather than on merit: content
+        filtering, telemetry, hosted accounts, and tying Evermind to one
+        specific model or provider.
+        [CONTRIBUTING.md](https://github.com/Phobetore/Evermind/blob/main/CONTRIBUTING.md#what-this-project-will-not-accept)
+        explains why. Everything else is open, including large ideas.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: >
+        Describe the situation you keep running into, not the solution you have
+        in mind. The problem is the part that is hard to guess from outside.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you think would fix it
+      description: If you have a shape in mind. Leave it empty if you do not.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: >
+        Workarounds, other tools, settings you changed. Useful even when they
+        failed, and especially then.
+
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Would you want to build it
+      options:
+        - label: I would be up for writing this myself, with some direction
+          required: false

@@ -1,0 +1,16 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question about setting it up
+    url: https://github.com/Phobetore/Evermind/discussions
+    about: >
+      Anything starting with "how do I". Which model to pick, connecting LM
+      Studio or OpenRouter, playing from your phone. Ask in Discussions and the
+      answer helps whoever searches it next.
+  - name: Installation guide
+    url: https://github.com/Phobetore/Evermind/blob/main/INSTALL.md
+    about: >
+      Written for people who are not developers, with a troubleshooting table
+      covering the usual first-day problems.
+  - name: Report a security problem
+    url: https://github.com/Phobetore/Evermind/security/advisories/new
+    about: Privately, rather than in a public issue.
