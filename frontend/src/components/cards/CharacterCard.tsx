@@ -74,9 +74,9 @@ export function CharacterCard({
 
       {/* Poster caption */}
       <div className="relative z-10 flex flex-col gap-1.5 p-4">
-        <h3 className="font-display text-xl font-semibold leading-tight text-parchment drop-shadow">
+        <h2 className="font-display text-xl font-semibold leading-tight text-parchment drop-shadow">
           {character.name}
-        </h3>
+        </h2>
         {character.tagline && (
           <p className="line-clamp-2 text-sm italic leading-snug text-parchment-dim">
             {character.tagline}

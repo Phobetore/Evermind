@@ -17,7 +17,11 @@
   --color-parchment: #ece5da;
   --color-parchment-dim: #c9bfb2;
   --color-mist: #9d92ab;
-  --color-mist-dim: #6e6480;
+  /* Was #6e6480, which sat at 3.2:1 on the darker panels and failed WCAG AA on
+     every helper line in the app. Same hue and saturation, lifted until it
+     clears 4.5:1 on all four surface colours while staying visibly quieter
+     than --color-mist. */
+  --color-mist-dim: #857b98;
 
   /* Ember — candlelight copper accent */
   --color-ember-300: #f4c98a;
@@ -175,6 +179,17 @@ input, textarea, select, button {
 @media (hover: none) {
   .hover-actions { opacity: 0.75; }
 }
+/* Without this, links and buttons fall back to the browser ring, which is drawn
+   from the element's own colour: on the logo that came out near-black on a
+   near-black background, so keyboard users lost track of where they were.
+   :focus-visible rather than :focus, so a mouse click does not draw it.
+   .field keeps its own ember ring below, on higher specificity. */
+:focus-visible {
+  outline: 2px solid var(--color-ember-400);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 .field::placeholder { color: var(--color-mist-dim); }
 .field:focus {
   outline: none;

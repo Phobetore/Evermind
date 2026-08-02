@@ -251,6 +251,9 @@ export function CharacterForm({ initial }: { initial?: Character }) {
                   value={assistConnectionId}
                   onChange={(e) => setAssistConnectionId(e.target.value)}
                   title={t("characters.assist.connectionSelectTitle")}
+                  // The control is deliberately unlabelled on screen, so a
+                  // screen reader would otherwise announce it as just "combo box".
+                  aria-label={t("characters.assist.connectionSelectTitle")}
                 >
                   <option value="">{t("settings.defaultConnectionLabel")}</option>
                   {connections.map((c) => (

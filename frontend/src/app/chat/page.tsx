@@ -76,9 +76,9 @@ export default function ConversationsPage() {
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
-                  <h3 className="truncate font-display font-semibold">
+                  <h2 className="truncate font-display font-semibold">
                     {convo.character?.name ?? t("chatList.deletedCharacter")}
-                  </h3>
+                  </h2>
                   {convo.forked_from && (
                     <span className="flex shrink-0 items-center gap-1 rounded-full border border-arcane-500/40 bg-arcane-glow px-2 py-0.5 font-display text-[0.65rem] text-arcane-300">
                       <GitBranch className="h-2.5 w-2.5" /> {t("chatList.forkedBadge")}

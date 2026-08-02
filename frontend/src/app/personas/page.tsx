@@ -50,7 +50,7 @@ export default function PersonasPage() {
               <Avatar name={p.name} src={p.avatar_url} className="h-14 w-14 shrink-0 text-xl" />
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-display text-lg font-semibold">{p.name}</h3>
+                  <h2 className="font-display text-lg font-semibold">{p.name}</h2>
                   {p.is_default && <Tag tone="ember">{t("personas.defaultTag")}</Tag>}
                 </div>
                 <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-mist">
