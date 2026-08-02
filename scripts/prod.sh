@@ -15,34 +15,50 @@ for arg in "$@"; do
     esac
 done
 
+# Next only reads .env files sitting next to itself, and it runs from frontend/.
+# Without this the repository's .env is silently ignored here, which matters most
+# for EVERMIND_GATE_PASSWORD: the password would appear to be set and would not
+# actually be asked for.
+if [ -f "$ROOT/.env" ]; then
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        case "$key" in ''|'#'*) continue ;; esac
+        export "$(printf '%s' "$key" | tr -d '[:space:]')=$value"
+    done < "$ROOT/.env"
+fi
+
 if [ ! -d "$ROOT/backend/.venv" ]; then
-    echo "Premier lancement : création de l'environnement Python…"
+    echo "First run: creating the Python environment..."
     python3 -m venv "$ROOT/backend/.venv"
     "$ROOT/backend/.venv/bin/python" -m pip install -q -e "$ROOT/backend[dev]"
 fi
 if [ ! -d "$ROOT/frontend/node_modules" ]; then
-    echo "Premier lancement : installation des dépendances frontend…"
+    echo "First run: installing frontend dependencies..."
     (cd "$ROOT/frontend" && npm install)
 fi
 
 if [ "$SKIP_BUILD" = 1 ]; then
     if [ ! -f "$ROOT/frontend/.next/BUILD_ID" ]; then
-        echo "Aucun build trouvé : lancez d'abord sans --skip-build." >&2
+        echo "No build found. Run once without --skip-build first." >&2
         exit 1
     fi
-    echo "Build existant réutilisé (--skip-build)."
+    echo "Reusing the existing build (--skip-build)."
 else
-    echo "Compilation du frontend (une à deux minutes)…"
+    echo "Building the frontend (a minute or two)..."
     (cd "$ROOT/frontend" && npm run build)
 fi
 
 # The backend always stays on the loopback: the frontend proxies /api to it,
 # and that proxy is what the password gate protects.
-echo "Backend  → http://127.0.0.1:8000 (local uniquement)"
-echo "Frontend → http://localhost:3000"
+echo "Backend  -> http://127.0.0.1:8000 (this machine only)"
+echo "Frontend -> http://localhost:3000"
 if [ -n "$LAN" ]; then
     IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-    [ -n "$IP" ] && echo "           http://${IP}:3000  (depuis le réseau, mot de passe requis)"
+    [ -n "$IP" ] && echo "            http://${IP}:3000  (from the local network)"
+    if [ -z "${EVERMIND_GATE_PASSWORD:-}" ]; then
+        echo ""
+        echo "  No password is set, so anyone on this network can read your conversations."
+        echo "  Put EVERMIND_GATE_PASSWORD in .env to be asked for one."
+    fi
 fi
 
 # Single uvicorn worker on purpose: the memory-maintenance lock and SQLite

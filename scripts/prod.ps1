@@ -9,30 +9,43 @@ param([switch]$Lan, [switch]$SkipBuild)
 
 $root = Split-Path -Parent $PSScriptRoot
 
+# Next only reads .env files sitting next to itself, and it runs from frontend\.
+# Without this the repository's .env is silently ignored here, which matters most
+# for EVERMIND_GATE_PASSWORD: the password would appear to be set and would not
+# actually be asked for.
+$envFile = Join-Path $root ".env"
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$') {
+            Set-Item -Path "Env:$($Matches[1])" -Value $Matches[2].Trim()
+        }
+    }
+}
+
 if (-not (Test-Path "$root\backend\.venv")) {
-    Write-Host "Premier lancement : creation de l'environnement Python..."
+    Write-Host "First run: creating the Python environment..."
     python -m venv "$root\backend\.venv"
     & "$root\backend\.venv\Scripts\python" -m pip install -q -e "$root\backend[dev]"
 }
 if (-not (Test-Path "$root\frontend\node_modules")) {
-    Write-Host "Premier lancement : installation des dependances frontend..."
+    Write-Host "First run: installing frontend dependencies..."
     Push-Location "$root\frontend"; npm install; Pop-Location
 }
 
 if ($SkipBuild) {
     if (-not (Test-Path "$root\frontend\.next\BUILD_ID")) {
-        Write-Host "Aucun build trouve : lancez d'abord sans -SkipBuild." -ForegroundColor Red
+        Write-Host "No build found. Run once without -SkipBuild first." -ForegroundColor Red
         exit 1
     }
-    Write-Host "Build existant reutilise (-SkipBuild)."
+    Write-Host "Reusing the existing build (-SkipBuild)."
 } else {
-    Write-Host "Compilation du frontend (une a deux minutes)..."
+    Write-Host "Building the frontend (a minute or two)..."
     Push-Location "$root\frontend"
     npm run build
     $buildFailed = $LASTEXITCODE -ne 0
     Pop-Location
     if ($buildFailed) {
-        Write-Host "Le build a echoue : rien n'a ete lance." -ForegroundColor Red
+        Write-Host "The build failed. Nothing was started." -ForegroundColor Red
         exit 1
     }
 }
@@ -40,7 +53,7 @@ if ($SkipBuild) {
 # The backend always stays on the loopback: the frontend proxies /api to it,
 # and that proxy is what the password gate protects.
 Write-Host ""
-Write-Host "Backend  -> http://127.0.0.1:8000 (local uniquement)"
+Write-Host "Backend  -> http://127.0.0.1:8000 (this machine only)"
 Write-Host "Frontend -> http://localhost:3000"
 
 if ($Lan) {
@@ -52,10 +65,16 @@ if ($Lan) {
     $adapter = (Get-NetAdapter -InterfaceIndex $idx -ErrorAction SilentlyContinue).Name
 
     if ($net) {
-        Write-Host "            http://$($net.IPAddress):3000  (depuis le reseau, via '$adapter')"
-        Write-Host "            les autres appareils doivent etre dans le sous-reseau $($net.IPAddress)/$($net.PrefixLength)"
+        Write-Host "            http://$($net.IPAddress):3000  (from the network, via '$adapter')"
+        Write-Host "            other devices must be on the $($net.IPAddress)/$($net.PrefixLength) subnet"
     } else {
-        Write-Host "Aucune carte reseau active detectee." -ForegroundColor Yellow
+        Write-Host "No active network adapter found." -ForegroundColor Yellow
+    }
+
+    if (-not $env:EVERMIND_GATE_PASSWORD) {
+        Write-Host ""
+        Write-Host "No password is set, so anyone on this network can read your conversations." -ForegroundColor Yellow
+        Write-Host "Put EVERMIND_GATE_PASSWORD in .env to be asked for one." -ForegroundColor Yellow
     }
 
     $allowed = Get-NetFirewallPortFilter -ErrorAction SilentlyContinue |
@@ -64,15 +83,15 @@ if ($Lan) {
                Where-Object { $_.Direction -eq "Inbound" -and $_.Action -eq "Allow" -and $_.Enabled -eq "True" }
     if (-not $allowed) {
         Write-Host ""
-        Write-Host "Pare-feu : aucune regle n'autorise le port 3000 en entree." -ForegroundColor Yellow
-        Write-Host "Dans un PowerShell administrateur, executez une fois :" -ForegroundColor Yellow
+        Write-Host "Firewall: no rule allows inbound traffic on port 3000." -ForegroundColor Yellow
+        Write-Host "In an administrator PowerShell, run this once:" -ForegroundColor Yellow
         Write-Host "  New-NetFirewallRule -DisplayName 'Evermind (3000)' -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow" -ForegroundColor Cyan
     }
 }
 
 if (Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue) {
     Write-Host ""
-    Write-Host "Attention : le port 3000 est deja occupe, Next va en choisir un autre." -ForegroundColor Yellow
+    Write-Host "Warning: port 3000 is already in use, Next will pick another one." -ForegroundColor Yellow
 }
 
 # Single uvicorn worker on purpose: the memory-maintenance lock and SQLite
