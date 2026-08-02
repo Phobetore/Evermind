@@ -63,3 +63,39 @@ async def test_media_refuses_a_symlink_pointing_out_of_the_directory(client, tmp
 
     assert resp.status_code == 404
     assert b"secret" not in resp.content
+
+
+LIBRARY_ESCAPES = [
+    "../../../etc/passwd",
+    "../secrets.json",
+    "..%2fsecrets.json",
+    "/etc/passwd.json",
+    "sub/dir/card.json",
+    "card.json\n",
+    "Card.json",
+    ".hidden.json",
+    "card.json.png",
+    "-leading-dash.json",
+]
+
+
+@pytest.mark.parametrize("attempt", LIBRARY_ESCAPES)
+def test_library_names_outside_the_allowlist_are_refused(attempt):
+    """The library reads a file whose name comes from the URL. The allowlist is
+    what keeps that from being a way to read the rest of the disk, so it gets a
+    test rather than a comment."""
+    from app.routers.library import _image_path, _read_card
+
+    assert _read_card(attempt) is None
+    assert _image_path(attempt) is None
+
+
+def test_library_accepts_the_names_it_actually_ships():
+    """Rejecting everything would pass the test above and break the product."""
+    from app.config import library_dir
+    from app.routers.library import _SAFE_NAME
+
+    shipped = sorted(p.name for p in library_dir().glob("*.json"))
+    assert shipped, "no library cards found, so this test proves nothing"
+    for name in shipped:
+        assert _SAFE_NAME.match(name), name

@@ -18,7 +18,11 @@ from ..repositories.base import new_id
 
 router = APIRouter(prefix="/api/library", tags=["library"])
 
-_SAFE_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*\.json$")
+# Allowlist rather than a check for "..": no dot survives except the final
+# ".json", and no separator of any kind is in the character class, so nothing
+# that matches can point outside the library directory. \Z rather than $, which
+# would also match just before a trailing newline.
+_SAFE_NAME = re.compile(r"\A[a-z0-9][a-z0-9_-]*\.json\Z")
 _IMAGE_EXTENSIONS = (".jpg", ".png", ".webp")
 _IMAGE_TYPES = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
 

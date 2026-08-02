@@ -2,11 +2,10 @@
 
 import { useT } from "@/i18n/useT";
 import { KeyRound, Loader2, VenetianMask } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
 function Gate() {
-  const router = useRouter();
   const search = useSearchParams();
   const t = useT();
   const [password, setPassword] = useState("");

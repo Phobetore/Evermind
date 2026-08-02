@@ -5,6 +5,11 @@ version: 2
 # the actions themselves: they were several majors behind within weeks, and a
 # deprecated action runtime is the kind of thing that goes unnoticed until a
 # workflow stops running.
+#
+# The workflows pin actions to commit hashes rather than tags, since a tag can be
+# repointed at other code by whoever owns it. That trade is only tolerable
+# because this keeps the hashes current; the trailing "# v7" comments are what
+# Dependabot reads to know which version a hash stands for.
 updates:
   - package-ecosystem: github-actions
     directory: "/"
