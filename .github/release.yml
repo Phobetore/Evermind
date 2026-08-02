@@ -1,0 +1,22 @@
+# Shapes the "Generate release notes" button. The hand-written summary at the
+# top of a release is still worth writing; this is what goes underneath it.
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+  categories:
+    - title: Fixed
+      labels:
+        - bug
+    - title: Added
+      labels:
+        - enhancement
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Everything else
+      labels:
+        - "*"

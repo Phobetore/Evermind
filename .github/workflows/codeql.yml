@@ -1,0 +1,35 @@
+name: CodeQL
+
+# Evermind is software people run on their own machine, holding conversations
+# they would not want leaving it. Static analysis is cheap insurance against the
+# classes of bug that make that promise false.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, because the queries improve even when the code does not.
+    - cron: "37 6 * * 1"
+
+jobs:
+  analyze:
+    name: Analyse ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: github/codeql-action/init@v4
+        with:
+          language: ${{ matrix.language }}
+          queries: security-and-quality
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"

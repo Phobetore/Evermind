@@ -32,8 +32,11 @@ The same checks CI runs, and it is faster to run them yourself:
 
 ```bash
 cd backend && ruff check app tests && pytest -q
-cd frontend && npx tsc --noEmit && npm run build
+cd frontend && npx tsc --noEmit && npm run check:i18n && npm run build
 ```
+
+CI also builds both Docker images on every pull request, without publishing
+them, so a broken `COPY` fails there rather than at release time.
 
 New behaviour in the backend comes with tests. The prompt engine
 (`backend/app/prompting/engine.py`) is a pure function with no I/O precisely so
@@ -65,8 +68,8 @@ speaks, and the cards themselves are not translated.
 ## Translations
 
 The interface speaks English, French, German and Spanish, from JSON dictionaries
-in `frontend/src/i18n/locales/`. Every key must exist in all four files;
-`docs/DEVELOPING.md` has a one-line parity check.
+in `frontend/src/i18n/locales/`. Every key must exist in all four files, which
+`npm run check:i18n` verifies.
 
 Translate meaning rather than words. If a string only makes sense as an English
 idiom, write the sentence a native speaker would actually use, even when that

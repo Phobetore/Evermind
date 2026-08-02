@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
     "start:lan": "next start --hostname 0.0.0.0",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

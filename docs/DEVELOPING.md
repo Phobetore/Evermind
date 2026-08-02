@@ -105,11 +105,15 @@ carry exactly the same keys; `en` is the fallback, so it has to be complete.
 Interpolation placeholders (`{count}`, `{name}`) and card macros (`{{char}}`,
 `{{user}}`) must survive translation untouched.
 
-Quick parity check:
+Parity check, which CI also runs on every push:
 
 ```bash
-cd frontend && node -e "const L=['fr','en','de','es'].map(l=>require('./src/i18n/locales/'+l+'.json'));const f=(o,p='')=>Object.entries(o).flatMap(([k,v])=>v&&typeof v==='object'?f(v,p+k+'.'):[p+k]);const F=new Set(f(L[0]));L.forEach((d,i)=>{const S=new Set(f(d));console.log(['fr','en','de','es'][i],S.size,[...F].filter(k=>!S.has(k)).length===0?'OK':'MISSING')})"
+cd frontend && npm run check:i18n
 ```
+
+It compares every locale against `en` and fails on a missing key, an unknown one,
+or a key present with an empty value. That last case is the nasty one: it renders
+as nothing at all rather than as an error.
 
 ## Docker
 
