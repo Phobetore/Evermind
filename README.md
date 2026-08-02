@@ -16,7 +16,11 @@
 
 <br>
 
-<img src="docs/screenshots/01-discover.png" alt="The Evermind library of characters and scenarios" width="100%">
+<img src="docs/demo.gif" alt="Opening a character and sending the first message, with the reply arriving word by word" width="100%">
+
+<div align="center">
+<sub>Recorded as it happened, against a 15B model running on the same laptop. Nothing sped up.</sub>
+</div>
 
 <br>
 
