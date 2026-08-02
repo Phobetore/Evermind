@@ -15,8 +15,8 @@ from .test_chat import FakeProvider, send, setup_conversation
 def fake_provider(monkeypatch):
     FakeProvider.script = [ProviderEvent(type="delta", text="Reply."), ProviderEvent(type="done")]
     FakeProvider.captured = {}
-    monkeypatch.setattr("app.services.chat_service.get_provider", lambda c: FakeProvider(c))
-    monkeypatch.setattr("app.services.memory_service.get_provider", lambda c: FakeProvider(c))
+    monkeypatch.setattr("app.services.chat_service.get_provider", FakeProvider)
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
     return FakeProvider
 
 
@@ -92,7 +92,8 @@ async def test_lore_crud_and_injection(client, fake_provider):
     await send(client, convo["id"], content="Encore something else.")
     assert "blood seal" not in fake_provider.captured["payload"].system
 
-    assert (await client.delete(f"/api/lore/{entry['id']}")).status_code == 204
+    deleted = await client.delete(f"/api/lore/{entry['id']}")
+    assert deleted.status_code == 204
 
 
 async def test_export_includes_book_import_restores_it(client, fake_provider):

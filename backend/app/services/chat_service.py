@@ -49,6 +49,10 @@ def _sse(obj: dict) -> str:
 
 def _auto_title(content: str) -> str:
     """Conversation title from the first user message, RP markup stripped."""
+    # Bounded before any regex sees it. These patterns are quadratic on a long
+    # run of unclosed brackets, and the result is sixty characters, so there is
+    # nothing to gain from scanning a message that opens with an essay.
+    content = content[:1000]
     text = re.sub(r"\*[^*]*\*", " ", content)
     text = re.sub(r"\[[^\]]*\]", " ", text)
     text = re.sub(r"\s+", " ", text).strip(" \"'«»*")

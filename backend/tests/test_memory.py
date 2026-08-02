@@ -25,8 +25,8 @@ def fake_provider(monkeypatch):
         ProviderEvent(type="done"),
     ]
     FakeProvider.captured = {}
-    monkeypatch.setattr("app.services.chat_service.get_provider", lambda c: FakeProvider(c))
-    monkeypatch.setattr("app.services.memory_service.get_provider", lambda c: FakeProvider(c))
+    monkeypatch.setattr("app.services.chat_service.get_provider", FakeProvider)
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
     return FakeProvider
 
 
@@ -145,7 +145,8 @@ async def test_memory_crud(client, fake_provider):
     pinned = (await client.patch(f"/api/memories/{created['id']}", json={"is_pinned": True})).json()
     assert pinned["is_pinned"] is True
 
-    assert (await client.delete(f"/api/memories/{created['id']}")).status_code == 204
+    deleted = await client.delete(f"/api/memories/{created['id']}")
+    assert deleted.status_code == 204
     assert (await client.get(f"/api/conversations/{convo['id']}/memories")).json() == []
 
 

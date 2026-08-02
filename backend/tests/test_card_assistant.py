@@ -25,7 +25,7 @@ CARD_JSON = json.dumps({
 def fake_provider(monkeypatch):
     FakeProvider.script = [ProviderEvent(type="delta", text=CARD_JSON), ProviderEvent(type="done")]
     FakeProvider.captured = {}
-    monkeypatch.setattr("app.services.card_assistant.get_provider", lambda c: FakeProvider(c))
+    monkeypatch.setattr("app.services.card_assistant.get_provider", FakeProvider)
     return FakeProvider
 
 

@@ -33,7 +33,7 @@ def fake_provider(monkeypatch):
         ProviderEvent(type="done", usage={"total_tokens": 10}),
     ]
     FakeProvider.captured = {}
-    monkeypatch.setattr("app.services.chat_service.get_provider", lambda conn: FakeProvider(conn))
+    monkeypatch.setattr("app.services.chat_service.get_provider", FakeProvider)
     return FakeProvider
 
 
@@ -177,6 +177,19 @@ async def test_auto_title_strips_rp_markup(client, fake_provider):
     await send(client, convo["id"], content="*I step back, torch raised.* Easy, I'm Aymeric.")
     convos = (await client.get("/api/conversations")).json()
     assert convos[0]["title"] == "Easy, I'm Aymeric."
+
+
+def test_auto_title_does_not_stall_on_a_pathological_message():
+    """The markup patterns are quadratic on a long run of unclosed brackets, so
+    the input is truncated before they see it. Without that, a large enough first
+    message pins a core for minutes."""
+    import time
+
+    from app.services.chat_service import _auto_title
+
+    started = time.perf_counter()
+    _auto_title("[" * 200_000)
+    assert time.perf_counter() - started < 0.5
 
 
 async def test_done_event_includes_context_and_perf(client, fake_provider):

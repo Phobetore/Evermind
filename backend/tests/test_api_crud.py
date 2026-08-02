@@ -36,8 +36,10 @@ async def test_character_crud_and_filters(client):
     assert updated.json()["tagline"] == "Vampire lady"
     assert updated.json()["name"] == "Serana"  # partial update keeps other fields
 
-    assert (await client.delete(f"/api/characters/{a['id']}")).status_code == 204
-    assert (await client.get(f"/api/characters/{a['id']}")).status_code == 404
+    deleted = await client.delete(f"/api/characters/{a['id']}")
+    assert deleted.status_code == 204
+    gone = await client.get(f"/api/characters/{a['id']}")
+    assert gone.status_code == 404
 
 
 async def test_character_import_json_v2(client):
@@ -113,7 +115,8 @@ async def test_persona_crud_and_default(client):
     listed = (await client.get("/api/personas")).json()
     defaults = [p for p in listed if p["is_default"]]
     assert [p["name"] for p in defaults] == ["Morgan"]  # single default enforced
-    assert (await client.delete(f"/api/personas/{p1['id']}")).status_code == 204
+    deleted = await client.delete(f"/api/personas/{p1['id']}")
+    assert deleted.status_code == 204
 
 
 # ---------- connections ----------
@@ -179,8 +182,10 @@ async def test_conversation_list_patch_delete(client):
     patched = await client.patch(f"/api/conversations/{convo['id']}", json={"title": "Crypt run"})
     assert patched.json()["title"] == "Crypt run"
 
-    assert (await client.delete(f"/api/conversations/{convo['id']}")).status_code == 204
-    assert (await client.get(f"/api/conversations/{convo['id']}")).status_code == 404
+    deleted = await client.delete(f"/api/conversations/{convo['id']}")
+    assert deleted.status_code == 204
+    gone = await client.get(f"/api/conversations/{convo['id']}")
+    assert gone.status_code == 404
 
 
 async def test_conversation_without_greeting_has_no_messages(client):
@@ -236,7 +241,8 @@ async def test_deleting_default_connection_does_not_break_conversations(client):
         "base_url": "http://localhost:1234/v1", "model": "x",
     })).json()
     await client.put("/api/settings", json={"default_connection_id": conn["id"]})
-    assert (await client.delete(f"/api/connections/{conn['id']}")).status_code == 204
+    deleted = await client.delete(f"/api/connections/{conn['id']}")
+    assert deleted.status_code == 204
 
     assert (await client.get("/api/settings")).json()["default_connection_id"] is None
 
@@ -249,7 +255,8 @@ async def test_deleting_default_connection_does_not_break_conversations(client):
 async def test_deleting_default_persona_does_not_break_conversations(client):
     persona = (await client.post("/api/personas", json={"name": "Jetable"})).json()
     await client.put("/api/settings", json={"default_persona_id": persona["id"]})
-    assert (await client.delete(f"/api/personas/{persona['id']}")).status_code == 204
+    deleted = await client.delete(f"/api/personas/{persona['id']}")
+    assert deleted.status_code == 204
 
     assert (await client.get("/api/settings")).json()["default_persona_id"] is None
 
