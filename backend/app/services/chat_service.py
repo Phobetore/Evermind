@@ -184,7 +184,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     embedding_map = await memories_repo.list_embeddings(db, convo["id"])
     relevance_scores = await retrieval.rank(scene, embedding_map)
 
-    def _build(passages=None):
+    def _build(passages=None, fold_leading_assistant=False):
         return build_chat_payload(
             character=character, persona=persona, conversation=convo,
             messages=history, connection=connection,
@@ -194,10 +194,15 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
             history_limit=int(settings.get("history_limit") or 0),
             relevance_scores=relevance_scores,
             retrieved_passages=passages,
+            fold_leading_assistant=fold_leading_assistant,
         )
 
     payload = _build()  # pass 1 — exposes oldest_visible / fact_positions
 
+    # Bound here rather than only inside the branch below: a retry has to rebuild
+    # with whatever passages this turn settled on, and semantic recall being off
+    # must not leave the name undefined.
+    passages = None
     passage_budget = int(settings.get("passage_budget") or 0)
     if passage_budget and scene:
         oldest_visible = payload.stats.get("oldest_visible") or 0
@@ -230,44 +235,66 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     finish_reason = None
     first_token_at = None
     started_at = time.monotonic()
-    try:
-        async for event in _generate(connection, payload):
-            if event.type == "delta":
-                if first_token_at is None:
-                    first_token_at = time.monotonic()
-                chunks.append(event.text)
-                yield _sse({"type": "delta", "text": event.text})
-            elif event.type == "done":
-                usage = event.usage
-                finish_reason = (event.meta or {}).get("finish_reason")
-            elif event.type == "error":
-                yield _sse({"type": "error", "message": event.message})
-                return
-    except BaseException:
-        # Client disconnected (stop button) — keep the partial text instead of
-        # throwing away everything that was already generated.
-        partial = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
-        if partial:
-            if continue_mode:
-                variants = list(target_message["variants"])
-                existing = variants[target_message["active_index"]]
-                joiner = "" if (not existing or existing[-1].isspace() or
-                                partial[0].isspace()) else " "
-                variants[target_message["active_index"]] = existing + joiner + partial
-                await convo_repo.update_message(db, target_message["id"], variants=variants)
-            elif target_message is not None:
-                variants = list(target_message["variants"]) + [partial]
-                await convo_repo.update_message(
-                    db, target_message["id"], variants=variants, active_index=len(variants) - 1)
-            else:
-                await convo_repo.add_message(db, convo["id"], "assistant", [partial],
-                                             meta={"interrupted": True})
-        raise
+    retried_folded = False
+    # At most two passes. A model whose chat template rejects a conversation
+    # opening on the assistant's turn streams nothing at all rather than
+    # erroring, and Evermind always opens on the character's greeting, so the
+    # first message of a first conversation dies silently. Rather than hand that
+    # to someone as "try another model", fold the greeting into the system
+    # prompt and ask once more.
+    for attempt in (0, 1):
+        try:
+            async for event in _generate(connection, payload):
+                if event.type == "delta":
+                    if first_token_at is None:
+                        first_token_at = time.monotonic()
+                    chunks.append(event.text)
+                    yield _sse({"type": "delta", "text": event.text})
+                elif event.type == "done":
+                    usage = event.usage
+                    finish_reason = (event.meta or {}).get("finish_reason")
+                elif event.type == "error":
+                    yield _sse({"type": "error", "message": event.message})
+                    return
+        except BaseException:
+            # Client disconnected (stop button) — keep the partial text instead of
+            # throwing away everything that was already generated.
+            partial = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
+            if partial:
+                if continue_mode:
+                    variants = list(target_message["variants"])
+                    existing = variants[target_message["active_index"]]
+                    joiner = "" if (not existing or existing[-1].isspace() or
+                                    partial[0].isspace()) else " "
+                    variants[target_message["active_index"]] = existing + joiner + partial
+                    await convo_repo.update_message(db, target_message["id"], variants=variants)
+                elif target_message is not None:
+                    variants = list(target_message["variants"]) + [partial]
+                    await convo_repo.update_message(
+                        db, target_message["id"], variants=variants, active_index=len(variants) - 1)
+                else:
+                    await convo_repo.add_message(db, convo["id"], "assistant", [partial],
+                                                 meta={"interrupted": True})
+            raise
 
-    text = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
+        text = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
+        # Only worth a second pass when nothing at all came back and the payload
+        # has the shape that provokes it. A reply that arrived and then trimmed
+        # to nothing is a different problem, and its deltas already reached the
+        # client, so re-asking would duplicate text on screen.
+        if (text or continue_mode or attempt == 1 or chunks
+                or not payload.messages or payload.messages[0]["role"] != "assistant"):
+            break
+        retried_folded = True
+        payload = _build(passages, fold_leading_assistant=True)
+
     if not text and not continue_mode:
-        yield _sse({"type": "error",
-                    "message": "The model returned an empty reply. Try again or switch models."})
+        message = ("The model returned nothing, twice, including once with the opening "
+                   "line moved out of its way. Its chat template is probably not usable "
+                   "for roleplay here; try another model."
+                   if retried_folded else
+                   "The model returned an empty reply. Try again or switch models.")
+        yield _sse({"type": "error", "message": message})
         return
 
     if continue_mode:

@@ -81,6 +81,14 @@ Two things are worth knowing before changing it:
 - **`stats["oldest_visible"]` is the true oldest rendered turn**, not the
   provisional estimate used internally for the anti-echo filter. Passage recall
   relies on that exactness to avoid injecting something already on screen.
+- **A conversation opens on an assistant turn**, because the character greets
+  first. Some chat templates refuse that shape and stream zero tokens rather than
+  erroring, so the first message of a first conversation dies in silence.
+  `chat_service` retries once with `fold_leading_assistant=True`, which moves the
+  leading assistant turns into the system prompt and leaves a list that starts
+  with the player. It is the weaker shape, since the model reads its own opening
+  as instruction rather than as its voice, so it is only ever a fallback.
+  Observed on `rocinante-x-12b-v1`; `snowpiercer-15b-v4` handles either.
 
 ## Optional semantic memory
 

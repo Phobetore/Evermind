@@ -234,7 +234,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                        reply_length: str = "medium",
                        history_limit: int = 0,
                        relevance_scores: dict[str, float] | None = None,
-                       retrieved_passages: list[dict] | None = None) -> PromptPayload:
+                       retrieved_passages: list[dict] | None = None,
+                       fold_leading_assistant: bool = False) -> PromptPayload:
     char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
     summary = (conversation or {}).get("summary") or ""
@@ -327,6 +328,25 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     for t in turns:
         t.pop("position", None)
 
+    # Some chat templates refuse a conversation whose first message is the
+    # assistant's, and answer with nothing at all rather than an error. Evermind
+    # always opens on the character's greeting, so those models look broken on
+    # the very first reply. Folding the leading assistant turns into the system
+    # prompt keeps every word of them and leaves a list that starts with the
+    # player. Only ever done as a retry, since it is the weaker shape: the model
+    # reads the opening as instruction rather than as its own voice.
+    folded = 0
+    if fold_leading_assistant and any(t["role"] != "assistant" for t in turns):
+        spoken = []
+        while turns and turns[0]["role"] == "assistant":
+            spoken.append(turns.pop(0)["content"])
+        if spoken:
+            folded = len(spoken)
+            block = "\n\n".join(f"{char_name}: {s}" for s in spoken)
+            system = (f"{system}\n\n### THE SCENE SO FAR "
+                      f"({char_name} has already said this aloud; carry on from it "
+                      f"rather than repeating it)\n{block}")
+
     stop = [f"\n{user_name}:"]
     used = (estimate_tokens(system) + estimate_tokens(post_history)
             + sum(estimate_tokens(t["content"]) + 4 for t in turns))
@@ -342,6 +362,7 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         "oldest_visible": visible_oldest,
         "fact_positions": [m.get("source_position") for m in facts_shown],
         "passages_injected": len(retrieved_passages or []),
+        "leading_assistant_folded": folded,
     }
     return PromptPayload(system=system, messages=turns, stop=stop,
                          post_history=post_history, stats=stats)

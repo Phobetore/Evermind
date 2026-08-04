@@ -322,6 +322,7 @@ of existing cards work; use **Import** on the Discover page.
 | Replies are cut off mid-sentence | The **Max response (tokens)** value on your connection is too low. Raise it. |
 | The character forgets things, or repeats itself | Your **Context (tokens)** is probably set higher than your AI really offers. Match it to the real value. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
 | Replies are very slow | Normal for a large model on a modest machine. Try a smaller one, or an online service. |
+| "The model returned nothing, twice" | That model's chat template will not work for roleplay here, whatever you write. Nothing you can configure fixes it; pick another model. |
 | Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you restarted afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. The launch script tells you the exact command if the rule is missing. |
 | A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Clear that line and restart to remove it. |
 
