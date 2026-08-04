@@ -47,7 +47,7 @@ body:
     attributes:
       label: Version
       description: The number at http://localhost:3000/api/health
-      placeholder: "2.0.2"
+      placeholder: "2.0.3"
     validations:
       required: true
 
