@@ -1,6 +1,6 @@
 [project]
 name = "evermind-backend"
-version = "2.0.3"
+version = "2.0.4"
 description = "Evermind — open source immersive AI roleplay platform (backend)"
 license = "AGPL-3.0-or-later"
 requires-python = ">=3.11"
