@@ -1,0 +1,12 @@
+# Findings the image scan should stay quiet about, with the reason and the
+# condition for looking again. Nothing goes in here to make a red mark green:
+# if a line cannot say why, the finding gets fixed instead.
+
+# msgpack 1.1.2, high. Not a dependency of Evermind: it is vendored inside pip
+# itself, where it deserialises pip's own HTTP cache. The container never runs
+# pip, so the code is unreachable at runtime, and there is nothing to upgrade
+# on our side. Every released pip up to 26.2.1 still vendors 1.1.2; only pip's
+# main branch has moved to the fixed 1.2.1.
+# Remove this line once a pip release ships msgpack >= 1.2.1, and the rebuild
+# will clear it on its own.
+GHSA-6v7p-g79w-8964

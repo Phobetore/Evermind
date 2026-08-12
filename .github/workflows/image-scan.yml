@@ -28,6 +28,10 @@ jobs:
       matrix:
         image: [evermind-backend, evermind-frontend]
     steps:
+      # Only for .trivyignore, which lives at the root and explains each thing
+      # the scan is told to stay quiet about.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       # github.repository_owner keeps its capital letter, and a registry
       # reference has to be lowercase or Trivy will not even parse it.
       - id: ref
