@@ -28,9 +28,16 @@ jobs:
       matrix:
         image: [evermind-backend, evermind-frontend]
     steps:
+      # github.repository_owner keeps its capital letter, and a registry
+      # reference has to be lowercase or Trivy will not even parse it.
+      - id: ref
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "image=ghcr.io/${OWNER,,}/${{ matrix.image }}:latest" >> "$GITHUB_OUTPUT"
+
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:latest
+          image-ref: ${{ steps.ref.outputs.image }}
           format: sarif
           output: trivy-${{ matrix.image }}.sarif
           # Only what can actually be acted on. A base image carrying an
@@ -38,6 +45,9 @@ jobs:
           # rebuild here can fix, and a list nobody can clear stops being read.
           ignore-unfixed: true
           severity: HIGH,CRITICAL
+          # Without this the SARIF is written with every severity regardless of
+          # the line above, which would bury the Security tab in noise.
+          limit-severities-for-sarif: true
 
       # Reported rather than failed. This runs on a timer against images that
       # were already published, so there is no build to stop; the point is that
