@@ -1,0 +1,43 @@
+# Labels applied to a pull request from the files it touches.
+#
+# Two of these earn their keep beyond tidiness: "documentation" and
+# "dependencies" are categories in .github/release.yml, so a labelled pull
+# request files itself under the right heading when release notes are generated.
+# The rest is so that a list of open pull requests can be read at a glance.
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file: "frontend/**"
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file: "backend/**"
+
+library:
+  - changed-files:
+      - any-glob-to-any-file: "library/**"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - "docker-compose.yml"
+          - "scripts/**"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "docs/**"
+
+# Deliberately the manifests and not the code: a pull request that happens to
+# touch a lockfile alongside real changes is a change, not a dependency bump.
+dependencies:
+  - changed-files:
+      - all-globs-to-all-files:
+          - "!frontend/src/**"
+          - "!backend/app/**"
+      - any-glob-to-any-file:
+          - "**/package-lock.json"
+          - "**/package.json"
+          - "backend/pyproject.toml"

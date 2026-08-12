@@ -56,6 +56,13 @@ jobs:
         working-directory: frontend
         run: npx tsc --noEmit
 
+      # The config and the npm script had been sitting here since the project
+      # was scaffolded, but eslint itself was never installed, so this never ran
+      # once. It catches the React and Next mistakes the typechecker cannot see.
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
       # A key missing from one locale renders as nothing at all, which is harder
       # to notice than a crash and reaches whoever reads the interface in that
       # language rather than whoever wrote it.
@@ -96,3 +103,21 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Dependabot reports a vulnerable dependency once it is already in the tree.
+  # This refuses it at the door instead, on the pull request that introduces it,
+  # which is the only moment when saying no is cheap.
+  dependencies:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # to leave the summary comment when it refuses one
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

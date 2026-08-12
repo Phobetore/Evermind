@@ -1,0 +1,48 @@
+name: Image scan
+
+# The blind spot the other checks leave. CodeQL reads the source, Dependabot
+# reads the manifests, and neither of them looks inside the images people
+# actually install, which inherit whatever the python and node base images are
+# carrying that week.
+#
+# Scans the published images rather than freshly built ones, on purpose: the
+# question is what is running on someone's machine right now, and that answer
+# changes with the calendar rather than with our commits. Hence the schedule.
+on:
+  schedule:
+    - cron: "17 5 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [evermind-backend, evermind-frontend]
+    steps:
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:latest
+          format: sarif
+          output: trivy-${{ matrix.image }}.sarif
+          # Only what can actually be acted on. A base image carrying an
+          # unpatched CVE is worth knowing about, but it is not something a
+          # rebuild here can fix, and a list nobody can clear stops being read.
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
+      # Reported rather than failed. This runs on a timer against images that
+      # were already published, so there is no build to stop; the point is that
+      # it lands in the Security tab beside CodeQL and Dependabot.
+      - uses: github/codeql-action/upload-sarif@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4
+        with:
+          sarif_file: trivy-${{ matrix.image }}.sarif
+          category: trivy-${{ matrix.image }}

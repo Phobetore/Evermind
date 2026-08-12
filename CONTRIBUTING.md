@@ -32,11 +32,14 @@ The same checks CI runs, and it is faster to run them yourself:
 
 ```bash
 cd backend && ruff check app tests && pytest -q
-cd frontend && npx tsc --noEmit && npm run check:i18n && npm run build
+cd frontend && npx tsc --noEmit && npm run lint && npm run check:i18n && npm run build
 ```
 
 CI also builds both Docker images on every pull request, without publishing
-them, so a broken `COPY` fails there rather than at release time.
+them, so a broken `COPY` fails there rather than at release time, and refuses a
+pull request that introduces a dependency with a known high-severity
+vulnerability. Separately, CodeQL reads the source weekly and Trivy scans the
+published images for what their base layers picked up since.
 
 New behaviour in the backend comes with tests. The prompt engine
 (`backend/app/prompting/engine.py`) is a pure function with no I/O precisely so

@@ -11,11 +11,13 @@ import { streamChat } from "@/lib/sse";
 import type { ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const t = useT();
+  const router = useRouter();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [persona, setPersona] = useState<Persona | null>(null);
@@ -82,6 +84,9 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
     // The sent message appears instantly; the persisted version from the
     // `start` event replaces it (or it is rolled back if nothing was saved).
+    // runTurn is only ever reached from an event handler, never during render,
+    // which the purity rule cannot see from the declaration site.
+    // eslint-disable-next-line react-hooks/purity
     const optimisticId = mode === "send" ? `optimistic-${Date.now()}` : null;
     if (optimisticId && content) {
       const lastPosition = messages.length ? messages[messages.length - 1].position : -1;
@@ -198,7 +203,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   async function branchFrom(message: Message) {
     if (!confirm(t("chat.message.confirmBranch"))) return;
     const branch = await api.post<Conversation>(`/api/messages/${message.id}/branch`);
-    window.location.href = `/chat/${branch.id}`;
+    router.push(`/chat/${branch.id}`);
   }
 
   if (loadError) {

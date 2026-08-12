@@ -1,0 +1,24 @@
+name: Labeler
+
+# Labels a pull request from the files it changed, following .github/labeler.yml.
+# Mostly so that release notes file themselves under the right heading, since
+# .github/release.yml groups by label.
+#
+# pull_request_target rather than pull_request: a pull request from a fork gets a
+# read-only token otherwise, and labelling it would fail. It is the safe use of
+# that trigger, since nothing here checks out or runs the contributor's code.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7
+        with:
+          sync-labels: true

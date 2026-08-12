@@ -69,9 +69,12 @@ export function ChatInput({
 
   // Restore the unsent draft. Runs in an effect (not a lazy initial state) so
   // the server-rendered markup and the first client render stay identical.
+  // The draft lives in localStorage, which does not exist on the server, so
+  // this is the one place the state genuinely has to be set from an effect.
   useEffect(() => {
     const saved = loadDraft(conversationId);
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
       setValue(saved);
       setRestored(true);
       const timer = setTimeout(() => setRestored(false), 4000);

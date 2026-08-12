@@ -62,8 +62,23 @@ export function ChatSidePanel({
     api.get<Connection[]>("/api/connections").then(setConnections);
     api.get<Memory[]>(`/api/conversations/${conversation.id}/memories`).then(setMemories);
   }, [conversation.id]);
-  useEffect(() => setSummary(conversation.summary), [conversation.summary]);
-  useEffect(() => setDirective(conversation.author_note ?? ""), [conversation.author_note]);
+
+  // Both fields are editable, and both have to follow the conversation when it
+  // changes from elsewhere: summarising rewrites the summary, and switching
+  // conversation replaces the directive. Adjusting during render rather than in
+  // an effect is what React recommends for that, and it costs one render
+  // instead of two.
+  const [lastSummary, setLastSummary] = useState(conversation.summary);
+  if (conversation.summary !== lastSummary) {
+    setLastSummary(conversation.summary);
+    setSummary(conversation.summary);
+  }
+  const incomingDirective = conversation.author_note ?? "";
+  const [lastDirective, setLastDirective] = useState(incomingDirective);
+  if (incomingDirective !== lastDirective) {
+    setLastDirective(incomingDirective);
+    setDirective(incomingDirective);
+  }
 
   async function saveDirective() {
     const value = directive.trim();
