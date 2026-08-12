@@ -213,6 +213,8 @@ export default function SettingsPage() {
         </section>
       )}
 
+      <About />
+
       {editing && (
         <ConnectionForm
           connection={editing === "new" ? null : editing}
@@ -248,5 +250,51 @@ function GlobalInstructions({
         {t("settings.saveInstructions")}
       </button>
     </div>
+  );
+}
+
+/** Version, and a way back to the project. The app had neither, so nobody
+ *  running it could tell what they were on, report a bug against it, or find
+ *  where it comes from. */
+function About() {
+  const t = useT();
+  const [version, setVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get<{ version?: string }>("/api/health")
+      .then((h) => setVersion(h.version ?? null))
+      .catch(() => setVersion(null));
+  }, []);
+
+  return (
+    <section className="mt-10">
+      <h2 className="ui-label mb-2">{t("settings.about.title")}</h2>
+      <div className="panel px-5 py-4">
+        <p className="text-sm text-mist">
+          Evermind {version ?? "—"}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-mist">
+          {t("settings.about.starHint")}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-4 text-sm">
+          <a
+            className="text-ember-400 hover:text-ember-300"
+            href="https://github.com/Phobetore/Evermind"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {t("settings.about.projectLink")}
+          </a>
+          <a
+            className="text-mist hover:text-parchment"
+            href="https://github.com/Phobetore/Evermind/issues/new/choose"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {t("settings.about.reportLink")}
+          </a>
+        </div>
+      </div>
+    </section>
   );
 }

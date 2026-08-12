@@ -212,6 +212,9 @@ a change accepted and the few things this project declines on principle;
 setting it up belong in
 [Discussions](https://github.com/Phobetore/Evermind/discussions).
 
+And if Evermind turns out to be useful to you, starring it is the thing that
+puts it in front of the next person looking for something like this.
+
 <br>
 
 ## Licence

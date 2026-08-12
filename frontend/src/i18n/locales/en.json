@@ -119,7 +119,13 @@
     },
     "globalInstructionsPlaceholder": "E.g.: Always reply in English. Replies of 2 paragraphs maximum.\nStay dark and realistic, never ask my permission to move the story forward.",
     "saveInstructions": "Save instructions",
-    "savedFlash": "Saved."
+    "savedFlash": "Saved.",
+    "about": {
+      "title": "About",
+      "starHint": "If Evermind is useful to you, starring the repository is what makes other people find it.",
+      "projectLink": "The project on GitHub",
+      "reportLink": "Report a problem"
+    }
   },
   "connections": {
     "newConnectionTitle": "New connection",
