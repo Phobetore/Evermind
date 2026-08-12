@@ -39,6 +39,16 @@ jobs:
           OWNER: ${{ github.repository_owner }}
         run: echo "image=ghcr.io/${OWNER,,}/${{ matrix.image }}:latest" >> "$GITHUB_OUTPUT"
 
+      # Readable in the run log. The SARIF below prints nothing, so without this
+      # the only way to know what was found is to go and read the Security tab,
+      # which is no help at all when the two disagree.
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.ref.outputs.image }}
+          format: table
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.ref.outputs.image }}
