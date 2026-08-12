@@ -2,6 +2,10 @@
 #   .\scripts\dev.ps1        local only
 #   .\scripts\dev.ps1 -Lan   frontend reachable from the local network
 #
+# Ports come from .env or the environment:
+#   PORT                    the web interface   (default 3000)
+#   EVERMIND_BACKEND_PORT   the API behind it   (default 8000)
+#
 # Messages stay ASCII-only: PowerShell 5.1 reads .ps1 as ANSI, and accented
 # characters saved as UTF-8 would show up as mojibake in the console.
 param([switch]$Lan)
@@ -14,10 +18,19 @@ $envFile = Join-Path $root ".env"
 if (Test-Path $envFile) {
     Get-Content $envFile | ForEach-Object {
         if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$') {
-            Set-Item -Path "Env:$($Matches[1])" -Value $Matches[2].Trim()
+            $name = $Matches[1]
+            # Whatever is already in the environment wins over the file.
+            if (-not (Get-Item -Path "Env:$name" -ErrorAction SilentlyContinue).Value) {
+                Set-Item -Path "Env:$name" -Value $Matches[2].Trim()
+            }
         }
     }
 }
+
+if (-not $env:PORT) { $env:PORT = "3000" }
+$backendPort = $env:EVERMIND_BACKEND_PORT
+if (-not $backendPort) { $backendPort = "8000" }
+if (-not $env:EVERMIND_BACKEND_URL) { $env:EVERMIND_BACKEND_URL = "http://127.0.0.1:$backendPort" }
 
 if (-not (Test-Path "$root\backend\.venv")) {
     Write-Host "First run: creating the Python environment..."
@@ -31,8 +44,8 @@ if (-not (Test-Path "$root\frontend\node_modules")) {
 
 # The backend always stays on the loopback: the frontend proxies /api to it,
 # and that proxy is what the password gate protects.
-Write-Host "Backend  -> http://127.0.0.1:8000 (this machine only)"
-Write-Host "Frontend -> http://localhost:3000"
+Write-Host "Backend  -> http://127.0.0.1:$backendPort (this machine only)"
+Write-Host "Frontend -> http://localhost:$($env:PORT)"
 
 if ($Lan) {
     # Address of the adapter carrying the default route. Taking the first
@@ -45,7 +58,7 @@ if ($Lan) {
     $adapter = (Get-NetAdapter -InterfaceIndex $idx -ErrorAction SilentlyContinue).Name
 
     if ($net) {
-        Write-Host "            http://$($net.IPAddress):3000  (from the network, via '$adapter')"
+        Write-Host "            http://$($net.IPAddress):$($env:PORT)  (from the network, via '$adapter')"
         Write-Host "            other devices must be on the $($net.IPAddress)/$($net.PrefixLength) subnet"
     } else {
         Write-Host "No active network adapter found." -ForegroundColor Yellow
@@ -60,25 +73,27 @@ if ($Lan) {
     # Windows blocks inbound connections by default: without this rule the port
     # stays unreachable from every other device, whatever the address used.
     $allowed = Get-NetFirewallPortFilter -ErrorAction SilentlyContinue |
-               Where-Object { $_.LocalPort -eq 3000 } |
+               Where-Object { $_.LocalPort -eq $env:PORT } |
                Get-NetFirewallRule -ErrorAction SilentlyContinue |
                Where-Object { $_.Direction -eq "Inbound" -and $_.Action -eq "Allow" -and $_.Enabled -eq "True" }
     if (-not $allowed) {
         Write-Host ""
-        Write-Host "Firewall: no rule allows inbound traffic on port 3000." -ForegroundColor Yellow
+        Write-Host "Firewall: no rule allows inbound traffic on port $($env:PORT)." -ForegroundColor Yellow
         Write-Host "In an administrator PowerShell, run this once:" -ForegroundColor Yellow
-        Write-Host "  New-NetFirewallRule -DisplayName 'Evermind (3000)' -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow" -ForegroundColor Cyan
+        Write-Host "  New-NetFirewallRule -DisplayName 'Evermind ($($env:PORT))' -Direction Inbound -Protocol TCP -LocalPort $($env:PORT) -Action Allow" -ForegroundColor Cyan
     }
 
-    # Next silently falls back to another port, which would make the URLs wrong.
-    if (Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue) {
+    # `next dev` moves to a free port by itself, which would make the address
+    # printed above wrong.
+    if (Get-NetTCPConnection -LocalPort $env:PORT -State Listen -ErrorAction SilentlyContinue) {
         Write-Host ""
-        Write-Host "Warning: port 3000 is already in use, Next will pick another one." -ForegroundColor Yellow
+        Write-Host "Warning: port $($env:PORT) is already in use, so dev mode will pick another one" -ForegroundColor Yellow
+        Write-Host "and the address above will be wrong. Set PORT in .env to choose." -ForegroundColor Yellow
     }
 }
 
 $backend = Start-Process -PassThru -NoNewWindow "$root\backend\.venv\Scripts\python" `
-    -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000" `
+    -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", $backendPort `
     -WorkingDirectory "$root\backend"
 try {
     Push-Location "$root\frontend"

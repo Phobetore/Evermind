@@ -296,6 +296,21 @@ Running without Docker instead? `scripts\prod.ps1 -Lan` (or
 `./scripts/prod.sh --lan`) does the same thing and prints the address for you.
 Set `EVERMIND_GATE_PASSWORD` in your `.env` there too.
 
+**Using different ports.** Evermind serves its interface on 3000 and its API on
+8000. If something on your computer already has one of those, copy
+`.env.example` to `.env` and change them:
+
+```
+PORT=3001
+EVERMIND_BACKEND_PORT=8001
+```
+
+Both work with Docker and with the launch scripts, except that
+`EVERMIND_BACKEND_PORT` only means something to the scripts: under Docker the API
+stays inside its own private network and never occupies a port of yours. Running
+the scripts with `--skip-build` after changing it will not take effect, since the
+interface is told where the API lives while it is being built.
+
 **Sharper long-term memory.** By default, Evermind recalls the most recent facts.
 It can instead recall facts and old passages *by meaning*, so the right memory
 comes back even three hundred messages later.
@@ -323,6 +338,7 @@ of existing cards work; use **Import** on the Discover page.
 | The character forgets things, or repeats itself | Your **Context (tokens)** is probably set higher than your AI really offers. Match it to the real value. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
 | Replies are very slow | Normal for a large model on a modest machine. Try a smaller one, or an online service. |
 | "The model returned nothing, twice" | That model's chat template will not work for roleplay here, whatever you write. Nothing you can configure fixes it; pick another model. |
+| "EADDRINUSE", or it will not start because a port is taken | Something else on your computer already uses that port. Copy `.env.example` to `.env` and set `PORT` to a free one, `3001` for instance. `EVERMIND_BACKEND_PORT` does the same for the API. |
 | Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you restarted afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. The launch script tells you the exact command if the rule is missing. |
 | A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Clear that line and restart to remove it. |
 
