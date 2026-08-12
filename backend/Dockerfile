@@ -10,11 +10,7 @@ COPY backend/app ./app
 COPY backend/migrations ./migrations
 
 ARG SEMANTIC=false
-# The base image ships setuptools 70.3.0, which carries CVE-2025-47273. It is
-# build tooling rather than anything the running app touches, but it stays in
-# the image and there is no reason to ship a known-vulnerable copy of it.
-RUN pip install --no-cache-dir --upgrade pip setuptools \
-    && pip install --no-cache-dir -e . \
+RUN pip install --no-cache-dir -e . \
     && if [ "$SEMANTIC" = "true" ]; then pip install --no-cache-dir -e ".[semantic]"; fi
 
 COPY library ./library
