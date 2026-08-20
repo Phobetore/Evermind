@@ -294,29 +294,26 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     # to someone as "try another model", fold the greeting into the system
     # prompt and ask once more.
     for attempt in (0, 1):
-        try:
-            async for event in _generate(connection, payload):
-                if event.type == "delta":
-                    if first_token_at is None:
-                        first_token_at = time.monotonic()
-                    chunks.append(event.text)
-                    yield _sse({"type": "delta", "text": event.text})
-                    if time.monotonic() - flushed_at >= _FLUSH_SECONDS:
-                        flushed_at = time.monotonic()
-                        await persist(final=False)
-                elif event.type == "done":
-                    usage = event.usage
-                    finish_reason = (event.meta or {}).get("finish_reason")
-                elif event.type == "error":
-                    yield _sse({"type": "error", "message": event.message})
-                    return
-        except BaseException:
-            # Nothing is salvaged here any more. This used to save the partial
-            # text, and it never ran once under a real disconnect: by the time
-            # the request is being torn down there is nothing left to save
-            # with. persist() has already written whatever arrived, which is
-            # what this was for. Kept only so the cancellation propagates.
-            raise
+        # No handler for the reader going away, on purpose. There used to be one
+        # that saved the partial text, and it never ran once under a real
+        # disconnect: by the time the request is being torn down there is nothing
+        # left to save with. persist() above has already written whatever
+        # arrived, which is what that handler was for.
+        async for event in _generate(connection, payload):
+            if event.type == "delta":
+                if first_token_at is None:
+                    first_token_at = time.monotonic()
+                chunks.append(event.text)
+                yield _sse({"type": "delta", "text": event.text})
+                if time.monotonic() - flushed_at >= _FLUSH_SECONDS:
+                    flushed_at = time.monotonic()
+                    await persist(final=False)
+            elif event.type == "done":
+                usage = event.usage
+                finish_reason = (event.meta or {}).get("finish_reason")
+            elif event.type == "error":
+                yield _sse({"type": "error", "message": event.message})
+                return
 
         text = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
         # Only worth a second pass when nothing at all came back and the payload
