@@ -8,11 +8,12 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useT } from "@/i18n/useT";
 import { api } from "@/lib/api";
 import { streamChat } from "@/lib/sse";
+import { turnStore } from "@/lib/turnStore";
 import type { ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -21,9 +22,12 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [persona, setPersona] = useState<Persona | null>(null);
-  const [streamText, setStreamText] = useState<string | null>(null);
+  // Read from the store rather than held here: leaving the page used to throw
+  // this away while the reply carried on arriving.
+  const turn = useSyncExternalStore(turnStore.subscribe, turnStore.read, turnStore.readServer);
+  const streamText = turn?.conversationId === id ? turn.text : null;
+  const busy = turn?.conversationId === id && turn.busy;
   const [regenTargetId, setRegenTargetId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true); // desktop, inline column
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false); // phone, overlay
@@ -40,7 +44,6 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     await api.patch(`/api/conversations/${conversation.id}`, { title });
     setConversation((c) => (c ? { ...c, title } : c));
   }
-  const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
@@ -58,6 +61,31 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       })
       .catch((e) => setLoadError(e.message));
   }, [id]);
+
+  const reload = useCallback(async () => {
+    if (!conversation) return;
+    try {
+      const convo = await api.get<Conversation>(`/api/conversations/${conversation.id}`);
+      setMessages(convo.messages ?? []);
+    } catch {
+      /* keep current state */
+    }
+  }, [conversation]);
+
+  // The closure that updates the message list belongs to whichever page instance
+  // started the turn. Arrive after it started, or come back to it, and nothing
+  // would tell this instance the reply had landed: watch the turn end instead.
+  const wasBusy = useRef(false);
+  useEffect(() => {
+    if (busy) {
+      wasBusy.current = true;
+      return;
+    }
+    if (wasBusy.current) {
+      wasBusy.current = false;
+      reload();
+    }
+  }, [busy, reload]);
 
   // Auto-scroll while streaming if the reader is already at the bottom.
   useEffect(() => {
@@ -77,16 +105,13 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     messageMode: "say" | "narrate" | "ooc" = "say",
   ) {
     if (!conversation || busy) return;
-    setBusy(true);
     setError(null);
-    setStreamText(mode === "continue" ? "" : "");
     stickToBottom.current = true;
+    const controller = new AbortController();
+    turnStore.begin(conversation.id, controller);
 
     // The sent message appears instantly; the persisted version from the
     // `start` event replaces it (or it is rolled back if nothing was saved).
-    // runTurn is only ever reached from an event handler, never during render,
-    // which the purity rule cannot see from the declaration site.
-    // eslint-disable-next-line react-hooks/purity
     const optimisticId = mode === "send" ? `optimistic-${Date.now()}` : null;
     if (optimisticId && content) {
       const lastPosition = messages.length ? messages[messages.length - 1].position : -1;
@@ -111,8 +136,6 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       setRegenTargetId(null);
     }
 
-    const controller = new AbortController();
-    abortRef.current = controller;
     let finished = false;
 
     try {
@@ -132,7 +155,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
               setConversation((c) => (c ? { ...c, title: content.slice(0, 60) } : c));
             }
           } else if (event.type === "delta") {
-            setStreamText((prev) => (prev ?? "") + event.text);
+            turnStore.append(event.text);
           } else if (event.type === "done") {
             finished = true;
             setMessages((prev) => {
@@ -166,21 +189,10 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
     }
 
-    setStreamText(null);
+    turnStore.end();
     setRegenTargetId(null);
-    setBusy(false);
-    abortRef.current = null;
   }
 
-  async function reload() {
-    if (!conversation) return;
-    try {
-      const convo = await api.get<Conversation>(`/api/conversations/${conversation.id}`);
-      setMessages(convo.messages ?? []);
-    } catch {
-      /* keep current state */
-    }
-  }
 
   async function swipe(message: Message, index: number) {
     const updated = await api.patch<Message>(`/api/messages/${message.id}`, {
@@ -222,10 +234,15 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
   const character = conversation.character;
   const lastMessage = messages[messages.length - 1];
-  // While regenerating an existing message, hide it (its replacement streams below).
-  const visibleMessages = regenTargetId && streamText !== null
-    ? messages.filter((m) => m.id !== regenTargetId)
-    : messages;
+  // While regenerating an existing message, hide it (its replacement streams
+  // below). A reply still being written is hidden the same way while its turn is
+  // live: the backend saves it as it goes, so arriving mid-turn would otherwise
+  // show the same text twice, once from the database and once from the stream.
+  const visibleMessages = messages.filter((m) => {
+    if (regenTargetId && streamText !== null && m.id === regenTargetId) return false;
+    if (busy && m.meta?.streaming) return false;
+    return true;
+  });
 
   return (
     <div className="flex h-full">
@@ -372,7 +389,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           key={conversation.id}
           conversationId={conversation.id}
           onSend={(content, messageMode) => runTurn("send", content, messageMode)}
-          onStop={() => abortRef.current?.abort()}
+          onStop={() => turnStore.stop()}
           busy={busy}
           characterName={character.name}
         />

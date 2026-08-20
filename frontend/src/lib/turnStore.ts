@@ -1,0 +1,72 @@
+/** The turn in flight, kept outside React.
+ *
+ *  The streaming state used to live in the conversation page, so leaving the
+ *  page threw it away: the reply kept arriving, nothing was lost, but there was
+ *  no longer anything on screen saying so, and coming back showed a silent
+ *  conversation with no sign that the character was still writing.
+ *
+ *  A module-level store survives the unmount that page state does not. The page
+ *  reads it through useSyncExternalStore and can leave and return at will.
+ *  Only one turn runs at a time, which is what the interface allows anyway.
+ */
+
+export interface Turn {
+  conversationId: string;
+  text: string;
+  /** Still receiving. False once the reply has landed or the turn has failed. */
+  busy: boolean;
+}
+
+let current: (Turn & { controller: AbortController }) | null = null;
+const listeners = new Set<() => void>();
+
+// A new object on every change and the same one otherwise: useSyncExternalStore
+// compares by identity and would loop forever on a fresh object each read.
+let snapshot: Turn | null = null;
+
+function publish() {
+  snapshot = current
+    ? { conversationId: current.conversationId, text: current.text, busy: current.busy }
+    : null;
+  for (const listener of listeners) listener();
+}
+
+export const turnStore = {
+  subscribe(listener: () => void) {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  },
+
+  read: () => snapshot,
+
+  /** Server snapshot: there is never a turn in flight during rendering on the server. */
+  readServer: () => null,
+
+  begin(conversationId: string, controller: AbortController) {
+    current = { conversationId, text: "", busy: true, controller };
+    publish();
+  },
+
+  append(text: string) {
+    if (!current) return;
+    current = { ...current, text: current.text + text };
+    publish();
+  },
+
+  /** The turn is over, whether it landed, failed or was stopped. */
+  end() {
+    current = null;
+    publish();
+  },
+
+  /** Stop the turn from anywhere, including a page that was not there when it started. */
+  stop() {
+    current?.controller.abort();
+  },
+
+  isRunning(conversationId: string) {
+    return current?.conversationId === conversationId && current.busy;
+  },
+};

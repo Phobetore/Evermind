@@ -37,6 +37,11 @@ from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
 from . import memory_service
 
+# How often a reply in progress is written to the database. Often enough that
+# closing a tab loses at most a second of text, rarely enough that a long reply
+# costs a handful of writes rather than one per token.
+_FLUSH_SECONDS = 1.0
+
 _CONTINUE_INSTRUCTION = (
     "[Continue your previous reply exactly where it stopped. Do not repeat anything, "
     "do not start over — just keep going seamlessly.]"
@@ -236,6 +241,52 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     first_token_at = None
     started_at = time.monotonic()
     retried_folded = False
+
+    # The reply is written to the database while it streams, not only once it is
+    # finished. Closing a tab tears the request down, and there is no moment
+    # afterwards that reliably still has a database connection to save with: the
+    # handler that used to try was never once reached under a real disconnect.
+    # Flushing as we go means whatever has been written is already kept, without
+    # depending on cleanup at all.
+    draft_id: str | None = None
+    flushed_at = 0.0
+
+    async def persist(*, final: bool) -> dict | None:
+        """Write what has streamed so far. Recomputed from the original variants
+        every time, so calling it repeatedly is the same as calling it once."""
+        nonlocal draft_id
+        body = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
+        if not body and not final:
+            return None
+
+        if continue_mode:
+            variants = list(target_message["variants"])
+            existing = target_message["variants"][target_message["active_index"]]
+            joiner = "" if (not existing or existing[-1].isspace() or
+                            (body and body[0].isspace())) else " "
+            variants[target_message["active_index"]] = existing + joiner + body
+            return await convo_repo.update_message(db, target_message["id"], variants=variants)
+
+        if target_message is not None:
+            variants = list(target_message["variants"]) + [body]
+            return await convo_repo.update_message(
+                db, target_message["id"], variants=variants, active_index=len(variants) - 1)
+
+        # A new reply. "streaming" marks it as still being written, so a client
+        # arriving mid-turn can tell the difference between a short reply and one
+        # that was cut off. Cleared when the turn ends.
+        # finish_reason kept for diagnosis: "length" means the reply was cut
+        # mid-sentence by max_tokens, not by the model's choice.
+        if final:
+            meta = {"finish_reason": finish_reason} if finish_reason else {}
+        else:
+            meta = {"streaming": True}
+        if draft_id is None:
+            created = await convo_repo.add_message(db, convo["id"], "assistant", [body], meta=meta)
+            draft_id = created["id"]
+            return created
+        return await convo_repo.update_message(db, draft_id, variants=[body], meta=meta)
+
     # At most two passes. A model whose chat template rejects a conversation
     # opening on the assistant's turn streams nothing at all rather than
     # erroring, and Evermind always opens on the character's greeting, so the
@@ -250,6 +301,9 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
                         first_token_at = time.monotonic()
                     chunks.append(event.text)
                     yield _sse({"type": "delta", "text": event.text})
+                    if time.monotonic() - flushed_at >= _FLUSH_SECONDS:
+                        flushed_at = time.monotonic()
+                        await persist(final=False)
                 elif event.type == "done":
                     usage = event.usage
                     finish_reason = (event.meta or {}).get("finish_reason")
@@ -257,24 +311,11 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
                     yield _sse({"type": "error", "message": event.message})
                     return
         except BaseException:
-            # Client disconnected (stop button) — keep the partial text instead of
-            # throwing away everything that was already generated.
-            partial = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
-            if partial:
-                if continue_mode:
-                    variants = list(target_message["variants"])
-                    existing = variants[target_message["active_index"]]
-                    joiner = "" if (not existing or existing[-1].isspace() or
-                                    partial[0].isspace()) else " "
-                    variants[target_message["active_index"]] = existing + joiner + partial
-                    await convo_repo.update_message(db, target_message["id"], variants=variants)
-                elif target_message is not None:
-                    variants = list(target_message["variants"]) + [partial]
-                    await convo_repo.update_message(
-                        db, target_message["id"], variants=variants, active_index=len(variants) - 1)
-                else:
-                    await convo_repo.add_message(db, convo["id"], "assistant", [partial],
-                                                 meta={"interrupted": True})
+            # Nothing is salvaged here any more. This used to save the partial
+            # text, and it never ran once under a real disconnect: by the time
+            # the request is being torn down there is nothing left to save
+            # with. persist() has already written whatever arrived, which is
+            # what this was for. Kept only so the cancellation propagates.
             raise
 
         text = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
@@ -297,22 +338,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
         yield _sse({"type": "error", "message": message})
         return
 
-    if continue_mode:
-        variants = list(target_message["variants"])
-        existing = variants[target_message["active_index"]]
-        joiner = "" if (not existing or existing[-1].isspace() or
-                        (text and text[0].isspace())) else " "
-        variants[target_message["active_index"]] = existing + joiner + text
-        saved = await convo_repo.update_message(db, target_message["id"], variants=variants)
-    elif target_message is not None:
-        variants = list(target_message["variants"]) + [text]
-        saved = await convo_repo.update_message(
-            db, target_message["id"], variants=variants, active_index=len(variants) - 1)
-    else:
-        # finish_reason kept for diagnosis: "length" means the reply was cut
-        # mid-sentence by max_tokens, not by the model's choice.
-        meta = {"finish_reason": finish_reason} if finish_reason else {}
-        saved = await convo_repo.add_message(db, convo["id"], "assistant", [text], meta=meta)
+    saved = await persist(final=True)
 
     await convo_repo.touch(db, convo["id"])
 
