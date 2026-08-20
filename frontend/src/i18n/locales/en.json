@@ -207,6 +207,7 @@
       "stopTitle": "Stop generation",
       "sendTitle": "Send",
       "hintDefault": "Enter to send · Shift+Enter for a new line · quill: the AI drafts your reply",
+      "hintTouch": "Tap send when you are ready. The quill drafts your reply.",
       "draftRestored": "Draft restored"
     },
     "message": {

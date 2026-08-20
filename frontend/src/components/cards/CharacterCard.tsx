@@ -72,18 +72,23 @@ export function CharacterCard({
         </Tag>
       </div>
 
-      {/* Poster caption */}
-      <div className="relative z-10 flex flex-col gap-1.5 p-4">
-        <h2 className="font-display text-xl font-semibold leading-tight text-parchment drop-shadow">
+      {/* Poster caption. Two columns on a phone leave a card about 154px wide and
+          205px tall, and the full caption wanted 255 to 305px of that: the block
+          overflowed upward past justify-end and the clipped box took the name
+          with it, so a card showed everything except whose it was. Below sm the
+          caption is the name and the kind badge, which is all a browsing grid
+          needs at that size. */}
+      <div className="relative z-10 flex flex-col gap-1.5 p-3 sm:p-4">
+        <h2 className="font-display text-base font-semibold leading-tight text-parchment drop-shadow sm:text-xl">
           {character.name}
         </h2>
         {character.tagline && (
-          <p className="line-clamp-2 text-sm italic leading-snug text-parchment-dim">
+          <p className="line-clamp-2 hidden text-sm italic leading-snug text-parchment-dim sm:block">
             {character.tagline}
           </p>
         )}
         {character.tags.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1.5">
+          <div className="mt-1 hidden flex-wrap gap-1.5 sm:flex">
             {character.tags.slice(0, 3).map((tag) => (
               <Tag key={tag}>{tag}</Tag>
             ))}
@@ -94,7 +99,7 @@ export function CharacterCard({
             e.preventDefault();
             router.push(`/characters/${character.id}?start=1`);
           }}
-          className="btn btn-primary mt-2 w-full translate-y-1 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100"
+          className="btn btn-primary mt-2 hidden w-full translate-y-1 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 sm:inline-flex"
         >
           <MessageCircle className="h-4 w-4" />
           {t("characters.card.startButton")}

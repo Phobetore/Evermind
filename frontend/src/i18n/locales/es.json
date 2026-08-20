@@ -207,6 +207,7 @@
       "stopTitle": "Detener la generación",
       "sendTitle": "Enviar",
       "hintDefault": "Enter para enviar · Mayús+Enter para una nueva línea · pluma: la IA redacta tu respuesta",
+      "hintTouch": "Pulsa enviar cuando quieras. La pluma redacta tu respuesta.",
       "draftRestored": "Borrador restaurado"
     },
     "message": {

@@ -207,6 +207,7 @@
       "stopTitle": "Arrêter la génération",
       "sendTitle": "Envoyer",
       "hintDefault": "Entrée pour envoyer · Maj+Entrée pour un retour à la ligne · plume : l'IA propose votre réplique",
+      "hintTouch": "Appuyez sur envoyer quand vous êtes prêt. La plume rédige votre réponse.",
       "draftRestored": "Brouillon restauré"
     },
     "message": {

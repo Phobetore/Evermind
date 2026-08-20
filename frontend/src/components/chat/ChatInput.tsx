@@ -9,6 +9,12 @@ import { useEffect, useRef, useState } from "react";
 
 type MessageMode = "say" | "narrate" | "ooc";
 
+/** A pointing device that hovers, which in practice means a real keyboard is
+ *  attached too. Read at the moment of the keypress rather than remembered. */
+const KEYBOARD_QUERY = "(hover: hover) and (pointer: fine)";
+const hasKeyboard = () =>
+  typeof window === "undefined" || window.matchMedia(KEYBOARD_QUERY).matches;
+
 const MODES: Record<MessageMode, {
   next: MessageMode;
   icon: typeof MessageCircle;
@@ -58,6 +64,13 @@ export function ChatInput({
   const [ghostwriting, setGhostwriting] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
+  // A phone keyboard has no Shift, so Enter-to-send left no way at all to start
+  // a new line. Only a device that actually has a keyboard keeps that shortcut;
+  // everywhere else Enter does what its key says and the send button sends.
+  // This state drives the hint only. The keypress reads the query live, because
+  // a cached answer goes stale the moment someone docks a tablet to a keyboard
+  // and the change event is not something every browser reliably fires.
+  const [enterSends, setEnterSends] = useState(true);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -66,6 +79,14 @@ export function ChatInput({
     el.style.height = "0px";
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
   }, [value]);
+
+  useEffect(() => {
+    const media = window.matchMedia(KEYBOARD_QUERY);
+    const apply = () => setEnterSends(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
 
   // Restore the unsent draft. Runs in an effect (not a lazy initial state) so
   // the server-rendered markup and the first client render stay identical.
@@ -122,7 +143,7 @@ export function ChatInput({
     >
       <div className="mx-auto flex max-w-3xl items-end gap-2.5">
         <button
-          className={clsx("btn btn-ghost h-12 w-12 !rounded-2xl !p-0", MODES[mode].color)}
+          className={clsx("btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12", MODES[mode].color)}
           onClick={() => setMode(MODES[mode].next)}
           disabled={busy}
           title={t(MODES[mode].labelKey)}
@@ -133,7 +154,7 @@ export function ChatInput({
           })()}
         </button>
         <button
-          className="btn btn-ghost hidden h-12 w-12 !rounded-2xl !p-0 sm:inline-flex"
+          className="btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
           onClick={ghostwrite}
           disabled={busy || ghostwriting}
           title={t("chat.input.ghostwriteTitle")}
@@ -149,7 +170,7 @@ export function ChatInput({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && hasKeyboard()) {
               e.preventDefault();
               submit();
             }
@@ -164,7 +185,7 @@ export function ChatInput({
         />
         {busy ? (
           <button
-            className="btn btn-ghost h-12 w-12 !rounded-2xl !p-0"
+            className="btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
             onClick={onStop}
             title={t("chat.input.stopTitle")}
           >
@@ -172,7 +193,7 @@ export function ChatInput({
           </button>
         ) : (
           <button
-            className="btn btn-primary h-12 w-12 !rounded-2xl !p-0"
+            className="btn btn-primary h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
             onClick={submit}
             disabled={!value.trim()}
             title={t("chat.input.sendTitle")}
@@ -185,7 +206,7 @@ export function ChatInput({
         {hint ??
           (restored
             ? t("chat.input.draftRestored")
-            : t("chat.input.hintDefault"))}
+            : t(enterSends ? "chat.input.hintDefault" : "chat.input.hintTouch"))}
       </p>
     </div>
   );

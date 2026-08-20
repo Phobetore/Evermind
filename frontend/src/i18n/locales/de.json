@@ -207,6 +207,7 @@
       "stopTitle": "Generierung stoppen",
       "sendTitle": "Senden",
       "hintDefault": "Enter zum Senden · Umschalt+Enter für eine neue Zeile · Feder: Die KI entwirft deine Antwort",
+      "hintTouch": "Zum Abschicken auf Senden tippen. Die Feder entwirft deine Antwort.",
       "draftRestored": "Entwurf wiederhergestellt"
     },
     "message": {
