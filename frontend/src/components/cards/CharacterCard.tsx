@@ -46,6 +46,8 @@ export function CharacterCard({
           title={character.is_favorite ? t("characters.removeFavoriteTitle") : t("characters.addFavoriteTitle")}
           className={clsx(
             "absolute right-3 top-3 z-10 rounded-full border p-2 backdrop-blur transition-all md:p-1.5",
+            // 34px of button, 46px of reachable area, same drawing.
+            "before:absolute before:-inset-1.5 before:content-[''] md:before:content-none",
             character.is_favorite
               ? "border-ember-500/60 bg-ink-950/60 text-ember-400"
               : "hover-actions border-ink-600/60 bg-ink-950/70 text-parchment-dim hover:text-ember-300",

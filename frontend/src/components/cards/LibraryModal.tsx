@@ -50,16 +50,20 @@ export function LibraryModal({
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((item) => (
+            // Avatar, blurb and button held one row at every width. On a phone
+            // that left the middle column nothing: the tagline came out as a
+            // fifteen-line ribbon. The button now drops to its own full-width
+            // line and the artwork shrinks, so the words get the space.
             <div
               key={item.filename}
-              className="flex items-start justify-between gap-4 rounded-xl border border-ink-700 bg-ink-900/60 p-4"
+              className="flex flex-wrap items-start gap-3 rounded-xl border border-ink-700 bg-ink-900/60 p-3 sm:flex-nowrap sm:justify-between sm:gap-4 sm:p-4"
             >
               {item.has_avatar && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={`/api/library/${item.filename}/avatar`}
                   alt={item.name}
-                  className="h-24 w-[4.5rem] shrink-0 rounded-lg border border-ink-600 object-cover"
+                  className="h-[4.5rem] w-14 shrink-0 rounded-lg border border-ink-600 object-cover sm:h-24 sm:w-[4.5rem]"
                   draggable={false}
                 />
               )}
@@ -89,12 +93,12 @@ export function LibraryModal({
                 )}
               </div>
               {item.installed ? (
-                <span className="flex shrink-0 items-center gap-1.5 text-sm text-moss">
+                <span className="flex w-full shrink-0 items-center justify-center gap-1.5 text-sm text-moss sm:w-auto sm:justify-start">
                   <Check className="h-4 w-4" /> {t("cards.libraryModal.installedLabel")}
                 </span>
               ) : (
                 <button
-                  className="btn btn-primary shrink-0 !py-2 text-sm"
+                  className="btn btn-primary w-full shrink-0 text-sm sm:w-auto sm:!py-2"
                   onClick={() => install(item)}
                   disabled={installing !== null}
                 >

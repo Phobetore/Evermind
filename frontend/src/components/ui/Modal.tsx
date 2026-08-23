@@ -24,11 +24,11 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-ink-950/75 p-4 backdrop-blur-sm animate-fade"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-ink-950/75 p-3 backdrop-blur-sm animate-fade sm:p-4"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className={`panel max-h-[88dvh] w-full ${wide ? "max-w-2xl" : "max-w-md"} overflow-y-auto p-6 animate-rise`}
+        className={`panel max-h-[92dvh] w-full sm:max-h-[88dvh] ${wide ? "max-w-2xl" : "max-w-md"} overflow-y-auto p-4 animate-rise sm:p-6`}
         role="dialog"
         aria-label={title}
       >
@@ -36,7 +36,7 @@ export function Modal({
           <h2 className="text-xl font-semibold">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-mist transition-colors hover:bg-ink-700 hover:text-parchment"
+            className="-mr-1 shrink-0 rounded-lg p-2.5 text-mist transition-colors hover:bg-ink-700 hover:text-parchment sm:mr-0 sm:p-1.5"
             aria-label={t("common.close")}
           >
             <X className="h-5 w-5" />

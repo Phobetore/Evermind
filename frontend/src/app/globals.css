@@ -215,6 +215,11 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   white-space: nowrap;
 }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* A finger is a blunter instrument than a cursor: 0.55rem of padding leaves a
+   38px target, which is under what a thumb reliably hits. */
+@media (max-width: 767px) {
+  .btn { min-height: 2.75rem; }
+}
 .btn-primary {
   background: linear-gradient(180deg, var(--color-ember-400), var(--color-ember-600));
   color: #1c1206;
