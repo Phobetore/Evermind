@@ -134,7 +134,11 @@
       "title": "Acerca de",
       "starHint": "Si Evermind te resulta útil, una estrella en el repositorio es lo que hace que otras personas lo encuentren.",
       "projectLink": "El proyecto en GitHub",
-      "reportLink": "Informar de un problema"
+      "reportLink": "Informar de un problema",
+      "updateAvailable": "Evermind {version} ya está.",
+      "updateHint": "Detén Evermind, ejecuta esto en la carpeta donde lo instalaste y vuelve a arrancarlo.",
+      "releaseNotes": "Qué ha cambiado",
+      "checkHint": "Preguntar a GitHub una vez al día si hay una versión más nueva. No se envía nada más, y sin la casilla no se envía nada."
     }
   },
   "connections": {

@@ -136,6 +136,17 @@ export interface Settings {
   reply_length: "short" | "medium" | "long";
   history_limit: number;
   passage_budget: number;
+  update_check: boolean;
+}
+
+export interface UpdateStatus {
+  current: string;
+  latest: string | null;
+  url: string | null;
+  update_available: boolean;
+  install: "docker" | "source";
+  command: string;
+  enabled: boolean;
 }
 
 export interface Memory {

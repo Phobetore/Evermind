@@ -134,7 +134,11 @@
       "title": "About",
       "starHint": "If Evermind is useful to you, starring the repository is what makes other people find it.",
       "projectLink": "The project on GitHub",
-      "reportLink": "Report a problem"
+      "reportLink": "Report a problem",
+      "updateAvailable": "Evermind {version} is out.",
+      "updateHint": "Stop Evermind, run this from the folder you installed it in, then start it again.",
+      "releaseNotes": "What changed",
+      "checkHint": "Ask GitHub once a day whether a newer release exists. Nothing else is sent, and nothing is sent at all with this off."
     }
   },
   "connections": {

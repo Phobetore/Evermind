@@ -354,7 +354,14 @@ enough to check that everything is wired up correctly.
 
 Everything you create, including characters, conversations, personas and API
 keys, stays on your own machine, in the `data` folder next to the app (or in a Docker volume if
-you used Docker). Nothing is sent anywhere except to the AI service you chose
-yourself. If you run the AI locally too, nothing leaves your computer at all.
+you used Docker). Nothing you write is sent anywhere except to the AI service you
+chose yourself. If you run the AI locally too, nothing you write leaves your
+computer at all.
+
+One thing does go out. Once a day Evermind asks GitHub whether a newer release
+exists, so that you hear about fixes without having to go and look. It is a
+plain request for the latest release number, and nothing about you, your machine
+or what you have installed travels with it. The checkbox under **About** in
+Settings turns it off, and with it off nothing goes out at all.
 
 To back it up, copy that folder. To start fresh, delete it.

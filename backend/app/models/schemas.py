@@ -124,6 +124,7 @@ class SettingsIn(BaseModel):
     reply_length: Literal["short", "medium", "long"] | None = None
     history_limit: int | None = Field(default=None, ge=4, le=200)
     passage_budget: int | None = Field(default=None, ge=0, le=4000)
+    update_check: bool | None = None
 
 
 class LoreEntryIn(BaseModel):

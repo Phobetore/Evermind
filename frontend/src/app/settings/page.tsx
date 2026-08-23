@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import { useT } from "@/i18n/useT";
 import { api } from "@/lib/api";
-import type { Connection, Persona, Settings } from "@/types";
+import type { Connection, Persona, Settings, UpdateStatus } from "@/types";
 import { Cable, Plus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -255,24 +255,56 @@ function GlobalInstructions({
 
 /** Version, and a way back to the project. The app had neither, so nobody
  *  running it could tell what they were on, report a bug against it, or find
- *  where it comes from. */
+ *  where it comes from. It also says when a newer release exists, since a
+ *  self-hosted app has no other way of telling you. */
 function About() {
   const t = useT();
-  const [version, setVersion] = useState<string | null>(null);
+  const [status, setStatus] = useState<UpdateStatus | null>(null);
 
   useEffect(() => {
-    api.get<{ version?: string }>("/api/health")
-      .then((h) => setVersion(h.version ?? null))
-      .catch(() => setVersion(null));
+    api.get<UpdateStatus>("/api/update").then(setStatus).catch(() => setStatus(null));
   }, []);
+
+  async function setChecking(enabled: boolean) {
+    // Answer the click straight away; the release lookup behind it can take a
+    // few seconds and must not make the checkbox feel stuck.
+    setStatus((prev) => (prev ? { ...prev, enabled } : prev));
+    await api.put("/api/settings", { update_check: enabled });
+    api.get<UpdateStatus>("/api/update").then(setStatus).catch(() => {});
+  }
 
   return (
     <section className="mt-10">
       <h2 className="ui-label mb-2">{t("settings.about.title")}</h2>
       <div className="panel px-5 py-4">
         <p className="text-sm text-mist">
-          Evermind {version ?? "—"}
+          Evermind {status?.current ?? "—"}
         </p>
+
+        {status?.update_available && (
+          <div className="mt-3 rounded-xl border border-ember-500/40 bg-ember-glow px-4 py-3">
+            <p className="text-sm font-semibold text-ember-300">
+              {t("settings.about.updateAvailable").replace("{version}", status.latest ?? "")}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-mist">
+              {t("settings.about.updateHint")}
+            </p>
+            <code className="mt-2 block overflow-x-auto rounded-lg border border-ink-600 bg-ink-950/60 px-3 py-2 text-xs text-parchment-dim">
+              {status.command}
+            </code>
+            {status.url && (
+              <a
+                className="mt-2 inline-block text-sm text-ember-400 hover:text-ember-300"
+                href={status.url}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                {t("settings.about.releaseNotes")}
+              </a>
+            )}
+          </div>
+        )}
+
         <p className="mt-2 text-sm leading-relaxed text-mist">
           {t("settings.about.starHint")}
         </p>
@@ -294,6 +326,16 @@ function About() {
             {t("settings.about.reportLink")}
           </a>
         </div>
+
+        <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-ink-700 pt-3 text-sm text-mist">
+          <input
+            type="checkbox"
+            checked={status?.enabled ?? false}
+            onChange={(e) => setChecking(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[#e29a3e]"
+          />
+          <span>{t("settings.about.checkHint")}</span>
+        </label>
       </div>
     </section>
   );
