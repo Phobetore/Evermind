@@ -1,14 +1,11 @@
 """Single source of truth for the version.
 
-Read from the installed distribution rather than written here, so the number
-reported by /api/health and the OpenAPI document cannot drift away from
-pyproject.toml the way a copy does.
+Written here rather than read back from the installed distribution.
+importlib.metadata reports what the .dist-info said at install time, and an
+editable install writes that file once: the scripts only run `pip install -e`
+when the virtualenv is missing, so every later `git pull` left /api/health
+reporting whatever version the machine was first set up with. Hatchling reads
+this literal at build time, so pyproject.toml has no copy to drift from.
 """
 
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as _version
-
-try:
-    __version__ = _version("evermind-backend")
-except PackageNotFoundError:  # a source tree that was never pip-installed
-    __version__ = "0+unknown"
+__version__ = "2.0.7"
