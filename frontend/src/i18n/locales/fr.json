@@ -40,6 +40,16 @@
       "before": "Installez une fiche prête à jouer depuis la",
       "libraryLink": "bibliothèque",
       "after": ", créez la vôtre, ou importez une carte existante (JSON / PNG). Les cartes des autres plateformes sont compatibles."
+    },
+    "importModal": {
+      "title": "Importer une fiche",
+      "intro": "Récupérez un personnage ou un scénario créé ailleurs. Les fiches suivent le format Character Card V2, que la plupart des outils de jeu de rôle savent lire et écrire.",
+      "acceptsPng": "Une fiche en PNG, illustration comprise. La fiche est rangée dans l'image elle-même.",
+      "acceptsJson": "Une fiche en JSON exportée depuis un autre outil.",
+      "acceptsLorebook": "Un lorebook attaché à la fiche vient avec.",
+      "dropTitle": "Déposez une fiche ici",
+      "dropHint": "ou cliquez pour en choisir une. Plusieurs à la fois, c'est possible.",
+      "sizeNote": "15 Mo maximum par fichier. Rien n'est envoyé nulle part : le fichier est lu par votre propre Evermind."
     }
   },
   "chatList": {

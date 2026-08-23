@@ -40,6 +40,16 @@
       "before": "Install a ready-to-play card from the",
       "libraryLink": "library",
       "after": ", create your own, or import an existing card (JSON / PNG). Cards from other platforms are compatible."
+    },
+    "importModal": {
+      "title": "Import a card",
+      "intro": "Bring in a character or scenario made elsewhere. Cards follow the Character Card V2 format, which most roleplay tools read and write.",
+      "acceptsPng": "A PNG card, artwork included. The card is read from inside the image.",
+      "acceptsJson": "A JSON card exported from another tool.",
+      "acceptsLorebook": "An attached lorebook comes along with it.",
+      "dropTitle": "Drop a card here",
+      "dropHint": "or click to choose one. Several at once is fine.",
+      "sizeNote": "Up to 15 MB per file. Nothing is uploaded anywhere: the file is read by your own copy of Evermind."
     }
   },
   "chatList": {

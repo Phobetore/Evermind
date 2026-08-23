@@ -1,6 +1,7 @@
 "use client";
 
 import { CharacterCard } from "@/components/cards/CharacterCard";
+import { ImportModal } from "@/components/cards/ImportModal";
 import { LibraryModal } from "@/components/cards/LibraryModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useT } from "@/i18n/useT";
@@ -9,7 +10,7 @@ import type { Character, Kind } from "@/types";
 import { clsx } from "clsx";
 import { FileUp, LibraryBig, Plus, Search, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const TABS: { value: Kind | "all"; labelKey: string }[] = [
   { value: "all", labelKey: "home.tabs.all" },
@@ -26,7 +27,7 @@ export default function HubPage() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLibrary, setShowLibrary] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = useCallback(async (kind: Kind | "all", q: string) => {
     const params = new URLSearchParams();
@@ -44,15 +45,6 @@ export default function HubPage() {
     const t = setTimeout(() => load(tab, query), query ? 250 : 0);
     return () => clearTimeout(t);
   }, [tab, query, load]);
-
-  async function handleImport(file: File) {
-    try {
-      await api.upload<Character>("/api/characters/import", file);
-      await load(tab, query);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("home.importError"));
-    }
-  }
 
   async function toggleFavorite(character: Character) {
     const updated = await api.put<Character>(`/api/characters/${character.id}`, {
@@ -131,23 +123,12 @@ export default function HubPage() {
         </button>
         <button
           className="btn btn-ghost"
-          onClick={() => fileInput.current?.click()}
+          onClick={() => setImportOpen(true)}
           title={t("home.importTitle")}
         >
           <FileUp className="h-4 w-4" />
           <span className="hidden sm:inline">{t("home.import")}</span>
         </button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".json,.png"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleImport(f);
-            e.target.value = "";
-          }}
-        />
         <Link href="/characters/new" className="btn btn-primary">
           <Plus className="h-4 w-4" />
           {t("home.create")}
@@ -213,6 +194,13 @@ export default function HubPage() {
         <LibraryModal
           onClose={() => setShowLibrary(false)}
           onInstalled={() => load(tab, query)}
+        />
+      )}
+
+      {importOpen && (
+        <ImportModal
+          onClose={() => setImportOpen(false)}
+          onImported={() => load(tab, query)}
         />
       )}
     </div>

@@ -40,6 +40,16 @@
       "before": "Instala una ficha lista para jugar desde la",
       "libraryLink": "biblioteca",
       "after": ", crea la tuya o importa una ficha existente (JSON / PNG). Las fichas de otras plataformas son compatibles."
+    },
+    "importModal": {
+      "title": "Importar una ficha",
+      "intro": "Trae un personaje o un escenario creado en otra parte. Las fichas siguen el formato Character Card V2, que la mayoría de herramientas de rol saben leer y escribir.",
+      "acceptsPng": "Una ficha en PNG, ilustración incluida. La ficha va dentro de la imagen.",
+      "acceptsJson": "Una ficha en JSON exportada desde otra herramienta.",
+      "acceptsLorebook": "Un lorebook adjunto viene con ella.",
+      "dropTitle": "Suelta una ficha aquí",
+      "dropHint": "o haz clic para elegir una. Varias a la vez también vale.",
+      "sizeNote": "Hasta 15 MB por archivo. Nada se sube a ningún sitio: el archivo lo lee tu propio Evermind."
     }
   },
   "chatList": {

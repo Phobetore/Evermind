@@ -40,6 +40,16 @@
       "before": "Installiere eine spielfertige Karte aus der",
       "libraryLink": "Bibliothek",
       "after": ", erstelle deine eigene oder importiere eine vorhandene Karte (JSON / PNG). Karten von anderen Plattformen sind kompatibel."
+    },
+    "importModal": {
+      "title": "Karte importieren",
+      "intro": "Hol dir eine Figur oder ein Szenario, das anderswo entstanden ist. Karten folgen dem Format Character Card V2, das die meisten Rollenspiel-Werkzeuge lesen und schreiben.",
+      "acceptsPng": "Eine PNG-Karte, samt Bild. Die Karte steht im Inneren des Bildes.",
+      "acceptsJson": "Eine JSON-Karte, aus einem anderen Werkzeug exportiert.",
+      "acceptsLorebook": "Ein angehängtes Lorebook kommt mit.",
+      "dropTitle": "Karte hier ablegen",
+      "dropHint": "oder klicken, um eine auszuwählen. Mehrere auf einmal geht auch.",
+      "sizeNote": "Höchstens 15 MB pro Datei. Nichts wird irgendwohin hochgeladen: die Datei liest dein eigenes Evermind."
     }
   },
   "chatList": {
