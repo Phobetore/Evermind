@@ -8,7 +8,7 @@ from app.services import update_check
 def cold_cache(monkeypatch):
     """The cache is module state, so without this a test would inherit whatever
     the previous one left there. monkeypatch puts it back afterwards."""
-    monkeypatch.setattr(update_check, "_cached", None)
+    monkeypatch.setattr(update_check, "_cache", update_check._Cache())
 
 
 @pytest.mark.parametrize(
@@ -100,6 +100,24 @@ async def test_the_answer_is_cached(monkeypatch):
     for _ in range(5):
         await update_check.check(enabled=True)
     assert len(calls) == 1, f"asked GitHub {len(calls)} times for one day's answer"
+
+
+async def test_a_failed_lookup_is_remembered_too(monkeypatch):
+    """Otherwise an unreachable network is retried on every single page load.
+    Remembering the failure is why the cache tracks whether it holds an answer
+    apart from what that answer was: a kept None and never having asked would
+    otherwise look the same."""
+    calls = []
+
+    async def fake():
+        calls.append(1)
+        raise OSError("no route to host")
+
+    monkeypatch.setattr(update_check, "_fetch", fake)
+    for _ in range(4):
+        answer = await update_check.check(enabled=True)
+        assert answer["reachable"] is False
+    assert len(calls) == 1, f"retried an unreachable network {len(calls)} times"
 
 
 async def test_a_refresh_looks_past_the_cached_answer(monkeypatch):

@@ -20,8 +20,30 @@ _LATEST_RELEASE = "https://api.github.com/repos/Phobetore/Evermind/releases/late
 _CACHE_SECONDS = 60 * 60 * 24
 _TIMEOUT = 5.0
 
-_cached: tuple[float, dict | None] | None = None
-_lock = asyncio.Lock()
+class _Cache:
+    """One day's answer, so that a settings page opened twenty times in an
+    afternoon still costs one request.
+
+    Whether an answer has been kept is tracked apart from what that answer
+    was. A lookup that failed is worth remembering too — otherwise an
+    unreachable network is retried on every page load — and remembering it as
+    None alone would be indistinguishable from never having asked.
+    """
+
+    def __init__(self) -> None:
+        self.lock = asyncio.Lock()
+        self.at = 0.0
+        self.release: dict | None = None
+        self.answered = False
+
+    def fresh(self, now: float) -> bool:
+        return self.answered and now - self.at < _CACHE_SECONDS
+
+    def keep(self, now: float, release: dict | None) -> None:
+        self.at, self.release, self.answered = now, release, True
+
+
+_cache = _Cache()
 
 
 def _as_numbers(version: str) -> tuple[int, ...] | None:
@@ -72,11 +94,10 @@ async def _fetch() -> dict | None:
 
 
 async def _latest_release(*, refresh: bool = False) -> dict | None:
-    global _cached
-    async with _lock:
+    async with _cache.lock:
         now = time.monotonic()
-        if not refresh and _cached and now - _cached[0] < _CACHE_SECONDS:
-            return _cached[1]
+        if not refresh and _cache.fresh(now):
+            return _cache.release
         try:
             release = await _fetch()
         except (httpx.HTTPError, OSError, ValueError):
@@ -85,7 +106,7 @@ async def _latest_release(*, refresh: bool = False) -> dict | None:
             # network is not retried on every single page load. Anything
             # outside this set is a bug here and should not be swallowed.
             release = None
-        _cached = (now, release)
+        _cache.keep(now, release)
         return release
 
 
