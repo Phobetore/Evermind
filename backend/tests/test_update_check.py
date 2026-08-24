@@ -20,6 +20,12 @@ def cold_cache(monkeypatch):
         ("v3.0.0", "2.9.9", True),
         ("v2.0.7", "2.0.7", False),
         ("v2.0.6", "2.0.7", False),
+        # Compared as numbers, not as text. As text "2.0.10" sorts before
+        # "2.0.9", which would have stopped the notification dead at the first
+        # two-digit patch.
+        ("v2.0.10", "2.0.9", True),
+        ("v2.0.9", "2.0.10", False),
+        ("v2.10.0", "2.9.0", True),
         # Nothing that is not a plain release may read as newer, or people get
         # told to update to something that was never released.
         ("v2.0.8-rc1", "2.0.7", False),
