@@ -135,13 +135,6 @@ async def get_message(db: aiosqlite.Connection, message_id: str) -> dict | None:
     return message_to_out(row) if row else None
 
 
-async def last_message(db: aiosqlite.Connection, convo_id: str) -> dict | None:
-    row = await (await db.execute(
-        "SELECT * FROM messages WHERE conversation_id = ? ORDER BY position DESC LIMIT 1",
-        (convo_id,))).fetchone()
-    return message_to_out(row) if row else None
-
-
 async def update_message(db: aiosqlite.Connection, message_id: str,
                          variants: list[str] | None = None,
                          active_index: int | None = None,
