@@ -6,7 +6,7 @@ import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { useT } from "@/i18n/useT";
 import { api } from "@/lib/api";
-import { downloadBlob } from "@/lib/utils";
+import { downloadBlob, newId } from "@/lib/utils";
 import type { Character, Connection, Kind, LoreEntry, LoreEntryDraft } from "@/types";
 import { clsx } from "clsx";
 import {
@@ -111,7 +111,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
       if (generatedLore?.length) {
         const additions = generatedLore.map((entry) => ({
           ...entry,
-          id: crypto.randomUUID(),
+          id: newId(),
           enabled: true,
           case_sensitive: false,
           priority: 0,

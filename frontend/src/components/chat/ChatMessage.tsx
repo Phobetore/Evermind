@@ -3,6 +3,7 @@
 import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { useT } from "@/i18n/useT";
+import { copyText } from "@/lib/utils";
 import type { Character, Message, Persona } from "@/types";
 import { clsx } from "clsx";
 import {
@@ -50,7 +51,8 @@ export function ChatMessage({
   const messageMode = message.meta?.mode as "narrate" | "ooc" | undefined;
 
   function copy() {
-    navigator.clipboard.writeText(message.content).then(() => {
+    copyText(message.content).then((ok) => {
+      if (!ok) return;
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     });

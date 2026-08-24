@@ -3,6 +3,7 @@
 import { TagInput } from "@/components/editor/TagInput";
 import { useT } from "@/i18n/useT";
 import { api } from "@/lib/api";
+import { newId } from "@/lib/utils";
 import type { LoreEntry, LoreEntryDraft } from "@/types";
 import { BookMarked, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -45,7 +46,7 @@ export function LorebookSection({
     try {
       const saved = characterId
         ? await api.post<LoreEntry>(`/api/characters/${characterId}/lore`, draft)
-        : { ...draft, id: crypto.randomUUID() };
+        : { ...draft, id: newId() };
       onChange([...entries, saved]);
       setNewKeys([]);
       setNewContent("");
