@@ -47,7 +47,7 @@ body:
     attributes:
       label: Version
       description: Shown under About, at the bottom of the Settings page
-      placeholder: "2.0.12"
+      placeholder: "2.0.13"
     validations:
       required: true
 
