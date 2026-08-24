@@ -17,6 +17,11 @@ ENV NODE_ENV=production
 # here and which nothing in this image executes. Dropping npm removes them
 # outright instead of waiting for the base image to catch up.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+# Same reasoning one step down: the base image carries whatever Debian packages
+# it was built with, and that can trail Debian's own security updates by weeks.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
