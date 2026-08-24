@@ -116,9 +116,11 @@ async def export_character(char_id: str, format: str = "json",
 @router.post("/{char_id}/avatar")
 async def upload_avatar(char_id: str, file: UploadFile,
                         db: aiosqlite.Connection = Depends(get_db)):
+    previous = (await repo.get(db, char_id) or {}).get("avatar_url") or ""
     data, extension = await media.read_image_upload(file)
     filename = media.save(data, extension)
     updated = await repo.update(db, char_id, {"avatar_path": filename})
     if not updated:
         raise NotFoundError("Character not found.")
+    await media.forget(db, previous.removeprefix("/api/media/"))
     return updated

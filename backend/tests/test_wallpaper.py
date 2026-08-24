@@ -99,7 +99,8 @@ async def test_a_branch_carries_the_backdrop_over(client):
 
 async def test_removing_a_backdrop_leaves_the_file_for_the_branch(client):
     """The two share one file rather than a copy of it, so clearing one must
-    not blank the other."""
+    not blank the other. This is the whole reason the file is counted before it
+    is deleted rather than simply deleted."""
     convo = await setup_conversation(client)
     await client.post(f"/api/conversations/{convo['id']}/wallpaper",
                       files={"file": ("bg.png", _png(), "image/png")})
@@ -112,3 +113,41 @@ async def test_removing_a_backdrop_leaves_the_file_for_the_branch(client):
     still_there = (await client.get(f"/api/conversations/{branch['id']}")).json()
     assert still_there["wallpaper_url"] == source["wallpaper_url"]
     assert (await client.get(still_there["wallpaper_url"])).status_code == 200
+
+
+async def test_replacing_a_backdrop_takes_the_old_file_with_it(client):
+    """Nothing in the app could reach the old one again, and nothing used to
+    remove it, so the folder grew by one image every time anyone changed their
+    mind."""
+    convo = await setup_conversation(client)
+    first = (await client.post(f"/api/conversations/{convo['id']}/wallpaper",
+                               files={"file": ("a.png", _png(), "image/png")})).json()
+    await client.post(f"/api/conversations/{convo['id']}/wallpaper",
+                      files={"file": ("b.png", _png(), "image/png")})
+
+    assert (await client.get(first["wallpaper_url"])).status_code == 404, (
+        "the replaced image should be gone"
+    )
+    current = (await client.get(f"/api/conversations/{convo['id']}")).json()
+    assert (await client.get(current["wallpaper_url"])).status_code == 200
+
+
+async def test_clearing_a_backdrop_takes_the_file_with_it(client):
+    convo = await setup_conversation(client)
+    set_up = (await client.post(f"/api/conversations/{convo['id']}/wallpaper",
+                                files={"file": ("a.png", _png(), "image/png")})).json()
+    await client.delete(f"/api/conversations/{convo['id']}/wallpaper")
+    assert (await client.get(set_up["wallpaper_url"])).status_code == 404
+
+
+async def test_a_scene_directive_survives_branching(client):
+    """Every other piece of the setup follows — the persona, the model, the
+    backdrop. The directive is the strongest lever of the lot on a reply, and
+    it was the one that did not."""
+    convo = await setup_conversation(client)
+    await client.patch(f"/api/conversations/{convo['id']}",
+                       json={"author_note": "Never end a reply mid-sentence."})
+    source = (await client.get(f"/api/conversations/{convo['id']}")).json()
+    branch = (await client.post(
+        f"/api/messages/{source['messages'][-1]['id']}/branch")).json()
+    assert branch["author_note"] == "Never end a reply mid-sentence."

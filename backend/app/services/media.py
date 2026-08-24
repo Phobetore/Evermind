@@ -5,6 +5,7 @@ conversation's backdrop — and until the third came along personas was reaching
 into the characters router for its private helpers to get it.
 """
 
+import aiosqlite
 from fastapi import UploadFile
 
 from ..config import media_dir
@@ -35,3 +36,37 @@ def save(data: bytes, extension: str) -> str:
     filename = f"{new_id()}{extension}"
     (media_dir() / filename).write_bytes(data)
     return filename
+
+
+# Every column that can point at a file in the media folder. Miss one and the
+# sweep below deletes something still in use, so this list is the whole safety
+# of it.
+_REFERENCES = (
+    ("characters", "avatar_path"),
+    ("personas", "avatar_path"),
+    ("conversations", "wallpaper_path"),
+)
+
+
+async def forget(db: aiosqlite.Connection, filename: str) -> bool:
+    """Delete a stored file, unless something still points at it.
+
+    Replacing a portrait or a backdrop used to leave the old file behind for
+    good: nothing in the app could reach it again and nothing ever removed it,
+    so the folder grew with every change. It cannot simply be deleted either —
+    branching a conversation gives two of them the same backdrop, and one of
+    them clearing it must not blank the other. Hence the count first.
+    """
+    if not filename:
+        return False
+    for table, column in _REFERENCES:
+        row = await (await db.execute(
+            f"SELECT 1 FROM {table} WHERE {column} = ? LIMIT 1", (filename,))).fetchone()
+        if row:
+            return False
+    path = (media_dir() / filename).resolve()
+    # Only ever inside the media folder, and only a name the database gave us.
+    if path.parent != media_dir().resolve() or not path.is_file():
+        return False
+    path.unlink()
+    return True

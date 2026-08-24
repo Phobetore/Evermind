@@ -200,11 +200,14 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
     # file is shared, not copied, which is why removing one never deletes it.
     await db.execute(
         "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
-        " summary, memory_position, forked_from, forked_at_position,"
+        " summary, author_note, memory_position, forked_from, forked_at_position,"
         " wallpaper_path, wallpaper_opacity, created_at, updated_at)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (branch_id, source["character_id"], source.get("persona_id"),
-         source.get("connection_id"), title, summary, memory_position,
+         source.get("connection_id"), title, summary,
+         # The scene directive is the strongest lever there is on a reply, and
+         # it was the one piece of the setup a branch dropped.
+         source.get("author_note") or "", memory_position,
          source["id"], position, backdrop["wallpaper_path"],
          backdrop["wallpaper_opacity"], now, now),
     )

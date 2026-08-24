@@ -40,9 +40,11 @@ async def delete_persona(persona_id: str, db: aiosqlite.Connection = Depends(get
 @router.post("/{persona_id}/avatar")
 async def upload_avatar(persona_id: str, file: UploadFile,
                         db: aiosqlite.Connection = Depends(get_db)):
+    previous = (await repo.get(db, persona_id) or {}).get("avatar_url") or ""
     data, extension = await media.read_image_upload(file)
     filename = media.save(data, extension)
     updated = await repo.update(db, persona_id, {"avatar_path": filename})
     if not updated:
         raise NotFoundError("Persona not found.")
+    await media.forget(db, previous.removeprefix("/api/media/"))
     return updated
