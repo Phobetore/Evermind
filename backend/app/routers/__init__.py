@@ -15,9 +15,11 @@ async def health() -> dict:
 
 
 @health_router.get("/api/update")
-async def update(db: aiosqlite.Connection = Depends(get_db)) -> dict:
+async def update(refresh: bool = False, db: aiosqlite.Connection = Depends(get_db)) -> dict:
+    """``refresh`` is the button in About: it looks past the day-old answer and
+    asks even when the daily check is switched off."""
     stored = await settings_repo.get_all(db)
-    return await update_check.check(enabled=bool(stored["update_check"]))
+    return await update_check.check(enabled=bool(stored["update_check"]), refresh=refresh)
 
 
 def register_routers(app: FastAPI) -> None:

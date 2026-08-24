@@ -138,7 +138,10 @@
       "updateAvailable": "Evermind {version} is out.",
       "updateHint": "Stop Evermind, run this from the folder you installed it in, then start it again.",
       "releaseNotes": "What changed",
-      "checkHint": "Ask GitHub once a day whether a newer release exists. Nothing else is sent, and nothing is sent at all with this off."
+      "checkHint": "Ask GitHub once a day whether a newer release exists. Nothing else is sent. With this off nothing goes out on its own, and the button below still works when you press it.",
+      "checkNow": "Check now",
+      "upToDate": "You are on the newest release.",
+      "unreachable": "Could not reach GitHub."
     }
   },
   "connections": {

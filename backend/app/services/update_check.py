@@ -71,11 +71,11 @@ async def _fetch() -> dict | None:
     return {"tag": tag, "url": url if isinstance(url, str) else None}
 
 
-async def _latest_release() -> dict | None:
+async def _latest_release(*, refresh: bool = False) -> dict | None:
     global _cached
     async with _lock:
         now = time.monotonic()
-        if _cached and now - _cached[0] < _CACHE_SECONDS:
+        if not refresh and _cached and now - _cached[0] < _CACHE_SECONDS:
             return _cached[1]
         try:
             release = await _fetch()
@@ -89,7 +89,11 @@ async def _latest_release() -> dict | None:
         return release
 
 
-async def check(*, enabled: bool) -> dict:
+async def check(*, enabled: bool, refresh: bool = False) -> dict:
+    """``refresh`` is someone pressing the button rather than a page loading.
+    It goes past the cache, and it goes ahead even with the daily check turned
+    off: that switch means "do not do this on your own", and pressing the
+    button is the asking."""
     answer = {
         "current": __version__,
         "latest": None,
@@ -98,12 +102,17 @@ async def check(*, enabled: bool) -> dict:
         "install": install_kind(),
         "command": upgrade_command(),
         "enabled": enabled,
+        # Whether GitHub actually answered. A page load can afford to treat
+        # silence as no news; someone who pressed a button is owed the
+        # difference between "nothing new" and "could not ask".
+        "reachable": False,
     }
-    if not enabled:
+    if not enabled and not refresh:
         return answer
-    release = await _latest_release()
+    release = await _latest_release(refresh=refresh)
     if not release:
         return answer
+    answer["reachable"] = True
     tag = release["tag"]
     answer["latest"] = tag.lstrip("vV")
     answer["url"] = release["url"]

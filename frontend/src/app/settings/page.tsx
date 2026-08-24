@@ -7,7 +7,7 @@ import { Tag } from "@/components/ui/Tag";
 import { useT } from "@/i18n/useT";
 import { api } from "@/lib/api";
 import type { Connection, Persona, Settings, UpdateStatus } from "@/types";
-import { Cable, Plus } from "lucide-react";
+import { Cable, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export default function SettingsPage() {
@@ -260,12 +260,30 @@ function GlobalInstructions({
 function About() {
   const t = useT();
   const [status, setStatus] = useState<UpdateStatus | null>(null);
+  const [checking, setChecking] = useState(false);
+  // What the last press of the button came back with. Null until pressed, so
+  // an ordinary page load says nothing at all.
+  const [verdict, setVerdict] = useState<"current" | "unreachable" | null>(null);
 
   useEffect(() => {
     api.get<UpdateStatus>("/api/update").then(setStatus).catch(() => setStatus(null));
   }, []);
 
-  async function setChecking(enabled: boolean) {
+  async function checkNow() {
+    setChecking(true);
+    setVerdict(null);
+    try {
+      const fresh = await api.get<UpdateStatus>("/api/update?refresh=true");
+      setStatus(fresh);
+      // Nothing to say when there is an update: the notice above says it.
+      if (!fresh.update_available) setVerdict(fresh.reachable ? "current" : "unreachable");
+    } catch {
+      setVerdict("unreachable");
+    }
+    setChecking(false);
+  }
+
+  async function setDailyCheck(enabled: boolean) {
     // Answer the click straight away; the release lookup behind it can take a
     // few seconds and must not make the checkbox feel stuck.
     setStatus((prev) => (prev ? { ...prev, enabled } : prev));
@@ -327,15 +345,39 @@ function About() {
           </a>
         </div>
 
-        <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-ink-700 pt-3 text-sm text-mist">
-          <input
-            type="checkbox"
-            checked={status?.enabled ?? false}
-            onChange={(e) => setChecking(e.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-[#e29a3e]"
-          />
-          <span>{t("settings.about.checkHint")}</span>
-        </label>
+        <div className="mt-4 border-t border-ink-700 pt-3">
+          <label className="flex cursor-pointer items-start gap-3 text-sm text-mist">
+            <input
+              type="checkbox"
+              checked={status?.enabled ?? false}
+              onChange={(e) => setDailyCheck(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#e29a3e]"
+            />
+            <span>{t("settings.about.checkHint")}</span>
+          </label>
+
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="btn btn-ghost !py-1.5 text-sm"
+              onClick={checkNow}
+              disabled={checking}
+            >
+              {checking ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {t("settings.about.checkNow")}
+            </button>
+            {verdict === "current" && (
+              <span className="text-sm text-moss">{t("settings.about.upToDate")}</span>
+            )}
+            {verdict === "unreachable" && (
+              <span className="text-sm text-mist-dim">{t("settings.about.unreachable")}</span>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );

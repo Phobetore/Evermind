@@ -362,6 +362,8 @@ One thing does go out. Once a day Evermind asks GitHub whether a newer release
 exists, so that you hear about fixes without having to go and look. It is a
 plain request for the latest release number, and nothing about you, your machine
 or what you have installed travels with it. The checkbox under **About** in
-Settings turns it off, and with it off nothing goes out at all.
+Settings turns it off, and with it off nothing goes out on its own. The button
+beside it still asks when you press it, which is the only time anything is sent
+once the checkbox is clear.
 
 To back it up, copy that folder. To start fresh, delete it.

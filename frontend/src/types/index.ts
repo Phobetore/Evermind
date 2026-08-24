@@ -147,6 +147,7 @@ export interface UpdateStatus {
   install: "docker" | "source";
   command: string;
   enabled: boolean;
+  reachable: boolean;
 }
 
 export interface Memory {

@@ -102,6 +102,78 @@ async def test_the_answer_is_cached(monkeypatch):
     assert len(calls) == 1, f"asked GitHub {len(calls)} times for one day's answer"
 
 
+async def test_a_refresh_looks_past_the_cached_answer(monkeypatch):
+    """The cache is what keeps a settings page from costing a request every
+    time it opens. Pressing the button is a different thing being asked."""
+    calls = []
+
+    async def fake():
+        calls.append(1)
+        return {"tag": "v99.0.0", "url": None}
+
+    monkeypatch.setattr(update_check, "_fetch", fake)
+    await update_check.check(enabled=True)
+    await update_check.check(enabled=True)
+    assert len(calls) == 1, "the second page load should have used the cache"
+
+    await update_check.check(enabled=True, refresh=True)
+    assert len(calls) == 2, "the button should have asked again"
+
+
+async def test_a_refresh_asks_even_with_the_daily_check_off(monkeypatch):
+    """Off means "do not do this on your own". Pressing the button is the
+    asking, so it would be wrong to answer it with silence."""
+
+    async def fake():
+        return {"tag": "v99.0.0", "url": None}
+
+    monkeypatch.setattr(update_check, "_fetch", fake)
+    answer = await update_check.check(enabled=False, refresh=True)
+    assert answer["reachable"] is True
+    assert answer["update_available"] is True
+    assert answer["enabled"] is False, "the switch itself must not be flipped by it"
+
+
+async def test_an_unreachable_check_says_so_rather_than_no_news(monkeypatch):
+    """A page load can treat silence as no news. Someone who pressed a button
+    is owed the difference between "nothing new" and "could not ask"."""
+
+    async def fake():
+        raise OSError("no route to host")
+
+    monkeypatch.setattr(update_check, "_fetch", fake)
+    answer = await update_check.check(enabled=True, refresh=True)
+    assert answer["reachable"] is False
+    assert answer["update_available"] is False
+
+
+async def test_being_up_to_date_is_not_the_same_as_unreachable(monkeypatch):
+    async def fake():
+        return {"tag": f"v{__version__}", "url": None}
+
+    monkeypatch.setattr(update_check, "_fetch", fake)
+    answer = await update_check.check(enabled=True, refresh=True)
+    assert answer["reachable"] is True, "GitHub answered; there is simply nothing newer"
+    assert answer["update_available"] is False
+
+
+async def test_endpoint_refreshes_on_request(client, monkeypatch):
+    calls = []
+
+    async def fake():
+        calls.append(1)
+        return {"tag": "v99.0.0", "url": None}
+
+    monkeypatch.setattr(update_check, "_fetch", fake)
+    await client.get("/api/update")
+    await client.get("/api/update")
+    assert len(calls) == 1
+
+    body = (await client.get("/api/update?refresh=true")).json()
+    assert len(calls) == 2
+    assert body["reachable"] is True
+
+
 async def test_endpoint_follows_the_setting(client, monkeypatch):
     async def fake():
         return {"tag": "v99.0.0", "url": "https://example.invalid"}

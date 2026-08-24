@@ -138,7 +138,10 @@
       "updateAvailable": "Evermind {version} est sortie.",
       "updateHint": "Arrêtez Evermind, lancez ceci depuis le dossier où vous l'avez installé, puis redémarrez-le.",
       "releaseNotes": "Ce qui a changé",
-      "checkHint": "Demander une fois par jour à GitHub s'il existe une version plus récente. Rien d'autre n'est transmis, et rien du tout si vous décochez."
+      "checkHint": "Demander une fois par jour à GitHub s'il existe une version plus récente. Rien d'autre n'est transmis. Décochée, plus rien ne part de lui-même, et le bouton ci-dessous fonctionne toujours quand vous le pressez.",
+      "checkNow": "Vérifier maintenant",
+      "upToDate": "Vous avez la dernière version.",
+      "unreachable": "GitHub est injoignable."
     }
   },
   "connections": {

@@ -138,7 +138,10 @@
       "updateAvailable": "Evermind {version} ist da.",
       "updateHint": "Halte Evermind an, führe das hier in dem Ordner aus, in dem du es installiert hast, und starte es wieder.",
       "releaseNotes": "Was sich geändert hat",
-      "checkHint": "Einmal am Tag bei GitHub nachfragen, ob es eine neuere Version gibt. Mehr geht nicht raus, und ohne Haken gar nichts."
+      "checkHint": "Einmal am Tag bei GitHub nachfragen, ob es eine neuere Version gibt. Mehr geht nicht raus. Ohne Haken passiert von allein gar nichts, und der Knopf darunter tut es trotzdem, wenn du ihn drückst.",
+      "checkNow": "Jetzt nachsehen",
+      "upToDate": "Du hast die neueste Version.",
+      "unreachable": "GitHub war nicht erreichbar."
     }
   },
   "connections": {
