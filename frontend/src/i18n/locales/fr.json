@@ -297,6 +297,17 @@
         "title": "Ancrage de scène",
         "youFallback": "vous"
       }
+    },
+    "wallpaper": {
+      "title": "Fond d'écran",
+      "description": "Une image derrière cette conversation. Elle appartient à cette conversation seule, pas au personnage.",
+      "choose": "Choisir une image",
+      "replace": "Remplacer",
+      "remove": "Retirer",
+      "opacity": "Intensité",
+      "adjust": "Régler l'intensité",
+      "done": "Terminé",
+      "failed": "Impossible de poser ce fond."
     }
   },
   "characters": {

@@ -1,5 +1,5 @@
 import aiosqlite
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile
 
 from ..db import get_db
 from ..errors import AppError, NotFoundError
@@ -10,6 +10,7 @@ from ..repositories import connections as connections_repo
 from ..repositories import conversations as repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
+from ..services import media
 
 router = APIRouter(prefix="/api", tags=["conversations"])
 
@@ -68,6 +69,29 @@ async def get_conversation(convo_id: str, db: aiosqlite.Connection = Depends(get
 async def patch_conversation(convo_id: str, payload: ConversationPatch,
                              db: aiosqlite.Connection = Depends(get_db)):
     updated = await repo.update(db, convo_id, payload.model_dump(exclude_unset=True))
+    if not updated:
+        raise NotFoundError("Conversation not found.")
+    return updated
+
+
+@router.post("/conversations/{convo_id}/wallpaper")
+async def upload_wallpaper(convo_id: str, file: UploadFile,
+                           db: aiosqlite.Connection = Depends(get_db)):
+    """The old file is left where it is. It may be the backdrop of a branch of
+    this conversation, or of another one entirely, since nothing stops the same
+    image being set twice; deleting it here would blank those."""
+    data, extension = await media.read_image_upload(file)
+    updated = await repo.update(db, convo_id, {"wallpaper_path": media.save(data, extension)})
+    if not updated:
+        raise NotFoundError("Conversation not found.")
+    return updated
+
+
+@router.delete("/conversations/{convo_id}/wallpaper")
+async def clear_wallpaper(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    """Empty string rather than null: the column has no nulls, and the update
+    below skips a None as "leave this alone"."""
+    updated = await repo.update(db, convo_id, {"wallpaper_path": ""})
     if not updated:
         raise NotFoundError("Conversation not found.")
     return updated

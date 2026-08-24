@@ -30,6 +30,11 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [regenTargetId, setRegenTargetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true); // desktop, inline column
+  // Phones: the panel covers the conversation, so a backdrop cannot be judged
+  // from inside it. Adjusting closes the panel and leaves a bar over the real
+  // thing instead.
+  const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
+  const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false); // phone, overlay
   const [loadError, setLoadError] = useState<string | null>(null);
   const [contextStats, setContextStats] = useState<ContextStats | null>(null);
@@ -44,6 +49,17 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     await api.patch(`/api/conversations/${conversation.id}`, { title });
     setConversation((c) => (c ? { ...c, title } : c));
   }
+
+  /** Live on every pixel of the drag, written once it settles: a range input
+   *  fires continuously and each of those would otherwise be a write. */
+  function setWallpaperOpacity(value: number) {
+    setConversation((c) => (c ? { ...c, wallpaper_opacity: value } : c));
+    if (opacityWrite.current) clearTimeout(opacityWrite.current);
+    opacityWrite.current = setTimeout(() => {
+      api.patch(`/api/conversations/${id}`, { wallpaper_opacity: value }).catch(() => {});
+    }, 350);
+  }
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
@@ -338,8 +354,22 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         </header>
 
         {/* Messages */}
-        <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-4 py-6">
+        <div ref={scrollRef} onScroll={onScroll} className="relative flex-1 overflow-y-auto">
+          {conversation.wallpaper_url && (
+            // Pinned to the column rather than scrolled with the text: a
+            // backdrop that slides past is a picture in the conversation, not
+            // behind it. aria-hidden — it says nothing a reader needs.
+            <div aria-hidden className="pointer-events-none sticky top-0 h-0 w-full">
+              <div
+                className="h-[100dvh] w-full bg-cover bg-center bg-no-repeat"
+                style={{
+                  backgroundImage: `url(${conversation.wallpaper_url})`,
+                  opacity: conversation.wallpaper_opacity ?? 0.25,
+                }}
+              />
+            </div>
+          )}
+          <div className="relative mx-auto max-w-3xl px-4 py-6">
             {visibleMessages.map((message, i) => (
               <ChatMessage
                 key={message.id}
@@ -414,6 +444,11 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           onConversationChange={(patch) =>
             setConversation((c) => (c ? { ...c, ...patch } : c))
           }
+          onWallpaperOpacity={setWallpaperOpacity}
+          onAdjustWallpaper={() => {
+            setMobilePanelOpen(false);
+            setAdjustingWallpaper(true);
+          }}
           className="hidden w-80 border-l md:flex"
         />
       )}
@@ -428,8 +463,45 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             onConversationChange={(patch) =>
               setConversation((c) => (c ? { ...c, ...patch } : c))
             }
+            onWallpaperOpacity={setWallpaperOpacity}
+            onAdjustWallpaper={() => {
+              setMobilePanelOpen(false);
+              setAdjustingWallpaper(true);
+            }}
             className="h-full w-full animate-rise"
           />
+        </div>
+      )}
+
+      {/* Phone: judging a backdrop means seeing what sits on it, so the panel
+          gets out of the way and only this stays. */}
+      {adjustingWallpaper && conversation.wallpaper_url && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-700 bg-ink-950/90 px-4 pt-4 backdrop-blur md:hidden"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
+          <div className="mb-2 flex items-center justify-between text-sm">
+            <span className="text-mist">{t("chat.wallpaper.opacity")}</span>
+            <span className="tabular-nums text-parchment-dim">
+              {Math.round((conversation.wallpaper_opacity ?? 0.25) * 100)}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round((conversation.wallpaper_opacity ?? 0.25) * 100)}
+            onChange={(e) => setWallpaperOpacity(Number(e.target.value) / 100)}
+            className="w-full accent-[#e29a3e]"
+            aria-label={t("chat.wallpaper.opacity")}
+          />
+          <button
+            type="button"
+            className="btn btn-primary mt-3 w-full"
+            onClick={() => setAdjustingWallpaper(false)}
+          >
+            {t("chat.wallpaper.done")}
+          </button>
         </div>
       )}
     </div>

@@ -109,6 +109,7 @@ class ConversationPatch(BaseModel):
     author_note: str | None = None
     persona_id: str | None = None
     connection_id: str | None = None
+    wallpaper_opacity: float | None = Field(default=None, ge=0, le=1)
 
 
 class MessagePatch(BaseModel):

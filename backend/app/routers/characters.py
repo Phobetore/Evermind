@@ -12,26 +12,10 @@ from ..errors import AppError, NotFoundError
 from ..models.schemas import CardAssistRequest, CharacterIn, CharacterUpdate
 from ..repositories import characters as repo
 from ..repositories import lore as lore_repo
-from ..repositories.base import new_id
-from ..services import card_assistant
+from ..services import card_assistant, media
 
 router = APIRouter(prefix="/api/characters", tags=["characters"])
 
-_ALLOWED_AVATAR_TYPES = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
-_MAX_UPLOAD_BYTES = 15 * 1024 * 1024
-
-
-async def _read_upload(file: UploadFile) -> bytes:
-    data = await file.read()
-    if len(data) > _MAX_UPLOAD_BYTES:
-        raise AppError("File too large (15 MB max).", 413)
-    return data
-
-
-def _save_media(data: bytes, extension: str) -> str:
-    filename = f"{new_id()}{extension}"
-    (media_dir() / filename).write_bytes(data)
-    return filename
 
 
 @router.get("")
@@ -48,13 +32,13 @@ async def create_character(payload: CharacterIn, db: aiosqlite.Connection = Depe
 
 @router.post("/import", status_code=201)
 async def import_character(file: UploadFile, db: aiosqlite.Connection = Depends(get_db)):
-    data = await _read_upload(file)
+    data = await media.read_upload(file)
     avatar_path = None
     if is_png(data):
         card = read_card_from_png(data)
         if not card:
             raise AppError("This PNG does not contain a character card (no \"chara\" chunk).")
-        avatar_path = _save_media(data, ".png")
+        avatar_path = media.save(data, ".png")
     else:
         try:
             card = json.loads(data.decode("utf-8"))
@@ -132,11 +116,8 @@ async def export_character(char_id: str, format: str = "json",
 @router.post("/{char_id}/avatar")
 async def upload_avatar(char_id: str, file: UploadFile,
                         db: aiosqlite.Connection = Depends(get_db)):
-    extension = _ALLOWED_AVATAR_TYPES.get(file.content_type or "")
-    if not extension:
-        raise AppError("Unsupported image format (PNG, JPEG or WebP).")
-    data = await _read_upload(file)
-    filename = _save_media(data, extension)
+    data, extension = await media.read_image_upload(file)
+    filename = media.save(data, extension)
     updated = await repo.update(db, char_id, {"avatar_path": filename})
     if not updated:
         raise NotFoundError("Character not found.")

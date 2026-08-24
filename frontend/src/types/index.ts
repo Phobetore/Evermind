@@ -74,6 +74,8 @@ export interface Conversation {
   title: string;
   summary: string;
   author_note?: string;
+  wallpaper_url?: string | null;
+  wallpaper_opacity?: number;
   forked_from?: string | null;
   forked_at_position?: number | null;
   created_at: string;

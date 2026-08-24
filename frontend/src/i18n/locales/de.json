@@ -297,6 +297,17 @@
         "title": "Szenen-Anker",
         "youFallback": "du"
       }
+    },
+    "wallpaper": {
+      "title": "Hintergrund",
+      "description": "Ein Bild hinter dieser Unterhaltung. Es gehört nur zu dieser Unterhaltung, nicht zur Figur.",
+      "choose": "Bild wählen",
+      "replace": "Ersetzen",
+      "remove": "Entfernen",
+      "opacity": "Stärke",
+      "adjust": "Stärke einstellen",
+      "done": "Fertig",
+      "failed": "Der Hintergrund ließ sich nicht setzen."
     }
   },
   "characters": {

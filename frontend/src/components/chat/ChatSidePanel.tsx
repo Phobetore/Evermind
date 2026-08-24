@@ -7,9 +7,9 @@ import { api } from "@/lib/api";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
-import { BrainCircuit, Layers, Loader2, Megaphone, NotebookPen, Pin, Plus, X } from "lucide-react";
+import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, NotebookPen, Pin, Plus, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // Mirrors the backend's select_facts: which facts actually reach the model,
 // so the panel can dim the dormant ones instead of hiding the limit.
@@ -37,12 +37,16 @@ export function ChatSidePanel({
   persona,
   onClose,
   onConversationChange,
+  onWallpaperOpacity,
+  onAdjustWallpaper,
   className,
 }: {
   conversation: Conversation;
   persona: Persona | null;
   onClose: () => void;
   onConversationChange: (patch: Partial<Conversation>) => void;
+  onWallpaperOpacity: (value: number) => void;
+  onAdjustWallpaper: () => void;
   className?: string;
 }) {
   const t = useT();
@@ -57,6 +61,37 @@ export function ChatSidePanel({
   const [memoryNote, setMemoryNote] = useState<string | null>(null);
   const [consolidating, setConsolidating] = useState(false);
   const [directive, setDirective] = useState(conversation.author_note ?? "");
+  const wallpaperInput = useRef<HTMLInputElement>(null);
+  const [wallpaperBusy, setWallpaperBusy] = useState(false);
+  const [wallpaperError, setWallpaperError] = useState<string | null>(null);
+
+  async function pickWallpaper(file: File | undefined) {
+    if (!file) return;
+    setWallpaperBusy(true);
+    setWallpaperError(null);
+    try {
+      const updated = await api.upload<Conversation>(
+        `/api/conversations/${conversation.id}/wallpaper`, file);
+      onConversationChange({
+        wallpaper_url: updated.wallpaper_url,
+        wallpaper_opacity: updated.wallpaper_opacity,
+      });
+    } catch (e) {
+      setWallpaperError(e instanceof Error ? e.message : t("chat.wallpaper.failed"));
+    }
+    setWallpaperBusy(false);
+  }
+
+  async function clearWallpaper() {
+    setWallpaperBusy(true);
+    try {
+      await api.delete(`/api/conversations/${conversation.id}/wallpaper`);
+      onConversationChange({ wallpaper_url: null });
+    } catch (e) {
+      setWallpaperError(e instanceof Error ? e.message : t("chat.wallpaper.failed"));
+    }
+    setWallpaperBusy(false);
+  }
 
   useEffect(() => {
     api.get<Connection[]>("/api/connections").then(setConnections);
@@ -248,6 +283,105 @@ export function ChatSidePanel({
           ))}
         </select>
       </Field>
+
+      {/* Backdrop. The opacity slider sits here on a wide screen, where the
+          conversation is beside the panel and the change can be seen as it is
+          made. On a phone the panel covers the conversation, so the button
+          hands the job over to a bar that sits on top of the real thing. */}
+      <div>
+        <div className="mb-1.5 flex items-center gap-2">
+          <ImageIcon className="h-3.5 w-3.5 text-arcane-300" />
+          <span className="ui-label">{t("chat.wallpaper.title")}</span>
+        </div>
+        <p className="mb-2 text-xs leading-relaxed text-mist-dim">
+          {t("chat.wallpaper.description")}
+        </p>
+
+        {conversation.wallpaper_url ? (
+          <>
+            <div className="flex items-start gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={conversation.wallpaper_url}
+                alt=""
+                className="h-16 w-24 shrink-0 rounded-lg border border-ink-600 object-cover"
+                draggable={false}
+              />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <button
+                  type="button"
+                  className="btn btn-ghost !py-1.5 text-xs"
+                  onClick={() => wallpaperInput.current?.click()}
+                  disabled={wallpaperBusy}
+                >
+                  {t("chat.wallpaper.replace")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger !py-1.5 text-xs"
+                  onClick={clearWallpaper}
+                  disabled={wallpaperBusy}
+                >
+                  {t("chat.wallpaper.remove")}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 hidden md:block">
+              <div className="mb-1 flex items-center justify-between text-xs text-mist">
+                <span>{t("chat.wallpaper.opacity")}</span>
+                <span className="tabular-nums text-parchment-dim">
+                  {Math.round((conversation.wallpaper_opacity ?? 0.25) * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round((conversation.wallpaper_opacity ?? 0.25) * 100)}
+                onChange={(e) => onWallpaperOpacity(Number(e.target.value) / 100)}
+                className="w-full accent-[#e29a3e]"
+                aria-label={t("chat.wallpaper.opacity")}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-ghost mt-3 w-full !py-1.5 text-xs md:hidden"
+              onClick={onAdjustWallpaper}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {t("chat.wallpaper.adjust")}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-ghost w-full !py-1.5 text-xs"
+            onClick={() => wallpaperInput.current?.click()}
+            disabled={wallpaperBusy}
+          >
+            {wallpaperBusy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ImageIcon className="h-3.5 w-3.5" />
+            )}
+            {t("chat.wallpaper.choose")}
+          </button>
+        )}
+
+        <input
+          ref={wallpaperInput}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            pickWallpaper(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+        {wallpaperError && <p className="mt-2 text-xs text-blood">{wallpaperError}</p>}
+      </div>
 
       {/* Scene directive: reaches the model at the most influential position
           (right before generation), so it holds even on long chats. */}

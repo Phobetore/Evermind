@@ -297,6 +297,17 @@
         "title": "Scene anchor",
         "youFallback": "you"
       }
+    },
+    "wallpaper": {
+      "title": "Backdrop",
+      "description": "An image behind this conversation. It belongs to this conversation alone, not to the character.",
+      "choose": "Choose an image",
+      "replace": "Replace",
+      "remove": "Remove",
+      "opacity": "Strength",
+      "adjust": "Adjust strength",
+      "done": "Done",
+      "failed": "Could not set the backdrop."
     }
   },
   "characters": {

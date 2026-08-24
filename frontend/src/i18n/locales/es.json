@@ -297,6 +297,17 @@
         "title": "Ancla de escena",
         "youFallback": "tú"
       }
+    },
+    "wallpaper": {
+      "title": "Fondo",
+      "description": "Una imagen detrás de esta conversación. Pertenece solo a esta conversación, no al personaje.",
+      "choose": "Elegir una imagen",
+      "replace": "Reemplazar",
+      "remove": "Quitar",
+      "opacity": "Intensidad",
+      "adjust": "Ajustar la intensidad",
+      "done": "Listo",
+      "failed": "No se ha podido poner el fondo."
     }
   },
   "characters": {

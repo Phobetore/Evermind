@@ -18,7 +18,10 @@ def message_to_out(row) -> dict:
 
 
 def convo_to_out(row) -> dict:
-    return dict(row)
+    out = dict(row)
+    wallpaper = out.pop("wallpaper_path", None)
+    out["wallpaper_url"] = f"/api/media/{wallpaper}" if wallpaper else None
+    return out
 
 
 async def create(db: aiosqlite.Connection, fields: dict) -> dict | None:
@@ -70,7 +73,8 @@ async def update(db: aiosqlite.Connection, convo_id: str, fields: dict) -> dict 
             "SELECT id FROM conversations WHERE id = ?", (convo_id,))).fetchone():
         return None
     sets, params = [], []
-    for key in ("title", "summary", "author_note", "persona_id", "connection_id"):
+    for key in ("title", "summary", "author_note", "persona_id", "connection_id",
+                "wallpaper_path", "wallpaper_opacity"):
         if key in fields and fields[key] is not None:
             sets.append(f"{key} = ?")
             params.append(fields[key])
@@ -184,13 +188,25 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
     if memory_position < (source.get("memory_position") or 0):
         # the summary may describe events past the fork; drop it rather than lie
         summary = ""
+    # Read raw rather than off `source`, which has already turned the stored
+    # filename into a URL for the client.
+    backdrop = await (await db.execute(
+        "SELECT wallpaper_path, wallpaper_opacity FROM conversations WHERE id = ?",
+        (source["id"],))).fetchone()
+
+    # The backdrop follows, like the persona and the connection: a branch is the
+    # same scene carried on differently, and losing the picture behind it would
+    # read as something having gone wrong rather than as a fresh start. The
+    # file is shared, not copied, which is why removing one never deletes it.
     await db.execute(
         "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
-        " summary, memory_position, forked_from, forked_at_position, created_at, updated_at)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " summary, memory_position, forked_from, forked_at_position,"
+        " wallpaper_path, wallpaper_opacity, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (branch_id, source["character_id"], source.get("persona_id"),
          source.get("connection_id"), title, summary, memory_position,
-         source["id"], position, now, now),
+         source["id"], position, backdrop["wallpaper_path"],
+         backdrop["wallpaper_opacity"], now, now),
     )
 
     rows = await (await db.execute(
