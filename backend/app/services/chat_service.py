@@ -122,6 +122,34 @@ async def _generate(connection: dict, payload: PromptPayload):
         yield event
 
 
+async def _settle_unfinished(db: aiosqlite.Connection, messages: list[dict]) -> list[dict]:
+    """Turn a stale "still writing" mark into what it actually means.
+
+    The mark says a turn is writing that message right now. When the reader
+    goes away mid-reply there is nothing left holding a connection to clear it,
+    so it outlives the turn. The chat view hides anything carrying it while a
+    turn is live — otherwise a page opened mid-turn shows the same text twice,
+    once from the database and once from the stream — so a leftover mark made
+    that reply vanish during every later generation, most visibly the moment
+    you tried to continue it, which is exactly what you do with a reply that
+    was cut off.
+
+    By the time another turn starts, nothing is writing it any more. Settle it
+    as interrupted, which is the key the view already knows how to label and
+    which nothing was setting.
+    """
+    settled = []
+    for message in messages:
+        meta = message.get("meta") or {}
+        if not meta.get("streaming"):
+            settled.append(message)
+            continue
+        meta = {key: value for key, value in meta.items() if key != "streaming"}
+        meta["interrupted"] = True
+        settled.append(await convo_repo.update_message(db, message["id"], meta=meta) or message)
+    return settled
+
+
 async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIterator[str]:
     try:
         convo, character, persona, connection, settings = await _resolve(db, request.conversation_id)
@@ -131,7 +159,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
 
     char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
-    messages = await convo_repo.list_messages(db, convo["id"])
+    messages = await _settle_unfinished(db, await convo_repo.list_messages(db, convo["id"]))
 
     user_message = None
     target_message = None  # existing assistant message receiving a new/extended variant

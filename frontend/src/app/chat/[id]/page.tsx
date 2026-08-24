@@ -75,6 +75,12 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   // The closure that updates the message list belongs to whichever page instance
   // started the turn. Arrive after it started, or come back to it, and nothing
   // would tell this instance the reply had landed: watch the turn end instead.
+  // What was already on screen when this page started the current turn. The
+  // filter below hides a reply marked as still being written, so that a page
+  // opened mid-turn does not show the same text twice; one that was already
+  // here predates the turn and is not what is being written.
+  const [beforeTurn, setBeforeTurn] = useState<Set<string>>(new Set());
+
   const wasBusy = useRef(false);
   useEffect(() => {
     if (busy) {
@@ -108,6 +114,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     setError(null);
     stickToBottom.current = true;
     const controller = new AbortController();
+    setBeforeTurn(new Set(messages.map((m) => m.id)));
     turnStore.begin(conversation.id, controller);
 
     // The sent message appears instantly; the persisted version from the
@@ -238,9 +245,12 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   // below). A reply still being written is hidden the same way while its turn is
   // live: the backend saves it as it goes, so arriving mid-turn would otherwise
   // show the same text twice, once from the database and once from the stream.
+  // Only one that arrived with the turn, though. A reply left marked from an
+  // earlier turn that was cut off was hidden too, so it disappeared for the
+  // length of every later generation — including the one continuing it.
   const visibleMessages = messages.filter((m) => {
     if (regenTargetId && streamText !== null && m.id === regenTargetId) return false;
-    if (busy && m.meta?.streaming) return false;
+    if (busy && m.meta?.streaming && !beforeTurn.has(m.id)) return false;
     return true;
   });
 
