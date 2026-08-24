@@ -98,15 +98,21 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
-        for word in reply.split(" "):
-            chunk = {"choices": [{"delta": {"content": word + " "}}]}
-            self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
+        try:
+            for word in reply.split(" "):
+                chunk = {"choices": [{"delta": {"content": word + " "}}]}
+                self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
+                self.wfile.flush()
+                time.sleep(0.045)
+            self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"stop"}],'
+                             b'"usage":{"total_tokens":42}}\n\n')
+            self.wfile.write(b"data: [DONE]\n\n")
             self.wfile.flush()
-            time.sleep(0.045)
-        self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"stop"}],'
-                         b'"usage":{"total_tokens":42}}\n\n')
-        self.wfile.write(b"data: [DONE]\n\n")
-        self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            # The reader went away mid-reply. Tests do that on purpose —
+            # one of them is about what an interrupted reply leaves behind
+            # — and a traceback for each buries a real failure in noise.
+            pass
 
     def _json(self, body: str, status: int = 200):
         data = body.encode()

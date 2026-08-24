@@ -42,15 +42,28 @@ plus valid JSON for the memory and card-assistant prompts.
 ## Tests
 
 ```bash
-cd backend && .venv/Scripts/python -m pytest    # 150+ tests
+cd backend && .venv/Scripts/python -m pytest    # 230+ tests
 cd backend && .venv/Scripts/python -m ruff check app tests
 cd frontend && npx tsc --noEmit
 cd frontend && npm run build
+cd frontend && npm run test:e2e                 # a real browser, both sizes
 ```
 
 The backend suite covers the whole API through mocked providers, so it never
-needs a model or a network. The frontend has no unit-test framework; typecheck
-and build are the gate.
+needs a model or a network.
+
+The end-to-end suite starts the whole stack itself — a mock model, the backend
+on a data directory of its own, and the dev server — on ports of their own, so a
+run never disturbs an Evermind you are actually using. `npm run test:e2e:ui`
+opens Playwright's runner if you want to watch one.
+
+It exists because typecheck and build are blind to the kind of thing that
+actually broke: a button falling off the side of a phone, an API the browser
+withholds when the app is reached by address rather than on localhost, a message
+disappearing while a reply streams. Every test in `e2e/` was written against a
+fault that had already shipped, and each one was checked to fail when that fault
+is put back — a test that passes either way is worse than none, because it
+reads like cover.
 
 ## Main API surface
 

@@ -74,6 +74,55 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+  # Everything above this reads the code without running it: types, lint, a
+  # build. Not one of them can see a button that falls off the side of a phone,
+  # an API the browser withholds outside a secure context, or a message that
+  # disappears while a reply streams — which is what the last several fixes
+  # were. This drives a real browser against the real stack.
+  e2e:
+    name: End to end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # The suite starts the backend itself, from a virtualenv in the place the
+      # Playwright config looks for one.
+      - name: Backend environment
+        run: |
+          python -m venv backend/.venv
+          backend/.venv/bin/python -m pip install -q -e "backend[dev]"
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run
+        working-directory: frontend
+        run: npm run test:e2e
+
+      # Only on a failure, and only then: a trace is worth having when something
+      # broke on a machine you cannot look at, and worth nothing otherwise.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: playwright-trace
+          path: frontend/test-results/
+          retention-days: 7
+
   # The images were only ever built when cutting a release, so a broken COPY or a
   # stale base image stayed invisible behind a green CI until publishing failed.
   # Built here and never pushed: publishing stays the release workflow's job.

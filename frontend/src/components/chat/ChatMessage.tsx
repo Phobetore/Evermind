@@ -59,7 +59,9 @@ export function ChatMessage({
   }
 
   return (
-    <div className="group flex gap-3.5 px-1 py-3 animate-fade">
+    // Named so a test can point at one message rather than at a run of its
+    // text, which asterisks turn into several elements.
+    <div data-message-id={message.id} className="group flex gap-3.5 px-1 py-3 animate-fade">
       <Avatar name={name} src={avatarSrc} className="mt-0.5 h-10 w-10 shrink-0 text-lg" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2.5">
