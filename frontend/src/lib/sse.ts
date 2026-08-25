@@ -13,12 +13,37 @@ export async function streamChat(
   onEvent: (event: ChatEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const resp = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
+  return readEvents(
+    fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    }),
+    onEvent,
+  );
+}
+
+/** Attach to a reply already being written somewhere else — a phone coming
+ *  back to a conversation it left mid-turn. The server hands over what has
+ *  arrived so far and then the rest; an empty stream means nothing is running,
+ *  which is not an error. */
+export async function followTurn(
+  conversationId: string,
+  onEvent: (event: ChatEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  return readEvents(
+    fetch(`/api/conversations/${conversationId}/turn/stream`, { signal }),
+    onEvent,
+  );
+}
+
+async function readEvents(
+  pending: Promise<Response>,
+  onEvent: (event: ChatEvent) => void,
+): Promise<void> {
+  const resp = await pending;
   if (!resp.ok || !resp.body) {
     throw new Error(`Erreur ${resp.status}. Le serveur Evermind est-il lancé ?`);
   }

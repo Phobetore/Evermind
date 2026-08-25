@@ -7,7 +7,7 @@ import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { useT } from "@/i18n/useT";
 import { api } from "@/lib/api";
-import { streamChat } from "@/lib/sse";
+import { followTurn, streamChat } from "@/lib/sse";
 import { turnStore } from "@/lib/turnStore";
 import type { ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
@@ -76,6 +76,30 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         }
       })
       .catch((e) => setLoadError(e.message));
+  }, [id]);
+
+  // A reply may be being written for this conversation right now, by a server
+  // that carried on after the phone that asked for it went to sleep. Attach to
+  // it and watch the rest arrive, rather than showing a conversation that looks
+  // finished and is not.
+  useEffect(() => {
+    if (turnStore.isRunning(id)) return; // this page is already the one running it
+    let live = true;
+    const controller = new AbortController();
+    api.get<{ running: boolean }>(`/api/conversations/${id}/turn`)
+      .then((state) => {
+        if (!state.running || !live || turnStore.isRunning(id)) return;
+        turnStore.begin(id, controller);
+        return followTurn(id, (event) => {
+          if (event.type === "delta") turnStore.append(event.text);
+          else if (event.type === "done" || event.type === "error") turnStore.end();
+        }, controller.signal).finally(() => turnStore.end());
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+      controller.abort();
+    };
   }, [id]);
 
   const reload = useCallback(async () => {
