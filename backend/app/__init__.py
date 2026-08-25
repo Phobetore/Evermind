@@ -8,4 +8,4 @@ reporting whatever version the machine was first set up with. Hatchling reads
 this literal at build time, so pyproject.toml has no copy to drift from.
 """
 
-__version__ = "2.1.1"
+__version__ = "2.1.2"
