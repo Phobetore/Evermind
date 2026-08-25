@@ -261,7 +261,12 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
                 if passages:
                     payload = _build(passages)  # pass 2 — inject RELEVANT PAST
 
-    yield _sse({"type": "start", "conversation_id": convo["id"], "user_message": user_message})
+    # target_message_id says which reply this turn is replacing or extending, so
+    # that a page arriving in the middle of one knows not to show that reply and
+    # its replacement at the same time.
+    yield _sse({"type": "start", "conversation_id": convo["id"],
+                "user_message": user_message,
+                "target_message_id": target_message["id"] if target_message else None})
 
     chunks: list[str] = []
     usage = None

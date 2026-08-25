@@ -28,6 +28,11 @@ _KEEP_FINISHED_SECONDS = 120
 @dataclass
 class Turn:
     conversation_id: str
+    # What kind of turn this is. A page attaching to one in progress needs it:
+    # a regeneration replaces a reply that is already on screen, and without
+    # knowing that, the page shows both the old one and the new one arriving
+    # underneath as though a second reply were being added.
+    mode: str = "send"
     # Every event this turn has emitted, so a reader arriving late gets the
     # whole reply rather than the tail of it.
     events: list[str] = field(default_factory=list)
@@ -86,7 +91,7 @@ async def start(request: ChatRequest) -> Turn:
         existing = running_for(request.conversation_id)
         if existing:
             return existing
-        turn = Turn(conversation_id=request.conversation_id)
+        turn = Turn(conversation_id=request.conversation_id, mode=request.mode)
         _running[request.conversation_id] = turn
         turn.task = asyncio.create_task(_run(turn, request))
         return turn

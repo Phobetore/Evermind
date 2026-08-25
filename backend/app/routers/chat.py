@@ -31,7 +31,8 @@ async def turn_state(convo_id: str) -> dict:
     """Whether a reply is being written right now. A page opening asks this
     before deciding whether it is looking at a finished conversation or one
     still in progress somewhere else."""
-    return {"running": turns.running_for(convo_id) is not None}
+    turn = turns.running_for(convo_id)
+    return {"running": turn is not None, "mode": turn.mode if turn else None}
 
 
 @router.get("/conversations/{convo_id}/turn/stream")

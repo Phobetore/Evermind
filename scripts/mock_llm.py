@@ -104,11 +104,16 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         try:
+            # A test that is about what happens *during* a reply needs the
+            # reply to still be going when it looks. Rather than tune sleeps
+            # against whatever machine is running, it says so in the
+            # conversation and this slows right down.
+            delay = WORD_DELAY * 4 if "SLOWLY" in json.dumps(payload) else WORD_DELAY
             for word in reply.split(" "):
                 chunk = {"choices": [{"delta": {"content": word + " "}}]}
                 self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
                 self.wfile.flush()
-                time.sleep(WORD_DELAY)
+                time.sleep(delay)
             self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"stop"}],'
                              b'"usage":{"total_tokens":42}}\n\n')
             self.wfile.write(b"data: [DONE]\n\n")

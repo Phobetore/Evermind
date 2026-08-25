@@ -88,12 +88,34 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     const controller = new AbortController();
     api.get<{ running: boolean }>(`/api/conversations/${id}/turn`)
       .then((state) => {
-        if (!state.running || !live || turnStore.isRunning(id)) return;
+        // `live` alone: React runs this effect twice on mount in development,
+        // and asking the store whether a turn is running lets the second run
+        // bail out while the first is still being torn down, leaving nothing
+        // attached at all.
+        if (!state.running || !live) return;
         turnStore.begin(id, controller);
         return followTurn(id, (event) => {
-          if (event.type === "delta") turnStore.append(event.text);
-          else if (event.type === "done" || event.type === "error") turnStore.end();
-        }, controller.signal).finally(() => turnStore.end());
+          // The replay starts at the beginning, so this is the same `start` the
+          // page that asked for the turn saw. A regeneration replaces a reply
+          // rather than adding one; without knowing which, the page shows both
+          // the old reply and its replacement arriving underneath.
+          if (event.type === "start") {
+            setRegenTargetId(event.target_message_id ?? null);
+          } else if (event.type === "delta") {
+            turnStore.append(event.text);
+          } else if (event.type === "done") {
+            setMessages((prev) => {
+              const others = prev.filter((m) => m.id !== event.message.id);
+              return [...others, event.message].sort((a, b) => a.position - b.position);
+            });
+            turnStore.end();
+          } else if (event.type === "error") {
+            turnStore.end();
+          }
+        }, controller.signal).finally(() => {
+          turnStore.end();
+          setRegenTargetId(null);
+        });
       })
       .catch(() => {});
     return () => {
@@ -226,7 +248,17 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       if (controller.signal.aborted) {
         await reload(); // backend persisted the partial text
       } else {
-        setError(e instanceof Error ? e.message : t("chat.errors.connectionFailed"));
+        // Losing the connection is no longer the same as losing the reply: the
+        // turn belongs to the server and carries on without us. Saying "network
+        // error" for a phone that went to sleep is alarming and wrong — ask
+        // first, and only report a failure if there is really nothing running.
+        const alive = await api
+          .get<{ running: boolean }>(`/api/conversations/${id}/turn`)
+          .then((s) => s.running)
+          .catch(() => false);
+        if (!alive) {
+          setError(e instanceof Error ? e.message : t("chat.errors.connectionFailed"));
+        }
       }
     }
 

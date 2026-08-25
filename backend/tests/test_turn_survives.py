@@ -112,3 +112,34 @@ async def test_a_finished_turn_is_not_offered_as_running(client, unhurried):
     assert turns.running_for(convo["id"]) is None, (
         "a page would attach to a stream with nothing left to say"
     )
+
+
+async def test_a_regeneration_also_finishes_after_its_reader_leaves(client, unhurried):
+    """Reported from a phone, and the mode matters: regenerating replaces the
+    last reply rather than adding one, and the reader leaving mid-way is the
+    same screen going off."""
+    convo = await setup_conversation(client)
+    await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "content": "Dis quelque chose"})
+    before = await _messages(client, convo["id"])
+    target = before[-1]
+    assert target["role"] == "assistant"
+
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    reader = turns.follow(turn)
+    for _ in range(3):
+        await reader.asend(None)
+    await reader.aclose()
+
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    after = await _messages(client, convo["id"])
+    assert len(after) == len(before), "a reply was added rather than replaced"
+    replaced = after[-1]
+    assert replaced["id"] == target["id"]
+    assert len(replaced["variants"]) == 2, (
+        f"the regeneration stopped when its reader did: {replaced['variants']}"
+    )
+    assert replaced["variants"][-1].strip().endswith("mot11"), (
+        "the replacement was cut short"
+    )

@@ -164,7 +164,9 @@ export interface Memory {
 }
 
 export type ChatEvent =
-  | { type: "start"; conversation_id: string; user_message: Message | null }
+  | { type: "start"; conversation_id: string; user_message: Message | null;
+      /** The reply this turn replaces or extends, if any. */
+      target_message_id?: string | null }
   | { type: "delta"; text: string }
   | { type: "done"; message: Message; context?: ContextStats; perf?: TurnPerf }
   | { type: "error"; message: string };
