@@ -64,6 +64,7 @@ def build(character=None, messages=None, **kwargs):
         messages=messages if messages is not None else [make_message("user", "Hello", 0)],
         connection=kwargs.get("connection", make_connection()),
         global_instructions=kwargs.get("global_instructions", ""),
+        memories=kwargs.get("memories"),
     )
 
 
@@ -411,3 +412,37 @@ def test_oldest_visible_reflects_real_rendered_window():
     # the rendered turns are the last n messages; the oldest of them is messages[60-n]
     expected_oldest = messages[60 - n]["position"]
     assert payload.stats["oldest_visible"] == expected_oldest
+
+
+def _fact(content: str, *, pinned: bool, position: int = 0) -> dict:
+    return {"id": content[:8], "content": content, "kind": "event",
+            "is_pinned": pinned, "source_position": position}
+
+
+def test_a_pinned_fact_is_said_again_where_it_carries():
+    """It reached the model already, at the top of the system prompt — and on a
+    long chat that is thousands of tokens above the model's own recent output,
+    which is exactly the distance the post-history block exists to close.
+    Pinning is someone saying this is the one that must not be dropped."""
+    payload = build(memories=[
+        _fact("Serana swore never to enter the crypt again.", pinned=True),
+        _fact("Serana likes the colour blue.", pinned=False),
+    ])
+    assert "swore never to enter the crypt" in payload.system, "still stated up top"
+    assert "swore never to enter the crypt" in payload.post_history, (
+        "a pinned fact has to be there at the moment of writing, not only far above it"
+    )
+    assert "likes the colour blue" not in payload.post_history, (
+        "restating everything would make this block another wall to skim"
+    )
+
+
+def test_the_restated_block_names_the_character():
+    payload = build(memories=[_fact("The crypt is sealed.", pinned=True)])
+    assert "Serana has not forgotten" in payload.post_history
+    assert "{{char}}" not in payload.post_history, "an unsubstituted macro reaches the model as-is"
+
+
+def test_nothing_is_restated_when_nothing_is_pinned():
+    payload = build(memories=[_fact("Serana likes blue.", pinned=False)])
+    assert "has not forgotten" not in payload.post_history

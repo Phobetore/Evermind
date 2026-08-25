@@ -18,6 +18,11 @@ from .tokens import estimate_tokens
 # Re-stated at generation time because rule adherence decays with distance:
 # on a long chat the system prompt is thousands of tokens away, drowned out
 # by the model's own recent output.
+# Enough for what someone has deliberately marked, not so many that the block
+# becomes another wall of text to skim. Pinning more than this is a sign the
+# facts want consolidating rather than repeating.
+_MAX_PINNED_RESTATED = 8
+
 _POST_HISTORY_REMINDER = (
     "[Stay in character as {{char}}. Write only {{char}}'s next turn. Every line "
     "of dialogue and every action must be a COMPLETE sentence — never leave "
@@ -258,6 +263,17 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     card_note = (character.get("post_history_instructions") or "").strip()
     if card_note:
         post_bits.append(card_note)
+    # Pinned facts, said again down here. Pinning is someone marking a thing as
+    # the one that must never be dropped, and it used to buy only an exemption
+    # from the fact budget — which is worth nothing when the block sits
+    # thousands of tokens above the model's own recent output. Same reasoning as
+    # the reminder below: the last thing read is the thing that carries.
+    pinned = [m for m in (memories or []) if m.get("is_pinned")]
+    if pinned:
+        lines = "\n".join(f"- {(m.get('content') or '').strip()}" for m in pinned[:_MAX_PINNED_RESTATED])
+        post_bits.append(
+            f"[Still true, and {char_name} has not forgotten any of it:\n{lines}]"
+        )
     scene_directive = ((conversation or {}).get("author_note") or "").strip()
     if scene_directive:
         post_bits.append(f"[Scene directive from {user_name}]: {scene_directive}")
