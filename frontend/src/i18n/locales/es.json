@@ -308,6 +308,15 @@
       "adjust": "Ajustar la intensidad",
       "done": "Listo",
       "failed": "No se ha podido poner el fondo."
+    },
+    "writing": {
+      "title": "Escritura",
+      "action": "una acción, en cursiva",
+      "emphasis": "énfasis",
+      "quote": "una línea citada",
+      "list": "una lista",
+      "code": "se queda tal cual",
+      "modes": "El botón a la izquierda del cuadro alterna entre hablar, narrar la escena tú mismo, y una nota para la IA en vez de para la historia."
     }
   },
   "characters": {

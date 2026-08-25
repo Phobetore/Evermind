@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
-import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, NotebookPen, Pin, Plus, SlidersHorizontal, X } from "lucide-react";
+import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, NotebookPen, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -283,6 +283,35 @@ export function ChatSidePanel({
           ))}
         </select>
       </Field>
+
+      {/* What the text box actually understands. Everything listed is something
+          this app renders or does — nothing aspirational, and nothing carried
+          over from another tool's conventions. */}
+      <div>
+        <div className="mb-1.5 flex items-center gap-2">
+          <Type className="h-3.5 w-3.5 text-arcane-300" />
+          <span className="ui-label">{t("chat.writing.title")}</span>
+        </div>
+        <dl className="flex flex-col gap-1.5 text-xs leading-relaxed">
+          {[
+            ["*text*", t("chat.writing.action")],
+            ["**text**", t("chat.writing.emphasis")],
+            ["> text", t("chat.writing.quote")],
+            ["- text", t("chat.writing.list")],
+            ["`text`", t("chat.writing.code")],
+          ].map(([syntax, meaning]) => (
+            <div key={syntax} className="flex items-baseline gap-2">
+              <dt className="shrink-0 rounded border border-ink-600 bg-ink-950/60 px-1.5 py-0.5 font-mono text-[0.7rem] text-parchment-dim">
+                {syntax}
+              </dt>
+              <dd className="min-w-0 text-mist">{meaning}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-2 text-xs leading-relaxed text-mist-dim">
+          {t("chat.writing.modes")}
+        </p>
+      </div>
 
       {/* Backdrop. The opacity slider sits here on a wide screen, where the
           conversation is beside the panel and the change can be seen as it is

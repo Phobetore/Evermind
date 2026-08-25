@@ -308,6 +308,15 @@
       "adjust": "Adjust strength",
       "done": "Done",
       "failed": "Could not set the backdrop."
+    },
+    "writing": {
+      "title": "Writing",
+      "action": "an action, in italics",
+      "emphasis": "emphasis",
+      "quote": "a quoted line",
+      "list": "a list",
+      "code": "kept as typed",
+      "modes": "The button left of the box switches between speaking, narrating the scene yourself, and a note meant for the AI rather than the story."
     }
   },
   "characters": {

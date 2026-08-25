@@ -308,6 +308,15 @@
       "adjust": "Stärke einstellen",
       "done": "Fertig",
       "failed": "Der Hintergrund ließ sich nicht setzen."
+    },
+    "writing": {
+      "title": "Schreiben",
+      "action": "eine Handlung, kursiv",
+      "emphasis": "Betonung",
+      "quote": "eine zitierte Zeile",
+      "list": "eine Liste",
+      "code": "bleibt, wie getippt",
+      "modes": "Der Knopf links vom Feld wechselt zwischen Sprechen, die Szene selbst erzählen, und einer Notiz an die KI statt an die Geschichte."
     }
   },
   "characters": {
