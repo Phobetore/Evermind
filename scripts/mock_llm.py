@@ -8,12 +8,17 @@ context, so you can validate the whole pipeline (streaming, swipes, summary).
 """
 
 import json
+import os
 import random
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 5599
+# Seconds between words. The end-to-end suite raises it: several of its tests
+# are about what happens *during* a reply, and at the default pace the reply is
+# over before a second browser has finished opening the page.
+WORD_DELAY = float(os.environ.get("EVERMIND_MOCK_DELAY", "0.045"))
 
 REPLIES = [
     "*{char} watches you for a moment, weighing something.* Now that is an interesting "
@@ -103,7 +108,7 @@ class Handler(BaseHTTPRequestHandler):
                 chunk = {"choices": [{"delta": {"content": word + " "}}]}
                 self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
                 self.wfile.flush()
-                time.sleep(0.045)
+                time.sleep(WORD_DELAY)
             self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"stop"}],'
                              b'"usage":{"total_tokens":42}}\n\n')
             self.wfile.write(b"data: [DONE]\n\n")

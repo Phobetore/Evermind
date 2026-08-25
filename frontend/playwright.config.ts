@@ -53,6 +53,11 @@ export default defineConfig({
       url: `http://127.0.0.1:${MOCK_PORT}/v1/models`,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
+      // Slower than the default on purpose. Several tests are about what
+      // happens while a reply is being written, and at full speed the reply is
+      // finished before a second browser has opened the page — which passes on
+      // a fast laptop and fails on a CI runner.
+      env: { EVERMIND_MOCK_DELAY: "0.15" },
     },
     {
       command: `${python} -m uvicorn app.main:app --host 127.0.0.1 --port ${API_PORT}`,
