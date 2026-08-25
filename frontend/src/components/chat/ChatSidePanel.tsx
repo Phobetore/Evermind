@@ -94,8 +94,12 @@ export function ChatSidePanel({
   }
 
   useEffect(() => {
-    api.get<Connection[]>("/api/connections").then(setConnections);
-    api.get<Memory[]>(`/api/conversations/${conversation.id}/memories`).then(setMemories);
+    // Caught: offline, these reject, and an unhandled rejection is noise in a
+    // console that a real fault has to be found in.
+    api.get<Connection[]>("/api/connections").then(setConnections).catch(() => {});
+    api.get<Memory[]>(`/api/conversations/${conversation.id}/memories`)
+      .then(setMemories)
+      .catch(() => {});
   }, [conversation.id]);
 
   // Both fields are editable, and both have to follow the conversation when it

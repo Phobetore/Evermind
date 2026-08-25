@@ -29,11 +29,13 @@ export default function ConversationsPage() {
   }
 
   const load = () =>
-    api.get<Conversation[]>("/api/conversations").then((list) => {
-      setConversations(list);
-      // also drops drafts left behind by conversations deleted elsewhere
-      setWithDraft(pruneDrafts(list.map((c) => c.id)));
-    });
+    api.get<Conversation[]>("/api/conversations")
+      .then((list) => {
+        setConversations(list);
+        // also drops drafts left behind by conversations deleted elsewhere
+        setWithDraft(pruneDrafts(list.map((c) => c.id)));
+      })
+      .catch(() => {});
   useEffect(() => {
     load();
   }, []);

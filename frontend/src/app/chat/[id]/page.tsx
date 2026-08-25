@@ -70,9 +70,9 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         setConversation(convo);
         setMessages(convo.messages ?? []);
         if (convo.persona_id) {
-          api.get<Persona[]>("/api/personas").then((all) =>
-            setPersona(all.find((p) => p.id === convo.persona_id) ?? null),
-          );
+          api.get<Persona[]>("/api/personas")
+            .then((all) => setPersona(all.find((p) => p.id === convo.persona_id) ?? null))
+            .catch(() => {});
         }
       })
       .catch((e) => setLoadError(e.message));
@@ -82,55 +82,58 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   // that carried on after the phone that asked for it went to sleep. Attach to
   // it and watch the rest arrive, rather than showing a conversation that looks
   // finished and is not.
-  useEffect(() => {
+  /** Watch a reply that is being written elsewhere — by a server that carried
+   *  on after the phone that asked for it went to sleep. Used on arriving at
+   *  the conversation, and again after a connection comes back. */
+  const attachToRunningTurn = useCallback(async (controller: AbortController) => {
     if (turnStore.isRunning(id)) return; // this page is already the one running it
-    let live = true;
-    const controller = new AbortController();
-    api.get<{ running: boolean }>(`/api/conversations/${id}/turn`)
-      .then((state) => {
-        // `live` alone: React runs this effect twice on mount in development,
-        // and asking the store whether a turn is running lets the second run
-        // bail out while the first is still being torn down, leaving nothing
-        // attached at all.
-        if (!state.running || !live) return;
-        turnStore.begin(id, controller);
-        return followTurn(id, (event) => {
-          // The replay starts at the beginning, so this is the same `start` the
-          // page that asked for the turn saw. A regeneration replaces a reply
-          // rather than adding one; without knowing which, the page shows both
-          // the old reply and its replacement arriving underneath.
-          if (event.type === "start") {
-            setRegenTargetId(event.target_message_id ?? null);
-          } else if (event.type === "delta") {
-            turnStore.append(event.text);
-          } else if (event.type === "done") {
-            setMessages((prev) => {
-              const others = prev.filter((m) => m.id !== event.message.id);
-              return [...others, event.message].sort((a, b) => a.position - b.position);
-            });
-            turnStore.end();
-          } else if (event.type === "error") {
-            turnStore.end();
-          }
-        }, controller.signal).finally(() => {
-          turnStore.end();
-          setRegenTargetId(null);
-        });
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-      controller.abort();
-    };
+    const state = await api
+      .get<{ running: boolean }>(`/api/conversations/${id}/turn`)
+      .catch(() => ({ running: false }));
+    if (!state.running || controller.signal.aborted) return;
+    turnStore.begin(id, controller);
+    try {
+      await followTurn(id, (event) => {
+        // The replay starts at the beginning, so this is the same `start` the
+        // page that asked for the turn saw. A regeneration replaces a reply
+        // rather than adding one; without knowing which, the page shows both
+        // the old reply and its replacement arriving underneath.
+        if (event.type === "start") {
+          setRegenTargetId(event.target_message_id ?? null);
+        } else if (event.type === "delta") {
+          turnStore.append(event.text);
+        } else if (event.type === "done") {
+          setMessages((prev) => {
+            const others = prev.filter((m) => m.id !== event.message.id);
+            return [...others, event.message].sort((a, b) => a.position - b.position);
+          });
+        }
+      }, controller.signal);
+    } catch {
+      /* the reply is saved as it goes; a resync will find it */
+    } finally {
+      turnStore.end();
+      setRegenTargetId(null);
+    }
   }, [id]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    void attachToRunningTurn(controller);
+    return () => controller.abort();
+  }, [attachToRunningTurn]);
+
+  /** Fetch the conversation again. Returns whether Evermind answered: callers
+   *  that lost a connection use that to tell "the reply landed while we were
+   *  away" from "the server is not there". */
   const reload = useCallback(async () => {
-    if (!conversation) return;
+    if (!conversation) return true;
     try {
       const convo = await api.get<Conversation>(`/api/conversations/${conversation.id}`);
       setMessages(convo.messages ?? []);
+      return true;
     } catch {
-      /* keep current state */
+      return false; // keep current state
     }
   }, [conversation]);
 
@@ -248,16 +251,24 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       if (controller.signal.aborted) {
         await reload(); // backend persisted the partial text
       } else {
-        // Losing the connection is no longer the same as losing the reply: the
-        // turn belongs to the server and carries on without us. Saying "network
-        // error" for a phone that went to sleep is alarming and wrong — ask
-        // first, and only report a failure if there is really nothing running.
-        const alive = await api
-          .get<{ running: boolean }>(`/api/conversations/${id}/turn`)
-          .then((s) => s.running)
-          .catch(() => false);
-        if (!alive) {
+        // Whether the turn ever began is what decides this, and `start` is how
+        // we know. Losing the connection after it began is not losing the
+        // reply — the turn belongs to the server and finishes without us — so
+        // there is nothing to report and everything to resync. Failing before
+        // it began means the message may never have been sent, which is worth
+        // saying.
+        //
+        // Asking instead whether a turn is *still* running was not enough: come
+        // back an hour later and of course it is not, so a reply that had landed
+        // perfectly well was reported as a network error until the page was
+        // reloaded by hand.
+        const reachable = await reload();
+        if (!startReceived || !reachable) {
           setError(e instanceof Error ? e.message : t("chat.errors.connectionFailed"));
+        } else {
+          // If the reply is still being written, pick it back up rather than
+          // leaving the conversation looking finished.
+          void attachToRunningTurn(new AbortController());
         }
       }
     }
