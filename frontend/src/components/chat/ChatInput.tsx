@@ -1,7 +1,8 @@
 "use client";
 
+import { ModelSilent } from "@/components/chat/ModelSilent";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/drafts";
 import { clsx } from "clsx";
 import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Send, Square } from "lucide-react";
@@ -63,6 +64,9 @@ export function ChatInput({
   const [mode, setMode] = useState<MessageMode>("say");
   const [ghostwriting, setGhostwriting] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  // Stays until the next attempt, rather than fading: something has to be
+  // switched on before trying again is worth anything.
+  const [silent, setSilent] = useState(false);
   const [restored, setRestored] = useState(false);
   // A phone keyboard has no Shift, so Enter-to-send left no way at all to start
   // a new line. Only a device that actually has a keyboard keeps that shortcut;
@@ -113,6 +117,10 @@ export function ChatInput({
   function submit() {
     const content = value.trim();
     if (!content || busy) return;
+    // The reply about to be asked for reports its own silence, in the
+    // conversation. Two of these on screen at once is the fuss this was
+    // supposed to avoid.
+    setSilent(false);
     setValue("");
     clearDraft(conversationId);
     onSend(content, mode);
@@ -123,6 +131,7 @@ export function ChatInput({
     if (busy || ghostwriting) return;
     setGhostwriting(true);
     setHint(null);
+    setSilent(false);
     try {
       const result = await api.post<{ text: string }>(
         `/api/conversations/${conversationId}/impersonate`,
@@ -130,8 +139,14 @@ export function ChatInput({
       setValue(result.text);
       ref.current?.focus();
     } catch (e) {
-      setHint(e instanceof Error ? e.message : t("chat.input.ghostwriteError"));
-      setTimeout(() => setHint(null), 4000);
+      // The model saying nothing is not the same as a mistake, and it used to
+      // land in the hint line for four seconds, where the keyboard tip lives.
+      if (e instanceof ApiError && e.kind === "unreachable") {
+        setSilent(true);
+      } else {
+        setHint(e instanceof Error ? e.message : t("chat.input.ghostwriteError"));
+        setTimeout(() => setHint(null), 4000);
+      }
     }
     setGhostwriting(false);
   }
@@ -141,6 +156,12 @@ export function ChatInput({
       className="border-t border-ink-700 bg-ink-900 px-4 py-3 md:bg-ink-900/80 md:backdrop-blur"
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
+      {/* Right above the box, which is where you were looking when you asked. */}
+      {silent && (
+        <div className="mb-2.5">
+          <ModelSilent onRetry={ghostwrite} />
+        </div>
+      )}
       <div className="mx-auto flex max-w-3xl items-end gap-2.5">
         <button
           className={clsx("btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12", MODES[mode].color)}

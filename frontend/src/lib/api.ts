@@ -1,3 +1,15 @@
+/** An error the server gave a name to. `kind` lets the interface show
+ *  something better than the sentence — "unreachable" is the model not
+ *  answering, which is a different thing from a mistake someone made. */
+export class ApiError extends Error {
+  kind?: string;
+  constructor(message: string, kind?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.kind = kind;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(path, {
     headers: init?.body instanceof FormData ? undefined : { "Content-Type": "application/json" },
@@ -5,14 +17,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!resp.ok) {
     let detail = `Erreur ${resp.status}`;
+    let kind: string | undefined;
     try {
       const body = await resp.json();
       detail = body.error ?? body.detail ?? detail;
+      kind = body.kind;
       if (typeof detail !== "string") detail = JSON.stringify(detail);
     } catch {
       /* keep default */
     }
-    throw new Error(detail);
+    throw new ApiError(detail, kind);
   }
   if (resp.status === 204) return undefined as T;
   return resp.json();

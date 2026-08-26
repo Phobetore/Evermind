@@ -317,6 +317,12 @@
       "list": "a list",
       "code": "kept as typed",
       "modes": "The button left of the box switches between speaking, narrating the scene yourself, and a note meant for the AI rather than the story."
+    },
+    "modelSilent": {
+      "title": "No answer from the model.",
+      "hint": "The AI server behind this conversation may not be running.",
+      "settingsLink": "Connections",
+      "retry": "Try again"
     }
   },
   "characters": {

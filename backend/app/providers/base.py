@@ -23,10 +23,14 @@ class ProviderEvent:
     meta: dict = field(default_factory=dict)
 
 
+UNREACHABLE = "unreachable"
+
+
 class ProviderError(Exception):
-    def __init__(self, message: str):
+    def __init__(self, message: str, kind: str | None = None):
         super().__init__(message)
         self.message = message
+        self.kind = kind
 
 
 class Provider:

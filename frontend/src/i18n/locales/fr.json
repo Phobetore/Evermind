@@ -317,6 +317,12 @@
       "list": "une liste",
       "code": "conservé tel quel",
       "modes": "Le bouton à gauche de la zone de saisie bascule entre parler, narrer la scène vous-même, et une note destinée à l'IA plutôt qu'à l'histoire."
+    },
+    "modelSilent": {
+      "title": "Le modèle n'a pas répondu.",
+      "hint": "Le serveur d'IA derrière cette conversation n'est peut-être pas lancé.",
+      "settingsLink": "Connexions",
+      "retry": "Réessayer"
     }
   },
   "characters": {

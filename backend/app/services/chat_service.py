@@ -345,7 +345,8 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
                 usage = event.usage
                 finish_reason = (event.meta or {}).get("finish_reason")
             elif event.type == "error":
-                yield _sse({"type": "error", "message": event.message})
+                yield _sse({"type": "error", "message": event.message,
+                            "kind": event.meta.get("kind")})
                 return
 
         text = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
@@ -426,7 +427,7 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise AppError(event.message, 502)
+            raise AppError(event.message, 502, kind=event.meta.get("kind"))
     text = _trim_reply("".join(chunks), char_name=user_name, user_name=char_name)
     if not text:
         raise AppError("The model did not suggest anything. Try again.", 502)
@@ -459,7 +460,7 @@ async def summarize(db: aiosqlite.Connection, convo_id: str) -> dict:
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise AppError(event.message, 502)
+            raise AppError(event.message, 502, kind=event.meta.get("kind"))
     summary = "".join(chunks).strip()
     if not summary:
         raise AppError("The model returned an empty summary.", 502)

@@ -317,6 +317,12 @@
       "list": "eine Liste",
       "code": "bleibt, wie getippt",
       "modes": "Der Knopf links vom Feld wechselt zwischen Sprechen, die Szene selbst erzählen, und einer Notiz an die KI statt an die Geschichte."
+    },
+    "modelSilent": {
+      "title": "Keine Antwort vom Modell.",
+      "hint": "Der KI-Server hinter dieser Unterhaltung läuft vielleicht nicht.",
+      "settingsLink": "Verbindungen",
+      "retry": "Nochmal"
     }
   },
   "characters": {

@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator
 import httpx
 
 from ..prompting.engine import PromptPayload
-from .base import Provider, ProviderError, ProviderEvent
+from .base import UNREACHABLE, Provider, ProviderError, ProviderEvent
 
 
 class OpenAICompatProvider(Provider):
@@ -92,7 +92,8 @@ class OpenAICompatProvider(Provider):
                     if text:
                         yield ProviderEvent(type="delta", text=text)
         except httpx.ConnectError:
-            yield ProviderEvent(type="error", message=self._connect_error_message())
+            yield ProviderEvent(type="error", message=self._connect_error_message(),
+                                meta={"kind": UNREACHABLE})
             return
         except httpx.TimeoutException:
             yield ProviderEvent(type="error", message="The LLM server took too long to respond (timeout).")
@@ -107,7 +108,7 @@ class OpenAICompatProvider(Provider):
             async with self._client_factory() as client:
                 response = await client.get(f"{self.base_url}/models", headers=self._headers())
         except httpx.ConnectError:
-            raise ProviderError(self._connect_error_message())
+            raise ProviderError(self._connect_error_message(), kind=UNREACHABLE)
         except httpx.HTTPError as exc:
             raise ProviderError(f"Network error: {exc}")
         if response.status_code >= 400:

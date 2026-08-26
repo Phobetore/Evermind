@@ -317,6 +317,12 @@
       "list": "una lista",
       "code": "se queda tal cual",
       "modes": "El botón a la izquierda del cuadro alterna entre hablar, narrar la escena tú mismo, y una nota para la IA en vez de para la historia."
+    },
+    "modelSilent": {
+      "title": "El modelo no ha respondido.",
+      "hint": "Puede que el servidor de IA detrás de esta conversación no esté en marcha.",
+      "settingsLink": "Conexiones",
+      "retry": "Reintentar"
     }
   },
   "characters": {

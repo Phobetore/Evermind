@@ -2,6 +2,7 @@
 
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatMessage } from "@/components/chat/ChatMessage";
+import { ModelSilent } from "@/components/chat/ModelSilent";
 import { ChatSidePanel } from "@/components/chat/ChatSidePanel";
 import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
@@ -34,6 +35,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   // from inside it. Adjusting closes the panel and leaves a bar over the real
   // thing instead.
   const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
+  const [silent, setSilent] = useState(false);
   const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false); // phone, overlay
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -177,6 +179,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   ) {
     if (!conversation || busy) return;
     setError(null);
+    setSilent(false);
     stickToBottom.current = true;
     const controller = new AbortController();
     setBeforeTurn(new Set(messages.map((m) => m.id)));
@@ -238,7 +241,10 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             if (event.perf) setPerf(event.perf);
           } else if (event.type === "error") {
             finished = true;
-            setError(event.message);
+            // A model that never answered is not a fault to raise the alarm
+            // about; usually the server behind it is simply not running.
+            if (event.kind === "unreachable") setSilent(true);
+            else setError(event.message);
           }
         },
         controller.signal,
@@ -476,6 +482,12 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {silent && (
+              <div className="mx-1 my-3">
+                <ModelSilent onRetry={() => runTurn("regenerate")} />
               </div>
             )}
 
