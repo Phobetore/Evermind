@@ -66,7 +66,7 @@ jobs:
       # Reported rather than failed. This runs on a timer against images that
       # were already published, so there is no build to stop; the point is that
       # it lands in the Security tab beside CodeQL and Dependabot.
-      - uses: github/codeql-action/upload-sarif@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4
+      - uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
         with:
           sarif_file: trivy-${{ matrix.image }}.sarif
           category: trivy-${{ matrix.image }}
