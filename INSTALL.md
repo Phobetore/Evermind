@@ -217,7 +217,8 @@ scripts\prod.ps1
 ./scripts/prod.sh
 ```
 
-The first run installs what it needs and takes a few minutes. Then open
+The first run installs what it needs and takes a few minutes, and so does the
+first run after an update that changes any of it. Then open
 **http://localhost:3000**.
 
 Use `scripts\prod.ps1 -SkipBuild` (or `./scripts/prod.sh --skip-build`) for a
