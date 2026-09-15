@@ -146,13 +146,17 @@ the password can be changed without rebuilding.
 
 ## Cutting a release
 
-1. Bump the version in `backend/pyproject.toml`, `frontend/package.json` and the
-   two project entries in `frontend/package-lock.json`. `/api/health` reads its
-   number from the installed distribution, so nothing else needs touching.
+1. Bump the version in `backend/app/__init__.py`, `frontend/package.json`, the
+   two project entries in `frontend/package-lock.json`, and the placeholder in
+   `.github/ISSUE_TEMPLATE/bug_report.yml`. `/api/health` and the update check
+   read `__version__` rather than the installed distribution, whose metadata
+   keeps the number it had when `pip install -e` last ran.
 2. Push a `v*` tag. That builds both images for amd64 and arm64, pushes them to
    ghcr.io, and attaches `docker-compose.yml` and `env.example` to the release,
    creating an empty release first if the tag arrived before it.
-3. Write the notes.
+3. Write the notes once that release exists. Published any earlier, it becomes
+   `releases/latest` while the images are still building, without the files
+   described below.
 
 The attached files are not decoration: INSTALL.md tells people to install by
 downloading `releases/latest/download/docker-compose.yml` and nothing else, so a
