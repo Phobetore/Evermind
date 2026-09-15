@@ -42,14 +42,29 @@ export PORT
 # down when someone changes it and then skips the build.
 export EVERMIND_BACKEND_URL="${EVERMIND_BACKEND_URL:-http://127.0.0.1:${BACKEND_PORT}}"
 
+# Dependencies are installed again whenever the file they come from changes, not
+# only on the first run. Otherwise an update that moves one, a security fix for
+# instance, leaves the old copy in place to be built and served as before.
+# A failed install stops here (set -e), before the copy that marks it as done.
 if [ ! -d "$ROOT/backend/.venv" ]; then
     echo "First run: creating the Python environment..."
     python3 -m venv "$ROOT/backend/.venv"
-    "$ROOT/backend/.venv/bin/python" -m pip install -q -e "$ROOT/backend[dev]"
 fi
-if [ ! -d "$ROOT/frontend/node_modules" ]; then
-    echo "First run: installing frontend dependencies..."
-    (cd "$ROOT/frontend" && npm install)
+PY_INSTALLED="$ROOT/backend/.venv/.installed-pyproject.toml"
+if ! cmp -s "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"; then
+    echo "Installing backend dependencies..."
+    rm -f "$PY_INSTALLED"
+    "$ROOT/backend/.venv/bin/python" -m pip install -q -e "$ROOT/backend[dev]"
+    cp "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"
+fi
+LOCK_INSTALLED="$ROOT/frontend/node_modules/.installed-package-lock.json"
+if ! cmp -s "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"; then
+    echo "Installing frontend dependencies (a minute or two)..."
+    rm -f "$LOCK_INSTALLED"
+    # ci, not install: exactly what the lockfile says, and the lockfile is never
+    # rewritten into a local change that would make the next `git pull` refuse.
+    (cd "$ROOT/frontend" && npm ci)
+    cp "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"
 fi
 
 if [ "$SKIP_BUILD" = 1 ]; then

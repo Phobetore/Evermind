@@ -37,14 +37,54 @@ if (-not $backendPort) { $backendPort = "8000" }
 # build for the interface to know where the API lives.
 if (-not $env:EVERMIND_BACKEND_URL) { $env:EVERMIND_BACKEND_URL = "http://127.0.0.1:$backendPort" }
 
+# `next start` refuses to move: an occupied port kills it outright. Checked before
+# anything else, because the likeliest occupant is Evermind itself, still running
+# while it is being updated, and nothing below should happen underneath it.
+if (Get-NetTCPConnection -LocalPort $env:PORT -State Listen -ErrorAction SilentlyContinue) {
+    Write-Host ""
+    Write-Host "Port $($env:PORT) is already in use, and the interface will not start on it." -ForegroundColor Red
+    Write-Host "If Evermind is still running, stop it and run this again. Otherwise put a" -ForegroundColor Yellow
+    Write-Host "free port in .env next to this script, then run it again:" -ForegroundColor Yellow
+    Write-Host "  PORT=3001" -ForegroundColor Cyan
+    Write-Host "EVERMIND_BACKEND_PORT does the same for the API, currently $backendPort." -ForegroundColor Yellow
+    exit 1
+}
+
+# Dependencies are installed again whenever the file they come from changes, not
+# only on the first run. Otherwise an update that moves one, a security fix for
+# instance, leaves the old copy in place to be built and served as before.
 if (-not (Test-Path "$root\backend\.venv")) {
     Write-Host "First run: creating the Python environment..."
     python -m venv "$root\backend\.venv"
-    & "$root\backend\.venv\Scripts\python" -m pip install -q -e "$root\backend[dev]"
 }
-if (-not (Test-Path "$root\frontend\node_modules")) {
-    Write-Host "First run: installing frontend dependencies..."
-    Push-Location "$root\frontend"; npm install; Pop-Location
+$pyproject = "$root\backend\pyproject.toml"
+$pyInstalled = "$root\backend\.venv\.installed-pyproject.toml"
+if (-not (Test-Path $pyInstalled) -or (Get-FileHash $pyproject).Hash -ne (Get-FileHash $pyInstalled).Hash) {
+    Write-Host "Installing backend dependencies..."
+    Remove-Item $pyInstalled -ErrorAction SilentlyContinue
+    & "$root\backend\.venv\Scripts\python" -m pip install -q -e "$root\backend[dev]"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Installing the backend dependencies failed. Nothing was started." -ForegroundColor Red
+        exit 1
+    }
+    Copy-Item $pyproject $pyInstalled
+}
+$lock = "$root\frontend\package-lock.json"
+$lockInstalled = "$root\frontend\node_modules\.installed-package-lock.json"
+if (-not (Test-Path $lockInstalled) -or (Get-FileHash $lock).Hash -ne (Get-FileHash $lockInstalled).Hash) {
+    Write-Host "Installing frontend dependencies (a minute or two)..."
+    Remove-Item $lockInstalled -ErrorAction SilentlyContinue
+    Push-Location "$root\frontend"
+    # ci, not install: exactly what the lockfile says, and the lockfile is never
+    # rewritten into a local change that would make the next `git pull` refuse.
+    npm ci
+    $installFailed = $LASTEXITCODE -ne 0
+    Pop-Location
+    if ($installFailed) {
+        Write-Host "Installing the frontend dependencies failed. Nothing was started." -ForegroundColor Red
+        exit 1
+    }
+    Copy-Item $lock $lockInstalled
 }
 
 if ($SkipBuild) {

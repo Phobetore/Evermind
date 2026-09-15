@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
   // Gzip buffers proxied SSE in production: chat events would all arrive at
   // once instead of streaming. Static assets barely suffer on a LAN.
   compress: false,
+  // Evermind never uses next/image, yet the optimizer behind it answers at
+  // /_next/image, outside the password gate, and runs whatever image it is
+  // pointed at through a native decoder. Two of the advisories fixed in Next
+  // 16.3.3 were in that decoder. Turned off, the address is a plain 404.
+  images: { unoptimized: true },
 };
 
 export default nextConfig;
