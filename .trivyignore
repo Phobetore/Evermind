@@ -19,3 +19,11 @@ GHSA-6v7p-g79w-8964
 # all Trivy is seeing.
 # Remove once pip's vendor.txt names setuptools >= 78.1.1, or stops naming it.
 CVE-2025-47273
+
+# urllib3 2.7.0, two high findings. Read from that same vendor.txt: pip 26.2.1,
+# the newest release, vendors urllib3==2.7.0, and the fix is 2.8.0. Evermind
+# itself depends on urllib3 nowhere, and it is absent from the tree the image
+# installs.
+# Remove once a pip release vendors urllib3 >= 2.8.0.
+CVE-2026-97687
+CVE-2026-97689
