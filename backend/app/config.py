@@ -15,6 +15,28 @@ def default_env_file() -> Path:
     return _REPO_ROOT / ".env"
 
 
+def _settings_text(data: bytes) -> str:
+    """The text of a settings file, whichever of UTF-8 and UTF-16 it is in.
+
+    A byte order mark says which. Without one, a file that starts with ASCII
+    characters gives itself away by its NUL bytes: UTF-16 puts one after each
+    character in little-endian and before each in big-endian. UTF-32 has NULs on
+    both sides, which fits neither, and is refused like any other text that is
+    not UTF-8 or UTF-16.
+    """
+    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return data.decode("utf-16")
+    head = data[:8]
+    after, before = head[1::2].count(0), head[0::2].count(0)
+    if after and not before:
+        return data.decode("utf-16-le")
+    if before and not after:
+        return data.decode("utf-16-be")
+    if after and before:
+        raise UnicodeError("NUL bytes that fit neither byte order of UTF-16")
+    return data.decode("utf-8-sig")
+
+
 def load_env_file(path: Path) -> list[str]:
     """Put the settings of a ``.env`` file into the environment; return the keys set.
 
@@ -27,8 +49,8 @@ def load_env_file(path: Path) -> list[str]:
     - The file may start with a byte order mark and use CRLF line endings, which
       is what Notepad and PowerShell write. Neither may end up in a key or value.
     - UTF-16 is understood as well as UTF-8, because that is what ``>`` and
-      ``Out-File`` write in Windows PowerShell 5.1. It is recognised by its byte
-      order mark, which that PowerShell always writes.
+      ``Out-File`` write in Windows PowerShell 5.1. That PowerShell always writes
+      a byte order mark; other tools may not, and the NUL bytes show the order.
     - There are no trailing comments. ``#`` starts a comment only at the start of
       a line, because a password is allowed to contain one.
     - A variable that is already set and not empty wins over the file, so that
@@ -43,12 +65,8 @@ def load_env_file(path: Path) -> list[str]:
         data = path.read_bytes()
     except FileNotFoundError:
         return []
-    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
-        text = data.decode("utf-16")
-    else:
-        text = data.decode("utf-8-sig")
     keys: list[str] = []
-    for raw in text.split("\n"):
+    for raw in _settings_text(data).split("\n"):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue

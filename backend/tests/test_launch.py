@@ -174,6 +174,47 @@ def test_env_file_utf16_reads_like_utf8(tmp_path, clean_env, bom, codec):
     assert os.environ["EVERMIND_GATE_PASSWORD"] == "mot de passé ✨"
 
 
+@pytest.mark.parametrize("codec", ["utf-16-le", "utf-16-be"])
+def test_env_file_utf16_without_a_byte_order_mark(tmp_path, clean_env, codec):
+    # Not every tool that writes UTF-16 puts the mark in front. The text is told
+    # apart by its NUL bytes: ASCII characters leave one after them in
+    # little-endian and one before them in big-endian.
+    text = "PORT=3001\r\nexport BIND=0.0.0.0\r\nEVERMIND_GATE_PASSWORD=mot de passé ✨\r\n"
+    f = tmp_path / ".env"
+    f.write_bytes(text.encode(codec))
+    assert load_env_file(f) == ["PORT", "BIND", "EVERMIND_GATE_PASSWORD"]
+    assert os.environ["PORT"] == "3001"
+    assert os.environ["BIND"] == "0.0.0.0"
+    assert os.environ["EVERMIND_GATE_PASSWORD"] == "mot de passé ✨"
+
+
+@pytest.mark.parametrize("codec", ["utf-16-le", "utf-16-be"])
+def test_env_file_utf16_without_a_mark_may_start_with_an_accent(tmp_path, clean_env, codec):
+    # The first character is not ASCII, but one of its two bytes is still a NUL.
+    f = tmp_path / ".env"
+    f.write_bytes("é\nPORT=3001\n".encode(codec))
+    assert load_env_file(f) == ["PORT"]
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        # UTF-32 has NULs on both sides of every ASCII character.
+        "PORT=3001\n".encode("utf-32-le"),
+        "PORT=3001\n".encode("utf-32-be"),
+        # UTF-16 cut in the middle of a character.
+        "PORT=3001\n".encode("utf-16-le")[:-1],
+    ],
+    ids=["utf-32-le", "utf-32-be", "truncated-utf-16"],
+)
+def test_env_file_with_nul_bytes_that_is_not_utf16_raises(tmp_path, clean_env, data):
+    f = tmp_path / ".env"
+    f.write_bytes(data)
+    with pytest.raises(UnicodeError):
+        load_env_file(f)
+    assert "PORT" not in os.environ
+
+
 def test_env_file_that_is_not_text_raises_before_setting_anything(tmp_path, clean_env):
     f = tmp_path / ".env"
     f.write_bytes(b"PORT=3001\nEVERMIND_GATE_PASSWORD=caf\xe9\n")  # Latin-1, not UTF-8
