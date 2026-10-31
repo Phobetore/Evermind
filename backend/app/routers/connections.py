@@ -2,7 +2,8 @@ import aiosqlite
 from fastapi import APIRouter, Depends
 
 from ..db import get_db
-from ..errors import NotFoundError
+from ..errors import NotFoundError, failure_fields
+from ..providers.base import NO_TEXT
 from ..models.schemas import ConnectionIn, ConnectionUpdate
 from ..providers import ProviderError, get_provider
 from ..repositories import connections as repo
@@ -43,7 +44,7 @@ async def test_connection_payload(payload: ConnectionIn):
     try:
         return await get_provider(payload.model_dump()).test()
     except ProviderError as exc:
-        return {"ok": False, "detail": exc.message}
+        return {"ok": False, "detail": exc.message, **exc.meta}
 
 
 @router.post("/{conn_id}/test")
@@ -54,7 +55,7 @@ async def test_connection(conn_id: str, db: aiosqlite.Connection = Depends(get_d
     try:
         return await get_provider(connection).test()
     except ProviderError as exc:
-        return {"ok": False, "detail": exc.message}
+        return {"ok": False, "detail": exc.message, **exc.meta}
 
 
 @router.post("/{conn_id}/benchmark")
@@ -85,12 +86,12 @@ async def benchmark_connection(conn_id: str, db: aiosqlite.Connection = Depends(
                     first_token = time.monotonic()
                 chunks.append(event.text)
             elif event.type == "error":
-                return {"ok": False, "detail": event.message}
+                return {"ok": False, "detail": event.message, **failure_fields(event.meta)}
     except ProviderError as exc:
-        return {"ok": False, "detail": exc.message}
+        return {"ok": False, "detail": exc.message, **exc.meta}
     now = time.monotonic()
     if not chunks or first_token is None:
-        return {"ok": False, "detail": "No text generated."}
+        return {"ok": False, "detail": "No text generated.", "kind": NO_TEXT}
     tokens = estimate_tokens("".join(chunks))
     gen_time = max(0.05, now - first_token)
     return {
@@ -109,4 +110,4 @@ async def list_models(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
     try:
         return {"models": await get_provider(connection).list_models()}
     except ProviderError as exc:
-        return {"models": [], "error": exc.message}
+        return {"models": [], "error": exc.message, **exc.meta}

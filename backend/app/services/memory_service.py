@@ -12,7 +12,9 @@ import logging
 import aiosqlite
 
 from ..db import _connect
-from ..errors import MODEL_ERROR, MODEL_UNREADABLE, NO_CONNECTION, AppError, NotFoundError
+from ..errors import (
+    MODEL_UNREADABLE, NO_CONNECTION, AppError, NotFoundError, model_failure,
+)
 from ..prompting import embeddings
 from ..prompting.defaults import MEMORY_CONSOLIDATION_PROMPT, MEMORY_EXTRACTION_PROMPT
 from ..prompting.engine import PromptPayload, active_content
@@ -125,7 +127,7 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise AppError(event.message, 502, kind=event.meta.get("kind") or MODEL_ERROR)
+            raise model_failure(event.message, event.meta)
     parsed = parse_llm_json("".join(chunks))
     merged = [f for f in (parsed or {}).get("facts") or []
               if isinstance(f, dict) and str(f.get("content") or "").strip()]
@@ -194,7 +196,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise AppError(event.message, 502, kind=event.meta.get("kind") or MODEL_ERROR)
+            raise model_failure(event.message, event.meta)
 
     parsed = parse_llm_json("".join(chunks))
     if parsed is None:

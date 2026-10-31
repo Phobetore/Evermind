@@ -11,7 +11,17 @@ from collections.abc import AsyncIterator
 import httpx
 
 from ..prompting.engine import PromptPayload
-from .base import UNREACHABLE, Provider, ProviderError, ProviderEvent
+from .base import (
+    NETWORK_ERROR,
+    TIMEOUT,
+    UNEXPECTED_RESPONSE,
+    UNREACHABLE,
+    Provider,
+    ProviderError,
+    ProviderEvent,
+    failure,
+    status_failure,
+)
 
 
 class OpenAICompatProvider(Provider):
@@ -69,8 +79,11 @@ class OpenAICompatProvider(Provider):
             ) as response:
                 if response.status_code >= 400:
                     detail = await _read_error(response)
-                    yield ProviderEvent(type="error", message=_http_error_message(
-                        response.status_code, detail, self.model))
+                    yield ProviderEvent(
+                        type="error",
+                        message=_http_error_message(response.status_code, detail, self.model),
+                        meta=status_failure(response.status_code, detail),
+                    )
                     return
                 async for line in response.aiter_lines():
                     if not line.startswith("data:"):
@@ -93,13 +106,16 @@ class OpenAICompatProvider(Provider):
                         yield ProviderEvent(type="delta", text=text)
         except httpx.ConnectError:
             yield ProviderEvent(type="error", message=self._connect_error_message(),
-                                meta={"kind": UNREACHABLE})
+                                meta=failure(UNREACHABLE))
             return
         except httpx.TimeoutException:
-            yield ProviderEvent(type="error", message="The LLM server took too long to respond (timeout).")
+            yield ProviderEvent(type="error",
+                                message="The LLM server took too long to respond (timeout).",
+                                meta=failure(TIMEOUT))
             return
         except httpx.HTTPError as exc:
-            yield ProviderEvent(type="error", message=f"Network error: {exc}")
+            yield ProviderEvent(type="error", message=f"Network error: {exc}",
+                                meta=failure(NETWORK_ERROR, upstream=str(exc)))
             return
         yield ProviderEvent(type="done", usage=usage, meta={"finish_reason": finish_reason})
 
@@ -108,21 +124,32 @@ class OpenAICompatProvider(Provider):
             async with self._client_factory() as client:
                 response = await client.get(f"{self.base_url}/models", headers=self._headers())
         except httpx.ConnectError:
-            raise ProviderError(self._connect_error_message(), kind=UNREACHABLE)
+            raise ProviderError(self._connect_error_message(), **failure(UNREACHABLE))
         except httpx.HTTPError as exc:
-            raise ProviderError(f"Network error: {exc}")
+            raise ProviderError(f"Network error: {exc}",
+                                **failure(NETWORK_ERROR, upstream=str(exc)))
         if response.status_code >= 400:
-            raise ProviderError(_http_error_message(response.status_code, response.text[:300], self.model))
+            detail = _error_text(response.content)
+            raise ProviderError(
+                _http_error_message(response.status_code, detail, self.model),
+                **status_failure(response.status_code, detail),
+            )
         try:
             data = response.json().get("data") or []
             return [m["id"] for m in data if isinstance(m, dict) and m.get("id")]
         except (ValueError, KeyError, TypeError):
-            raise ProviderError("Unexpected server response on /models.")
+            raise ProviderError("Unexpected server response on /models.",
+                                **failure(UNEXPECTED_RESPONSE))
 
 
 async def _read_error(response: httpx.Response) -> str:
+    return _error_text(await response.aread())
+
+
+def _error_text(content: bytes) -> str:
+    """What the server said about the error, from the body it sent."""
     try:
-        body = json.loads(await response.aread())
+        body = json.loads(content)
         error = body.get("error")
         if isinstance(error, dict):
             return error.get("message") or str(error)

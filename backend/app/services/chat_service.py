@@ -23,7 +23,7 @@ from collections.abc import AsyncIterator
 import aiosqlite
 
 from ..errors import (
-    MODEL_EMPTY, MODEL_ERROR, NO_CONNECTION, NOT_FOUND, AppError, NotFoundError,
+    MODEL_EMPTY, NO_CONNECTION, NOT_FOUND, AppError, NotFoundError, failure_fields, model_failure,
 )
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval
@@ -56,12 +56,13 @@ def _sse(obj: dict) -> str:
     return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n"
 
 
-def error_event(message: str, kind: str, resource: str | None = None) -> str:
-    """The event that ends a turn that could not be done."""
+def error_event(message: str, kind: str, resource: str | None = None, **details) -> str:
+    """The event that ends a turn that could not be done. ``details`` are more
+    fields for the interface, such as what a model's server said."""
     event = {"type": "error", "message": message, "kind": kind}
     if resource:
         event["resource"] = resource
-    return _sse(event)
+    return _sse({**event, **details})
 
 
 def _auto_title(content: str) -> str:
@@ -368,7 +369,8 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
                 usage = event.usage
                 finish_reason = (event.meta or {}).get("finish_reason")
             elif event.type == "error":
-                yield error_event(event.message, event.meta.get("kind") or MODEL_ERROR)
+                fields = failure_fields(event.meta)
+                yield error_event(event.message, fields.pop("kind"), **fields)
                 return
 
         text = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
@@ -451,7 +453,7 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise AppError(event.message, 502, kind=event.meta.get("kind") or MODEL_ERROR)
+            raise model_failure(event.message, event.meta)
     text = _trim_reply("".join(chunks), char_name=user_name, user_name=char_name)
     if not text:
         raise AppError("The model did not suggest anything. Try again.", 502, kind=MODEL_EMPTY)
@@ -484,7 +486,7 @@ async def summarize(db: aiosqlite.Connection, convo_id: str) -> dict:
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise AppError(event.message, 502, kind=event.meta.get("kind") or MODEL_ERROR)
+            raise model_failure(event.message, event.meta)
     summary = "".join(chunks).strip()
     if not summary:
         raise AppError("The model returned an empty summary.", 502, kind=MODEL_EMPTY)

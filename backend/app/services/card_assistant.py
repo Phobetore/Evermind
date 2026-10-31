@@ -8,7 +8,9 @@ import json
 
 import aiosqlite
 
-from ..errors import MODEL_EMPTY, MODEL_ERROR, MODEL_UNREADABLE, NO_CONNECTION, AppError
+from ..errors import (
+    MODEL_EMPTY, MODEL_UNREADABLE, NO_CONNECTION, AppError, model_failure,
+)
 from ..prompting.defaults import CARD_ASSISTANT_PROMPT
 from ..prompting.engine import PromptPayload
 from ..providers import get_provider
@@ -112,7 +114,7 @@ async def generate_card(db: aiosqlite.Connection, prompt: str, kind: str,
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise AppError(event.message, 502, kind=event.meta.get("kind") or MODEL_ERROR)
+            raise model_failure(event.message, event.meta)
 
     parsed = parse_llm_json("".join(chunks))
     if parsed is None:

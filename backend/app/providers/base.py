@@ -6,6 +6,7 @@ from typing import Literal
 
 import httpx
 
+from ..errors import failure_fields
 from ..prompting.engine import PromptPayload
 
 # Local generation can be slow: generous read timeout, snappy connect timeout.
@@ -23,14 +24,46 @@ class ProviderEvent:
     meta: dict = field(default_factory=dict)
 
 
+# The kinds of failure between Evermind and a model's server. The sentences stay
+# English here, for whoever reads the API; the interface says each in the
+# person's own language.
 UNREACHABLE = "unreachable"
+AUTH_REFUSED = "model_auth_refused"
+MODEL_NOT_FOUND = "model_not_found"
+RATE_LIMITED = "model_rate_limited"
+HTTP_ERROR = "model_http_error"
+TIMEOUT = "model_timeout"
+NETWORK_ERROR = "model_network_error"
+UNEXPECTED_RESPONSE = "model_unexpected_response"
+UNKNOWN_TYPE = "model_unknown_type"
+NO_TEXT = "model_no_text"
+
+
+def failure(kind: str, **details) -> dict:
+    """The ``meta`` of a failed event, or the keyword arguments of a
+    ``ProviderError``: a kind, and what the model's server said (``upstream``,
+    ``upstream_status``) if it did. Empty details are left out."""
+    return {"kind": kind, **{k: v for k, v in details.items() if v not in (None, "")}}
+
+
+def status_failure(status: int, detail: str) -> dict:
+    """The failure for a model's server that answered with an error status."""
+    kind = {401: AUTH_REFUSED, 404: MODEL_NOT_FOUND, 429: RATE_LIMITED}.get(status, HTTP_ERROR)
+    return failure(kind, upstream_status=status, upstream=detail)
 
 
 class ProviderError(Exception):
-    def __init__(self, message: str, kind: str | None = None):
+    def __init__(self, message: str, kind: str | None = None, **details):
         super().__init__(message)
         self.message = message
         self.kind = kind
+        self.details = details
+
+    @property
+    def meta(self) -> dict:
+        """What a failed event would carry, with the kind a model gets when it
+        gives none."""
+        return failure_fields({"kind": self.kind, **self.details})
 
 
 class Provider:
@@ -54,9 +87,10 @@ class Provider:
         """Cheap reachability/auth check used by the connections UI."""
         try:
             models = await self.list_models()
-            return {"ok": True, "detail": f"{len(models)} models available", "models_sample": models[:8]}
+            return {"ok": True, "detail": f"{len(models)} models available",
+                    "model_count": len(models), "models_sample": models[:8]}
         except ProviderError as exc:
-            return {"ok": False, "detail": exc.message}
+            return {"ok": False, "detail": exc.message, **exc.meta}
 
     def _connect_error_message(self) -> str:
         return (
