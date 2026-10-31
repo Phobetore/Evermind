@@ -27,10 +27,12 @@ import time
 from collections import deque
 from datetime import UTC, datetime, timedelta
 
+from starlette import status
 from starlette.datastructures import Headers
 from starlette.requests import HTTPConnection
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.websockets import WebSocketClose
 
 from . import config
 from .db import connect
@@ -380,17 +382,18 @@ class GateMiddleware:
         self.store = store
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
+        if scope["type"] not in ("http", "websocket"):
             await self.app(scope, receive, send)
             return
         path = _route_path(scope)
         if not path.startswith("/api/"):
             await self.app(scope, receive, send)
             return
+        socket = scope["type"] == "websocket"
         # Judged before the password, and whether or not there is one: without
         # it a forged write needs no session, and any website could send one
         # to an Evermind listening on localhost.
-        if scope["method"] not in SAFE_METHODS and _from_another_origin(scope):
+        if not socket and scope["method"] not in SAFE_METHODS and _from_another_origin(scope):
             refused = JSONResponse({"error": "Cross-origin request refused.",
                                     "kind": "cross_origin"}, status_code=403)
             await refused(scope, receive, send)
@@ -403,10 +406,16 @@ class GateMiddleware:
 
         token = HTTPConnection(scope).cookies.get(SESSION_COOKIE)
         if not store.check(token):
+            if socket:
+                # Closing before accepting refuses the handshake.
+                await WebSocketClose(code=status.WS_1008_POLICY_VIOLATION)(scope, receive, send)
+                return
             locked = JSONResponse({"error": "Locked.", "kind": "locked"}, status_code=401)
             await locked(scope, receive, send)
             return
-        if not await store.touch(token):
+        # Only HTTP requests slide the session: the cookie is sent again on
+        # http.response.start, which a websocket never sends.
+        if socket or not await store.touch(token):
             await self.app(scope, receive, send)
             return
 

@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
+from starlette.websockets import WebSocket
 
 from app import gate
 from app.db import connect
@@ -111,6 +112,60 @@ async def test_a_root_path_does_not_open_the_api(make_client):
             r = await prefixed.get("/evermind/api/characters")
             assert r.status_code == 401
             assert (await prefixed.get("/evermind/api/health")).status_code == 200
+
+
+def socket_app():
+    """An application with one websocket under /api/. The API has none today,
+    and the gate must not be relying on that."""
+    from app.main import create_app
+
+    app = create_app()
+
+    @app.websocket("/api/socket")
+    async def hello(websocket: WebSocket) -> None:
+        await websocket.accept()
+        await websocket.send_text("hello")
+        await websocket.close()
+
+    return app
+
+
+async def open_socket(app, headers: dict) -> list[str]:
+    """Opens /api/socket the way a server would, and returns the type of each
+    message the application sent back, with the code of a close."""
+    sent: list[str] = []
+
+    async def receive() -> dict:
+        return {"type": "websocket.connect"}
+
+    async def send(message: dict) -> None:
+        kind = message["type"]
+        sent.append(f"{kind} {message.get('code', 1000)}" if kind == "websocket.close" else kind)
+
+    scope = {"type": "websocket", "asgi": {"version": "3.0"}, "scheme": "ws",
+             "path": "/api/socket", "raw_path": b"/api/socket", "root_path": "",
+             "query_string": b"", "client": ("127.0.0.1", 50000), "server": ("test", 80),
+             "subprotocols": [],
+             "headers": [(b"host", b"test"),
+                         *((k.encode(), v.encode()) for k, v in headers.items())]}
+    await asyncio.wait_for(app(scope, receive, send), timeout=5)
+    return sent
+
+
+async def test_a_websocket_under_the_api_needs_a_session(make_client):
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        token = await sign_in(c)
+        app = socket_app()
+        for headers in ({}, device("made-up")):
+            assert await open_socket(app, headers) == ["websocket.close 1008"]
+        assert await open_socket(app, device(token)) == [
+            "websocket.accept", "websocket.send", "websocket.close 1000"]
+
+
+async def test_a_websocket_is_open_without_a_password(make_client):
+    async with make_client():
+        assert await open_socket(socket_app(), {}) == [
+            "websocket.accept", "websocket.send", "websocket.close 1000"]
 
 
 async def test_public_api_paths_stay_open(make_client):
