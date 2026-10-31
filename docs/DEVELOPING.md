@@ -57,11 +57,12 @@ virtualenv the scripts create:
 
 It reads `.env` at the repository root, then the environment, and **the
 environment wins** over the file. The file may have been saved by Notepad or
-PowerShell (a byte order mark, CRLF line endings, even UTF-16); it reads the same
-as a plain one. `BIND` (default `127.0.0.1`) and `PORT` (default `3000`) say where
-to listen, and `--lan` is `BIND=0.0.0.0`. Before anything else it checks that the
-port is free; `--check` stops right after that and prints the port, so the
-scripts can ask before they install or build anything. Once it starts, it prints
+PowerShell (a byte order mark, CRLF line endings, even UTF-16, which it also
+reads without the mark); it reads the same as a plain one. `BIND` (default
+`127.0.0.1`) and `PORT` (default `3000`) say where to listen, and `--lan` is
+`BIND=0.0.0.0`. Before anything else it checks that the port is free; `--check`
+stops right after that and prints the port, so the scripts can ask before they
+install or build anything. Once it starts, it prints
 the local address and, when it listens on the network, that one too, with a
 warning if no password is set. Inside the container it prints neither, since
 `docker-compose.yml` is what decides what is exposed there.
