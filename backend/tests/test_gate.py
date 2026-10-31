@@ -111,7 +111,7 @@ async def test_a_root_path_does_not_open_the_api(make_client):
 
     async with make_client(EVERMIND_GATE_PASSWORD=PW):
         transport = httpx.ASGITransport(app=create_app(), root_path="/evermind")
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as prefixed:
+        async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as prefixed:
             r = await prefixed.get("/evermind/api/characters")
             assert r.status_code == 401
             assert (await prefixed.get("/evermind/api/health")).status_code == 200
@@ -134,8 +134,9 @@ def socket_app():
 
 
 async def open_socket(app, headers: dict, scheme: str = "ws") -> list[str]:
-    """Opens /api/socket on ws://test the way a server would, and returns the
-    type of each message the application sent back, with the code of a close."""
+    """Opens /api/socket on ws://localhost, unless ``headers`` names another
+    host, the way a server would. Returns the type of each message the
+    application sent back, with the code of a close."""
     sent: list[str] = []
 
     async def receive() -> dict:
@@ -147,10 +148,10 @@ async def open_socket(app, headers: dict, scheme: str = "ws") -> list[str]:
 
     scope = {"type": "websocket", "asgi": {"version": "3.0"}, "scheme": scheme,
              "path": "/api/socket", "raw_path": b"/api/socket", "root_path": "",
-             "query_string": b"", "client": ("127.0.0.1", 50000), "server": ("test", 80),
+             "query_string": b"", "client": ("127.0.0.1", 50000), "server": ("localhost", 80),
              "subprotocols": [],
-             "headers": [(b"host", b"test"),
-                         *((k.encode(), v.encode()) for k, v in headers.items())]}
+             "headers": [(k.encode(), v.encode())
+                         for k, v in {"host": "localhost", **headers}.items()]}
     await asyncio.wait_for(app(scope, receive, send), timeout=5)
     return sent
 
@@ -176,8 +177,8 @@ OPENED = ["websocket.accept", "websocket.send", "websocket.close 1000"]
 
 @pytest.mark.parametrize(("headers", "scheme"), [
     ({}, "ws"),
-    ({"origin": "http://test"}, "ws"),
-    ({"origin": "https://test"}, "wss"),
+    ({"origin": "http://localhost"}, "ws"),
+    ({"origin": "https://localhost"}, "wss"),
     ({"sec-fetch-site": "same-origin", "origin": "https://evermind.example"}, "ws"),
 ])
 async def test_a_websocket_from_this_origin_opens(make_client, headers, scheme):
@@ -188,9 +189,9 @@ async def test_a_websocket_from_this_origin_opens(make_client, headers, scheme):
 @pytest.mark.parametrize("headers", [
     {"origin": "http://evil.example"},
     {"origin": "null"},
-    {"origin": "https://test"},
-    {"origin": "http://test:8080"},
-    {"sec-fetch-site": "cross-site", "origin": "http://test"},
+    {"origin": "https://localhost"},
+    {"origin": "http://localhost:8080"},
+    {"sec-fetch-site": "cross-site", "origin": "http://localhost"},
     {"sec-fetch-site": "same-site"},
 ])
 async def test_a_websocket_from_another_origin_is_refused(make_client, headers):
@@ -203,7 +204,7 @@ async def test_a_websocket_from_another_origin_is_refused(make_client, headers):
         token = await sign_in(c)
         assert await open_socket(socket_app(), {**headers, **device(token)}) == [
             "websocket.close 1008"]
-        same = {"origin": "http://test", **device(token)}
+        same = {"origin": "http://localhost", **device(token)}
         assert await open_socket(socket_app(), same) == OPENED
 
 
@@ -287,7 +288,7 @@ async def test_login_cookie_attributes_over_http(make_client):
 
 async def test_login_cookie_is_secure_over_https(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        r = await c.post("https://test/api/gate", json={"password": PW})
+        r = await c.post("https://localhost/api/gate", json={"password": PW})
     assert r.status_code == 204
     assert "secure" in attributes(r.headers["set-cookie"])
 

@@ -8,7 +8,7 @@ on localhost. The browser says where such a request comes from, and the API
 refuses the ones from elsewhere, password or not.
 
 The client used here sends no browser headers of its own: each test adds the
-ones a browser would. Its address is http://test.
+ones a browser would. Its address is http://localhost.
 """
 
 import json
@@ -43,12 +43,12 @@ async def test_fetch_metadata_wins_over_origin(client):
     # address and Host the backend's, but the browser's own verdict is there.
     proxied = {"sec-fetch-site": "same-origin", "origin": "https://evermind.example"}
     assert (await client.post("/api/characters", json=CHARACTER, headers=proxied)).status_code == 201
-    forged = {"sec-fetch-site": "cross-site", "origin": "http://test"}
+    forged = {"sec-fetch-site": "cross-site", "origin": "http://localhost"}
     assert (await client.post("/api/characters", json=CHARACTER, headers=forged)).status_code == 403
 
 
 async def test_same_origin_json_post_is_allowed(client):
-    r = await client.post("/api/characters", json=CHARACTER, headers={"origin": "http://test"})
+    r = await client.post("/api/characters", json=CHARACTER, headers={"origin": "http://localhost"})
     assert r.status_code == 201, r.text
 
 
@@ -66,9 +66,9 @@ async def test_the_development_proxy_is_allowed(client):
 
 @pytest.mark.parametrize("origin", [
     "http://evil.example",
-    "http://test:8080",
-    "https://test",
-    "http://test.evil.example",
+    "http://localhost:8080",
+    "https://localhost",
+    "http://localhost.evil.example",
     "null",
 ])
 async def test_another_origin_is_refused(client, origin):
@@ -137,7 +137,7 @@ async def test_a_root_path_is_judged_too(make_client):
 
     async with make_client():
         transport = httpx.ASGITransport(app=create_app(), root_path="/evermind")
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as prefixed:
+        async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as prefixed:
             r = await prefixed.post("/evermind/api/characters", json=CHARACTER,
                                     headers={"origin": "http://evil.example"})
     assert r.status_code == 403

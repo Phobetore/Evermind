@@ -15,15 +15,19 @@ Evermind runs.
 
 Whether or not a password is set, the same middleware refuses the writes and
 the websockets under /api/ that a browser sent from a page of another origin.
+Without a password it also answers only to host names it knows, which is what
+stops a website from reaching Evermind through a name of its own.
 """
 
 import asyncio
 import base64
 import hashlib
 import hmac
+import ipaddress
 import logging
 import math
 import secrets
+import socket
 import sqlite3
 import time
 import unicodedata
@@ -69,6 +73,10 @@ def now() -> datetime:
 
 def monotonic() -> float:
     return time.monotonic()
+
+
+def machine_name() -> str:
+    return socket.gethostname()
 
 
 async def failure_pause() -> None:
@@ -396,8 +404,54 @@ def _from_another_origin(scope: Scope) -> bool:
     return origin.lower() != own.lower()
 
 
-# Closing a websocket before accepting it refuses the handshake.
-_refuse_socket = WebSocketClose(code=status.WS_1008_POLICY_VIOLATION)
+def _host_name(host: str) -> str:
+    """The name in a Host header: lowercase, without the port, the brackets
+    around an IPv6 address, or a final dot."""
+    host = host.strip().lower()
+    if host.startswith("["):
+        host = host[1:].partition("]")[0]
+    elif host.count(":") == 1:
+        host = host.partition(":")[0]
+    return host.removesuffix(".")
+
+
+def _known_host(host: str) -> bool:
+    """Whether a Host header names this computer in a way that a website
+    cannot borrow: an address, localhost, the computer's own name, alone or
+    followed by .local, or a name listed in EVERMIND_ALLOWED_HOSTS.
+
+    A website can point a name of its own at 127.0.0.1 once its page is
+    loaded (DNS rebinding). The browser then takes that page and Evermind for
+    one origin, and only the Host header still shows the name it used. An
+    address in the URL is no such trick, and the names above are not the
+    website's to give out.
+    """
+    name = _host_name(host)
+    if not name:
+        return False
+    try:
+        ipaddress.ip_address(name)
+    except ValueError:
+        pass
+    else:
+        return True
+    if name == "localhost" or name.endswith(".localhost"):
+        return True
+    machine = machine_name().lower()
+    if machine and name in (machine, machine + ".local"):
+        return True
+    return name in {_host_name(allowed) for allowed in config.allowed_hosts()}
+
+
+async def _refuse(scope: Scope, receive: Receive, send: Send, status_code: int,
+                  error: str, kind: str) -> None:
+    """Answers in the app's place: with a JSON error, or, for a websocket, by
+    closing it before it is accepted, which refuses the handshake."""
+    if scope["type"] == "websocket":
+        await WebSocketClose(code=status.WS_1008_POLICY_VIOLATION)(scope, receive, send)
+        return
+    response = JSONResponse({"error": error, "kind": kind}, status_code=status_code)
+    await response(scope, receive, send)
 
 
 def _session_cookie_header(token: str, *, secure: bool) -> bytes:
@@ -409,8 +463,9 @@ def _session_cookie_header(token: str, *, secure: bool) -> bytes:
 
 
 class GateMiddleware:
-    """Refuses writes and websockets under /api/ from pages of other origins,
-    password or not, and locks /api/ behind a session when there is a password.
+    """Guards /api/. Password or not, it refuses the writes and websockets of
+    pages from other origins. Without a password, it answers only to host
+    names it knows; with one, only to a device with a session.
 
     Pure ASGI on purpose: BaseHTTPMiddleware would sit between the app and the
     client on every response, and a reply still being written (the stream of
@@ -436,26 +491,30 @@ class GateMiddleware:
         # GET, but the browser sends the cookie with it, and what goes through
         # it afterwards can be anything.
         if (socket or scope["method"] not in SAFE_METHODS) and _from_another_origin(scope):
-            if socket:
-                await _refuse_socket(scope, receive, send)
-                return
-            refused = JSONResponse({"error": "Cross-origin request refused.",
-                                    "kind": "cross_origin"}, status_code=403)
-            await refused(scope, receive, send)
+            await _refuse(scope, receive, send, 403, "Cross-origin request refused.",
+                          "cross_origin")
             return
         store = self.store
         await store.ensure_loaded()
-        if not store.enabled or path in PUBLIC_API_PATHS:
+        if not store.enabled:
+            # Reads included: a rebound page is same-origin, so the browser
+            # would hand it the answers. With a password the name is left
+            # alone, so that a proxy can serve Evermind under any name: the
+            # session cookie belongs to the name a device signed in on, and a
+            # rebound page has none.
+            if not _known_host(Headers(scope=scope).get("host", "")):
+                await _refuse(scope, receive, send, 403, "Unknown host name. Add it to "
+                              "EVERMIND_ALLOWED_HOSTS or set a password.", "unknown_host")
+                return
+            await self.app(scope, receive, send)
+            return
+        if path in PUBLIC_API_PATHS:
             await self.app(scope, receive, send)
             return
 
         token = HTTPConnection(scope).cookies.get(SESSION_COOKIE)
         if not store.check(token):
-            if socket:
-                await _refuse_socket(scope, receive, send)
-                return
-            locked = JSONResponse({"error": "Locked.", "kind": "locked"}, status_code=401)
-            await locked(scope, receive, send)
+            await _refuse(scope, receive, send, 401, "Locked.", "locked")
             return
         # Only HTTP requests slide the session: the cookie is sent again on
         # http.response.start, which a websocket never sends.
