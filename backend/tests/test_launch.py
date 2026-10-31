@@ -569,6 +569,39 @@ def test_lan_without_a_route_lists_only_localhost(clean_env, ui_built, monkeypat
     assert capsys.readouterr().out == f"Evermind -> http://localhost:{p}\n"
 
 
+@pytest.mark.parametrize(
+    ("host", "shown"),
+    [
+        ("127.0.0.1", "localhost"),
+        ("localhost", "localhost"),
+        ("::1", "localhost"),
+        ("::", "localhost"),
+        ("192.168.1.42", "192.168.1.42"),
+        ("fd00::42", "[fd00::42]"),
+        ("evermind.invalid", "evermind.invalid"),
+    ],
+)
+def test_the_printed_address_is_one_that_answers(
+    clean_env, ui_built, monkeypatch, served, capsys, host, shown
+):
+    # Bound to one address of the network, the computer refuses connections to
+    # localhost: the line has to name the address that was bound.
+    monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "secret")
+    p = free_port()
+    assert launch.main(["--no-env-file", "--host", host, "--port", str(p)]) == 0
+    assert capsys.readouterr().out == f"Evermind -> http://{shown}:{p}\n"
+
+
+def test_a_specific_address_gets_no_second_line(clean_env, ui_built, monkeypatch, served, capsys):
+    # The "from the local network" line is for the wildcard, where the address
+    # to give other devices has to be looked up; here the first line says it.
+    monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "secret")
+    monkeypatch.setattr(launch, "lan_address", lambda: "192.168.1.20")
+    p = free_port()
+    assert launch.main(["--no-env-file", "--host", "192.168.1.42", "--port", str(p)]) == 0
+    assert capsys.readouterr().out == f"Evermind -> http://192.168.1.42:{p}\n"
+
+
 def test_lan_without_password_warns(clean_env, ui_built, monkeypatch, served, capsys):
     monkeypatch.setattr(launch, "lan_address", lambda: "192.168.1.20")
     assert launch.main(["--no-env-file", "--lan", "--port", str(free_port())]) == 0

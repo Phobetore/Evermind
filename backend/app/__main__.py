@@ -166,6 +166,15 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
+def _browse_host(host: str) -> str:
+    """What to put in the address printed for a browser: localhost wherever
+    that answers, and the address itself where it cannot. Bound to one address
+    of the network, the computer refuses connections to localhost."""
+    if host in _WILDCARD_LOOPBACK or _is_loopback(host):
+        return "localhost"
+    return f"[{host}]" if ":" in host else host
+
+
 def _say(*lines: str, file=None) -> None:
     # Flushed because a script that reads the output through a pipe would
     # otherwise see nothing until the server stops.
@@ -236,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
     # an address printed from in here would be wrong and a warning beside the point.
     if update_check.install_kind() != "docker":
         if not listen.dev:
-            _say(f"Evermind -> http://localhost:{listen.port}")
+            _say(f"Evermind -> http://{_browse_host(listen.host)}:{listen.port}")
             if listen.host == "0.0.0.0" and (lan := lan_address()):
                 _say(f"            http://{lan}:{listen.port}  (from the local network)")
         exposed = not _is_loopback(listen.host) or (listen.dev and args.lan)
