@@ -12,6 +12,8 @@ export interface Failure {
   /** What a model's server said, in its own words, and with its own status. */
   upstream?: string;
   upstreamStatus?: number;
+  /** The address of the model's server that could not be reached. */
+  upstreamUrl?: string;
 }
 
 /** The sentence for each kind the server names, in `errors.*`. */
@@ -30,9 +32,6 @@ const KIND_KEYS: Record<string, string> = {
   unsupported_image: "errors.unsupportedImage",
   conversation_empty: "errors.conversationEmpty",
   no_connection: "errors.noConnection",
-  // The model's server never answered: not a mistake anyone made, and not
-  // Evermind failing to answer, which is "network" below.
-  unreachable: "errors.modelUnreachable",
   model_auth_refused: "errors.modelAuthRefused",
   model_not_found: "errors.modelNotFound",
   model_rate_limited: "errors.modelRateLimited",
@@ -99,6 +98,14 @@ function modelServerSentence(failure: Failure, t: Translate): string {
 export function describeFailure(failure: Failure, t: Translate): string {
   const { kind, resource, status, message } = failure;
   if (kind && MODEL_SERVER_KINDS.has(kind)) return modelServerSentence(failure, t);
+  // The model's server never answered: not a mistake anyone made, and not
+  // Evermind failing to answer, which is "network" in the table above. The
+  // sentence names the address that was tried when it is known.
+  if (kind === "unreachable") {
+    return failure.upstreamUrl
+      ? t("errors.modelUnreachable", { url: failure.upstreamUrl })
+      : t("errors.modelUnreachableNoAddress");
+  }
   const known = kind ? KIND_KEYS[kind] : undefined;
   if (known) return t(known);
   if (kind === "not_found") {
@@ -145,6 +152,7 @@ export function describeEvent(
     resource?: string;
     upstream?: string;
     upstream_status?: number;
+    upstream_url?: string;
   },
   t: Translate,
 ): string {
@@ -155,6 +163,7 @@ export function describeEvent(
       message: event.message,
       upstream: event.upstream,
       upstreamStatus: event.upstream_status,
+      upstreamUrl: event.upstream_url,
     },
     t,
   );
@@ -164,7 +173,13 @@ export function describeEvent(
  *  benchmark do: the English sentence in `detail`, and the kind and what the
  *  model's server said next to it. */
 export function describeResult(
-  result: { detail?: string; kind?: string; upstream?: string; upstream_status?: number },
+  result: {
+    detail?: string;
+    kind?: string;
+    upstream?: string;
+    upstream_status?: number;
+    upstream_url?: string;
+  },
   t: Translate,
 ): string {
   return describeFailure(
@@ -173,6 +188,7 @@ export function describeResult(
       message: result.detail,
       upstream: result.upstream,
       upstreamStatus: result.upstream_status,
+      upstreamUrl: result.upstream_url,
     },
     t,
   );

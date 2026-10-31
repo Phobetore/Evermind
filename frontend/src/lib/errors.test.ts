@@ -24,7 +24,6 @@ describe("an error the server named", () => {
     ["unsupported_image", "errors.unsupportedImage"],
     ["conversation_empty", "errors.conversationEmpty"],
     ["no_connection", "errors.noConnection"],
-    ["unreachable", "errors.modelUnreachable"],
     ["model_timeout", "errors.modelTimeout"],
     ["model_unexpected_response", "errors.modelUnexpectedResponse"],
     ["model_unknown_type", "errors.modelUnknownType"],
@@ -48,6 +47,19 @@ describe("an error the server named", () => {
     expect(describeError(bare, t)).toBe(key);
     const said = new DataError("English words", { kind, status: 502, upstream: "Incorrect key." });
     expect(describeError(said, t)).toBe(`${key} errors.upstream {"text":"Incorrect key."}`);
+  });
+
+  test("a model's server that cannot be reached is named by the address that was tried", () => {
+    const error = new DataError("words", {
+      kind: "unreachable", status: 502, upstreamUrl: "http://localhost:1234/v1",
+    });
+    expect(describeError(error, t)).toBe('errors.modelUnreachable {"url":"http://localhost:1234/v1"}');
+  });
+
+  test("and, without an address to name, by the sentence that does not need one", () => {
+    expect(describeError(new DataError("words", { kind: "unreachable", status: 502 }), t)).toBe(
+      "errors.modelUnreachableNoAddress",
+    );
   });
 
   test("an error status of the model's server says which", () => {
@@ -209,6 +221,15 @@ describe("a failure that is not an error", () => {
     ).toBe('errors.modelHttpError {"status":503} errors.upstream {"text":"Overloaded"}');
   });
 
+  test("an event that could not reach the model's server names the address", () => {
+    expect(
+      describeEvent(
+        { kind: "unreachable", message: "English", upstream_url: "http://localhost:1234/v1" },
+        t,
+      ),
+    ).toBe('errors.modelUnreachable {"url":"http://localhost:1234/v1"}');
+  });
+
   test("an event that names what it did not find", () => {
     expect(
       describeEvent({ kind: "not_found", resource: "conversation", message: "English" }, t),
@@ -225,6 +246,15 @@ describe("a failure that is not an error", () => {
 });
 
 describe("a result the server reports in a 200", () => {
+  test("a connection test that could not reach the server names the address typed", () => {
+    expect(
+      describeResult(
+        { detail: "Cannot reach http://x/v1.", kind: "unreachable", upstream_url: "http://x/v1" },
+        t,
+      ),
+    ).toBe('errors.modelUnreachable {"url":"http://x/v1"}');
+  });
+
   test("a failed connection test is described by its kind", () => {
     expect(
       describeResult(
@@ -275,7 +305,11 @@ describe("the sentences exist", () => {
 
   test("in English, which every other language is checked against", () => {
     for (const kind of kinds) {
-      describeError(new DataError("words", { kind, status: 400, upstream: "words" }), record);
+      describeError(
+        new DataError("words", { kind, status: 400, upstream: "words", upstreamUrl: "http://x" }),
+        record,
+      );
+      describeError(new DataError("words", { kind, status: 400 }), record);
     }
     for (const resource of resources) {
       describeError(new DataError("words", { kind: "not_found", resource }), record);

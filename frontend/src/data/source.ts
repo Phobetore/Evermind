@@ -185,6 +185,7 @@ export interface ConnectionTestResult {
   kind?: string;
   upstream?: string;
   upstream_status?: number;
+  upstream_url?: string;
   model_count?: number;
   models_sample?: string[];
 }
@@ -195,6 +196,7 @@ export interface BenchmarkResult {
   kind?: string;
   upstream?: string;
   upstream_status?: number;
+  upstream_url?: string;
   tokens_per_s?: number;
   first_token_seconds?: number;
 }

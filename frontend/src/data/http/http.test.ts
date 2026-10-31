@@ -340,6 +340,12 @@ describe("errors", () => {
     expect(failure.upstreamStatus).toBe(503);
   });
 
+  test("the address that could not be reached is carried along", async () => {
+    reply(json({ error: "Cannot reach http://x/v1.", kind: "unreachable", upstream_url: "http://x/v1" }, 502));
+    const failure = await http.turns.impersonate("v1").catch((e) => e);
+    expect(failure.upstreamUrl).toBe("http://x/v1");
+  });
+
   test("an upstream that is not text, or a status that is not a number, is left out", async () => {
     reply(json({ error: "Words", kind: "model_http_error", upstream: { a: 1 }, upstream_status: "503" }, 502));
     const failure = await http.turns.impersonate("v1").catch((e) => e);

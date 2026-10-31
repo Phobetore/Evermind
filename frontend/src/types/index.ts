@@ -171,6 +171,7 @@ export type ChatEvent =
   | { type: "done"; message: Message; context?: ContextStats; perf?: TurnPerf }
   | {
       type: "error"; message: string; kind?: string | null; resource?: string;
-      /** What a model's server said, when it was the one that failed. */
-      upstream?: string; upstream_status?: number;
+      /** What a model's server said, when it was the one that failed, or the
+       *  address that could not be reached. */
+      upstream?: string; upstream_status?: number; upstream_url?: string;
     };

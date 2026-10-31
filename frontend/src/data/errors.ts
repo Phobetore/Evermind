@@ -7,7 +7,8 @@
  *  with nothing readable in it, and "network", no answer at all. `resource` is
  *  what a "not_found" did not find. `upstream` is what a model's server said
  *  when it was the one that failed, in its own words and with its own
- *  `upstreamStatus`. `status` is the HTTP status, and `retryAfter` is how many
+ *  `upstreamStatus`, or `upstreamUrl`, the address it could not be reached at.
+ *  `status` is the HTTP status, and `retryAfter` is how many
  *  seconds to wait before trying again when the server said so (a rate limit
  *  does). */
 export class DataError extends Error {
@@ -15,6 +16,7 @@ export class DataError extends Error {
   resource?: string;
   upstream?: string;
   upstreamStatus?: number;
+  upstreamUrl?: string;
   status?: number;
   retryAfter?: number;
 
@@ -25,6 +27,7 @@ export class DataError extends Error {
       resource?: string;
       upstream?: string;
       upstreamStatus?: number;
+      upstreamUrl?: string;
       status?: number;
       retryAfter?: number;
       cause?: unknown;
@@ -36,6 +39,7 @@ export class DataError extends Error {
     this.resource = details.resource;
     this.upstream = details.upstream;
     this.upstreamStatus = details.upstreamStatus;
+    this.upstreamUrl = details.upstreamUrl;
     this.status = details.status;
     this.retryAfter = details.retryAfter;
   }

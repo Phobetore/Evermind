@@ -36,6 +36,7 @@ async function raiseFor(resp: Response): Promise<never> {
   let resource: string | undefined;
   let upstream: string | undefined;
   let upstreamStatus: number | undefined;
+  let upstreamUrl: string | undefined;
   try {
     const body = await resp.json();
     const said = body.error ?? body.detail;
@@ -46,6 +47,7 @@ async function raiseFor(resp: Response): Promise<never> {
     if (typeof body.resource === "string") resource = body.resource;
     if (typeof body.upstream === "string") upstream = body.upstream;
     if (typeof body.upstream_status === "number") upstreamStatus = body.upstream_status;
+    if (typeof body.upstream_url === "string") upstreamUrl = body.upstream_url;
   } catch {
     /* nothing readable: the status is all there is */
   }
@@ -70,6 +72,7 @@ async function raiseFor(resp: Response): Promise<never> {
     resource,
     upstream,
     upstreamStatus,
+    upstreamUrl,
     status: resp.status,
     retryAfter: retryAfterOf(resp),
   });
