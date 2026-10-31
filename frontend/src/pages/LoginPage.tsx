@@ -43,8 +43,8 @@ export function LoginPage() {
       }
       navigate(from, { replace: true });
     } catch (e) {
-      const failure = loginFailure(e);
-      setError(t(failure.key, failure.vars));
+      const failure = loginFailure(e, t);
+      setError(failure.message);
       if (failure.clearPassword) setPassword("");
       setChecking(false);
     }

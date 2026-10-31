@@ -4,6 +4,7 @@ import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { data, type CharacterInput } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
 import type { Character, Connection, Kind, LoreEntryDraft } from "@/types";
 import { clsx } from "clsx";
@@ -121,7 +122,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
         setLoreEntries((prev) => [...prev, ...saved]);
       }
     } catch (e) {
-      setAssistError(e instanceof Error ? e.message : t("characters.assist.generateError"));
+      setAssistError(describeError(e, t, t("characters.assist.generateError")));
     }
     setGenerating(false);
   }
@@ -154,7 +155,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
       }
       navigate(`/characters/${saved.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("personas.saveError"));
+      setError(describeError(e, t, t("personas.saveError")));
       setSaving(false);
     }
   }

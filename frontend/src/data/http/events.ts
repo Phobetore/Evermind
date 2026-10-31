@@ -1,14 +1,14 @@
 import type { ChatEvent } from "@/types";
-import { raiseFor } from "./request";
+import { networkFailure } from "./request";
 
 /** Dispatch each server-sent event of a streaming answer. Resolves when the
- *  stream ends. */
+ *  stream ends. `pending` is a response that `send` has already checked: a
+ *  failed one has raised by now. */
 export async function readEvents(
   pending: Promise<Response>,
   onEvent: (event: ChatEvent) => void,
 ): Promise<void> {
   const resp = await pending;
-  if (!resp.ok) await raiseFor(resp);
   // No body at all is the server having nothing to say, which is how an idle
   // conversation answers a request to follow its turn.
   if (!resp.body) return;
@@ -34,7 +34,14 @@ export async function readEvents(
   };
 
   for (;;) {
-    const { done, value } = await reader.read();
+    let chunk: ReadableStreamReadResult<Uint8Array>;
+    try {
+      chunk = await reader.read();
+    } catch (error) {
+      // The connection dropped in the middle of the answer.
+      throw networkFailure(error);
+    }
+    const { done, value } = chunk;
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const blocks = buffer.split("\n\n");

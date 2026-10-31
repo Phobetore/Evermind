@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import type { Connection, Persona, Settings, UpdateStatus } from "@/types";
 import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -278,7 +279,7 @@ function Access({ access }: { access: NonNullable<DataSource["access"]> }) {
       await refresh();
       navigate("/login");
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(describeError(e, t));
       setBusy(false);
     }
   }

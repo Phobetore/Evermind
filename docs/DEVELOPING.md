@@ -168,9 +168,13 @@ validation only.
 An error is `{"error": "<English sentence>", "kind": "<name>"}`, and a `not_found`
 adds `"resource"` (`character`, `conversation`, `message`, `persona`,
 `connection`, `lore_entry`, `fact`, `library_card`, `illustration`, `file`). The
-sentence is for whoever reads the API; the interface reads `kind`. The same goes
-for the error events of a reply's stream. A new `AppError` needs a `kind`, and a
-test fails without one.
+sentence is for whoever reads the API; the interface reads `kind` and shows its
+own text for it, in the language the person chose (`frontend/src/lib/errors.ts`,
+sentences under `errors` in `frontend/src/i18n/locales/`). The same goes for the
+error events of a reply's stream. A new `AppError` needs a `kind`, and a test
+fails without one; a kind the interface does not know yet shows the server's
+English sentence until it gets a line in `errors.ts` and a sentence in the four
+languages.
 
 ## How a turn is built
 

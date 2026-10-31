@@ -2,6 +2,7 @@ import { Field } from "@/components/editor/Field";
 import { Modal } from "@/components/ui/Modal";
 import type { BenchmarkResult, ConnectionInput, ConnectionTestResult, DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import type { Connection, ProviderType } from "@/types";
 import { clsx } from "clsx";
 import { CheckCircle2, ChevronDown, Loader2, Trash2, XCircle } from "lucide-react";
@@ -89,7 +90,7 @@ export function ConnectionForm({
       }
       setTestResult(result);
     } catch (e) {
-      setTestResult({ ok: false, detail: e instanceof Error ? e.message : t("connections.testFailed") });
+      setTestResult({ ok: false, detail: describeError(e, t, t("connections.testFailed")) });
     }
     setTesting(false);
   }
@@ -101,7 +102,7 @@ export function ConnectionForm({
     try {
       setBenchResult(await source.benchmark(connection.id));
     } catch (e) {
-      setBenchResult({ ok: false, detail: e instanceof Error ? e.message : t("connections.benchmarkFailed") });
+      setBenchResult({ ok: false, detail: describeError(e, t, t("connections.benchmarkFailed")) });
     }
     setBenchmarking(false);
   }
@@ -117,7 +118,7 @@ export function ConnectionForm({
       else await source.create({ ...draft });
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("connections.saveFailed"));
+      setError(describeError(e, t, t("connections.saveFailed")));
       setSaving(false);
     }
   }

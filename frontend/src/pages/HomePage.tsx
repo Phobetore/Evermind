@@ -4,6 +4,7 @@ import { LibraryModal } from "@/components/cards/LibraryModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import type { Character, Kind } from "@/types";
 import { clsx } from "clsx";
 import { FileUp, LibraryBig, Plus, Search, Sparkles, Star } from "lucide-react";
@@ -36,7 +37,7 @@ export function HomePage() {
       setCharacters(await data.characters.list({ kind: kind === "all" ? undefined : kind, q }));
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("home.loadError"));
+      setError(describeError(e, t, t("home.loadError")));
     }
   }, [t]);
 

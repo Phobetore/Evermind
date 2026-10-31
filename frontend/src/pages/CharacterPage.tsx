@@ -3,6 +3,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import { previewMacros, timeAgo } from "@/lib/utils";
 import type { Character, Conversation } from "@/types";
 import { MessageCircle, Pencil, Star } from "lucide-react";
@@ -17,7 +18,9 @@ function CharacterDetail({ id }: { id: string }) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showStart, setShowStart] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // The error itself, described when drawn, so that a change of language
+  // reaches the sentence too.
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
   useEffect(() => {
     data.characters
@@ -26,11 +29,11 @@ function CharacterDetail({ id }: { id: string }) {
         setCharacter(c);
         if (search.get("start")) setShowStart(true);
       })
-      .catch((e) => setError(e.message));
+      .catch((error) => setFailure({ error }));
     data.conversations.list({ character_id: id }).then(setConversations);
   }, [id, search]);
 
-  if (error) return <p className="p-10 text-blood">{error}</p>;
+  if (failure) return <p className="p-10 text-blood">{describeError(failure.error, t)}</p>;
   if (!character) return <div className="p-10 text-mist animate-pulse-soft">{t("common.loading")}</div>;
 
   const isScenario = character.kind === "scenario";

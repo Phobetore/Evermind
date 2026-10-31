@@ -1,6 +1,7 @@
 import { Modal } from "@/components/ui/Modal";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import { Check, FileUp, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -39,7 +40,7 @@ export function ImportModal({
       } catch (e) {
         done.push({
           name: file.name,
-          error: e instanceof Error ? e.message : t("home.importError"),
+          error: describeError(e, t, t("home.importError")),
         });
       }
       setResults([...done]);

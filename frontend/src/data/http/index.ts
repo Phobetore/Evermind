@@ -138,17 +138,12 @@ export function createHttpSource(
     turns: {
       send: (turn, onEvent, signal) =>
         readEvents(
-          fetchImpl("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(turn),
-            signal,
-          }),
+          send("/api/chat", { method: "POST", body: JSON.stringify(turn), signal }, fetchImpl),
           onEvent,
         ),
       follow: (conversationId, onEvent, signal) =>
         readEvents(
-          fetchImpl(`/api/conversations/${seg(conversationId)}/turn/stream`, { signal }),
+          send(`/api/conversations/${seg(conversationId)}/turn/stream`, { signal }, fetchImpl),
           onEvent,
         ),
       stop: (conversationId) => del(`/api/conversations/${seg(conversationId)}/turn`),

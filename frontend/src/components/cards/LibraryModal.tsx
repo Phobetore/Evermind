@@ -2,6 +2,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import type { LibraryItem } from "@/types";
 import { BookMarked, Check, Download, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -31,7 +32,7 @@ export function LibraryModal({
       await load();
       onInstalled();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("cards.libraryModal.installError"));
+      setError(describeError(e, t, t("cards.libraryModal.installError")));
     }
     setInstalling(null);
   }

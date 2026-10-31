@@ -2,6 +2,7 @@ import { Field } from "@/components/editor/Field";
 import { Modal } from "@/components/ui/Modal";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import type { Character, Connection, Persona } from "@/types";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -52,7 +53,7 @@ export function StartChatModal({
       });
       navigate(`/chat/${convo.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("cards.startChatModal.startError"));
+      setError(describeError(e, t, t("cards.startChatModal.startError")));
       setStarting(false);
     }
   }

@@ -2,6 +2,7 @@ import { ModelSilent } from "@/components/chat/ModelSilent";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/drafts";
+import { describeError } from "@/lib/errors";
 import { clsx } from "clsx";
 import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Send, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -140,7 +141,7 @@ export function ChatInput({
       if (e instanceof DataError && e.kind === "unreachable") {
         setSilent(true);
       } else {
-        setHint(e instanceof Error ? e.message : t("chat.input.ghostwriteError"));
+        setHint(describeError(e, t, t("chat.input.ghostwriteError")));
         setTimeout(() => setHint(null), 4000);
       }
     }

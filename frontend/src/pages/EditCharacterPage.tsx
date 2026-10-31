@@ -1,6 +1,7 @@
 import { CharacterForm } from "@/components/editor/CharacterForm";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import type { Character } from "@/types";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
@@ -15,16 +16,18 @@ export function EditCharacterPage() {
 function EditCharacter({ id }: { id: string }) {
   const t = useT();
   const [character, setCharacter] = useState<Character | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // The error itself, described when drawn, so that a change of language
+  // reaches the sentence too.
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
   useEffect(() => {
     data.characters
       .get(id)
       .then(setCharacter)
-      .catch((e) => setError(e.message));
+      .catch((error) => setFailure({ error }));
   }, [id]);
 
-  if (error) return <p className="p-10 text-blood">{error}</p>;
+  if (failure) return <p className="p-10 text-blood">{describeError(failure.error, t)}</p>;
   if (!character) return <div className="p-10 text-mist animate-pulse-soft">{t("common.loading")}</div>;
   return <CharacterForm initial={character} />;
 }

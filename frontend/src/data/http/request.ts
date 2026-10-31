@@ -23,17 +23,27 @@ function retryAfterOf(resp: Response): number | undefined {
 }
 
 /** Throw the error a failed response stands for. Nothing in the body is
- *  trusted to be there: a proxy in front of the server answers with HTML. */
+ *  trusted to be there: a proxy in front of the server answers with HTML.
+ *  An answer with no sentence in it, and no kind of its own, is an "http_error",
+ *  which says nothing but the status. */
 export async function raiseFor(resp: Response): Promise<never> {
-  let message = `Erreur ${resp.status}`;
+  let message: string | undefined;
   let kind: string | undefined;
+  let resource: string | undefined;
   try {
     const body = await resp.json();
-    message = body.error ?? body.detail ?? message;
-    kind = body.kind;
-    if (typeof message !== "string") message = JSON.stringify(message);
+    const said = body.error ?? body.detail;
+    if (said !== undefined && said !== null && said !== "") {
+      message = typeof said === "string" ? said : JSON.stringify(said);
+    }
+    if (typeof body.kind === "string") kind = body.kind;
+    if (typeof body.resource === "string") resource = body.resource;
   } catch {
-    /* keep the default */
+    /* nothing readable: the status is all there is */
+  }
+  if (message === undefined) {
+    message = `HTTP ${resp.status}`;
+    kind ??= "http_error";
   }
   if (resp.status === 401 && kind === "locked") {
     // Each in its own try: a handler that throws must neither stand in for the
@@ -46,7 +56,22 @@ export async function raiseFor(resp: Response): Promise<never> {
       }
     }
   }
-  throw new DataError(message, { kind, status: resp.status, retryAfter: retryAfterOf(resp) });
+  throw new DataError(message, {
+    kind,
+    resource,
+    status: resp.status,
+    retryAfter: retryAfterOf(resp),
+  });
+}
+
+/** What a call that got no answer at all is: the browser's own failure, whose
+ *  words differ from one browser to the next, becomes a DataError of kind
+ *  "network". Giving up on purpose (an abort) is the caller's doing and stays
+ *  as it is. */
+export function networkFailure(error: unknown): unknown {
+  if (error instanceof DataError) return error;
+  if ((error as { name?: string } | null)?.name === "AbortError") return error;
+  return new DataError("Network error", { kind: "network", cause: error });
 }
 
 /** The response to a request, once it is known to have succeeded. */
@@ -61,7 +86,12 @@ export async function send(
   if (typeof init?.body === "string" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const resp = await fetchImpl(path, { ...init, headers });
+  let resp: Response;
+  try {
+    resp = await fetchImpl(path, { ...init, headers });
+  } catch (error) {
+    throw networkFailure(error);
+  }
   if (!resp.ok) await raiseFor(resp);
   return resp;
 }

@@ -6,6 +6,7 @@ import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError, describeFailure } from "@/lib/errors";
 import { turnStore } from "@/lib/turnStore";
 import type { ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
@@ -40,7 +41,9 @@ function ChatView({ id }: { id: string }) {
   const [silent, setSilent] = useState(false);
   const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false); // phone, overlay
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // The error itself, described when drawn, so that a change of language
+  // reaches the sentence too.
+  const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
   const [contextStats, setContextStats] = useState<ContextStats | null>(null);
   const [perf, setPerf] = useState<TurnPerf | null>(null);
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
@@ -80,7 +83,7 @@ function ChatView({ id }: { id: string }) {
             .catch(() => {});
         }
       })
-      .catch((e) => setLoadError(e.message));
+      .catch((error) => setLoadFailure({ error }));
   }, [id]);
 
   // A reply may be being written for this conversation right now, by a server
@@ -245,7 +248,7 @@ function ChatView({ id }: { id: string }) {
             // A model that never answered is not a fault to raise the alarm
             // about; usually the server behind it is simply not running.
             if (event.kind === "unreachable") setSilent(true);
-            else setError(event.message);
+            else setError(describeFailure(event, t));
           }
         },
         controller.signal,
@@ -271,7 +274,7 @@ function ChatView({ id }: { id: string }) {
         // reloaded by hand.
         const reachable = await reload();
         if (!startReceived || !reachable) {
-          setError(e instanceof Error ? e.message : t("chat.errors.connectionFailed"));
+          setError(describeError(e, t, t("chat.errors.connectionFailed")));
         } else {
           // If the reply is still being written, pick it back up rather than
           // leaving the conversation looking finished.
@@ -313,10 +316,10 @@ function ChatView({ id }: { id: string }) {
     navigate(`/chat/${branch.id}`);
   }
 
-  if (loadError) {
+  if (loadFailure) {
     return (
       <div className="p-10">
-        <p className="text-blood">{loadError}</p>
+        <p className="text-blood">{describeError(loadFailure.error, t)}</p>
         <Link to="/chat" className="btn btn-ghost mt-4">
           <ArrowLeft className="h-4 w-4" /> {t("nav.conversations")}
         </Link>

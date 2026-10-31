@@ -22,7 +22,7 @@ function interpolate(str: string, vars?: Record<string, string | number>): strin
   return str.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
 }
 
-type Translate = (key: string, vars?: Record<string, string | number>) => string;
+export type Translate = (key: string, vars?: Record<string, string | number>) => string;
 type Ctx = { locale: Locale; setLocale: (l: Locale) => void; t: Translate };
 
 const I18nContext = createContext<Ctx | null>(null);

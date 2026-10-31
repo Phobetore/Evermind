@@ -2,6 +2,7 @@ import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
@@ -74,7 +75,7 @@ export function ChatSidePanel({
         wallpaper_opacity: updated.wallpaper_opacity,
       });
     } catch (e) {
-      setWallpaperError(e instanceof Error ? e.message : t("chat.wallpaper.failed"));
+      setWallpaperError(describeError(e, t, t("chat.wallpaper.failed")));
     }
     setWallpaperBusy(false);
   }
@@ -85,7 +86,7 @@ export function ChatSidePanel({
       await data.conversations.clearWallpaper(conversation.id);
       onConversationChange({ wallpaper_url: null });
     } catch (e) {
-      setWallpaperError(e instanceof Error ? e.message : t("chat.wallpaper.failed"));
+      setWallpaperError(describeError(e, t, t("chat.wallpaper.failed")));
     }
     setWallpaperBusy(false);
   }
@@ -140,7 +141,7 @@ export function ChatSidePanel({
           : t("chat.panel.facts.noneNew"),
       );
     } catch (e) {
-      setMemoryNote(e instanceof Error ? e.message : t("chat.panel.facts.extractError"));
+      setMemoryNote(describeError(e, t, t("chat.panel.facts.extractError")));
     }
     setMemorizing(false);
     setTimeout(() => setMemoryNote(null), 4000);
@@ -158,7 +159,7 @@ export function ChatSidePanel({
           : t("chat.panel.facts.consolidated", { before: result.before, after: result.after }),
       );
     } catch (e) {
-      setMemoryNote(e instanceof Error ? e.message : t("chat.panel.facts.consolidateError"));
+      setMemoryNote(describeError(e, t, t("chat.panel.facts.consolidateError")));
     }
     setConsolidating(false);
     setTimeout(() => setMemoryNote(null), 5000);
@@ -172,7 +173,7 @@ export function ChatSidePanel({
       setMemories((prev) => [saved, ...prev]);
       setNewFact("");
     } catch (e) {
-      setMemoryNote(e instanceof Error ? e.message : t("chat.panel.facts.addError"));
+      setMemoryNote(describeError(e, t, t("chat.panel.facts.addError")));
       setTimeout(() => setMemoryNote(null), 3000);
     }
   }
@@ -214,7 +215,7 @@ export function ChatSidePanel({
       onConversationChange({ summary: updated.summary });
       setNote(t("chat.panel.summary.generated"));
     } catch (e) {
-      setNote(e instanceof Error ? e.message : t("chat.panel.summary.generateError"));
+      setNote(describeError(e, t, t("chat.panel.summary.generateError")));
     }
     setSummarizing(false);
     setTimeout(() => setNote(null), 4000);

@@ -1,6 +1,7 @@
 import { TagInput } from "@/components/editor/TagInput";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import { newId } from "@/lib/utils";
 import type { LoreEntryDraft } from "@/types";
 import { BookMarked, Plus, Trash2 } from "lucide-react";
@@ -49,7 +50,7 @@ export function LorebookSection({
       setNewKeys([]);
       setNewContent("");
     } catch (e) {
-      flash(e instanceof Error ? e.message : t("lorebook.addFailedError"));
+      flash(describeError(e, t, t("lorebook.addFailedError")));
     }
   }
 

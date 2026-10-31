@@ -266,12 +266,58 @@ describe("errors", () => {
     expect(failure.kind).toBeUndefined();
   });
 
-  test("an answer that is not JSON still gives a message and a status", async () => {
+  test("an answer that is not JSON is an HTTP error with its status", async () => {
     reply(new Response("<html>Bad gateway</html>", { status: 502 }));
     const failure = await http.settings.get().catch((e) => e);
     expect(failure).toBeInstanceOf(DataError);
+    expect(failure.kind).toBe("http_error");
     expect(failure.status).toBe(502);
-    expect(failure.message).toBeTruthy();
+    expect(failure.message).toBe("HTTP 502");
+  });
+
+  test("an empty answer is an HTTP error too", async () => {
+    reply(new Response("", { status: 500 }));
+    const failure = await http.settings.get().catch((e) => e);
+    expect(failure.kind).toBe("http_error");
+    expect(failure.status).toBe(500);
+    expect(failure.message).toBe("HTTP 500");
+  });
+
+  test("JSON with nothing to say is an HTTP error as well", async () => {
+    reply(json({}, 503));
+    const failure = await http.settings.get().catch((e) => e);
+    expect(failure.kind).toBe("http_error");
+    expect(failure.message).toBe("HTTP 503");
+  });
+
+  test("a server message without a kind has no kind", async () => {
+    reply(json({ error: "Nope" }, 400));
+    const failure = await http.settings.get().catch((e) => e);
+    expect(failure.kind).toBeUndefined();
+    expect(failure.message).toBe("Nope");
+  });
+
+  test("what a missing thing was is carried along", async () => {
+    reply(json({ error: "Character not found.", kind: "not_found", resource: "character" }, 404));
+    const failure = await http.characters.get("gone").catch((e) => e);
+    expect(failure.kind).toBe("not_found");
+    expect(failure.resource).toBe("character");
+  });
+
+  test("a call that never got an answer is a network error", async () => {
+    const dropped = new TypeError("Failed to fetch");
+    const offline = createHttpSource((() => Promise.reject(dropped)) as typeof fetch);
+    const failure = await offline.settings.get().catch((e) => e);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.kind).toBe("network");
+    expect(failure.status).toBeUndefined();
+    expect(failure.cause).toBe(dropped);
+  });
+
+  test("an abort is not a network error", async () => {
+    const aborted = new DOMException("The operation was aborted.", "AbortError");
+    const source = createHttpSource((() => Promise.reject(aborted)) as typeof fetch);
+    await expect(source.settings.get()).rejects.toBe(aborted);
   });
 
   test("204 resolves to undefined", async () => {
@@ -462,10 +508,46 @@ describe("turns", () => {
     expect(failure.status).toBe(400);
   });
 
-  test("a dropped connection stays the error fetch raised", async () => {
+  test("a connection that never opens is a network error", async () => {
     const dropped = new TypeError("Failed to fetch");
     const offline = createHttpSource((() => Promise.reject(dropped)) as typeof fetch);
-    await expect(offline.turns.follow("v1", () => {})).rejects.toBe(dropped);
+    const failure = await offline.turns.follow("v1", () => {}).catch((e) => e);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.kind).toBe("network");
+    expect(failure.cause).toBe(dropped);
+  });
+
+  test("a connection that drops in the middle of a reply is a network error", async () => {
+    const dropped = new TypeError("network error");
+    const encoder = new TextEncoder();
+    let sent = false;
+    reply(new Response(new ReadableStream({
+      pull(controller) {
+        if (sent) throw dropped;
+        sent = true;
+        controller.enqueue(encoder.encode('data: {"type":"delta","text":"Hi"}\n\n'));
+      },
+    })));
+    const events: ChatEvent[] = [];
+
+    const failure = await http.turns
+      .send({ conversation_id: "v1", mode: "send" }, (e) => events.push(e))
+      .catch((e) => e);
+
+    expect(events).toEqual([{ type: "delta", text: "Hi" }]);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.kind).toBe("network");
+    expect(failure.cause).toBe(dropped);
+  });
+
+  test("an abort in the middle of a reply stays an abort", async () => {
+    const aborted = new DOMException("The operation was aborted.", "AbortError");
+    reply(new Response(new ReadableStream({
+      pull() {
+        throw aborted;
+      },
+    })));
+    await expect(http.turns.send({ conversation_id: "v1", mode: "send" }, () => {})).rejects.toBe(aborted);
   });
 });
 

@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeError } from "@/lib/errors";
 import type { Persona } from "@/types";
 import { Plus, Trash2, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -107,7 +108,7 @@ function PersonaModal({
       if (avatarFile) await data.personas.uploadAvatar(saved.id, avatarFile);
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("personas.saveError"));
+      setError(describeError(e, t, t("personas.saveError")));
       setSaving(false);
     }
   }
