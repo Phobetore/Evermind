@@ -24,6 +24,7 @@ import hmac
 import math
 import secrets
 import time
+import unicodedata
 from collections import deque
 from datetime import UTC, datetime, timedelta
 
@@ -75,13 +76,20 @@ def _utf8(text: str) -> bytes:
     return text.encode("utf-8", "surrogatepass")
 
 
+def _password_bytes(password: str) -> bytes:
+    # A phone keyboard and the editor the .env was written in may not encode
+    # an accent the same way: one character (U+00E9), or "e" followed by a
+    # combining accent (U+0301). Both have to be the same password.
+    return _utf8(unicodedata.normalize("NFC", password))
+
+
 def _b64(data: bytes) -> str:
     return base64.b64encode(data).decode("ascii")
 
 
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
-    digest = hashlib.scrypt(_utf8(password), salt=salt, n=_SCRYPT_N, r=_SCRYPT_R,
+    digest = hashlib.scrypt(_password_bytes(password), salt=salt, n=_SCRYPT_N, r=_SCRYPT_R,
                             p=_SCRYPT_P, dklen=_SCRYPT_DKLEN)
     return f"scrypt${_SCRYPT_N}${_SCRYPT_R}${_SCRYPT_P}${_b64(salt)}${_b64(digest)}"
 
@@ -96,7 +104,8 @@ def verify_password(password: str, stored: str) -> bool:
         expected = base64.b64decode(digest, validate=True)
         if not expected:
             return False
-        actual = hashlib.scrypt(_utf8(password), salt=base64.b64decode(salt, validate=True),
+        actual = hashlib.scrypt(_password_bytes(password),
+                                salt=base64.b64decode(salt, validate=True),
                                 n=int(n), r=int(r), p=int(p), dklen=len(expected))
     except (ValueError, OverflowError, TypeError):
         # binascii.Error is a ValueError; so is what scrypt raises for

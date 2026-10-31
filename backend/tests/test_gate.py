@@ -7,6 +7,7 @@ address, so the cookie has to work without the Secure flag there.
 """
 
 import asyncio
+import unicodedata
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -447,6 +448,32 @@ async def test_non_ascii_password(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD="mot de passé ✨") as c:
         r = await c.post("/api/gate", json={"password": "mot de passé ✨"})
     assert r.status_code == 204
+
+
+COMPOSED = unicodedata.normalize("NFC", "crème brûlée")
+DECOMPOSED = unicodedata.normalize("NFD", COMPOSED)
+
+
+def test_accents_compare_however_they_were_typed():
+    # A phone keyboard and the editor the .env was written in need not encode
+    # "è" the same way: one character, or "e" and a combining accent.
+    assert COMPOSED != DECOMPOSED
+    assert gate.verify_password(DECOMPOSED, gate.hash_password(COMPOSED))
+    assert gate.verify_password(COMPOSED, gate.hash_password(DECOMPOSED))
+
+
+@pytest.mark.parametrize(("configured", "typed"), [(COMPOSED, DECOMPOSED),
+                                                   (DECOMPOSED, COMPOSED)])
+async def test_an_accent_typed_another_way_opens(make_client, configured, typed):
+    async with make_client(EVERMIND_GATE_PASSWORD=configured) as c:
+        assert (await c.post("/api/gate", json={"password": typed})).status_code == 204
+
+
+async def test_the_same_password_written_another_way_keeps_sessions(make_client):
+    async with make_client(EVERMIND_GATE_PASSWORD=COMPOSED) as c:
+        token = await sign_in(c, COMPOSED)
+    async with make_client(EVERMIND_GATE_PASSWORD=DECOMPOSED) as c:
+        assert (await c.get("/api/characters", headers=device(token))).status_code == 200
 
 
 async def test_garbage_cookie_is_locked_not_an_error(make_client):
