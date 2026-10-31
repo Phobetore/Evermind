@@ -77,11 +77,38 @@ if [ -n "$LAN" ] && ! (cd "$ROOT/backend" && "$PYTHON" -m app --check --lan > /d
     echo "Starting anyway: Vite may end up on another port, so go by the address it prints." >&2
 fi
 
+# Stopping this script has to stop both programs, whichever way that happens
+# (Ctrl+C, SIGTERM, the terminal being closed). Neither is one process: npm
+# starts Vite through a shell, and the API runs its server under a reloader, so
+# a signal sent to the process that was started never reaches the rest. Each
+# program therefore gets a process group of its own (set -m), and the traps
+# below signal the group.
+#
+# Vite is waited for, not run in the foreground: bash holds back a trapped signal
+# until the command it is running has ended, so a SIGTERM would only be heard
+# once Vite quit by itself. From outside the terminal's foreground, Vite cannot
+# read the keyboard either: its first read stops it, which froze the dev server
+# the first time someone pressed Enter in this window. So it gets no input, and
+# its keyboard shortcuts (h + enter and the others) are not available here.
+set -m
+BACKEND_PID=""
+VITE_PID=""
+stop_children() {
+    for pid in $VITE_PID $BACKEND_PID; do
+        kill -TERM -- "-$pid" 2> /dev/null || true
+    done
+    # Their shutdown messages then come before the prompt, not after it.
+    wait 2> /dev/null || true
+}
+trap stop_children EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 # The API only listens on the loopback: the dev server is what the network sees,
 # and it forwards /api here.
 (cd "$ROOT/backend" && exec "$PYTHON" -m app --dev $LAN) &
 BACKEND_PID=$!
-trap 'kill $BACKEND_PID 2>/dev/null || true' EXIT
-
-cd "$ROOT/frontend"
-npm run "$DEV_SCRIPT"
+(cd "$ROOT/frontend" && exec npm run "$DEV_SCRIPT") < /dev/null &
+VITE_PID=$!
+wait "$VITE_PID"
