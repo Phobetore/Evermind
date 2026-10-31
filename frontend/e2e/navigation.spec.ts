@@ -21,7 +21,7 @@ test("the skip link focuses the content without changing the route", async ({ pa
 test("a new page starts at the top", async ({ page, request }, testInfo) => {
   test.skip(testInfo.project.name !== "phone", "a phone is where the list is long enough to scroll");
 
-  // Enough cards, two to a row, to be well past one screen.
+  // Enough cards, two to a row, for the page to scroll.
   for (let i = 0; i < 12; i++) await makeCharacter(request, { name: `Scroll ${i}` });
 
   await page.goto("/");
@@ -29,15 +29,20 @@ test("a new page starts at the top", async ({ page, request }, testInfo) => {
   await expect(main.locator("a:has(h2)").nth(11)).toBeVisible();
 
   // The page scrolls inside <main>, which stays where it is from one route to
-  // the next, so it is <main> that has to be sent back to the top.
-  await main.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  // the next, so it is <main> that has to be sent back to the top. Scrolled a
+  // little, not to the bottom: the link to the next page is at the top of
+  // this one, and the browser scrolls a link that is out of sight into view
+  // before clicking it, which would do the resetting being tested.
+  await main.evaluate((el) => el.scrollTo(0, 60));
   expect(await main.evaluate((el) => el.scrollTop), "the list did not scroll").toBeGreaterThan(0);
+  const create = page.getByRole("link", { name: /^create$/i });
+  await expect(create, "the link is not in sight, so clicking it would scroll").toBeInViewport({ ratio: 1 });
 
   // The new-card form, and not a character: a page that waits for data first
   // starts out as a short "loading" line, which makes the browser pull the
   // scroll position back to the top by itself. This page is as tall as it will
   // be from its first frame, so only the reset can explain landing at the top.
-  await page.evaluate(() => { window.location.hash = "#/characters/new"; });
+  await create.click();
   await expect(page.getByRole("heading", { name: /new card/i })).toBeVisible();
   await expect.poll(() => main.evaluate((el) => el.scrollTop)).toBe(0);
   expect(await main.evaluate((el) => el.scrollHeight > el.clientHeight),
