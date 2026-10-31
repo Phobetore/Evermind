@@ -28,7 +28,14 @@ done
 # A failed install stops here (set -e), before the copy that marks it as done.
 if [ ! -d "$ROOT/backend/.venv" ]; then
     echo "First run: creating the Python environment..."
-    python3 -m venv "$ROOT/backend/.venv"
+    # A creation that fails (on Debian and Ubuntu, python3-venv not installed yet)
+    # leaves half an environment, without pip, that the test above would take for
+    # a finished one on every later run. Python says what to install; this makes
+    # the next run start again.
+    python3 -m venv "$ROOT/backend/.venv" || {
+        rm -rf "$ROOT/backend/.venv"
+        exit 1
+    }
 fi
 PY_INSTALLED="$ROOT/backend/.venv/.installed-pyproject.toml"
 if ! cmp -s "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"; then
