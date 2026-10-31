@@ -171,6 +171,33 @@ async def test_a_websocket_is_open_without_a_password(make_client):
             "websocket.accept", "websocket.send", "websocket.close 1000"]
 
 
+@pytest.mark.parametrize("path", ["/api/gate/", "/api/gate/x", "/api/gatex", "/api/health/",
+                                  "/api/healthz", "/api/update"])
+async def test_paths_next_to_the_public_ones_are_locked(make_client, path):
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        r = await c.get(path)
+    assert r.status_code == 401
+    assert r.json() == {"error": "Locked.", "kind": "locked"}
+
+
+async def test_requests_arriving_together_first_load_the_store_once(make_client, monkeypatch):
+    loads: list[str] = []
+    load = gate.GateStore._load
+
+    async def slow_load(self, password: str) -> None:
+        loads.append(password)
+        # Long enough for the other request to arrive while this one loads.
+        await asyncio.sleep(0.05)
+        await load(self, password)
+
+    monkeypatch.setattr(gate.GateStore, "_load", slow_load)
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        state, locked = await asyncio.gather(c.get("/api/gate"), c.get("/api/characters"))
+    assert loads == [PW]
+    assert state.json() == {"enabled": True, "authenticated": False}
+    assert locked.status_code == 401
+
+
 async def test_public_api_paths_stay_open(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         assert (await c.get("/api/health")).status_code == 200
