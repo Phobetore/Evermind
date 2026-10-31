@@ -488,6 +488,28 @@ def test_the_excerpt_looks_at_the_start_of_a_large_answer_only():
     assert excerpt("words " + "<script>" * 400) == "words"
 
 
+@pytest.mark.parametrize("name", ["style", "script", "STYLE", "Script"])
+@pytest.mark.parametrize("content", ["a { color: red } ", "var x = 1; "])
+def test_the_excerpt_drops_a_block_that_the_part_looked_at_ends_inside(name, content):
+    """A page that is cut off inside its style or its script has no words in what
+    is left of it, only code, which is not what the person needs to read. It is
+    what a long inline style at the top of an error page leaves in the part looked
+    at."""
+    from app.providers.base import excerpt
+
+    page = f"<title>Bad gateway</title><{name} type=\"x\">" + content * 1_000
+    assert excerpt(page) == "Bad gateway"
+    # The same when the block does close, but only after the part that is looked at.
+    assert excerpt(page + f"</{name}><p>after</p>") == "Bad gateway"
+
+
+def test_the_excerpt_keeps_the_words_around_a_style_and_a_script_that_close():
+    from app.providers.base import excerpt
+
+    page = "Down <style>p { color: red }</style> for <script>track()</script> now"
+    assert excerpt(page) == "Down for now"
+
+
 async def test_the_anthropic_model_list_message_quotes_the_words_of_a_page():
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(502, content=b"<html>\n<body><h1>502   Bad gateway</h1></body>\n</html>")

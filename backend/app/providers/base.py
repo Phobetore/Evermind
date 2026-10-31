@@ -43,9 +43,11 @@ NO_TEXT = "model_no_text"
 
 # What reads as markup: an XML prolog, a comment, a script or a style with its
 # content, or a tag. A "<" followed by a space or a digit is a comparison, not a tag.
+# A script or a style with no end in the part that is looked at (\Z) goes to the end
+# of it: what is left of a block that was cut off is code, not words.
 _PROLOG = re.compile(r"<\?.*?\?>", re.DOTALL)
 _COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
-_SCRIPT_OR_STYLE = re.compile(r"<(script|style)\b.*?</\1\s*>", re.DOTALL | re.IGNORECASE)
+_SCRIPT_OR_STYLE = re.compile(r"<(script|style)\b.*?(?:</\1\s*>|\Z)", re.DOTALL | re.IGNORECASE)
 _TAG = re.compile(r"</?[A-Za-z!][^>]*>")
 # How much of an answer is looked at. The words of an error page are at its
 # start, and this runs on the event loop that live replies are streamed on, so
