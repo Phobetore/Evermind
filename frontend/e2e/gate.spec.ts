@@ -125,6 +125,49 @@ test("signing out really ends the session", async ({ page, context, request }) =
   expect(after.status()).toBe(401);
 });
 
+test("signing in again after signing out lands on the home page", async ({ page }) => {
+  await page.goto("/#/settings");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/settings$/);
+
+  await page.getByRole("button", { name: /sign out of this device/i }).click();
+  await expect(page).toHaveURL(/#\/login$/);
+
+  // The person left on purpose: there is no page to take them back to, with or
+  // without a reload in between.
+  await page.reload();
+  await expect(page.getByLabel(/password/i)).toBeVisible();
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(`${GATED}/#/`);
+});
+
+test("a session that ends after signing back in remembers where it was", async ({ page }) => {
+  await page.goto("/#/settings");
+  await enter(page, GATE_PASSWORD);
+  await page.getByRole("button", { name: /sign out of this device/i }).click();
+  await expect(page).toHaveURL(/#\/login$/);
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(`${GATED}/#/`);
+
+  // Ended from outside, as another device signing everything out would: this
+  // is not leaving on purpose, and the way back is kept again.
+  expect((await page.request.delete(`${GATED}/api/gate/sessions`)).status()).toBe(204);
+  await page.goto("/#/personas");
+  await expect(page).toHaveURL(/#\/login\?from=%2Fpersonas$/);
+});
+
+test("signing out of every device lands on a clean login too", async ({ page }) => {
+  await page.goto("/#/settings");
+  await enter(page, GATE_PASSWORD);
+  const entries = await page.evaluate(() => history.length);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: /sign out every device/i }).click();
+
+  await expect(page).toHaveURL(/#\/login$/);
+  expect(await page.evaluate(() => history.length)).toBe(entries);
+});
+
 test("the API is locked without a session", async ({ request }) => {
   const r = await request.get(`${GATED}/api/characters`);
   expect(r.status()).toBe(401);

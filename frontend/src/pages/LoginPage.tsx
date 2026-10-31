@@ -5,12 +5,11 @@ import { loginFailure } from "@/lib/loginFailure";
 import { safeFrom } from "@/lib/safeFrom";
 import { KeyRound, Loader2, VenetianMask } from "lucide-react";
 import { useState } from "react";
-import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
 
 export function LoginPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { status, refresh } = useAccess();
   const t = useT();
   const [password, setPassword] = useState("");
@@ -19,11 +18,8 @@ export function LoginPage() {
   // Only ever a page of this app: the address can be written by anyone.
   const from = safeFrom(params.get("from"));
 
-  // The settings page sends a device here as it signs it out, before the status
-  // has been asked for again and still says it is in.
-  const justSignedOut = (location.state as { signedOut?: boolean } | null)?.signedOut === true;
   // Nothing to unlock: no password is set, or this device is already in.
-  if (!data.access || (status && (!status.enabled || (status.authenticated && !justSignedOut)))) {
+  if (!data.access || (status && (!status.enabled || status.authenticated))) {
     return <Navigate to={from} replace />;
   }
   const access = data.access;

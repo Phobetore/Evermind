@@ -7,6 +7,12 @@ type Ctx = {
   status: AccessStatus | null;
   /** Asks the server again, keeps the answer, and returns it. */
   refresh(): Promise<AccessStatus>;
+  /** Whether this device has signed itself out and not been back in since. */
+  signingOut: boolean;
+  /** Signs this device out, or every device, and asks where that leaves it.
+   *  Rejects, with the device still signed in as far as it knows, if the server
+   *  could not be asked. */
+  signOut(everywhere: boolean): Promise<void>;
 };
 
 /** What an edition without an access password always answers. */
@@ -21,12 +27,33 @@ const AccessContext = createContext<Ctx | null>(null);
  *  `status` is null until the server has said. */
 export function AccessProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AccessStatus | null>(data.access ? null : OPEN);
+  // Kept here, in memory, from the moment of signing out until the next time
+  // this device is let in. It is what tells the gate that the person left on
+  // purpose, and has no page to be taken back to.
+  const [signingOut, setSigningOut] = useState(false);
 
   const refresh = useCallback(async () => {
     const fresh = data.access ? await data.access.status() : OPEN;
     setStatus(fresh);
+    if (fresh.authenticated) setSigningOut(false);
     return fresh;
   }, []);
+
+  const signOut = useCallback(
+    async (everywhere: boolean) => {
+      const access = data.access;
+      if (!access) return;
+      setSigningOut(true);
+      try {
+        await (everywhere ? access.logoutEverywhere() : access.logout());
+        await refresh();
+      } catch (error) {
+        setSigningOut(false);
+        throw error;
+      }
+    },
+    [refresh],
+  );
 
   useEffect(() => {
     // A server that cannot be asked opens onto the pages, which then say for
@@ -50,7 +77,10 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const value = useMemo(() => ({ status, refresh }), [status, refresh]);
+  const value = useMemo(
+    () => ({ status, refresh, signingOut, signOut }),
+    [status, refresh, signingOut, signOut],
+  );
   return <AccessContext.Provider value={value}>{children}</AccessContext.Provider>;
 }
 
@@ -61,15 +91,17 @@ export function useAccess(): Ctx {
 }
 
 /** Shows the pages only once this device may see them, and sends it to the
- *  login otherwise, remembering where it was going. A session that ends while
- *  a page is open lands here too, through `onLocked` above, instead of leaving
- *  that page to show an error for every call it makes. */
+ *  login otherwise, remembering where it was going, unless it has just signed
+ *  out: then it was going nowhere. A session that ends while a page is open
+ *  lands here too, through `onLocked` above, instead of leaving that page to
+ *  show an error for every call it makes. */
 export function AccessGate({ children }: { children: React.ReactNode }) {
-  const { status } = useAccess();
+  const { status, signingOut } = useAccess();
   const { pathname, search } = useLocation();
   if (status === null) return null;
   if (status.enabled && !status.authenticated && pathname !== "/login") {
-    return <Navigate to={"/login?from=" + encodeURIComponent(pathname + search)} replace />;
+    const back = signingOut ? "" : "?from=" + encodeURIComponent(pathname + search);
+    return <Navigate to={"/login" + back} replace />;
   }
   return <>{children}</>;
 }

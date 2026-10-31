@@ -219,7 +219,7 @@ export function SettingsPage() {
         </section>
       )}
 
-      {data.access && accessStatus?.enabled && <Access access={data.access} />}
+      {data.access && accessStatus?.enabled && <Access />}
 
       {data.updates && <About updates={data.updates} />}
 
@@ -263,10 +263,10 @@ function GlobalInstructions({
 }
 
 /** Signing out, for the devices that had to give the password to get in. */
-function Access({ access }: { access: NonNullable<DataSource["access"]> }) {
+function Access() {
   const t = useT();
   const navigate = useNavigate();
-  const { refresh } = useAccess();
+  const { signOut: leave } = useAccess();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -275,13 +275,11 @@ function Access({ access }: { access: NonNullable<DataSource["access"]> }) {
     setBusy(true);
     setError(null);
     try {
-      await (everywhere ? access.logoutEverywhere() : access.logout());
-      // The login first, in place of this page, and the status after: the other
-      // way round, the gate would take the person to the login with this page
-      // as the place to come back to. Until the status is fresh it still shows
-      // a session, which the login is told to look past.
-      await navigate("/login", { replace: true, state: { signedOut: true } });
-      await refresh();
+      // The status is fresh by the time this returns, so the login finds no
+      // session to send the person back from, and the gate, told that they left
+      // on purpose, has no page to send them back to.
+      await leave(everywhere);
+      navigate("/login", { replace: true });
     } catch (e) {
       setError(describeError(e, t));
       setBusy(false);
