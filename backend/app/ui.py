@@ -5,6 +5,8 @@ request, so the API sends no CORS headers, and a phone on the local network
 needs a single URL.
 """
 
+import errno
+import logging
 import os
 from pathlib import Path
 from urllib.parse import quote
@@ -15,6 +17,8 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.types import Receive, Scope, Send
+
+logger = logging.getLogger(__name__)
 
 # Vite puts a hash of the content in the name of everything under /assets/, so
 # a file there never changes under its name and can be kept for good.
@@ -44,6 +48,10 @@ _URL_SAFE = ":/%#?=@[]!$&'()*+,;"
 # The same for a path that has been decoded, where "%", "?" and "#" are part of a
 # name and not what they stand for in a URL.
 _DECODED_SAFE = "/:@!$&'()*+,;="
+# What the file system answers to a name it cannot have: Windows says "invalid
+# argument" (WinError 123) for ``*``, ``"`` or a line break, and any system says
+# "name too long".
+_REFUSED_NAME = {errno.EINVAL, errno.ENAMETOOLONG}
 
 
 class UIFiles(StaticFiles):
@@ -60,10 +68,12 @@ class UIFiles(StaticFiles):
             raise HTTPException(status_code=404)
         try:
             response = await super().get_response(path, scope)
-        except OSError:
-            # Windows refuses some characters in a file name (``*``, ``"``, a
-            # line break) with an error of its own instead of "not found", and
-            # a path that no file can have is a file that is not there.
+        except OSError as err:
+            # A name that no file can have is a file that is not there. Any
+            # other failure is the disk's and has to show as one.
+            if err.errno not in _REFUSED_NAME:
+                logger.error("Could not look up %s in the interface folder: %s", path, err)
+                raise
             raise HTTPException(status_code=404) from None
         # Only a file that was found may be called immutable: an error page
         # cached for a year would outlive the fix.

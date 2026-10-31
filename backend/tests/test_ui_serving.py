@@ -4,10 +4,14 @@ Phones keep old bookmarks and may hold an old copy of the interface, so these
 tests are mostly about what is cached and what is redirected.
 """
 
+import errno
+import os
 import re
 from urllib.parse import urljoin
 
 import pytest
+
+from app.ui import UIFiles
 
 from .test_gate import open_socket
 
@@ -268,6 +272,32 @@ async def test_traversal_is_refused(ui_client, tmp_path, path):
 async def test_a_name_the_file_system_refuses_is_a_missing_file(ui_client, path):
     r = await ui_client.get(path)
     assert r.status_code == 404
+
+
+def failing_lookup(monkeypatch, error):
+    def lookup(self, path):
+        raise error
+
+    monkeypatch.setattr(UIFiles, "lookup_path", lookup)
+
+
+@pytest.mark.parametrize("code", [errno.EINVAL, errno.ENAMETOOLONG])
+async def test_an_error_for_a_name_the_file_system_refuses_is_a_404(ui_client, monkeypatch, code):
+    failing_lookup(monkeypatch, OSError(code, os.strerror(code)))
+    assert (await ui_client.get("/assets/whatever")).status_code == 404
+
+
+@pytest.mark.parametrize("code", [errno.EIO, errno.ELOOP])
+async def test_any_other_file_system_error_is_not_taken_for_a_missing_file(
+    ui_client, monkeypatch, caplog, code
+):
+    failing_lookup(monkeypatch, OSError(code, os.strerror(code)))
+    # The test client raises what the application let out, which the server
+    # would answer with a 500.
+    with pytest.raises(OSError) as raised:
+        await ui_client.get("/assets/whatever")
+    assert raised.value.errno == code
+    assert "assets" in caplog.text and "whatever" in caplog.text
 
 
 async def test_a_link_out_of_the_folder_is_not_followed(ui_client, ui_dir, tmp_path):
