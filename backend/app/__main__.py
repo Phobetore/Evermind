@@ -22,8 +22,8 @@ from .services import update_check
 # use of it.
 _PORT_TAKEN = {errno.EADDRINUSE, errno.EACCES, getattr(errno, "WSAEACCES", errno.EACCES)}
 
-# For an address that covers every interface: where a program already on the
-# port would be listening on this computer.
+# For an address that covers every interface: where to look for a program
+# already on the port.
 _WILDCARD_LOOPBACK = {"0.0.0.0": "127.0.0.1", "::": "::1"}
 
 
@@ -133,12 +133,13 @@ def port_in_use(host: str, port: int) -> bool:
             s.bind((host, port))
     except OSError as err:
         return err.errno in _PORT_TAKEN
-    # Windows lets a bind to every interface succeed while another program holds
-    # the same port on the loopback alone, and both then run: this computer keeps
-    # talking to the old one and only the network reaches the new one. The bind
-    # cannot see that; a connection can.
-    loopback = _WILDCARD_LOOPBACK.get(host)
-    return loopback is not None and _has_listener(loopback, port)
+    # Windows lets a bind succeed next to a listener on the other side of the
+    # wildcard, in either direction: 127.0.0.1 or the network address while
+    # another program holds 0.0.0.0, and 0.0.0.0 while another holds 127.0.0.1
+    # alone. Both programs then run, the second one sharing the first one's data
+    # folder or only being reached by part of the traffic. The bind cannot see
+    # that; a connection can.
+    return _has_listener(_WILDCARD_LOOPBACK.get(host, host), port)
 
 
 def _has_listener(host: str, port: int) -> bool:

@@ -86,6 +86,16 @@ def busy_port():
         yield s.getsockname()[1]
 
 
+@pytest.fixture()
+def busy_port_on_every_interface():
+    """A port that something is listening on, on every interface rather than
+    only on this computer."""
+    with socket.socket() as s:
+        s.bind(("0.0.0.0", 0))
+        s.listen()
+        yield s.getsockname()[1]
+
+
 # --- the settings file -----------------------------------------------------
 
 
@@ -296,14 +306,35 @@ def test_port_in_use_sees_a_loopback_listener_when_asked_about_every_ipv6_interf
         assert launch.port_in_use("::", s.getsockname()[1]) is True
 
 
-def test_a_listener_elsewhere_than_the_loopback_is_not_probed_for(monkeypatch):
-    # Only an address that covers every interface can hide a loopback listener.
-    # A specific one is bound to for real, and that bind already tells.
-    def refuse(host, port):
-        raise AssertionError("a connection was attempted")
+def test_port_in_use_sees_a_listener_on_every_interface_when_asked_about_the_loopback(
+    busy_port_on_every_interface,
+):
+    # The other way round: Windows lets the bind to 127.0.0.1 succeed next to a
+    # listener on 0.0.0.0, and a second server would share the first one's data.
+    assert launch.port_in_use("127.0.0.1", busy_port_on_every_interface) is True
 
-    monkeypatch.setattr(launch, "_has_listener", refuse)
+
+def test_port_in_use_sees_a_listener_on_every_interface_when_asked_about_the_network_address(
+    busy_port_on_every_interface,
+):
+    address = launch.lan_address()
+    if address is None:
+        pytest.skip("no network address on this computer")
+    assert launch.port_in_use(address, busy_port_on_every_interface) is True
+
+
+def test_port_in_use_lets_a_free_port_through_on_the_loopback_too():
     assert launch.port_in_use("127.0.0.1", free_port()) is False
+
+
+def test_has_listener_connects_to_a_listener(busy_port):
+    # On Linux the bind probe fails first and never gets here, so this is the
+    # only place the answer of the connection is looked at everywhere.
+    assert launch._has_listener("127.0.0.1", busy_port) is True
+
+
+def test_has_listener_finds_nobody_on_a_free_port():
+    assert launch._has_listener("127.0.0.1", free_port()) is False
 
 
 def _recording_sockets(monkeypatch, os_name):
@@ -337,6 +368,8 @@ def _recording_sockets(monkeypatch, os_name):
     )
     monkeypatch.setattr(launch, "socket", fake)
     monkeypatch.setattr(launch, "os", types.SimpleNamespace(name=os_name))
+    # The connection that follows a successful bind is not what these look at.
+    monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
     return made
 
 
@@ -441,6 +474,18 @@ def test_check_on_the_network_sees_a_loopback_listener(clean_env, busy_port, ser
     captured = capsys.readouterr()
     assert captured.out == ""
     assert f"Port {busy_port} is already in use." in captured.err
+    assert served == []
+
+
+def test_check_sees_a_listener_on_every_interface(
+    clean_env, busy_port_on_every_interface, served, capsys
+):
+    # Evermind started with -Lan or BIND=0.0.0.0, then started again local only.
+    p = busy_port_on_every_interface
+    assert launch.main(["--check", "--no-env-file", "--port", str(p)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert f"Port {p} is already in use." in captured.err
     assert served == []
 
 
