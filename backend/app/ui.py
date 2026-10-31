@@ -7,6 +7,7 @@ needs a single URL.
 
 import os
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import FastAPI
 from starlette.exceptions import HTTPException
@@ -30,9 +31,15 @@ LEGACY_PATHS = (
     "/chat/{rest:path}",
     "/characters/{rest:path}",
     "/personas",
+    "/personas/",
     "/settings",
+    "/settings/",
     "/login",
+    "/login/",
 )
+# What a URL may keep as it is, which is what RedirectResponse leaves alone too:
+# the "%" of what is already encoded and the characters set aside as separators.
+_URL_SAFE = ":/%#?=@[]!$&'()*+,;"
 
 
 class UIFiles(StaticFiles):
@@ -57,12 +64,25 @@ class UIFiles(StaticFiles):
         return response
 
 
-def _redirect_legacy(request: Request) -> RedirectResponse:
+async def _redirect_legacy(request: Request) -> RedirectResponse:
+    scope = request.scope
+    # The path as the client wrote it. Decoded, a "%3F" would turn into the "?"
+    # that starts a query and a "%23" into the "#" that starts a fragment, and
+    # the redirect would lead to another route.
+    path = quote(scope.get("raw_path") or scope["path"].encode(), safe=_URL_SAFE)
+    # Behind a prefix (``uvicorn --root-path``) the interface lives under it, so
+    # the "#" goes after the prefix, and the route is what comes after that. The
+    # server may or may not have put the prefix in the path.
+    prefix = quote(scope.get("root_path", "").rstrip("/"), safe=_URL_SAFE)
+    if prefix and path.startswith(prefix) and path[len(prefix):][:1] in ("", "/"):
+        path = path[len(prefix):]
+    target = f"{prefix}/#{path}"
     # The query goes through as it came: the login page's ``from`` is already
-    # encoded, and encoding it again would make it point somewhere else.
-    target = "/#" + request.url.path
-    if request.url.query:
-        target += "?" + request.url.query
+    # encoded, and encoding it again would make it point somewhere else. It is
+    # not read from request.url, which is rebuilt from the decoded path and would
+    # take the part after a "%3F" in it for the query.
+    if scope["query_string"]:
+        target += "?" + quote(scope["query_string"], safe=_URL_SAFE)
     return RedirectResponse(target, status_code=302)
 
 
