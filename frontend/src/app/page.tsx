@@ -4,8 +4,8 @@ import { CharacterCard } from "@/components/cards/CharacterCard";
 import { ImportModal } from "@/components/cards/ImportModal";
 import { LibraryModal } from "@/components/cards/LibraryModal";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
 import type { Character, Kind } from "@/types";
 import { clsx } from "clsx";
 import { FileUp, LibraryBig, Plus, Search, Sparkles, Star } from "lucide-react";
@@ -34,11 +34,8 @@ export default function HubPage() {
   const [importOpen, setImportOpen] = useState(false);
 
   const load = useCallback(async (kind: Kind | "all", q: string) => {
-    const params = new URLSearchParams();
-    if (kind !== "all") params.set("kind", kind);
-    if (q.trim()) params.set("q", q.trim());
     try {
-      setCharacters(await api.get<Character[]>(`/api/characters?${params}`));
+      setCharacters(await data.characters.list({ kind: kind === "all" ? undefined : kind, q }));
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("home.loadError"));
@@ -51,7 +48,7 @@ export default function HubPage() {
   }, [tab, query, load]);
 
   async function toggleFavorite(character: Character) {
-    const updated = await api.put<Character>(`/api/characters/${character.id}`, {
+    const updated = await data.characters.update(character.id, {
       is_favorite: !character.is_favorite,
     });
     setCharacters((prev) =>

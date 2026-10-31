@@ -2,8 +2,8 @@
 
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
@@ -70,8 +70,7 @@ export function ChatSidePanel({
     setWallpaperBusy(true);
     setWallpaperError(null);
     try {
-      const updated = await api.upload<Conversation>(
-        `/api/conversations/${conversation.id}/wallpaper`, file);
+      const updated = await data.conversations.setWallpaper(conversation.id, file);
       onConversationChange({
         wallpaper_url: updated.wallpaper_url,
         wallpaper_opacity: updated.wallpaper_opacity,
@@ -85,7 +84,7 @@ export function ChatSidePanel({
   async function clearWallpaper() {
     setWallpaperBusy(true);
     try {
-      await api.delete(`/api/conversations/${conversation.id}/wallpaper`);
+      await data.conversations.clearWallpaper(conversation.id);
       onConversationChange({ wallpaper_url: null });
     } catch (e) {
       setWallpaperError(e instanceof Error ? e.message : t("chat.wallpaper.failed"));
@@ -96,8 +95,9 @@ export function ChatSidePanel({
   useEffect(() => {
     // Caught: offline, these reject, and an unhandled rejection is noise in a
     // console that a real fault has to be found in.
-    api.get<Connection[]>("/api/connections").then(setConnections).catch(() => {});
-    api.get<Memory[]>(`/api/conversations/${conversation.id}/memories`)
+    data.connections?.list().then(setConnections).catch(() => {});
+    data.memories
+      .list(conversation.id)
       .then(setMemories)
       .catch(() => {});
   }, [conversation.id]);
@@ -122,7 +122,7 @@ export function ChatSidePanel({
   async function saveDirective() {
     const value = directive.trim();
     if (value === (conversation.author_note ?? "")) return;
-    await api.patch(`/api/conversations/${conversation.id}`, { author_note: value });
+    await data.conversations.update(conversation.id, { author_note: value });
     onConversationChange({ author_note: value });
   }
 
@@ -130,9 +130,7 @@ export function ChatSidePanel({
     setMemorizing(true);
     setMemoryNote(null);
     try {
-      const result = await api.post<{
-        facts_added: Memory[]; summary: string | null; memories: Memory[];
-      }>(`/api/conversations/${conversation.id}/memories/extract`);
+      const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
       if (result.summary) {
         setSummary(result.summary);
@@ -154,9 +152,7 @@ export function ChatSidePanel({
     setConsolidating(true);
     setMemoryNote(null);
     try {
-      const result = await api.post<{ before: number; after: number; memories: Memory[]; skipped?: string }>(
-        `/api/conversations/${conversation.id}/memories/consolidate`,
-      );
+      const result = await data.memories.consolidate(conversation.id);
       setMemories(result.memories);
       setMemoryNote(
         result.skipped
@@ -174,9 +170,7 @@ export function ChatSidePanel({
     const content = newFact.trim();
     if (!content) return;
     try {
-      const saved = await api.post<Memory>(`/api/conversations/${conversation.id}/memories`, {
-        content, is_pinned: true,
-      });
+      const saved = await data.memories.create(conversation.id, { content, is_pinned: true });
       setMemories((prev) => [saved, ...prev]);
       setNewFact("");
     } catch (e) {
@@ -186,14 +180,12 @@ export function ChatSidePanel({
   }
 
   async function togglePin(memory: Memory) {
-    const updated = await api.patch<Memory>(`/api/memories/${memory.id}`, {
-      is_pinned: !memory.is_pinned,
-    });
+    const updated = await data.memories.update(memory.id, { is_pinned: !memory.is_pinned });
     setMemories((prev) => prev.map((m) => (m.id === memory.id ? updated : m)));
   }
 
   async function removeFact(memory: Memory) {
-    await api.delete(`/api/memories/${memory.id}`);
+    await data.memories.remove(memory.id);
     setMemories((prev) => prev.filter((m) => m.id !== memory.id));
   }
 
@@ -204,12 +196,12 @@ export function ChatSidePanel({
   );
 
   async function changeConnection(connectionId: string) {
-    await api.patch(`/api/conversations/${conversation.id}`, { connection_id: connectionId });
+    await data.conversations.update(conversation.id, { connection_id: connectionId });
     onConversationChange({ connection_id: connectionId });
   }
 
   async function saveSummary() {
-    await api.patch(`/api/conversations/${conversation.id}`, { summary });
+    await data.conversations.update(conversation.id, { summary });
     onConversationChange({ summary });
     setNote(t("chat.panel.summary.saved"));
     setTimeout(() => setNote(null), 1500);
@@ -219,9 +211,7 @@ export function ChatSidePanel({
     setSummarizing(true);
     setNote(null);
     try {
-      const updated = await api.post<Conversation>(
-        `/api/conversations/${conversation.id}/summarize`,
-      );
+      const updated = await data.conversations.summarize(conversation.id);
       setSummary(updated.summary);
       onConversationChange({ summary: updated.summary });
       setNote(t("chat.panel.summary.generated"));
@@ -271,22 +261,24 @@ export function ChatSidePanel({
         </div>
       )}
 
-      <Field label={t("chat.panel.modelLabel")}>
-        <select
-          className="field"
-          value={conversation.connection_id ?? ""}
-          onChange={(e) => changeConnection(e.target.value)}
-        >
-          <option value="" disabled>
-            {t("chat.panel.chooseModelOption")}
-          </option>
-          {connections.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} {c.model ? `· ${c.model}` : ""}
+      {data.connections && (
+        <Field label={t("chat.panel.modelLabel")}>
+          <select
+            className="field"
+            value={conversation.connection_id ?? ""}
+            onChange={(e) => changeConnection(e.target.value)}
+          >
+            <option value="" disabled>
+              {t("chat.panel.chooseModelOption")}
             </option>
-          ))}
-        </select>
-      </Field>
+            {connections.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.model ? `· ${c.model}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
 
       {/* What the text box actually understands. Everything listed is something
           this app renders or does — nothing aspirational, and nothing carried

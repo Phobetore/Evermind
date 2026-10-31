@@ -4,8 +4,8 @@ import { Field } from "@/components/editor/Field";
 import { ConnectionForm } from "@/components/settings/ConnectionForm";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
+import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
 import type { Connection, Persona, Settings, UpdateStatus } from "@/types";
 import { Cable, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,15 +20,15 @@ export default function SettingsPage() {
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(() => {
-    api.get<Connection[]>("/api/connections").then(setConnections);
-    api.get<Persona[]>("/api/personas").then(setPersonas);
-    api.get<Settings>("/api/settings").then(setSettings);
+    data.connections?.list().then(setConnections);
+    data.personas.list().then(setPersonas);
+    data.settings.get().then(setSettings);
   }, []);
 
   useEffect(load, [load]);
 
   async function saveSettings(patch: Partial<Settings>) {
-    const updated = await api.put<Settings>("/api/settings", patch);
+    const updated = await data.settings.update(patch);
     setSettings(updated);
     setSavedFlash(true);
     if (flashTimer.current) clearTimeout(flashTimer.current);
@@ -42,47 +42,49 @@ export default function SettingsPage() {
         <p className="mt-1 text-mist">{t("settings.subtitle")}</p>
       </header>
 
-      {/* Connections */}
-      <section className="mb-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="ui-label">{t("settings.connectionsTitle")}</h2>
-          <button className="btn btn-primary !py-2 text-sm" onClick={() => setEditing("new")}>
-            <Plus className="h-4 w-4" /> {t("settings.addConnection")}
-          </button>
-        </div>
-
-        {connections === null ? (
-          <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
-        ) : connections.length === 0 ? (
-          <EmptyState icon={Cable} title={t("settings.emptyState.title")}>
-            {t("settings.emptyState.body")}
-          </EmptyState>
-        ) : (
-          <div className="stagger flex flex-col gap-3">
-            {connections.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setEditing(c)}
-                className="panel flex items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:border-ember-600/40"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-display font-semibold">{c.name}</h3>
-                    {c.is_default && <Tag tone="ember">{t("settings.defaultTag")}</Tag>}
-                  </div>
-                  <p className="mt-0.5 truncate text-sm text-mist">
-                    {c.provider === "anthropic" ? "Anthropic" : "OpenAI-compatible"} ·{" "}
-                    {c.model || t("settings.noModel")} · {c.base_url}
-                  </p>
-                </div>
-                <span className="shrink-0 font-mono text-xs text-mist-dim">
-                  {c.api_key_set ? t("settings.keyHint", { hint: c.api_key_hint }) : t("settings.noKey")}
-                </span>
-              </button>
-            ))}
+      {/* Connections: only an edition that keeps its own models has them. */}
+      {data.connections && (
+        <section className="mb-10">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="ui-label">{t("settings.connectionsTitle")}</h2>
+            <button className="btn btn-primary !py-2 text-sm" onClick={() => setEditing("new")}>
+              <Plus className="h-4 w-4" /> {t("settings.addConnection")}
+            </button>
           </div>
-        )}
-      </section>
+
+          {connections === null ? (
+            <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
+          ) : connections.length === 0 ? (
+            <EmptyState icon={Cable} title={t("settings.emptyState.title")}>
+              {t("settings.emptyState.body")}
+            </EmptyState>
+          ) : (
+            <div className="stagger flex flex-col gap-3">
+              {connections.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setEditing(c)}
+                  className="panel flex items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:border-ember-600/40"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-display font-semibold">{c.name}</h3>
+                      {c.is_default && <Tag tone="ember">{t("settings.defaultTag")}</Tag>}
+                    </div>
+                    <p className="mt-0.5 truncate text-sm text-mist">
+                      {c.provider === "anthropic" ? "Anthropic" : "OpenAI-compatible"} ·{" "}
+                      {c.model || t("settings.noModel")} · {c.base_url}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-mono text-xs text-mist-dim">
+                    {c.api_key_set ? t("settings.keyHint", { hint: c.api_key_hint }) : t("settings.noKey")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Defaults */}
       {settings && (
@@ -101,20 +103,22 @@ export default function SettingsPage() {
               ))}
             </select>
           </Field>
-          <Field label={t("settings.defaultConnectionLabel")}>
-            <select
-              className="field"
-              value={settings.default_connection_id ?? ""}
-              onChange={(e) => saveSettings({ default_connection_id: e.target.value || null })}
-            >
-              <option value="">{t("settings.firstAvailableOption")}</option>
-              {(connections ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {data.connections && (
+            <Field label={t("settings.defaultConnectionLabel")}>
+              <select
+                className="field"
+                value={settings.default_connection_id ?? ""}
+                onChange={(e) => saveSettings({ default_connection_id: e.target.value || null })}
+              >
+                <option value="">{t("settings.firstAvailableOption")}</option>
+                {(connections ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
         </section>
       )}
 
@@ -213,10 +217,11 @@ export default function SettingsPage() {
         </section>
       )}
 
-      <About />
+      {data.updates && <About updates={data.updates} />}
 
-      {editing && (
+      {editing && data.connections && (
         <ConnectionForm
+          source={data.connections}
           connection={editing === "new" ? null : editing}
           onClose={() => setEditing(null)}
           onSaved={() => {
@@ -257,7 +262,7 @@ function GlobalInstructions({
  *  running it could tell what they were on, report a bug against it, or find
  *  where it comes from. It also says when a newer release exists, since a
  *  self-hosted app has no other way of telling you. */
-function About() {
+function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
   const t = useT();
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [checking, setChecking] = useState(false);
@@ -266,14 +271,14 @@ function About() {
   const [verdict, setVerdict] = useState<"current" | "unreachable" | null>(null);
 
   useEffect(() => {
-    api.get<UpdateStatus>("/api/update").then(setStatus).catch(() => setStatus(null));
-  }, []);
+    updates.check().then(setStatus).catch(() => setStatus(null));
+  }, [updates]);
 
   async function checkNow() {
     setChecking(true);
     setVerdict(null);
     try {
-      const fresh = await api.get<UpdateStatus>("/api/update?refresh=true");
+      const fresh = await updates.check(true);
       setStatus(fresh);
       // Nothing to say when there is an update: the notice above says it.
       if (!fresh.update_available) setVerdict(fresh.reachable ? "current" : "unreachable");
@@ -287,8 +292,8 @@ function About() {
     // Answer the click straight away; the release lookup behind it can take a
     // few seconds and must not make the checkbox feel stuck.
     setStatus((prev) => (prev ? { ...prev, enabled } : prev));
-    await api.put("/api/settings", { update_check: enabled });
-    api.get<UpdateStatus>("/api/update").then(setStatus).catch(() => {});
+    await data.settings.update({ update_check: enabled });
+    updates.check().then(setStatus).catch(() => {});
   }
 
   return (

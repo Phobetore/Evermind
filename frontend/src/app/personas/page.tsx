@@ -5,8 +5,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
 import type { Persona } from "@/types";
 import { Plus, Trash2, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -16,7 +16,7 @@ export default function PersonasPage() {
   const [personas, setPersonas] = useState<Persona[] | null>(null);
   const [editing, setEditing] = useState<Persona | "new" | null>(null);
 
-  const load = () => api.get<Persona[]>("/api/personas").then(setPersonas);
+  const load = () => data.personas.list().then(setPersonas);
   useEffect(() => {
     load();
   }, []);
@@ -104,9 +104,9 @@ function PersonaModal({
     try {
       const body = { name, description, is_default: isDefault };
       const saved = persona
-        ? await api.put<Persona>(`/api/personas/${persona.id}`, body)
-        : await api.post<Persona>("/api/personas", body);
-      if (avatarFile) await api.upload(`/api/personas/${saved.id}/avatar`, avatarFile);
+        ? await data.personas.update(persona.id, body)
+        : await data.personas.create(body);
+      if (avatarFile) await data.personas.uploadAvatar(saved.id, avatarFile);
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("personas.saveError"));
@@ -117,7 +117,7 @@ function PersonaModal({
   async function remove() {
     if (!persona) return;
     if (!confirm(t("personas.confirmDelete", { name: persona.name }))) return;
-    await api.delete(`/api/personas/${persona.id}`);
+    await data.personas.remove(persona.id);
     onSaved();
   }
 

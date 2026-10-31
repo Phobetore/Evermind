@@ -20,11 +20,16 @@ export async function readEvents(
   const flush = (raw: string) => {
     for (const line of raw.split("\n")) {
       if (!line.startsWith("data:")) continue;
+      let event: ChatEvent;
       try {
-        onEvent(JSON.parse(line.slice(5).trim()) as ChatEvent);
+        event = JSON.parse(line.slice(5).trim()) as ChatEvent;
       } catch {
         /* partial JSON never happens on \n\n boundaries; ignore garbage */
+        continue;
       }
+      // Outside the try on purpose: only the parsing is forgiven. A handler
+      // that throws has a bug, and swallowing it here would hide it.
+      onEvent(event);
     }
   };
 

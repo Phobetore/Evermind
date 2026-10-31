@@ -1,8 +1,8 @@
 "use client";
 
 import { ModelSilent } from "@/components/chat/ModelSilent";
+import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { ApiError, api } from "@/lib/api";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/drafts";
 import { clsx } from "clsx";
 import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Send, Square } from "lucide-react";
@@ -133,15 +133,13 @@ export function ChatInput({
     setHint(null);
     setSilent(false);
     try {
-      const result = await api.post<{ text: string }>(
-        `/api/conversations/${conversationId}/impersonate`,
-      );
+      const result = await data.turns.impersonate(conversationId);
       setValue(result.text);
       ref.current?.focus();
     } catch (e) {
       // The model saying nothing is not the same as a mistake, and it used to
       // land in the hint line for four seconds, where the keyboard tip lives.
-      if (e instanceof ApiError && e.kind === "unreachable") {
+      if (e instanceof DataError && e.kind === "unreachable") {
         setSilent(true);
       } else {
         setHint(e instanceof Error ? e.message : t("chat.input.ghostwriteError"));

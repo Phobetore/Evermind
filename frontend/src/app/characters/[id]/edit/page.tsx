@@ -1,8 +1,8 @@
 "use client";
 
 import { CharacterForm } from "@/components/editor/CharacterForm";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
 import type { Character } from "@/types";
 import { use, useEffect, useState } from "react";
 
@@ -13,8 +13,8 @@ export default function EditCharacterPage({ params }: { params: Promise<{ id: st
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .get<Character>(`/api/characters/${id}`)
+    data.characters
+      .get(id)
       .then(setCharacter)
       .catch((e) => setError(e.message));
   }, [id]);

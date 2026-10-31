@@ -35,7 +35,17 @@ export async function raiseFor(resp: Response): Promise<never> {
   } catch {
     /* keep the default */
   }
-  if (resp.status === 401 && kind === "locked") lockedHandlers.forEach((handler) => handler());
+  if (resp.status === 401 && kind === "locked") {
+    // Each in its own try: a handler that throws must neither stand in for the
+    // error below nor stop the ones registered after it from hearing about it.
+    for (const handler of lockedHandlers) {
+      try {
+        handler();
+      } catch {
+        /* a failing handler is its own problem, not the request's */
+      }
+    }
+  }
   throw new DataError(message, { kind, status: resp.status, retryAfter: retryAfterOf(resp) });
 }
 

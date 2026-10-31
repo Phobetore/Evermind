@@ -3,8 +3,8 @@
 import { StartChatModal } from "@/components/cards/StartChatModal";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
 import { previewMacros, timeAgo } from "@/lib/utils";
 import type { Character, Conversation } from "@/types";
 import { MessageCircle, Pencil, Star } from "lucide-react";
@@ -23,14 +23,14 @@ function CharacterDetail({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .get<Character>(`/api/characters/${id}`)
+    data.characters
+      .get(id)
       .then((c) => {
         setCharacter(c);
         if (search.get("start")) setShowStart(true);
       })
       .catch((e) => setError(e.message));
-    api.get<Conversation[]>(`/api/conversations?character_id=${id}`).then(setConversations);
+    data.conversations.list({ character_id: id }).then(setConversations);
   }, [id, search]);
 
   if (error) return <p className="p-10 text-blood">{error}</p>;
@@ -87,7 +87,7 @@ function CharacterDetail({ id }: { id: string }) {
                   : "btn-ghost",
               )}
               onClick={async () => {
-                const updated = await api.put<Character>(`/api/characters/${character.id}`, {
+                const updated = await data.characters.update(character.id, {
                   is_favorite: !character.is_favorite,
                 });
                 setCharacter(updated);

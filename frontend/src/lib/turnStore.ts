@@ -10,6 +10,8 @@
  *  Only one turn runs at a time, which is what the interface allows anyway.
  */
 
+import { data } from "@/data";
+
 export interface Turn {
   conversationId: string;
   text: string;
@@ -72,7 +74,7 @@ export const turnStore = {
     const id = current?.conversationId;
     current?.controller.abort();
     if (id) {
-      void fetch(`/api/conversations/${id}/turn`, { method: "DELETE" }).catch(() => {});
+      void data.turns.stop(id).catch(() => {});
     }
   },
 

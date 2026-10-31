@@ -2,8 +2,8 @@
 
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
 import { clearDraft, pruneDrafts } from "@/lib/drafts";
 import { timeAgo } from "@/lib/utils";
 import type { Conversation } from "@/types";
@@ -22,14 +22,15 @@ export default function ConversationsPage() {
     const title = renameDraft.trim();
     setRenamingId(null);
     if (!title || title === convo.title) return;
-    await api.patch(`/api/conversations/${convo.id}`, { title });
+    await data.conversations.update(convo.id, { title });
     setConversations((prev) =>
       prev ? prev.map((c) => (c.id === convo.id ? { ...c, title } : c)) : prev,
     );
   }
 
   const load = () =>
-    api.get<Conversation[]>("/api/conversations")
+    data.conversations
+      .list()
       .then((list) => {
         setConversations(list);
         // also drops drafts left behind by conversations deleted elsewhere
@@ -45,7 +46,7 @@ export default function ConversationsPage() {
     e.stopPropagation();
     if (!confirm(t("chatList.confirmDelete", { title: convo.title || t("chatList.untitled") })))
       return;
-    await api.delete(`/api/conversations/${convo.id}`);
+    await data.conversations.remove(convo.id);
     clearDraft(convo.id);
     load();
   }

@@ -6,9 +6,8 @@ import { ModelSilent } from "@/components/chat/ModelSilent";
 import { ChatSidePanel } from "@/components/chat/ChatSidePanel";
 import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
-import { followTurn, streamChat } from "@/lib/sse";
 import { turnStore } from "@/lib/turnStore";
 import type { ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
@@ -48,7 +47,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     const title = titleDraft.trim();
     setTitleDraft(null);
     if (!title || title === conversation.title) return;
-    await api.patch(`/api/conversations/${conversation.id}`, { title });
+    await data.conversations.update(conversation.id, { title });
     setConversation((c) => (c ? { ...c, title } : c));
   }
 
@@ -58,7 +57,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     setConversation((c) => (c ? { ...c, wallpaper_opacity: value } : c));
     if (opacityWrite.current) clearTimeout(opacityWrite.current);
     opacityWrite.current = setTimeout(() => {
-      api.patch(`/api/conversations/${id}`, { wallpaper_opacity: value }).catch(() => {});
+      data.conversations.update(id, { wallpaper_opacity: value }).catch(() => {});
     }, 350);
   }
 
@@ -66,13 +65,14 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const stickToBottom = useRef(true);
 
   useEffect(() => {
-    api
-      .get<Conversation>(`/api/conversations/${id}`)
+    data.conversations
+      .get(id)
       .then((convo) => {
         setConversation(convo);
         setMessages(convo.messages ?? []);
         if (convo.persona_id) {
-          api.get<Persona[]>("/api/personas")
+          data.personas
+            .list()
             .then((all) => setPersona(all.find((p) => p.id === convo.persona_id) ?? null))
             .catch(() => {});
         }
@@ -89,13 +89,11 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
    *  the conversation, and again after a connection comes back. */
   const attachToRunningTurn = useCallback(async (controller: AbortController) => {
     if (turnStore.isRunning(id)) return; // this page is already the one running it
-    const state = await api
-      .get<{ running: boolean }>(`/api/conversations/${id}/turn`)
-      .catch(() => ({ running: false }));
+    const state = await data.turns.state(id).catch(() => ({ running: false }));
     if (!state.running || controller.signal.aborted) return;
     turnStore.begin(id, controller);
     try {
-      await followTurn(id, (event) => {
+      await data.turns.follow(id, (event) => {
         // The replay starts at the beginning, so this is the same `start` the
         // page that asked for the turn saw. A regeneration replaces a reply
         // rather than adding one; without knowing which, the page shows both
@@ -131,7 +129,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const reload = useCallback(async () => {
     if (!conversation) return true;
     try {
-      const convo = await api.get<Conversation>(`/api/conversations/${conversation.id}`);
+      const convo = await data.conversations.get(conversation.id);
       setMessages(convo.messages ?? []);
       return true;
     } catch {
@@ -214,7 +212,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     let finished = false;
 
     try {
-      await streamChat(
+      await data.turns.send(
         { conversation_id: conversation.id, mode, content, message_mode: messageMode },
         (event) => {
           if (event.type === "start") {
@@ -291,26 +289,24 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
 
   async function swipe(message: Message, index: number) {
-    const updated = await api.patch<Message>(`/api/messages/${message.id}`, {
-      active_index: index,
-    });
+    const updated = await data.messages.update(message.id, { active_index: index });
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
   }
 
   async function edit(message: Message, content: string) {
-    const updated = await api.patch<Message>(`/api/messages/${message.id}`, { content });
+    const updated = await data.messages.update(message.id, { content });
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
   }
 
   async function deleteFrom(message: Message) {
     if (!confirm(t("chat.message.confirmDeleteFrom"))) return;
-    await api.delete(`/api/messages/${message.id}?following=true`);
+    await data.messages.removeFrom(message.id);
     setMessages((prev) => prev.filter((m) => m.position < message.position));
   }
 
   async function branchFrom(message: Message) {
     if (!confirm(t("chat.message.confirmBranch"))) return;
-    const branch = await api.post<Conversation>(`/api/messages/${message.id}/branch`);
+    const branch = await data.messages.branch(message.id);
     router.push(`/chat/${branch.id}`);
   }
 

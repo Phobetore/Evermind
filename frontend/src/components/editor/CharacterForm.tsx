@@ -4,10 +4,10 @@ import { Field } from "@/components/editor/Field";
 import { LorebookSection } from "@/components/editor/LorebookSection";
 import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
+import { data, type CharacterInput } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
 import { downloadBlob, newId } from "@/lib/utils";
-import type { Character, Connection, Kind, LoreEntry, LoreEntryDraft } from "@/types";
+import type { Character, Connection, Kind, LoreEntryDraft } from "@/types";
 import { clsx } from "clsx";
 import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
@@ -16,7 +16,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-type Draft = Omit<Character, "id" | "avatar_url" | "is_favorite" | "created_at" | "updated_at">;
+type Draft = CharacterInput;
 
 const EMPTY: Draft = {
   kind: "character",
@@ -76,9 +76,9 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    api.get<Connection[]>("/api/connections").then(setConnections).catch(() => {});
+    data.connections?.list().then(setConnections).catch(() => {});
     if (initial) {
-      api.get<LoreEntry[]>(`/api/characters/${initial.id}/lore`).then(setLoreEntries).catch(() => {});
+      data.lore.list(initial.id).then(setLoreEntries).catch(() => {});
     }
   }, [initial]);
 
@@ -98,9 +98,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
       }
       delete existing.kind;
       if (loreEntries.length > 0) existing.lore_entries = loreEntries;
-      const generated = await api.post<
-        Partial<Draft> & { lore_entries?: { keys: string[]; content: string }[] }
-      >("/api/characters/assist", {
+      const generated = await data.characters.assist({
         prompt: brief,
         kind: draft.kind,
         existing,
@@ -119,9 +117,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
         // editing an existing card: the entries must be persisted right away
         const saved = initial
           ? await Promise.all(
-              additions.map((entry) =>
-                api.post<LoreEntry>(`/api/characters/${initial.id}/lore`, entry),
-              ),
+              additions.map((entry) => data.lore.create(initial.id, entry)),
             )
           : additions;
         setLoreEntries((prev) => [...prev, ...saved]);
@@ -141,15 +137,15 @@ export function CharacterForm({ initial }: { initial?: Character }) {
     setError(null);
     try {
       const saved = editing
-        ? await api.put<Character>(`/api/characters/${initial!.id}`, draft)
-        : await api.post<Character>("/api/characters", draft);
+        ? await data.characters.update(initial!.id, draft)
+        : await data.characters.create(draft);
       if (avatarFile) {
-        await api.upload<Character>(`/api/characters/${saved.id}/avatar`, avatarFile);
+        await data.characters.uploadAvatar(saved.id, avatarFile);
       }
       if (!editing) {
         // lorebook entries drafted before the card existed
         for (const entry of loreEntries) {
-          await api.post(`/api/characters/${saved.id}/lore`, {
+          await data.lore.create(saved.id, {
             keys: entry.keys,
             content: entry.content,
             enabled: entry.enabled,
@@ -169,15 +165,15 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   async function remove() {
     if (!initial) return;
     if (!confirm(t("characters.form.confirmDelete", { name: initial.name }))) return;
-    await api.delete(`/api/characters/${initial.id}`);
+    await data.characters.remove(initial.id);
     router.push("/");
     router.refresh();
   }
 
   async function exportCard(format: "json" | "png") {
     if (!initial) return;
-    const resp = await fetch(`/api/characters/${initial.id}/export?format=${format}`);
-    downloadBlob(await resp.blob(), `${initial.name}.${format}`);
+    const { blob, filename } = await data.characters.exportCard(initial.id, format);
+    downloadBlob(blob, filename);
   }
 
   return (

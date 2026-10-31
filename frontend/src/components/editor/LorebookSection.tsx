@@ -1,10 +1,10 @@
 "use client";
 
 import { TagInput } from "@/components/editor/TagInput";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
 import { newId } from "@/lib/utils";
-import type { LoreEntry, LoreEntryDraft } from "@/types";
+import type { LoreEntryDraft } from "@/types";
 import { BookMarked, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -45,7 +45,7 @@ export function LorebookSection({
     };
     try {
       const saved = characterId
-        ? await api.post<LoreEntry>(`/api/characters/${characterId}/lore`, draft)
+        ? await data.lore.create(characterId, draft)
         : { ...draft, id: newId() };
       onChange([...entries, saved]);
       setNewKeys([]);
@@ -57,13 +57,13 @@ export function LorebookSection({
 
   async function patch(entry: LoreEntryDraft, changes: Partial<LoreEntryDraft>) {
     const updated = characterId
-      ? await api.patch<LoreEntry>(`/api/lore/${entry.id}`, changes)
+      ? await data.lore.update(entry.id, changes)
       : { ...entry, ...changes };
     onChange(entries.map((e) => (e.id === entry.id ? updated : e)));
   }
 
   async function remove(entry: LoreEntryDraft) {
-    if (characterId) await api.delete(`/api/lore/${entry.id}`);
+    if (characterId) await data.lore.remove(entry.id);
     onChange(entries.filter((e) => e.id !== entry.id));
   }
 

@@ -351,6 +351,23 @@ describe("locked sessions", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  test("a handler that throws neither replaces the error nor silences the others", async () => {
+    const broken = vi.fn(() => {
+      throw new Error("handler bug");
+    });
+    const after = vi.fn();
+    stops.push(onLocked(broken), onLocked(after));
+    reply(json({ error: "Locked.", kind: "locked" }, 401));
+
+    const failure = await http.characters.list().catch((e) => e);
+
+    expect(broken).toHaveBeenCalledTimes(1);
+    expect(after).toHaveBeenCalledTimes(1);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.kind).toBe("locked");
+    expect(failure.status).toBe(401);
+  });
+
   test("a 401 that is not about the lock leaves the handler alone", async () => {
     const handler = vi.fn();
     stops.push(onLocked(handler));
@@ -393,6 +410,19 @@ describe("turns", () => {
     await http.turns.send({ conversation_id: "v1", mode: "send" }, (e) => events.push(e));
 
     expect(events).toEqual([{ type: "delta", text: "Hi" }]);
+  });
+
+  test("a handler that throws makes the turn reject", async () => {
+    reply(chunked('data: {"type":"delta","text":"Hi"}\n\n'));
+    const bug = new Error("handler bug");
+
+    const failure = await http.turns
+      .send({ conversation_id: "v1", mode: "send" }, () => {
+        throw bug;
+      })
+      .catch((e) => e);
+
+    expect(failure).toBe(bug);
   });
 
   test("send posts the request and hands the signal to fetch", async () => {
