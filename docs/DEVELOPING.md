@@ -8,8 +8,10 @@ Evermind, read [INSTALL.md](../INSTALL.md) instead.
 ```
 backend/   FastAPI + SQLite (aiosqlite, plain SQL migrations)
   app/__main__.py  python -m app: reads .env, checks the port, starts the server
-  app/ui.py        serves the built interface on "/" and redirects the old paths
-  app/gate.py      the access password: one session per device, as a middleware
+  app/ui.py        serves the built interface wherever no route answers, and
+                   redirects the old paths
+  app/gate.py      a middleware: the access password (one session per device),
+                   the refusal of writes from other origins, the host names
   app/cards/       Character Card V2 codec (JSON + PNG "chara" chunk)
   app/prompting/   prompt engine ({{char}}/{{user}} macros, context budget, RP rules)
                    embeddings.py + retrieval.py: optional semantic memory
@@ -18,7 +20,7 @@ backend/   FastAPI + SQLite (aiosqlite, plain SQL migrations)
                    memory_service: fact extraction, rolling summary, consolidation
   migrations/      NNN_name.sql, applied in filename order
 frontend/  Vite + React 19 + Tailwind v4, a single-page app routed by hash
-  src/pages/       one page per route
+  src/pages/       one page per route, fetched when it is first opened
   src/router.tsx   the routes, which live after the "#" of the address
   src/data/        the typed DataSource the interface talks to; http/ implements it
   src/components/  layout/Access.tsx keeps the pages behind the access password
@@ -40,11 +42,20 @@ scripts\dev.ps1 [-Lan]
 ./scripts/dev.sh [--lan]
 ```
 
-The scripts only get everything ready: they install the dependencies again when
+The scripts only get everything ready: they create the Python environment when
+`backend/.venv` has no working pip (so a creation that was interrupted is done
+again, not mistaken for a finished one), install the dependencies again when
 `backend/pyproject.toml` or `frontend/package-lock.json` has changed, build the
 interface (production only; Vite 8 needs **Node.js 22.12 or newer**), and start
-`python -m app`. On Windows, `prod.ps1 -Lan` also checks that the firewall lets
-the port through.
+`python -m app`. Once Python's side is installed, and before the interface is
+installed or built, they ask `python -m app --check` about the port: production
+about `PORT`, development about the API's `EVERMIND_BACKEND_PORT`, and neither
+goes on if it is taken. `dev.ps1 -Lan` and `dev.sh --lan` also ask about `PORT`,
+the one Vite uses, and only warn, since Vite does not stop for a port that is
+taken. On Windows, `-Lan` also checks that the firewall lets the port through.
+`dev.sh` stops the API and Vite whichever way it is stopped (Ctrl+C, SIGTERM, a
+closed terminal), and for that Vite runs without a keyboard to read, so its
+shortcuts (`h` + enter) are not available there.
 
 `python -m app` is the one way Evermind is started, whoever starts it: the
 scripts, the container, the end-to-end suite. From `backend/`, with the
@@ -52,7 +63,8 @@ virtualenv the scripts create:
 
 ```bash
 .venv/Scripts/python -m app [--lan] [--dev] [--check] [--host H] [--port N] \
-                            [--data-dir DIR] [--env-file PATH | --no-env-file]
+                            [--root-path PATH] [--data-dir DIR] \
+                            [--env-file PATH | --no-env-file]
 ```
 
 It reads `.env` at the repository root, then the environment, and **the
@@ -61,11 +73,11 @@ PowerShell (a byte order mark, CRLF line endings, even UTF-16, which it also
 reads without the mark); it reads the same as a plain one. `BIND` (default
 `127.0.0.1`) and `PORT` (default `3000`) say where to listen, and `--lan` is
 `BIND=0.0.0.0`. Before anything else it checks that the port is free; `--check`
-stops right after that and prints the port, so the scripts can ask before they
-install or build anything. Once it starts, it prints the local address and, when
-it listens on the network, that one too, with a warning if no password is set.
-Inside the container it prints neither, since `docker-compose.yml` is what
-decides what is exposed there.
+stops right after that and prints the port, so the scripts can ask once Python
+is installed and before the interface is installed or built. Once it starts, it
+prints the local address and, when it listens on the network, that one too, with
+a warning if no password is set. Inside the container it prints neither, since
+`docker-compose.yml` is what decides what is exposed there.
 
 **In production there is one process and one port.** FastAPI answers `/api/` and
 serves the built interface (`frontend/dist`, or wherever `EVERMIND_UI_DIR`
@@ -102,7 +114,7 @@ plus valid JSON for the memory and card-assistant prompts.
 ## Tests
 
 ```bash
-cd backend && .venv/Scripts/python -m pytest    # 400+ tests
+cd backend && .venv/Scripts/python -m pytest    # 800+ tests
 cd backend && .venv/Scripts/python -m ruff check app tests
 cd frontend && npx tsc --noEmit
 cd frontend && npm run lint
@@ -159,10 +171,15 @@ with. So a reverse proxy must either use HTTPS or preserve `Host`. A request
 with neither header, from curl or a script, is let through.
 
 Without a password, anything under `/api/` whose `Host` is not an address,
-`localhost`, this machine's name (also with `.local`) or a name in
-`EVERMIND_ALLOWED_HOSTS` answers `403` with `"kind": "unknown_host"`: a page
-whose own name was pointed at 127.0.0.1 (DNS rebinding) looks same-origin in
-every other header. With a password the name is not checked.
+`localhost` (or a name ending in `.localhost`), this machine's name (also with
+`.local`) or a name in `EVERMIND_ALLOWED_HOSTS` answers `403` with
+`"kind": "unknown_host"`: a page whose own name was pointed at 127.0.0.1 (DNS
+rebinding) looks same-origin in every other header. The header is read strictly,
+so a name with anything after it (`localhost:3000@evil.com`) is not the name in
+front of it, and a request without a `Host` header is refused with a sentence of
+its own. In a container the machine's name is the container's, which nobody
+types, so with Docker the computer's own name has to be listed. With a password
+the name is not checked.
 
 Responses are plain dicts shaped by the repositories; Pydantic is used for input
 validation only.
@@ -216,11 +233,11 @@ location /evermind/ {
 ```
 
 Tell the server the prefix with `EVERMIND_ROOT_PATH=/evermind` (in `.env`, or in the
-environment of the container) or `python -m app --root-path /evermind`. Spaces
+environment of the container) or `python -m app --root-path /evermind`. Whitespace
 around the value and slashes at its end are trimmed (`/evermind/` is `/evermind`,
 and a lone `/` is the root). A value that does not start with a slash is refused,
 and so is one with `//` at its start or inside, a `.` or `..` segment, a backslash,
-a `%`, a `?`, a `#` or a space inside it. The pages, every call and every image work
+a `%`, a `?`, a `#` or whitespace inside it. The pages, every call and every image work
 without it. What it adds is the redirect of an old `/chat/<id>` bookmark, which has
 to go to `/evermind/#/chat/<id>`, a place the server can only name if it knows the
 prefix.
@@ -311,8 +328,9 @@ serves the interface and the API on port 8000, and `docker-compose.yml` publishe
 that as `${BIND:-127.0.0.1}:${PORT:-3000}:8000`.
 
 The image is configured through its environment (it starts with `--no-env-file`,
-and `.dockerignore` keeps `.env` out of it), so `EVERMIND_GATE_PASSWORD` is read
-when the container starts and the password can be changed without rebuilding.
+and `.dockerignore` keeps every `.env*` file out of it), so
+`EVERMIND_GATE_PASSWORD` is read when the container starts and the password can
+be changed without rebuilding.
 
 It is published as `ghcr.io/phobetore/evermind`, and also as `evermind-backend`,
 the name the backend image had when Evermind was two containers, so that a 2.x
