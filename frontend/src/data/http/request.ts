@@ -2,6 +2,10 @@ import { DataError } from "../errors";
 
 const lockedHandlers = new Set<() => void>();
 
+/** `fetch`, looked up when a call is made and not when this is imported: a page
+ *  that replaces it later (to watch or to fake the network) is still heard. */
+export const lazyFetch: typeof fetch = (input, init) => fetch(input, init);
+
 /** Run `handler` whenever the server answers that the access password is
  *  needed (a 401 of kind "locked"), which is how a session that has ended
  *  shows up in the middle of a conversation. The call that met the 401 still
@@ -48,11 +52,12 @@ export async function raiseFor(resp: Response): Promise<never> {
   if (resp.status === 401 && kind === "locked") {
     // Each in its own try: a handler that throws must neither stand in for the
     // error below nor stop the ones registered after it from hearing about it.
+    // Nothing else is left to hear it, so it goes to the console.
     for (const handler of lockedHandlers) {
       try {
         handler();
-      } catch {
-        /* a failing handler is its own problem, not the request's */
+      } catch (error) {
+        console.error("A handler of onLocked threw:", error);
       }
     }
   }
@@ -78,7 +83,7 @@ export function networkFailure(error: unknown): unknown {
 export async function send(
   path: string,
   init?: RequestInit,
-  fetchImpl: typeof fetch = (input, options) => fetch(input, options),
+  fetchImpl: typeof fetch = lazyFetch,
 ): Promise<Response> {
   const headers = new Headers(init?.headers);
   // A multipart body must go out without a content type of its own: the

@@ -6,7 +6,7 @@ import type {
   BenchmarkResult, ConnectionTestResult, ConsolidateResult, DataSource, ExtractResult,
 } from "../source";
 import { readEvents } from "./events";
-import { request, send } from "./request";
+import { lazyFetch, request, send } from "./request";
 
 /** Path segments are whatever the caller passed in, so each one is encoded:
  *  an id with a slash or a question mark in it must not reach another route. */
@@ -43,11 +43,7 @@ function downloadName(disposition: string | null): string | undefined {
 
 /** The self-hosted edition: the interface and the server share an origin, and
  *  every call is a request to /api. `fetchImpl` is there for tests. */
-export function createHttpSource(
-  // Looked up at call time, not now: a page that replaces `fetch` later (to
-  // watch or to fake the network) is still heard.
-  fetchImpl: typeof fetch = (input, init) => fetch(input, init),
-): DataSource {
+export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSource {
   const call = <T>(path: string, init?: RequestInit) => request<T>(path, init, fetchImpl);
   const get = <T>(path: string) => call<T>(path);
   const post = <T = void>(path: string, body?: unknown) =>

@@ -4,7 +4,7 @@ import type { ChatEvent } from "@/types";
 import { DataError } from "../errors";
 import type { DataSource } from "../source";
 import { createHttpSource } from "./index";
-import { onLocked } from "./request";
+import { onLocked, request, send } from "./request";
 
 interface Call {
   url: string;
@@ -37,6 +37,19 @@ function chunked(...pieces: string[]): Response {
     new ReadableStream({
       start(controller) {
         for (const piece of pieces) controller.enqueue(encoder.encode(piece));
+        controller.close();
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "text/event-stream" } },
+  );
+}
+
+/** The same, in bytes, to cut a character in two. */
+function chunkedBytes(...pieces: Uint8Array[]): Response {
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        for (const piece of pieces) controller.enqueue(piece);
         controller.close();
       },
     }),
@@ -86,6 +99,12 @@ describe("request building", () => {
       url: "/api/messages/m1?following=true",
       init: { method: "DELETE" },
     });
+  });
+
+  test("clearing a wallpaper hands back the conversation without it", async () => {
+    const without = { id: "v1", title: "T", wallpaper_url: null };
+    reply(json(without));
+    await expect(http.conversations.clearWallpaper("v1")).resolves.toEqual(without);
   });
 
   test("uploads are multipart without a JSON content type", async () => {
@@ -210,6 +229,7 @@ describe("routes", () => {
     ["turns.state", () => http.turns.state("v1"), "GET", "/api/conversations/v1/turn"],
     ["turns.impersonate", () => http.turns.impersonate("v1"), "POST", "/api/conversations/v1/impersonate"],
     ["library.list", () => http.library.list(), "GET", "/api/library"],
+    ["library.install", () => http.library.install("vane.json"), "POST", "/api/library/vane.json/install"],
     ["settings.get", () => http.settings.get(), "GET", "/api/settings"],
     ["settings.update", () => http.settings.update({ reply_length: "long" }), "PUT", "/api/settings", { reply_length: "long" }],
     ["connections.list", () => http.connections.list(), "GET", "/api/connections"],
@@ -398,8 +418,10 @@ describe("locked sessions", () => {
   });
 
   test("a handler that throws neither replaces the error nor silences the others", async () => {
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
+    const bug = new Error("handler bug");
     const broken = vi.fn(() => {
-      throw new Error("handler bug");
+      throw bug;
     });
     const after = vi.fn();
     stops.push(onLocked(broken), onLocked(after));
@@ -412,6 +434,9 @@ describe("locked sessions", () => {
     expect(failure).toBeInstanceOf(DataError);
     expect(failure.kind).toBe("locked");
     expect(failure.status).toBe(401);
+    // Nobody is left to hear it but the console, which is where a bug is looked for.
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report.mock.calls[0]).toContain(bug);
   });
 
   test("a 401 that is not about the lock leaves the handler alone", async () => {
@@ -422,6 +447,34 @@ describe("locked sessions", () => {
     await http.characters.list().catch(() => {});
 
     expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe("fetch", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("the one a source starts with is looked up when a call is made", async () => {
+    const source = createHttpSource();
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      seen.push(String(input));
+      return json([]);
+    });
+    await source.characters.list();
+    expect(seen).toEqual(["/api/characters"]);
+  });
+
+  test("and so is the one the request helpers start with", async () => {
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      seen.push(String(input));
+      return json({});
+    });
+    await request("/api/one");
+    await send("/api/two");
+    expect(seen).toEqual(["/api/one", "/api/two"]);
   });
 });
 
@@ -456,6 +509,42 @@ describe("turns", () => {
     await http.turns.send({ conversation_id: "v1", mode: "send" }, (e) => events.push(e));
 
     expect(events).toEqual([{ type: "delta", text: "Hi" }]);
+  });
+
+  test("a character cut in two between chunks arrives whole", async () => {
+    const bytes = new TextEncoder().encode('data: {"type":"delta","text":"Zoé 紅"}\n\n');
+    // Inside "é", which is two bytes, and inside "紅", which is three.
+    const cuts = [bytes.indexOf(0xc3) + 1, bytes.indexOf(0xe7) + 1];
+    reply(chunkedBytes(
+      bytes.slice(0, cuts[0]), bytes.slice(cuts[0], cuts[1]), bytes.slice(cuts[1]),
+    ));
+    const events: ChatEvent[] = [];
+
+    await http.turns.send({ conversation_id: "v1", mode: "send" }, (e) => events.push(e));
+
+    expect(events).toEqual([{ type: "delta", text: "Zoé 紅" }]);
+  });
+
+  test("a handler that throws makes the turn reject and lets the connection go", async () => {
+    let cancelled = false;
+    const encoder = new TextEncoder();
+    reply(new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"type":"delta","text":"Hi"}\n\n'));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    })));
+
+    await http.turns
+      .send({ conversation_id: "v1", mode: "send" }, () => {
+        throw new Error("handler bug");
+      })
+      .catch(() => {});
+
+    // Left open, the server would go on writing to a page that has stopped listening.
+    expect(cancelled).toBe(true);
   });
 
   test("a handler that throws makes the turn reject", async () => {
@@ -496,6 +585,15 @@ describe("turns", () => {
     expect(events).toEqual([]);
     expect(calls[0].url).toBe("/api/conversations/v1/turn/stream");
     expect(calls[0].init.method ?? "GET").toBe("GET");
+  });
+
+  test("following a turn hands the signal to fetch", async () => {
+    reply(chunked());
+    const controller = new AbortController();
+
+    await http.turns.follow("v1", () => {}, controller.signal);
+
+    expect(calls[0].init.signal).toBe(controller.signal);
   });
 
   test("a refused turn rejects with what the server said", async () => {
