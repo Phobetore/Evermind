@@ -302,3 +302,18 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 .stagger > *:nth-child(n + 9) { animation-delay: 0.34s; }
 
 } /* end @layer components */
+
+/* For whoever has asked their system for less motion: nothing here moves, and
+   what rose into place, pulsed or spun is simply there. Animations are cut to
+   an instant rather than removed, so that what they end on is still what is
+   drawn (the entry animations hold their last frame). A wait is still shown,
+   by something that sits still (see NavigationProgress). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

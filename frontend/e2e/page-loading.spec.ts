@@ -122,6 +122,11 @@ test("going to a page whose code is slow keeps the current one, and shows progre
   });
   expect(barAt - clickedAt, "the bar came up at once, and would flicker on a quick change of page")
     .toBeGreaterThanOrEqual(150);
+  // Below the notch or the status bar of a phone, where the page reaches the
+  // edges of the screen.
+  await expect(bar).toHaveAttribute("style", /top:\s*env\(safe-area-inset-top\)/);
+  // Said to those who cannot see it, politely, once the wait is a long one.
+  await expect(page.getByRole("status")).toHaveText("Loading…");
   // Nothing was taken away while waiting: the page the person is on is still
   // there, and no second "loading" was put in its place.
   await expect(page.locator("main h1")).toBeVisible();
@@ -131,6 +136,65 @@ test("going to a page whose code is slow keeps the current one, and shows progre
   release();
   await expect(personasHeading(page)).toBeVisible();
   await expect(bar).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveText("");
+});
+
+test("a quick change of page shows no bar and says nothing", async ({ page }) => {
+  await page.goto("/#/");
+  await expect(page.locator("main h1")).toBeVisible();
+  await page.evaluate(() => {
+    const seen = window as unknown as { shown?: boolean };
+    new MutationObserver(() => {
+      const said = document.querySelector('[role="status"]')?.textContent;
+      if (document.querySelector('[role="progressbar"]') || said) seen.shown = true;
+    }).observe(document, { childList: true, subtree: true, characterData: true });
+  });
+
+  await page.getByRole("link", { name: "Personas", exact: true }).click();
+  await expect(personasHeading(page)).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { shown?: boolean }).shown),
+    "a bar or a message came up for a page that arrived at once").toBeUndefined();
+});
+
+test("the bar goes away when the page's code then fails to arrive", async ({ page }) => {
+  await page.goto("/#/");
+  await expect(page.locator("main h1")).toBeVisible();
+  const { fail } = await holdBack(page, PERSONAS_CODE);
+
+  await page.getByRole("link", { name: "Personas", exact: true }).click();
+  await expect(page.getByRole("progressbar")).toBeVisible();
+
+  fail();
+  await expect(pageAlert(page)).toContainText(/could not be loaded/i);
+  await expect(page.getByRole("progressbar")).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveText("");
+});
+
+test("with reduced motion the wait is still shown, and nothing moves", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/#/");
+  await expect(page.locator("main h1")).toBeVisible();
+  const { release } = await holdBack(page, PERSONAS_CODE);
+
+  await page.getByRole("link", { name: "Personas", exact: true }).click();
+  const bar = page.getByRole("progressbar");
+  await expect(bar).toBeVisible();
+  // A still bar the width of the screen, instead of a stretch of it sliding
+  // along: what is waited for is still said, without anything to follow.
+  const still = await bar.evaluate((el) => {
+    const inner = el.firstElementChild as HTMLElement;
+    return {
+      animation: getComputedStyle(inner).animationName,
+      full: inner.getBoundingClientRect().width >= el.getBoundingClientRect().width - 1,
+    };
+  });
+  expect(still).toEqual({ animation: "none", full: true });
+
+  release();
+  await expect(personasHeading(page)).toBeVisible();
+  // The page's own way in, which rises into place by default, is over at once.
+  const rise = await page.locator("main header").evaluate((el) => getComputedStyle(el).animationDuration);
+  expect(parseFloat(rise), "the page still animates its entry").toBeLessThan(0.001);
 });
 
 test("a page whose code cannot be fetched says so and offers to reload", async ({ page }) => {
