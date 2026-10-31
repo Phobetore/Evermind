@@ -154,11 +154,32 @@ async def test_listing_models_keeps_an_excerpt_of_an_answer_that_is_not_json(nam
     with pytest.raises(ProviderError) as raised:
         await make(handler).list_models()
     assert raised.value.kind == "model_http_error"
-    assert raised.value.details == {
-        "upstream_status": 502,
-        "upstream": "<html> <body> <h1>502 Bad gateway</h1> </body> </html>",
-    }
+    # The words of the page, not its markup.
+    assert raised.value.details == {"upstream_status": 502, "upstream": "502 Bad gateway"}
     assert "Bad gateway" in raised.value.message
+
+
+@pytest.mark.parametrize(
+    ("page", "words"),
+    [
+        (b"<h1>502 Bad Gateway</h1><hr><center>nginx/1.25</center>", "502 Bad Gateway nginx/1.25"),
+        (b"<html><head><title>Oops</title><style>h1 { color: red }</style></head>"
+         b"<body><script>track('x')</script><h1>Server is down</h1></body></html>",
+         "Oops Server is down"),
+        (b"<!-- generated --><p>Error &amp; retry &lt;soon&gt;, it&#39;s &quot;busy&quot;</p>",
+         "Error & retry <soon>, it's \"busy\""),
+        # Text that is not markup is left as it is, a comparison included.
+        (b"Upstream is down: queue length < limit, and > 5 retries",
+         "Upstream is down: queue length < limit, and > 5 retries"),
+    ],
+)
+async def test_the_excerpt_of_a_page_is_its_words(page, words):
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(502, content=page)
+
+    with pytest.raises(ProviderError) as raised:
+        await oai_provider(handler).list_models()
+    assert raised.value.details["upstream"] == words
 
 
 @pytest.mark.parametrize(("name", "make"), PROVIDERS)
@@ -403,3 +424,43 @@ async def test_a_connection_test_of_a_server_that_is_not_there_names_the_address
     body = resp.json()
     assert body["kind"] == "unreachable"
     assert body["upstream_url"] == "http://127.0.0.1:1/v1"
+
+
+# --- a secret in the address ---------------------------------------------------------
+
+
+def test_userinfo_is_taken_out_of_an_address():
+    from app.providers.base import without_userinfo
+
+    assert without_userinfo("http://user:secret@host:8080/v1") == "http://host:8080/v1"
+    assert without_userinfo("https://user@host/v1") == "https://host/v1"
+    assert without_userinfo("http://a@b:c@host/v1") == "http://host/v1"
+    assert without_userinfo("http://user:secret@[::1]:1234/v1") == "http://[::1]:1234/v1"
+    # Nothing to take out.
+    for url in ("http://host:8080/v1", "http://[::1]:1234/v1", "localhost:1234", "",
+                "http://host/v1?contact=me@example.org", "http://host/v1#a@b"):
+        assert without_userinfo(url) == url
+
+
+@pytest.mark.parametrize("make", [oai_provider, anth_provider])
+async def test_a_password_in_the_address_does_not_leave_with_the_error(make):
+    provider = make(raising(httpx.ConnectError, "refused"))
+    provider.base_url = "http://user:secret@mock.example:1234/v1"
+    event = (await collect(provider))[-1]
+    assert "secret" not in repr(event) and "user:" not in repr(event)
+    assert event.meta["upstream_url"] == "http://mock.example:1234/v1"
+    assert "http://mock.example:1234/v1" in event.message
+
+    with pytest.raises(ProviderError) as raised:
+        await provider.list_models()
+    assert "secret" not in raised.value.message
+    assert raised.value.details == {"upstream_url": "http://mock.example:1234/v1"}
+
+
+async def test_the_connection_test_does_not_give_the_password_back(client):
+    resp = await client.post("/api/connections/test", json={
+        "name": "Mock", "provider": "openai-compatible",
+        "base_url": "http://user:secret@127.0.0.1:1/v1", "model": "x",
+    })
+    assert resp.json()["upstream_url"] == "http://127.0.0.1:1/v1"
+    assert "secret" not in resp.text

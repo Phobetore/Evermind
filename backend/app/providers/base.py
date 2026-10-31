@@ -1,5 +1,7 @@
 """Common provider contract: normalized streaming events."""
 
+import html
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Literal
@@ -39,9 +41,32 @@ UNKNOWN_TYPE = "model_unknown_type"
 NO_TEXT = "model_no_text"
 
 
+# What reads as markup: a comment, a script or a style with its content, or a tag.
+# A "<" followed by a space or a digit is a comparison, not a tag.
+_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+_SCRIPT_OR_STYLE = re.compile(r"<(script|style)\b.*?</\1\s*>", re.DOTALL | re.IGNORECASE)
+_TAG = re.compile(r"</?[A-Za-z!][^>]*>")
+
+
 def excerpt(text: str, limit: int = 300) -> str:
-    """The start of a text on one line, for quoting what a server answered."""
-    return " ".join(text.split())[:limit]
+    """The start of what a server answered, as words on one line: if it is a
+    page, the page without its markup, since "502 Bad Gateway" is what the person
+    needs and "<html><body><h1>" is noise."""
+    # Enough to find the words of any error page, and not a whole large body.
+    text = text[:20000]
+    text = _COMMENT.sub(" ", text)
+    text = _SCRIPT_OR_STYLE.sub(" ", text)
+    text = _TAG.sub(" ", text)
+    return " ".join(html.unescape(text).split())[:limit]
+
+
+_USERINFO = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*://)[^/?#]*@")
+
+
+def without_userinfo(url: str) -> str:
+    """The address without a ``user:password@`` part. That is a secret, and an
+    error that names the address must not carry it out of the server."""
+    return _USERINFO.sub(r"\1", url)
 
 
 def failure(kind: str, **details) -> dict:
@@ -100,10 +125,10 @@ class Provider:
 
     def _connect_error_message(self) -> str:
         return (
-            f"Cannot reach {self.base_url or 'the server'}. "
+            f"Cannot reach {without_userinfo(self.base_url) or 'the server'}. "
             "Check that the server is running and the URL is correct."
         )
 
     def _unreachable(self) -> dict:
         """The failure of a server that cannot be reached, with where it was tried."""
-        return failure(UNREACHABLE, upstream_url=self.base_url)
+        return failure(UNREACHABLE, upstream_url=without_userinfo(self.base_url))
