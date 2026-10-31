@@ -121,6 +121,15 @@ test("signing out really ends the session", async ({ page, context, request }) =
   await expect(page).toHaveURL(/#\/login/);
   await expect(page.getByLabel(/password/i)).toBeVisible();
 
+  // The browser's own copy is gone: a protected address opened as a bookmark
+  // would be, in a page loaded from scratch, is turned away. Through
+  // about:blank, because from one hash to another the page would only change
+  // route and go by what it already knows.
+  expect((await context.cookies()).find((c) => c.name === "evermind_session")).toBeUndefined();
+  await page.goto("about:blank");
+  await page.goto("/#/settings");
+  await expect(page).toHaveURL(/#\/login\?from=%2Fsettings$/);
+
   const after = await request.get(`${GATED}/api/characters`, { headers: replayed });
   expect(after.status()).toBe(401);
 });
@@ -177,7 +186,7 @@ test("signing out lands on the login even when the server cannot be asked afterw
   await expect(page).toHaveURL(`${GATED}/#/`);
 });
 
-test("signing out of every device lands on a clean login too", async ({ page }) => {
+test("signing out of every device lands on a clean login too", async ({ page, context }) => {
   await page.goto("/#/settings");
   await enter(page, GATE_PASSWORD);
   const entries = await page.evaluate(() => history.length);
@@ -187,6 +196,12 @@ test("signing out of every device lands on a clean login too", async ({ page }) 
 
   await expect(page).toHaveURL(/#\/login$/);
   expect(await page.evaluate(() => history.length)).toBe(entries);
+
+  // This browser is out as well, not only the page that was open.
+  expect((await context.cookies()).find((c) => c.name === "evermind_session")).toBeUndefined();
+  await page.goto("about:blank");
+  await page.goto("/#/settings");
+  await expect(page).toHaveURL(/#\/login\?from=%2Fsettings$/);
 });
 
 test("the API is locked without a session", async ({ request }) => {
