@@ -1,5 +1,9 @@
-import { describe, expect, test } from "vitest";
-import { isPageLoadError, lazyPage } from "./lazyPage";
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { isPageLoadError, lazyPage, logRouteError, PageLoadError } from "./lazyPage";
+
+/** What the router gets when the module of a page is asked for and fails with
+ *  `error`. */
+const fails = (error: unknown) => lazyPage(() => Promise.reject(error), "Home")().catch((e: unknown) => e);
 
 describe("lazyPage", () => {
   test("hands the router the component the module exports under that name", async () => {
@@ -16,16 +20,52 @@ describe("lazyPage", () => {
     expect(fetched).toBe(false);
   });
 
-  test("a module that cannot be fetched is told apart from other errors, with its cause kept", async () => {
-    const cause = new TypeError("Failed to fetch dynamically imported module");
-    const error = await lazyPage(() => Promise.reject(cause), "Home")().catch((e: unknown) => e);
+  test.each([
+    ["Chromium", new TypeError("Failed to fetch dynamically imported module: http://localhost:3000/assets/Home-1.js")],
+    ["Firefox", new TypeError("error loading dynamically imported module: http://localhost:3000/assets/Home-1.js")],
+    ["Safari", new TypeError("Importing a module script failed.")],
+    ["Vite, for the style sheet of a page", new Error("Unable to preload CSS for /assets/Home-1.css")],
+    ["any TypeError that names the script", new TypeError("NetworkError for http://192.168.1.4:3000/assets/Home-1.js")],
+  ])("a module that cannot be fetched (%s) is a page load error, with its cause kept", async (_browser, cause) => {
+    const error = await fails(cause);
     expect(isPageLoadError(error)).toBe(true);
-    expect((error as Error).cause).toBe(cause);
+    expect((error as PageLoadError).cause).toBe(cause);
   });
 
-  test("an error raised by a page is not a failed load", () => {
-    expect(isPageLoadError(new TypeError("Cannot read properties of undefined"))).toBe(false);
-    expect(isPageLoadError("Failed to fetch dynamically imported module")).toBe(false);
+  test.each([
+    ["a TypeError raised as the module runs", new TypeError("Cannot read properties of undefined (reading 'x')")],
+    ["a ReferenceError", new ReferenceError("config is not defined")],
+    ["an Error that only mentions loading", new Error("Failed to load the configuration")],
+    ["an Error that mentions a module without being the fetch", new Error("The module could not be initialised")],
+    ["something that is not an Error", "Failed to fetch dynamically imported module"],
+  ])("%s is the page's own fault and passes through as it is", async (_what, cause) => {
+    const error = await fails(cause);
+    expect(error).toBe(cause);
+    expect(isPageLoadError(error)).toBe(false);
+  });
+});
+
+describe("isPageLoadError", () => {
+  test("is true for a failed load only", () => {
+    expect(isPageLoadError(new PageLoadError(new TypeError("x")))).toBe(true);
+    expect(isPageLoadError(new TypeError("Failed to fetch dynamically imported module"))).toBe(false);
     expect(isPageLoadError(undefined)).toBe(false);
+  });
+});
+
+describe("logRouteError", () => {
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+  afterEach(() => logged.mockClear());
+
+  test("a failed load is logged with the browser's own words", () => {
+    const cause = new TypeError("Failed to fetch dynamically imported module: /assets/Home-1.js");
+    logRouteError(new PageLoadError(cause));
+    expect(logged).toHaveBeenCalledWith("The code of a page could not be loaded:", cause);
+  });
+
+  test("anything else is logged as it is", () => {
+    const error = new TypeError("Cannot read properties of undefined");
+    logRouteError(error);
+    expect(logged).toHaveBeenCalledWith(error);
   });
 });

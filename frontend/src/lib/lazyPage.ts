@@ -14,9 +14,33 @@ export function isPageLoadError(error: unknown): error is PageLoadError {
   return error instanceof PageLoadError;
 }
 
+/** How the browsers (and Vite, for a style sheet) say that a module could not
+ *  be fetched. The wording is theirs and differs from one to the next; a
+ *  module that fails as it runs says something of its own instead. */
+const FETCH_FAILED = [
+  /failed to fetch dynamically imported module/i, // Chromium
+  /error loading dynamically imported module/i, // Firefox
+  /importing a module script failed/i, // Safari
+  /unable to preload css/i, // Vite
+];
+
+/** The address of a script, as the error of a fetch that names the file it
+ *  could not get does. */
+const SCRIPT_ADDRESS = /\bhttps?:\/\/\S+\.m?js\b|\/assets\/\S+\.m?js\b/;
+
+function fetchFailed(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (FETCH_FAILED.some((words) => words.test(error.message))) return true;
+  return error instanceof TypeError && SCRIPT_ADDRESS.test(error.message);
+}
+
 /** The `lazy` of a route: fetches the module of a page the first time someone
  *  goes there, instead of with the rest of the app. The pages export their
- *  component by name, which the router does not look for. */
+ *  component by name, which the router does not look for.
+ *
+ *  Only a module that could not be fetched becomes a `PageLoadError`. One that
+ *  was fetched and failed as it ran is the page's own fault: it goes on as it
+ *  is, and reloading would only repeat it. */
 export function lazyPage<Name extends string>(
   load: () => Promise<Record<Name, ComponentType>>,
   name: Name,
@@ -25,9 +49,21 @@ export function lazyPage<Name extends string>(
     let module: Record<Name, ComponentType>;
     try {
       module = await load();
-    } catch (cause) {
-      throw new PageLoadError(cause);
+    } catch (error) {
+      throw fetchFailed(error) ? new PageLoadError(error) : error;
     }
     return { Component: module[name] };
   };
+}
+
+/** The router's `onError`: every error it meets, a failed fetch as much as a
+ *  page that breaks, comes through here, and the console is where whoever runs
+ *  Evermind looks. Without it the router logs the second kind itself and says
+ *  nothing of the first when a page has an error element. */
+export function logRouteError(error: unknown) {
+  if (isPageLoadError(error)) {
+    console.error("The code of a page could not be loaded:", error.cause);
+  } else {
+    console.error(error);
+  }
 }
