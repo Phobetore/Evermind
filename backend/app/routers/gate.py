@@ -40,14 +40,17 @@ async def login(payload: LoginRequest, request: Request) -> Response:
     if wait > 0:
         return JSONResponse({"error": "Too many attempts.", "kind": "rate_limited"},
                             status_code=429, headers={"Retry-After": str(wait)})
-    # No await between the check above and the failure being recorded below,
-    # when the password is wrong: see GateStore.login.
+    # The attempt counts as a failure from here, before the password is
+    # checked, and nothing has awaited since the limit was: the check takes a
+    # while, and attempts sent all at once must not all get past the limit
+    # before the first of them is counted.
+    store.limiter.record_failure(key)
     token = await store.login(payload.password)
     if token is None:
-        store.limiter.record_failure(key)
         await gate.failure_pause()
         return JSONResponse({"error": "Wrong password.", "kind": "wrong_password"},
                             status_code=401)
+    # The right password forgets the address's failures, this one included.
     store.limiter.reset(key)
     response = Response(status_code=204)
     gate.set_session_cookie(response, token, secure=request.url.scheme == "https")

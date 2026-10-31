@@ -246,11 +246,14 @@ class GateStore:
     async def login(self, password: str) -> str | None:
         """A new session's token, or None if the password is wrong.
 
-        Nothing awaits on the way to None. The login route checks the limiter,
-        calls this and records the failure as one uninterrupted step, which is
-        what keeps attempts sent all at once from slipping past the limit.
+        scrypt is slow on purpose, so the password is checked in a thread:
+        on the event loop, each attempt would hold up the replies being
+        streamed meanwhile. The login route has already counted the attempt
+        against the limit, since others can arrive while this one is checked.
         """
-        if not self.enabled or not verify_password(password, self._password_hash):
+        if not self.enabled:
+            return None
+        if not await asyncio.to_thread(verify_password, password, self._password_hash):
             return None
         token = secrets.token_urlsafe(32)
         digest = token_digest(token)

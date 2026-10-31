@@ -359,6 +359,28 @@ async def test_parallel_attempts_cannot_pass_the_limit(make_client, monkeypatch)
     assert codes.count(429) == 25 - gate.MAX_FAILURES
 
 
+async def test_passwords_are_checked_off_the_event_loop(make_client, monkeypatch, pauses):
+    """scrypt takes tens of milliseconds on purpose. On the event loop, every
+    attempt would hold up the replies being streamed meanwhile."""
+    where: list[str] = []
+    verify = gate.verify_password
+
+    def spy(password: str, stored: object) -> bool:
+        try:
+            asyncio.get_running_loop()
+            where.append("event loop")
+        except RuntimeError:
+            where.append("thread")
+        return verify(password, stored)
+
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        await c.get("/api/gate")
+        monkeypatch.setattr(gate, "verify_password", spy)
+        assert (await c.post("/api/gate", json={"password": "nope"})).status_code == 401
+        assert (await c.post("/api/gate", json={"password": PW})).status_code == 204
+    assert where == ["thread", "thread"]
+
+
 def test_limiter_counts_each_address_on_its_own(clock):
     limiter = gate.AttemptLimiter()
     for _ in range(gate.MAX_FAILURES):
