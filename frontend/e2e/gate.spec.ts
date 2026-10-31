@@ -156,6 +156,27 @@ test("a session that ends after signing back in remembers where it was", async (
   await expect(page).toHaveURL(/#\/login\?from=%2Fpersonas$/);
 });
 
+test("signing out lands on the login even when the server cannot be asked afterwards", async ({ page }) => {
+  await page.goto("/#/settings");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/settings$/);
+
+  // The sign-out itself gets through, and the question that follows it, whether
+  // this device is still in, does not. The device is out all the same: the
+  // cookie is gone.
+  await page.route("**/api/gate", (route) =>
+    route.request().method() === "GET" ? route.abort("failed") : route.continue(),
+  );
+  await page.getByRole("button", { name: /sign out of this device/i }).click();
+  await expect(page).toHaveURL(/#\/login$/);
+  await expect(page.getByLabel(/password/i)).toBeVisible();
+
+  // It left on purpose, so there is still no page to go back to.
+  await page.unroute("**/api/gate");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(`${GATED}/#/`);
+});
+
 test("signing out of every device lands on a clean login too", async ({ page }) => {
   await page.goto("/#/settings");
   await enter(page, GATE_PASSWORD);

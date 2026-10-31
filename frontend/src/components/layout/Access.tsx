@@ -46,10 +46,18 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
       setSigningOut(true);
       try {
         await (everywhere ? access.logoutEverywhere() : access.logout());
-        await refresh();
       } catch (error) {
+        // The server was not heard to sign the device out.
         setSigningOut(false);
         throw error;
+      }
+      // The server has signed the device out. Asking it where that leaves the
+      // device is for the status to be exact; if it cannot be asked, the device
+      // is out all the same, and the sign-out's own answer is what is kept.
+      try {
+        await refresh();
+      } catch {
+        setStatus(LOCKED);
       }
     },
     [refresh],
