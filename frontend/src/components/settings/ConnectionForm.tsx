@@ -71,9 +71,9 @@ export function ConnectionForm({
     setTestResult(null);
   };
 
-  function buildPayload(includeEmptyKey = false): ConnectionInput {
+  function buildPayload(): ConnectionInput {
     const { api_key, ...rest } = draft;
-    return api_key || includeEmptyKey ? { ...rest, api_key } : rest;
+    return api_key ? { ...rest, api_key } : rest;
   }
 
   async function test() {

@@ -43,9 +43,6 @@ export const turnStore = {
 
   read: () => snapshot,
 
-  /** Server snapshot: there is never a turn in flight during rendering on the server. */
-  readServer: () => null,
-
   begin(conversationId: string, controller: AbortController) {
     current = { conversationId, text: "", busy: true, controller };
     publish();

@@ -59,14 +59,16 @@ export function ChatInput({
   characterName: string;
 }) {
   const t = useT();
-  const [value, setValue] = useState("");
+  // The page keys this by conversation, so each conversation gets an input of its
+  // own and its unsent draft is read once, as the input appears.
+  const [value, setValue] = useState(() => loadDraft(conversationId));
   const [mode, setMode] = useState<MessageMode>("say");
   const [ghostwriting, setGhostwriting] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   // Stays until the next attempt, rather than fading: something has to be
   // switched on before trying again is worth anything.
   const [silent, setSilent] = useState(false);
-  const [restored, setRestored] = useState(false);
+  const [restored, setRestored] = useState(value !== "");
   // A phone keyboard has no Shift, so Enter-to-send left no way at all to start
   // a new line. Only a device that actually has a keyboard keeps that shortcut;
   // everywhere else Enter does what its key says and the send button sends.
@@ -91,23 +93,14 @@ export function ChatInput({
     return () => media.removeEventListener("change", apply);
   }, []);
 
-  // Restore the unsent draft. Runs in an effect (not a lazy initial state) so
-  // the server-rendered markup and the first client render stay identical.
-  // The draft lives in localStorage, which does not exist on the server, so
-  // this is the one place the state genuinely has to be set from an effect.
+  // The notice that a draft came back, for a few seconds.
   useEffect(() => {
-    const saved = loadDraft(conversationId);
-    if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
-      setValue(saved);
-      setRestored(true);
-      const timer = setTimeout(() => setRestored(false), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [conversationId]);
+    if (!restored) return;
+    const timer = setTimeout(() => setRestored(false), 4000);
+    return () => clearTimeout(timer);
+  }, [restored]);
 
-  // Persist on a short delay; the pending write is cancelled on every change,
-  // so the empty first render never overwrites the draft being restored.
+  // Persist on a short delay: typing costs one write per pause, not one per key.
   useEffect(() => {
     const timer = setTimeout(() => saveDraft(conversationId, value), 400);
     return () => clearTimeout(timer);

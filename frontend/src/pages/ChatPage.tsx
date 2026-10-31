@@ -28,7 +28,7 @@ function ChatView({ id }: { id: string }) {
   const [persona, setPersona] = useState<Persona | null>(null);
   // Read from the store rather than held here: leaving the page used to throw
   // this away while the reply carried on arriving.
-  const turn = useSyncExternalStore(turnStore.subscribe, turnStore.read, turnStore.readServer);
+  const turn = useSyncExternalStore(turnStore.subscribe, turnStore.read);
   const streamText = turn?.conversationId === id ? turn.text : null;
   const busy = turn?.conversationId === id && turn.busy;
   const [regenTargetId, setRegenTargetId] = useState<string | null>(null);
