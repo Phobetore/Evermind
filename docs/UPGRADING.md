@@ -57,6 +57,13 @@ Follow the part that matches how you run Evermind, then read
    That downloads the new image, which takes under a minute, and Evermind comes
    back where it was: **http://localhost:3000**, or the port you set in `PORT`.
 
+   If you built the image yourself (`SEMANTIC=true` in `.env`, started with
+   `--build`), run `docker compose up -d --build` instead, in a copy of the
+   project that is up to date (`git pull`), since it compiles the folder it is
+   in. The plain command starts the published image, which has no semantic
+   memory. The new file keeps the `SEMANTIC` build argument, so your `.env`
+   still decides.
+
 Your conversations are there at the first start. The new file mounts the same
 `evermind-data` volume the old one used.
 
