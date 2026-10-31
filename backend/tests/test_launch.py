@@ -9,6 +9,8 @@ import codecs
 import os
 import re
 import socket
+import subprocess
+import sys
 import types
 from pathlib import Path
 
@@ -510,6 +512,40 @@ def test_lan_address_is_none_without_a_route(monkeypatch):
 
 
 # --- the command ---------------------------------------------------------------
+
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+
+def run_entry_point(*args: str) -> subprocess.CompletedProcess:
+    """``python -m app`` in a process of its own, the way the launch scripts and
+    the container start it: what they rely on is the exit status and the lines
+    printed, and only a real process shows those. The variables that Evermind
+    reads are left out of its environment, so that the developer's own cannot
+    change the outcome."""
+    env = {
+        name: value
+        for name, value in os.environ.items()
+        if name not in ("PORT", "BIND") and not name.startswith("EVERMIND_")
+    }
+    return subprocess.run(
+        [sys.executable, "-m", "app", *args],
+        cwd=BACKEND_DIR, env=env, capture_output=True, text=True, timeout=60, check=False,
+    )
+
+
+def test_the_entry_point_prints_the_port_and_exits_with_0():
+    p = free_port()
+    done = run_entry_point("--check", "--no-env-file", "--port", str(p))
+    assert (done.returncode, done.stdout.strip(), done.stderr) == (0, str(p), "")
+
+
+def test_the_entry_point_refuses_a_busy_port_and_exits_with_1(busy_port):
+    done = run_entry_point("--check", "--no-env-file", "--port", str(busy_port))
+    assert done.returncode == 1
+    assert done.stdout == ""
+    assert f"Port {busy_port} is already in use." in done.stderr
+
 
 
 def test_busy_port_is_reported(clean_env, ui_built, busy_port, served, capsys):
