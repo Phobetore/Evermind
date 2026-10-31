@@ -66,6 +66,9 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   const [advanced, setAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Apart from `error`, which is about saving: an export that fails must not
+  // wipe out a save that did too, and its message belongs by the buttons.
+  const [exportError, setExportError] = useState<string | null>(null);
   const [brief, setBrief] = useState("");
   const [generating, setGenerating] = useState(false);
   const [assistError, setAssistError] = useState<string | null>(null);
@@ -169,13 +172,13 @@ export function CharacterForm({ initial }: { initial?: Character }) {
 
   async function exportCard(format: "json" | "png") {
     if (!initial) return;
-    setError(null);
+    setExportError(null);
     try {
       const { blob, filename } = await data.characters.exportCard(initial.id, format);
       downloadBlob(blob, filename);
-    } catch {
+    } catch (e) {
       // Called from a click, so a rejection would reach nobody: say it here.
-      setError(t("characters.form.exportError"));
+      setExportError(`${t("characters.form.exportError")} ${describeError(e, t)}`);
     }
   }
 
@@ -194,6 +197,14 @@ export function CharacterForm({ initial }: { initial?: Character }) {
               <FileDown className="h-4 w-4" /> PNG
             </button>
           </div>
+        )}
+        {exportError && (
+          <p
+            role="alert"
+            className="w-full rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood"
+          >
+            {exportError}
+          </p>
         )}
       </header>
 
