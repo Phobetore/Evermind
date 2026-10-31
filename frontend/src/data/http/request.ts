@@ -30,7 +30,7 @@ function retryAfterOf(resp: Response): number | undefined {
  *  trusted to be there: a proxy in front of the server answers with HTML.
  *  An answer with no sentence in it, and no kind of its own, is an "http_error",
  *  which says nothing but the status. */
-export async function raiseFor(resp: Response): Promise<never> {
+async function raiseFor(resp: Response): Promise<never> {
   let message: string | undefined;
   let kind: string | undefined;
   let resource: string | undefined;

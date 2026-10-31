@@ -280,7 +280,7 @@ describe("errors", () => {
     expect(failure.status).toBe(400);
   });
 
-  test("validation errors become readable text", async () => {
+  test("a validation error keeps FastAPI's detail as its message, with no kind", async () => {
     const detail = [{ loc: ["body", "name"], msg: "Field required", type: "missing" }];
     reply(json({ detail }, 422));
     const failure = await http.personas.create({ name: "", description: "", is_default: false }).catch((e) => e);
@@ -724,6 +724,7 @@ describe("media addresses", () => {
     ["update", () => http.characters.update("c1", {})],
     ["uploadAvatar", () => http.characters.uploadAvatar("c1", new File(["x"], "f.png"))],
     ["importCard", () => http.characters.importCard(new File(["x"], "f.json"))],
+    ["library.install", () => http.library.install("vane.json")],
   ])("a character returned by %s has a relative portrait", async (_name, run) => {
     reply(json({ id: "c1", avatar_url: MEDIA }));
     expect(((await run()) as { avatar_url: string }).avatar_url).toBe(RELATIVE);
