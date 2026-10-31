@@ -66,6 +66,9 @@ test("a message that never reached Evermind is reported", async ({ page, request
   await page.locator("textarea").first().fill("Personne n'ecoute.");
   await page.locator('button[title="Send"]').click();
 
-  await expect(page.locator("p.text-blood").first(),
+  const report = page.locator("p.text-blood").first();
+  await expect(report,
     "the message never got through and nothing said so").toBeVisible({ timeout: 20_000 });
+  // In words that say what to look at, not the browser's own "Failed to fetch".
+  await expect(report).toContainText("Evermind is not answering");
 });
