@@ -200,6 +200,19 @@ def test_env_file_utf16_without_a_mark_may_start_with_an_accent(tmp_path, clean_
     assert load_env_file(f) == ["PORT"]
 
 
+@pytest.mark.parametrize("first_line", ["é=1", "日本=1", "# été", "# 日本語", "😀=1"])
+def test_env_file_utf8_that_starts_with_a_multi_byte_character_is_not_taken_for_utf16(
+    tmp_path, clean_env, first_line
+):
+    # No NUL byte anywhere, so no byte order guess is made: the rest of the file
+    # has to come through, and that is the setting that decides whether a password
+    # is asked for.
+    f = tmp_path / ".env"
+    f.write_bytes(f"{first_line}\nPORT=3001\n".encode())
+    assert load_env_file(f) == ["PORT"]
+    assert os.environ["PORT"] == "3001"
+
+
 @pytest.mark.parametrize(
     "data",
     [
