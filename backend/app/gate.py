@@ -172,7 +172,13 @@ class AttemptLimiter:
 
 
 class GateStore:
-    """The password's digest and the open sessions, ``{token digest: last seen}``."""
+    """The password's digest and the open sessions, ``{token digest: last seen}``.
+
+    Loading and every change to the sessions take turns, under one lock. Each
+    change awaits a database write, and two of them interleaving could leave
+    memory holding a session the database no longer has: a sign-in finishing
+    while every device is being signed out would stay open until a restart.
+    """
 
     def __init__(self) -> None:
         self.enabled = False
@@ -257,18 +263,19 @@ class GateStore:
             return None
         token = secrets.token_urlsafe(32)
         digest = token_digest(token)
-        current = now()
-        conn = await connect()
-        try:
-            await conn.execute(
-                "INSERT INTO gate_sessions (token_hash, created_at, last_seen_at) "
-                "VALUES (?, ?, ?)",
-                (digest, _stamp(current), _stamp(current)),
-            )
-            await conn.commit()
-        finally:
-            await conn.close()
-        self._sessions[digest] = current
+        async with self._lock:
+            current = now()
+            conn = await connect()
+            try:
+                await conn.execute(
+                    "INSERT INTO gate_sessions (token_hash, created_at, last_seen_at) "
+                    "VALUES (?, ?, ?)",
+                    (digest, _stamp(current), _stamp(current)),
+                )
+                await conn.commit()
+            finally:
+                await conn.close()
+            self._sessions[digest] = current
         return token
 
     def check(self, token: str | None) -> bool:
@@ -277,50 +284,62 @@ class GateStore:
         seen = self._sessions.get(token_digest(token))
         return seen is not None and now() - seen <= _SESSION_LIFETIME
 
+    def _due(self, digest: str) -> bool:
+        """Whether a live session was last moved a day ago or more."""
+        seen = self._sessions.get(digest)
+        return seen is not None and TOUCH_EVERY <= now() - seen <= _SESSION_LIFETIME
+
     async def touch(self, token: str) -> bool:
         """Moves a live session's last use to now, at most once a day. True
         means it moved and the cookie should be sent again, to slide too."""
         digest = token_digest(token)
-        seen = self._sessions.get(digest)
-        current = now()
-        if seen is None or current - seen > _SESSION_LIFETIME or current - seen < TOUCH_EVERY:
+        # Nearly every request stops here, without waiting for the lock.
+        if not self._due(digest):
             return False
-        # Memory first, before anything awaits, so that the requests arriving
-        # together on a new day do not all write it.
-        self._sessions[digest] = current
-        conn = await connect()
-        try:
-            await conn.execute("UPDATE gate_sessions SET last_seen_at = ? WHERE token_hash = ?",
-                               (_stamp(current), digest))
-            await conn.commit()
-        finally:
-            await conn.close()
+        async with self._lock:
+            # Asked again now that it is this request's turn: the requests
+            # arriving together on a new day all got past the first question,
+            # and the session may have ended meanwhile.
+            if not self._due(digest):
+                return False
+            current = now()
+            self._sessions[digest] = current
+            conn = await connect()
+            try:
+                await conn.execute(
+                    "UPDATE gate_sessions SET last_seen_at = ? WHERE token_hash = ?",
+                    (_stamp(current), digest))
+                await conn.commit()
+            finally:
+                await conn.close()
         return True
 
     async def logout(self, token: str | None) -> None:
         if not token:
             return
         digest = token_digest(token)
-        # Every session whose token has been handed out is in memory, so one
-        # that is not needs no write. Logging out is public, and a stranger
-        # sending made-up cookies should not cost a database write each.
-        if self._sessions.pop(digest, None) is None:
-            return
-        conn = await connect()
-        try:
-            await conn.execute("DELETE FROM gate_sessions WHERE token_hash = ?", (digest,))
-            await conn.commit()
-        finally:
-            await conn.close()
+        async with self._lock:
+            # Every session whose token has been handed out is in memory, so
+            # one that is not needs no write. Logging out is public, and a
+            # stranger sending made-up cookies should not cost a write each.
+            if self._sessions.pop(digest, None) is None:
+                return
+            conn = await connect()
+            try:
+                await conn.execute("DELETE FROM gate_sessions WHERE token_hash = ?", (digest,))
+                await conn.commit()
+            finally:
+                await conn.close()
 
     async def logout_all(self) -> None:
-        self._sessions.clear()
-        conn = await connect()
-        try:
-            await conn.execute("DELETE FROM gate_sessions")
-            await conn.commit()
-        finally:
-            await conn.close()
+        async with self._lock:
+            self._sessions.clear()
+            conn = await connect()
+            try:
+                await conn.execute("DELETE FROM gate_sessions")
+                await conn.commit()
+            finally:
+                await conn.close()
 
 
 def set_session_cookie(response: Response, token: str, *, secure: bool) -> None:

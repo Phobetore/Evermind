@@ -421,6 +421,78 @@ async def test_logout_everywhere(make_client):
         assert (await c.get("/api/characters", headers=device(laptop))).status_code == 401
 
 
+class Connection:
+    """A database connection that reports each statement before running it,
+    and each commit after it, with the statements it committed."""
+
+    def __init__(self, conn, before, committed=None) -> None:
+        self._conn = conn
+        self._before = before
+        self._committed = committed
+        self._pending: list[str] = []
+
+    async def execute(self, sql: str, *args):
+        await self._before(sql)
+        self._pending.append(sql)
+        return await self._conn.execute(sql, *args)
+
+    async def commit(self) -> None:
+        await self._conn.commit()
+        if self._committed:
+            self._committed(self._pending)
+        self._pending = []
+
+    async def close(self) -> None:
+        await self._conn.close()
+
+
+async def sessions_agree(store: gate.GateStore, token: str) -> bool:
+    """Whether memory and the database say the same about ``token``."""
+    stored = {row["token_hash"] for row in await rows("SELECT token_hash FROM gate_sessions")}
+    return store.check(token) == (gate.token_digest(token) in stored)
+
+
+async def test_a_sign_in_during_sign_out_everywhere_is_kept_or_ended_whole(make_client,
+                                                                          monkeypatch):
+    """Signing every device out clears memory, then the database. A sign-in
+    that writes its row in between, and only then goes into memory, would
+    stay open with nothing behind it, until a restart."""
+    async with make_client(EVERMIND_GATE_PASSWORD=PW):
+        store = gate.GateStore()
+        await store.ensure_loaded()
+        loop = asyncio.get_running_loop()
+        checked, written = asyncio.Event(), asyncio.Event()
+        verify = gate.verify_password
+
+        def verify_and_tell(password: str, stored: object) -> bool:
+            ok = verify(password, stored)
+            loop.call_soon_threadsafe(checked.set)
+            return ok
+
+        async def before(sql: str) -> None:
+            if sql == "DELETE FROM gate_sessions":
+                # Give the sign-in, once its password is checked, every chance
+                # to write its row before the sessions are deleted.
+                await asyncio.wait_for(checked.wait(), timeout=5)
+                try:
+                    await asyncio.wait_for(written.wait(), timeout=0.5)
+                except TimeoutError:
+                    pass
+
+        def committed(statements: list[str]) -> None:
+            if any(sql.startswith("INSERT INTO gate_sessions") for sql in statements):
+                written.set()
+
+        async def connect_held():
+            return Connection(await connect(), before, committed)
+
+        monkeypatch.setattr(gate, "verify_password", verify_and_tell)
+        monkeypatch.setattr(gate, "connect", connect_held)
+        _, token = await asyncio.gather(store.logout_all(), store.login(PW))
+        assert token is not None
+        assert await sessions_agree(store, token)
+
+
 async def test_sessions_survive_a_restart(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         token = await sign_in(c)
