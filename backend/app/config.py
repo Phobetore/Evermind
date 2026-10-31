@@ -3,6 +3,7 @@
 import codecs
 import os
 import re
+from collections.abc import Mapping
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -119,6 +120,37 @@ def ui_dir() -> Path:
 def gate_password() -> str:
     """Empty means no password, which is the default."""
     return os.environ.get("EVERMIND_GATE_PASSWORD", "")
+
+
+def parse_root_path(raw: str, name: str) -> str:
+    """The path prefix a reverse proxy serves Evermind under, as uvicorn wants
+    it: a path that starts with a slash and does not end with one, and nothing
+    at all for the root. ``name`` is the setting to blame when it is not one.
+
+    A trailing slash is taken off rather than refused, since ``/evermind/`` is
+    how the same prefix looks in a proxy's own configuration. Anything that
+    could not be part of a path, such as a query or a space, is refused here,
+    because it would only come back as a redirect that leads nowhere.
+    """
+    path = raw.strip()
+    if not path:
+        return ""
+    if not path.startswith("/"):
+        raise ValueError(f"{name} must start with /, got {raw!r}")
+    if re.search(r"[\s?#]", path):
+        raise ValueError(f"{name} must be a plain path such as /evermind, got {raw!r}")
+    return path.rstrip("/")
+
+
+def root_path(env: Mapping[str, str] | None = None) -> str:
+    """The path Evermind is served under by a reverse proxy that removes it
+    before passing the request on, from EVERMIND_ROOT_PATH. Empty, the default,
+    means it is served at the root. The server needs to be told: it is what lets
+    the redirect of an old bookmark go to the right place.
+
+    Raises ValueError for a value that is not a path prefix."""
+    source = os.environ if env is None else env
+    return parse_root_path(source.get("EVERMIND_ROOT_PATH", ""), "EVERMIND_ROOT_PATH")
 
 
 def allowed_hosts() -> list[str]:

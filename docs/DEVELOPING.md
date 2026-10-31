@@ -179,10 +179,26 @@ languages.
 ## Serving under a path prefix
 
 Evermind works behind a reverse proxy that serves it under a path such as
-`/evermind/` and removes the prefix before passing the request on (with nginx,
-`location /evermind/ { proxy_pass http://127.0.0.1:3000/; }`; keep `Host` as it
-came, see above). The page, its files, every call and every image then stay under
-the prefix, because none of them is addressed from the root of the host:
+`/evermind/` and removes the prefix before passing the request on. With nginx:
+
+```nginx
+location /evermind/ {
+    proxy_pass http://127.0.0.1:3000/;
+    # As the browser sent it, port included. Without it every write over plain
+    # HTTP is refused as cross_origin (see above), since Origin and Host differ.
+    proxy_set_header Host $http_host;
+}
+```
+
+Tell the server the prefix with `EVERMIND_ROOT_PATH=/evermind` (in `.env`, or in the
+environment of the container) or `python -m app --root-path /evermind`; a trailing
+slash is taken off, and a value that does not start with a slash is refused. The
+pages, every call and every image work without it. What it adds is the redirect of
+an old `/chat/<id>` bookmark, which has to go to `/evermind/#/chat/<id>`, a place
+the server can only name if it knows the prefix.
+
+The page, its files, every call and every image stay under the prefix because none
+of them is addressed from the root of the host:
 
 - the build uses relative asset paths (`base: "./"`) and its routes live after
   the `#`, so the address of the page, without the fragment, is always the root of

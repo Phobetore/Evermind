@@ -33,6 +33,8 @@ services:
       # while there is no password. The container cannot see this computer's
       # own name, so it has to be listed here to be used.
       EVERMIND_ALLOWED_HOSTS: "${EVERMIND_ALLOWED_HOSTS-}"
+      # The path a reverse proxy serves Evermind under, if any (/evermind).
+      EVERMIND_ROOT_PATH: "${EVERMIND_ROOT_PATH-}"
     volumes:
       # The name the data had when Evermind was two containers, so an install
       # that is upgraded picks up its conversations where it left them.

@@ -356,6 +356,96 @@ def test_resolve_listen_names_the_bad_setting(argv, env, message):
         resolve_listen(parse_args(argv), env)
 
 
+# --- the path Evermind is served under ---------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("", ""),
+        ("/", ""),
+        ("/evermind", "/evermind"),
+        # Written either way in a settings file; only one is a path prefix.
+        ("/evermind/", "/evermind"),
+        ("/apps/evermind//", "/apps/evermind"),
+        ("  /evermind  ", "/evermind"),
+    ],
+)
+def test_the_root_path_is_normalised(raw, expected):
+    assert config.parse_root_path(raw, "EVERMIND_ROOT_PATH") == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "message"),
+    [
+        ("evermind", "EVERMIND_ROOT_PATH must start with /, got 'evermind'"),
+        ("https://example.org/evermind", "EVERMIND_ROOT_PATH must start with /, got 'https://example.org/evermind'"),
+        ("/ever mind", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/ever mind'"),
+        ("/evermind?x=1", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/evermind?x=1'"),
+        ("/evermind#top", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/evermind#top'"),
+    ],
+)
+def test_a_root_path_that_is_not_a_path_is_refused(raw, message):
+    with pytest.raises(ValueError, match=f"^{re.escape(message)}$"):
+        config.parse_root_path(raw, "EVERMIND_ROOT_PATH")
+
+
+def test_the_root_path_comes_from_the_environment(clean_env, monkeypatch):
+    assert config.root_path() == ""
+    monkeypatch.setenv("EVERMIND_ROOT_PATH", "/evermind/")
+    assert config.root_path() == "/evermind"
+    monkeypatch.setenv("EVERMIND_ROOT_PATH", "")
+    assert config.root_path() == ""
+
+
+@pytest.mark.parametrize(
+    ("argv", "env", "expected"),
+    [
+        ([], {}, ""),
+        ([], {"EVERMIND_ROOT_PATH": "/evermind"}, "/evermind"),
+        ([], {"EVERMIND_ROOT_PATH": "/evermind/"}, "/evermind"),
+        # Empty in the file means "not set", like the other settings.
+        ([], {"EVERMIND_ROOT_PATH": ""}, ""),
+        (["--root-path", "/apps/evermind/"], {}, "/apps/evermind"),
+        # The flag wins over the file, and an empty flag takes the prefix off.
+        (["--root-path", "/flag"], {"EVERMIND_ROOT_PATH": "/env"}, "/flag"),
+        (["--root-path", ""], {"EVERMIND_ROOT_PATH": "/env"}, ""),
+    ],
+)
+def test_resolve_listen_reads_the_root_path(argv, env, expected):
+    assert resolve_listen(parse_args(argv), env).root_path == expected
+
+
+@pytest.mark.parametrize(
+    ("argv", "env", "message"),
+    [
+        ([], {"EVERMIND_ROOT_PATH": "evermind"}, "EVERMIND_ROOT_PATH must start with /, got 'evermind'"),
+        (["--root-path", "evermind"], {}, "--root-path must start with /, got 'evermind'"),
+    ],
+)
+def test_resolve_listen_names_the_bad_root_path(argv, env, message):
+    with pytest.raises(ValueError, match=f"^{re.escape(message)}$"):
+        resolve_listen(parse_args(argv), env)
+
+
+def test_the_root_path_is_handed_to_uvicorn(clean_env, ui_built, served):
+    p = free_port()
+    assert launch.main(["--no-env-file", "--port", str(p), "--root-path", "/evermind/"]) == 0
+    assert served[0][1]["root_path"] == "/evermind"
+
+
+def test_the_root_path_can_be_set_in_the_environment(clean_env, ui_built, monkeypatch, served):
+    monkeypatch.setenv("EVERMIND_ROOT_PATH", "/evermind")
+    assert launch.main(["--no-env-file", "--port", str(free_port())]) == 0
+    assert served[0][1]["root_path"] == "/evermind"
+
+
+def test_a_bad_root_path_is_reported_before_anything_starts(clean_env, ui_built, served, capsys):
+    assert launch.main(["--no-env-file", "--root-path", "evermind"]) == 1
+    assert capsys.readouterr().err == "--root-path must start with /, got 'evermind'\n"
+    assert served == []
+
+
 def test_invalid_port_is_reported(clean_env, monkeypatch, capsys):
     monkeypatch.setenv("PORT", "abc")
     assert launch.main(["--no-env-file"]) == 1
@@ -736,7 +826,9 @@ def test_refuses_to_start_without_built_ui(clean_env, tmp_path, monkeypatch, ser
 def test_starts_uvicorn_with_resolved_values(clean_env, ui_built, served, capsys):
     p = free_port()
     assert launch.main(["--no-env-file", "--port", str(p)]) == 0
-    assert served == [("app.main:app", {"host": "127.0.0.1", "port": p, "reload": False})]
+    assert served == [
+        ("app.main:app", {"host": "127.0.0.1", "port": p, "reload": False, "root_path": ""})
+    ]
     captured = capsys.readouterr()
     assert captured.out == f"Evermind -> http://localhost:{p}\n"
     assert captured.err == ""
@@ -853,7 +945,13 @@ def test_dev_starts_the_api_with_reload_and_no_built_ui(clean_env, served, capsy
     assert launch.main(["--dev", "--no-env-file", "--port", str(p)]) == 0
     app_dir = str(Path(launch.__file__).resolve().parent)
     assert served == [
-        ("app.main:app", {"host": "127.0.0.1", "port": p, "reload": True, "reload_dirs": [app_dir]})
+        (
+            "app.main:app",
+            {
+                "host": "127.0.0.1", "port": p, "reload": True, "root_path": "",
+                "reload_dirs": [app_dir],
+            },
+        )
     ]
     captured = capsys.readouterr()
     assert captured.out == ""

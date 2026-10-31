@@ -36,6 +36,8 @@ class Listen:
     host: str
     port: int
     dev: bool
+    # The prefix a reverse proxy serves Evermind under; empty at the root.
+    root_path: str = ""
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -58,6 +60,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--host", metavar="HOST", help="address to listen on")
     parser.add_argument("--port", metavar="N", help="port to listen on")
+    parser.add_argument(
+        "--root-path",
+        metavar="PATH",
+        help="the path a reverse proxy serves Evermind under, such as /evermind "
+        "(default: EVERMIND_ROOT_PATH, else none)",
+    )
     parser.add_argument("--data-dir", metavar="DIR", help="where the database and media live")
     parser.add_argument("--env-file", metavar="PATH", help="settings file (default: .env)")
     parser.add_argument(
@@ -95,7 +103,12 @@ def resolve_listen(args: argparse.Namespace, env: Mapping[str, str]) -> Listen:
         port = _port("EVERMIND_BACKEND_PORT", env.get("EVERMIND_BACKEND_PORT") or "8000")
     else:
         port = _port("PORT", env.get("PORT") or "3000")
-    return Listen(host, port, args.dev)
+
+    if args.root_path is not None:
+        root_path = config.parse_root_path(args.root_path, "--root-path")
+    else:
+        root_path = config.root_path(env)
+    return Listen(host, port, args.dev, root_path)
 
 
 def lan_address() -> str | None:
@@ -318,7 +331,8 @@ def main(argv: list[str] | None = None) -> int:
         # would restart the server on every message.
         options["reload_dirs"] = [str(Path(__file__).resolve().parent)]
     uvicorn.run(
-        "app.main:app", host=listen.host, port=listen.port, reload=listen.dev, **options
+        "app.main:app", host=listen.host, port=listen.port, reload=listen.dev,
+        root_path=listen.root_path, **options,
     )
     return 0
 
