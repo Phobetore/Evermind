@@ -37,6 +37,7 @@ describe("lazyPage", () => {
     ["a ReferenceError", new ReferenceError("config is not defined")],
     ["an Error that only mentions loading", new Error("Failed to load the configuration")],
     ["an Error that mentions a module without being the fetch", new Error("The module could not be initialised")],
+    ["a TypeError worded as no browser we know words a failed fetch", new TypeError("Load failed")],
     ["something that is not an Error", "Failed to fetch dynamically imported module"],
   ])("%s is the page's own fault and passes through as it is", async (_what, cause) => {
     const error = await fails(cause);
@@ -67,5 +68,19 @@ describe("logRouteError", () => {
     const error = new TypeError("Cannot read properties of undefined");
     logRouteError(error);
     expect(logged).toHaveBeenCalledWith(error);
+  });
+
+  test("a page that broke as it was drawn is left to React, which reports it itself", () => {
+    // The router passes what React knows of the component tree along only for
+    // an error caught while drawing, and React 19 logs that one already.
+    logRouteError(new TypeError("Cannot read properties of undefined"), { errorInfo: { componentStack: "" } });
+    expect(logged).not.toHaveBeenCalled();
+  });
+
+  test("what the router reports without a component stack is logged: nothing else does", () => {
+    // Nothing was being drawn when the fetch of a page failed.
+    const cause = new TypeError("Failed to fetch dynamically imported module");
+    logRouteError(new PageLoadError(cause), {});
+    expect(logged).toHaveBeenCalledWith("The code of a page could not be loaded:", cause);
   });
 });

@@ -9,25 +9,22 @@ import { useRouteError } from "react-router";
  *  Most often it is the page's code that could not be fetched: Evermind was
  *  updated after this tab was opened, which renames the files, or the
  *  connection dropped. That is cured by loading the document again, at the
- *  same address, and says so. Anything else is a fault in the page, which
- *  loading it again would repeat: it says only that something went wrong.
+ *  same address, and the sentence says so. Anything else is a fault in the
+ *  page, which loading it again may well repeat, so the sentence only says
+ *  that something went wrong. Reloading is offered for both: for the second
+ *  it may not help, but it costs nothing and the person is the one to judge,
+ *  and a failed fetch that a browser words in a way `lazyPage` does not know
+ *  would otherwise leave nothing to do.
  *
- *  Neither is logged here: the router reports both (`logRouteError`). */
+ *  Nothing is logged here: the router reports it (`logRouteError`). */
 export function PageError() {
   const t = useT();
   const error = useRouteError();
-  const download = isPageLoadError(error);
-
-  if (!download) {
-    return (
-      <div role="alert" className="px-6 py-20 text-center leading-relaxed text-mist">
-        {t("errors.unexpected")}
-      </div>
-    );
-  }
   return (
     <div role="alert" className="flex flex-col items-center gap-5 px-6 py-20 text-center">
-      <p className="max-w-sm leading-relaxed text-mist">{t("errors.pageLoad")}</p>
+      <p className="max-w-sm leading-relaxed text-mist">
+        {t(isPageLoadError(error) ? "errors.pageLoad" : "errors.unexpected")}
+      </p>
       <button className="btn btn-primary" onClick={() => window.location.reload()}>
         <RotateCw className="h-4 w-4" />
         {t("common.reload")}

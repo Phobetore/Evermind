@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ErrorInfo } from "react";
 
 /** The code of a page could not be fetched. Kept apart from what a page
  *  raises once it is on screen: fetching it again is the cure for the first
@@ -56,11 +56,16 @@ export function lazyPage<Name extends string>(
   };
 }
 
-/** The router's `onError`: every error it meets, a failed fetch as much as a
- *  page that breaks, comes through here, and the console is where whoever runs
- *  Evermind looks. Without it the router logs the second kind itself and says
- *  nothing of the first when a page has an error element. */
-export function logRouteError(error: unknown) {
+/** The router's `onError`: it hears of every error the router meets, and the
+ *  console is where whoever runs Evermind looks.
+ *
+ *  An error caught while a page is drawn comes with `errorInfo`, and React 19
+ *  reports those itself (`onCaughtError`): logging them here as well would show
+ *  every such fault twice. The others, which nothing else reports, are what
+ *  this is for: the fetch of a page failing, or the page's file failing as it
+ *  runs. */
+export function logRouteError(error: unknown, info?: { errorInfo?: ErrorInfo }) {
+  if (info?.errorInfo) return;
   if (isPageLoadError(error)) {
     console.error("The code of a page could not be loaded:", error.cause);
   } else {

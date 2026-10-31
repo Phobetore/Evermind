@@ -23,11 +23,20 @@ async function serveInstead(page: Page, code: RegExp, script: string) {
   await page.route(code, (route) => route.fulfill({ contentType: "text/javascript", body: script }));
 }
 
-/** What went to the console as an error, from now on. */
+/** What goes to the console as an error, from now on. `about(words)` is how
+ *  many of those entries mention `words`: one per fault is the point, a fault
+ *  reported twice buries the next one. */
 function consoleErrors(page: Page) {
   const logged: string[] = [];
   page.on("console", (message) => { if (message.type() === "error") logged.push(message.text()); });
-  return () => logged.join(" ");
+  return {
+    about: async (words: RegExp) => {
+      // Entries reach the test in order and over the same connection as this
+      // answer: once it is back, none that was already logged is still on its way.
+      await page.evaluate(() => 0);
+      return logged.filter((entry) => words.test(entry)).length;
+    },
+  };
 }
 
 const personasHeading = (page: Page) => page.getByRole("heading", { name: "Personas", level: 1 });
@@ -206,8 +215,9 @@ test("a page whose code cannot be fetched says so and offers to reload", async (
   await page.goto("/#/personas");
   const alert = pageAlert(page);
   await expect(alert).toContainText(/could not be loaded/i);
-  // Not swallowed either: the browser's own words for it are in the console.
-  expect(logged()).toMatch(/dynamically imported module/);
+  // Not swallowed either: the browser's own words for it are in the console,
+  // once.
+  expect(await logged.about(/dynamically imported module/)).toBe(1);
   // The same address, loaded again, is what helps.
   await page.unroute(PERSONAS_CODE);
   await alert.getByRole("button", { name: /reload/i }).click();
@@ -236,9 +246,24 @@ test("a page whose code fails as it starts is not blamed on the download", async
 
   await page.goto("/#/personas");
   const alert = pageAlert(page);
-  await expect(alert).toHaveText(/something went wrong/i);
-  await expect(alert.getByRole("button")).toHaveCount(0);
-  expect(logged()).toMatch(/a bug at the top of the page/);
+  await expect(alert).toContainText(/something went wrong/i);
+  // Reloading may not help, and may: the person decides.
+  await expect(alert.getByRole("button", { name: /reload/i })).toBeVisible();
+  expect(await logged.about(/a bug at the top of the page/)).toBe(1);
+});
+
+test("a failure worded in a way nobody knows is not taken for a download either, but can be reloaded", async ({ page }) => {
+  // What a browser we have not seen might say of a file it could not get. It
+  // matches nothing known, so it is reported as a fault, and reloading is
+  // still what the person is offered.
+  await serveInstead(page, PERSONAS_CODE, 'throw new TypeError("Load failed");');
+  const logged = consoleErrors(page);
+
+  await page.goto("/#/personas");
+  const alert = pageAlert(page);
+  await expect(alert).toContainText(/something went wrong/i);
+  await expect(alert.getByRole("button", { name: /reload/i })).toBeVisible();
+  expect(await logged.about(/Load failed/)).toBe(1);
 });
 
 test("a page that breaks while it is drawn is not blamed on the download", async ({ page }) => {
@@ -254,10 +279,11 @@ test("a page that breaks while it is drawn is not blamed on the download", async
   await expect(page.locator("main h1")).toBeVisible();
   await page.getByRole("link", { name: "Personas", exact: true }).click();
   const alert = pageAlert(page);
-  await expect(alert).toHaveText(/something went wrong/i);
-  await expect(alert.getByRole("button")).toHaveCount(0);
-  // And it is not swallowed: whoever has the console open can see what broke.
-  expect(logged()).toMatch(/a bug while drawing the page/);
+  await expect(alert).toContainText(/something went wrong/i);
+  await expect(alert.getByRole("button", { name: /reload/i })).toBeVisible();
+  // And it is not swallowed: whoever has the console open can see what broke,
+  // once.
+  expect(await logged.about(/a bug while drawing the page/)).toBe(1);
 
   // The rest of the app is untouched.
   await page.getByRole("link", { name: "Discover", exact: true }).click();
