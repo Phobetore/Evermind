@@ -182,32 +182,32 @@ def _say(*lines: str, file=None) -> None:
         print(line, file=file, flush=True)
 
 
+def _load_settings(args: argparse.Namespace) -> str | None:
+    """Put the settings file into the environment. Returns what to tell the
+    person when that cannot be done, and None when it has been."""
+    # The default file is optional, since Evermind runs without one. A file that
+    # was asked for by name is not: a typo there would otherwise start the server
+    # without the settings the person meant to give it.
+    env_file = Path(args.env_file) if args.env_file else config.default_env_file()
+    if args.env_file and not env_file.exists():
+        return f"The settings file {env_file} does not exist."
+    try:
+        config.load_env_file(env_file)
+    except UnicodeError:
+        reason = "it is not valid UTF-8 or UTF-16 text"
+    except OSError as err:
+        reason = err.strerror or str(err)
+    else:
+        return None
+    return f"Cannot read the settings file {env_file}: {reason}."
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
-    if not args.no_env_file:
-        # The default file is optional, since Evermind runs without one. A file
-        # that was asked for by name is not: a typo there would otherwise start
-        # the server without the settings the person meant to give it.
-        env_file = Path(args.env_file) if args.env_file else config.default_env_file()
-        if args.env_file and not env_file.exists():
-            _say(f"The settings file {env_file} does not exist.", file=sys.stderr)
-            return 1
-        try:
-            config.load_env_file(env_file)
-        except UnicodeError:
-            _say(
-                f"Cannot read the settings file {env_file}: "
-                "it is not valid UTF-8 or UTF-16 text.",
-                file=sys.stderr,
-            )
-            return 1
-        except OSError as err:
-            _say(
-                f"Cannot read the settings file {env_file}: {err.strerror or err}.",
-                file=sys.stderr,
-            )
-            return 1
+    if not args.no_env_file and (problem := _load_settings(args)):
+        _say(problem, file=sys.stderr)
+        return 1
     if args.data_dir:
         # After the settings file, so the flag wins over a data directory set there.
         os.environ["EVERMIND_DATA_DIR"] = args.data_dir

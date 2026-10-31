@@ -7,6 +7,7 @@ sees, and a server left running would hold a port for the rest of the run.
 
 import codecs
 import os
+import re
 import socket
 import types
 from pathlib import Path
@@ -335,7 +336,7 @@ def test_resolve_listen(argv, env, expected):
     ],
 )
 def test_resolve_listen_names_the_bad_setting(argv, env, message):
-    with pytest.raises(ValueError, match="^" + message.replace("[", r"\[") + "$"):
+    with pytest.raises(ValueError, match=f"^{re.escape(message)}$"):
         resolve_listen(parse_args(argv), env)
 
 
@@ -412,37 +413,69 @@ def test_has_listener_finds_nobody_on_a_free_port():
     assert launch._has_listener("127.0.0.1", free_port()) is False
 
 
-def _recording_sockets(monkeypatch, os_name):
-    """Stand in for the socket module and for os.name, in the launch module only."""
+class FakeSocket:
+    """Stands in for a socket in the launch module: it can be used in a ``with``,
+    remembers what it was asked to do, and does nothing else. A test makes it
+    fail by setting ``connect_error`` on the class that ``fake_sockets`` builds."""
+
+    connect_error: OSError | None = None
+    local_address = ("192.168.1.20", 54321)
+
+    def __init__(self, family, kind):
+        self.family, self.kind = family, kind
+        self.options = []
+        self.connected = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def setsockopt(self, level, option, value):
+        self.options.append((level, option, value))
+
+    def bind(self, address):
+        pass
+
+    def connect(self, address):
+        if self.connect_error:
+            raise self.connect_error
+        self.connected = address
+
+    def getsockname(self):
+        return self.local_address
+
+
+def fake_sockets(monkeypatch, os_name=None, **attributes):
+    """Replace the socket module, and the os module when ``os_name`` is given
+    (only its ``name``), in the launch module only. Returns the list that every
+    socket the module makes is added to; ``attributes`` are set on their class."""
     made = []
 
-    class Recorder:
+    class Fake(FakeSocket):
         def __init__(self, family, kind):
-            self.options = []
+            super().__init__(family, kind)
             made.append(self)
 
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-        def setsockopt(self, level, option, value):
-            self.options.append((level, option, value))
-
-        def bind(self, address):
-            pass
-
-    fake = types.SimpleNamespace(
-        socket=Recorder,
+    for name, value in attributes.items():
+        setattr(Fake, name, value)
+    monkeypatch.setattr(launch, "socket", types.SimpleNamespace(
+        socket=Fake,
         AF_INET=socket.AF_INET,
         AF_INET6=socket.AF_INET6,
         SOCK_STREAM=socket.SOCK_STREAM,
+        SOCK_DGRAM=socket.SOCK_DGRAM,
         SOL_SOCKET=socket.SOL_SOCKET,
         SO_REUSEADDR=socket.SO_REUSEADDR,
-    )
-    monkeypatch.setattr(launch, "socket", fake)
-    monkeypatch.setattr(launch, "os", types.SimpleNamespace(name=os_name))
+    ))
+    if os_name is not None:
+        monkeypatch.setattr(launch, "os", types.SimpleNamespace(name=os_name))
+    return made
+
+
+def _recording_sockets(monkeypatch, os_name):
+    made = fake_sockets(monkeypatch, os_name)
     # The connection that follows a successful bind is not what these look at.
     monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
     return made
@@ -464,46 +497,15 @@ def test_port_probe_does_not_reuse_the_address_on_windows(monkeypatch):
 
 
 def test_lan_address_asks_the_routing_table_without_sending_anything(monkeypatch):
-    seen = []
-
-    class FakeUdp:
-        def __init__(self, family, kind):
-            seen.append((family, kind))
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-        def connect(self, address):
-            seen.append(address)
-
-        def getsockname(self):
-            return ("192.168.1.20", 54321)
-
-    monkeypatch.setattr(launch, "socket", types.SimpleNamespace(
-        socket=FakeUdp, AF_INET=socket.AF_INET, SOCK_DGRAM=socket.SOCK_DGRAM))
+    made = fake_sockets(monkeypatch)
     assert launch.lan_address() == "192.168.1.20"
-    assert seen == [(socket.AF_INET, socket.SOCK_DGRAM), ("192.0.2.1", 9)]
+    assert [(m.family, m.kind, m.connected) for m in made] == [
+        (socket.AF_INET, socket.SOCK_DGRAM, ("192.0.2.1", 9))
+    ]
 
 
 def test_lan_address_is_none_without_a_route(monkeypatch):
-    class Unreachable:
-        def __init__(self, *args):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-        def connect(self, address):
-            raise OSError("Network is unreachable")
-
-    monkeypatch.setattr(launch, "socket", types.SimpleNamespace(
-        socket=Unreachable, AF_INET=socket.AF_INET, SOCK_DGRAM=socket.SOCK_DGRAM))
+    fake_sockets(monkeypatch, connect_error=OSError("Network is unreachable"))
     assert launch.lan_address() is None
 
 
@@ -763,8 +765,9 @@ def test_undecodable_env_file_names_the_file_and_exits(
     assert launch.main(["--check", "--port", str(free_port()), *flags]) == 1
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert len(captured.err.splitlines()) == 1
-    assert str(f) in captured.err
+    assert captured.err.splitlines() == [
+        f"Cannot read the settings file {f}: it is not valid UTF-8 or UTF-16 text."
+    ]
     assert served == []
 
 
@@ -775,7 +778,8 @@ def test_unreadable_env_file_names_the_file_and_exits(clean_env, tmp_path, serve
     captured = capsys.readouterr()
     assert captured.out == ""
     assert len(captured.err.splitlines()) == 1
-    assert str(tmp_path) in captured.err
+    assert captured.err.startswith(f"Cannot read the settings file {tmp_path}: ")
+    assert captured.err.endswith(".\n")
 
 
 def test_settings_from_the_file_decide_where_to_listen(clean_env, tmp_path, served, capsys):
