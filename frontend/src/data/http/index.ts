@@ -6,6 +6,7 @@ import type {
   BenchmarkResult, ConnectionTestResult, ConsolidateResult, DataSource, ExtractResult,
 } from "../source";
 import { readEvents } from "./events";
+import { characterOf, conversationOf, personaOf } from "./media";
 import { lazyFetch, request, send } from "./request";
 
 /** Path segments are whatever the caller passed in, so each one is encoded:
@@ -42,7 +43,12 @@ function downloadName(disposition: string | null): string | undefined {
 }
 
 /** The self-hosted edition: the interface and the server share an origin, and
- *  every call is a request to /api. `fetchImpl` is there for tests. */
+ *  every call is a request to `api/...`. That is written without a leading
+ *  slash on purpose: it resolves against the page, whose address is always the
+ *  root of the app (its routes live after the "#"), so Evermind works as well
+ *  under a path such as `/evermind/` as at the root of a host. The addresses of
+ *  images that the server writes are made relative here too. `fetchImpl` is
+ *  there for tests. */
 export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSource {
   const call = <T>(path: string, init?: RequestInit) => request<T>(path, init, fetchImpl);
   const get = <T>(path: string) => call<T>(path);
@@ -64,121 +70,129 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
 
     characters: {
       list: (query) =>
-        get<Character[]>(`/api/characters${queryString({ kind: query?.kind, q: query?.q?.trim() })}`),
-      get: (id) => get<Character>(`/api/characters/${seg(id)}`),
-      create: (input) => post<Character>("/api/characters", input),
-      update: (id, input) => put<Character>(`/api/characters/${seg(id)}`, input),
-      remove: (id) => del(`/api/characters/${seg(id)}`),
-      uploadAvatar: (id, file) => upload<Character>(`/api/characters/${seg(id)}/avatar`, file),
-      importCard: (file) => upload<Character>("/api/characters/import", file),
+        get<Character[]>(`api/characters${queryString({ kind: query?.kind, q: query?.q?.trim() })}`)
+          .then((list) => list.map(characterOf)),
+      get: (id) => get<Character>(`api/characters/${seg(id)}`).then(characterOf),
+      create: (input) => post<Character>("api/characters", input).then(characterOf),
+      update: (id, input) =>
+        put<Character>(`api/characters/${seg(id)}`, input).then(characterOf),
+      remove: (id) => del(`api/characters/${seg(id)}`),
+      uploadAvatar: (id, file) =>
+        upload<Character>(`api/characters/${seg(id)}/avatar`, file).then(characterOf),
+      importCard: (file) => upload<Character>("api/characters/import", file).then(characterOf),
       async exportCard(id, format) {
         const resp = await send(
-          `/api/characters/${seg(id)}/export${queryString({ format })}`, undefined, fetchImpl,
+          `api/characters/${seg(id)}/export${queryString({ format })}`, undefined, fetchImpl,
         );
         return {
           blob: await resp.blob(),
           filename: downloadName(resp.headers.get("Content-Disposition")) ?? `card.${format}`,
         };
       },
-      assist: (input) => post("/api/characters/assist", input),
+      assist: (input) => post("api/characters/assist", input),
     },
 
     lore: {
-      list: (characterId) => get<LoreEntry[]>(`/api/characters/${seg(characterId)}/lore`),
+      list: (characterId) => get<LoreEntry[]>(`api/characters/${seg(characterId)}/lore`),
       create: (characterId, input) =>
-        post<LoreEntry>(`/api/characters/${seg(characterId)}/lore`, input),
-      update: (id, changes) => patch<LoreEntry>(`/api/lore/${seg(id)}`, changes),
-      remove: (id) => del(`/api/lore/${seg(id)}`),
+        post<LoreEntry>(`api/characters/${seg(characterId)}/lore`, input),
+      update: (id, changes) => patch<LoreEntry>(`api/lore/${seg(id)}`, changes),
+      remove: (id) => del(`api/lore/${seg(id)}`),
     },
 
     personas: {
-      list: () => get<Persona[]>("/api/personas"),
-      create: (input) => post<Persona>("/api/personas", input),
-      update: (id, input) => put<Persona>(`/api/personas/${seg(id)}`, input),
-      remove: (id) => del(`/api/personas/${seg(id)}`),
-      uploadAvatar: (id, file) => upload<Persona>(`/api/personas/${seg(id)}/avatar`, file),
+      list: () => get<Persona[]>("api/personas").then((list) => list.map(personaOf)),
+      create: (input) => post<Persona>("api/personas", input).then(personaOf),
+      update: (id, input) => put<Persona>(`api/personas/${seg(id)}`, input).then(personaOf),
+      remove: (id) => del(`api/personas/${seg(id)}`),
+      uploadAvatar: (id, file) =>
+        upload<Persona>(`api/personas/${seg(id)}/avatar`, file).then(personaOf),
     },
 
     conversations: {
       list: (query) =>
-        get<Conversation[]>(`/api/conversations${queryString({ character_id: query?.character_id })}`),
-      get: (id) => get<Conversation>(`/api/conversations/${seg(id)}`),
-      create: (input) => post<Conversation>("/api/conversations", input),
-      update: (id, changes) => patch<Conversation>(`/api/conversations/${seg(id)}`, changes),
-      remove: (id) => del(`/api/conversations/${seg(id)}`),
+        get<Conversation[]>(`api/conversations${queryString({ character_id: query?.character_id })}`)
+          .then((list) => list.map(conversationOf)),
+      get: (id) => get<Conversation>(`api/conversations/${seg(id)}`).then(conversationOf),
+      create: (input) => post<Conversation>("api/conversations", input).then(conversationOf),
+      update: (id, changes) =>
+        patch<Conversation>(`api/conversations/${seg(id)}`, changes).then(conversationOf),
+      remove: (id) => del(`api/conversations/${seg(id)}`),
       setWallpaper: (id, file) =>
-        upload<Conversation>(`/api/conversations/${seg(id)}/wallpaper`, file),
-      clearWallpaper: (id) => del<Conversation>(`/api/conversations/${seg(id)}/wallpaper`),
-      summarize: (id) => post<Conversation>(`/api/conversations/${seg(id)}/summarize`),
+        upload<Conversation>(`api/conversations/${seg(id)}/wallpaper`, file).then(conversationOf),
+      clearWallpaper: (id) =>
+        del<Conversation>(`api/conversations/${seg(id)}/wallpaper`).then(conversationOf),
+      summarize: (id) =>
+        post<Conversation>(`api/conversations/${seg(id)}/summarize`).then(conversationOf),
     },
 
     messages: {
-      update: (id, changes) => patch<Message>(`/api/messages/${seg(id)}`, changes),
-      branch: (id) => post<Conversation>(`/api/messages/${seg(id)}/branch`),
-      removeFrom: (id) => del(`/api/messages/${seg(id)}?following=true`),
+      update: (id, changes) => patch<Message>(`api/messages/${seg(id)}`, changes),
+      branch: (id) => post<Conversation>(`api/messages/${seg(id)}/branch`).then(conversationOf),
+      removeFrom: (id) => del(`api/messages/${seg(id)}?following=true`),
     },
 
     memories: {
       list: (conversationId) =>
-        get<Memory[]>(`/api/conversations/${seg(conversationId)}/memories`),
+        get<Memory[]>(`api/conversations/${seg(conversationId)}/memories`),
       create: (conversationId, input) =>
-        post<Memory>(`/api/conversations/${seg(conversationId)}/memories`, input),
-      update: (id, changes) => patch<Memory>(`/api/memories/${seg(id)}`, changes),
-      remove: (id) => del(`/api/memories/${seg(id)}`),
+        post<Memory>(`api/conversations/${seg(conversationId)}/memories`, input),
+      update: (id, changes) => patch<Memory>(`api/memories/${seg(id)}`, changes),
+      remove: (id) => del(`api/memories/${seg(id)}`),
       extract: (conversationId) =>
-        post<ExtractResult>(`/api/conversations/${seg(conversationId)}/memories/extract`),
+        post<ExtractResult>(`api/conversations/${seg(conversationId)}/memories/extract`),
       consolidate: (conversationId) =>
-        post<ConsolidateResult>(`/api/conversations/${seg(conversationId)}/memories/consolidate`),
+        post<ConsolidateResult>(`api/conversations/${seg(conversationId)}/memories/consolidate`),
     },
 
     turns: {
       send: (turn, onEvent, signal) =>
         readEvents(
-          send("/api/chat", { method: "POST", body: JSON.stringify(turn), signal }, fetchImpl),
+          send("api/chat", { method: "POST", body: JSON.stringify(turn), signal }, fetchImpl),
           onEvent,
         ),
       follow: (conversationId, onEvent, signal) =>
         readEvents(
-          send(`/api/conversations/${seg(conversationId)}/turn/stream`, { signal }, fetchImpl),
+          send(`api/conversations/${seg(conversationId)}/turn/stream`, { signal }, fetchImpl),
           onEvent,
         ),
-      stop: (conversationId) => del(`/api/conversations/${seg(conversationId)}/turn`),
+      stop: (conversationId) => del(`api/conversations/${seg(conversationId)}/turn`),
       state: (conversationId) =>
-        get<{ running: boolean }>(`/api/conversations/${seg(conversationId)}/turn`),
+        get<{ running: boolean }>(`api/conversations/${seg(conversationId)}/turn`),
       impersonate: (conversationId) =>
-        post<{ text: string }>(`/api/conversations/${seg(conversationId)}/impersonate`),
+        post<{ text: string }>(`api/conversations/${seg(conversationId)}/impersonate`),
     },
 
     library: {
-      list: () => get<LibraryItem[]>("/api/library"),
-      install: (filename) => post<Character>(`/api/library/${seg(filename)}/install`),
-      avatarUrl: (filename) => `/api/library/${seg(filename)}/avatar`,
+      list: () => get<LibraryItem[]>("api/library"),
+      install: (filename) => post<Character>(`api/library/${seg(filename)}/install`),
+      avatarUrl: (filename) => `api/library/${seg(filename)}/avatar`,
     },
 
     settings: {
-      get: () => get<Settings>("/api/settings"),
-      update: (input) => put<Settings>("/api/settings", input),
+      get: () => get<Settings>("api/settings"),
+      update: (input) => put<Settings>("api/settings", input),
     },
 
     connections: {
-      list: () => get<Connection[]>("/api/connections"),
-      create: (input) => post<Connection>("/api/connections", input),
-      update: (id, input) => put<Connection>(`/api/connections/${seg(id)}`, input),
-      remove: (id) => del(`/api/connections/${seg(id)}`),
-      test: (input) => post<ConnectionTestResult>("/api/connections/test", input),
-      testSaved: (id) => post<ConnectionTestResult>(`/api/connections/${seg(id)}/test`),
-      benchmark: (id) => post<BenchmarkResult>(`/api/connections/${seg(id)}/benchmark`),
+      list: () => get<Connection[]>("api/connections"),
+      create: (input) => post<Connection>("api/connections", input),
+      update: (id, input) => put<Connection>(`api/connections/${seg(id)}`, input),
+      remove: (id) => del(`api/connections/${seg(id)}`),
+      test: (input) => post<ConnectionTestResult>("api/connections/test", input),
+      testSaved: (id) => post<ConnectionTestResult>(`api/connections/${seg(id)}/test`),
+      benchmark: (id) => post<BenchmarkResult>(`api/connections/${seg(id)}/benchmark`),
     },
 
     updates: {
-      check: (refresh) => get<UpdateStatus>(`/api/update${refresh ? "?refresh=true" : ""}`),
+      check: (refresh) => get<UpdateStatus>(`api/update${refresh ? "?refresh=true" : ""}`),
     },
 
     access: {
-      status: () => get<{ enabled: boolean; authenticated: boolean }>("/api/gate"),
-      login: (password) => post("/api/gate", { password }),
-      logout: () => del("/api/gate"),
-      logoutEverywhere: () => del("/api/gate/sessions"),
+      status: () => get<{ enabled: boolean; authenticated: boolean }>("api/gate"),
+      login: (password) => post("api/gate", { password }),
+      logout: () => del("api/gate"),
+      logoutEverywhere: () => del("api/gate/sessions"),
     },
   };
 }

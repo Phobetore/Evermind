@@ -176,6 +176,28 @@ fails without one; a kind the interface does not know yet shows the server's
 English sentence until it gets a line in `errors.ts` and a sentence in the four
 languages.
 
+## Serving under a path prefix
+
+Evermind works behind a reverse proxy that serves it under a path such as
+`/evermind/` and removes the prefix before passing the request on (with nginx,
+`location /evermind/ { proxy_pass http://127.0.0.1:3000/; }`; keep `Host` as it
+came, see above). The page, its files, every call and every image then stay under
+the prefix, because none of them is addressed from the root of the host:
+
+- the build uses relative asset paths (`base: "./"`) and its routes live after
+  the `#`, so the address of the page, without the fragment, is always the root of
+  the app;
+- every request in `frontend/src/data/http/` is for `api/...`, without a leading
+  slash, and is resolved against that address;
+- the addresses of images the API returns (`/api/media/<file>`) are made relative
+  the same way, in `frontend/src/data/http/media.ts`, where the objects come back,
+  so that no component has to know.
+
+So new code that calls the API goes through the data layer, and an address written
+there never starts with a slash (a test resolves the calls under a prefix). The
+Vite dev server and the end-to-end servers run at the root of their host, where
+`api/...` is `/api/...`.
+
 ## How a turn is built
 
 `prompting/engine.py::build_chat_payload` is the heart of the project and is a

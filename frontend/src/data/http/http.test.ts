@@ -83,20 +83,23 @@ describe("request building", () => {
   });
 
   test("character list builds its query", async () => {
+    reply(json([]));
     await http.characters.list({ kind: "scenario", q: " vane " });
-    expect(calls[0].url).toBe("/api/characters?kind=scenario&q=vane");
+    expect(calls[0].url).toBe("api/characters?kind=scenario&q=vane");
   });
 
   test("character list without a query has no question mark", async () => {
+    reply(json([]));
+    reply(json([]));
     await http.characters.list();
     await http.characters.list({ q: "   " });
-    expect(calls.map((c) => c.url)).toEqual(["/api/characters", "/api/characters"]);
+    expect(calls.map((c) => c.url)).toEqual(["api/characters", "api/characters"]);
   });
 
   test("removeFrom deletes the message and what follows", async () => {
     await http.messages.removeFrom("m1");
     expect(calls[0]).toMatchObject({
-      url: "/api/messages/m1?following=true",
+      url: "api/messages/m1?following=true",
       init: { method: "DELETE" },
     });
   });
@@ -112,7 +115,7 @@ describe("request building", () => {
     await http.personas.uploadAvatar("p1", file);
 
     const { url, init } = calls[0];
-    expect(url).toBe("/api/personas/p1/avatar");
+    expect(url).toBe("api/personas/p1/avatar");
     expect(init.method).toBe("POST");
     expect(init.body).toBeInstanceOf(FormData);
     const sent = (init.body as FormData).get("file") as File;
@@ -130,20 +133,20 @@ describe("request building", () => {
     await http.lore.list("x y");
     await http.library.install("a b.json");
     expect(calls.map((c) => c.url)).toEqual([
-      "/api/characters/a%2Fb%3Fc",
-      "/api/characters/x%20y/lore",
-      "/api/library/a%20b.json/install",
+      "api/characters/a%2Fb%3Fc",
+      "api/characters/x%20y/lore",
+      "api/library/a%20b.json/install",
     ]);
   });
 
   test("library avatar names are encoded", () => {
-    expect(http.library.avatarUrl("a b.png")).toBe("/api/library/a%20b.png/avatar");
+    expect(http.library.avatarUrl("a b.png")).toBe("api/library/a%20b.png/avatar");
   });
 
   test("the update check only asks to refresh when told to", async () => {
     await http.updates.check();
     await http.updates.check(true);
-    expect(calls.map((c) => c.url)).toEqual(["/api/update", "/api/update?refresh=true"]);
+    expect(calls.map((c) => c.url)).toEqual(["api/update", "api/update?refresh=true"]);
   });
 });
 
@@ -167,89 +170,90 @@ describe("routes", () => {
   // nothing is sent.
   type Row = [name: string, run: () => Promise<unknown>, method: string, url: string, body?: unknown];
   const rows: Row[] = [
-    ["characters.get", () => http.characters.get("c1"), "GET", "/api/characters/c1"],
-    ["characters.create", () => http.characters.create(character), "POST", "/api/characters", character],
-    ["characters.update", () => http.characters.update("c1", { is_favorite: true }), "PUT", "/api/characters/c1", { is_favorite: true }],
-    ["characters.remove", () => http.characters.remove("c1"), "DELETE", "/api/characters/c1"],
-    ["characters.uploadAvatar", () => http.characters.uploadAvatar("c1", file), "POST", "/api/characters/c1/avatar", file],
-    ["characters.importCard", () => http.characters.importCard(file), "POST", "/api/characters/import", file],
+    ["characters.get", () => http.characters.get("c1"), "GET", "api/characters/c1"],
+    ["characters.create", () => http.characters.create(character), "POST", "api/characters", character],
+    ["characters.update", () => http.characters.update("c1", { is_favorite: true }), "PUT", "api/characters/c1", { is_favorite: true }],
+    ["characters.remove", () => http.characters.remove("c1"), "DELETE", "api/characters/c1"],
+    ["characters.uploadAvatar", () => http.characters.uploadAvatar("c1", file), "POST", "api/characters/c1/avatar", file],
+    ["characters.importCard", () => http.characters.importCard(file), "POST", "api/characters/import", file],
     [
       "characters.assist",
       () => http.characters.assist({ prompt: "a ferryman", kind: "character", existing: {}, connection_id: null }),
-      "POST", "/api/characters/assist",
+      "POST", "api/characters/assist",
       { prompt: "a ferryman", kind: "character", existing: {}, connection_id: null },
     ],
-    ["lore.list", () => http.lore.list("c1"), "GET", "/api/characters/c1/lore"],
-    ["lore.create", () => http.lore.create("c1", lore), "POST", "/api/characters/c1/lore", lore],
-    ["lore.update", () => http.lore.update("l1", { enabled: false }), "PATCH", "/api/lore/l1", { enabled: false }],
-    ["lore.remove", () => http.lore.remove("l1"), "DELETE", "/api/lore/l1"],
-    ["personas.list", () => http.personas.list(), "GET", "/api/personas"],
+    ["lore.list", () => http.lore.list("c1"), "GET", "api/characters/c1/lore"],
+    ["lore.create", () => http.lore.create("c1", lore), "POST", "api/characters/c1/lore", lore],
+    ["lore.update", () => http.lore.update("l1", { enabled: false }), "PATCH", "api/lore/l1", { enabled: false }],
+    ["lore.remove", () => http.lore.remove("l1"), "DELETE", "api/lore/l1"],
+    ["personas.list", () => http.personas.list(), "GET", "api/personas"],
     [
       "personas.create",
       () => http.personas.create({ name: "Me", description: "", is_default: true }),
-      "POST", "/api/personas", { name: "Me", description: "", is_default: true },
+      "POST", "api/personas", { name: "Me", description: "", is_default: true },
     ],
     [
       "personas.update",
       () => http.personas.update("p1", { name: "Me", description: "x", is_default: false }),
-      "PUT", "/api/personas/p1", { name: "Me", description: "x", is_default: false },
+      "PUT", "api/personas/p1", { name: "Me", description: "x", is_default: false },
     ],
-    ["personas.remove", () => http.personas.remove("p1"), "DELETE", "/api/personas/p1"],
-    ["conversations.list", () => http.conversations.list(), "GET", "/api/conversations"],
+    ["personas.remove", () => http.personas.remove("p1"), "DELETE", "api/personas/p1"],
+    ["conversations.list", () => http.conversations.list(), "GET", "api/conversations"],
     [
       "conversations.list for a character",
       () => http.conversations.list({ character_id: "c 1" }),
-      "GET", "/api/conversations?character_id=c+1",
+      "GET", "api/conversations?character_id=c+1",
     ],
-    ["conversations.get", () => http.conversations.get("v1"), "GET", "/api/conversations/v1"],
+    ["conversations.get", () => http.conversations.get("v1"), "GET", "api/conversations/v1"],
     [
       "conversations.create",
       () => http.conversations.create({ character_id: "c1", persona_id: null, connection_id: "k1", greeting_index: 2 }),
-      "POST", "/api/conversations",
+      "POST", "api/conversations",
       { character_id: "c1", persona_id: null, connection_id: "k1", greeting_index: 2 },
     ],
-    ["conversations.update", () => http.conversations.update("v1", { title: "T" }), "PATCH", "/api/conversations/v1", { title: "T" }],
-    ["conversations.remove", () => http.conversations.remove("v1"), "DELETE", "/api/conversations/v1"],
-    ["conversations.setWallpaper", () => http.conversations.setWallpaper("v1", file), "POST", "/api/conversations/v1/wallpaper", file],
-    ["conversations.clearWallpaper", () => http.conversations.clearWallpaper("v1"), "DELETE", "/api/conversations/v1/wallpaper"],
-    ["conversations.summarize", () => http.conversations.summarize("v1"), "POST", "/api/conversations/v1/summarize"],
-    ["messages.update", () => http.messages.update("m1", { active_index: 1 }), "PATCH", "/api/messages/m1", { active_index: 1 }],
-    ["messages.branch", () => http.messages.branch("m1"), "POST", "/api/messages/m1/branch"],
-    ["memories.list", () => http.memories.list("v1"), "GET", "/api/conversations/v1/memories"],
+    ["conversations.update", () => http.conversations.update("v1", { title: "T" }), "PATCH", "api/conversations/v1", { title: "T" }],
+    ["conversations.remove", () => http.conversations.remove("v1"), "DELETE", "api/conversations/v1"],
+    ["conversations.setWallpaper", () => http.conversations.setWallpaper("v1", file), "POST", "api/conversations/v1/wallpaper", file],
+    ["conversations.clearWallpaper", () => http.conversations.clearWallpaper("v1"), "DELETE", "api/conversations/v1/wallpaper"],
+    ["conversations.summarize", () => http.conversations.summarize("v1"), "POST", "api/conversations/v1/summarize"],
+    ["messages.update", () => http.messages.update("m1", { active_index: 1 }), "PATCH", "api/messages/m1", { active_index: 1 }],
+    ["messages.branch", () => http.messages.branch("m1"), "POST", "api/messages/m1/branch"],
+    ["memories.list", () => http.memories.list("v1"), "GET", "api/conversations/v1/memories"],
     [
       "memories.create",
       () => http.memories.create("v1", { content: "She lies.", is_pinned: true }),
-      "POST", "/api/conversations/v1/memories", { content: "She lies.", is_pinned: true },
+      "POST", "api/conversations/v1/memories", { content: "She lies.", is_pinned: true },
     ],
-    ["memories.update", () => http.memories.update("f1", { is_pinned: false }), "PATCH", "/api/memories/f1", { is_pinned: false }],
-    ["memories.remove", () => http.memories.remove("f1"), "DELETE", "/api/memories/f1"],
-    ["memories.extract", () => http.memories.extract("v1"), "POST", "/api/conversations/v1/memories/extract"],
-    ["memories.consolidate", () => http.memories.consolidate("v1"), "POST", "/api/conversations/v1/memories/consolidate"],
-    ["turns.stop", () => http.turns.stop("v1"), "DELETE", "/api/conversations/v1/turn"],
-    ["turns.state", () => http.turns.state("v1"), "GET", "/api/conversations/v1/turn"],
-    ["turns.impersonate", () => http.turns.impersonate("v1"), "POST", "/api/conversations/v1/impersonate"],
-    ["library.list", () => http.library.list(), "GET", "/api/library"],
-    ["library.install", () => http.library.install("vane.json"), "POST", "/api/library/vane.json/install"],
-    ["settings.get", () => http.settings.get(), "GET", "/api/settings"],
-    ["settings.update", () => http.settings.update({ reply_length: "long" }), "PUT", "/api/settings", { reply_length: "long" }],
-    ["connections.list", () => http.connections.list(), "GET", "/api/connections"],
-    ["connections.create", () => http.connections.create({ ...connection, api_key: "k" }), "POST", "/api/connections", { ...connection, api_key: "k" }],
-    ["connections.update", () => http.connections.update("k1", connection), "PUT", "/api/connections/k1", connection],
-    ["connections.remove", () => http.connections.remove("k1"), "DELETE", "/api/connections/k1"],
-    ["connections.test", () => http.connections.test(connection), "POST", "/api/connections/test", connection],
-    ["connections.testSaved", () => http.connections.testSaved("k1"), "POST", "/api/connections/k1/test"],
-    ["connections.benchmark", () => http.connections.benchmark("k1"), "POST", "/api/connections/k1/benchmark"],
-    ["updates.check", () => http.updates.check(), "GET", "/api/update"],
-    ["access.status", () => http.access.status(), "GET", "/api/gate"],
-    ["access.login", () => http.access.login("open sesame"), "POST", "/api/gate", { password: "open sesame" }],
-    ["access.logout", () => http.access.logout(), "DELETE", "/api/gate"],
-    ["access.logoutEverywhere", () => http.access.logoutEverywhere(), "DELETE", "/api/gate/sessions"],
+    ["memories.update", () => http.memories.update("f1", { is_pinned: false }), "PATCH", "api/memories/f1", { is_pinned: false }],
+    ["memories.remove", () => http.memories.remove("f1"), "DELETE", "api/memories/f1"],
+    ["memories.extract", () => http.memories.extract("v1"), "POST", "api/conversations/v1/memories/extract"],
+    ["memories.consolidate", () => http.memories.consolidate("v1"), "POST", "api/conversations/v1/memories/consolidate"],
+    ["turns.stop", () => http.turns.stop("v1"), "DELETE", "api/conversations/v1/turn"],
+    ["turns.state", () => http.turns.state("v1"), "GET", "api/conversations/v1/turn"],
+    ["turns.impersonate", () => http.turns.impersonate("v1"), "POST", "api/conversations/v1/impersonate"],
+    ["library.list", () => http.library.list(), "GET", "api/library"],
+    ["library.install", () => http.library.install("vane.json"), "POST", "api/library/vane.json/install"],
+    ["settings.get", () => http.settings.get(), "GET", "api/settings"],
+    ["settings.update", () => http.settings.update({ reply_length: "long" }), "PUT", "api/settings", { reply_length: "long" }],
+    ["connections.list", () => http.connections.list(), "GET", "api/connections"],
+    ["connections.create", () => http.connections.create({ ...connection, api_key: "k" }), "POST", "api/connections", { ...connection, api_key: "k" }],
+    ["connections.update", () => http.connections.update("k1", connection), "PUT", "api/connections/k1", connection],
+    ["connections.remove", () => http.connections.remove("k1"), "DELETE", "api/connections/k1"],
+    ["connections.test", () => http.connections.test(connection), "POST", "api/connections/test", connection],
+    ["connections.testSaved", () => http.connections.testSaved("k1"), "POST", "api/connections/k1/test"],
+    ["connections.benchmark", () => http.connections.benchmark("k1"), "POST", "api/connections/k1/benchmark"],
+    ["updates.check", () => http.updates.check(), "GET", "api/update"],
+    ["access.status", () => http.access.status(), "GET", "api/gate"],
+    ["access.login", () => http.access.login("open sesame"), "POST", "api/gate", { password: "open sesame" }],
+    ["access.logout", () => http.access.logout(), "DELETE", "api/gate"],
+    ["access.logoutEverywhere", () => http.access.logoutEverywhere(), "DELETE", "api/gate/sessions"],
   ];
 
-  test.each(rows)("%s", async (_name, run, method, url, body) => {
+  test.each(rows)("%s", async (name, run, method, url, body) => {
     // 204 for every verb that has nothing to say back, so that none of them
-    // fails on an empty body.
-    reply(method === "DELETE" || (method === "POST" && url === "/api/gate") ? new Response(null, { status: 204 }) : json({}));
+    // fails on an empty body, and a list for the calls that ask for one.
+    const nothing = method === "DELETE" || (method === "POST" && url === "api/gate");
+    reply(nothing ? new Response(null, { status: 204 }) : json(name.includes(".list") ? [] : {}));
     await run();
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe(url);
@@ -463,7 +467,7 @@ describe("fetch", () => {
       return json([]);
     });
     await source.characters.list();
-    expect(seen).toEqual(["/api/characters"]);
+    expect(seen).toEqual(["api/characters"]);
   });
 
   test("and so is the one the request helpers start with", async () => {
@@ -472,9 +476,9 @@ describe("fetch", () => {
       seen.push(String(input));
       return json({});
     });
-    await request("/api/one");
-    await send("/api/two");
-    expect(seen).toEqual(["/api/one", "/api/two"]);
+    await request("api/one");
+    await send("api/two");
+    expect(seen).toEqual(["api/one", "api/two"]);
   });
 });
 
@@ -567,7 +571,7 @@ describe("turns", () => {
 
     await http.turns.send(request, () => {}, controller.signal);
 
-    expect(calls[0].url).toBe("/api/chat");
+    expect(calls[0].url).toBe("api/chat");
     expect(calls[0].init.method).toBe("POST");
     expect(bodyOf(calls[0])).toEqual(request);
     expect(new Headers(calls[0].init.headers).get("Content-Type")).toBe("application/json");
@@ -583,7 +587,7 @@ describe("turns", () => {
     await http.turns.follow("v1", (e) => events.push(e));
 
     expect(events).toEqual([]);
-    expect(calls[0].url).toBe("/api/conversations/v1/turn/stream");
+    expect(calls[0].url).toBe("api/conversations/v1/turn/stream");
     expect(calls[0].init.method ?? "GET").toBe("GET");
   });
 
@@ -649,11 +653,147 @@ describe("turns", () => {
   });
 });
 
+// The interface can be served from under a path (`/evermind/`, behind a reverse
+// proxy that strips it), and the page's own address is always the root of the
+// app, since its routes live after the "#". An address with a leading slash
+// would ignore that path, so none is written with one.
+describe("under a path prefix", () => {
+  const page = "http://192.168.1.42:3000/evermind/";
+  const resolved = (url: string) => new URL(url, page).href;
+
+  test("every call, stream and upload resolves under the prefix", async () => {
+    const file = new File(["x"], "f.png", { type: "image/png" });
+    reply(json([]));
+    reply(json({}));
+    reply(json({}));
+    reply(chunked());
+    reply(chunked());
+    reply(new Response("{}"));
+    reply(json({}));
+    await http.characters.list();
+    await http.characters.get("c1");
+    await http.characters.uploadAvatar("c1", file);
+    await http.turns.send({ conversation_id: "v1", mode: "send" }, () => {});
+    await http.turns.follow("v1", () => {});
+    await http.characters.exportCard("c1", "json");
+    await http.conversations.setWallpaper("v1", file);
+
+    expect(calls.map((c) => resolved(c.url))).toEqual([
+      "http://192.168.1.42:3000/evermind/api/characters",
+      "http://192.168.1.42:3000/evermind/api/characters/c1",
+      "http://192.168.1.42:3000/evermind/api/characters/c1/avatar",
+      "http://192.168.1.42:3000/evermind/api/chat",
+      "http://192.168.1.42:3000/evermind/api/conversations/v1/turn/stream",
+      "http://192.168.1.42:3000/evermind/api/characters/c1/export?format=json",
+      "http://192.168.1.42:3000/evermind/api/conversations/v1/wallpaper",
+    ]);
+  });
+
+  test("so does the address of a library illustration", () => {
+    expect(resolved(http.library.avatarUrl("vane.json"))).toBe(
+      "http://192.168.1.42:3000/evermind/api/library/vane.json/avatar",
+    );
+  });
+
+  test("and the same address served from the root stays at the root", () => {
+    expect(new URL(http.library.avatarUrl("vane.json"), "http://localhost:3000/").pathname).toBe(
+      "/api/library/vane.json/avatar",
+    );
+  });
+});
+
+// The server writes the address of an image from its own root. It is made
+// relative here, where the objects come back, so that no component has to know.
+describe("media addresses", () => {
+  const MEDIA = "/api/media/a1b2.png";
+  const RELATIVE = "api/media/a1b2.png";
+
+  test("a character's portrait is relative", async () => {
+    reply(json({ id: "c1", avatar_url: MEDIA }));
+    expect((await http.characters.get("c1")).avatar_url).toBe(RELATIVE);
+  });
+
+  test("so is every portrait in a list", async () => {
+    reply(json([{ id: "c1", avatar_url: MEDIA }, { id: "c2", avatar_url: null }]));
+    const list = await http.characters.list();
+    expect(list.map((c) => c.avatar_url)).toEqual([RELATIVE, null]);
+  });
+
+  test.each([
+    ["create", () => http.characters.create({} as never)],
+    ["update", () => http.characters.update("c1", {})],
+    ["uploadAvatar", () => http.characters.uploadAvatar("c1", new File(["x"], "f.png"))],
+    ["importCard", () => http.characters.importCard(new File(["x"], "f.json"))],
+  ])("a character returned by %s has a relative portrait", async (_name, run) => {
+    reply(json({ id: "c1", avatar_url: MEDIA }));
+    expect(((await run()) as { avatar_url: string }).avatar_url).toBe(RELATIVE);
+  });
+
+  test("a persona's portrait is relative", async () => {
+    reply(json([{ id: "p1", avatar_url: MEDIA }]));
+    reply(json({ id: "p1", avatar_url: MEDIA }));
+    reply(json({ id: "p1", avatar_url: MEDIA }));
+    reply(json({ id: "p1", avatar_url: MEDIA }));
+    expect((await http.personas.list())[0].avatar_url).toBe(RELATIVE);
+    expect((await http.personas.create({ name: "Me", description: "", is_default: false })).avatar_url).toBe(RELATIVE);
+    expect((await http.personas.update("p1", { name: "Me", description: "", is_default: false })).avatar_url).toBe(RELATIVE);
+    expect((await http.personas.uploadAvatar("p1", new File(["x"], "f.png"))).avatar_url).toBe(RELATIVE);
+  });
+
+  const conversation = {
+    id: "v1",
+    wallpaper_url: "/api/media/wall.webp",
+    character: { id: "c1", avatar_url: MEDIA },
+  };
+  const relativeConversation = {
+    id: "v1",
+    wallpaper_url: "api/media/wall.webp",
+    character: { id: "c1", avatar_url: RELATIVE },
+  };
+
+  test.each([
+    ["get", () => http.conversations.get("v1")],
+    ["create", () => http.conversations.create({ character_id: "c1", persona_id: null, connection_id: null, greeting_index: 0 })],
+    ["update", () => http.conversations.update("v1", {})],
+    ["setWallpaper", () => http.conversations.setWallpaper("v1", new File(["x"], "f.png"))],
+    ["summarize", () => http.conversations.summarize("v1")],
+  ])("a conversation returned by %s has a relative backdrop and character", async (_name, run) => {
+    reply(json(conversation));
+    expect(await run()).toEqual(relativeConversation);
+  });
+
+  test("a branch of a conversation too", async () => {
+    reply(json(conversation));
+    expect(await http.messages.branch("m1")).toEqual(relativeConversation);
+  });
+
+  test("and so is each conversation of a list", async () => {
+    reply(json([conversation]));
+    expect(await http.conversations.list()).toEqual([relativeConversation]);
+  });
+
+  test("a conversation without a backdrop or a character is left as it is", async () => {
+    const bare = { id: "v1", wallpaper_url: null };
+    reply(json(bare));
+    reply(json({ id: "v2" }));
+    expect(await http.conversations.get("v1")).toStrictEqual(bare);
+    expect(await http.conversations.get("v2")).toStrictEqual({ id: "v2" });
+  });
+
+  test.each(["https://cdn.example/a.png", "//cdn.example/a.png", "data:image/png;base64,AAAA", "blob:x"])(
+    "an address that is not from the server's own root is left alone: %s",
+    async (url) => {
+      reply(json({ id: "c1", avatar_url: url }));
+      expect((await http.characters.get("c1")).avatar_url).toBe(url);
+    },
+  );
+});
+
 describe("card export", () => {
   test("the file name comes from Content-Disposition", async () => {
     reply(new Response("{}", { headers: { "Content-Disposition": 'attachment; filename="Vane the Ferryman.json"' } }));
     const { blob, filename } = await http.characters.exportCard("c1", "json");
-    expect(calls[0].url).toBe("/api/characters/c1/export?format=json");
+    expect(calls[0].url).toBe("api/characters/c1/export?format=json");
     expect(filename).toBe("Vane the Ferryman.json");
     expect(await blob.text()).toBe("{}");
   });
