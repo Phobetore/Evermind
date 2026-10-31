@@ -300,6 +300,22 @@ async def test_any_other_file_system_error_is_not_taken_for_a_missing_file(
     assert "assets" in caplog.text and "whatever" in caplog.text
 
 
+async def test_a_path_cannot_forge_a_line_of_the_log(ui_client, monkeypatch, caplog):
+    """The path is the client's. Written as it is, an encoded line break in it
+    ends the log line and starts another that looks like the server's own."""
+    # The way a real error carries it: with the name of the file it was about.
+    name = "/ui/assets/x\r\nERROR forged line"
+    failing_lookup(monkeypatch, OSError(errno.EIO, os.strerror(errno.EIO), name))
+    with pytest.raises(OSError):
+        await ui_client.get("/assets/x%0D%0AERROR%20forged%20line")
+
+    messages = [r.getMessage() for r in caplog.records if "interface folder" in r.getMessage()]
+    assert len(messages) == 1
+    assert "\r" not in messages[0] and "\n" not in messages[0]
+    # Named once, not once by us and once again inside the error's own words.
+    assert messages[0].count("forged") == 1
+
+
 async def test_a_link_out_of_the_folder_is_not_followed(ui_client, ui_dir, tmp_path):
     outside = tmp_path / "secret.txt"
     outside.write_text("top secret", encoding="utf-8")

@@ -72,7 +72,12 @@ class UIFiles(StaticFiles):
             # A name that no file can have is a file that is not there. Any
             # other failure is the disk's and has to show as one.
             if err.errno not in _REFUSED_NAME:
-                logger.error("Could not look up %s in the interface folder: %s", path, err)
+                # The path is the client's, so it goes through %r: an encoded
+                # line break in it must not end the line and start a forged one.
+                # The error's own text names the file again, so only its reason
+                # is added.
+                logger.error("Could not look up %r in the interface folder: %s (errno %s)",
+                             path, err.strerror or type(err).__name__, err.errno)
                 raise
             raise HTTPException(status_code=404) from None
         # Only a file that was found may be called immutable: an error page
