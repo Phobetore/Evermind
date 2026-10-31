@@ -274,6 +274,38 @@ def test_port_in_use_is_not_fooled_by_an_address_this_computer_does_not_have():
     assert launch.port_in_use("192.0.2.1", free_port()) is False
 
 
+def test_port_in_use_sees_a_loopback_listener_when_asked_about_every_interface(busy_port):
+    # Windows lets the bind to 0.0.0.0 succeed next to a listener on 127.0.0.1
+    # alone, so the bind says the port is free. Something is answering there.
+    assert launch.port_in_use("0.0.0.0", busy_port) is True
+
+
+def test_port_in_use_lets_a_free_port_through_on_every_interface():
+    assert launch.port_in_use("0.0.0.0", free_port()) is False
+
+
+def test_port_in_use_sees_a_loopback_listener_when_asked_about_every_ipv6_interface():
+    if not socket.has_ipv6:
+        pytest.skip("no IPv6 on this computer")
+    with socket.socket(socket.AF_INET6) as s:
+        try:
+            s.bind(("::1", 0))
+        except OSError:
+            pytest.skip("no IPv6 loopback on this computer")
+        s.listen()
+        assert launch.port_in_use("::", s.getsockname()[1]) is True
+
+
+def test_a_listener_elsewhere_than_the_loopback_is_not_probed_for(monkeypatch):
+    # Only an address that covers every interface can hide a loopback listener.
+    # A specific one is bound to for real, and that bind already tells.
+    def refuse(host, port):
+        raise AssertionError("a connection was attempted")
+
+    monkeypatch.setattr(launch, "_has_listener", refuse)
+    assert launch.port_in_use("127.0.0.1", free_port()) is False
+
+
 def _recording_sockets(monkeypatch, os_name):
     """Stand in for the socket module and for os.name, in the launch module only."""
     made = []
@@ -400,6 +432,22 @@ def test_check_still_fails_on_a_busy_port(clean_env, busy_port, served, capsys):
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "already in use" in captured.err
+
+
+def test_check_on_the_network_sees_a_loopback_listener(clean_env, busy_port, served, capsys):
+    # prod.ps1 -Lan after a local-only run: the port looks free to a bind to
+    # 0.0.0.0 on Windows, and starting would put two servers on it.
+    assert launch.main(["--check", "--no-env-file", "--lan", "--port", str(busy_port)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert f"Port {busy_port} is already in use." in captured.err
+    assert served == []
+
+
+def test_check_on_the_network_lets_a_free_port_through(clean_env, served, capsys):
+    p = free_port()
+    assert launch.main(["--check", "--no-env-file", "--lan", "--port", str(p)]) == 0
+    assert capsys.readouterr().out.strip() == str(p)
 
 
 def test_refuses_to_start_without_built_ui(clean_env, tmp_path, monkeypatch, served, capsys):

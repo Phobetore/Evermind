@@ -22,6 +22,10 @@ from .services import update_check
 # use of it.
 _PORT_TAKEN = {errno.EADDRINUSE, errno.EACCES, getattr(errno, "WSAEACCES", errno.EACCES)}
 
+# For an address that covers every interface: where a program already on the
+# port would be listening on this computer.
+_WILDCARD_LOOPBACK = {"0.0.0.0": "127.0.0.1", "::": "::1"}
+
 
 @dataclass(frozen=True)
 class Listen:
@@ -129,7 +133,25 @@ def port_in_use(host: str, port: int) -> bool:
             s.bind((host, port))
     except OSError as err:
         return err.errno in _PORT_TAKEN
-    return False
+    # Windows lets a bind to every interface succeed while another program holds
+    # the same port on the loopback alone, and both then run: this computer keeps
+    # talking to the old one and only the network reaches the new one. The bind
+    # cannot see that; a connection can.
+    loopback = _WILDCARD_LOOPBACK.get(host)
+    return loopback is not None and _has_listener(loopback, port)
+
+
+def _has_listener(host: str, port: int) -> bool:
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    try:
+        with socket.socket(family, socket.SOCK_STREAM) as s:
+            # A listener accepts at once. Windows takes about two seconds to
+            # refuse a closed loopback port, and there is no point waiting for it.
+            s.settimeout(0.5)
+            s.connect((host, port))
+    except OSError:
+        return False
+    return True
 
 
 def _is_loopback(host: str) -> bool:
