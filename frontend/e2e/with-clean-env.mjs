@@ -40,9 +40,18 @@ for (const name of [...SYSTEM, ...names.split(",").filter(Boolean)]) {
 }
 
 const child = spawn(program, args, { env, stdio: "inherit", windowsHide: true });
-// Stopped from outside (Playwright ending the run, Ctrl+C): the server goes
-// with it instead of being left holding its port.
-for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(signal));
+// Playwright ends a run by killing the whole process tree outright, so nothing
+// below is needed for that. It is for the suite being stopped by hand, so that
+// the server is not left holding its port.
+//
+// Ctrl+C reaches the server by itself: the terminal sends it to every process
+// of the group, this one included. Sending it on would be a second Ctrl+C to a
+// server that is still shutting down, which is how uvicorn is told to stop
+// waiting for its connections; so the launcher only stays out of the way until
+// the server is gone. A plain `kill` is different, it reaches the launcher
+// alone, and SIGTERM is passed on.
+process.on("SIGINT", () => {});
+process.on("SIGTERM", () => child.kill("SIGTERM"));
 child.on("error", (error) => {
   console.error(`could not start ${program}: ${error.message}`);
   process.exit(1);
