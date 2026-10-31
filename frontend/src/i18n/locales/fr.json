@@ -4,7 +4,8 @@
     "cancel": "Annuler",
     "delete": "Supprimer",
     "close": "Fermer",
-    "loading": "Chargement…"
+    "loading": "Chargement…",
+    "reload": "Recharger"
   },
   "nav": {
     "discover": "Découvrir",
@@ -448,6 +449,7 @@
   },
   "errors": {
     "unexpected": "Une erreur est survenue.",
+    "pageLoad": "Cette page n'a pas pu être chargée. Evermind a peut-être été mis à jour depuis que vous l'avez ouvert, ou la connexion a été coupée.",
     "server": "Evermind a répondu par une erreur (HTTP {status}).",
     "unreachable": "Evermind ne répond pas. Est-il toujours lancé ?",
     "invalid": "Evermind n'a pas pu traiter cette demande : des informations manquent ou ne sont pas valides.",

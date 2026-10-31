@@ -43,3 +43,56 @@ test("a new page starts at the top", async ({ page, request }, testInfo) => {
   expect(await main.evaluate((el) => el.scrollHeight > el.clientHeight),
     "the form is not taller than the screen, so landing at the top proves nothing").toBe(true);
 });
+
+test("a page whose code is slow to arrive says so, but not at once", async ({ page }) => {
+  // Held back until the test lets it go, as it would be on a bad connection.
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  let askedAt = 0;
+  await page.route(/\/assets\/PersonasPage-[^/]*\.js$/, async (route) => {
+    askedAt = Date.now();
+    await held;
+    await route.continue();
+  });
+
+  // When the line first appears, noted by the page itself: looking for it from
+  // here would be a race against this test's own pace, and could not tell a
+  // line that came late from one that came and went before anyone looked.
+  await page.addInitScript(() => {
+    const seen = window as unknown as { loadingAt?: number };
+    new MutationObserver(() => {
+      if (seen.loadingAt === undefined && document.body?.textContent?.includes("Loading…")) {
+        seen.loadingAt = Date.now();
+      }
+    }).observe(document, { childList: true, subtree: true, characterData: true });
+  });
+
+  await page.goto("/#/personas");
+  // In <main>: the navigation around it is already up, and only the page is
+  // missing.
+  await expect(page.locator("main").getByText("Loading…")).toBeVisible();
+  const loadingAt = await page.evaluate(() => (window as unknown as { loadingAt: number }).loadingAt);
+  expect(askedAt, "the page's code was never asked for").toBeGreaterThan(0);
+  expect(loadingAt - askedAt, "the line came up at once, and would flash on a page that loads quickly")
+    .toBeGreaterThanOrEqual(150);
+
+  release();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});
+
+test("a page whose code cannot be fetched says so and offers to reload", async ({ page }) => {
+  // As in a tab left open through an update: the file the page asks for has
+  // been renamed, and the old name is gone.
+  const personas = /\/assets\/PersonasPage-[^/]*\.js$/;
+  await page.route(personas, (route) => route.fulfill({ status: 404 }));
+
+  await page.goto("/#/personas");
+  const alert = page.locator("main").getByRole("alert");
+  await expect(alert).toContainText(/could not be loaded/i);
+  // Failed once, a page stays failed for as long as the document lives: only
+  // loading it again helps.
+  await page.unroute(personas);
+  await alert.getByRole("button", { name: /reload/i }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(alert).toHaveCount(0);
+});

@@ -18,6 +18,20 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
     },
+    build: {
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              // The pages use the icons in different combinations, so left
+              // alone the build cuts a file of a couple of hundred bytes for
+              // nearly every icon, and each page then asks for a dozen of them.
+              { name: "icons", test: /node_modules[\\/]lucide-react/ },
+            ],
+          },
+        },
+      },
+    },
     // Development only: the interface on PORT, and the API it calls on the
     // backend's own port behind it, so the browser still sees a single origin.
     server: {

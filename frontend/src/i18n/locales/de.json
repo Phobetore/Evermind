@@ -4,7 +4,8 @@
     "cancel": "Abbrechen",
     "delete": "Löschen",
     "close": "Schließen",
-    "loading": "Wird geladen…"
+    "loading": "Wird geladen…",
+    "reload": "Neu laden"
   },
   "nav": {
     "discover": "Entdecken",
@@ -448,6 +449,7 @@
   },
   "errors": {
     "unexpected": "Etwas ist schiefgelaufen.",
+    "pageLoad": "Diese Seite ließ sich nicht laden. Vielleicht wurde Evermind aktualisiert, seit du es geöffnet hast, oder die Verbindung ist abgebrochen.",
     "server": "Evermind hat mit einem Fehler geantwortet (HTTP {status}).",
     "unreachable": "Evermind antwortet nicht. Läuft es noch?",
     "invalid": "Evermind konnte diese Anfrage nicht verarbeiten: Es fehlen Angaben, oder sie sind ungültig.",

@@ -4,7 +4,8 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "close": "Close",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "reload": "Reload"
   },
   "nav": {
     "discover": "Discover",
@@ -448,6 +449,7 @@
   },
   "errors": {
     "unexpected": "Something went wrong.",
+    "pageLoad": "This page could not be loaded. Evermind may have been updated since you opened it, or the connection dropped.",
     "server": "Evermind answered with an error (HTTP {status}).",
     "unreachable": "Evermind is not answering. Is it still running?",
     "invalid": "Evermind could not accept this: something in it is missing or not valid.",
