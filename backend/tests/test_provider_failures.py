@@ -464,3 +464,40 @@ async def test_the_connection_test_does_not_give_the_password_back(client):
     })
     assert resp.json()["upstream_url"] == "http://127.0.0.1:1/v1"
     assert "secret" not in resp.text
+
+
+# --- the excerpt of what a server answered -------------------------------------------
+
+
+def test_the_excerpt_drops_an_xml_prolog():
+    from app.providers.base import excerpt
+
+    page = '<?xml version="1.0" encoding="UTF-8"?><Error><Message>Access denied</Message></Error>'
+    assert excerpt(page) == "Access denied"
+
+
+def test_the_excerpt_looks_at_the_start_of_a_large_answer_only():
+    """The work is bounded by what is looked at, not by what was sent: the
+    request runs on the event loop that live replies are streamed on."""
+    from app.providers.base import excerpt
+
+    assert len(excerpt("x" * 100_000, limit=1_000_000)) == 4_000
+    # Words after the part that is looked at are not found, which is the price.
+    assert "needle" not in excerpt("<p>" + "word " * 2_000 + "needle", limit=1_000_000)
+    # Markup that never closes is cheap to give up on.
+    assert excerpt("words " + "<script>" * 400) == "words"
+
+
+async def test_the_anthropic_model_list_message_quotes_the_words_of_a_page():
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(502, content=b"<html>\n<body><h1>502   Bad gateway</h1></body>\n</html>")
+
+    with pytest.raises(ProviderError) as raised:
+        await anth_provider(handler).list_models()
+    assert raised.value.message == "Anthropic error (502): 502 Bad gateway"
+
+
+async def test_the_anthropic_model_list_message_is_as_it_was_for_a_json_error():
+    with pytest.raises(ProviderError) as raised:
+        await anth_provider(answering(401, {"error": {"message": "bad key"}})).list_models()
+    assert raised.value.message == 'Anthropic error (401): {"error":{"message":"bad key"}}'

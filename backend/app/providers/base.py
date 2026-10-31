@@ -41,22 +41,25 @@ UNKNOWN_TYPE = "model_unknown_type"
 NO_TEXT = "model_no_text"
 
 
-# What reads as markup: a comment, a script or a style with its content, or a tag.
-# A "<" followed by a space or a digit is a comparison, not a tag.
+# What reads as markup: an XML prolog, a comment, a script or a style with its
+# content, or a tag. A "<" followed by a space or a digit is a comparison, not a tag.
+_PROLOG = re.compile(r"<\?.*?\?>", re.DOTALL)
 _COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 _SCRIPT_OR_STYLE = re.compile(r"<(script|style)\b.*?</\1\s*>", re.DOTALL | re.IGNORECASE)
 _TAG = re.compile(r"</?[A-Za-z!][^>]*>")
+# How much of an answer is looked at. The words of an error page are at its
+# start, and this runs on the event loop that live replies are streamed on, so
+# the work is bounded by this and not by what the server sent.
+_EXCERPT_SCAN = 4000
 
 
 def excerpt(text: str, limit: int = 300) -> str:
     """The start of what a server answered, as words on one line: if it is a
     page, the page without its markup, since "502 Bad Gateway" is what the person
     needs and "<html><body><h1>" is noise."""
-    # Enough to find the words of any error page, and not a whole large body.
-    text = text[:20000]
-    text = _COMMENT.sub(" ", text)
-    text = _SCRIPT_OR_STYLE.sub(" ", text)
-    text = _TAG.sub(" ", text)
+    text = text[:_EXCERPT_SCAN]
+    for markup in (_PROLOG, _COMMENT, _SCRIPT_OR_STYLE, _TAG):
+        text = markup.sub(" ", text)
     return " ".join(html.unescape(text).split())[:limit]
 
 

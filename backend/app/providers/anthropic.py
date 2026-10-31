@@ -139,7 +139,7 @@ class AnthropicProvider(Provider):
         if response.status_code >= 400:
             detail = _error_text(response.content, quote_a_page=True)
             raise ProviderError(
-                f"Anthropic error ({response.status_code}): {response.text[:200]}",
+                f"Anthropic error ({response.status_code}): {excerpt(response.text, 200)}",
                 **status_failure(response.status_code, detail),
             )
         try:
