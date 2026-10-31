@@ -172,9 +172,29 @@ sentence is for whoever reads the API; the interface reads `kind` and shows its
 own text for it, in the language the person chose (`frontend/src/lib/errors.ts`,
 sentences under `errors` in `frontend/src/i18n/locales/`). The same goes for the
 error events of a reply's stream. A new `AppError` needs a `kind`, and a test
-fails without one; a kind the interface does not know yet shows the server's
-English sentence until it gets a line in `errors.ts` and a sentence in the four
-languages.
+fails without one.
+
+When a model's server is what failed, the kind says how (`unreachable`,
+`model_auth_refused`, `model_not_found`, `model_rate_limited`, `model_http_error`,
+`model_timeout`, `model_network_error`, `model_unexpected_response`, or
+`model_error` for a complaint of its own), and what it said travels apart from the
+sentence: `upstream` is its words as it sent them, `upstream_status` its status.
+The interface cannot translate what another program wrote, so it says the failure
+in the person's language and shows `upstream` after it. The connection test, the
+benchmark and the model list report failures the same way inside their `200`
+bodies: `{"ok": false, "detail": "<English sentence>", "kind": ..., "upstream": ...}`.
+
+Three kinds of answer never come from an `AppError`, and have no `kind`: FastAPI's
+own, `{"detail": ...}` for a route that does not exist (`404`), a method a route
+does not take (`405`) or a request body that does not validate (`422`, with a list
+of problems in `detail`), and whatever a proxy in front of the server answers,
+often not JSON at all. The request layer gives the last an `http_error` kind and
+the status as its message (`HTTP 502`). The interface does not show the words of
+any of them: a `422` is "something is missing or not valid", a `404` a missing
+thing, a `5xx` "Evermind answered with an error (HTTP n)", and any other `4xx` the
+generic "Something went wrong". A kind the interface does not know yet, on the
+other hand, shows the server's English sentence until it gets a line in
+`errors.ts` and a sentence in the four languages.
 
 ## Serving under a path prefix
 
