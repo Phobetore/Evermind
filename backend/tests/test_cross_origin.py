@@ -111,8 +111,10 @@ async def test_requests_without_browser_headers_are_allowed(client):
 
 
 async def test_pages_outside_the_api_are_not_judged(client):
+    # The router's own answer for a path nothing serves, not the refusal.
     r = await client.post("/somewhere", headers={"origin": "http://evil.example"})
-    assert r.status_code != 403
+    assert r.status_code == 404
+    assert r.json() == {"detail": "Not Found"}
 
 
 async def test_the_login_is_checked_too(make_client):
