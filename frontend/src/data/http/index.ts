@@ -23,9 +23,21 @@ function queryString(params: Record<string, string | undefined>): string {
 }
 
 /** The name the server gave the download, which is the card's own name with
- *  the characters a file name cannot carry taken out. */
+ *  the characters a file name cannot carry taken out. `filename*` carries it in
+ *  UTF-8 and is preferred; `filename` is the ASCII fallback, which for a name in
+ *  another script is only a generic one. */
 function downloadName(disposition: string | null): string | undefined {
-  const match = disposition && /filename="([^"]*)"|filename=([^;]+)/i.exec(disposition);
+  if (!disposition) return undefined;
+  const encoded = /filename\*\s*=\s*utf-8'[^']*'([^;]+)/i.exec(disposition);
+  if (encoded) {
+    try {
+      const name = decodeURIComponent(encoded[1].trim());
+      if (name) return name;
+    } catch {
+      // A broken percent escape: the plain name below is still good.
+    }
+  }
+  const match = /filename="([^"]*)"|filename=([^;]+)/i.exec(disposition);
   return (match && (match[1] ?? match[2])?.trim()) || undefined;
 }
 

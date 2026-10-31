@@ -2,6 +2,10 @@
 conversations (+greeting seeding), settings."""
 
 import json
+import re
+from urllib.parse import unquote
+
+import pytest
 
 from .test_cards import CHAR_FIELDS, make_minimal_png
 
@@ -95,6 +99,62 @@ async def test_character_export_png(client):
 
     card = read_card_from_png(resp.content)
     assert card["data"]["name"] == "Serana"
+
+
+def _download_names(resp):
+    """The two names a Content-Disposition header carries: the plain fallback
+    and the decoded UTF-8 one (None when the header has no such parameter)."""
+    header = resp.headers["content-disposition"]
+    assert header.isascii(), header
+    fallback = re.search(r'filename="([^"]*)"', header)
+    encoded = re.search(r"filename\*=UTF-8''([^;\s]+)", header)
+    assert fallback, header
+    return fallback.group(1), unquote(encoded.group(1)) if encoded else None
+
+
+@pytest.mark.parametrize("format", ["json", "png"])
+async def test_export_names_outside_latin1(client, format):
+    created = await create_character(client, name="Алиса 紅 ✨")
+    resp = await client.get(f"/api/characters/{created['id']}/export", params={"format": format})
+    assert resp.status_code == 200
+    fallback, real = _download_names(resp)
+    assert real == f"Алиса 紅 ✨.{format}"
+    # Nothing ASCII is left of this name, so the fallback is a generic one.
+    assert fallback == f"card.{format}"
+
+
+@pytest.mark.parametrize("format", ["json", "png"])
+async def test_export_ascii_name_keeps_its_file_name(client, format):
+    created = await create_character(client, name="Dr. Vane")
+    resp = await client.get(f"/api/characters/{created['id']}/export", params={"format": format})
+    assert resp.status_code == 200
+    fallback, real = _download_names(resp)
+    assert fallback == f"Dr Vane.{format}"
+    assert real == f"Dr Vane.{format}"
+
+
+async def test_export_mixed_name_keeps_its_ascii_letters_in_the_fallback(client):
+    created = await create_character(client, name="Vane紅 the Ferryman")
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    fallback, real = _download_names(resp)
+    assert fallback == "Vane the Ferryman.json"
+    assert real == "Vane紅 the Ferryman.json"
+
+
+async def test_export_name_drops_invisible_controls_but_keeps_joiners(client):
+    bidi_override, zwnj = chr(0x202E), chr(0x200C)
+    created = await create_character(client, name=f"{bidi_override}می{zwnj}خواهم")
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    _, real = _download_names(resp)
+    assert real == f"می{zwnj}خواهم.json"
+
+
+async def test_export_name_cannot_inject_into_the_header(client):
+    created = await create_character(client, name='a"; filename=evil/../x\r\n')
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    assert resp.status_code == 200
+    fallback, real = _download_names(resp)
+    assert fallback == real == "a filenameevilx.json"
 
 
 async def test_avatar_upload(client):

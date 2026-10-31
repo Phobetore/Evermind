@@ -478,6 +478,25 @@ describe("card export", () => {
     expect(await blob.text()).toBe("{}");
   });
 
+  test("the UTF-8 name wins over the ASCII fallback", async () => {
+    reply(new Response("{}", {
+      headers: {
+        "Content-Disposition":
+          `attachment; filename="card.json"; filename*=UTF-8''${encodeURIComponent("Алиса 紅 ✨.json")}`,
+      },
+    }));
+    const { filename } = await http.characters.exportCard("c1", "json");
+    expect(filename).toBe("Алиса 紅 ✨.json");
+  });
+
+  test("a broken UTF-8 name falls back to the plain one", async () => {
+    reply(new Response("{}", {
+      headers: { "Content-Disposition": `attachment; filename="Vane.json"; filename*=UTF-8''%E0%A4%A` },
+    }));
+    const { filename } = await http.characters.exportCard("c1", "json");
+    expect(filename).toBe("Vane.json");
+  });
+
   test("without a usable header the file is named after the format", async () => {
     reply(new Response("png"));
     const { filename } = await http.characters.exportCard("c1", "png");

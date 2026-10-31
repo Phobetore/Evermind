@@ -1,4 +1,5 @@
 import json
+from urllib.parse import quote
 
 import aiosqlite
 from fastapi import APIRouter, Depends, UploadFile
@@ -16,6 +17,35 @@ from ..services import card_assistant, media
 
 router = APIRouter(prefix="/api/characters", tags=["characters"])
 
+
+def _file_stem(name: str, *, ascii_only: bool) -> str:
+    """The card's name with what a file name cannot carry taken out.
+
+    Among ASCII characters only letters, digits, spaces, hyphens and underscores
+    stay. Other scripts and symbols stay too, unless ``ascii_only`` is set, but
+    not control or separator characters, which have no place in a file name.
+    The zero-width joiners are the exception: some scripts and emoji sequences
+    need them to be spelled right.
+    """
+    def keep(c: str) -> bool:
+        if c.isascii():
+            return c.isalnum() or c in " -_"
+        return not ascii_only and (c.isprintable() or c in "\u200c\u200d")
+
+    return "".join(c for c in name if keep(c)).strip() or "card"
+
+
+def _attachment(name: str, extension: str) -> str:
+    """A Content-Disposition value for a download named after the card.
+
+    HTTP headers are latin-1, so a name in Cyrillic, CJK or emoji cannot go in
+    ``filename`` as it is. That parameter holds an ASCII fallback and
+    ``filename*`` (RFC 5987) holds the real name, percent-encoded UTF-8, which
+    is the one browsers prefer.
+    """
+    fallback = _file_stem(name, ascii_only=True) + extension
+    real = quote(_file_stem(name, ascii_only=False) + extension, safe="")
+    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{real}"
 
 
 @router.get("")
@@ -91,7 +121,7 @@ async def export_character(char_id: str, format: str = "json",
     if not character:
         raise NotFoundError("Character not found.")
     card = character_to_card(character, lore_entries=await lore_repo.list_for_character(db, char_id))
-    safe_name = "".join(c for c in character["name"] if c.isalnum() or c in " -_").strip() or "card"
+    name = character["name"]
 
     if format == "png":
         base = None
@@ -104,13 +134,10 @@ async def export_character(char_id: str, format: str = "json",
         return Response(
             content=write_card_to_png(base, card),
             media_type="image/png",
-            headers={"Content-Disposition": f'attachment; filename="{safe_name}.png"'},
+            headers={"Content-Disposition": _attachment(name, ".png")},
         )
 
-    return JSONResponse(
-        content=card,
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}.json"'},
-    )
+    return JSONResponse(content=card, headers={"Content-Disposition": _attachment(name, ".json")})
 
 
 @router.post("/{char_id}/avatar")
