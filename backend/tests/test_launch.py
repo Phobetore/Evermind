@@ -649,7 +649,6 @@ def test_the_entry_point_refuses_a_busy_port_and_exits_with_1(busy_port):
     assert f"Port {busy_port} is already in use." in done.stderr
 
 
-
 def test_busy_port_is_reported(clean_env, ui_built, busy_port, served, capsys):
     assert launch.main(["--no-env-file", "--port", str(busy_port)]) == 1
     captured = capsys.readouterr()

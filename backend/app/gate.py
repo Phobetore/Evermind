@@ -457,8 +457,8 @@ def _known_host(host: str) -> bool:
 
 
 def _host_refusal(host: str | None) -> str | None:
-    """What to tell a request that is not answered without a password for the
-    Host header it carries, or None if the header is fine."""
+    """Why a password-less install refuses this Host header, or None when it is
+    accepted. ``host`` is None when the request has no Host header at all."""
     if host is None:
         return "The request has no Host header."
     if not _known_host(host):

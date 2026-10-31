@@ -186,13 +186,13 @@ async def test_unknown_api_path_stays_json(ui_client):
 
 
 async def test_unknown_api_path_stays_json_for_any_method(ui_client):
-    # The static mount only answers GET and HEAD, and would call anything else
-    # a 405 if the API's own 404 did not come first.
+    # The interface only answers GET and HEAD, and would call anything else a
+    # 405 if the API's own 404 did not come first.
     r = await ui_client.post("/api/nope", json={})
     assert r.status_code == 404 and r.headers["content-type"].startswith("application/json")
 
 
-async def test_api_routes_still_answer_with_the_ui_mounted(ui_client):
+async def test_api_routes_are_answered_before_the_interface_fallback(ui_client):
     r = await ui_client.get("/api/health")
     assert r.status_code == 200 and r.json()["app"] == "evermind"
 
@@ -305,7 +305,7 @@ async def test_without_built_ui_old_links_are_not_redirected(client):
     assert r.status_code == 404
 
 
-async def test_a_folder_without_index_is_not_mounted(make_client, tmp_path):
+async def test_a_folder_without_index_is_not_served(make_client, tmp_path):
     # A build that has not run yet leaves an empty folder, which must not stop
     # the API from starting.
     empty = tmp_path / "empty-ui"
