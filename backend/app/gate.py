@@ -94,9 +94,12 @@ def hash_password(password: str) -> str:
     return f"scrypt${_SCRYPT_N}${_SCRYPT_R}${_SCRYPT_P}${_b64(salt)}${_b64(digest)}"
 
 
-def verify_password(password: str, stored: str) -> bool:
+def verify_password(password: str, stored: object) -> bool:
     """Recomputes with the parameters written in ``stored``, so that a digest
-    made with other settings still checks. Anything unreadable is a mismatch."""
+    made with other settings still checks. Anything unreadable is a mismatch,
+    including a value that is not text, such as a BLOB in the TEXT column."""
+    if not isinstance(stored, str):
+        return False
     try:
         scheme, n, r, p, salt, digest = stored.split("$")
         if scheme != "scrypt":

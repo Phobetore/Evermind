@@ -276,6 +276,31 @@ def test_unreadable_hashes_never_verify(stored):
     assert gate.verify_password(PW, stored) is False
 
 
+@pytest.mark.parametrize("stored", [None, 16384, 1.5, ["scrypt"],
+                                    b"scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA"])
+def test_a_stored_digest_that_is_not_text_never_verifies(stored):
+    # Whatever its type, an unreadable digest is a mismatch, never an error.
+    assert gate.verify_password(PW, stored) is False
+
+
+async def test_a_stored_digest_that_is_not_text_is_replaced(make_client):
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        token = await sign_in(c)
+        conn = await connect()
+        try:
+            await conn.execute("UPDATE gate_state SET password_hash = ?", (bytes([0, 255]),))
+            await conn.commit()
+        finally:
+            await conn.close()
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        # Unreadable counts as a different password: sessions end, the
+        # password still opens.
+        assert (await c.get("/api/characters", headers=device(token))).status_code == 401
+        await sign_in(c)
+        (row,) = await rows("SELECT password_hash FROM gate_state")
+    assert row["password_hash"].startswith("scrypt$")
+
+
 async def test_wrong_password_waits_and_refuses(make_client, pauses):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         r = await c.post("/api/gate", json={"password": "nope"})
