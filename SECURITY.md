@@ -52,6 +52,8 @@ removing the password ends them all.
 
 The password is kept as a salted scrypt digest, and only a SHA-256 of each
 session token is stored, so reading the database does not hand anyone a way in.
+It is compared after Unicode normalisation, so an accent typed on a phone
+keyboard is the same password as the one in `.env` however each wrote it.
 Wrong guesses are limited to 10 per 15 minutes for each address. Behind Docker
 the requests usually all reach Evermind from Docker's own address, so that limit
 is shared by every device: ten wrong guesses from one of them keep the others
@@ -73,8 +75,10 @@ what stands in its way:
   point a name of its own at your computer once its page is loaded (DNS
   rebinding), and the browser then treats that page as Evermind itself, able to
   read and change everything. So the API only answers when it is reached by an
-  address, `localhost`, this computer's own name (also with `.local` after it),
-  or a name listed in `EVERMIND_ALLOWED_HOSTS`.
+  address, `localhost` (or a name ending in `.localhost`), this computer's own
+  name (also with `.local` after it), or a name listed in
+  `EVERMIND_ALLOWED_HOSTS`. A container cannot see the computer's own name, so
+  with Docker it has to be listed too.
 - **With a password, the password protects the rest.** Any name is accepted, so
   a proxy can serve Evermind under its own, but the session cookie belongs to
   the name each device signed in on: a page under another name has none, and
