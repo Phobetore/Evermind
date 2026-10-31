@@ -10,8 +10,9 @@ type Ctx = {
   /** Whether this device has signed itself out and not been back in since. */
   signingOut: boolean;
   /** Signs this device out, or every device, and asks where that leaves it.
-   *  Rejects, with the device still signed in as far as it knows, if the server
-   *  could not be asked. */
+   *  Rejects only if the sign-out itself did not go through, with the device
+   *  still signed in as far as it knows. Once it has, the device is taken as
+   *  signed out even if the status cannot be asked afterwards. */
   signOut(everywhere: boolean): Promise<void>;
 };
 

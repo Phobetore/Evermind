@@ -275,9 +275,10 @@ function Access() {
     setBusy(true);
     setError(null);
     try {
-      // The status is fresh by the time this returns, so the login finds no
-      // session to send the person back from, and the gate, told that they left
-      // on purpose, has no page to send them back to.
+      // By the time this returns the device is signed out as far as the page
+      // knows, so the login finds no session to send the person back from, and
+      // the gate, told that they left on purpose, has no page to send them back
+      // to.
       await leave(everywhere);
       navigate("/login", { replace: true });
     } catch (e) {
