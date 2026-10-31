@@ -142,13 +142,16 @@ tested, so you can try several and keep the one you like.
 
 Two ways. The first asks less of you.
 
+Coming from Evermind 2.x? Read [docs/UPGRADING.md](docs/UPGRADING.md) instead of
+this step. It takes a few minutes and keeps everything you have written.
+
 ### The simple way: Docker
 
 Docker is a free tool that runs applications in a tidy, self-contained box. You
 install it once and never think about it again.
 
-You do not need the source code for this. Evermind is published as ready-made
-images, and one small file tells Docker how to fetch them.
+You do not need the source code for this. Evermind is published as a ready-made
+image, and one small file tells Docker how to fetch it.
 
 1. Download and install **Docker Desktop** from
    [docker.com](https://www.docker.com/products/docker-desktop/). Start it and
@@ -158,7 +161,7 @@ images, and one small file tells Docker how to fetch them.
 3. Download
    **[docker-compose.yml](https://github.com/Phobetore/Evermind/releases/latest/download/docker-compose.yml)**
    and move it into that folder. That is the whole download: about two kilobytes,
-   listing the pieces Docker should fetch and how to wire them together.
+   saying which image Docker should fetch and how to run it.
 4. Open a terminal **in that folder**:
    - **Windows**: click the address bar at the top of the folder window, type
      `powershell`, press Enter.
@@ -170,8 +173,8 @@ images, and one small file tells Docker how to fetch them.
    docker compose up -d
    ```
 
-   It downloads the two ready-made images, which takes under a minute on a
-   normal connection. Later starts take seconds.
+   It downloads the ready-made image, which takes under a minute on a normal
+   connection. Later starts take seconds.
 6. Open your browser at **http://localhost:3000**
 
 There is nothing to configure first and no password to get past. Evermind
@@ -204,8 +207,9 @@ This is the one route that needs the source: on the project page on GitHub, clic
 the green **Code** button, then **Download ZIP**, and unzip it somewhere sensible.
 
 You also need two free tools installed: **Python 3.11 or newer**
-([python.org](https://www.python.org/downloads/)) and **Node.js 20 or newer**
-([nodejs.org](https://nodejs.org)).
+([python.org](https://www.python.org/downloads/)) and **Node.js 22.12 or newer**
+([nodejs.org](https://nodejs.org)). Node is only used to build the interface;
+Evermind itself runs on Python alone.
 
 Then, from the Evermind folder:
 
@@ -286,7 +290,9 @@ and rename it to `.env`.)
 Run `docker compose up -d` again, and open your computer's local address on the
 other device, on the same Wi-Fi. It looks like `http://192.168.1.42:3000`;
 `ipconfig` on Windows or `ip addr` on macOS and Linux will tell you the number.
-The password page appears first, once per device.
+The password page appears first, once per device. After that the device stays
+signed in for 30 days after its last visit, and **Settings** has a button to sign
+it out, or every device at once.
 
 Set the password. Without it, everyone on that Wi-Fi can read your
 conversations. And keep this to your home network rather than the open internet:
@@ -295,22 +301,20 @@ protection.
 
 Running without Docker instead? `scripts\prod.ps1 -Lan` (or
 `./scripts/prod.sh --lan`) does the same thing and prints the address for you.
-Set `EVERMIND_GATE_PASSWORD` in your `.env` there too.
+Set `EVERMIND_GATE_PASSWORD` in your `.env` there too, in the Evermind folder.
 
-**Using different ports.** Evermind serves its interface on 3000 and its API on
-8000. If something on your computer already has one of those, copy
-`.env.example` to `.env` and change them:
+**Using a different port.** Evermind answers on port 3000, interface and API
+together. If something on your computer already has it, copy `.env.example` to
+`.env` and change it:
 
 ```
 PORT=3001
-EVERMIND_BACKEND_PORT=8001
 ```
 
-Both work with Docker and with the launch scripts, except that
-`EVERMIND_BACKEND_PORT` only means something to the scripts: under Docker the API
-stays inside its own private network and never occupies a port of yours. Running
-the scripts with `--skip-build` after changing it will not take effect, since the
-interface is told where the API lives while it is being built.
+Put the file next to your `docker-compose.yml`, or in the Evermind folder if you
+run it from the source, and start Evermind again. It works the same with Docker
+and with the launch scripts; under Docker it is the port on your computer, and
+inside its box Evermind keeps its own.
 
 **Sharper long-term memory.** By default, Evermind recalls the most recent facts.
 It can instead recall facts and old passages *by meaning*, so the right memory
@@ -339,9 +343,10 @@ of existing cards work; use **Import** on the Discover page.
 | The character forgets things, or repeats itself | Your **Context (tokens)** is probably set higher than your AI really offers. Match it to the real value. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
 | Replies are very slow | Normal for a large model on a modest machine. Try a smaller one, or an online service. |
 | "The model returned nothing, twice" | That model's chat template will not work for roleplay here, whatever you write. Nothing you can configure fixes it; pick another model. |
-| "EADDRINUSE", or it will not start because a port is taken | Something else on your computer already uses that port. Copy `.env.example` to `.env` and set `PORT` to a free one, `3001` for instance. `EVERMIND_BACKEND_PORT` does the same for the API. |
+| "Port 3000 is already in use", or Docker says the port is already allocated | Something else on your computer already uses that port, and often it is Evermind itself, still running. Stop it first. Otherwise copy `.env.example` to `.env` and set `PORT` to a free one, `3001` for instance. |
 | Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you restarted afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. The launch script tells you the exact command if the rule is missing. |
-| A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Clear that line and restart to remove it. |
+| A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Each device is asked once, then stays signed in for 30 days after its last visit. Clear that line and restart to remove the page. |
+| You changed the password and every device asks for it again | That is on purpose: changing or removing the password signs every device out. |
 
 **Want to try Evermind before setting up a real AI?** Grab the source (green
 **Code** button, then **Download ZIP**) and run `python scripts/mock_llm.py`,

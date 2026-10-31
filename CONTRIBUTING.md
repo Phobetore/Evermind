@@ -17,10 +17,10 @@ Small and obvious fixes need no ceremony. Open the pull request.
 
 ## Getting set up
 
-[docs/DEVELOPING.md](docs/DEVELOPING.md) has the layout, how to run both halves,
-the API surface, and how a turn is actually assembled before it reaches the
-model. Read the section on the prompt engine before changing anything that ends
-up in a prompt.
+[docs/DEVELOPING.md](docs/DEVELOPING.md) has the layout, how to run it for
+development and as built, the API surface, and how a turn is actually assembled
+before it reaches the model. Read the section on the prompt engine before
+changing anything that ends up in a prompt.
 
 You do not need a real model to work on Evermind. `python scripts/mock_llm.py`
 serves placeholder roleplay text on `http://localhost:5599/v1`, which is enough
@@ -32,19 +32,22 @@ The same checks CI runs, and it is faster to run them yourself:
 
 ```bash
 cd backend && ruff check app tests && pytest -q
-cd frontend && npx tsc --noEmit && npm run lint && npm run check:i18n && npm run build
+cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run check:i18n && npm run build
 ```
 
-CI also builds both Docker images on every pull request, without publishing
-them, so a broken `COPY` fails there rather than at release time, and refuses a
-pull request that introduces a dependency with a known high-severity
-vulnerability. Separately, CodeQL reads the source weekly and Trivy scans the
-published images for what their base layers picked up since.
+CI also drives a real browser through the app (`cd frontend && npm run
+test:e2e`, which [docs/DEVELOPING.md](docs/DEVELOPING.md) explains), builds the
+Docker image on every pull request without publishing it, so a broken `COPY`
+fails there rather than at release time, and refuses a pull request that
+introduces a dependency with a known high-severity vulnerability. Separately,
+CodeQL reads the source weekly and Trivy scans the published image for what its
+base layers picked up since.
 
 New behaviour in the backend comes with tests. The prompt engine
 (`backend/app/prompting/engine.py`) is a pure function with no I/O precisely so
-that it can be tested exhaustively, so there is no excuse there. The frontend has
-no unit tests; the typecheck and the build are what stands in for them.
+that it can be tested exhaustively, so there is no excuse there. In the frontend,
+logic that needs no browser gets a unit test (`npm test`), and anything that only
+shows up on a screen, such as a layout on a phone, gets an end-to-end one.
 
 If a change alters what gets sent to a model, say so explicitly in the pull
 request. Those are the changes that break stories quietly, weeks later, in ways
