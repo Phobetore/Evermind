@@ -59,17 +59,33 @@ out too, for up to 15 minutes.
 
 ## Requests from other sites
 
-With or without a password, the API refuses the changes a browser sends on
-behalf of a page from another origin, so a website you visit cannot write to
-your Evermind. A reverse proxy in front of Evermind must therefore either serve
-it over HTTPS or pass the `Host` header through unchanged; otherwise the
-interface's own changes are refused too.
+A website you visit can make your browser send requests to Evermind. This is
+what stands in its way:
+
+- **Changes from another origin are refused, password or not.** A write to the
+  API, or a websocket, that the browser says comes from a page of another origin
+  is turned away. The browser says so in `Sec-Fetch-Site` over HTTPS and on
+  localhost, and otherwise only in `Origin`, which Evermind compares with the
+  address the request was sent to. A reverse proxy in front of Evermind must
+  therefore either serve it over HTTPS or pass the `Host` header through
+  unchanged; otherwise the interface's own changes are refused too.
+- **Without a password, Evermind only answers to names it knows.** A website can
+  point a name of its own at your computer once its page is loaded (DNS
+  rebinding), and the browser then treats that page as Evermind itself, able to
+  read and change everything. So the API only answers when it is reached by an
+  address, `localhost`, this computer's own name (also with `.local` after it),
+  or a name listed in `EVERMIND_ALLOWED_HOSTS`.
+- **With a password, the password protects the rest.** Any name is accepted, so
+  a proxy can serve Evermind under its own, but the session cookie belongs to
+  the name each device signed in on: a page under another name has none, and
+  would need the password.
 
 ## What is worth reporting
 
 - Anything that lets a request bypass the access password while it is set, or
   keep a session alive after it was ended or the password changed
-- Anything that lets a page from another origin change something in Evermind
+- Anything that lets a page from another origin change something in Evermind,
+  or read anything from it
 - Anything that reads or writes data across conversations, personas or accounts
   that should not be reachable from where the request came from
 - Injection of any kind that escapes its context: SQL, template, path traversal

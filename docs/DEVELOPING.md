@@ -149,11 +149,17 @@ interface's page.
 
 Password or not, a `POST`, `PUT`, `PATCH` or `DELETE` under `/api/` that a
 browser sends from a page of another origin answers `403` with
-`"kind": "cross_origin"`. The browser says so in `Sec-Fetch-Site` over HTTPS and
-on localhost, and otherwise only in `Origin`, which the API compares with the
-scheme and `Host` the request arrived with. So a reverse proxy must either use
-HTTPS or preserve `Host`. A request with neither header, from curl or a script,
-is let through.
+`"kind": "cross_origin"`, and such a page's websocket is closed. The browser
+says so in `Sec-Fetch-Site` over HTTPS and on localhost, and otherwise only in
+`Origin`, which the API compares with the scheme and `Host` the request arrived
+with. So a reverse proxy must either use HTTPS or preserve `Host`. A request
+with neither header, from curl or a script, is let through.
+
+Without a password, anything under `/api/` whose `Host` is not an address,
+`localhost`, this machine's name (also with `.local`) or a name in
+`EVERMIND_ALLOWED_HOSTS` answers `403` with `"kind": "unknown_host"`: a page
+whose own name was pointed at 127.0.0.1 (DNS rebinding) looks same-origin in
+every other header. With a password the name is not checked.
 
 Responses are plain dicts shaped by the repositories; Pydantic is used for input
 validation only. User-facing messages are English.

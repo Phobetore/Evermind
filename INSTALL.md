@@ -350,6 +350,7 @@ of existing cards work; use **Import** on the Discover page.
 | "The model returned nothing, twice" | That model's chat template will not work for roleplay here, whatever you write. Nothing you can configure fixes it; pick another model. |
 | "Port 3000 is already in use", or Docker says the port is already allocated | Something else on your computer already uses that port, and often it is Evermind itself, still running. Stop it first. Otherwise copy `.env.example` to `.env` and set `PORT` to a free one, `3001` for instance. |
 | Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you restarted afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. The launch script tells you the exact command if the rule is missing. |
+| "Unknown host name" | You opened Evermind by a name it does not know, and no password is set. Open it by its address (`http://192.168.1.42:3000`) or `localhost`, or list that name in `EVERMIND_ALLOWED_HOSTS` in your `.env` and restart. Setting a password works too. |
 | A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Each device is asked once, then stays signed in for 30 days after its last visit. Clear that line and restart to remove the page. |
 | You changed the password and every device asks for it again | That is on purpose: changing or removing the password signs every device out. |
 
