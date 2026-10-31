@@ -42,9 +42,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      # Vite 8 and Vitest 5 need Node 22.12 or newer, and the Docker image builds
+      # the interface on 24: the same major here keeps the two from drifting.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -58,10 +60,14 @@ jobs:
 
       # The config and the npm script had been sitting here since the project
       # was scaffolded, but eslint itself was never installed, so this never ran
-      # once. It catches the React and Next mistakes the typechecker cannot see.
+      # once. It catches the React mistakes the typechecker cannot see.
       - name: Lint
         working-directory: frontend
         run: npm run lint
+
+      - name: Test
+        working-directory: frontend
+        run: npm test
 
       # A key missing from one locale renders as nothing at all, which is harder
       # to notice than a crash and reaches whoever reads the interface in that
@@ -91,7 +97,7 @@ jobs:
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -123,32 +129,24 @@ jobs:
           path: frontend/test-results/
           retention-days: 7
 
-  # The images were only ever built when cutting a release, so a broken COPY or a
+  # The image was only ever built when cutting a release, so a broken COPY or a
   # stale base image stayed invisible behind a green CI until publishing failed.
   # Built here and never pushed: publishing stays the release workflow's job.
   images:
-    name: ${{ matrix.label }}
+    name: Image
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: Backend image
-            dockerfile: backend/Dockerfile
-          - label: Frontend image
-            dockerfile: frontend/Dockerfile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
-      # Build context is the repository root: the backend image needs library/.
-      # amd64 only, since a Dockerfile mistake shows on any architecture and
-      # emulating arm64 would cost minutes on every pull request.
+      # Build context is the repository root: the image needs library/ and the
+      # frontend sources. amd64 only, since a Dockerfile mistake shows on any
+      # architecture and emulating arm64 would cost minutes on every pull request.
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
+          file: Dockerfile
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -1,11 +1,11 @@
 name: Image scan
 
 # The blind spot the other checks leave. CodeQL reads the source, Dependabot
-# reads the manifests, and neither of them looks inside the images people
-# actually install, which inherit whatever the python and node base images are
-# carrying that week.
+# reads the manifests, and neither of them looks inside the image people
+# actually install, which inherits whatever the python base image is carrying
+# that week.
 #
-# Scans the published images rather than freshly built ones, on purpose: the
+# Scans the published image rather than a freshly built one, on purpose: the
 # question is what is running on someone's machine right now, and that answer
 # changes with the calendar rather than with our commits. Hence the schedule.
 on:
@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [evermind-backend, evermind-frontend]
+        image: [evermind]
     steps:
       # Only for .trivyignore, which lives at the root and explains each thing
       # the scan is told to stay quiet about.

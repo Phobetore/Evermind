@@ -1,6 +1,6 @@
 name: Docker images
 
-# Publishes ready-to-run images so people do not have to compile anything:
+# Publishes a ready-to-run image so people do not have to compile anything:
 #   docker compose pull && docker compose up -d
 on:
   push:
@@ -16,13 +16,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    strategy:
-      matrix:
-        include:
-          - name: evermind-backend
-            dockerfile: backend/Dockerfile
-          - name: evermind-frontend
-            dockerfile: frontend/Dockerfile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -40,20 +33,29 @@ jobs:
       # "latest" only moves on a real version tag, and never on a prerelease:
       # .env.example promises it tracks the newest release, so neither a manual
       # run nor a v2.1.0-rc1 may claim it.
+      #
+      # One build, two names. evermind-backend is what the image was called when
+      # Evermind was two containers, and a docker-compose.yml from that time
+      # still pulls it by that name. Publishing the same image there keeps such
+      # an install working until its owner replaces the file. evermind-frontend
+      # is not published any more: nothing in the new image needs it.
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}
+          images: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/evermind
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/evermind-backend
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
 
-      # Build context is the repository root: the backend image needs library/.
+      # Build context is the repository root: the image needs library/ and the
+      # frontend sources.
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
+          file: Dockerfile
           # arm64 covers Apple Silicon and the small ARM boxes people self-host
           # on. It is emulated here, so it is slow, but it only runs on a tag.
           platforms: linux/amd64,linux/arm64
