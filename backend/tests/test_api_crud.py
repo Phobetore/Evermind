@@ -173,6 +173,20 @@ async def test_export_name_collapses_repeated_spaces(client, name, fallback, rea
     assert _download_names(resp) == (f"{fallback}.json", f"{real}.json")
 
 
+@pytest.mark.parametrize("name, stem", [
+    ("Alice" + chr(0x200D), "Alice"),
+    (chr(0x200D) + chr(0x200D) + "Alice" + chr(0x200C), "Alice"),
+    ("Alice " + chr(0x200D), "Alice"),
+    (chr(0x200D) + " Alice", "Alice"),
+])
+async def test_export_name_trims_joiners_at_its_ends(client, name, stem):
+    # Nothing comes before or after them to be joined to; between letters they
+    # stay (see the Persian name below).
+    created = await create_character(client, name=name)
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    assert _download_names(resp) == (f"{stem}.json", f"{stem}.json")
+
+
 @pytest.mark.parametrize("name", [
     chr(0x200C), chr(0x200D) + chr(0x200C), " " + chr(0x200D) + " ",
     chr(0x202E), ".", " ",

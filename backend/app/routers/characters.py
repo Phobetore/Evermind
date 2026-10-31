@@ -30,12 +30,14 @@ def _file_stem(name: str, *, ascii_only: bool) -> str:
     stay. Other scripts and symbols stay too, unless ``ascii_only`` is set, but
     not control or separator characters, which have no place in a file name.
     The zero-width joiners are the exception: some scripts and emoji sequences
-    need them to be spelled right, but only next to something they can join.
+    need them to be spelled right. They stay between other characters and are
+    trimmed, with the spaces, from the start and the end of the name, where they
+    have nothing to join.
 
     With ``ascii_only``, a letter with an accent keeps its letter: "é" is an "e"
     and a combining accent once decomposed, and the accent is what is dropped.
     Runs of spaces, which the characters taken out leave behind, become one. A
-    name with nothing left to show is called "card".
+    name with nothing printable left is called "card".
     """
     if ascii_only:
         name = "".join(
@@ -47,8 +49,8 @@ def _file_stem(name: str, *, ascii_only: bool) -> str:
             return c.isalnum() or c in " -_"
         return not ascii_only and (c.isprintable() or c in _JOINERS)
 
-    stem = re.sub(" {2,}", " ", "".join(c for c in name if keep(c))).strip()
-    return stem if stem.strip(_JOINERS + " ") else "card"
+    stem = re.sub(" {2,}", " ", "".join(c for c in name if keep(c)))
+    return stem.strip(" " + _JOINERS) or "card"
 
 
 def _attachment(name: str, extension: str) -> str:
