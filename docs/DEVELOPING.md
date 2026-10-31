@@ -184,7 +184,7 @@ in the person's language and shows `upstream` after it. The connection test, the
 benchmark and the model list report failures the same way inside their `200`
 bodies: `{"ok": false, "detail": "<English sentence>", "kind": ..., "upstream": ...}`.
 
-Three kinds of answer never come from an `AppError`, and have no `kind`: FastAPI's
+Some answers never come from an `AppError`, and have no `kind`: FastAPI's
 own, `{"detail": ...}` for a route that does not exist (`404`), a method a route
 does not take (`405`) or a request body that does not validate (`422`, with a list
 of problems in `detail`), and whatever a proxy in front of the server answers,
