@@ -212,6 +212,40 @@ def test_an_empty_ui_dir_variable_means_the_default(clean_env, monkeypatch):
     assert ui_dir() == config._REPO_ROOT / "frontend" / "dist"
 
 
+def test_data_dir_defaults_to_the_repository_data_folder(clean_env, monkeypatch):
+    # Not created by this test: it only says where the default is.
+    monkeypatch.setattr(Path, "mkdir", lambda *args, **kwargs: None)
+    assert config.data_dir() == config._REPO_ROOT / "data"
+
+
+def test_data_dir_can_be_moved(clean_env, tmp_path, monkeypatch):
+    monkeypatch.setenv("EVERMIND_DATA_DIR", str(tmp_path / "elsewhere"))
+    assert config.data_dir() == tmp_path / "elsewhere"
+    assert (tmp_path / "elsewhere").is_dir()
+
+
+def test_an_empty_data_dir_variable_means_the_default(clean_env, monkeypatch):
+    # An empty value would otherwise become Path(""), and Evermind would start
+    # on a fresh database in whatever folder it was run from.
+    monkeypatch.setattr(Path, "mkdir", lambda *args, **kwargs: None)
+    monkeypatch.setenv("EVERMIND_DATA_DIR", "")
+    assert config.data_dir() == config._REPO_ROOT / "data"
+
+
+def test_library_dir_defaults_to_the_shipped_cards(clean_env):
+    assert config.library_dir() == config._REPO_ROOT / "library"
+
+
+def test_library_dir_can_be_moved(clean_env, tmp_path, monkeypatch):
+    monkeypatch.setenv("EVERMIND_LIBRARY_DIR", str(tmp_path))
+    assert config.library_dir() == tmp_path
+
+
+def test_an_empty_library_dir_variable_means_the_default(clean_env, monkeypatch):
+    monkeypatch.setenv("EVERMIND_LIBRARY_DIR", "")
+    assert config.library_dir() == config._REPO_ROOT / "library"
+
+
 def test_gate_password(clean_env, monkeypatch):
     assert gate_password() == ""
     monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "hunter2")

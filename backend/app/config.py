@@ -69,7 +69,10 @@ def load_env_file(path: Path) -> list[str]:
 
 
 def data_dir() -> Path:
-    d = Path(os.environ.get("EVERMIND_DATA_DIR", _REPO_ROOT / "data"))
+    """Where the database and media live. An empty variable means the default,
+    like ``ui_dir``: ``EVERMIND_DATA_DIR=`` left in a settings file would
+    otherwise start Evermind on a fresh database in the current directory."""
+    d = Path(os.environ.get("EVERMIND_DATA_DIR") or _REPO_ROOT / "data")
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -86,7 +89,7 @@ def media_dir() -> Path:
 
 def library_dir() -> Path:
     """Starter cards shipped with the repo (read-only)."""
-    return Path(os.environ.get("EVERMIND_LIBRARY_DIR", _REPO_ROOT / "library"))
+    return Path(os.environ.get("EVERMIND_LIBRARY_DIR") or _REPO_ROOT / "library")
 
 
 def ui_dir() -> Path:
