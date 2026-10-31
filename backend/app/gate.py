@@ -26,6 +26,7 @@ import hmac
 import ipaddress
 import logging
 import math
+import re
 import secrets
 import socket
 import sqlite3
@@ -58,6 +59,10 @@ SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
 _THIS_ORIGIN_SITES = frozenset({"same-origin", "none"})
 # A websocket's Origin is that of the page that opened it, an http(s) one.
 _PAGE_SCHEMES = {"ws": "http", "wss": "https"}
+# A Host header as a browser writes it: a name, or an IPv6 address in square
+# brackets, then a port if there is one. Anything with more to it is not a host,
+# whatever it starts with.
+_HOST = re.compile(r"(?:\[(?P<v6>[^\]]+)\]|(?P<name>[\w.-]+))(?::[0-9]+)?")
 
 _SCRYPT_N = 16384
 _SCRYPT_R = 8
@@ -404,15 +409,22 @@ def _from_another_origin(scope: Scope) -> bool:
     return origin.lower() != own.lower()
 
 
-def _host_name(host: str) -> str:
+def _host_name(host: str) -> str | None:
     """The name in a Host header: lowercase, without the port, the brackets
-    around an IPv6 address, or a final dot."""
-    host = host.strip().lower()
-    if host.startswith("["):
-        host = host[1:].partition("]")[0]
-    elif host.count(":") == 1:
-        host = host.partition(":")[0]
-    return host.removesuffix(".")
+    around an IPv6 address, or a final dot. None when the header is anything but
+    a host and, if there is one, a port: a name with something after it
+    (``localhost:3000@evil.com``, ``localhost:evil.com``) must not pass for the
+    name in front."""
+    match = _HOST.fullmatch(host)
+    if match is None:
+        return None
+    if (v6 := match["v6"]) is not None:
+        try:
+            ipaddress.IPv6Address(v6)
+        except ValueError:
+            return None
+        return v6.lower()
+    return match["name"].lower().removesuffix(".")
 
 
 def _known_host(host: str) -> bool:
@@ -440,7 +452,18 @@ def _known_host(host: str) -> bool:
     machine = machine_name().lower()
     if machine and name in (machine, machine + ".local"):
         return True
-    return name in {_host_name(allowed) for allowed in config.allowed_hosts()}
+    # An entry that is not a host name is None here, and allows nothing.
+    return name in map(_host_name, config.allowed_hosts())
+
+
+def _host_refusal(host: str | None) -> str | None:
+    """What to tell a request that is not answered without a password for the
+    Host header it carries, or None if the header is fine."""
+    if host is None:
+        return "The request has no Host header."
+    if not _known_host(host):
+        return "Unknown host name. Add it to EVERMIND_ALLOWED_HOSTS or set a password."
+    return None
 
 
 async def _refuse(scope: Scope, receive: Receive, send: Send, status_code: int,
@@ -502,9 +525,8 @@ class GateMiddleware:
             # alone, so that a proxy can serve Evermind under any name: the
             # session cookie belongs to the name a device signed in on, and a
             # rebound page has none.
-            if not _known_host(Headers(scope=scope).get("host", "")):
-                await _refuse(scope, receive, send, 403, "Unknown host name. Add it to "
-                              "EVERMIND_ALLOWED_HOSTS or set a password.", "unknown_host")
+            if refusal := _host_refusal(Headers(scope=scope).get("host")):
+                await _refuse(scope, receive, send, 403, refusal, "unknown_host")
                 return
             await self.app(scope, receive, send)
             return

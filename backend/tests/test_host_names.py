@@ -18,6 +18,7 @@ from .test_gate import open_socket, socket_app
 PW = "s3cret"
 REFUSED = {"error": "Unknown host name. Add it to EVERMIND_ALLOWED_HOSTS or set a password.",
            "kind": "unknown_host"}
+NO_HOST = {"error": "The request has no Host header.", "kind": "unknown_host"}
 CHARACTER = {"name": "Serana", "greeting": "Hello."}
 # What a rebound page's requests look like: same-origin in every header.
 REBOUND = {"host": "attacker.example:3000", "origin": "http://attacker.example:3000",
@@ -92,11 +93,57 @@ async def test_names_that_only_look_known_are_refused(client, machine, host):
     assert r.json() == REFUSED
 
 
+@pytest.mark.parametrize("host", [
+    # What a name looks like with something else behind it: a browser never
+    # sends these, and a parser that stops at the first colon would take the
+    # first one for localhost.
+    "localhost:3000@evil.com", "localhost:evil.com", "localhost@evil.com",
+    "evil.com@localhost", "localhost/evil", "localhost#evil", "localhost?x=1",
+    "local host", "localhost:3000 evil.com", "localhost\\evil",
+    # A port is digits and nothing else, and there is at most one.
+    "localhost:", "localhost:3000:4000", "localhost:30a0", "127.0.0.1:-1",
+    # An IPv6 address needs its brackets, and the brackets need an IPv6 address.
+    "::1", "::1:3000", "fe80::1", "[::1", "::1]", "[::1]x", "[::1]:", "[::1]:abc",
+    "[localhost]", "[127.0.0.1]", "[]", "[::1]:3000:4000", "[[::1]]",
+    # Nothing at all, or nothing but space.
+    "", " ", ":3000",
+])
+async def test_a_host_header_that_is_not_a_host_is_refused(client, host):
+    r = await client.get("/api/characters", headers={"host": host})
+    assert r.status_code == 403
+    assert r.json() == REFUSED
+
+
+async def test_a_request_without_a_host_header_is_refused_with_its_own_message(client):
+    # HTTP/1.0 clients may leave it out, and a browser never does.
+    request = client.build_request("GET", "/api/characters")
+    del request.headers["host"]
+    r = await client.send(request)
+    assert r.status_code == 403
+    assert r.json() == NO_HOST
+
+
+async def test_a_request_without_a_host_header_meets_the_password_instead(make_client):
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        request = c.build_request("GET", "/api/characters")
+        del request.headers["host"]
+        r = await c.send(request)
+        assert r.status_code == 401
+        assert r.json()["kind"] == "locked"
+
+
 async def test_allowed_names_are_answered(make_client):
     async with make_client(EVERMIND_ALLOWED_HOSTS=" evermind.lan , Studio.Home:8080,, ") as c:
         for host in ("evermind.lan", "EVERMIND.LAN:3000", "studio.home", "studio.home:3000"):
             assert (await c.get("/api/characters", headers={"host": host})).status_code == 200
         assert (await c.get("/api/characters", headers=REBOUND)).status_code == 403
+
+
+async def test_a_listed_name_that_is_not_a_host_allows_nothing(make_client):
+    async with make_client(EVERMIND_ALLOWED_HOSTS="evil.com@x, [oops, a b, evermind.lan") as c:
+        for host in ("evil.com", "x", "oops", "a b", "[oops"):
+            assert (await c.get("/api/characters", headers={"host": host})).status_code == 403
+        assert (await c.get("/api/characters", headers={"host": "evermind.lan"})).status_code == 200
 
 
 async def test_the_interface_itself_is_not_checked(make_client, tmp_path):
