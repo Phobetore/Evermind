@@ -22,7 +22,9 @@ from collections.abc import AsyncIterator
 
 import aiosqlite
 
-from ..errors import MODEL_EMPTY, MODEL_ERROR, NO_CONNECTION, NOT_FOUND, AppError
+from ..errors import (
+    MODEL_EMPTY, MODEL_ERROR, NO_CONNECTION, NOT_FOUND, AppError, NotFoundError,
+)
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval
 from ..prompting.defaults import IMPERSONATE_PROMPT, SUMMARIZE_PROMPT
@@ -88,6 +90,8 @@ class _TurnError(Exception):
         self.resource = resource
 
     def as_app_error(self) -> AppError:
+        if self.kind == NOT_FOUND:
+            return NotFoundError(self.message, self.resource or "")
         return AppError(self.message, 400, kind=self.kind, resource=self.resource)
 
 
@@ -223,8 +227,8 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
             "role": "user", "variants": [_CONTINUE_INSTRUCTION], "active_index": 0,
             "position": messages[-1]["position"] + 1,
         }]
-    else:  # pragma: no cover — schema-validated
-        yield _sse({"type": "error", "message": f"Unknown mode: {request.mode}"})
+    else:  # the request schema lets only the three modes above through
+        yield error_event(f"Unknown mode: {request.mode}", "internal")
         return
 
     memories = await memories_repo.list_for_conversation(db, convo["id"])

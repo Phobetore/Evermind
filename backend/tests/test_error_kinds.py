@@ -210,7 +210,7 @@ async def test_no_connection_for_the_story_tools(client, provider, route):
 @pytest.mark.parametrize("route", ["impersonate", "summarize"])
 async def test_a_missing_conversation_for_the_story_tools(client, provider, route):
     resp = await client.post(f"/api/conversations/nope/{route}")
-    assert resp.status_code == 400
+    assert resp.status_code == 404
     assert resp.json() == {
         "error": "Conversation not found.", "kind": "not_found", "resource": "conversation",
     }
@@ -411,3 +411,20 @@ async def test_a_crash_while_writing_a_reply_is_internal(client, provider, monke
     assert parse_sse(resp.text)[-1] == {
         "type": "error", "message": "disk on fire", "kind": "internal",
     }
+
+
+async def test_a_mode_the_schema_would_have_refused_is_named_too(client, provider):
+    """The request schema only lets three modes through, so this cannot arrive
+    over HTTP; it is what the turn says if it ever is not so."""
+    from app.db import _connect
+    from app.models.schemas import ChatRequest
+    from app.services import chat_service
+
+    convo = await setup_conversation(client)
+    request = ChatRequest.model_construct(conversation_id=convo["id"], mode="dance", content="Hi")
+    db = await _connect()
+    try:
+        events = [parse_sse(chunk)[0] async for chunk in chat_service.stream_turn(db, request)]
+    finally:
+        await db.close()
+    assert events[-1] == {"type": "error", "message": "Unknown mode: dance", "kind": "internal"}
