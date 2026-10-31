@@ -132,8 +132,9 @@ def parse_root_path(raw: str, name: str) -> str:
     could not be part of a path is refused here, because it would only come
     back as a redirect that leads nowhere, or somewhere else: a query or a
     space; ``//`` anywhere, which at the start is another site to a browser that
-    follows the redirect; and a ``.`` or ``..`` segment, which a browser or a
-    proxy resolves away.
+    follows the redirect; a backslash, which a browser reads as a slash; a ``%``,
+    which hides dots and slashes from these checks until something decodes it;
+    and a ``.`` or ``..`` segment, which a browser or a proxy resolves away.
     """
     path = raw.strip()
     if not path:
@@ -141,7 +142,7 @@ def parse_root_path(raw: str, name: str) -> str:
     if not path.startswith("/"):
         raise ValueError(f"{name} must start with /, got {raw!r}")
     kept = path.rstrip("/")
-    if re.search(r"[\s?#]", path) or path.startswith("//") or "//" in kept:
+    if re.search(r"[\s?#\\%]", path) or path.startswith("//") or "//" in kept:
         raise ValueError(f"{name} must be a plain path such as /evermind, got {raw!r}")
     if any(segment in (".", "..") for segment in kept.split("/")):
         raise ValueError(f"{name} must be a plain path such as /evermind, got {raw!r}")

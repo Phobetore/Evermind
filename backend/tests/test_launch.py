@@ -394,6 +394,13 @@ def test_the_root_path_is_normalised(raw, expected):
         ("/a/../b", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/a/../b'"),
         ("/./evermind", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/./evermind'"),
         ("/evermind/..", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/evermind/..'"),
+        # A backslash is a slash to a browser, and a percent sign hides dots and
+        # slashes from every check above until something decodes it.
+        ("/evermind\\x", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/evermind\\\\x'"),
+        ("/\\evil.example", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/\\\\evil.example'"),
+        ("/%2e%2e/x", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/%2e%2e/x'"),
+        ("/ever%20mind", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/ever%20mind'"),
+        ("/evermind/%", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/evermind/%'"),
     ],
 )
 def test_a_root_path_that_is_not_a_path_is_refused(raw, message):
