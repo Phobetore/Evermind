@@ -1,32 +1,25 @@
 #!/usr/bin/env bash
-# Launch Evermind in dev mode (backend + frontend).
+# Launch Evermind in dev mode: the API restarts on every change, and the
+# interface comes from the Vite dev server with hot reload.
 #   ./scripts/dev.sh        local only
-#   ./scripts/dev.sh --lan  frontend reachable from the local network
+#   ./scripts/dev.sh --lan  reachable from the local network
 #
-# Ports come from .env or the environment:
-#   PORT                    the web interface           (default 3000)
-#   EVERMIND_BACKEND_PORT   the API behind it           (default 8000)
+# Settings come from .env or the environment (see .env.example):
+#   PORT                    the interface, served by Vite    (default 3000)
+#   EVERMIND_BACKEND_PORT   the API behind it                (default 8000)
+# Vite and `python -m app` each read them, so this script only gets everything
+# ready and starts the two.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHON="$ROOT/backend/.venv/bin/python"
+
+# Left unquoted where it is used: empty has to mean no argument at all.
 LAN=""
-[ "${1:-}" = "--lan" ] && LAN=":lan"
-
-# Next only reads .env files sitting next to itself, and it runs from frontend/.
-# Without this the repository's .env is silently ignored here.
-if [ -f "$ROOT/.env" ]; then
-    while IFS='=' read -r key value || [ -n "$key" ]; do
-        case "$key" in ''|'#'*) continue ;; esac
-        key="$(printf '%s' "$key" | tr -d '[:space:]')"
-        # Whatever is already in the environment wins over the file.
-        [ -n "${!key:-}" ] && continue
-        export "$key=$value"
-    done < "$ROOT/.env"
+DEV_SCRIPT="dev"
+if [ "${1:-}" = "--lan" ]; then
+    LAN="--lan"
+    DEV_SCRIPT="dev:lan"
 fi
-
-PORT="${PORT:-3000}"
-BACKEND_PORT="${EVERMIND_BACKEND_PORT:-8000}"
-export PORT
-export EVERMIND_BACKEND_URL="${EVERMIND_BACKEND_URL:-http://127.0.0.1:${BACKEND_PORT}}"
 
 # Dependencies are installed again whenever the file they come from changes, not
 # only on the first run. Otherwise an update that moves one, a security fix for
@@ -40,7 +33,7 @@ PY_INSTALLED="$ROOT/backend/.venv/.installed-pyproject.toml"
 if ! cmp -s "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"; then
     echo "Installing backend dependencies..."
     rm -f "$PY_INSTALLED"
-    "$ROOT/backend/.venv/bin/python" -m pip install -q -e "$ROOT/backend[dev]"
+    "$PYTHON" -m pip install -q -e "$ROOT/backend[dev]"
     cp "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"
 fi
 LOCK_INSTALLED="$ROOT/frontend/node_modules/.installed-package-lock.json"
@@ -53,31 +46,11 @@ if ! cmp -s "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"; then
     cp "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"
 fi
 
-# The backend always stays on the loopback: the frontend proxies /api to it,
-# and that proxy is what the password gate protects.
-echo "Backend  -> http://127.0.0.1:${BACKEND_PORT} (this machine only)"
-echo "Frontend -> http://localhost:${PORT}"
-if [ -n "$LAN" ]; then
-    IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-    [ -n "$IP" ] && echo "            http://${IP}:${PORT}  (from the local network)"
-    if [ -z "${EVERMIND_GATE_PASSWORD:-}" ]; then
-        echo ""
-        echo "  No password is set, so anyone on this network can read your conversations."
-        echo "  Put EVERMIND_GATE_PASSWORD in .env to be asked for one."
-    fi
-fi
-
-(cd "$ROOT/backend" && exec .venv/bin/python -m uvicorn app.main:app \
-    --host 127.0.0.1 --port "$BACKEND_PORT") &
+# The API only listens on the loopback: the dev server is what the network sees,
+# and it forwards /api here.
+(cd "$ROOT/backend" && exec "$PYTHON" -m app --dev $LAN) &
 BACKEND_PID=$!
 trap 'kill $BACKEND_PID 2>/dev/null || true' EXIT
 
-# `next dev` moves to a free port by itself, so only the API needs saying.
 cd "$ROOT/frontend"
-if ! npm run "dev${LAN}"; then
-    status=$?
-    echo "" >&2
-    echo "If the error above mentions port ${BACKEND_PORT}, set EVERMIND_BACKEND_PORT" >&2
-    echo "to a free port in .env and run this again." >&2
-    exit "$status"
-fi
+npm run "$DEV_SCRIPT"
