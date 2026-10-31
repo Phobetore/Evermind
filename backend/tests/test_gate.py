@@ -119,6 +119,34 @@ async def test_public_api_paths_stay_open(make_client):
         assert (await c.get("/api/gate")).json() == {"enabled": True, "authenticated": False}
 
 
+async def test_api_docs_are_served_without_a_password(client):
+    # Nothing to protect, and the schema is useful to anyone writing a client.
+    assert (await client.get("/docs")).status_code == 200
+    assert "/api/characters" in (await client.get("/openapi.json")).json()["paths"]
+
+
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+async def test_api_docs_are_not_served_with_a_password(make_client, path):
+    """The schema maps the whole API, and these paths sit outside /api/, where
+    the gate lets everything through. With a password they must not exist."""
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        r = await c.get(path)
+    assert r.status_code == 404
+    assert "paths" not in r.text
+
+
+async def test_api_docs_are_not_served_over_the_interface_either(make_client, tmp_path):
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    (ui / "index.html").write_text('<!doctype html><div id="root"></div>', encoding="utf-8")
+    async with make_client(EVERMIND_GATE_PASSWORD=PW, EVERMIND_UI_DIR=str(ui)) as c:
+        assert (await c.get("/")).status_code == 200
+        for path in ("/docs", "/redoc", "/openapi.json"):
+            r = await c.get(path)
+            assert r.status_code == 404, path
+            assert "swagger" not in r.text.lower() and '"paths"' not in r.text
+
+
 async def test_login_cookie_attributes_over_http(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         r = await c.post("/api/gate", json={"password": PW})

@@ -22,7 +22,13 @@ async def lifespan(_: FastAPI):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Evermind", version=__version__, lifespan=lifespan)
+    # The schema maps the whole API, and /docs, /redoc and /openapi.json sit
+    # outside /api/, where the gate lets everything through. With a password
+    # set they are not served at all; without one there is nothing to protect.
+    docs = {} if not config.gate_password() else {
+        "docs_url": None, "redoc_url": None, "openapi_url": None,
+    }
+    app = FastAPI(title="Evermind", version=__version__, lifespan=lifespan, **docs)
     # The store loads itself on the first request rather than in the lifespan,
     # which the test client never runs. There is no CORS middleware: the
     # interface is served from this same address, or proxied to it in
