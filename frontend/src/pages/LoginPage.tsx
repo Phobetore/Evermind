@@ -1,6 +1,7 @@
 import { useAccess } from "@/components/layout/Access";
-import { data, DataError } from "@/data";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { loginFailure } from "@/lib/loginFailure";
 import { safeFrom } from "@/lib/safeFrom";
 import { KeyRound, Loader2, VenetianMask } from "lucide-react";
 import { useState } from "react";
@@ -42,18 +43,9 @@ export function LoginPage() {
       }
       navigate(from, { replace: true });
     } catch (e) {
-      if (e instanceof DataError && e.kind === "wrong_password") {
-        setError(t("login.accessDenied"));
-        setPassword("");
-      } else if (e instanceof DataError && e.kind === "rate_limited") {
-        // The server says how long in seconds; a minute is what people read.
-        const minutes = Math.max(1, Math.ceil((e.retryAfter ?? 60) / 60));
-        setError(t("login.tooManyAttempts", { minutes }));
-      } else if (e instanceof DataError) {
-        setError(e.message);
-      } else {
-        setError(t("login.serverUnreachable"));
-      }
+      const failure = loginFailure(e);
+      setError(t(failure.key, failure.vars));
+      if (failure.clearPassword) setPassword("");
       setChecking(false);
     }
   }
