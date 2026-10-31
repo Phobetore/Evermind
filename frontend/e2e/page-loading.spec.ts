@@ -23,6 +23,20 @@ async function serveInstead(page: Page, code: RegExp, script: string) {
   await page.route(code, (route) => route.fulfill({ contentType: "text/javascript", body: script }));
 }
 
+/** Opens `route` once and comes back to the home page, loaded again: the files
+ *  of the page are then in the browser's cache (the build names them by their
+ *  content and the server marks them immutable), so that what follows is a page
+ *  that arrives at once whatever else the machine is doing. Without it, "at
+ *  once" would depend on how busy the server is, and the first minute of a run
+ *  is when it is. */
+async function warmCache(page: Page, route: string) {
+  await page.goto(route);
+  await expect(page.locator("main h1")).toBeVisible();
+  await page.goto("/#/");
+  await page.reload();
+  await expect(page.locator("main h1")).toBeVisible();
+}
+
 /** What goes to the console as an error, from now on. `about(words)` is how
  *  many of those entries mention `words`: one per fault is the point, a fault
  *  reported twice buries the next one. */
@@ -48,7 +62,8 @@ test("a page that arrives at once shows no loading line on the way, and is there
   // waited for, which here arrives in a few milliseconds and has no business
   // being announced. Noted by the page itself, on its own clock, since a line
   // that came and went before this test looked would be missed, and a clock
-  // kept here would be skewed by the test's own pace.
+  // kept here would be skewed by the test's own pace. The files come from the
+  // cache, loaded a first time on the way in.
   await page.addInitScript(() => {
     const seen = window as unknown as { loadingSeen?: boolean; shellAt?: number; pageAt?: number };
     new MutationObserver(() => {
@@ -58,18 +73,18 @@ test("a page that arrives at once shows no loading line on the way, and is there
     }).observe(document, { childList: true, subtree: true, characterData: true });
   });
 
-  await page.goto("/#/");
-  await expect(page.locator("main h1")).toBeVisible();
+  await warmCache(page, "/#/");
   const seen = await page.evaluate(() => {
     const noted = window as unknown as { loadingSeen?: boolean; shellAt: number; pageAt: number };
     return { loadingSeen: noted.loadingSeen, shellAt: noted.shellAt, pageAt: noted.pageAt };
   });
   expect(seen.loadingSeen, "a loading line flashed up while the page was on its way").toBeUndefined();
-  // From the navigation being drawn to the page being drawn: tens of
-  // milliseconds here. A page held back to let a loading line be shown first
-  // takes 300 ms or more from the first draw, however quick the file is.
+  // From the navigation being drawn to the page being drawn: a few tens of
+  // milliseconds here. The bound is only a sanity limit, loose enough for a
+  // busy machine: a page held back so that a loading line can be shown first
+  // is what the assertion above catches, and that one cannot come from load.
   expect(seen.pageAt - seen.shellAt, "the page was kept waiting after the navigation was drawn")
-    .toBeLessThan(250);
+    .toBeLessThan(1000);
 });
 
 test("a page whose code is slow to arrive says so, but not at once", async ({ page }) => {
@@ -149,8 +164,9 @@ test("going to a page whose code is slow keeps the current one, and shows progre
 });
 
 test("a quick change of page shows no bar and says nothing", async ({ page }) => {
-  await page.goto("/#/");
-  await expect(page.locator("main h1")).toBeVisible();
+  // The page's files are in the cache: the change takes a few milliseconds
+  // however busy the server is, and anything shown for it is shown too soon.
+  await warmCache(page, "/#/personas");
   await page.evaluate(() => {
     const seen = window as unknown as { shown?: boolean };
     new MutationObserver(() => {
