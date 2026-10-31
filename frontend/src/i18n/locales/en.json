@@ -390,6 +390,7 @@
       "creatorLabel": "Creator",
       "versionLabel": "Version",
       "confirmDelete": "Delete \"{name}\" and all its conversations?",
+      "exportError": "The card could not be exported.",
       "savingButton": "Saving…",
       "createButton": "Create card"
     },

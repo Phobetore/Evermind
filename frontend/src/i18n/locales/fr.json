@@ -390,6 +390,7 @@
       "creatorLabel": "Créateur",
       "versionLabel": "Version",
       "confirmDelete": "Supprimer « {name} » et toutes ses conversations ?",
+      "exportError": "La fiche n'a pas pu être exportée.",
       "savingButton": "Enregistrement…",
       "createButton": "Créer la fiche"
     },

@@ -168,8 +168,14 @@ export function CharacterForm({ initial }: { initial?: Character }) {
 
   async function exportCard(format: "json" | "png") {
     if (!initial) return;
-    const { blob, filename } = await data.characters.exportCard(initial.id, format);
-    downloadBlob(blob, filename);
+    setError(null);
+    try {
+      const { blob, filename } = await data.characters.exportCard(initial.id, format);
+      downloadBlob(blob, filename);
+    } catch {
+      // Called from a click, so a rejection would reach nobody: say it here.
+      setError(t("characters.form.exportError"));
+    }
   }
 
   return (

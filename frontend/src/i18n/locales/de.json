@@ -390,6 +390,7 @@
       "creatorLabel": "Ersteller",
       "versionLabel": "Version",
       "confirmDelete": "„{name}“ und alle zugehörigen Unterhaltungen löschen?",
+      "exportError": "Die Karte konnte nicht exportiert werden.",
       "savingButton": "Wird gespeichert…",
       "createButton": "Karte erstellen"
     },

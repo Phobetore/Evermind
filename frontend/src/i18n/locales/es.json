@@ -390,6 +390,7 @@
       "creatorLabel": "Creador",
       "versionLabel": "Versión",
       "confirmDelete": "¿Eliminar «{name}» y todas sus conversaciones?",
+      "exportError": "No se pudo exportar la ficha.",
       "savingButton": "Guardando…",
       "createButton": "Crear la ficha"
     },
