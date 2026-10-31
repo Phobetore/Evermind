@@ -190,6 +190,8 @@ async def test_export_name_trims_joiners_at_its_ends(client, name, stem):
 @pytest.mark.parametrize("name", [
     chr(0x200C), chr(0x200D) + chr(0x200C), " " + chr(0x200D) + " ",
     chr(0x202E), ".", " ",
+    # Hyphens and underscores are kept in a name, but are no name by themselves.
+    "---", "_", "- _", "-_-", ". - .", "-" + chr(0x200D) + "_",
 ])
 async def test_export_name_with_nothing_to_show_is_called_card(client, name):
     # A joiner is only part of a name when there is something for it to join.

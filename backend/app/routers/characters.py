@@ -37,7 +37,8 @@ def _file_stem(name: str, *, ascii_only: bool) -> str:
     With ``ascii_only``, a letter with an accent keeps its letter: "é" is an "e"
     and a combining accent once decomposed, and the accent is what is dropped.
     Runs of spaces, which the characters taken out leave behind, become one. A
-    name with nothing printable left is called "card".
+    name with nothing left but hyphens, underscores, spaces and joiners, which
+    is to say no name, is called "card".
     """
     if ascii_only:
         name = "".join(
@@ -49,8 +50,8 @@ def _file_stem(name: str, *, ascii_only: bool) -> str:
             return c.isalnum() or c in " -_"
         return not ascii_only and (c.isprintable() or c in _JOINERS)
 
-    stem = re.sub(" {2,}", " ", "".join(c for c in name if keep(c)))
-    return stem.strip(" " + _JOINERS) or "card"
+    stem = re.sub(" {2,}", " ", "".join(c for c in name if keep(c))).strip(" " + _JOINERS)
+    return stem if stem.strip("-_ " + _JOINERS) else "card"
 
 
 def _attachment(name: str, extension: str) -> str:
