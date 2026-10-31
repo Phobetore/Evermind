@@ -76,7 +76,7 @@ async def test_files_outside_assets_are_revalidated(ui_client, ui_dir):
 @pytest.mark.parametrize("old, new", [
     ("/chat/abc", "/#/chat/abc"), ("/chat", "/#/chat"),
     ("/characters/new", "/#/characters/new"), ("/characters/abc/edit", "/#/characters/abc/edit"),
-    ("/personas", "/#/personas"), ("/settings", "/#/settings"),
+    ("/personas", "/#/personas"), ("/settings", "/#/settings"), ("/characters", "/#/characters"),
     ("/login?from=%2Fchat%2Fabc", "/#/login?from=%2Fchat%2Fabc"),
     # A trailing slash does not stop an old link from working.
     ("/personas/", "/#/personas/"), ("/settings/", "/#/settings/"), ("/login/", "/#/login/"),
@@ -131,6 +131,48 @@ async def test_the_interface_loads_inside_a_root_path(make_client, ui_dir):
         again = await c.get("/evermind/api/health/", follow_redirects=False)
         assert again.status_code == 307
         assert again.headers["location"] == "http://localhost/evermind/api/health"
+
+
+async def get_from_application(app, path, root_path=""):
+    """GET ``path`` straight from the application, with a scope that has neither
+    ``raw_path`` nor ``query_string``: the first is optional in ASGI, and not
+    every server sends the second. Returns the status and the headers."""
+    sent = []
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+             "method": "GET", "scheme": "http", "path": path, "root_path": root_path,
+             "headers": [(b"host", b"localhost")], "client": ("127.0.0.1", 50000),
+             "server": ("localhost", 80)}
+    await app(scope, receive, send)
+    start = sent[0]
+    return start["status"], {k.decode(): v.decode() for k, v in start["headers"]}
+
+
+@pytest.mark.parametrize("path, root_path, location", [
+    ("/chat/abc", "", "/#/chat/abc"),
+    # Only the decoded path is known, so what it contains is data: a "%" is not
+    # the start of an escape, a "?" is not a query and a "#" is not a fragment.
+    ("/chat/100%", "", "/#/chat/100%25"),
+    ("/chat/a?b", "", "/#/chat/a%3Fb"),
+    ("/chat/a#b", "", "/#/chat/a%23b"),
+    ("/chat/a b", "", "/#/chat/a%20b"),
+    ("/chat/é", "", "/#/chat/%C3%A9"),
+    ("/evermind/chat/100%", "/evermind", "/evermind/#/chat/100%25"),
+])
+async def test_legacy_redirect_from_a_scope_without_raw_path(
+    make_client, ui_dir, path, root_path, location
+):
+    from app.main import create_app
+
+    async with make_client(EVERMIND_UI_DIR=str(ui_dir)):
+        status, headers = await get_from_application(create_app(), path, root_path)
+    assert status == 302 and headers["location"] == location
 
 
 async def test_legacy_redirect_answers_head_too(ui_client):

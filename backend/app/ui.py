@@ -29,6 +29,7 @@ REVALIDATE = "no-cache"
 LEGACY_PATHS = (
     "/chat",
     "/chat/{rest:path}",
+    "/characters",
     "/characters/{rest:path}",
     "/personas",
     "/personas/",
@@ -40,6 +41,9 @@ LEGACY_PATHS = (
 # What a URL may keep as it is, which is what RedirectResponse leaves alone too:
 # the "%" of what is already encoded and the characters set aside as separators.
 _URL_SAFE = ":/%#?=@[]!$&'()*+,;"
+# The same for a path that has been decoded, where "%", "?" and "#" are part of a
+# name and not what they stand for in a URL.
+_DECODED_SAFE = "/:@!$&'()*+,;="
 
 
 class UIFiles(StaticFiles):
@@ -75,11 +79,17 @@ async def _redirect_legacy(request: Request) -> RedirectResponse:
     # The path as the client wrote it. Decoded, a "%3F" would turn into the "?"
     # that starts a query and a "%23" into the "#" that starts a fragment, and
     # the redirect would lead to another route.
-    path = quote(scope.get("raw_path") or scope["path"].encode(), safe=_URL_SAFE)
+    raw_path = scope.get("raw_path")
+    if raw_path:
+        path = quote(raw_path, safe=_URL_SAFE)
+    else:
+        # Servers need not send it. The decoded path says less: what it holds
+        # is encoded again, so that a "%" stays a "%" and a "?" a "?".
+        path = quote(scope["path"], safe=_DECODED_SAFE)
     # Behind a prefix (``uvicorn --root-path``) the interface lives under it, so
     # the "#" goes after the prefix, and the route is what comes after that. The
     # server may or may not have put the prefix in the path.
-    prefix = quote(scope.get("root_path", "").rstrip("/"), safe=_URL_SAFE)
+    prefix = quote(scope.get("root_path", "").rstrip("/"), safe=_DECODED_SAFE)
     if prefix and path.startswith(prefix) and path[len(prefix):][:1] in ("", "/"):
         path = path[len(prefix):]
     target = f"{prefix}/#{path}"
@@ -87,8 +97,8 @@ async def _redirect_legacy(request: Request) -> RedirectResponse:
     # encoded, and encoding it again would make it point somewhere else. It is
     # not read from request.url, which is rebuilt from the decoded path and would
     # take the part after a "%3F" in it for the query.
-    if scope["query_string"]:
-        target += "?" + quote(scope["query_string"], safe=_URL_SAFE)
+    if query := scope.get("query_string"):
+        target += "?" + quote(query, safe=_URL_SAFE)
     return RedirectResponse(target, status_code=302)
 
 
