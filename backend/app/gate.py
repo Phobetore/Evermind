@@ -21,8 +21,10 @@ import asyncio
 import base64
 import hashlib
 import hmac
+import logging
 import math
 import secrets
+import sqlite3
 import time
 import unicodedata
 from collections import deque
@@ -37,6 +39,8 @@ from starlette.websockets import WebSocketClose
 
 from . import config
 from .db import connect
+
+logger = logging.getLogger(__name__)
 
 SESSION_COOKIE = "evermind_session"
 SESSION_DAYS = 30
@@ -134,6 +138,16 @@ def _parse_stamp(value: str) -> datetime | None:
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
+async def _write(sql: str, params: tuple = ()) -> None:
+    """Runs one statement on a connection of its own and commits it."""
+    conn = await connect()
+    try:
+        await conn.execute(sql, params)
+        await conn.commit()
+    finally:
+        await conn.close()
+
+
 class AttemptLimiter:
     """Failed attempts per key, over a sliding window of FAILURE_WINDOW_S."""
 
@@ -174,10 +188,13 @@ class AttemptLimiter:
 class GateStore:
     """The password's digest and the open sessions, ``{token digest: last seen}``.
 
-    Loading and every change to the sessions take turns, under one lock. Each
-    change awaits a database write, and two of them interleaving could leave
-    memory holding a session the database no longer has: a sign-in finishing
-    while every device is being signed out would stay open until a restart.
+    Memory never holds a session the database does not: a new or moved
+    session is kept in memory once it is written, and an ended one is dropped
+    from memory before it is deleted. Each change awaits its write, and two
+    changes interleaving could break that rule, so they take turns under the
+    lock that loading takes too. A sign-in finishing while every device is
+    being signed out would otherwise stay open, with nothing behind it, until
+    a restart.
     """
 
     def __init__(self) -> None:
@@ -265,16 +282,8 @@ class GateStore:
         digest = token_digest(token)
         async with self._lock:
             current = now()
-            conn = await connect()
-            try:
-                await conn.execute(
-                    "INSERT INTO gate_sessions (token_hash, created_at, last_seen_at) "
-                    "VALUES (?, ?, ?)",
-                    (digest, _stamp(current), _stamp(current)),
-                )
-                await conn.commit()
-            finally:
-                await conn.close()
+            await _write("INSERT INTO gate_sessions (token_hash, created_at, last_seen_at) "
+                         "VALUES (?, ?, ?)", (digest, _stamp(current), _stamp(current)))
             self._sessions[digest] = current
         return token
 
@@ -303,15 +312,15 @@ class GateStore:
             if not self._due(digest):
                 return False
             current = now()
-            self._sessions[digest] = current
-            conn = await connect()
             try:
-                await conn.execute(
-                    "UPDATE gate_sessions SET last_seen_at = ? WHERE token_hash = ?",
-                    (_stamp(current), digest))
-                await conn.commit()
-            finally:
-                await conn.close()
+                await _write("UPDATE gate_sessions SET last_seen_at = ? WHERE token_hash = ?",
+                             (_stamp(current), digest))
+            except (sqlite3.Error, OSError) as error:
+                # The session is still valid, so the request goes through.
+                # Memory keeps the old date, so the next request tries again.
+                logger.error("Could not record that a session was used: %s", error)
+                return False
+            self._sessions[digest] = current
         return True
 
     async def logout(self, token: str | None) -> None:
@@ -324,22 +333,12 @@ class GateStore:
             # stranger sending made-up cookies should not cost a write each.
             if self._sessions.pop(digest, None) is None:
                 return
-            conn = await connect()
-            try:
-                await conn.execute("DELETE FROM gate_sessions WHERE token_hash = ?", (digest,))
-                await conn.commit()
-            finally:
-                await conn.close()
+            await _write("DELETE FROM gate_sessions WHERE token_hash = ?", (digest,))
 
     async def logout_all(self) -> None:
         async with self._lock:
             self._sessions.clear()
-            conn = await connect()
-            try:
-                await conn.execute("DELETE FROM gate_sessions")
-                await conn.commit()
-            finally:
-                await conn.close()
+            await _write("DELETE FROM gate_sessions")
 
 
 def set_session_cookie(response: Response, token: str, *, secure: bool) -> None:

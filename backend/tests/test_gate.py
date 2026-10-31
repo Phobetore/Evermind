@@ -7,6 +7,8 @@ address, so the cookie has to work without the Secure flag there.
 """
 
 import asyncio
+import logging
+import sqlite3
 import unicodedata
 from datetime import UTC, datetime, timedelta
 
@@ -550,6 +552,73 @@ async def test_session_slides_when_used(make_client, clock):
     clock.advance(days=29)
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         assert (await c.get("/api/characters", headers=device(token))).status_code == 200
+
+
+async def test_a_slide_that_cannot_be_written_is_tried_again(make_client, monkeypatch, clock,
+                                                            caplog):
+    """Losing the database for a moment must not turn a request into an
+    error, nor put off the next slide by a day."""
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        token = await sign_in(c)
+        clock.advance(days=2)
+        working = gate.connect
+
+        async def refuse(sql: str) -> None:
+            if sql.startswith("UPDATE gate_sessions"):
+                raise sqlite3.OperationalError("database is locked")
+
+        async def failing_connect():
+            return Connection(await working(), refuse)
+
+        monkeypatch.setattr(gate, "connect", failing_connect)
+        with caplog.at_level(logging.ERROR, logger="app.gate"):
+            r = await c.get("/api/characters", headers=device(token))
+        assert r.status_code == 200
+        assert "set-cookie" not in r.headers
+        assert "database is locked" in caplog.text
+
+        monkeypatch.setattr(gate, "connect", working)
+        r = await c.get("/api/characters", headers=device(token))
+        assert r.status_code == 200
+        assert r.headers["set-cookie"].startswith(f"{COOKIE}={token};")
+    # Written this time: 31 days after signing in, 29 after the slide.
+    clock.advance(days=29)
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        assert (await c.get("/api/characters", headers=device(token))).status_code == 200
+
+
+async def test_a_slide_waiting_behind_a_sign_out_does_not_bring_it_back(make_client,
+                                                                       monkeypatch, clock):
+    async with make_client(EVERMIND_GATE_PASSWORD=PW):
+        store = gate.GateStore()
+        await store.ensure_loaded()
+        token = await store.login(PW)
+        clock.advance(days=2)
+        holding, release = asyncio.Event(), asyncio.Event()
+
+        async def hold_inserts(sql: str) -> None:
+            if sql.startswith("INSERT INTO gate_sessions"):
+                holding.set()
+                await release.wait()
+
+        async def held_connect():
+            return Connection(await connect(), hold_inserts)
+
+        monkeypatch.setattr(gate, "connect", held_connect)
+        # Another device signing in holds up the changes behind it. The sign
+        # out queues first, then the slide, which still finds the session.
+        other = asyncio.create_task(store.login(PW))
+        await asyncio.wait_for(holding.wait(), timeout=5)
+        ending = asyncio.create_task(store.logout(token))
+        await asyncio.sleep(0)
+        sliding = asyncio.create_task(store.touch(token))
+        await asyncio.sleep(0)
+        assert store.check(token)
+        release.set()
+        await asyncio.wait_for(asyncio.gather(other, ending, sliding), timeout=5)
+
+        assert not store.check(token)
+        assert await sessions_agree(store, token)
 
 
 async def test_sliding_never_undoes_a_cleared_cookie(make_client, clock):
