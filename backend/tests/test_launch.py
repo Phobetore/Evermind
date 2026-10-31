@@ -6,6 +6,7 @@ sees, and a server left running would hold a port for the rest of the run.
 """
 
 import codecs
+import errno
 import os
 import re
 import socket
@@ -418,8 +419,10 @@ def test_has_listener_finds_nobody_on_a_free_port():
 class FakeSocket:
     """Stands in for a socket in the launch module: it can be used in a ``with``,
     remembers what it was asked to do, and does nothing else. A test makes it
-    fail by setting ``connect_error`` on the class that ``fake_sockets`` builds."""
+    fail by setting ``bind_error`` or ``connect_error`` on the class that
+    ``fake_sockets`` builds."""
 
+    bind_error: OSError | None = None
     connect_error: OSError | None = None
     local_address = ("192.168.1.20", 54321)
 
@@ -438,7 +441,8 @@ class FakeSocket:
         self.options.append((level, option, value))
 
     def bind(self, address):
-        pass
+        if self.bind_error:
+            raise self.bind_error
 
     def connect(self, address):
         if self.connect_error:
@@ -496,6 +500,50 @@ def test_port_probe_does_not_reuse_the_address_on_windows(monkeypatch):
     made = _recording_sockets(monkeypatch, "nt")
     assert launch.port_in_use("127.0.0.1", 3000) is False
     assert [m.options for m in made] == [[]]
+
+
+# What a refused bind is called where the rights are missing: a port below 1024
+# for someone who is not an administrator on POSIX, "access denied" on Windows,
+# which has two spellings of the same error.
+NO_RIGHTS = [errno.EACCES, errno.EPERM, getattr(errno, "WSAEACCES", errno.EACCES)]
+
+
+@pytest.mark.parametrize("code", sorted(set(NO_RIGHTS)))
+def test_port_probe_says_when_the_rights_are_missing(monkeypatch, code):
+    fake_sockets(monkeypatch, bind_error=OSError(code, "Permission denied"))
+    monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
+    with pytest.raises(PermissionError):
+        launch.port_in_use("0.0.0.0", 80)
+
+
+@pytest.mark.parametrize("code", sorted(set(NO_RIGHTS)))
+def test_a_refused_bind_next_to_a_listener_means_the_port_is_taken(monkeypatch, code):
+    # Windows answers "access denied" when another program holds the port for its
+    # own use, and that program is listening: this is no lack of rights.
+    fake_sockets(monkeypatch, bind_error=OSError(code, "Permission denied"))
+    monkeypatch.setattr(launch, "_has_listener", lambda host, port: True)
+    assert launch.port_in_use("127.0.0.1", 5357) is True
+
+
+def test_a_port_that_needs_rights_is_reported(clean_env, ui_built, monkeypatch, served, capsys):
+    fake_sockets(monkeypatch, bind_error=PermissionError(errno.EACCES, "Permission denied"))
+    monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
+    assert launch.main(["--no-env-file", "--port", "80"]) == 1
+    captured = capsys.readouterr()
+    assert captured.err.splitlines() == [
+        "Port 80 needs administrator rights. Pick a port above 1024, for example PORT=3001."
+    ]
+    assert captured.out == ""
+    assert served == []
+
+
+def test_check_reports_a_port_that_needs_rights_too(clean_env, monkeypatch, served, capsys):
+    fake_sockets(monkeypatch, bind_error=PermissionError(errno.EACCES, "Permission denied"))
+    monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
+    assert launch.main(["--check", "--no-env-file", "--port", "443"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Port 443 needs administrator rights." in captured.err
 
 
 def test_lan_address_asks_the_routing_table_without_sending_anything(monkeypatch):

@@ -17,10 +17,15 @@ from pathlib import Path
 from . import config
 from .services import update_check
 
-# What a bind reports when another program has the port. Windows answers with
-# "access denied" instead of "in use" when the other program asked for exclusive
-# use of it.
-_PORT_TAKEN = {errno.EADDRINUSE, errno.EACCES, getattr(errno, "WSAEACCES", errno.EACCES)}
+# What a bind reports when another program has the port.
+_PORT_TAKEN = errno.EADDRINUSE
+
+# What it reports when this program may not use the port: one below 1024 for
+# someone who is not an administrator, on POSIX. Windows has no such ports but
+# says "access denied" all the same, both for a port the system keeps back and
+# for one that another program holds for itself alone, so there it only means a
+# lack of rights when nobody is listening on the port.
+_NO_RIGHTS = {errno.EACCES, errno.EPERM, getattr(errno, "WSAEACCES", errno.EACCES)}
 
 # For an address that covers every interface: where to look for a program
 # already on the port.
@@ -124,6 +129,9 @@ def port_in_use(host: str, port: int) -> bool:
     address of this computer, or a name that does not resolve, fails the bind too,
     and telling someone to pick another port for that would send them the wrong
     way; uvicorn reports those itself, with the real reason.
+
+    A port that this program may not bind, and that nobody is listening on, is not
+    taken either, and PermissionError says so.
     """
     family = socket.AF_INET6 if ":" in host else socket.AF_INET
     try:
@@ -132,7 +140,11 @@ def port_in_use(host: str, port: int) -> bool:
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((host, port))
     except OSError as err:
-        return err.errno in _PORT_TAKEN
+        if err.errno in _NO_RIGHTS:
+            if _has_listener(_WILDCARD_LOOPBACK.get(host, host), port):
+                return True
+            raise PermissionError(err.errno, f"Port {port} needs administrator rights") from err
+        return err.errno == _PORT_TAKEN
     # Windows lets a bind succeed next to a listener on the other side of the
     # wildcard, in either direction: 127.0.0.1 or the network address while
     # another program holds 0.0.0.0, and 0.0.0.0 while another holds 127.0.0.1
@@ -218,7 +230,16 @@ def main(argv: list[str] | None = None) -> int:
         _say(str(err), file=sys.stderr)
         return 1
 
-    if port_in_use(listen.host, listen.port):
+    try:
+        taken = port_in_use(listen.host, listen.port)
+    except PermissionError:
+        _say(
+            f"Port {listen.port} needs administrator rights. "
+            "Pick a port above 1024, for example PORT=3001.",
+            file=sys.stderr,
+        )
+        return 1
+    if taken:
         _say(
             f"Port {listen.port} is already in use.",
             "If Evermind is still running, stop it and run this again. "
