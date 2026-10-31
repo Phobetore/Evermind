@@ -32,7 +32,8 @@ def create_app() -> FastAPI:
     # The store loads itself on the first request rather than in the lifespan,
     # which the test client never runs. There is no CORS middleware: the
     # interface is served from this same address, or proxied to it in
-    # development, so a browser never makes a cross-origin request.
+    # development, so it never makes a cross-origin request. The writes other
+    # pages can send without CORS are refused by GateMiddleware.
     app.state.gate = GateStore()
     app.add_middleware(GateMiddleware, store=app.state.gate)
     register_error_handlers(app)

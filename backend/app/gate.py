@@ -12,6 +12,9 @@ different password revokes every session opened with the old one.
 Sessions are checked against memory on every API request and written through
 to the database. That is only right with a single process, which is how
 Evermind runs.
+
+Whether or not a password is set, the same middleware refuses writes to /api/
+that a browser sent from a page of another origin.
 """
 
 import asyncio
@@ -24,6 +27,7 @@ import time
 from collections import deque
 from datetime import UTC, datetime, timedelta
 
+from starlette.datastructures import Headers
 from starlette.requests import HTTPConnection
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -38,6 +42,9 @@ FAILURE_DELAY_S = 0.6
 MAX_FAILURES = 10
 FAILURE_WINDOW_S = 900
 PUBLIC_API_PATHS = frozenset({"/api/health", "/api/gate"})
+# RFC 9110's safe methods. Every other one may change something.
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
+_THIS_ORIGIN_SITES = frozenset({"same-origin", "none"})
 
 _SCRYPT_N = 16384
 _SCRYPT_R = 8
@@ -165,8 +172,9 @@ class GateStore:
         """Reads the password and the sessions once, on the first request.
 
         Until this has succeeded the store says it is disabled, but nothing
-        reads it before then: the middleware awaits this first, and a failure
-        here fails the request rather than letting it through.
+        reads it before then: the middleware awaits this before it lets a
+        request reach /api/, and a failure here fails the request rather than
+        letting it through.
         """
         if self._loaded:
             return
@@ -325,6 +333,31 @@ def _route_path(scope: Scope) -> str:
     return path
 
 
+def _from_another_origin(scope: Scope) -> bool:
+    """Whether the browser says this request was sent by a page of another
+    origin. A request that says nothing about it did not come from a page:
+    curl, a script, a test.
+
+    Two headers can say it, and neither is always there. Sec-Fetch-Site is the
+    browser's own verdict, but browsers send Fetch Metadata only to addresses
+    they trust, https or localhost, never to http://192.168.1.42:3000. Origin
+    is sent with every write, to any address, so without Fetch Metadata it is
+    compared with the origin the request was addressed to, rebuilt from the
+    scheme and the Host header. A reverse proxy that rewrites Host breaks that
+    comparison, but one that serves https gets Sec-Fetch-Site, which is read
+    first.
+    """
+    headers = Headers(scope=scope)
+    site = headers.get("sec-fetch-site")
+    if site is not None:
+        return site not in _THIS_ORIGIN_SITES
+    origin = headers.get("origin")
+    if origin is None:
+        return False
+    own = f"{scope.get('scheme', 'http')}://{headers.get('host', '')}"
+    return origin.lower() != own.lower()
+
+
 def _session_cookie_header(token: str, *, secure: bool) -> bytes:
     """The header ``set_session_cookie`` writes, for a middleware that has no
     response object to call it on."""
@@ -334,7 +367,8 @@ def _session_cookie_header(token: str, *, secure: bool) -> bytes:
 
 
 class GateMiddleware:
-    """Locks /api/ behind a session.
+    """Refuses writes to /api/ from pages of other origins, password or not,
+    and locks /api/ behind a session when there is a password.
 
     Pure ASGI on purpose: BaseHTTPMiddleware would sit between the app and the
     client on every response, and a reply still being written (the stream of
@@ -349,10 +383,21 @@ class GateMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        path = _route_path(scope)
+        if not path.startswith("/api/"):
+            await self.app(scope, receive, send)
+            return
+        # Judged before the password, and whether or not there is one: without
+        # it a forged write needs no session, and any website could send one
+        # to an Evermind listening on localhost.
+        if scope["method"] not in SAFE_METHODS and _from_another_origin(scope):
+            refused = JSONResponse({"error": "Cross-origin request refused.",
+                                    "kind": "cross_origin"}, status_code=403)
+            await refused(scope, receive, send)
+            return
         store = self.store
         await store.ensure_loaded()
-        path = _route_path(scope)
-        if not store.enabled or not path.startswith("/api/") or path in PUBLIC_API_PATHS:
+        if not store.enabled or path in PUBLIC_API_PATHS:
             await self.app(scope, receive, send)
             return
 

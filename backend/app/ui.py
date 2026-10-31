@@ -1,7 +1,8 @@
 """The built interface, served from the same port as the API.
 
-One process and one address mean no cross-origin requests, so the API sends no
-CORS headers, and a phone on the local network needs a single URL.
+One process and one address mean the interface never makes a cross-origin
+request, so the API sends no CORS headers, and a phone on the local network
+needs a single URL.
 """
 
 import os
