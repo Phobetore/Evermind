@@ -42,3 +42,5 @@ logs/
 frontend/test-results/
 frontend/playwright-report/
 .e2e-data/
+.e2e-data-gate/
+frontend/dist-e2e/

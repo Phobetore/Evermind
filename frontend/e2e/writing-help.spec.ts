@@ -5,7 +5,7 @@ import { conversationWithReply } from "./fixtures";
  *  checks the syntax it advertises against what it renders. */
 test("the reminder lists syntax the app actually renders", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
   // Before this, isVisible() answers about a page that has not hydrated yet:
   // false, and the button below never gets clicked.
   await page.waitForLoadState("networkidle");

@@ -10,8 +10,8 @@
     "lint": "eslint .",
     "check:i18n": "node scripts/check-i18n.mjs",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e": "vite build --outDir dist-e2e && playwright test",
+    "test:e2e:ui": "vite build --outDir dist-e2e && playwright test --ui"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",

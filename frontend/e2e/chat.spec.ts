@@ -11,7 +11,7 @@ import { conversationWithReply } from "./fixtures";
  */
 test("a reply left mid-write stays on screen while it is continued", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
 
   // A genuinely interrupted reply, made the way one happens: stopped part way
   // through. Setting the mark through the API is not an option — the endpoint
@@ -46,7 +46,7 @@ test("a reply left mid-write stays on screen while it is continued", async ({ pa
 
 test("sending a message shows the reply arriving", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
 
   await page.locator("textarea").first().fill("And then?");
   await page.locator('button[title="Send"]').click();

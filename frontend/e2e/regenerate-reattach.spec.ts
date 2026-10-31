@@ -31,7 +31,7 @@ test("a page arriving mid-regeneration hides the reply being replaced", async ({
     (await (await request.get(`${API}/api/conversations/${convo.id}/turn`)).json()).running,
     { timeout: 10_000 }).toBe(true);
 
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
   // Not networkidle: attaching holds a stream open, so the network is never
   // idle and the wait runs until it gives up — by which time the turn this test
   // is about has been over for a while.

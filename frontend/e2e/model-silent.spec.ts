@@ -28,7 +28,7 @@ async function conversationWithNoModel(request: import("@playwright/test").APIRe
 
 test("asking for a suggested message says the model did not answer", async ({ page, request }) => {
   const convo = await conversationWithNoModel(request);
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
   await expect(page.locator("textarea").first()).toBeVisible();
 
   await page.locator('button[title="Write my reply for me (editable before sending)"]').click();
@@ -44,7 +44,7 @@ test("asking for a suggested message says the model did not answer", async ({ pa
 
 test("a reply that never comes says so too", async ({ page, request }) => {
   const convo = await conversationWithNoModel(request);
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
   await expect(page.locator("textarea").first()).toBeVisible();
 
   await page.locator("textarea").first().fill("Bonjour ?");
@@ -63,7 +63,7 @@ test("a reply that never comes says so too", async ({ page, request }) => {
 
 test("only one notice at a time", async ({ page, request }) => {
   const convo = await conversationWithNoModel(request);
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
   await expect(page.locator("textarea").first()).toBeVisible();
 
   await page.locator('button[title="Write my reply for me (editable before sending)"]').click();
