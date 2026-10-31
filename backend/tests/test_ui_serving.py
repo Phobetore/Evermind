@@ -46,7 +46,18 @@ async def test_revalidated_asset_stays_immutable(ui_client):
     assert again.headers["cache-control"] == IMMUTABLE
 
 
-async def test_a_missing_asset_is_not_cached(ui_client):
+async def test_a_missing_asset_is_not_cached(ui_client, ui_dir):
+    # With a 404.html in the build, a missing file is answered with that page
+    # and goes through the same code as a file that was found, which is where
+    # the status has to keep the long cache lifetime away from it. Without one
+    # the answer is an exception that never gets that far.
+    (ui_dir / "404.html").write_text("<!doctype html><p>Gone</p>", encoding="utf-8")
+    r = await ui_client.get("/assets/app-000000.js")
+    assert r.status_code == 404 and "Gone" in r.text
+    assert r.headers["cache-control"] == "no-cache"
+
+
+async def test_a_missing_file_without_a_404_page_is_not_cached_either(ui_client):
     r = await ui_client.get("/assets/app-000000.js")
     assert r.status_code == 404
     assert "immutable" not in r.headers.get("cache-control", "")
@@ -140,16 +151,30 @@ async def test_ui_is_public_when_password_is_set(make_client, ui_dir):
 
 
 @pytest.mark.parametrize("path", [
+    # The client decodes these before the application sees them, so they reach it
+    # as /assets/../../secret.txt and /../secret.txt. A literal /../ would be
+    # resolved by the client and never arrive, and writing the same two paths
+    # with %2e for the dots adds nothing.
     "/assets/..%2F..%2Fsecret.txt",
-    "/assets/%2e%2e/%2e%2e/secret.txt",
-    "/%2e%2e/secret.txt",
     "/..%2Fsecret.txt",
-    "/../secret.txt",
 ])
 async def test_traversal_is_refused(ui_client, tmp_path, path):
     # Next to the served folder, which is where a path that climbs out lands.
     (tmp_path / "secret.txt").write_text("top secret", encoding="utf-8")
     r = await ui_client.get(path)
+    assert r.status_code == 404
+    assert "top secret" not in r.text
+
+
+async def test_a_link_out_of_the_folder_is_not_followed(ui_client, ui_dir, tmp_path):
+    outside = tmp_path / "secret.txt"
+    outside.write_text("top secret", encoding="utf-8")
+    try:
+        (ui_dir / "assets" / "leak.txt").symlink_to(outside)
+    except (OSError, NotImplementedError):
+        # Windows only allows it to an administrator or with developer mode.
+        pytest.skip("symbolic links cannot be created here")
+    r = await ui_client.get("/assets/leak.txt")
     assert r.status_code == 404
     assert "top secret" not in r.text
 
