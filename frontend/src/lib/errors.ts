@@ -80,10 +80,12 @@ export function describeFailure(failure: Failure, t: Translate): string {
   if (kind === "http_error") return t("errors.server", { status: status ?? 0 });
   // FastAPI's own refusal of what was sent: its words are about field names.
   if (!kind && status === 422) return t("errors.invalid");
-  // A kind this version does not know is the server's words to show, as is an
-  // answer that came without one. Only a server failure with no words of its
-  // own, and no kind, is worth no more than its status.
+  // A server failure that came without a kind of its own is a proxy's page or
+  // a crash: whatever words it carries are not meant for a person, and its
+  // status is all there is to say.
   if (!kind && status !== undefined && status >= 500) return t("errors.server", { status });
+  // Any other answer, with a kind this version does not know or with none, has
+  // words of the server's to show, which beat a generic sentence.
   return message || t("errors.unexpected");
 }
 
