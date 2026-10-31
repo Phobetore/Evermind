@@ -119,10 +119,12 @@ environment.
 `frontend/dist`, so a run cannot replace the interface of an Evermind you are
 using. Playwright then starts the whole stack itself: a mock model and two
 `python -m app` servers, one of them behind an access password, each on a port
-and a data directory of its own and none reading `.env`. It runs them from the
-virtualenv in `backend/.venv`, which the launch scripts create, and needs the
-browser once: `npx playwright install chromium`. `npm run test:e2e:ui` opens
-Playwright's runner if you want to watch one.
+and a data directory of its own. None reads `.env`, and each starts with an
+environment built from scratch, so no `EVERMIND_*` variable of your shell
+reaches them. It runs them from the virtualenv in `backend/.venv`, which the
+launch scripts create, and needs the browser once:
+`npx playwright install chromium`. `npm run test:e2e:ui` opens Playwright's
+runner if you want to watch one.
 
 It exists because typecheck and build are blind to the kind of thing that
 actually broke: a button falling off the side of a phone, an API the browser

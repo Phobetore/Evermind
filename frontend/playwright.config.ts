@@ -31,11 +31,10 @@ const python = JSON.stringify(path.resolve(
   process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
 ));
 
-/** What a copy of the real server is given. The settings file is switched off
- *  on the command line, and the password set to nothing explicitly as well,
- *  in case it is in the environment rather than in the file: the developer's
- *  own .env is where a password usually is, and a run that read it would be
- *  asked for one on every page. */
+/** What a copy of the real server is told: where its data and its interface
+ *  are, and its password (empty for the open copy). The settings file is
+ *  switched off on the command line (`--no-env-file`), so nothing of the
+ *  developer's own .env, password included, can reach it. */
 function serverEnv(dataDir: string, password: string) {
   return {
     EVERMIND_DATA_DIR: path.join(root, dataDir),
@@ -43,6 +42,21 @@ function serverEnv(dataDir: string, password: string) {
     // replace the interface of an Evermind that is being used.
     EVERMIND_UI_DIR: path.join(frontend, "dist-e2e"),
     EVERMIND_GATE_PASSWORD: password,
+  };
+}
+
+const node = JSON.stringify(process.execPath);
+const withCleanEnv = JSON.stringify(path.join(frontend, "e2e", "with-clean-env.mjs"));
+
+/** A server that sees `env` and what a program needs to start, and nothing
+ *  else. Playwright adds `env` to the environment of the shell the suite was
+ *  started from, so the launcher is what keeps the rest out: any other
+ *  EVERMIND_* variable there (a port, a list of allowed hosts, a root path)
+ *  would change what the tests are talking to. */
+function isolated(command: string, env: Record<string, string>) {
+  return {
+    command: `${node} ${withCleanEnv} ${Object.keys(env).join(",")} -- ${command}`,
+    env,
   };
 }
 
@@ -73,31 +87,34 @@ export default defineConfig({
 
   webServer: [
     {
-      command: `${python} ../scripts/mock_llm.py ${MOCK_PORT}`,
-      url: `http://127.0.0.1:${MOCK_PORT}/v1/models`,
-      reuseExistingServer: !process.env.CI,
-      timeout: 30_000,
       // Slower than the default on purpose. Several tests are about what
       // happens while a reply is being written, and at full speed the reply is
       // finished before a second browser has opened the page — which passes on
       // a fast laptop and fails on a CI runner.
-      env: { EVERMIND_MOCK_DELAY: "0.15" },
+      ...isolated(`${python} ../scripts/mock_llm.py ${MOCK_PORT}`, { EVERMIND_MOCK_DELAY: "0.15" }),
+      url: `http://127.0.0.1:${MOCK_PORT}/v1/models`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
     },
     {
-      command: `${python} -m app --no-env-file --host 127.0.0.1 --port ${WEB_PORT}`,
+      ...isolated(
+        `${python} -m app --no-env-file --host 127.0.0.1 --port ${WEB_PORT}`,
+        serverEnv(".e2e-data", ""),
+      ),
       cwd: path.join(root, "backend"),
       url: `${API}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
-      env: serverEnv(".e2e-data", ""),
     },
     {
-      command: `${python} -m app --no-env-file --host 127.0.0.1 --port ${GATED_PORT}`,
+      ...isolated(
+        `${python} -m app --no-env-file --host 127.0.0.1 --port ${GATED_PORT}`,
+        serverEnv(".e2e-data-gate", GATE_PASSWORD),
+      ),
       cwd: path.join(root, "backend"),
       url: `${GATED}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
-      env: serverEnv(".e2e-data-gate", GATE_PASSWORD),
     },
   ],
 });
