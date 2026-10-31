@@ -133,9 +133,9 @@ def socket_app():
     return app
 
 
-async def open_socket(app, headers: dict) -> list[str]:
-    """Opens /api/socket the way a server would, and returns the type of each
-    message the application sent back, with the code of a close."""
+async def open_socket(app, headers: dict, scheme: str = "ws") -> list[str]:
+    """Opens /api/socket on ws://test the way a server would, and returns the
+    type of each message the application sent back, with the code of a close."""
     sent: list[str] = []
 
     async def receive() -> dict:
@@ -145,7 +145,7 @@ async def open_socket(app, headers: dict) -> list[str]:
         kind = message["type"]
         sent.append(f"{kind} {message.get('code', 1000)}" if kind == "websocket.close" else kind)
 
-    scope = {"type": "websocket", "asgi": {"version": "3.0"}, "scheme": "ws",
+    scope = {"type": "websocket", "asgi": {"version": "3.0"}, "scheme": scheme,
              "path": "/api/socket", "raw_path": b"/api/socket", "root_path": "",
              "query_string": b"", "client": ("127.0.0.1", 50000), "server": ("test", 80),
              "subprotocols": [],
@@ -169,6 +169,42 @@ async def test_a_websocket_is_open_without_a_password(make_client):
     async with make_client():
         assert await open_socket(socket_app(), {}) == [
             "websocket.accept", "websocket.send", "websocket.close 1000"]
+
+
+OPENED = ["websocket.accept", "websocket.send", "websocket.close 1000"]
+
+
+@pytest.mark.parametrize(("headers", "scheme"), [
+    ({}, "ws"),
+    ({"origin": "http://test"}, "ws"),
+    ({"origin": "https://test"}, "wss"),
+    ({"sec-fetch-site": "same-origin", "origin": "https://evermind.example"}, "ws"),
+])
+async def test_a_websocket_from_this_origin_opens(make_client, headers, scheme):
+    async with make_client():
+        assert await open_socket(socket_app(), headers, scheme) == OPENED
+
+
+@pytest.mark.parametrize("headers", [
+    {"origin": "http://evil.example"},
+    {"origin": "null"},
+    {"origin": "https://test"},
+    {"origin": "http://test:8080"},
+    {"sec-fetch-site": "cross-site", "origin": "http://test"},
+    {"sec-fetch-site": "same-site"},
+])
+async def test_a_websocket_from_another_origin_is_refused(make_client, headers):
+    """A browser sends Origin with every handshake, and the cookie with it:
+    a page elsewhere could otherwise open one with the user's session, or
+    without any when there is no password."""
+    async with make_client():
+        assert await open_socket(socket_app(), headers) == ["websocket.close 1008"]
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        token = await sign_in(c)
+        assert await open_socket(socket_app(), {**headers, **device(token)}) == [
+            "websocket.close 1008"]
+        same = {"origin": "http://test", **device(token)}
+        assert await open_socket(socket_app(), same) == OPENED
 
 
 @pytest.mark.parametrize("path", ["/api/gate/", "/api/gate/x", "/api/gatex", "/api/health/",

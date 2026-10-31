@@ -13,8 +13,8 @@ Sessions are checked against memory on every API request and written through
 to the database. That is only right with a single process, which is how
 Evermind runs.
 
-Whether or not a password is set, the same middleware refuses writes to /api/
-that a browser sent from a page of another origin.
+Whether or not a password is set, the same middleware refuses the writes and
+the websockets under /api/ that a browser sent from a page of another origin.
 """
 
 import asyncio
@@ -52,6 +52,8 @@ PUBLIC_API_PATHS = frozenset({"/api/health", "/api/gate"})
 # RFC 9110's safe methods. Every other one may change something.
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
 _THIS_ORIGIN_SITES = frozenset({"same-origin", "none"})
+# A websocket's Origin is that of the page that opened it, an http(s) one.
+_PAGE_SCHEMES = {"ws": "http", "wss": "https"}
 
 _SCRYPT_N = 16384
 _SCRYPT_R = 8
@@ -376,11 +378,11 @@ def _from_another_origin(scope: Scope) -> bool:
     Two headers can say it, and neither is always there. Sec-Fetch-Site is the
     browser's own verdict, but browsers send Fetch Metadata only to addresses
     they trust, https or localhost, never to http://192.168.1.42:3000. Origin
-    is sent with every write, to any address, so without Fetch Metadata it is
-    compared with the origin the request was addressed to, rebuilt from the
-    scheme and the Host header. A reverse proxy that rewrites Host breaks that
-    comparison, but one that serves https gets Sec-Fetch-Site, which is read
-    first.
+    is sent with every write and every websocket handshake, to any address,
+    so without Fetch Metadata it is compared with the origin the request was
+    addressed to, rebuilt from the scheme and the Host header. A reverse proxy
+    that rewrites Host breaks that comparison, but one that serves https gets
+    Sec-Fetch-Site, which is read first.
     """
     headers = Headers(scope=scope)
     site = headers.get("sec-fetch-site")
@@ -389,8 +391,13 @@ def _from_another_origin(scope: Scope) -> bool:
     origin = headers.get("origin")
     if origin is None:
         return False
-    own = f"{scope.get('scheme', 'http')}://{headers.get('host', '')}"
+    scheme = scope.get("scheme", "http")
+    own = f"{_PAGE_SCHEMES.get(scheme, scheme)}://{headers.get('host', '')}"
     return origin.lower() != own.lower()
+
+
+# Closing a websocket before accepting it refuses the handshake.
+_refuse_socket = WebSocketClose(code=status.WS_1008_POLICY_VIOLATION)
 
 
 def _session_cookie_header(token: str, *, secure: bool) -> bytes:
@@ -402,8 +409,8 @@ def _session_cookie_header(token: str, *, secure: bool) -> bytes:
 
 
 class GateMiddleware:
-    """Refuses writes to /api/ from pages of other origins, password or not,
-    and locks /api/ behind a session when there is a password.
+    """Refuses writes and websockets under /api/ from pages of other origins,
+    password or not, and locks /api/ behind a session when there is a password.
 
     Pure ASGI on purpose: BaseHTTPMiddleware would sit between the app and the
     client on every response, and a reply still being written (the stream of
@@ -425,8 +432,13 @@ class GateMiddleware:
         socket = scope["type"] == "websocket"
         # Judged before the password, and whether or not there is one: without
         # it a forged write needs no session, and any website could send one
-        # to an Evermind listening on localhost.
-        if not socket and scope["method"] not in SAFE_METHODS and _from_another_origin(scope):
+        # to an Evermind listening on localhost. A websocket's handshake is a
+        # GET, but the browser sends the cookie with it, and what goes through
+        # it afterwards can be anything.
+        if (socket or scope["method"] not in SAFE_METHODS) and _from_another_origin(scope):
+            if socket:
+                await _refuse_socket(scope, receive, send)
+                return
             refused = JSONResponse({"error": "Cross-origin request refused.",
                                     "kind": "cross_origin"}, status_code=403)
             await refused(scope, receive, send)
@@ -440,8 +452,7 @@ class GateMiddleware:
         token = HTTPConnection(scope).cookies.get(SESSION_COOKIE)
         if not store.check(token):
             if socket:
-                # Closing before accepting refuses the handshake.
-                await WebSocketClose(code=status.WS_1008_POLICY_VIOLATION)(scope, receive, send)
+                await _refuse_socket(scope, receive, send)
                 return
             locked = JSONResponse({"error": "Locked.", "kind": "locked"}, status_code=401)
             await locked(scope, receive, send)
