@@ -169,4 +169,8 @@ export type ChatEvent =
       target_message_id?: string | null }
   | { type: "delta"; text: string }
   | { type: "done"; message: Message; context?: ContextStats; perf?: TurnPerf }
-  | { type: "error"; message: string; kind?: string | null; resource?: string };
+  | {
+      type: "error"; message: string; kind?: string | null; resource?: string;
+      /** What a model's server said, when it was the one that failed. */
+      upstream?: string; upstream_status?: number;
+    };

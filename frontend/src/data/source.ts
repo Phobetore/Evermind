@@ -176,15 +176,25 @@ export interface ConnectionInput {
   is_default: boolean;
 }
 
+/** How a connection test or a benchmark went. When it failed, `detail` is the
+ *  English sentence and `kind` (with what the model's server said, if it said
+ *  anything) is what to describe it by. */
 export interface ConnectionTestResult {
   ok: boolean;
   detail: string;
+  kind?: string;
+  upstream?: string;
+  upstream_status?: number;
+  model_count?: number;
   models_sample?: string[];
 }
 
 export interface BenchmarkResult {
   ok: boolean;
   detail?: string;
+  kind?: string;
+  upstream?: string;
+  upstream_status?: number;
   tokens_per_s?: number;
   first_token_seconds?: number;
 }

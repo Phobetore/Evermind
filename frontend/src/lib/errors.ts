@@ -9,6 +9,9 @@ export interface Failure {
   status?: number;
   retryAfter?: number;
   message?: string;
+  /** What a model's server said, in its own words, and with its own status. */
+  upstream?: string;
+  upstreamStatus?: number;
 }
 
 /** The sentence for each kind the server names, in `errors.*`. */
@@ -30,6 +33,13 @@ const KIND_KEYS: Record<string, string> = {
   // The model's server never answered: not a mistake anyone made, and not
   // Evermind failing to answer, which is "network" below.
   unreachable: "errors.modelUnreachable",
+  model_auth_refused: "errors.modelAuthRefused",
+  model_not_found: "errors.modelNotFound",
+  model_rate_limited: "errors.modelRateLimited",
+  model_timeout: "errors.modelTimeout",
+  model_unexpected_response: "errors.modelUnexpectedResponse",
+  model_unknown_type: "errors.modelUnknownType",
+  model_no_text: "errors.modelNoText",
   model_empty: "errors.modelEmpty",
   model_empty_retried: "errors.modelEmptyRetried",
   model_unreadable: "errors.modelUnreadable",
@@ -39,6 +49,17 @@ const KIND_KEYS: Record<string, string> = {
   // No answer from Evermind itself.
   network: "errors.unreachable",
 };
+
+/** The kinds that stand for a model's server answering badly or not at all.
+ *  Its own words, if it said any, are shown after the sentence: Evermind cannot
+ *  translate what another program wrote, only frame it. */
+const MODEL_SERVER_KINDS = new Set([
+  "model_auth_refused",
+  "model_not_found",
+  "model_rate_limited",
+  "model_http_error",
+  "model_network_error",
+]);
 
 /** What a "not_found" did not find. A resource this version has never heard of
  *  gets the sentence for any missing thing. */
@@ -61,9 +82,23 @@ const KIND_WITH_WORDS: Record<string, string> = {
   internal: "errors.internal",
 };
 
+/** The sentence for a model's server that answered badly or not at all, and
+ *  after it what the server said. */
+function modelServerSentence(failure: Failure, t: Translate): string {
+  const { kind, upstream, upstreamStatus } = failure;
+  const sentence =
+    kind === "model_http_error"
+      ? t("errors.modelHttpError", { status: upstreamStatus ?? 0 })
+      : kind === "model_network_error"
+        ? t("errors.modelNetworkError")
+        : t(KIND_KEYS[kind as string]);
+  return upstream ? `${sentence} ${t("errors.upstream", { text: upstream })}` : sentence;
+}
+
 /** The sentence to show for a failure, in the person's language. */
 export function describeFailure(failure: Failure, t: Translate): string {
   const { kind, resource, status, message } = failure;
+  if (kind && MODEL_SERVER_KINDS.has(kind)) return modelServerSentence(failure, t);
   const known = kind ? KIND_KEYS[kind] : undefined;
   if (known) return t(known);
   if (kind === "not_found") {
@@ -78,13 +113,16 @@ export function describeFailure(failure: Failure, t: Translate): string {
     return message ? t(KIND_WITH_WORDS[kind], { message }) : t("errors.unexpected");
   }
   if (kind === "http_error") return t("errors.server", { status: status ?? 0 });
-  // FastAPI's own refusal of what was sent: its words are about field names.
-  if (!kind && status === 422) return t("errors.invalid");
-  // A server failure that came without a kind of its own is a proxy's page or
-  // a crash: whatever words it carries are not meant for a person, and its
-  // status is all there is to say.
-  if (!kind && status !== undefined && status >= 500) return t("errors.server", { status });
-  // Any other answer, with a kind this version does not know or with none, has
+  // An answer that came without a kind of its own was not written by Evermind
+  // for a person: it is FastAPI's own, or a proxy's, and its words are about
+  // field names and routes. What it was is in its status.
+  if (!kind && status !== undefined) {
+    if (status === 422) return t("errors.invalid");
+    if (status === 404) return t("errors.notFound.other");
+    if (status >= 500) return t("errors.server", { status });
+    if (status >= 400) return t("errors.unexpected");
+  }
+  // A kind this version does not know, or a failure that has no status, has
   // words of the server's to show, which beat a generic sentence.
   return message || t("errors.unexpected");
 }
@@ -97,4 +135,45 @@ export function describeFailure(failure: Failure, t: Translate): string {
 export function describeError(error: unknown, t: Translate, fallback?: string): string {
   if (error instanceof DataError) return describeFailure(error, t);
   return fallback ?? t("errors.unexpected");
+}
+
+/** The sentence to show for the error event that ends a reply's stream. */
+export function describeEvent(
+  event: {
+    message: string;
+    kind?: string | null;
+    resource?: string;
+    upstream?: string;
+    upstream_status?: number;
+  },
+  t: Translate,
+): string {
+  return describeFailure(
+    {
+      kind: event.kind,
+      resource: event.resource,
+      message: event.message,
+      upstream: event.upstream,
+      upstreamStatus: event.upstream_status,
+    },
+    t,
+  );
+}
+
+/** A result the server reports in a 200 body, as the connection test and the
+ *  benchmark do: the English sentence in `detail`, and the kind and what the
+ *  model's server said next to it. */
+export function describeResult(
+  result: { detail?: string; kind?: string; upstream?: string; upstream_status?: number },
+  t: Translate,
+): string {
+  return describeFailure(
+    {
+      kind: result.kind,
+      message: result.detail,
+      upstream: result.upstream,
+      upstreamStatus: result.upstream_status,
+    },
+    t,
+  );
 }

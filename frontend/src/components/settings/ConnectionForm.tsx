@@ -2,7 +2,7 @@ import { Field } from "@/components/editor/Field";
 import { Modal } from "@/components/ui/Modal";
 import type { BenchmarkResult, ConnectionInput, ConnectionTestResult, DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
-import { describeError } from "@/lib/errors";
+import { describeError, describeResult } from "@/lib/errors";
 import type { Connection, ProviderType } from "@/types";
 import { clsx } from "clsx";
 import { CheckCircle2, ChevronDown, Loader2, Trash2, XCircle } from "lucide-react";
@@ -254,7 +254,7 @@ export function ConnectionForm({
                     tokensPerSecond: benchResult.tokens_per_s ?? 0,
                     firstTokenSeconds: benchResult.first_token_seconds ?? 0,
                   })
-                : benchResult.detail}
+                : describeResult(benchResult, t)}
             </span>
           )}
           {testResult && (
@@ -265,7 +265,9 @@ export function ConnectionForm({
               )}
             >
               {testResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-              {testResult.detail}
+              {testResult.ok && testResult.model_count !== undefined
+                ? t("connections.modelsFound", { count: testResult.model_count })
+                : describeResult(testResult, t)}
             </span>
           )}
         </div>

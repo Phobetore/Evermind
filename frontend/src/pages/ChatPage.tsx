@@ -6,7 +6,7 @@ import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { describeError, describeFailure } from "@/lib/errors";
+import { describeError, describeEvent } from "@/lib/errors";
 import { turnStore } from "@/lib/turnStore";
 import type { ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
@@ -248,7 +248,7 @@ function ChatView({ id }: { id: string }) {
             // A model that never answered is not a fault to raise the alarm
             // about; usually the server behind it is simply not running.
             if (event.kind === "unreachable") setSilent(true);
-            else setError(describeFailure(event, t));
+            else setError(describeEvent(event, t));
           }
         },
         controller.signal,
