@@ -448,6 +448,7 @@
     "accessDenied": "Access denied.",
     "tooManyAttempts": "Too many attempts. Try again in {minutes} min.",
     "serverUnreachable": "The server isn't responding.",
+    "cookieRefused": "Your browser did not keep the sign-in. Allow cookies for this address and try again.",
     "tagline": "Your characters are waiting on the other side.",
     "passwordLabel": "Password",
     "enterButton": "Enter",

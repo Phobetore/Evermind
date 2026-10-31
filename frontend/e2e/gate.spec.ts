@@ -39,6 +39,37 @@ test("a wrong password is refused and stays on the login", async ({ page }) => {
   expect((await page.request.get(`${GATED}/api/characters`)).status()).toBe(401);
 });
 
+test("a browser that keeps no cookie is told so, not sent back to an empty login", async ({ page, context }) => {
+  // Phones with strict cookie settings accept the password and drop the
+  // session cookie. The server says yes, the next call arrives without a
+  // session, and the way in shuts again: without a word, that looks like a
+  // login that does nothing.
+  await page.route("**/api/gate", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    const response = await route.fetch();
+    const headers = { ...response.headers() };
+    delete headers["set-cookie"];
+    await route.fulfill({ response, headers });
+    // fetch() goes through the context's own cookie jar, which would keep the
+    // cookie it was just given: clear it, so the page ends up without one.
+    await context.clearCookies();
+  });
+
+  await page.goto("/#/login");
+  await enter(page, GATE_PASSWORD);
+
+  await expect(page.getByText(/did not keep the sign-in/i)).toBeVisible();
+  await expect(page).toHaveURL(/#\/login/);
+  expect((await context.cookies()).find((c) => c.name === "evermind_session")).toBeUndefined();
+  // The spinner is gone and the form is still there to try again with.
+  await expect(page.getByRole("button", { name: /enter/i })).toBeEnabled();
+
+  // Once the browser keeps the cookie, the same form lets the device in.
+  await page.unroute("**/api/gate");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(`${GATED}/#/`);
+});
+
 test("the login never sends anyone off-site", async ({ page }) => {
   // A link anyone can write: "//evil.example" starts with a slash and still
   // leads to another site when it is followed as an address.

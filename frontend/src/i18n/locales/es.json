@@ -448,6 +448,7 @@
     "accessDenied": "Acceso denegado.",
     "tooManyAttempts": "Demasiados intentos. Vuelve a intentarlo en {minutes} min.",
     "serverUnreachable": "El servidor no responde.",
+    "cookieRefused": "Tu navegador no ha guardado el inicio de sesión. Permite las cookies para esta dirección e inténtalo de nuevo.",
     "tagline": "Tus personajes te esperan al otro lado.",
     "passwordLabel": "Contraseña",
     "enterButton": "Entrar",

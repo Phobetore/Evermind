@@ -30,7 +30,16 @@ export function LoginPage() {
     setError(null);
     try {
       await access.login(password);
-      await refresh();
+      const fresh = await refresh();
+      if (fresh.enabled && !fresh.authenticated) {
+        // The server took the password and this browser did not keep the
+        // session it gave back, as phones with strict cookie settings do for
+        // an address that is not https. Going on would land on this very
+        // page again, silently.
+        setError(t("login.cookieRefused"));
+        setChecking(false);
+        return;
+      }
       navigate(from, { replace: true });
     } catch (e) {
       if (e instanceof DataError && e.kind === "wrong_password") {

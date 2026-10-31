@@ -448,6 +448,7 @@
     "accessDenied": "Zugriff verweigert.",
     "tooManyAttempts": "Zu viele Versuche. Versuch es in {minutes} Min. noch einmal.",
     "serverUnreachable": "Der Server antwortet nicht.",
+    "cookieRefused": "Dein Browser hat die Anmeldung nicht behalten. Erlaube Cookies für diese Adresse und versuche es noch einmal.",
     "tagline": "Deine Charaktere warten auf der anderen Seite.",
     "passwordLabel": "Passwort",
     "enterButton": "Eintreten",

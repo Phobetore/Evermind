@@ -3,7 +3,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Navigate, useLocation } from "react-router";
 
 type AccessStatus = { enabled: boolean; authenticated: boolean };
-type Ctx = { status: AccessStatus | null; refresh(): Promise<void> };
+type Ctx = {
+  status: AccessStatus | null;
+  /** Asks the server again, keeps the answer, and returns it. */
+  refresh(): Promise<AccessStatus>;
+};
 
 /** What an edition without an access password always answers. */
 const OPEN: AccessStatus = { enabled: false, authenticated: true };
@@ -19,7 +23,9 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AccessStatus | null>(data.access ? null : OPEN);
 
   const refresh = useCallback(async () => {
-    setStatus(data.access ? await data.access.status() : OPEN);
+    const fresh = data.access ? await data.access.status() : OPEN;
+    setStatus(fresh);
+    return fresh;
   }, []);
 
   useEffect(() => {

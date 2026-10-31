@@ -448,6 +448,7 @@
     "accessDenied": "Accès refusé.",
     "tooManyAttempts": "Trop de tentatives. Réessayez dans {minutes} min.",
     "serverUnreachable": "Le serveur ne répond pas.",
+    "cookieRefused": "Votre navigateur n'a pas conservé la connexion. Autorisez les cookies pour cette adresse et réessayez.",
     "tagline": "Vos personnages vous attendent de l'autre côté.",
     "passwordLabel": "Mot de passe",
     "enterButton": "Entrer",
