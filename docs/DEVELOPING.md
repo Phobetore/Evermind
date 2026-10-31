@@ -80,7 +80,9 @@ is always revalidated, which is how a phone picks up a new build.
 `EVERMIND_BACKEND_PORT` (default `8000`), on the loopback only, and restarts
 whenever `backend/app` changes. The Vite dev server serves the interface on
 `PORT` (default `3000`) with hot reload and relays `/api` to the API, so the
-browser still sees one origin, as it does in production. With `--lan` it is Vite
+browser still sees one origin, as it does in production. The relay leaves the
+`Host` header as the browser sent it, which the API needs to recognise the
+interface's writes as its own (see below). With `--lan` it is Vite
 that listens on the network and the API stays behind it. `EVERMIND_BACKEND_PORT`
 means nothing outside this mode.
 
@@ -144,6 +146,14 @@ With a password set, everything under `/api/` except `/api/health` and
 `/api/gate` answers `401` with `"kind": "locked"` until the device has signed in.
 A path under `/api/` that no route answers gets the API's own JSON 404, never the
 interface's page.
+
+Password or not, a `POST`, `PUT`, `PATCH` or `DELETE` under `/api/` that a
+browser sends from a page of another origin answers `403` with
+`"kind": "cross_origin"`. The browser says so in `Sec-Fetch-Site` over HTTPS and
+on localhost, and otherwise only in `Origin`, which the API compares with the
+scheme and `Host` the request arrived with. So a reverse proxy must either use
+HTTPS or preserve `Host`. A request with neither header, from curl or a script,
+is let through.
 
 Responses are plain dicts shaped by the repositories; Pydantic is used for input
 validation only. User-facing messages are English.

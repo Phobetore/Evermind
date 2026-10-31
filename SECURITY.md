@@ -57,10 +57,19 @@ the requests usually all reach Evermind from Docker's own address, so that limit
 is shared by every device: ten wrong guesses from one of them keep the others
 out too, for up to 15 minutes.
 
+## Requests from other sites
+
+With or without a password, the API refuses the changes a browser sends on
+behalf of a page from another origin, so a website you visit cannot write to
+your Evermind. A reverse proxy in front of Evermind must therefore either serve
+it over HTTPS or pass the `Host` header through unchanged; otherwise the
+interface's own changes are refused too.
+
 ## What is worth reporting
 
 - Anything that lets a request bypass the access password while it is set, or
   keep a session alive after it was ended or the password changed
+- Anything that lets a page from another origin change something in Evermind
 - Anything that reads or writes data across conversations, personas or accounts
   that should not be reachable from where the request came from
 - Injection of any kind that escapes its context: SQL, template, path traversal
