@@ -52,7 +52,10 @@ fi
 # the port to be taken is Evermind itself, still running while it is being
 # updated, and nothing below should happen underneath it. It explains a failure
 # on its own; the port it prints on success is not needed here.
-(cd "$ROOT/backend" && "$PYTHON" -m app --check $LAN > /dev/null)
+if ! (cd "$ROOT/backend" && "$PYTHON" -m app --check $LAN > /dev/null); then
+    echo "Nothing was started." >&2
+    exit 1
+fi
 
 LOCK_INSTALLED="$ROOT/frontend/node_modules/.installed-package-lock.json"
 if ! cmp -s "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"; then

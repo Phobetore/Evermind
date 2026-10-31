@@ -46,6 +46,19 @@ if ! cmp -s "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"; then
     "$PYTHON" -m pip install -q -e "$ROOT/backend[dev]"
     cp "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"
 fi
+
+# Asked before the interface is installed, because the API exiting right after
+# it starts (its port taken, a settings file that cannot be read) would leave
+# Vite running against nothing, and the likeliest reason for the port to be
+# taken is a previous run of this script that is still going. The API makes the
+# same check itself when it starts, so this is what it would say, said first.
+if ! (cd "$ROOT/backend" && "$PYTHON" -m app --check --dev > /dev/null); then
+    echo "Nothing was started." >&2
+    echo "In development the API's port is EVERMIND_BACKEND_PORT: if it is the one taken, set" >&2
+    echo "that in .env, instead of PORT." >&2
+    exit 1
+fi
+
 LOCK_INSTALLED="$ROOT/frontend/node_modules/.installed-package-lock.json"
 if ! cmp -s "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"; then
     echo "Installing frontend dependencies (a minute or two)..."
@@ -54,6 +67,14 @@ if ! cmp -s "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"; then
     # rewritten into a local change that would make the next `git pull` refuse.
     (cd "$ROOT/frontend" && npm ci)
     cp "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"
+fi
+
+# Vite is what the network sees, and the port it is asked for is PORT, which is
+# what --check --lan reads (with --dev it would give the API's port instead).
+# Vite does not stop for a port that is taken, and may end up on another one.
+if [ -n "$LAN" ] && ! (cd "$ROOT/backend" && "$PYTHON" -m app --check --lan > /dev/null); then
+    echo "" >&2
+    echo "Starting anyway: Vite may end up on another port, so go by the address it prints." >&2
 fi
 
 # The API only listens on the loopback: the dev server is what the network sees,

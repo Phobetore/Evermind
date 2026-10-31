@@ -70,7 +70,10 @@ Push-Location "$root\backend"
 $port = & $python -m app --check @appArgs
 $checkFailed = $LASTEXITCODE -ne 0
 Pop-Location
-if ($checkFailed) { exit 1 }
+if ($checkFailed) {
+    Write-Host "Nothing was started." -ForegroundColor Red
+    exit 1
+}
 
 $lock = "$root\frontend\package-lock.json"
 $lockInstalled = "$root\frontend\node_modules\.installed-package-lock.json"

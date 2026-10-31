@@ -62,6 +62,22 @@ if (-not (Test-Path $pyInstalled) -or (Get-FileHash $pyproject).Hash -ne (Get-Fi
     }
     Copy-Item $pyproject $pyInstalled
 }
+
+# Asked before the interface is installed, because the API exiting right after
+# it starts (its port taken, a settings file that cannot be read) would leave
+# Vite running against nothing, and the likeliest reason for the port to be
+# taken is a previous run of this script that is still going. The API makes the
+# same check itself when it starts, so this is what it would say, said first.
+Push-Location "$root\backend"
+$null = & $python -m app --check --dev
+$checkFailed = $LASTEXITCODE -ne 0
+Pop-Location
+if ($checkFailed) {
+    Write-Host "Nothing was started." -ForegroundColor Red
+    Write-Host "In development the API's port is EVERMIND_BACKEND_PORT: if it is the one taken, set that in .env, instead of PORT." -ForegroundColor Yellow
+    exit 1
+}
+
 $lock = "$root\frontend\package-lock.json"
 $lockInstalled = "$root\frontend\node_modules\.installed-package-lock.json"
 if (-not (Test-Path $lockInstalled) -or (Get-FileHash $lock).Hash -ne (Get-FileHash $lockInstalled).Hash) {
@@ -81,6 +97,38 @@ if (-not (Test-Path $lockInstalled) -or (Get-FileHash $lock).Hash -ne (Get-FileH
         exit 1
     }
     Copy-Item $lock $lockInstalled
+}
+
+if ($Lan) {
+    # Vite is what the network sees, and the port it is asked for is PORT, which
+    # is what --check --lan reads (with --dev it would give the API's port
+    # instead).
+    Push-Location "$root\backend"
+    $port = & $python -m app --check --lan
+    $portTaken = $LASTEXITCODE -ne 0
+    Pop-Location
+    if ($portTaken) {
+        # It said why. Vite does not stop for a port that is taken, and may end
+        # up on another one, so the port for the firewall is not known yet.
+        Write-Host ""
+        Write-Host "Starting anyway: Vite may end up on another port, so go by the address it prints." -ForegroundColor Yellow
+        Write-Host "Windows blocks inbound connections by default. In an administrator PowerShell, allow that port once:" -ForegroundColor Yellow
+        Write-Host "  New-NetFirewallRule -DisplayName 'Evermind (dev)' -Direction Inbound -Protocol TCP -LocalPort <the port Vite prints> -Action Allow" -ForegroundColor Cyan
+    } else {
+        # Windows blocks inbound connections by default: without this rule the
+        # port stays unreachable from every other device, whatever the address
+        # used.
+        $allowed = Get-NetFirewallPortFilter -ErrorAction SilentlyContinue |
+                   Where-Object { $_.LocalPort -eq $port } |
+                   Get-NetFirewallRule -ErrorAction SilentlyContinue |
+                   Where-Object { $_.Direction -eq "Inbound" -and $_.Action -eq "Allow" -and $_.Enabled -eq "True" }
+        if (-not $allowed) {
+            Write-Host ""
+            Write-Host "Firewall: no rule allows inbound traffic on port $port." -ForegroundColor Yellow
+            Write-Host "In an administrator PowerShell, run this once:" -ForegroundColor Yellow
+            Write-Host "  New-NetFirewallRule -DisplayName 'Evermind ($port)' -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow" -ForegroundColor Cyan
+        }
+    }
 }
 
 # The API only listens on the loopback: the dev server is what the network sees,
