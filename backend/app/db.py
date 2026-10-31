@@ -23,6 +23,11 @@ async def _connect() -> aiosqlite.Connection:
     return conn
 
 
+# For code that runs outside a request handler, such as a middleware, and so
+# cannot be given a connection by the `get_db` dependency.
+connect = _connect
+
+
 async def init_db() -> None:
     conn = await _connect()
     try:

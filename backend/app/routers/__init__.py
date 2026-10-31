@@ -28,6 +28,7 @@ def register_routers(app: FastAPI) -> None:
         chat,
         connections,
         conversations,
+        gate,
         library,
         lore,
         media,
@@ -37,6 +38,7 @@ def register_routers(app: FastAPI) -> None:
     )
 
     app.include_router(health_router)
+    app.include_router(gate.router)
     app.include_router(chat.router)
     app.include_router(memories.router)
     app.include_router(lore.router)
