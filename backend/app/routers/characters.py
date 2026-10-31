@@ -86,13 +86,15 @@ async def import_character(file: UploadFile, db: aiosqlite.Connection = Depends(
     if is_png(data):
         card = read_card_from_png(data)
         if not card:
-            raise AppError("This PNG does not contain a character card (no \"chara\" chunk).")
+            raise AppError("This PNG does not contain a character card (no \"chara\" chunk).",
+                           kind="png_without_card")
         avatar_path = media.save(data, ".png")
     else:
         try:
             card = json.loads(data.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
-            raise AppError("Unrecognized file: provide a JSON card or a card PNG.")
+            raise AppError("Unrecognized file: provide a JSON card or a card PNG.",
+                           kind="unrecognized_card_file")
     fields = card_to_character(card)
     fields["avatar_path"] = avatar_path
     created = await repo.create(db, fields)
@@ -114,7 +116,7 @@ async def assist_card(payload: CardAssistRequest, db: aiosqlite.Connection = Dep
 async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
     character = await repo.get(db, char_id)
     if not character:
-        raise NotFoundError("Character not found.")
+        raise NotFoundError("Character not found.", "character")
     return character
 
 
@@ -123,14 +125,14 @@ async def update_character(char_id: str, payload: CharacterUpdate,
                            db: aiosqlite.Connection = Depends(get_db)):
     updated = await repo.update(db, char_id, payload.model_dump(exclude_unset=True))
     if not updated:
-        raise NotFoundError("Character not found.")
+        raise NotFoundError("Character not found.", "character")
     return updated
 
 
 @router.delete("/{char_id}", status_code=204)
 async def delete_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await repo.delete(db, char_id):
-        raise NotFoundError("Character not found.")
+        raise NotFoundError("Character not found.", "character")
 
 
 @router.get("/{char_id}/export")
@@ -138,7 +140,7 @@ async def export_character(char_id: str, format: str = "json",
                            db: aiosqlite.Connection = Depends(get_db)):
     character = await repo.get_raw(db, char_id)
     if not character:
-        raise NotFoundError("Character not found.")
+        raise NotFoundError("Character not found.", "character")
     card = character_to_card(character, lore_entries=await lore_repo.list_for_character(db, char_id))
     name = character["name"]
 
@@ -167,6 +169,6 @@ async def upload_avatar(char_id: str, file: UploadFile,
     filename = media.save(data, extension)
     updated = await repo.update(db, char_id, {"avatar_path": filename})
     if not updated:
-        raise NotFoundError("Character not found.")
+        raise NotFoundError("Character not found.", "character")
     await media.forget(db, previous.removeprefix("/api/media/"))
     return updated

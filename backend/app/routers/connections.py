@@ -26,14 +26,14 @@ async def update_connection(conn_id: str, payload: ConnectionUpdate,
                             db: aiosqlite.Connection = Depends(get_db)):
     updated = await repo.update(db, conn_id, payload.model_dump(exclude_unset=True))
     if not updated:
-        raise NotFoundError("Connection not found.")
+        raise NotFoundError("Connection not found.", "connection")
     return updated
 
 
 @router.delete("/{conn_id}", status_code=204)
 async def delete_connection(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await repo.delete(db, conn_id):
-        raise NotFoundError("Connection not found.")
+        raise NotFoundError("Connection not found.", "connection")
     await settings_repo.forget(db, "default_connection_id", conn_id)
 
 
@@ -50,7 +50,7 @@ async def test_connection_payload(payload: ConnectionIn):
 async def test_connection(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
     connection = await repo.get_raw(db, conn_id)
     if not connection:
-        raise NotFoundError("Connection not found.")
+        raise NotFoundError("Connection not found.", "connection")
     try:
         return await get_provider(connection).test()
     except ProviderError as exc:
@@ -67,7 +67,7 @@ async def benchmark_connection(conn_id: str, db: aiosqlite.Connection = Depends(
 
     connection = await repo.get_raw(db, conn_id)
     if not connection:
-        raise NotFoundError("Connection not found.")
+        raise NotFoundError("Connection not found.", "connection")
     connection = dict(connection, max_tokens=96)
     payload = PromptPayload(
         system="You are a speed test. Reply in plain prose.",
@@ -105,7 +105,7 @@ async def benchmark_connection(conn_id: str, db: aiosqlite.Connection = Depends(
 async def list_models(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
     connection = await repo.get_raw(db, conn_id)
     if not connection:
-        raise NotFoundError("Connection not found.")
+        raise NotFoundError("Connection not found.", "connection")
     try:
         return {"models": await get_provider(connection).list_models()}
     except ProviderError as exc:

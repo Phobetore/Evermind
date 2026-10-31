@@ -4,7 +4,9 @@ SSE wire contract (one `data: <json>` line per event):
   {"type":"start","conversation_id":...,"user_message":{...}|null}
   {"type":"delta","text":"..."}
   {"type":"done","message":{...MessageOut}}
-  {"type":"error","message":"..."}
+  {"type":"error","message":"...","kind":"...","resource":"..."}
+  (``kind`` names the failure for the interface; ``resource`` only goes with
+  "not_found", and says what was not found.)
 
 Modes:
   send        — persist the user message, generate the reply.
@@ -20,7 +22,7 @@ from collections.abc import AsyncIterator
 
 import aiosqlite
 
-from ..errors import AppError
+from ..errors import MODEL_EMPTY, MODEL_ERROR, NO_CONNECTION, NOT_FOUND, AppError
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval
 from ..prompting.defaults import IMPERSONATE_PROMPT, SUMMARIZE_PROMPT
@@ -52,6 +54,14 @@ def _sse(obj: dict) -> str:
     return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n"
 
 
+def error_event(message: str, kind: str, resource: str | None = None) -> str:
+    """The event that ends a turn that could not be done."""
+    event = {"type": "error", "message": message, "kind": kind}
+    if resource:
+        event["resource"] = resource
+    return _sse(event)
+
+
 def _auto_title(content: str) -> str:
     """Conversation title from the first user message, RP markup stripped."""
     # Bounded before any regex sees it. These patterns are quadratic on a long
@@ -68,18 +78,26 @@ def _auto_title(content: str) -> str:
 
 
 class _TurnError(Exception):
-    def __init__(self, message: str):
+    """A turn that cannot start. ``kind`` and ``resource`` mean what they do in
+    ``AppError``."""
+
+    def __init__(self, message: str, kind: str, resource: str | None = None):
         super().__init__(message)
         self.message = message
+        self.kind = kind
+        self.resource = resource
+
+    def as_app_error(self) -> AppError:
+        return AppError(self.message, 400, kind=self.kind, resource=self.resource)
 
 
 async def _resolve(db: aiosqlite.Connection, convo_id: str):
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
-        raise _TurnError("Conversation not found.")
+        raise _TurnError("Conversation not found.", NOT_FOUND, "conversation")
     character = await characters_repo.get_raw(db, convo["character_id"])
     if not character:
-        raise _TurnError("Character not found.")
+        raise _TurnError("Character not found.", NOT_FOUND, "character")
     persona = await personas_repo.get(db, convo["persona_id"]) if convo.get("persona_id") else None
     if persona is None:
         persona = await personas_repo.get_default(db)
@@ -94,7 +112,8 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
         connection = await connections_repo.get_default_raw(db)
     if connection is None:
         raise _TurnError(
-            "No LLM connection configured. Add one in Settings → LLM connections."
+            "No LLM connection configured. Add one in Settings → LLM connections.",
+            NO_CONNECTION,
         )
     settings = await settings_repo.get_all(db)
     return convo, character, persona, connection, settings
@@ -154,7 +173,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     try:
         convo, character, persona, connection, settings = await _resolve(db, request.conversation_id)
     except _TurnError as exc:
-        yield _sse({"type": "error", "message": exc.message})
+        yield error_event(exc.message, exc.kind, exc.resource)
         return
 
     char_name = character.get("name") or "Character"
@@ -168,7 +187,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     if request.mode == "send":
         content = (request.content or "").strip()
         if not content:
-            yield _sse({"type": "error", "message": "Empty message."})
+            yield error_event("Empty message.", "empty_message")
             return
         message_meta = {}
         if request.message_mode in ("narrate", "ooc"):
@@ -181,13 +200,13 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
         history = messages
     elif request.mode == "regenerate":
         if not messages:
-            yield _sse({"type": "error", "message": "Nothing to regenerate."})
+            yield error_event("Nothing to regenerate.", "nothing_to_regenerate")
             return
         last = messages[-1]
         if last["role"] == "assistant":
             if not any(m["role"] == "user" for m in messages[:-1]):
-                yield _sse({"type": "error",
-                            "message": "Nothing to regenerate: send a message first."})
+                yield error_event("Nothing to regenerate: send a message first.",
+                                  "nothing_to_regenerate")
                 return
             target_message = last
             history = messages[:-1]
@@ -195,8 +214,8 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
             history = messages
     elif request.mode == "continue":
         if not messages or messages[-1]["role"] != "assistant":
-            yield _sse({"type": "error",
-                        "message": "Nothing to continue: the last message is not a reply."})
+            yield error_event("Nothing to continue: the last message is not a reply.",
+                              "nothing_to_continue")
             return
         target_message = messages[-1]
         continue_mode = True
@@ -345,8 +364,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
                 usage = event.usage
                 finish_reason = (event.meta or {}).get("finish_reason")
             elif event.type == "error":
-                yield _sse({"type": "error", "message": event.message,
-                            "kind": event.meta.get("kind")})
+                yield error_event(event.message, event.meta.get("kind") or MODEL_ERROR)
                 return
 
         text = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
@@ -361,12 +379,14 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
         payload = _build(passages, fold_leading_assistant=True)
 
     if not text and not continue_mode:
-        message = ("The model returned nothing, twice, including once with the opening "
-                   "line moved out of its way. Its chat template is probably not usable "
-                   "for roleplay here; try another model."
-                   if retried_folded else
-                   "The model returned an empty reply. Try again or switch models.")
-        yield _sse({"type": "error", "message": message})
+        if retried_folded:
+            yield error_event("The model returned nothing, twice, including once with the "
+                              "opening line moved out of its way. Its chat template is "
+                              "probably not usable for roleplay here; try another model.",
+                              "model_empty_retried")
+        else:
+            yield error_event("The model returned an empty reply. Try again or switch models.",
+                              MODEL_EMPTY)
         return
 
     saved = await persist(final=True)
@@ -395,13 +415,13 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
     try:
         convo, character, persona, connection, _ = await _resolve(db, convo_id)
     except _TurnError as exc:
-        raise AppError(exc.message, 400)
+        raise exc.as_app_error() from None
 
     char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
     messages = await convo_repo.list_messages(db, convo_id)
     if not messages:
-        raise AppError("Nothing to write: the conversation is empty.")
+        raise AppError("Nothing to write: the conversation is empty.", kind="conversation_empty")
 
     memories = await memories_repo.list_for_conversation(db, convo_id)
     base = build_chat_payload(character=character, persona=persona, conversation=convo,
@@ -427,10 +447,10 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise AppError(event.message, 502, kind=event.meta.get("kind"))
+            raise AppError(event.message, 502, kind=event.meta.get("kind") or MODEL_ERROR)
     text = _trim_reply("".join(chunks), char_name=user_name, user_name=char_name)
     if not text:
-        raise AppError("The model did not suggest anything. Try again.", 502)
+        raise AppError("The model did not suggest anything. Try again.", 502, kind=MODEL_EMPTY)
     return {"text": text}
 
 
@@ -438,13 +458,13 @@ async def summarize(db: aiosqlite.Connection, convo_id: str) -> dict:
     try:
         convo, character, persona, connection, _ = await _resolve(db, convo_id)
     except _TurnError as exc:
-        raise AppError(exc.message, 400)
+        raise exc.as_app_error() from None
 
     char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
     messages = await convo_repo.list_messages(db, convo_id)
     if not messages:
-        raise AppError("Nothing to summarize: the conversation is empty.")
+        raise AppError("Nothing to summarize: the conversation is empty.", kind="conversation_empty")
 
     base = build_chat_payload(character=character, persona=persona, conversation=convo,
                               messages=messages, connection=connection)
@@ -460,9 +480,9 @@ async def summarize(db: aiosqlite.Connection, convo_id: str) -> dict:
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise AppError(event.message, 502, kind=event.meta.get("kind"))
+            raise AppError(event.message, 502, kind=event.meta.get("kind") or MODEL_ERROR)
     summary = "".join(chunks).strip()
     if not summary:
-        raise AppError("The model returned an empty summary.", 502)
+        raise AppError("The model returned an empty summary.", 502, kind=MODEL_EMPTY)
     await convo_repo.update(db, convo_id, {"summary": summary})
     return await convo_repo.get(db, convo_id, with_messages=False)

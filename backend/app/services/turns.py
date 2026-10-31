@@ -70,7 +70,7 @@ async def _run(turn: Turn, request: ChatRequest) -> None:
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001 - a crash here must still release readers
-        turn.emit(chat_service._sse({"type": "error", "message": str(exc)}))
+        turn.emit(chat_service.error_event(str(exc), "internal"))
     finally:
         await db.close()
         turn.finished.set()

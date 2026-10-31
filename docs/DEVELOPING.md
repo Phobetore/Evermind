@@ -163,7 +163,14 @@ whose own name was pointed at 127.0.0.1 (DNS rebinding) looks same-origin in
 every other header. With a password the name is not checked.
 
 Responses are plain dicts shaped by the repositories; Pydantic is used for input
-validation only. User-facing messages are English.
+validation only.
+
+An error is `{"error": "<English sentence>", "kind": "<name>"}`, and a `not_found`
+adds `"resource"` (`character`, `conversation`, `message`, `persona`,
+`connection`, `lore_entry`, `fact`, `library_card`, `illustration`, `file`). The
+sentence is for whoever reads the API; the interface reads `kind`. The same goes
+for the error events of a reply's stream. A new `AppError` needs a `kind`, and a
+test fails without one.
 
 ## How a turn is built
 

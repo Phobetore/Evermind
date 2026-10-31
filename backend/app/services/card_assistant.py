@@ -8,7 +8,7 @@ import json
 
 import aiosqlite
 
-from ..errors import AppError
+from ..errors import MODEL_EMPTY, MODEL_ERROR, MODEL_UNREADABLE, NO_CONNECTION, AppError
 from ..prompting.defaults import CARD_ASSISTANT_PROMPT
 from ..prompting.engine import PromptPayload
 from ..providers import get_provider
@@ -34,7 +34,8 @@ async def _resolve_connection(db: aiosqlite.Connection, connection_id: str | Non
         connection = await connections_repo.get_default_raw(db)
     if connection is None:
         raise AppError(
-            "No LLM connection configured. Add one in Settings → LLM connections.")
+            "No LLM connection configured. Add one in Settings → LLM connections.",
+            kind=NO_CONNECTION)
     return connection
 
 
@@ -111,14 +112,15 @@ async def generate_card(db: aiosqlite.Connection, prompt: str, kind: str,
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise AppError(event.message, 502)
+            raise AppError(event.message, 502, kind=event.meta.get("kind") or MODEL_ERROR)
 
     parsed = parse_llm_json("".join(chunks))
     if parsed is None:
-        raise AppError("The model did not return a readable card. Try again.", 502)
+        raise AppError("The model did not return a readable card. Try again.", 502,
+                       kind=MODEL_UNREADABLE)
     draft = _clean(parsed)
     if not draft:
-        raise AppError("The model returned an empty card. Try again.", 502)
+        raise AppError("The model returned an empty card. Try again.", 502, kind=MODEL_EMPTY)
     # never overwrite what the creator already wrote
     for key, value in existing_filled.items():
         draft[key] = value

@@ -26,7 +26,7 @@ async def create_conversation(payload: ConversationIn,
                               db: aiosqlite.Connection = Depends(get_db)):
     character = await characters_repo.get_raw(db, payload.character_id)
     if not character:
-        raise NotFoundError("Character not found.")
+        raise NotFoundError("Character not found.", "character")
 
     fields = payload.model_dump()
     settings = await settings_repo.get_all(db)
@@ -61,7 +61,7 @@ async def create_conversation(payload: ConversationIn,
 async def get_conversation(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
     convo = await repo.get(db, convo_id)
     if not convo:
-        raise NotFoundError("Conversation not found.")
+        raise NotFoundError("Conversation not found.", "conversation")
     return convo
 
 
@@ -70,7 +70,7 @@ async def patch_conversation(convo_id: str, payload: ConversationPatch,
                              db: aiosqlite.Connection = Depends(get_db)):
     updated = await repo.update(db, convo_id, payload.model_dump(exclude_unset=True))
     if not updated:
-        raise NotFoundError("Conversation not found.")
+        raise NotFoundError("Conversation not found.", "conversation")
     return updated
 
 
@@ -81,7 +81,7 @@ async def upload_wallpaper(convo_id: str, file: UploadFile,
     data, extension = await media.read_image_upload(file)
     updated = await repo.update(db, convo_id, {"wallpaper_path": media.save(data, extension)})
     if not updated:
-        raise NotFoundError("Conversation not found.")
+        raise NotFoundError("Conversation not found.", "conversation")
     # Only if nothing else still points at it: branching shares the one file.
     await media.forget(db, previous.removeprefix("/api/media/"))
     return updated
@@ -94,7 +94,7 @@ async def clear_wallpaper(convo_id: str, db: aiosqlite.Connection = Depends(get_
     previous = (await repo.get(db, convo_id, with_messages=False) or {}).get("wallpaper_url") or ""
     updated = await repo.update(db, convo_id, {"wallpaper_path": ""})
     if not updated:
-        raise NotFoundError("Conversation not found.")
+        raise NotFoundError("Conversation not found.", "conversation")
     await media.forget(db, previous.removeprefix("/api/media/"))
     return updated
 
@@ -102,7 +102,7 @@ async def clear_wallpaper(convo_id: str, db: aiosqlite.Connection = Depends(get_
 @router.delete("/conversations/{convo_id}", status_code=204)
 async def delete_conversation(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await repo.delete(db, convo_id):
-        raise NotFoundError("Conversation not found.")
+        raise NotFoundError("Conversation not found.", "conversation")
 
 
 @router.patch("/messages/{message_id}")
@@ -110,7 +110,7 @@ async def patch_message(message_id: str, payload: MessagePatch,
                         db: aiosqlite.Connection = Depends(get_db)):
     message = await repo.get_message(db, message_id)
     if not message:
-        raise NotFoundError("Message not found.")
+        raise NotFoundError("Message not found.", "message")
     variants = None
     active_index = None
     if payload.content is not None:
@@ -118,7 +118,7 @@ async def patch_message(message_id: str, payload: MessagePatch,
         variants[message["active_index"]] = payload.content
     if payload.active_index is not None:
         if payload.active_index >= len(message["variants"]):
-            raise AppError("Variant index out of range.")
+            raise AppError("Variant index out of range.", kind="variant_out_of_range")
         active_index = payload.active_index
     return await repo.update_message(db, message_id, variants=variants, active_index=active_index)
 
@@ -127,7 +127,7 @@ async def patch_message(message_id: str, payload: MessagePatch,
 async def branch_conversation(message_id: str, db: aiosqlite.Connection = Depends(get_db)):
     branch = await repo.branch_from_message(db, message_id)
     if not branch:
-        raise NotFoundError("Message not found.")
+        raise NotFoundError("Message not found.", "message")
     return branch
 
 
@@ -135,4 +135,4 @@ async def branch_conversation(message_id: str, db: aiosqlite.Connection = Depend
 async def delete_message(message_id: str, following: bool = False,
                          db: aiosqlite.Connection = Depends(get_db)):
     if not await repo.delete_message(db, message_id, following=following):
-        raise NotFoundError("Message not found.")
+        raise NotFoundError("Message not found.", "message")
