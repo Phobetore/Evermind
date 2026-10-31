@@ -54,7 +54,13 @@ class UIFiles(StaticFiles):
             # should get the API's own 404. This is also decided before the
             # method is checked, which would otherwise turn a POST into a 405.
             raise HTTPException(status_code=404)
-        response = await super().get_response(path, scope)
+        try:
+            response = await super().get_response(path, scope)
+        except OSError:
+            # Windows refuses some characters in a file name (``*``, ``"``, a
+            # line break) with an error of its own instead of "not found", and
+            # a path that no file can have is a file that is not there.
+            raise HTTPException(status_code=404) from None
         # Only a file that was found may be called immutable: an error page
         # cached for a year would outlive the fix.
         if top == "assets" and response.status_code in (200, 304):

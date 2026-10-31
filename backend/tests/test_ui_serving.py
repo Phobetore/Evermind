@@ -218,6 +218,16 @@ async def test_traversal_is_refused(ui_client, tmp_path, path):
     assert "top secret" not in r.text
 
 
+@pytest.mark.parametrize("path", [
+    # Names that Windows does not accept in a file name, which the lookup then
+    # reports as an error of its own. Anywhere else they are just not there.
+    "/assets/x*y", "/assets/x%0D%0Ay", "/x%0Ay", "/assets/x%22y", "/assets/x%00y",
+])
+async def test_a_name_the_file_system_refuses_is_a_missing_file(ui_client, path):
+    r = await ui_client.get(path)
+    assert r.status_code == 404
+
+
 async def test_a_link_out_of_the_folder_is_not_followed(ui_client, ui_dir, tmp_path):
     outside = tmp_path / "secret.txt"
     outside.write_text("top secret", encoding="utf-8")
