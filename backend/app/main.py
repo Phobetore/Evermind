@@ -8,7 +8,7 @@ from . import __version__, config
 from .db import init_db
 from .errors import register_error_handlers
 from .gate import GateMiddleware, GateStore
-from .ui import mount_ui
+from .ui import serve_ui
 
 
 @asynccontextmanager
@@ -42,12 +42,11 @@ def create_app() -> FastAPI:
 
     register_routers(app)
 
-    # Last, because the mount takes every path that no route above answered.
     # With no build there is nothing to serve: in development the interface
     # comes from Vite's own server.
     ui = config.ui_dir()
     if (ui / "index.html").is_file():
-        mount_ui(app, ui)
+        serve_ui(app, ui)
     return app
 
 

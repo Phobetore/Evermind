@@ -6,6 +6,8 @@ tests are mostly about what is cached and what is redirected.
 
 import pytest
 
+from .test_gate import open_socket
+
 IMMUTABLE = "public, max-age=31536000, immutable"
 
 
@@ -88,6 +90,45 @@ async def test_unknown_api_path_stays_json_for_any_method(ui_client):
 async def test_api_routes_still_answer_with_the_ui_mounted(ui_client):
     r = await ui_client.get("/api/health")
     assert r.status_code == 200 and r.json()["app"] == "evermind"
+
+
+async def test_a_known_api_route_with_the_wrong_method_is_a_405(ui_client):
+    r = await ui_client.put("/api/health", json={})
+    assert r.status_code == 405
+    assert "GET" in r.headers["allow"]
+
+
+async def test_a_known_api_route_with_a_trailing_slash_is_redirected(ui_client):
+    r = await ui_client.get("/api/health/", follow_redirects=False)
+    assert r.status_code == 307
+    assert r.headers["location"] == "http://localhost/api/health"
+
+
+async def test_a_write_to_an_api_route_with_a_trailing_slash_is_redirected_as_one(ui_client):
+    # 307 asks the client to send the same request again, body included.
+    r = await ui_client.post("/api/characters/", json={"name": "Serana"}, follow_redirects=False)
+    assert r.status_code == 307
+    assert r.headers["location"] == "http://localhost/api/characters"
+
+
+async def test_the_interface_answers_head_too(ui_client):
+    r = await ui_client.head("/")
+    assert r.status_code == 200 and r.content == b""
+    assert r.headers["cache-control"] == "no-cache"
+    r = await ui_client.head("/assets/app-3f2a1b.js")
+    assert r.status_code == 200 and r.headers["cache-control"] == IMMUTABLE
+
+
+async def test_a_page_cannot_be_written_to(ui_client):
+    assert (await ui_client.post("/", json={})).status_code == 405
+
+
+@pytest.mark.parametrize("path", ["/nope", "/api/nope"])
+async def test_a_websocket_to_a_path_nobody_serves_is_closed(make_client, ui_dir, path):
+    from app.main import create_app
+
+    async with make_client(EVERMIND_UI_DIR=str(ui_dir)):
+        assert await open_socket(create_app(), {}, path=path) == ["websocket.close 1000"]
 
 
 async def test_ui_is_public_when_password_is_set(make_client, ui_dir):

@@ -13,7 +13,7 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
-from starlette.types import Scope
+from starlette.types import Receive, Scope, Send
 
 # Vite puts a hash of the content in the name of everything under /assets/, so
 # a file there never changes under its name and can be kept for good.
@@ -42,10 +42,10 @@ class UIFiles(StaticFiles):
         # ``path`` is normalised, so its parts are separated by os.sep.
         top = path.split(os.sep, 1)[0]
         if top == "api":
-            # Mounted on "/", this would also receive the API paths that no
-            # route answered, and a client that expects JSON from /api/ should
-            # get the API's own 404. This is also decided before the method is
-            # checked, which would otherwise turn a POST into a 405.
+            # The router hands this class every path that no route answered,
+            # the API's included, and a client that expects JSON from /api/
+            # should get the API's own 404. This is also decided before the
+            # method is checked, which would otherwise turn a POST into a 405.
             raise HTTPException(status_code=404)
         response = await super().get_response(path, scope)
         # Only a file that was found may be called immutable: an error page
@@ -66,9 +66,25 @@ def _redirect_legacy(request: Request) -> RedirectResponse:
     return RedirectResponse(target, status_code=302)
 
 
-def mount_ui(app: FastAPI, directory: Path) -> None:
-    """Serve ``directory`` on "/". Call it after the routers, so that the API
-    paths are matched before the mount that would take everything."""
+def serve_ui(app: FastAPI, directory: Path) -> None:
+    """Serve ``directory`` for every path that no route of ``app`` answers.
+
+    That is the router's fallback rather than a mount on "/", which would take
+    the paths of the API's routes along with the rest: a wrong method on a route
+    that exists would not be a 405 with its ``Allow`` header, and a missing or
+    added trailing slash would not be redirected.
+    """
     for pattern in LEGACY_PATHS:
         app.add_route(pattern, _redirect_legacy, methods=["GET"], include_in_schema=False)
-    app.mount("/", UIFiles(directory=directory, html=True), name="ui")
+    files = UIFiles(directory=directory, html=True)
+    not_found = app.router.default
+
+    async def fallback(scope: Scope, receive: Receive, send: Send) -> None:
+        # StaticFiles only speaks HTTP. A websocket that no route took is
+        # refused the way the router refuses it.
+        if scope["type"] == "http":
+            await files(scope, receive, send)
+        else:
+            await not_found(scope, receive, send)
+
+    app.router.default = fallback

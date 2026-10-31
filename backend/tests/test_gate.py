@@ -133,10 +133,12 @@ def socket_app():
     return app
 
 
-async def open_socket(app, headers: dict, scheme: str = "ws") -> list[str]:
-    """Opens /api/socket on ws://localhost, unless ``headers`` names another
-    host, the way a server would. Returns the type of each message the
-    application sent back, with the code of a close."""
+async def open_socket(
+    app, headers: dict, scheme: str = "ws", path: str = "/api/socket"
+) -> list[str]:
+    """Opens ``path`` on ws://localhost, unless ``headers`` names another host,
+    the way a server would. Returns the type of each message the application
+    sent back, with the code of a close."""
     sent: list[str] = []
 
     async def receive() -> dict:
@@ -147,7 +149,7 @@ async def open_socket(app, headers: dict, scheme: str = "ws") -> list[str]:
         sent.append(f"{kind} {message.get('code', 1000)}" if kind == "websocket.close" else kind)
 
     scope = {"type": "websocket", "asgi": {"version": "3.0"}, "scheme": scheme,
-             "path": "/api/socket", "raw_path": b"/api/socket", "root_path": "",
+             "path": path, "raw_path": path.encode(), "root_path": "",
              "query_string": b"", "client": ("127.0.0.1", 50000), "server": ("localhost", 80),
              "subprotocols": [],
              "headers": [(k.encode(), v.encode())
