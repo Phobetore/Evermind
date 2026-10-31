@@ -6,6 +6,10 @@ license = "AGPL-3.0-or-later"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
+    # Imported directly, and FastAPI's own floor lets in releases that answer a
+    # name with a NUL byte in it (/assets/x%00y) with a 500 instead of a 404.
+    # This is the release the tests run on.
+    "starlette>=1.3",
     "uvicorn[standard]>=0.32",
     "pydantic>=2.10",
     "aiosqlite>=0.20",
