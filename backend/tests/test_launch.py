@@ -5,6 +5,7 @@ real server: a stray PORT or EVERMIND_GATE_PASSWORD would change what a test
 sees, and a server left running would hold a port for the rest of the run.
 """
 
+import codecs
 import os
 import socket
 import types
@@ -145,6 +146,32 @@ def test_env_file_parsing(tmp_path, clean_env, raw, key, value):
     assert os.environ[key] == value
 
 
+@pytest.mark.parametrize(
+    ("bom", "codec"),
+    [(codecs.BOM_UTF16_LE, "utf-16-le"), (codecs.BOM_UTF16_BE, "utf-16-be")],
+    ids=["little-endian", "big-endian"],
+)
+def test_env_file_utf16_reads_like_utf8(tmp_path, clean_env, bom, codec):
+    # Windows PowerShell 5.1 writes UTF-16 little-endian with a byte order mark
+    # for ">" and "Out-File", and CRLF line ends: the same keys and values as the
+    # UTF-8 file have to come out.
+    text = "PORT=3001\r\nexport BIND=0.0.0.0\r\nEVERMIND_GATE_PASSWORD=mot de passé ✨\r\n"
+    f = tmp_path / ".env"
+    f.write_bytes(bom + text.encode(codec))
+    assert load_env_file(f) == ["PORT", "BIND", "EVERMIND_GATE_PASSWORD"]
+    assert os.environ["PORT"] == "3001"
+    assert os.environ["BIND"] == "0.0.0.0"
+    assert os.environ["EVERMIND_GATE_PASSWORD"] == "mot de passé ✨"
+
+
+def test_env_file_that_is_not_text_raises_before_setting_anything(tmp_path, clean_env):
+    f = tmp_path / ".env"
+    f.write_bytes(b"PORT=3001\nEVERMIND_GATE_PASSWORD=caf\xe9\n")  # Latin-1, not UTF-8
+    with pytest.raises(UnicodeError):
+        load_env_file(f)
+    assert "PORT" not in os.environ
+
+
 def test_env_file_ignores_comments_and_garbage(tmp_path, clean_env):
     f = tmp_path / ".env"
     f.write_text(
@@ -245,6 +272,55 @@ def test_port_in_use_is_not_fooled_by_an_address_this_computer_does_not_have():
     # 192.0.2.1 is reserved for documentation, so no computer has it. The bind
     # fails, but not because the port is taken, and saying so would be wrong.
     assert launch.port_in_use("192.0.2.1", free_port()) is False
+
+
+def _recording_sockets(monkeypatch, os_name):
+    """Stand in for the socket module and for os.name, in the launch module only."""
+    made = []
+
+    class Recorder:
+        def __init__(self, family, kind):
+            self.options = []
+            made.append(self)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def setsockopt(self, level, option, value):
+            self.options.append((level, option, value))
+
+        def bind(self, address):
+            pass
+
+    fake = types.SimpleNamespace(
+        socket=Recorder,
+        AF_INET=socket.AF_INET,
+        AF_INET6=socket.AF_INET6,
+        SOCK_STREAM=socket.SOCK_STREAM,
+        SOL_SOCKET=socket.SOL_SOCKET,
+        SO_REUSEADDR=socket.SO_REUSEADDR,
+    )
+    monkeypatch.setattr(launch, "socket", fake)
+    monkeypatch.setattr(launch, "os", types.SimpleNamespace(name=os_name))
+    return made
+
+
+def test_port_probe_reuses_the_address_on_posix(monkeypatch):
+    # uvicorn binds with SO_REUSEADDR there, so a port that only has connections
+    # in TIME_WAIT left on it is free for uvicorn and has to be free for the probe.
+    made = _recording_sockets(monkeypatch, "posix")
+    assert launch.port_in_use("127.0.0.1", 3000) is False
+    assert [m.options for m in made] == [[(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)]]
+
+
+def test_port_probe_does_not_reuse_the_address_on_windows(monkeypatch):
+    # There the option lets a second socket bind to a port that is in use.
+    made = _recording_sockets(monkeypatch, "nt")
+    assert launch.port_in_use("127.0.0.1", 3000) is False
+    assert [m.options for m in made] == [[]]
 
 
 def test_lan_address_asks_the_routing_table_without_sending_anything(monkeypatch):
@@ -451,6 +527,54 @@ def test_env_file_flags(clean_env, tmp_path, monkeypatch, flags, expected):
     argv = [str(custom) if flag == "<custom>" else flag for flag in flags]
     assert launch.main(["--check", "--port", str(free_port()), *argv]) == 0
     assert os.environ.get("EVERMIND_GATE_PASSWORD") == expected
+
+
+def test_explicit_env_file_that_does_not_exist_is_an_error(clean_env, tmp_path, served, capsys):
+    missing = tmp_path / "nope.env"
+    assert launch.main(["--check", "--env-file", str(missing), "--port", str(free_port())]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [f"The settings file {missing} does not exist."]
+    assert served == []
+
+
+def test_missing_default_env_file_stays_silent(clean_env, served, capsys):
+    # clean_env points the default file at one that does not exist.
+    assert launch.main(["--check", "--port", str(free_port())]) == 0
+    assert capsys.readouterr().err == ""
+
+
+def test_no_env_file_wins_over_a_missing_explicit_one(clean_env, tmp_path, served, capsys):
+    argv = ["--check", "--no-env-file", "--env-file", str(tmp_path / "nope.env")]
+    assert launch.main([*argv, "--port", str(free_port())]) == 0
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize("explicit", [True, False], ids=["explicit", "default"])
+def test_undecodable_env_file_names_the_file_and_exits(
+    clean_env, tmp_path, monkeypatch, served, capsys, explicit
+):
+    f = tmp_path / "broken.env"
+    f.write_bytes(b"EVERMIND_GATE_PASSWORD=caf\xe9\n")
+    flags = ["--env-file", str(f)] if explicit else []
+    if not explicit:
+        monkeypatch.setattr(config, "default_env_file", lambda: f)
+    assert launch.main(["--check", "--port", str(free_port()), *flags]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert len(captured.err.splitlines()) == 1
+    assert str(f) in captured.err
+    assert served == []
+
+
+def test_unreadable_env_file_names_the_file_and_exits(clean_env, tmp_path, served, capsys):
+    # A folder where a file is expected: PermissionError on Windows, IsADirectoryError
+    # elsewhere, and either way an OSError.
+    assert launch.main(["--check", "--env-file", str(tmp_path), "--port", str(free_port())]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert len(captured.err.splitlines()) == 1
+    assert str(tmp_path) in captured.err
 
 
 def test_settings_from_the_file_decide_where_to_listen(clean_env, tmp_path, served, capsys):

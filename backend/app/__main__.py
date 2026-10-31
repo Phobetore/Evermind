@@ -109,8 +109,12 @@ def lan_address() -> str | None:
 def port_in_use(host: str, port: int) -> bool:
     """Whether something already holds the port.
 
-    SO_REUSEADDR is left off on purpose: on Windows it lets a second socket bind
-    to a port that is in active use, which is exactly the case to catch.
+    The probe has to bind the way uvicorn will. On POSIX uvicorn sets
+    SO_REUSEADDR, so a port that only has closed connections waiting out
+    TIME_WAIT is free for it, and the probe sets the option too: without it a
+    restart a few seconds after a stop would be told the port is busy. On Windows
+    the option means something else, it lets a second socket bind to a port that
+    is in active use, which is exactly the case to catch, so it stays off.
 
     Only the failures that mean "the port is taken" count. A host that is not an
     address of this computer, or a name that does not resolve, fails the bind too,
@@ -120,6 +124,8 @@ def port_in_use(host: str, port: int) -> bool:
     family = socket.AF_INET6 if ":" in host else socket.AF_INET
     try:
         with socket.socket(family, socket.SOCK_STREAM) as s:
+            if os.name != "nt":
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((host, port))
     except OSError as err:
         return err.errno in _PORT_TAKEN
@@ -148,7 +154,28 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
     if not args.no_env_file:
-        config.load_env_file(Path(args.env_file) if args.env_file else config.default_env_file())
+        # The default file is optional, since Evermind runs without one. A file
+        # that was asked for by name is not: a typo there would otherwise start
+        # the server without the settings the person meant to give it.
+        env_file = Path(args.env_file) if args.env_file else config.default_env_file()
+        if args.env_file and not env_file.exists():
+            _say(f"The settings file {env_file} does not exist.", file=sys.stderr)
+            return 1
+        try:
+            config.load_env_file(env_file)
+        except UnicodeError:
+            _say(
+                f"Cannot read the settings file {env_file}: "
+                "it is not valid UTF-8 or UTF-16 text.",
+                file=sys.stderr,
+            )
+            return 1
+        except OSError as err:
+            _say(
+                f"Cannot read the settings file {env_file}: {err.strerror or err}.",
+                file=sys.stderr,
+            )
+            return 1
     if args.data_dir:
         # After the settings file, so the flag wins over a data directory set there.
         os.environ["EVERMIND_DATA_DIR"] = args.data_dir

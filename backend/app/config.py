@@ -1,5 +1,6 @@
 """Runtime configuration resolved from environment variables."""
 
+import codecs
 import os
 import re
 from pathlib import Path
@@ -25,16 +26,27 @@ def load_env_file(path: Path) -> list[str]:
 
     - The file may start with a byte order mark and use CRLF line endings, which
       is what Notepad and PowerShell write. Neither may end up in a key or value.
+    - UTF-16 is understood as well as UTF-8, because that is what ``>`` and
+      ``Out-File`` write in Windows PowerShell 5.1. It is recognised by its byte
+      order mark, which that PowerShell always writes.
     - There are no trailing comments. ``#`` starts a comment only at the start of
       a line, because a password is allowed to contain one.
     - A variable that is already set and not empty wins over the file, so that
       ``PORT=3001 python -m app`` does what it says. An empty one does not: the
       launch scripts always treated it as unset.
+
+    A missing file is not an error. One that exists but cannot be read, or is not
+    text in either encoding, raises OSError or UnicodeError, before anything has
+    been set.
     """
     try:
-        text = path.read_text(encoding="utf-8-sig")
+        data = path.read_bytes()
     except FileNotFoundError:
         return []
+    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        text = data.decode("utf-16")
+    else:
+        text = data.decode("utf-8-sig")
     keys: list[str] = []
     for raw in text.split("\n"):
         line = raw.strip()
