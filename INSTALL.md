@@ -211,6 +211,11 @@ You also need two free tools installed: **Python 3.11 or newer**
 ([nodejs.org](https://nodejs.org)). Node is only used to build the interface;
 Evermind itself runs on Python alone.
 
+> **On Debian or Ubuntu**, Python's virtual-environment module is a separate
+> package: `sudo apt install python3-venv` (or `python3.13-venv`, to match your
+> Python version). The Node.js in the distribution's own packages is often older
+> than 22.12, so get a current one from nodejs.org or with a version manager.
+
 Then, from the Evermind folder:
 
 ```bash
