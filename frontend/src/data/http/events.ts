@@ -9,8 +9,9 @@ export async function readEvents(
   onEvent: (event: ChatEvent) => void,
 ): Promise<void> {
   const resp = await pending;
-  // No body at all is the server having nothing to say, which is how an idle
-  // conversation answers a request to follow its turn.
+  // A response with no body object, a 204 for one, has nothing to read. An idle
+  // conversation answers a request to follow its turn with a 200 and a stream
+  // that is empty, which the loop below ends on at once.
   if (!resp.body) return;
 
   const reader = resp.body.getReader();
