@@ -13,12 +13,12 @@
 # testing
 /coverage
 
-# next.js
+# what earlier versions, built with Next.js, left behind
 /.next/
-/out/
 
 # production
-/build
+/dist
+/dist-e2e
 
 # misc
 .DS_Store
@@ -38,4 +38,3 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts

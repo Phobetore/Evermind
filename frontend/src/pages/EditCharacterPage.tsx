@@ -1,13 +1,18 @@
-"use client";
-
 import { CharacterForm } from "@/components/editor/CharacterForm";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import type { Character } from "@/types";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router";
 
-export default function EditCharacterPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+/** Keyed by the id: the form takes its fields from the card once, when it
+ *  first appears, so another card needs a form of its own. */
+export function EditCharacterPage() {
+  const { id = "" } = useParams();
+  return <EditCharacter key={id} id={id} />;
+}
+
+function EditCharacter({ id }: { id: string }) {
   const t = useT();
   const [character, setCharacter] = useState<Character | null>(null);
   const [error, setError] = useState<string | null>(null);

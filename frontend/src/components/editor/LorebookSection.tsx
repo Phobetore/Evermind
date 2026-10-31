@@ -1,5 +1,3 @@
-"use client";
-
 import { TagInput } from "@/components/editor/TagInput";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";

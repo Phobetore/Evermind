@@ -130,6 +130,13 @@
     "globalInstructionsPlaceholder": "Z. B.: Antworte immer auf Deutsch. Antworten von maximal 2 Absätzen.\nBleib düster und realistisch, frag mich nie um Erlaubnis, die Geschichte voranzutreiben.",
     "saveInstructions": "Anweisungen speichern",
     "savedFlash": "Gespeichert.",
+    "access": {
+      "title": "Zugang",
+      "hint": "Dieses Gerät bleibt nach seinem letzten Besuch 30 Tage lang angemeldet.",
+      "logout": "Auf diesem Gerät abmelden",
+      "logoutEverywhere": "Alle Geräte abmelden",
+      "logoutEverywhereConfirm": "Jedes Gerät, dieses eingeschlossen, muss das Passwort dann noch einmal eingeben."
+    },
     "about": {
       "title": "Über Evermind",
       "starHint": "Wenn Evermind dir nützt: Ein Stern auf dem Repository ist das, wodurch andere es überhaupt finden.",
@@ -378,7 +385,7 @@
       "systemPromptLabel": "Eigener System-Prompt",
       "systemPromptHint": "Ersetzt die Standard-Rollenspielregeln von Evermind. {{original}} fügt sie wieder ein.",
       "postHistoryLabel": "Anweisungen am Kontextende",
-      "postHistoryHint": "Wird nach dem Verlauf eingefügt, so nah wie möglich an der Generierung (der „Jailbreak“ der V2-Karten).",
+      "postHistoryHint": "Wird nach dem Verlauf eingefügt, so nah wie möglich an der Generierung (das Feld „post-history instructions“ der V2-Karten).",
       "creatorNotesHint": "Auf der Karte sichtbar, wird nie an das Modell gesendet.",
       "creatorLabel": "Ersteller",
       "versionLabel": "Version",
@@ -439,6 +446,7 @@
   },
   "login": {
     "accessDenied": "Zugriff verweigert.",
+    "tooManyAttempts": "Zu viele Versuche. Versuch es in {minutes} Min. noch einmal.",
     "serverUnreachable": "Der Server antwortet nicht.",
     "tagline": "Deine Charaktere warten auf der anderen Seite.",
     "passwordLabel": "Passwort",

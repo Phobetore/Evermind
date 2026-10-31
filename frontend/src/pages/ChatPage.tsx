@@ -1,5 +1,3 @@
-"use client";
-
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ModelSilent } from "@/components/chat/ModelSilent";
@@ -11,14 +9,19 @@ import { useT } from "@/i18n/useT";
 import { turnStore } from "@/lib/turnStore";
 import type { ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { use, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Link, useNavigate, useParams } from "react-router";
 
-export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+/** Keyed by the id, so that a branch, which opens at an address of its own,
+ *  starts from its own messages rather than from the ones it was cut from. */
+export function ChatPage() {
+  const { id = "" } = useParams();
+  return <ChatView key={id} id={id} />;
+}
+
+function ChatView({ id }: { id: string }) {
   const t = useT();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [persona, setPersona] = useState<Persona | null>(null);
@@ -307,14 +310,14 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   async function branchFrom(message: Message) {
     if (!confirm(t("chat.message.confirmBranch"))) return;
     const branch = await data.messages.branch(message.id);
-    router.push(`/chat/${branch.id}`);
+    navigate(`/chat/${branch.id}`);
   }
 
   if (loadError) {
     return (
       <div className="p-10">
         <p className="text-blood">{loadError}</p>
-        <Link href="/chat" className="btn btn-ghost mt-4">
+        <Link to="/chat" className="btn btn-ghost mt-4">
           <ArrowLeft className="h-4 w-4" /> {t("nav.conversations")}
         </Link>
       </div>
@@ -345,7 +348,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         {/* Header */}
         <header className="flex items-center gap-3 border-b border-ink-700 bg-ink-900 px-4 py-3 md:bg-ink-900/80 md:backdrop-blur">
           <Link
-            href="/chat"
+            to="/chat"
             className="rounded-lg p-1.5 text-mist transition-colors hover:bg-ink-800 hover:text-parchment"
             aria-label={t("chat.header.backAriaLabel")}
           >

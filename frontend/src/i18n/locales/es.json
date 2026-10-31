@@ -130,6 +130,13 @@
     "globalInstructionsPlaceholder": "P. ej.: Responde siempre en español. Respuestas de 2 párrafos como máximo.\nMantén un tono oscuro y realista, no me pidas nunca permiso para avanzar la historia.",
     "saveInstructions": "Guardar instrucciones",
     "savedFlash": "Guardado.",
+    "access": {
+      "title": "Acceso",
+      "hint": "Este dispositivo mantiene la sesión iniciada durante 30 días después de su última visita.",
+      "logout": "Cerrar sesión en este dispositivo",
+      "logoutEverywhere": "Cerrar sesión en todos los dispositivos",
+      "logoutEverywhereConfirm": "Todos los dispositivos, este incluido, tendrán que volver a escribir la contraseña."
+    },
     "about": {
       "title": "Acerca de",
       "starHint": "Si Evermind te resulta útil, una estrella en el repositorio es lo que hace que otras personas lo encuentren.",
@@ -378,7 +385,7 @@
       "systemPromptLabel": "Prompt de sistema personalizado",
       "systemPromptHint": "Sustituye las reglas de rol por defecto de Evermind. {{original}} las reinyecta.",
       "postHistoryLabel": "Instrucciones de fin de contexto",
-      "postHistoryHint": "Se inyectan después del historial, lo más cerca posible de la generación (el «jailbreak» de las fichas V2).",
+      "postHistoryHint": "Se inyectan después del historial, lo más cerca posible de la generación (el campo «post-history instructions» de las fichas V2).",
       "creatorNotesHint": "Visibles en la ficha, nunca se envían al modelo.",
       "creatorLabel": "Creador",
       "versionLabel": "Versión",
@@ -439,6 +446,7 @@
   },
   "login": {
     "accessDenied": "Acceso denegado.",
+    "tooManyAttempts": "Demasiados intentos. Vuelve a intentarlo en {minutes} min.",
     "serverUnreachable": "El servidor no responde.",
     "tagline": "Tus personajes te esperan al otro lado.",
     "passwordLabel": "Contraseña",

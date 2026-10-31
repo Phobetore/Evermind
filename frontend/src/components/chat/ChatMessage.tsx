@@ -1,5 +1,3 @@
-"use client";
-
 import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { useT } from "@/i18n/useT";

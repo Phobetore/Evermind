@@ -1,5 +1,3 @@
-"use client";
-
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { data } from "@/data";
@@ -8,10 +6,10 @@ import { clearDraft, pruneDrafts } from "@/lib/drafts";
 import { timeAgo } from "@/lib/utils";
 import type { Conversation } from "@/types";
 import { GitBranch, MessagesSquare, Pencil, PenLine, Trash2 } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 
-export default function ConversationsPage() {
+export function ChatListPage() {
   const t = useT();
   const [conversations, setConversations] = useState<Conversation[] | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -69,7 +67,7 @@ export default function ConversationsPage() {
           {conversations.map((convo) => (
             <Link
               key={convo.id}
-              href={`/chat/${convo.id}`}
+              to={`/chat/${convo.id}`}
               className="group panel flex items-center gap-4 px-5 py-4 transition-all hover:-translate-y-0.5 hover:border-ember-600/40"
             >
               <Avatar

@@ -39,8 +39,8 @@
   --color-blood: #d96a5f;
   --color-moss: #8fae7e;
 
-  --font-display: var(--font-fraunces), "Georgia", serif;
-  --font-body: var(--font-newsreader), "Georgia", serif;
+  --font-display: "Fraunces Variable", "Georgia", serif;
+  --font-body: "Newsreader Variable", "Georgia", serif;
 
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 28px -8px rgba(0, 0, 0, 0.55);
   --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 18px 44px -10px rgba(0, 0, 0, 0.65),

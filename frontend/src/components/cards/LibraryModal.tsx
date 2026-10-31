@@ -1,5 +1,3 @@
-"use client";
-
 import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
@@ -59,7 +57,6 @@ export function LibraryModal({
               className="flex flex-wrap items-start gap-3 rounded-xl border border-ink-700 bg-ink-900/60 p-3 sm:flex-nowrap sm:justify-between sm:gap-4 sm:p-4"
             >
               {item.has_avatar && (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={data.library.avatarUrl(item.filename)}
                   alt={item.name}

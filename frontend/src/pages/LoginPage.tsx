@@ -1,16 +1,27 @@
-"use client";
-
+import { useAccess } from "@/components/layout/Access";
+import { data, DataError } from "@/data";
 import { useT } from "@/i18n/useT";
+import { safeFrom } from "@/lib/safeFrom";
 import { KeyRound, Loader2, VenetianMask } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { useState } from "react";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
 
-function Gate() {
-  const search = useSearchParams();
+export function LoginPage() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { status, refresh } = useAccess();
   const t = useT();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  // Only ever a page of this app: the address can be written by anyone.
+  const from = safeFrom(params.get("from"));
+
+  // Nothing to unlock: no password is set, or this device is already in.
+  if (!data.access || (status && (!status.enabled || status.authenticated))) {
+    return <Navigate to={from} replace />;
+  }
+  const access = data.access;
 
   async function unlock(event: React.FormEvent) {
     event.preventDefault();
@@ -18,22 +29,22 @@ function Gate() {
     setChecking(true);
     setError(null);
     try {
-      const resp = await fetch("/gate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => ({}));
-        setError(body.error ?? t("login.accessDenied"));
+      await access.login(password);
+      await refresh();
+      navigate(from, { replace: true });
+    } catch (e) {
+      if (e instanceof DataError && e.kind === "wrong_password") {
+        setError(t("login.accessDenied"));
         setPassword("");
-        setChecking(false);
-        return;
+      } else if (e instanceof DataError && e.kind === "rate_limited") {
+        // The server says how long in seconds; a minute is what people read.
+        const minutes = Math.max(1, Math.ceil((e.retryAfter ?? 60) / 60));
+        setError(t("login.tooManyAttempts", { minutes }));
+      } else if (e instanceof DataError) {
+        setError(e.message);
+      } else {
+        setError(t("login.serverUnreachable"));
       }
-      // Full navigation so the middleware sees the fresh cookie.
-      window.location.href = search.get("from") || "/";
-    } catch {
-      setError(t("login.serverUnreachable"));
       setChecking(false);
     }
   }
@@ -98,13 +109,5 @@ function Gate() {
         </p>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense>
-      <Gate />
-    </Suspense>
   );
 }

@@ -130,6 +130,13 @@
     "globalInstructionsPlaceholder": "E.g.: Always reply in English. Replies of 2 paragraphs maximum.\nStay dark and realistic, never ask my permission to move the story forward.",
     "saveInstructions": "Save instructions",
     "savedFlash": "Saved.",
+    "access": {
+      "title": "Access",
+      "hint": "This device stays signed in for 30 days after its last visit.",
+      "logout": "Sign out of this device",
+      "logoutEverywhere": "Sign out every device",
+      "logoutEverywhereConfirm": "Every device, this one included, will have to enter the password again."
+    },
     "about": {
       "title": "About",
       "starHint": "If Evermind is useful to you, starring the repository is what makes other people find it.",
@@ -378,7 +385,7 @@
       "systemPromptLabel": "Custom system prompt",
       "systemPromptHint": "Replaces Evermind's default roleplay rules. {{original}} re-injects them.",
       "postHistoryLabel": "End-of-context instructions",
-      "postHistoryHint": "Injected after the history, as close as possible to generation (the \"jailbreak\" of V2 cards).",
+      "postHistoryHint": "Injected after the history, as close as possible to generation (the \"post-history instructions\" field of V2 cards).",
       "creatorNotesHint": "Visible on the card, never sent to the model.",
       "creatorLabel": "Creator",
       "versionLabel": "Version",
@@ -439,6 +446,7 @@
   },
   "login": {
     "accessDenied": "Access denied.",
+    "tooManyAttempts": "Too many attempts. Try again in {minutes} min.",
     "serverUnreachable": "The server isn't responding.",
     "tagline": "Your characters are waiting on the other side.",
     "passwordLabel": "Password",

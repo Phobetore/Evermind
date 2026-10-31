@@ -1,12 +1,10 @@
-"use client";
-
 import { Field } from "@/components/editor/Field";
 import { Modal } from "@/components/ui/Modal";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import type { Character, Connection, Persona } from "@/types";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 
 export function StartChatModal({
   character,
@@ -15,7 +13,7 @@ export function StartChatModal({
   character: Character;
   onClose: () => void;
 }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const t = useT();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -52,7 +50,7 @@ export function StartChatModal({
         connection_id: connectionId || null,
         greeting_index: greetingIndex,
       });
-      router.push(`/chat/${convo.id}`);
+      navigate(`/chat/${convo.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("cards.startChatModal.startError"));
       setStarting(false);

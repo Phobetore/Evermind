@@ -130,6 +130,13 @@
     "globalInstructionsPlaceholder": "Ex. : Réponds toujours en français. Réponses de 2 paragraphes maximum.\nReste sombre et réaliste, ne me demande jamais la permission d'avancer.",
     "saveInstructions": "Enregistrer les consignes",
     "savedFlash": "Enregistré.",
+    "access": {
+      "title": "Accès",
+      "hint": "Cet appareil reste connecté 30 jours après sa dernière visite.",
+      "logout": "Se déconnecter de cet appareil",
+      "logoutEverywhere": "Déconnecter tous les appareils",
+      "logoutEverywhereConfirm": "Tous les appareils, celui-ci compris, devront saisir à nouveau le mot de passe."
+    },
     "about": {
       "title": "À propos",
       "starHint": "Si Evermind vous est utile, une étoile sur le dépôt est ce qui permet aux autres de le découvrir.",
@@ -378,7 +385,7 @@
       "systemPromptLabel": "System prompt personnalisé",
       "systemPromptHint": "Remplace les règles de roleplay par défaut d'Evermind. {{original}} les réinjecte.",
       "postHistoryLabel": "Instructions de fin de contexte",
-      "postHistoryHint": "Injectées après l'historique, au plus près de la génération (« jailbreak » des cartes V2).",
+      "postHistoryHint": "Injectées après l'historique, au plus près de la génération (champ « post-history instructions » des cartes V2).",
       "creatorNotesHint": "Visibles sur la fiche, jamais envoyées au modèle.",
       "creatorLabel": "Créateur",
       "versionLabel": "Version",
@@ -439,6 +446,7 @@
   },
   "login": {
     "accessDenied": "Accès refusé.",
+    "tooManyAttempts": "Trop de tentatives. Réessayez dans {minutes} min.",
     "serverUnreachable": "Le serveur ne répond pas.",
     "tagline": "Vos personnages vous attendent de l'autre côté.",
     "passwordLabel": "Mot de passe",

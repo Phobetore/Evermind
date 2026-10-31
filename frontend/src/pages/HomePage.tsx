@@ -1,5 +1,3 @@
-"use client";
-
 import { CharacterCard } from "@/components/cards/CharacterCard";
 import { ImportModal } from "@/components/cards/ImportModal";
 import { LibraryModal } from "@/components/cards/LibraryModal";
@@ -9,8 +7,8 @@ import { useT } from "@/i18n/useT";
 import type { Character, Kind } from "@/types";
 import { clsx } from "clsx";
 import { FileUp, LibraryBig, Plus, Search, Sparkles, Star } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router";
 
 /** These three lose their labels on a phone, but kept 1.1rem of side padding
  *  around a 16px icon: 53px each, which shoved Create off a 320px screen. */
@@ -22,7 +20,7 @@ const TABS: { value: Kind | "all"; labelKey: string }[] = [
   { value: "scenario", labelKey: "home.tabs.scenarios" },
 ];
 
-export default function HubPage() {
+export function HomePage() {
   const t = useT();
   const [characters, setCharacters] = useState<Character[] | null>(null);
   const [tab, setTab] = useState<Kind | "all">("all");
@@ -138,7 +136,7 @@ export default function HubPage() {
             <FileUp className="h-4 w-4" />
             <span className="hidden sm:inline">{t("home.import")}</span>
           </button>
-          <Link href="/characters/new" className="btn btn-primary flex-1 sm:flex-none">
+          <Link to="/characters/new" className="btn btn-primary flex-1 sm:flex-none">
             <Plus className="h-4 w-4" />
             {t("home.create")}
           </Link>

@@ -1,5 +1,3 @@
-"use client";
-
 import { Field } from "@/components/editor/Field";
 import { Modal } from "@/components/ui/Modal";
 import type { BenchmarkResult, ConnectionInput, ConnectionTestResult, DataSource } from "@/data";

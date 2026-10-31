@@ -1,5 +1,3 @@
-"use client";
-
 import { StartChatModal } from "@/components/cards/StartChatModal";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
@@ -9,13 +7,12 @@ import { previewMacros, timeAgo } from "@/lib/utils";
 import type { Character, Conversation } from "@/types";
 import { MessageCircle, Pencil, Star } from "lucide-react";
 import { clsx } from "clsx";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 function CharacterDetail({ id }: { id: string }) {
-  const router = useRouter();
-  const search = useSearchParams();
+  const navigate = useNavigate();
+  const [search] = useSearchParams();
   const t = useT();
   const [character, setCharacter] = useState<Character | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -76,7 +73,7 @@ function CharacterDetail({ id }: { id: string }) {
             <button className="btn btn-primary" onClick={() => setShowStart(true)}>
               <MessageCircle className="h-4 w-4" /> {t("characters.detail.startConversationButton")}
             </button>
-            <Link href={`/characters/${character.id}/edit`} className="btn btn-ghost">
+            <Link to={`/characters/${character.id}/edit`} className="btn btn-ghost">
               <Pencil className="h-4 w-4" /> {t("characters.detail.editButton")}
             </Link>
             <button
@@ -138,7 +135,7 @@ function CharacterDetail({ id }: { id: string }) {
                 {conversations.map((c) => (
                   <button
                     key={c.id}
-                    onClick={() => router.push(`/chat/${c.id}`)}
+                    onClick={() => navigate(`/chat/${c.id}`)}
                     className="panel flex items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:border-ember-600/40"
                   >
                     <span className="truncate font-display text-sm font-medium">
@@ -162,11 +159,9 @@ function CharacterDetail({ id }: { id: string }) {
   );
 }
 
-export default function CharacterPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  return (
-    <Suspense>
-      <CharacterDetail id={id} />
-    </Suspense>
-  );
+/** Keyed by the id, so that going from one card to another starts afresh
+ *  instead of showing the previous card until the next one arrives. */
+export function CharacterPage() {
+  const { id = "" } = useParams();
+  return <CharacterDetail key={id} id={id} />;
 }

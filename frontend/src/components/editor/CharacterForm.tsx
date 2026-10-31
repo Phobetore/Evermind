@@ -1,5 +1,3 @@
-"use client";
-
 import { Field } from "@/components/editor/Field";
 import { LorebookSection } from "@/components/editor/LorebookSection";
 import { TagInput } from "@/components/editor/TagInput";
@@ -13,8 +11,8 @@ import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
   UserRound, X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 
 type Draft = CharacterInput;
 
@@ -58,7 +56,7 @@ const KIND_COPY: Record<Kind, Record<string, { labelKey: string; hintKey: string
 };
 
 export function CharacterForm({ initial }: { initial?: Character }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const t = useT();
   const editing = Boolean(initial);
   const [draft, setDraft] = useState<Draft>(initial ?? EMPTY);
@@ -154,8 +152,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
           });
         }
       }
-      router.push(`/characters/${saved.id}`);
-      router.refresh();
+      navigate(`/characters/${saved.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("personas.saveError"));
       setSaving(false);
@@ -166,8 +163,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
     if (!initial) return;
     if (!confirm(t("characters.form.confirmDelete", { name: initial.name }))) return;
     await data.characters.remove(initial.id);
-    router.push("/");
-    router.refresh();
+    navigate("/");
   }
 
   async function exportCard(format: "json" | "png") {
@@ -512,7 +508,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
             <span />
           )}
           <div className="flex gap-2">
-            <button className="btn btn-ghost" onClick={() => router.back()}>
+            <button className="btn btn-ghost" onClick={() => navigate(-1)}>
               {t("common.cancel")}
             </button>
             <button className="btn btn-primary" onClick={save} disabled={saving}>

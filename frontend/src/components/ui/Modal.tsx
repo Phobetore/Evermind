@@ -1,5 +1,3 @@
-"use client";
-
 import { useT } from "@/i18n/useT";
 import { X } from "lucide-react";
 import { useEffect } from "react";

@@ -1,9 +1,6 @@
-"use client";
-
 import { clsx } from "clsx";
 import { Flame, MessagesSquare, Settings, UserRound, VenetianMask } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useLocation } from "react-router";
 import { useT } from "@/i18n/useT";
 import { LanguageSelect } from "./LanguageSelect";
 
@@ -15,11 +12,11 @@ const LINKS = [
 ];
 
 export function Sidebar() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
   const t = useT();
   return (
     <aside className="hidden w-56 shrink-0 flex-col border-r border-ink-700 bg-ink-900/70 md:flex">
-      <Link href="/" className="group flex items-center gap-2.5 px-5 pt-6 pb-7">
+      <Link to="/" className="group flex items-center gap-2.5 px-5 pt-6 pb-7">
         <VenetianMask
           className="h-7 w-7 text-ember-400 transition-transform duration-300 group-hover:-rotate-12"
           strokeWidth={1.6}
@@ -33,7 +30,7 @@ export function Sidebar() {
           return (
             <Link
               key={href}
-              href={href}
+              to={href}
               className={clsx(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.95rem] transition-colors",
                 active

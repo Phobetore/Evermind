@@ -1,5 +1,3 @@
-"use client";
-
 import { Modal } from "@/components/ui/Modal";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";

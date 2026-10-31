@@ -1,5 +1,3 @@
-"use client";
-
 import { ModelSilent } from "@/components/chat/ModelSilent";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";

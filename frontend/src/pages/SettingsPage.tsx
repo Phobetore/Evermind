@@ -1,17 +1,18 @@
-"use client";
-
 import { Field } from "@/components/editor/Field";
+import { useAccess } from "@/components/layout/Access";
 import { ConnectionForm } from "@/components/settings/ConnectionForm";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import type { Connection, Persona, Settings, UpdateStatus } from "@/types";
-import { Cable, Loader2, Plus, RefreshCw } from "lucide-react";
+import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 
-export default function SettingsPage() {
+export function SettingsPage() {
   const t = useT();
+  const { status: accessStatus } = useAccess();
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -217,6 +218,8 @@ export default function SettingsPage() {
         </section>
       )}
 
+      {data.access && accessStatus?.enabled && <Access access={data.access} />}
+
       {data.updates && <About updates={data.updates} />}
 
       {editing && data.connections && (
@@ -255,6 +258,58 @@ function GlobalInstructions({
         {t("settings.saveInstructions")}
       </button>
     </div>
+  );
+}
+
+/** Signing out, for the devices that had to give the password to get in. */
+function Access({ access }: { access: NonNullable<DataSource["access"]> }) {
+  const t = useT();
+  const navigate = useNavigate();
+  const { refresh } = useAccess();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function signOut(everywhere: boolean) {
+    if (everywhere && !confirm(t("settings.access.logoutEverywhereConfirm"))) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await (everywhere ? access.logoutEverywhere() : access.logout());
+      await refresh();
+      navigate("/login");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mt-10">
+      <h2 className="ui-label mb-2">{t("settings.access.title")}</h2>
+      <div className="panel px-5 py-4">
+        <p className="text-sm leading-relaxed text-mist">{t("settings.access.hint")}</p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="btn btn-ghost !py-1.5 text-sm"
+            onClick={() => signOut(false)}
+            disabled={busy}
+          >
+            <LogOut className="h-4 w-4" />
+            {t("settings.access.logout")}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost !py-1.5 text-sm"
+            onClick={() => signOut(true)}
+            disabled={busy}
+          >
+            {t("settings.access.logoutEverywhere")}
+          </button>
+        </div>
+        {error && <p className="mt-3 text-sm text-blood">{error}</p>}
+      </div>
+    </section>
   );
 }
 

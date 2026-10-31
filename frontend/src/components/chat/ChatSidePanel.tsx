@@ -1,5 +1,3 @@
-"use client";
-
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { data } from "@/data";
@@ -8,8 +6,8 @@ import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, NotebookPen, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router";
 
 // Mirrors the backend's select_facts: which facts actually reach the model,
 // so the panel can dim the dormant ones instead of hiding the limit.
@@ -233,7 +231,7 @@ export function ChatSidePanel({
       style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
     >
       <div className="flex items-start justify-between">
-        <Link href={`/characters/${character.id}`} className="group flex items-center gap-3">
+        <Link to={`/characters/${character.id}`} className="group flex items-center gap-3">
           <Avatar
             name={character.name}
             src={character.avatar_url}
@@ -325,7 +323,6 @@ export function ChatSidePanel({
         {conversation.wallpaper_url ? (
           <>
             <div className="flex items-start gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={conversation.wallpaper_url}
                 alt=""

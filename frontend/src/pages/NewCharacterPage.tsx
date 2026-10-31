@@ -1,5 +1,5 @@
 import { CharacterForm } from "@/components/editor/CharacterForm";
 
-export default function NewCharacterPage() {
+export function NewCharacterPage() {
   return <CharacterForm />;
 }

@@ -1,5 +1,3 @@
-"use client";
-
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -11,7 +9,7 @@ import type { Persona } from "@/types";
 import { Plus, Trash2, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-export default function PersonasPage() {
+export function PersonasPage() {
   const t = useT();
   const [personas, setPersonas] = useState<Persona[] | null>(null);
   const [editing, setEditing] = useState<Persona | "new" | null>(null);

@@ -1,0 +1,30 @@
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
+import { defineConfig, loadEnv } from "vite";
+
+// The repository's .env is where people set their ports. It is read here, by
+// the configuration, and nowhere else: `envPrefix` keeps its default, so none
+// of it (the access password included) can end up in the built interface.
+const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+
+export default defineConfig(({ mode }) => {
+  const { PORT, EVERMIND_BACKEND_PORT } = loadEnv(mode, repoRoot, "");
+  return {
+    // Relative asset paths: the same build works at the root of the server
+    // and inside a package that is served from somewhere else.
+    base: "./",
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    },
+    // Development only: the interface on PORT, and the API it calls on the
+    // backend's own port behind it, so the browser still sees a single origin.
+    server: {
+      port: Number(PORT || 3000),
+      proxy: {
+        "/api": "http://127.0.0.1:" + (EVERMIND_BACKEND_PORT || 8000),
+      },
+    },
+  };
+});
