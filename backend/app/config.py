@@ -129,17 +129,23 @@ def parse_root_path(raw: str, name: str) -> str:
 
     A trailing slash is taken off rather than refused, since ``/evermind/`` is
     how the same prefix looks in a proxy's own configuration. Anything that
-    could not be part of a path, such as a query or a space, is refused here,
-    because it would only come back as a redirect that leads nowhere.
+    could not be part of a path is refused here, because it would only come
+    back as a redirect that leads nowhere, or somewhere else: a query or a
+    space; ``//`` anywhere, which at the start is another site to a browser that
+    follows the redirect; and a ``.`` or ``..`` segment, which a browser or a
+    proxy resolves away.
     """
     path = raw.strip()
     if not path:
         return ""
     if not path.startswith("/"):
         raise ValueError(f"{name} must start with /, got {raw!r}")
-    if re.search(r"[\s?#]", path):
+    kept = path.rstrip("/")
+    if re.search(r"[\s?#]", path) or path.startswith("//") or "//" in kept:
         raise ValueError(f"{name} must be a plain path such as /evermind, got {raw!r}")
-    return path.rstrip("/")
+    if any(segment in (".", "..") for segment in kept.split("/")):
+        raise ValueError(f"{name} must be a plain path such as /evermind, got {raw!r}")
+    return kept
 
 
 def root_path(env: Mapping[str, str] | None = None) -> str:

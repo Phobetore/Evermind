@@ -369,6 +369,9 @@ def test_resolve_listen_names_the_bad_setting(argv, env, message):
         ("/evermind/", "/evermind"),
         ("/apps/evermind//", "/apps/evermind"),
         ("  /evermind  ", "/evermind"),
+        # Dots inside a name are names.
+        ("/.well-known/evermind", "/.well-known/evermind"),
+        ("/evermind.v2", "/evermind.v2"),
     ],
 )
 def test_the_root_path_is_normalised(raw, expected):
@@ -383,6 +386,14 @@ def test_the_root_path_is_normalised(raw, expected):
         ("/ever mind", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/ever mind'"),
         ("/evermind?x=1", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/evermind?x=1'"),
         ("/evermind#top", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/evermind#top'"),
+        # "//host" is another site to a browser that follows the redirect.
+        ("//evil.example", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '//evil.example'"),
+        ("//", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '//'"),
+        ("/apps//evermind", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/apps//evermind'"),
+        # Dots that a browser or a proxy resolves, so that the prefix is not where it says.
+        ("/a/../b", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/a/../b'"),
+        ("/./evermind", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/./evermind'"),
+        ("/evermind/..", "EVERMIND_ROOT_PATH must be a plain path such as /evermind, got '/evermind/..'"),
     ],
 )
 def test_a_root_path_that_is_not_a_path_is_refused(raw, message):
