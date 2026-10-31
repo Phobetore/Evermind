@@ -37,12 +37,16 @@ Follow the part that matches how you run Evermind, then read
    the file in front of it, and the new one describes a single container. Replace
    it while the old Evermind is running and the old interface container is left
    holding port 3000, so the new one cannot start: "port is already allocated".
-   Do not add `-v` to this command, that is the one that deletes your data.
+   Do not add `-v` to this command: that option deletes your data.
 
 2. Download the new
    **[docker-compose.yml](https://github.com/Phobetore/Evermind/releases/latest/download/docker-compose.yml)**
-   and put it over the old one, in the same folder. Keep your `.env` where it is,
+   and put it over the old one, in the same folder. Keep your `.env` where it is:
    it works as it was.
+
+   If you run Evermind from a copy of the project, because you build the image
+   yourself, there is nothing to download: `git pull` brings the new file. Do
+   it after the step above: pulling is what replaces the old file.
 
    One exception. If it has a line such as `EVERMIND_VERSION=2.1.6`, change it
    to `3.0.0`, or delete the line. The new image starts at 3.0.0 and has no 2.x
@@ -58,11 +62,10 @@ Follow the part that matches how you run Evermind, then read
    back where it was: **http://localhost:3000**, or the port you set in `PORT`.
 
    If you built the image yourself (`SEMANTIC=true` in `.env`, started with
-   `--build`), run `docker compose up -d --build` instead, in a copy of the
-   project that is up to date (`git pull`), since it compiles the folder it is
-   in. The plain command starts the published image, which has no semantic
-   memory. The new file keeps the `SEMANTIC` build argument, so your `.env`
-   still decides.
+   `--build`), run `docker compose up -d --build` instead, in the copy of the
+   project you have just updated, since it compiles the folder it is in. The
+   plain command starts the published image, which has no semantic memory. The
+   new file keeps the `SEMANTIC` build argument, so your `.env` still decides.
 
 Your conversations are there at the first start. The new file mounts the same
 `evermind-data` volume the old one used.
@@ -94,6 +97,18 @@ This is for Evermind started with `scripts\prod.ps1` or `./scripts/prod.sh`.
    devices. It installs what changed and builds the new interface, so this first
    start takes a few minutes. Then open **http://localhost:3000**.
 
+On Windows, if you start Evermind with the `.sh` scripts (from WSL or Git Bash)
+in a copy you cloned, run this once after pulling:
+
+```bash
+git checkout -- scripts/*.sh
+```
+
+Git may have saved those files with Windows line endings, and bash then refuses
+to run them (`env: 'bash\r': No such file or directory`). This release adds the
+setting that keeps them as bash needs them, and the command writes them again
+under it. The `.ps1` scripts and a ZIP download are not affected.
+
 A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
 
 ### For everyone
@@ -103,7 +118,28 @@ A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
   so the ones from 2.x do not carry over. Each device types the password again
   and then stays signed in for 30 days after its last visit. **Settings** has
   **Sign out of this device** and **Sign out every device**, and changing or
-  removing the password signs everyone out.
+  removing the password signs everyone out. An accent counts the same however it
+  was typed, so an é from a phone keyboard matches the one saved in `.env` by
+  another editor.
+- **Without a password, Evermind only answers to names it knows.** A website
+  could otherwise point a name of its own at your computer and read your
+  conversations through your browser. Opened by an address
+  (`http://192.168.1.42:3000`), by `localhost` (or a name ending in
+  `.localhost`) or by the computer's own name, also with `.local` after it,
+  nothing changes. Opened by any other name, an install without a password now
+  says "Evermind does not answer to this address" (the API's own words are
+  "Unknown host name"). List the name in `EVERMIND_ALLOWED_HOSTS` in your `.env`,
+  separated by commas, or set a password: with one, any name works. With Docker,
+  the computer's own name counts as unknown too, because the container cannot
+  see it, so list it as well and run `docker compose up -d` again.
+- **A reverse proxy has to keep the address the browser used.** Evermind now
+  turns away the changes that a page of another origin sends. Behind a proxy
+  that serves it over plain HTTP and changes the `Host` header, the interface's
+  own changes look like that too. Serve it over HTTPS or pass `Host` on unchanged
+  ([DEVELOPING.md](DEVELOPING.md#serving-under-a-path-prefix) shows how). If the
+  proxy serves Evermind under a path such as `/evermind/`, also set
+  `EVERMIND_ROOT_PATH=/evermind`, so that an old bookmark such as `/chat/<id>`
+  lands on the right page.
 - **Bookmarks still work.** The address is the same, and the old links such as
   `/chat/<id>` or `/settings` redirect to their new form (`/#/chat/<id>`), so
   the ones on your phone keep opening the right place.
