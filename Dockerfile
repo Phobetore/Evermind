@@ -9,7 +9,8 @@
 # The interface is compiled in a stage of its own: Node and the npm tree are
 # only needed to produce a folder of static files, so none of it ends up in the
 # image that runs.
-FROM node:24-slim AS ui
+# Always native: the output is static files, the same whatever CPU the image is for.
+FROM --platform=$BUILDPLATFORM node:24-slim AS ui
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
