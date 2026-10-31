@@ -429,6 +429,7 @@ class FakeSocket:
     def __init__(self, family, kind):
         self.family, self.kind = family, kind
         self.options = []
+        self.timeout = None
         self.connected = None
 
     def __enter__(self):
@@ -439,6 +440,9 @@ class FakeSocket:
 
     def setsockopt(self, level, option, value):
         self.options.append((level, option, value))
+
+    def settimeout(self, value):
+        self.timeout = value
 
     def bind(self, address):
         if self.bind_error:
@@ -544,6 +548,56 @@ def test_check_reports_a_port_that_needs_rights_too(clean_env, monkeypatch, serv
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "Port 443 needs administrator rights." in captured.err
+
+
+def test_has_listener_does_not_wait_long_for_an_answer(monkeypatch):
+    # Windows takes about two seconds to refuse a connection to a closed port,
+    # and every start of Evermind waits for that answer.
+    made = fake_sockets(monkeypatch)
+    assert launch._has_listener("127.0.0.1", 3000) is True
+    assert [(m.timeout, m.connected) for m in made] == [(0.15, ("127.0.0.1", 3000))]
+
+
+def probed_by_port_in_use(monkeypatch, host, lan=None):
+    """The hosts that ``port_in_use`` connects to, for a bind that succeeds."""
+    fake_sockets(monkeypatch)
+    monkeypatch.setattr(launch, "lan_address", lambda: lan)
+    probed = []
+
+    def nobody(address, port):
+        probed.append(address)
+        return False
+
+    monkeypatch.setattr(launch, "_has_listener", nobody)
+    assert launch.port_in_use(host, 3000) is False
+    return probed
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "0", "::", "::0", "0:0:0:0:0:0:0:0"])
+def test_every_spelling_of_a_wildcard_is_probed_on_its_loopback(monkeypatch, host):
+    expected = ["::1"] if ":" in host else ["127.0.0.1", "192.168.1.20"]
+    assert probed_by_port_in_use(monkeypatch, host, lan="192.168.1.20") == expected
+
+
+def test_a_wildcard_is_probed_on_the_loopback_alone_without_a_network_address(monkeypatch):
+    assert probed_by_port_in_use(monkeypatch, "0.0.0.0", lan=None) == ["127.0.0.1"]
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "192.168.1.42", "::1", "10", "localhost"])
+def test_an_address_of_one_interface_is_probed_as_it_is(monkeypatch, host):
+    assert probed_by_port_in_use(monkeypatch, host, lan="192.168.1.20") == [host]
+
+
+def test_port_in_use_sees_a_listener_on_the_network_address_alone_when_asked_about_every_interface():
+    # Windows lets the bind to 0.0.0.0 succeed next to a program that listens on
+    # the network address only, and the loopback does not show it.
+    address = launch.lan_address()
+    if address is None:
+        pytest.skip("no network address on this computer")
+    with socket.socket() as s:
+        s.bind((address, 0))
+        s.listen()
+        assert launch.port_in_use("0.0.0.0", s.getsockname()[1]) is True
 
 
 def test_lan_address_asks_the_routing_table_without_sending_anything(monkeypatch):
@@ -703,6 +757,7 @@ def test_lan_without_a_route_lists_only_localhost(clean_env, ui_built, monkeypat
         ("localhost", "localhost"),
         ("::1", "localhost"),
         ("::", "localhost"),
+        ("::0", "localhost"),
         ("192.168.1.42", "192.168.1.42"),
         ("fd00::42", "[fd00::42]"),
         ("evermind.invalid", "evermind.invalid"),
@@ -717,6 +772,20 @@ def test_the_printed_address_is_one_that_answers(
     p = free_port()
     assert launch.main(["--no-env-file", "--host", host, "--port", str(p)]) == 0
     assert capsys.readouterr().out == f"Evermind -> http://{shown}:{p}\n"
+
+
+@pytest.mark.parametrize("host", ["0", "0.0.0.0"])
+def test_every_spelling_of_the_wildcard_lists_the_network_address(
+    clean_env, ui_built, monkeypatch, served, capsys, host
+):
+    monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "secret")
+    monkeypatch.setattr(launch, "lan_address", lambda: "192.168.1.20")
+    p = free_port()
+    assert launch.main(["--no-env-file", "--host", host, "--port", str(p)]) == 0
+    assert capsys.readouterr().out == (
+        f"Evermind -> http://localhost:{p}\n"
+        f"            http://192.168.1.20:{p}  (from the local network)\n"
+    )
 
 
 def test_a_specific_address_gets_no_second_line(clean_env, ui_built, monkeypatch, served, capsys):

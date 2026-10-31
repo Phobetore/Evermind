@@ -27,9 +27,8 @@ _PORT_TAKEN = errno.EADDRINUSE
 # lack of rights when nobody is listening on the port.
 _NO_RIGHTS = {errno.EACCES, errno.EPERM, getattr(errno, "WSAEACCES", errno.EACCES)}
 
-# For an address that covers every interface: where to look for a program
-# already on the port.
-_WILDCARD_LOOPBACK = {"0.0.0.0": "127.0.0.1", "::": "::1"}
+# How long to wait for a program that may be listening on the port to answer.
+_LISTENER_TIMEOUT_S = 0.15
 
 
 @dataclass(frozen=True)
@@ -115,6 +114,22 @@ def lan_address() -> str | None:
         return None
 
 
+def _wildcard(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """The address that ``host`` is if it covers every interface (0.0.0.0, ::
+    and their other spellings, such as ``0``, which the system reads as 0.0.0.0),
+    and None for a host that names one interface."""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        if not (host.isascii() and host.isdigit()):
+            return None
+        try:
+            address = ipaddress.IPv4Address(int(host))
+        except ValueError:
+            return None
+    return address if address.is_unspecified else None
+
+
 def port_in_use(host: str, port: int) -> bool:
     """Whether something already holds the port.
 
@@ -141,17 +156,33 @@ def port_in_use(host: str, port: int) -> bool:
             s.bind((host, port))
     except OSError as err:
         if err.errno in _NO_RIGHTS:
-            if _has_listener(_WILDCARD_LOOPBACK.get(host, host), port):
+            if _someone_listens(host, port):
                 return True
             raise PermissionError(err.errno, f"Port {port} needs administrator rights") from err
         return err.errno == _PORT_TAKEN
     # Windows lets a bind succeed next to a listener on the other side of the
     # wildcard, in either direction: 127.0.0.1 or the network address while
     # another program holds 0.0.0.0, and 0.0.0.0 while another holds 127.0.0.1
-    # alone. Both programs then run, the second one sharing the first one's data
-    # folder or only being reached by part of the traffic. The bind cannot see
-    # that; a connection can.
-    return _has_listener(_WILDCARD_LOOPBACK.get(host, host), port)
+    # alone, or the network address alone. Both programs then run, the second one
+    # sharing the first one's data folder or only being reached by part of the
+    # traffic. The bind cannot see that; a connection can.
+    return _someone_listens(host, port)
+
+
+def _someone_listens(host: str, port: int) -> bool:
+    """Whether a program answers on the port at ``host``. When ``host`` covers
+    every interface, that is on the loopback or, for IPv4, on the network address
+    when it is known. That address is IPv4, so a program holding it says nothing
+    about a server bound to ``::``."""
+    wildcard = _wildcard(host)
+    if wildcard is None:
+        return _has_listener(host, port)
+    if wildcard.version == 6:
+        return _has_listener("::1", port)
+    if _has_listener("127.0.0.1", port):
+        return True
+    lan = lan_address()
+    return lan is not None and _has_listener(lan, port)
 
 
 def _has_listener(host: str, port: int) -> bool:
@@ -160,7 +191,7 @@ def _has_listener(host: str, port: int) -> bool:
         with socket.socket(family, socket.SOCK_STREAM) as s:
             # A listener accepts at once. Windows takes about two seconds to
             # refuse a closed loopback port, and there is no point waiting for it.
-            s.settimeout(0.5)
+            s.settimeout(_LISTENER_TIMEOUT_S)
             s.connect((host, port))
     except OSError:
         return False
@@ -182,7 +213,7 @@ def _browse_host(host: str) -> str:
     """What to put in the address printed for a browser: localhost wherever
     that answers, and the address itself where it cannot. Bound to one address
     of the network, the computer refuses connections to localhost."""
-    if host in _WILDCARD_LOOPBACK or _is_loopback(host):
+    if _wildcard(host) is not None or _is_loopback(host):
         return "localhost"
     return f"[{host}]" if ":" in host else host
 
@@ -267,7 +298,8 @@ def main(argv: list[str] | None = None) -> int:
     if update_check.install_kind() != "docker":
         if not listen.dev:
             _say(f"Evermind -> http://{_browse_host(listen.host)}:{listen.port}")
-            if listen.host == "0.0.0.0" and (lan := lan_address()):
+            wildcard = _wildcard(listen.host)
+            if wildcard is not None and wildcard.version == 4 and (lan := lan_address()):
                 _say(f"            http://{lan}:{listen.port}  (from the local network)")
         exposed = not _is_loopback(listen.host) or (listen.dev and args.lan)
         if exposed and not config.gate_password():
