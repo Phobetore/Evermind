@@ -10,10 +10,9 @@ data
 **/*.pyc
 **/.pytest_cache
 **/node_modules
-**/.next
 **/dist
 **/dist-e2e
 **/test-results
 **/playwright-report
 .e2e-data*
-.env
+**/.env*
