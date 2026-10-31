@@ -1,4 +1,6 @@
 import json
+import re
+import unicodedata
 from urllib.parse import quote
 
 import aiosqlite
@@ -18,6 +20,9 @@ from ..services import card_assistant, media
 router = APIRouter(prefix="/api/characters", tags=["characters"])
 
 
+_JOINERS = "\u200c\u200d"
+
+
 def _file_stem(name: str, *, ascii_only: bool) -> str:
     """The card's name with what a file name cannot carry taken out.
 
@@ -25,14 +30,25 @@ def _file_stem(name: str, *, ascii_only: bool) -> str:
     stay. Other scripts and symbols stay too, unless ``ascii_only`` is set, but
     not control or separator characters, which have no place in a file name.
     The zero-width joiners are the exception: some scripts and emoji sequences
-    need them to be spelled right.
+    need them to be spelled right, but only next to something they can join.
+
+    With ``ascii_only``, a letter with an accent keeps its letter: "é" is an "e"
+    and a combining accent once decomposed, and the accent is what is dropped.
+    Runs of spaces, which the characters taken out leave behind, become one. A
+    name with nothing left to show is called "card".
     """
+    if ascii_only:
+        name = "".join(
+            c for c in unicodedata.normalize("NFKD", name) if not unicodedata.combining(c)
+        )
+
     def keep(c: str) -> bool:
         if c.isascii():
             return c.isalnum() or c in " -_"
-        return not ascii_only and (c.isprintable() or c in "\u200c\u200d")
+        return not ascii_only and (c.isprintable() or c in _JOINERS)
 
-    return "".join(c for c in name if keep(c)).strip() or "card"
+    stem = re.sub(" {2,}", " ", "".join(c for c in name if keep(c))).strip()
+    return stem if stem.strip(_JOINERS + " ") else "card"
 
 
 def _attachment(name: str, extension: str) -> str:

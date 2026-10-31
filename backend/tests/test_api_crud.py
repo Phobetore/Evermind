@@ -141,6 +141,49 @@ async def test_export_mixed_name_keeps_its_ascii_letters_in_the_fallback(client)
     assert real == "Vane紅 the Ferryman.json"
 
 
+@pytest.mark.parametrize("name, fallback", [
+    ("Zoë", "Zoe"),
+    ("Éloïse", "Eloise"),
+    ("Crème Brûlée", "Creme Brulee"),
+    ("Ångström", "Angstrom"),
+    # Typed with the accent as a separate character, which some keyboards do.
+    ("Zoe" + chr(0x0308), "Zoe"),
+    # The compatibility forms of NFKD: a ligature and a full-width letter.
+    ("ﬁne Ａ", "fine A"),
+    ("Zoë 紅", "Zoe"),
+])
+async def test_export_fallback_folds_accents_instead_of_dropping_letters(client, name, fallback):
+    created = await create_character(client, name=name)
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    got_fallback, real = _download_names(resp)
+    assert got_fallback == f"{fallback}.json"
+    # The real name is the card's own, accents included.
+    assert real == f"{name}.json"
+
+
+@pytest.mark.parametrize("name, fallback, real", [
+    ("Dr.  Vane", "Dr Vane", "Dr Vane"),
+    ("A     B", "A B", "A B"),
+    # The space left behind by a letter that has no ASCII form.
+    ("Vane 紅 the Ferryman", "Vane the Ferryman", "Vane 紅 the Ferryman"),
+])
+async def test_export_name_collapses_repeated_spaces(client, name, fallback, real):
+    created = await create_character(client, name=name)
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    assert _download_names(resp) == (f"{fallback}.json", f"{real}.json")
+
+
+@pytest.mark.parametrize("name", [
+    chr(0x200C), chr(0x200D) + chr(0x200C), " " + chr(0x200D) + " ",
+    chr(0x202E), ".", " ",
+])
+async def test_export_name_with_nothing_to_show_is_called_card(client, name):
+    # A joiner is only part of a name when there is something for it to join.
+    created = await create_character(client, name=name)
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    assert _download_names(resp) == ("card.json", "card.json")
+
+
 async def test_export_name_drops_invisible_controls_but_keeps_joiners(client):
     bidi_override, zwnj = chr(0x202E), chr(0x200C)
     created = await create_character(client, name=f"{bidi_override}می{zwnj}خواهم")
