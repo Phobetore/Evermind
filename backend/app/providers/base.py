@@ -39,10 +39,16 @@ UNKNOWN_TYPE = "model_unknown_type"
 NO_TEXT = "model_no_text"
 
 
+def excerpt(text: str, limit: int = 300) -> str:
+    """The start of a text on one line, for quoting what a server answered."""
+    return " ".join(text.split())[:limit]
+
+
 def failure(kind: str, **details) -> dict:
     """The ``meta`` of a failed event, or the keyword arguments of a
     ``ProviderError``: a kind, and what the model's server said (``upstream``,
-    ``upstream_status``) if it did. Empty details are left out."""
+    ``upstream_status``) or the address that could not be reached
+    (``upstream_url``), if there is one. Empty details are left out."""
     return {"kind": kind, **{k: v for k, v in details.items() if v not in (None, "")}}
 
 
@@ -97,3 +103,7 @@ class Provider:
             f"Cannot reach {self.base_url or 'the server'}. "
             "Check that the server is running and the URL is correct."
         )
+
+    def _unreachable(self) -> dict:
+        """The failure of a server that cannot be reached, with where it was tried."""
+        return failure(UNREACHABLE, upstream_url=self.base_url)

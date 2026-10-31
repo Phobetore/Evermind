@@ -15,10 +15,10 @@ from .base import (
     NETWORK_ERROR,
     TIMEOUT,
     UNEXPECTED_RESPONSE,
-    UNREACHABLE,
     Provider,
     ProviderError,
     ProviderEvent,
+    excerpt,
     failure,
     status_failure,
 )
@@ -106,7 +106,7 @@ class OpenAICompatProvider(Provider):
                         yield ProviderEvent(type="delta", text=text)
         except httpx.ConnectError:
             yield ProviderEvent(type="error", message=self._connect_error_message(),
-                                meta=failure(UNREACHABLE))
+                                meta=self._unreachable())
             return
         except httpx.TimeoutException:
             yield ProviderEvent(type="error",
@@ -124,12 +124,12 @@ class OpenAICompatProvider(Provider):
             async with self._client_factory() as client:
                 response = await client.get(f"{self.base_url}/models", headers=self._headers())
         except httpx.ConnectError:
-            raise ProviderError(self._connect_error_message(), **failure(UNREACHABLE))
+            raise ProviderError(self._connect_error_message(), **self._unreachable())
         except httpx.HTTPError as exc:
             raise ProviderError(f"Network error: {exc}",
                                 **failure(NETWORK_ERROR, upstream=str(exc)))
         if response.status_code >= 400:
-            detail = _error_text(response.content)
+            detail = _error_text(response.content, quote_a_page=True)
             raise ProviderError(
                 _http_error_message(response.status_code, detail, self.model),
                 **status_failure(response.status_code, detail),
@@ -146,8 +146,10 @@ async def _read_error(response: httpx.Response) -> str:
     return _error_text(await response.aread())
 
 
-def _error_text(content: bytes) -> str:
-    """What the server said about the error, from the body it sent."""
+def _error_text(content: bytes, *, quote_a_page: bool = False) -> str:
+    """What the server said about the error, from the body it sent. A body that
+    is not JSON, such as the page a proxy in front of the server answers with, is
+    quoted if asked to (a short excerpt of it) and otherwise said to be nothing."""
     try:
         body = json.loads(content)
         error = body.get("error")
@@ -155,7 +157,7 @@ def _error_text(content: bytes) -> str:
             return error.get("message") or str(error)
         return str(error or body)[:300]
     except (ValueError, AttributeError):
-        return ""
+        return excerpt(content.decode("utf-8", "replace")) if quote_a_page else ""
 
 
 def _http_error_message(status: int, detail: str, model: str) -> str:

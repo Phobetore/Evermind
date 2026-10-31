@@ -18,9 +18,10 @@ NO_CONNECTION = "no_connection"
 NOT_FOUND = "not_found"
 
 # What a model's server said when it answered with an error, and with which
-# status. They are its own words, which Evermind can frame in the person's
-# language but not translate, so they travel on their own in an error's fields.
-UPSTREAM_FIELDS = ("upstream_status", "upstream")
+# status, and the address that could not be reached. The words are its own,
+# which Evermind can frame in the person's language but not translate, so they
+# travel on their own in an error's fields.
+UPSTREAM_FIELDS = ("upstream_status", "upstream", "upstream_url")
 
 
 def failure_fields(meta: dict) -> dict:

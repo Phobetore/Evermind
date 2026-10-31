@@ -76,9 +76,20 @@ async def test_any_other_network_failure_is_named_and_keeps_its_words(name, make
 
 
 @pytest.mark.parametrize(("name", "make"), PROVIDERS)
-async def test_a_server_that_cannot_be_reached_is_still_unreachable(name, make):
-    event = (await collect(make(raising(httpx.ConnectError, "refused"))))[-1]
-    assert event.meta == {"kind": "unreachable"}
+async def test_a_server_that_cannot_be_reached_is_still_unreachable_and_says_where(name, make):
+    provider = make(raising(httpx.ConnectError, "refused"))
+    event = (await collect(provider))[-1]
+    assert event.meta == {"kind": "unreachable", "upstream_url": provider.base_url}
+    assert provider.base_url in event.message
+
+
+@pytest.mark.parametrize(("name", "make"), PROVIDERS)
+async def test_listing_models_of_a_server_that_cannot_be_reached_says_where(name, make):
+    provider = make(raising(httpx.ConnectError, "refused"))
+    with pytest.raises(ProviderError) as raised:
+        await provider.list_models()
+    assert raised.value.kind == "unreachable"
+    assert raised.value.details == {"upstream_url": provider.base_url}
 
 
 async def test_the_english_sentences_are_as_they_were():
@@ -131,10 +142,60 @@ async def test_listing_models_names_a_network_failure(name, make):
     assert raised.value.details == {"upstream": "connection reset"}
 
 
-def test_an_unknown_connection_type_is_named():
+@pytest.mark.parametrize(("name", "make"), PROVIDERS)
+async def test_listing_models_keeps_an_excerpt_of_an_answer_that_is_not_json(name, make):
+    """A proxy in front of the model's server answers with a page of its own,
+    and its words are the only clue to what stands in the way."""
+    page = b"<html>\n  <body>\n    <h1>502   Bad gateway</h1>\n  </body>\n</html>"
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(502, content=page)
+
     with pytest.raises(ProviderError) as raised:
-        get_provider({"provider": "nope"})
+        await make(handler).list_models()
+    assert raised.value.kind == "model_http_error"
+    assert raised.value.details == {
+        "upstream_status": 502,
+        "upstream": "<html> <body> <h1>502 Bad gateway</h1> </body> </html>",
+    }
+    assert "Bad gateway" in raised.value.message
+
+
+@pytest.mark.parametrize(("name", "make"), PROVIDERS)
+async def test_the_excerpt_of_a_long_answer_is_short(name, make):
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(502, content=b"word " * 500)
+
+    with pytest.raises(ProviderError) as raised:
+        await make(handler).list_models()
+    assert 0 < len(raised.value.details["upstream"]) <= 300
+
+
+async def test_a_stream_answered_with_a_page_has_no_words_to_show():
+    """Only the model list quotes a page: a reply's error stays as short as it was."""
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(502, content=b"<html>Bad gateway</html>")
+
+    event = (await collect(oai_provider(handler)))[-1]
+    assert event.meta == {"kind": "model_http_error", "upstream_status": 502}
+    assert event.message == "LLM server error (502)."
+
+
+# --- a connection of a type nobody knows -------------------------------------------
+
+
+async def test_an_unknown_connection_type_fails_like_any_model_that_fails():
+    provider = get_provider({"provider": "nope"})
+    events = await collect(provider)
+    assert [event.type for event in events] == ["error"]
+    assert events[0].meta == {"kind": "model_unknown_type"}
+    assert events[0].message == 'Unknown connection type: "nope"'
+    with pytest.raises(ProviderError) as raised:
+        await provider.list_models()
     assert raised.value.kind == "model_unknown_type"
+    assert (await provider.test()) == {
+        "ok": False, "detail": 'Unknown connection type: "nope"', "kind": "model_unknown_type",
+    }
 
 
 # --- as the API reports them ---------------------------------------------------
@@ -283,3 +344,62 @@ async def test_no_connection_is_not_a_provider_failure(client):
     resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
     assert resp.json()["kind"] == NO_CONNECTION
     assert "upstream" not in resp.json()
+
+
+# --- a connection row that has been corrupted -----------------------------------------
+
+
+async def corrupt_connection(client) -> dict:
+    """Every saved connection (there is one if the test has none yet) given a
+    type that nobody knows, as a hand-edited database or a downgrade leaves it:
+    neither the API nor the table's CHECK would have let it in."""
+    from app.db import _connect
+
+    if not (await client.get("/api/connections")).json():
+        await saved_connection(client)
+    db = await _connect()
+    try:
+        await db.execute("PRAGMA ignore_check_constraints = ON")
+        await db.execute("UPDATE connections SET provider = 'nope'")
+        await db.commit()
+    finally:
+        await db.close()
+    return (await client.get("/api/connections")).json()[0]
+
+
+async def test_a_reply_on_a_corrupted_connection_says_so(client):
+    convo = await setup_conversation(client)
+    await corrupt_connection(client)
+    resp = await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "content": "Hi",
+    })
+    assert resp.status_code == 200
+    event = parse_sse(resp.text)[-1]
+    assert event["type"] == "error"
+    assert event["kind"] == "model_unknown_type"
+
+
+@pytest.mark.parametrize("route", ["impersonate", "summarize"])
+async def test_a_story_tool_on_a_corrupted_connection_says_so(client, route):
+    convo = await setup_conversation(client)
+    await corrupt_connection(client)
+    resp = await client.post(f"/api/conversations/{convo['id']}/{route}")
+    assert resp.status_code == 502
+    assert resp.json()["kind"] == "model_unknown_type"
+
+
+async def test_the_test_of_a_corrupted_connection_says_so(client):
+    connection = await corrupt_connection(client)
+    body = (await client.post(f"/api/connections/{connection['id']}/test")).json()
+    assert body["ok"] is False
+    assert body["kind"] == "model_unknown_type"
+
+
+async def test_a_connection_test_of_a_server_that_is_not_there_names_the_address(client):
+    resp = await client.post("/api/connections/test", json={
+        "name": "Mock", "provider": "openai-compatible",
+        "base_url": "http://127.0.0.1:1/v1", "model": "x",
+    })
+    body = resp.json()
+    assert body["kind"] == "unreachable"
+    assert body["upstream_url"] == "http://127.0.0.1:1/v1"
