@@ -25,14 +25,17 @@ fi
 # only on the first run. Otherwise an update that moves one, a security fix for
 # instance, leaves the old copy in place to go on running.
 # A failed install stops here (set -e), before the copy that marks it as done.
-if [ ! -d "$ROOT/backend/.venv" ]; then
+#
+# Whether the environment exists is decided by whether its pip answers, not by
+# the folder being there. A creation that fails (on Debian and Ubuntu,
+# python3-venv not installed yet) or is interrupted leaves half an environment,
+# without pip, that a test on the folder would take for a finished one on every
+# later run. --clear starts such a folder over instead of building on it.
+if ! "$PYTHON" -m pip --version > /dev/null 2>&1; then
     echo "First run: creating the Python environment..."
-    # A creation that fails (on Debian and Ubuntu, python3-venv not installed yet)
-    # leaves half an environment, without pip, that the test above would take for
-    # a finished one on every later run. Python says what to install; this makes
-    # the next run start again.
-    python3 -m venv "$ROOT/backend/.venv" || {
-        rm -rf "$ROOT/backend/.venv"
+    # Python says by itself what to install when it is a package that is missing.
+    python3 -m venv --clear "$ROOT/backend/.venv" || {
+        echo "Creating the Python environment failed. Nothing was started." >&2
         exit 1
     }
 fi

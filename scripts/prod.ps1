@@ -20,9 +20,32 @@ if ($Lan) { $appArgs += "--lan" }
 # Dependencies are installed again whenever the file they come from changes, not
 # only on the first run. Otherwise an update that moves one, a security fix for
 # instance, leaves the old copy in place to be built and served as before.
-if (-not (Test-Path "$root\backend\.venv")) {
+#
+# Whether the environment exists is decided by whether its pip answers, not by
+# the folder being there. A creation that is interrupted leaves half an
+# environment, without pip, that a test on the folder would take for a finished
+# one on every later run. --clear starts such a folder over instead of building
+# on it.
+$venvWorks = $false
+if (Test-Path "$python.exe") {
+    & $python -m pip --version *> $null
+    $venvWorks = $LASTEXITCODE -eq 0
+}
+if (-not $venvWorks) {
     Write-Host "First run: creating the Python environment..."
-    python -m venv "$root\backend\.venv"
+    $created = $false
+    try {
+        python -m venv --clear "$root\backend\.venv"
+        $created = $LASTEXITCODE -eq 0
+    } catch {
+        # No python on the PATH at all.
+        Write-Host $_.Exception.Message
+    }
+    if (-not $created) {
+        Write-Host "Creating the Python environment failed. Nothing was started." -ForegroundColor Red
+        Write-Host "Python 3.11 or newer has to be installed and reachable as python (python.org)." -ForegroundColor Yellow
+        exit 1
+    }
 }
 $pyproject = "$root\backend\pyproject.toml"
 $pyInstalled = "$root\backend\.venv\.installed-pyproject.toml"
