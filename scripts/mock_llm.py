@@ -103,26 +103,20 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
-        try:
-            # A test that is about what happens *during* a reply needs the
-            # reply to still be going when it looks. Rather than tune sleeps
-            # against whatever machine is running, it says so in the
-            # conversation and this slows right down.
-            delay = WORD_DELAY * 4 if "SLOWLY" in json.dumps(payload) else WORD_DELAY
-            for word in reply.split(" "):
-                chunk = {"choices": [{"delta": {"content": word + " "}}]}
-                self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
-                self.wfile.flush()
-                time.sleep(delay)
-            self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"stop"}],'
-                             b'"usage":{"total_tokens":42}}\n\n')
-            self.wfile.write(b"data: [DONE]\n\n")
+        # A test that is about what happens *during* a reply needs the
+        # reply to still be going when it looks. Rather than tune sleeps
+        # against whatever machine is running, it says so in the
+        # conversation and this slows right down.
+        delay = WORD_DELAY * 4 if "SLOWLY" in json.dumps(payload) else WORD_DELAY
+        for word in reply.split(" "):
+            chunk = {"choices": [{"delta": {"content": word + " "}}]}
+            self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
             self.wfile.flush()
-        except (BrokenPipeError, ConnectionResetError):
-            # The reader went away mid-reply. Tests do that on purpose —
-            # one of them is about what an interrupted reply leaves behind
-            # — and a traceback for each buries a real failure in noise.
-            pass
+            time.sleep(delay)
+        self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"stop"}],'
+                         b'"usage":{"total_tokens":42}}\n\n')
+        self.wfile.write(b"data: [DONE]\n\n")
+        self.wfile.flush()
 
     def _json(self, body: str, status: int = 200):
         data = body.encode()
@@ -133,6 +127,19 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
+class Server(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        # The reader went away, mid-reply or between two requests on a
+        # connection it had kept open. Tests do that on purpose (one of them
+        # is about what an interrupted reply leaves behind), so it is no error
+        # here, and a traceback for each buries a real failure in noise. The
+        # system words it differently (broken pipe, connection reset, and on
+        # Windows connection aborted), all of them a ConnectionError.
+        if isinstance(sys.exc_info()[1], ConnectionError):
+            return
+        super().handle_error(request, client_address)
+
+
 if __name__ == "__main__":
     print(f"Mock LLM (OpenAI-compatible) on http://localhost:{PORT}/v1 - model \"evermind-demo\"")
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    Server(("127.0.0.1", PORT), Handler).serve_forever()
