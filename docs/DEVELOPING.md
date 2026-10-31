@@ -214,12 +214,14 @@ location /evermind/ {
 ```
 
 Tell the server the prefix with `EVERMIND_ROOT_PATH=/evermind` (in `.env`, or in the
-environment of the container) or `python -m app --root-path /evermind`; a trailing
-slash is taken off, and a value that does not start with a slash, or that has `//`, a
-`.` or `..` segment, a backslash, a `%`, a space, `?` or `#` in it, is refused. The
-pages, every call and every image work without it. What it adds is the redirect of
-an old `/chat/<id>` bookmark, which has to go to `/evermind/#/chat/<id>`, a place
-the server can only name if it knows the prefix.
+environment of the container) or `python -m app --root-path /evermind`. Spaces
+around the value and slashes at its end are trimmed (`/evermind/` is `/evermind`,
+and a lone `/` is the root). A value that does not start with a slash is refused,
+and so is one with `//` at its start or inside, a `.` or `..` segment, a backslash,
+a `%`, a `?`, a `#` or a space inside it. The pages, every call and every image work
+without it. What it adds is the redirect of an old `/chat/<id>` bookmark, which has
+to go to `/evermind/#/chat/<id>`, a place the server can only name if it knows the
+prefix.
 
 The page, its files, every call and every image stay under the prefix because none
 of them is addressed from the root of the host:
