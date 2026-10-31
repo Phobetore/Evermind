@@ -10,6 +10,7 @@
     "start:lan": "next start --hostname 0.0.0.0",
     "lint": "eslint .",
     "check:i18n": "node scripts/check-i18n.mjs",
+    "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
@@ -30,7 +31,8 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.5"
   },
   "overrides": {
     "sharp": "^0.35.5",

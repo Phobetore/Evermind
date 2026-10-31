@@ -1,0 +1,476 @@
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { data, DataError as ExportedDataError, onLocked as exportedOnLocked } from "@/data";
+import type { ChatEvent } from "@/types";
+import { DataError } from "../errors";
+import type { DataSource } from "../source";
+import { createHttpSource } from "./index";
+import { onLocked } from "./request";
+
+interface Call {
+  url: string;
+  init: RequestInit;
+}
+
+let calls: Call[];
+let replies: Response[];
+let http: Required<DataSource>;
+
+/** A JSON reply built by hand, the way the server would send it. */
+function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...headers },
+  });
+}
+
+/** The next call to the fake `fetch` answers with this. Unscripted calls get an
+ *  empty object, which is enough for tests that only look at what was asked. */
+function reply(response: Response) {
+  replies.push(response);
+}
+
+/** A body that arrives in the given pieces, to put chunk boundaries where the
+ *  test wants them. */
+function chunked(...pieces: string[]): Response {
+  const encoder = new TextEncoder();
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        for (const piece of pieces) controller.enqueue(encoder.encode(piece));
+        controller.close();
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "text/event-stream" } },
+  );
+}
+
+function bodyOf(call: Call): unknown {
+  return JSON.parse(call.init.body as string);
+}
+
+beforeEach(() => {
+  calls = [];
+  replies = [];
+  const fake = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    calls.push({ url: String(input), init });
+    return replies.shift() ?? json({});
+  };
+  http = createHttpSource(fake as typeof fetch) as Required<DataSource>;
+});
+
+describe("request building", () => {
+  test("the source says which edition it is", () => {
+    expect(http.edition).toBe("self-hosted");
+  });
+
+  test("the entry point hands out the HTTP source and the helpers around it", () => {
+    expect(data.edition).toBe("self-hosted");
+    expect(ExportedDataError).toBe(DataError);
+    expect(exportedOnLocked).toBe(onLocked);
+  });
+
+  test("character list builds its query", async () => {
+    await http.characters.list({ kind: "scenario", q: " vane " });
+    expect(calls[0].url).toBe("/api/characters?kind=scenario&q=vane");
+  });
+
+  test("character list without a query has no question mark", async () => {
+    await http.characters.list();
+    await http.characters.list({ q: "   " });
+    expect(calls.map((c) => c.url)).toEqual(["/api/characters", "/api/characters"]);
+  });
+
+  test("removeFrom deletes the message and what follows", async () => {
+    await http.messages.removeFrom("m1");
+    expect(calls[0]).toMatchObject({
+      url: "/api/messages/m1?following=true",
+      init: { method: "DELETE" },
+    });
+  });
+
+  test("uploads are multipart without a JSON content type", async () => {
+    const file = new File(["pixels"], "face.png", { type: "image/png" });
+    await http.personas.uploadAvatar("p1", file);
+
+    const { url, init } = calls[0];
+    expect(url).toBe("/api/personas/p1/avatar");
+    expect(init.method).toBe("POST");
+    expect(init.body).toBeInstanceOf(FormData);
+    const sent = (init.body as FormData).get("file") as File;
+    expect(sent.name).toBe("face.png");
+    expect(new Headers(init.headers).has("Content-Type")).toBe(false);
+  });
+
+  test("JSON bodies say so", async () => {
+    await http.settings.update({ auto_memory: false });
+    expect(new Headers(calls[0].init.headers).get("Content-Type")).toBe("application/json");
+  });
+
+  test("every variable path segment is encoded", async () => {
+    await http.characters.get("a/b?c");
+    await http.lore.list("x y");
+    await http.library.install("a b.json");
+    expect(calls.map((c) => c.url)).toEqual([
+      "/api/characters/a%2Fb%3Fc",
+      "/api/characters/x%20y/lore",
+      "/api/library/a%20b.json/install",
+    ]);
+  });
+
+  test("library avatar names are encoded", () => {
+    expect(http.library.avatarUrl("a b.png")).toBe("/api/library/a%20b.png/avatar");
+  });
+
+  test("the update check only asks to refresh when told to", async () => {
+    await http.updates.check();
+    await http.updates.check(true);
+    expect(calls.map((c) => c.url)).toEqual(["/api/update", "/api/update?refresh=true"]);
+  });
+});
+
+// One row per call the interface makes today, so that a route or a verb that
+// drifts is named by the test that fails.
+describe("routes", () => {
+  const file = new File(["x"], "f.png", { type: "image/png" });
+  const character = {
+    kind: "character" as const, name: "Vane", tagline: "", description: "", personality: "",
+    scenario: "", greeting: "", alternate_greetings: [], example_dialogues: "", system_prompt: "",
+    post_history_instructions: "", creator_notes: "", tags: [], creator: "", character_version: "",
+  };
+  const connection = {
+    name: "Local", provider: "openai-compatible" as const, base_url: "http://localhost:1234/v1",
+    model: "m", context_size: 16384, max_tokens: 1024, temperature: 0.8, top_p: 0.95,
+    frequency_penalty: 0.15, presence_penalty: 0.15, is_default: false,
+  };
+  const lore = { keys: ["gate"], content: "It is shut.", enabled: true, case_sensitive: false, priority: 0 };
+
+  // `body` is the JSON that goes out, or the File of an upload; absent when
+  // nothing is sent.
+  type Row = [name: string, run: () => Promise<unknown>, method: string, url: string, body?: unknown];
+  const rows: Row[] = [
+    ["characters.get", () => http.characters.get("c1"), "GET", "/api/characters/c1"],
+    ["characters.create", () => http.characters.create(character), "POST", "/api/characters", character],
+    ["characters.update", () => http.characters.update("c1", { is_favorite: true }), "PUT", "/api/characters/c1", { is_favorite: true }],
+    ["characters.remove", () => http.characters.remove("c1"), "DELETE", "/api/characters/c1"],
+    ["characters.uploadAvatar", () => http.characters.uploadAvatar("c1", file), "POST", "/api/characters/c1/avatar", file],
+    ["characters.importCard", () => http.characters.importCard(file), "POST", "/api/characters/import", file],
+    [
+      "characters.assist",
+      () => http.characters.assist({ prompt: "a ferryman", kind: "character", existing: {}, connection_id: null }),
+      "POST", "/api/characters/assist",
+      { prompt: "a ferryman", kind: "character", existing: {}, connection_id: null },
+    ],
+    ["lore.list", () => http.lore.list("c1"), "GET", "/api/characters/c1/lore"],
+    ["lore.create", () => http.lore.create("c1", lore), "POST", "/api/characters/c1/lore", lore],
+    ["lore.update", () => http.lore.update("l1", { enabled: false }), "PATCH", "/api/lore/l1", { enabled: false }],
+    ["lore.remove", () => http.lore.remove("l1"), "DELETE", "/api/lore/l1"],
+    ["personas.list", () => http.personas.list(), "GET", "/api/personas"],
+    [
+      "personas.create",
+      () => http.personas.create({ name: "Me", description: "", is_default: true }),
+      "POST", "/api/personas", { name: "Me", description: "", is_default: true },
+    ],
+    [
+      "personas.update",
+      () => http.personas.update("p1", { name: "Me", description: "x", is_default: false }),
+      "PUT", "/api/personas/p1", { name: "Me", description: "x", is_default: false },
+    ],
+    ["personas.remove", () => http.personas.remove("p1"), "DELETE", "/api/personas/p1"],
+    ["conversations.list", () => http.conversations.list(), "GET", "/api/conversations"],
+    [
+      "conversations.list for a character",
+      () => http.conversations.list({ character_id: "c 1" }),
+      "GET", "/api/conversations?character_id=c+1",
+    ],
+    ["conversations.get", () => http.conversations.get("v1"), "GET", "/api/conversations/v1"],
+    [
+      "conversations.create",
+      () => http.conversations.create({ character_id: "c1", persona_id: null, connection_id: "k1", greeting_index: 2 }),
+      "POST", "/api/conversations",
+      { character_id: "c1", persona_id: null, connection_id: "k1", greeting_index: 2 },
+    ],
+    ["conversations.update", () => http.conversations.update("v1", { title: "T" }), "PATCH", "/api/conversations/v1", { title: "T" }],
+    ["conversations.remove", () => http.conversations.remove("v1"), "DELETE", "/api/conversations/v1"],
+    ["conversations.setWallpaper", () => http.conversations.setWallpaper("v1", file), "POST", "/api/conversations/v1/wallpaper", file],
+    ["conversations.clearWallpaper", () => http.conversations.clearWallpaper("v1"), "DELETE", "/api/conversations/v1/wallpaper"],
+    ["conversations.summarize", () => http.conversations.summarize("v1"), "POST", "/api/conversations/v1/summarize"],
+    ["messages.update", () => http.messages.update("m1", { active_index: 1 }), "PATCH", "/api/messages/m1", { active_index: 1 }],
+    ["messages.branch", () => http.messages.branch("m1"), "POST", "/api/messages/m1/branch"],
+    ["memories.list", () => http.memories.list("v1"), "GET", "/api/conversations/v1/memories"],
+    [
+      "memories.create",
+      () => http.memories.create("v1", { content: "She lies.", is_pinned: true }),
+      "POST", "/api/conversations/v1/memories", { content: "She lies.", is_pinned: true },
+    ],
+    ["memories.update", () => http.memories.update("f1", { is_pinned: false }), "PATCH", "/api/memories/f1", { is_pinned: false }],
+    ["memories.remove", () => http.memories.remove("f1"), "DELETE", "/api/memories/f1"],
+    ["memories.extract", () => http.memories.extract("v1"), "POST", "/api/conversations/v1/memories/extract"],
+    ["memories.consolidate", () => http.memories.consolidate("v1"), "POST", "/api/conversations/v1/memories/consolidate"],
+    ["turns.stop", () => http.turns.stop("v1"), "DELETE", "/api/conversations/v1/turn"],
+    ["turns.state", () => http.turns.state("v1"), "GET", "/api/conversations/v1/turn"],
+    ["turns.impersonate", () => http.turns.impersonate("v1"), "POST", "/api/conversations/v1/impersonate"],
+    ["library.list", () => http.library.list(), "GET", "/api/library"],
+    ["settings.get", () => http.settings.get(), "GET", "/api/settings"],
+    ["settings.update", () => http.settings.update({ reply_length: "long" }), "PUT", "/api/settings", { reply_length: "long" }],
+    ["connections.list", () => http.connections.list(), "GET", "/api/connections"],
+    ["connections.create", () => http.connections.create({ ...connection, api_key: "k" }), "POST", "/api/connections", { ...connection, api_key: "k" }],
+    ["connections.update", () => http.connections.update("k1", connection), "PUT", "/api/connections/k1", connection],
+    ["connections.remove", () => http.connections.remove("k1"), "DELETE", "/api/connections/k1"],
+    ["connections.test", () => http.connections.test(connection), "POST", "/api/connections/test", connection],
+    ["connections.testSaved", () => http.connections.testSaved("k1"), "POST", "/api/connections/k1/test"],
+    ["connections.benchmark", () => http.connections.benchmark("k1"), "POST", "/api/connections/k1/benchmark"],
+    ["updates.check", () => http.updates.check(), "GET", "/api/update"],
+    ["access.status", () => http.access.status(), "GET", "/api/gate"],
+    ["access.login", () => http.access.login("open sesame"), "POST", "/api/gate", { password: "open sesame" }],
+    ["access.logout", () => http.access.logout(), "DELETE", "/api/gate"],
+    ["access.logoutEverywhere", () => http.access.logoutEverywhere(), "DELETE", "/api/gate/sessions"],
+  ];
+
+  test.each(rows)("%s", async (_name, run, method, url, body) => {
+    // 204 for every verb that has nothing to say back, so that none of them
+    // fails on an empty body.
+    reply(method === "DELETE" || (method === "POST" && url === "/api/gate") ? new Response(null, { status: 204 }) : json({}));
+    await run();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe(url);
+    expect(calls[0].init.method ?? "GET").toBe(method);
+    if (body instanceof File) {
+      // An upload: one multipart field called "file".
+      expect(calls[0].init.body).toBeInstanceOf(FormData);
+      expect(((calls[0].init.body as FormData).get("file") as File).name).toBe(body.name);
+    } else if (body !== undefined) {
+      expect(bodyOf(calls[0])).toEqual(body);
+    } else {
+      expect(calls[0].init.body).toBeUndefined();
+    }
+  });
+});
+
+describe("errors", () => {
+  test("server errors keep their message and kind", async () => {
+    reply(json({ error: "Bad", kind: "unreachable" }, 400));
+    const failure = await http.turns.impersonate("v1").catch((e) => e);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.message).toBe("Bad");
+    expect(failure.kind).toBe("unreachable");
+    expect(failure.status).toBe(400);
+  });
+
+  test("validation errors become readable text", async () => {
+    const detail = [{ loc: ["body", "name"], msg: "Field required", type: "missing" }];
+    reply(json({ detail }, 422));
+    const failure = await http.personas.create({ name: "", description: "", is_default: false }).catch((e) => e);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.message).toBe(JSON.stringify(detail));
+    expect(failure.status).toBe(422);
+    expect(failure.kind).toBeUndefined();
+  });
+
+  test("an answer that is not JSON still gives a message and a status", async () => {
+    reply(new Response("<html>Bad gateway</html>", { status: 502 }));
+    const failure = await http.settings.get().catch((e) => e);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.status).toBe(502);
+    expect(failure.message).toBeTruthy();
+  });
+
+  test("204 resolves to undefined", async () => {
+    reply(new Response(null, { status: 204 }));
+    await expect(http.characters.remove("c1")).resolves.toBeUndefined();
+  });
+
+  test("rate limiting carries Retry-After", async () => {
+    reply(json({ error: "Too many attempts.", kind: "rate_limited" }, 429, { "Retry-After": "120" }));
+    const failure = await http.access.login("guess").catch((e) => e);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.kind).toBe("rate_limited");
+    expect(failure.status).toBe(429);
+    expect(failure.retryAfter).toBe(120);
+  });
+
+  test("a missing or unreadable Retry-After is left out", async () => {
+    reply(json({ error: "Down" }, 503));
+    reply(json({ error: "Down" }, 503, { "Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT" }));
+    const first = await http.settings.get().catch((e) => e);
+    const second = await http.settings.get().catch((e) => e);
+    expect(first.retryAfter).toBeUndefined();
+    expect(second.retryAfter).toBeUndefined();
+  });
+
+  test("a wrong password is told apart from a locked session", async () => {
+    const locked = vi.fn();
+    const stop = onLocked(locked);
+    try {
+      reply(json({ error: "Wrong password.", kind: "wrong_password" }, 401));
+      const failure = await http.access.login("nope").catch((e) => e);
+      expect(failure.kind).toBe("wrong_password");
+      expect(locked).not.toHaveBeenCalled();
+    } finally {
+      stop();
+    }
+  });
+});
+
+describe("locked sessions", () => {
+  const stops: Array<() => void> = [];
+  afterEach(() => {
+    stops.splice(0).forEach((stop) => stop());
+  });
+
+  test("a locked API calls the handler once, then rejects", async () => {
+    const handler = vi.fn();
+    stops.push(onLocked(handler));
+    reply(json({ error: "Locked.", kind: "locked" }, 401));
+
+    const failure = await http.characters.list().catch((e) => e);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.kind).toBe("locked");
+    expect(failure.status).toBe(401);
+  });
+
+  test("a locked stream reaches the handler too", async () => {
+    const handler = vi.fn();
+    stops.push(onLocked(handler));
+    reply(json({ error: "Locked.", kind: "locked" }, 401));
+
+    const failure = await http.turns.follow("v1", () => {}).catch((e) => e);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(failure.kind).toBe("locked");
+  });
+
+  test("a handler that was removed is no longer called", async () => {
+    const handler = vi.fn();
+    onLocked(handler)();
+    reply(json({ error: "Locked.", kind: "locked" }, 401));
+
+    await http.characters.list().catch(() => {});
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  test("a 401 that is not about the lock leaves the handler alone", async () => {
+    const handler = vi.fn();
+    stops.push(onLocked(handler));
+    reply(json({ error: "Nope" }, 401));
+
+    await http.characters.list().catch(() => {});
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe("turns", () => {
+  const start = '{"type":"start","conversation_id":"v1","user_message":null}';
+
+  test("turn events survive chunk boundaries", async () => {
+    reply(chunked(`data: ${start}\n\nda`, 'ta: {"type":"delta","text":"Hi"}\n\n'));
+    const events: ChatEvent[] = [];
+
+    await http.turns.send({ conversation_id: "v1", mode: "send", content: "Hello" }, (e) => events.push(e));
+
+    expect(events).toEqual([
+      { type: "start", conversation_id: "v1", user_message: null },
+      { type: "delta", text: "Hi" },
+    ]);
+  });
+
+  test("the last event counts even without a closing blank line", async () => {
+    reply(chunked('data: {"type":"delta","text":"Hi"}'));
+    const events: ChatEvent[] = [];
+
+    await http.turns.send({ conversation_id: "v1", mode: "continue" }, (e) => events.push(e));
+
+    expect(events).toEqual([{ type: "delta", text: "Hi" }]);
+  });
+
+  test("garbage between events is skipped", async () => {
+    reply(chunked(': keep-alive\n\ndata: {oops\n\ndata: {"type":"delta","text":"Hi"}\n\n'));
+    const events: ChatEvent[] = [];
+
+    await http.turns.send({ conversation_id: "v1", mode: "send" }, (e) => events.push(e));
+
+    expect(events).toEqual([{ type: "delta", text: "Hi" }]);
+  });
+
+  test("send posts the request and hands the signal to fetch", async () => {
+    reply(chunked());
+    const controller = new AbortController();
+    const request = { conversation_id: "v1", mode: "send" as const, content: "Hi", message_mode: "narrate" as const };
+
+    await http.turns.send(request, () => {}, controller.signal);
+
+    expect(calls[0].url).toBe("/api/chat");
+    expect(calls[0].init.method).toBe("POST");
+    expect(bodyOf(calls[0])).toEqual(request);
+    expect(new Headers(calls[0].init.headers).get("Content-Type")).toBe("application/json");
+    expect(calls[0].init.signal).toBe(controller.signal);
+  });
+
+  test("following an idle conversation yields nothing", async () => {
+    reply(new Response("", { status: 200, headers: { "Content-Type": "text/event-stream" } }));
+    reply(new Response(null, { status: 200 }));
+    const events: ChatEvent[] = [];
+
+    await http.turns.follow("v1", (e) => events.push(e));
+    await http.turns.follow("v1", (e) => events.push(e));
+
+    expect(events).toEqual([]);
+    expect(calls[0].url).toBe("/api/conversations/v1/turn/stream");
+    expect(calls[0].init.method ?? "GET").toBe("GET");
+  });
+
+  test("a refused turn rejects with what the server said", async () => {
+    reply(json({ error: "No model is connected." }, 400));
+    const failure = await http.turns
+      .send({ conversation_id: "v1", mode: "send" }, () => {})
+      .catch((e) => e);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.message).toBe("No model is connected.");
+    expect(failure.status).toBe(400);
+  });
+
+  test("a dropped connection stays the error fetch raised", async () => {
+    const dropped = new TypeError("Failed to fetch");
+    const offline = createHttpSource((() => Promise.reject(dropped)) as typeof fetch);
+    await expect(offline.turns.follow("v1", () => {})).rejects.toBe(dropped);
+  });
+});
+
+describe("card export", () => {
+  test("the file name comes from Content-Disposition", async () => {
+    reply(new Response("{}", { headers: { "Content-Disposition": 'attachment; filename="Vane the Ferryman.json"' } }));
+    const { blob, filename } = await http.characters.exportCard("c1", "json");
+    expect(calls[0].url).toBe("/api/characters/c1/export?format=json");
+    expect(filename).toBe("Vane the Ferryman.json");
+    expect(await blob.text()).toBe("{}");
+  });
+
+  test("without a usable header the file is named after the format", async () => {
+    reply(new Response("png"));
+    const { filename } = await http.characters.exportCard("c1", "png");
+    expect(filename).toBe("card.png");
+  });
+
+  test("a failed export is an error, not a download", async () => {
+    reply(json({ error: "Character not found." }, 404));
+    const failure = await http.characters.exportCard("gone", "json").catch((e) => e);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.message).toBe("Character not found.");
+    expect(failure.status).toBe(404);
+  });
+});
+
+describe("access", () => {
+  test("status returns what the server says", async () => {
+    reply(json({ enabled: true, authenticated: false }));
+    await expect(http.access.status()).resolves.toEqual({ enabled: true, authenticated: false });
+  });
+
+  test("a successful login resolves to nothing", async () => {
+    reply(new Response(null, { status: 204 }));
+    await expect(http.access.login("right")).resolves.toBeUndefined();
+  });
+});

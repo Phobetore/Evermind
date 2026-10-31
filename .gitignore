@@ -1,5 +1,6 @@
-# Data (local database, uploaded media)
-data/
+# Data (local database, uploaded media). Anchored to the root: the interface
+# keeps its source in frontend/src/data.
+/data/
 
 # Python
 __pycache__/
