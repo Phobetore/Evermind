@@ -49,6 +49,7 @@
   --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade: fade 0.35s ease both;
   --animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
+  --animate-pending: pending 1.2s ease-in-out infinite;
 }
 
 @keyframes rise {
@@ -62,6 +63,10 @@
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
+}
+@keyframes pending {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
 }
 
 :root {
