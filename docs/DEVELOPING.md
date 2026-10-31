@@ -178,9 +178,12 @@ When a model's server is what failed, the kind says how (`unreachable`,
 `model_auth_refused`, `model_not_found`, `model_rate_limited`, `model_http_error`,
 `model_timeout`, `model_network_error`, `model_unexpected_response`, or
 `model_error` for a complaint of its own), and what it said travels apart from the
-sentence: `upstream` is its words as it sent them, `upstream_status` its status.
-The interface cannot translate what another program wrote, so it says the failure
-in the person's language and shows `upstream` after it. The connection test, the
+sentence: `upstream` is its words as it sent them (for a page that is not JSON,
+the words of the page without its markup, cut short), `upstream_status` its status,
+and `upstream_url` the address that could not be reached, without any
+`user:password@` in it. The interface cannot translate what another program wrote,
+so it says the failure in the person's language, with the address where there is
+one, and shows `upstream` after it. The connection test, the
 benchmark and the model list report failures the same way inside their `200`
 bodies: `{"ok": false, "detail": "<English sentence>", "kind": ..., "upstream": ...}`.
 
@@ -212,7 +215,8 @@ location /evermind/ {
 
 Tell the server the prefix with `EVERMIND_ROOT_PATH=/evermind` (in `.env`, or in the
 environment of the container) or `python -m app --root-path /evermind`; a trailing
-slash is taken off, and a value that does not start with a slash is refused. The
+slash is taken off, and a value that does not start with a slash, or that has `//`, a
+`.` or `..` segment, a backslash, a `%`, a space, `?` or `#` in it, is refused. The
 pages, every call and every image work without it. What it adds is the redirect of
 an old `/chat/<id>` bookmark, which has to go to `/evermind/#/chat/<id>`, a place
 the server can only name if it knows the prefix.
