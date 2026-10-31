@@ -109,8 +109,13 @@ test("signing out really ends the session", async ({ page, context, request }) =
   expect((await request.get(`${GATED}/api/characters`, { headers: replayed })).status(),
     "the cookie did not work before signing out, so replaying it proves nothing").toBe(200);
 
+  const entries = await page.evaluate(() => history.length);
   await page.getByRole("button", { name: /sign out of this device/i }).click();
-  await expect(page).toHaveURL(/#\/login/);
+  // A clean login address, with nothing about where the person was going, and
+  // taking the place of the settings page in the history instead of stacking
+  // on it: Back must not lead into a page that is closed.
+  await expect(page).toHaveURL(/#\/login$/);
+  expect(await page.evaluate(() => history.length)).toBe(entries);
 
   await page.reload();
   await expect(page).toHaveURL(/#\/login/);

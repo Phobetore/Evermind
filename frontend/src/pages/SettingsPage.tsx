@@ -276,8 +276,12 @@ function Access({ access }: { access: NonNullable<DataSource["access"]> }) {
     setError(null);
     try {
       await (everywhere ? access.logoutEverywhere() : access.logout());
+      // The login first, in place of this page, and the status after: the other
+      // way round, the gate would take the person to the login with this page
+      // as the place to come back to. Until the status is fresh it still shows
+      // a session, which the login is told to look past.
+      await navigate("/login", { replace: true, state: { signedOut: true } });
       await refresh();
-      navigate("/login");
     } catch (e) {
       setError(describeError(e, t));
       setBusy(false);
