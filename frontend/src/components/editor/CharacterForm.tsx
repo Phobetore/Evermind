@@ -458,7 +458,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
         <button
           type="button"
           onClick={() => setAdvanced(!advanced)}
-          className="flex items-center gap-2 self-start font-display text-sm font-medium text-mist transition-colors hover:text-parchment"
+          className="touch-target flex items-center gap-2 self-start font-display text-sm font-medium text-mist transition-colors hover:text-parchment"
         >
           <ChevronDown className={clsx("h-4 w-4 transition-transform", advanced && "rotate-180")} />
           {t("characters.form.advancedSettingsToggle")}

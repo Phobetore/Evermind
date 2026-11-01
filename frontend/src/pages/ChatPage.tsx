@@ -345,10 +345,13 @@ function ChatView({ id }: { id: string }) {
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <header className="flex items-center gap-3 border-b border-ink-700 bg-ink-900 px-4 py-3 md:bg-ink-900/80 md:backdrop-blur">
+        <header className="flex items-center gap-3 border-b border-ink-700 bg-ink-900 px-4 py-3 pointer-coarse:py-[13px] md:bg-ink-900/80 md:backdrop-blur">
           <Link
             to="/chat"
-            className="rounded-lg p-1.5 text-mist transition-colors hover:bg-ink-800 hover:text-parchment"
+            // 44px to hit on a touch screen, which the header does not grow for:
+            // the button stands over its padding. The title below the name needs
+            // 14px beyond it to be reached, hence 13px of padding there.
+            className="rounded-lg p-1.5 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
             aria-label={t("chat.header.backAriaLabel")}
           >
             <ArrowLeft className="h-5 w-5" />
@@ -358,7 +361,7 @@ function ChatView({ id }: { id: string }) {
             <h1 className="truncate font-display font-semibold leading-tight">{character.name}</h1>
             {titleDraft !== null ? (
               <input
-                className="field !w-64 !rounded-md !px-1.5 !py-0 text-xs"
+                className="field !min-h-0 !w-64 !rounded-md !px-1.5 !py-0 text-xs"
                 value={titleDraft}
                 autoFocus
                 onChange={(e) => setTitleDraft(e.target.value)}
@@ -370,11 +373,15 @@ function ChatView({ id }: { id: string }) {
               />
             ) : (
               <button
-                className="block max-w-64 truncate text-left text-xs text-mist transition-colors hover:text-parchment"
+                className="touch-target block max-w-64 text-left text-xs text-mist transition-colors hover:text-parchment"
                 onClick={() => setTitleDraft(conversation.title || "")}
                 title={t("chat.header.renameTitle")}
               >
-                {conversation.title || t("chatList.newConversationFallback")}
+                {/* Inside, because a button that clips its text clips the area
+                    that is added to it for a touch screen too. */}
+                <span className="block truncate">
+                  {conversation.title || t("chatList.newConversationFallback")}
+                </span>
               </button>
             )}
           </div>
@@ -407,7 +414,7 @@ function ChatView({ id }: { id: string }) {
             )}
             <button
               onClick={() => setMobilePanelOpen(true)}
-              className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment md:hidden"
+              className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3 md:hidden"
               aria-label={t("chat.header.memorySettingsAriaLabel")}
             >
               <SlidersHorizontal className="h-5 w-5" />
@@ -415,7 +422,7 @@ function ChatView({ id }: { id: string }) {
             {!panelOpen && (
               <button
                 onClick={() => setPanelOpen(true)}
-                className="hidden rounded-lg p-1.5 text-mist transition-colors hover:bg-ink-800 hover:text-parchment md:block"
+                className="hidden rounded-lg p-1.5 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3 md:block"
                 aria-label={t("chat.header.openPanelAriaLabel")}
               >
                 <PanelRightOpen className="h-5 w-5" />

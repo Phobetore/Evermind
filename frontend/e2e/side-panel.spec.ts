@@ -155,6 +155,18 @@ function measure(panel: Locator) {
         : null;
     };
     const all = [...aside.querySelectorAll("*")];
+    // The area added around a small control on a touch screen is meant to stick
+    // out of it (and the panel's padding takes it up), so it is left out of the
+    // question of which text runs out of its box. Everything else is measured
+    // with it in.
+    const hideReach = document.createElement("style");
+    hideReach.textContent = ".touch-target::after { display: none !important }";
+    document.head.append(hideReach);
+    const spilling = all
+      .filter((el) => !["TEXTAREA", "INPUT", "SELECT", "SVG", "OPTION"].includes(el.tagName.toUpperCase()))
+      .filter((el) => el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1)
+      .map((el) => `${describe(el)} is ${el.clientWidth}px wide and holds ${el.scrollWidth}px`);
+    hideReach.remove();
     return {
       scrollWidth: aside.scrollWidth,
       clientWidth: aside.clientWidth,
@@ -164,10 +176,7 @@ function measure(panel: Locator) {
       othersOutside: all.filter((el) => el.tagName !== "BUTTON").map(past).filter(Boolean),
       // A box that stays where it should while its text runs out of it: a long
       // word with no place to break. Text boxes scroll their own text.
-      spilling: all
-        .filter((el) => !["TEXTAREA", "INPUT", "SELECT", "SVG", "OPTION"].includes(el.tagName.toUpperCase()))
-        .filter((el) => el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1)
-        .map((el) => `${describe(el)} is ${el.clientWidth}px wide and holds ${el.scrollWidth}px`),
+      spilling,
       // The .btn rule gives a phone 44px to hit; a row that wraps must not lose it.
       small: [...aside.querySelectorAll<HTMLElement>(".btn")]
         .filter((el) => el.getBoundingClientRect().height > 0)

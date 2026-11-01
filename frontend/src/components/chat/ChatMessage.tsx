@@ -62,7 +62,9 @@ export function ChatMessage({
     <div data-message-id={message.id} className="group flex gap-3.5 px-1 py-3 animate-fade">
       <Avatar name={name} src={avatarSrc} className="mt-0.5 h-10 w-10 shrink-0 text-lg" />
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2.5">
+        {/* Wraps, for the sake of a touch screen: six buttons of 44px are wider
+            than the name and the column beside it on some phones. */}
+        <div className="flex flex-wrap items-baseline gap-x-2.5 pointer-coarse:items-center">
           <span
             className={clsx(
               "font-display text-[0.95rem] font-semibold",
@@ -85,8 +87,10 @@ export function ChatMessage({
             <span className="text-[0.68rem] uppercase tracking-wide text-mist-dim">{t("chat.message.interrupted")}</span>
           )}
 
-          {/* Revealed on hover (desktop), always visible on touch */}
-          <div className="hover-actions ml-auto flex items-center gap-0.5">
+          {/* Revealed on hover (desktop), always visible on touch. There each
+              button is 44px across, the row gives back the height it takes, and
+              on the narrowest screens six of them go on two lines. */}
+          <div className="hover-actions ml-auto flex items-center gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:flex-wrap pointer-coarse:justify-end pointer-coarse:gap-0">
             {!isUser && isLast && !busy && (
               <>
                 <IconButton title={t("chat.message.regenerateTitle")} onClick={onRegenerate}>
@@ -157,11 +161,11 @@ export function ChatMessage({
           )}
         </div>
 
-        {/* Swipes */}
+        {/* Swipes. 44px buttons on a touch screen, and the row gives the height back. */}
         {canSwipe && !editing && (
-          <div className="mt-1.5 flex items-center gap-1.5 text-mist-dim">
+          <div className="mt-1.5 flex items-center gap-1.5 text-mist-dim pointer-coarse:mt-0 pointer-coarse:-mb-2.5 pointer-coarse:gap-0">
             <button
-              className="rounded p-1.5 transition-colors hover:text-parchment disabled:opacity-30 md:p-0.5"
+              className="rounded p-1.5 transition-colors hover:text-parchment disabled:opacity-30 md:p-0.5 pointer-coarse:p-3.5 md:pointer-coarse:p-3.5"
               disabled={message.active_index === 0 || busy}
               onClick={() => onSwipe(message.active_index - 1)}
               aria-label={t("chat.message.prevVariantAriaLabel")}
@@ -172,7 +176,7 @@ export function ChatMessage({
               {message.active_index + 1}/{variants.length}
             </span>
             <button
-              className="rounded p-1.5 transition-colors hover:text-parchment disabled:opacity-30 md:p-0.5"
+              className="rounded p-1.5 transition-colors hover:text-parchment disabled:opacity-30 md:p-0.5 pointer-coarse:p-3.5 md:pointer-coarse:p-3.5"
               disabled={busy || (message.active_index === variants.length - 1 && !isLast)}
               onClick={() => {
                 if (message.active_index < variants.length - 1) onSwipe(message.active_index + 1);
@@ -205,7 +209,7 @@ function IconButton({
       title={title}
       onClick={onClick}
       className={clsx(
-        "rounded-md p-1.5 text-mist-dim transition-colors",
+        "rounded-md p-1.5 text-mist-dim transition-colors pointer-coarse:p-[15px]",
         danger ? "hover:bg-blood/15 hover:text-blood" : "hover:bg-ink-700 hover:text-parchment",
       )}
     >

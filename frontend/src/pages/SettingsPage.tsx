@@ -184,7 +184,7 @@ export function SettingsPage() {
       {settings && (
         <section className="mb-10">
           <h2 className="ui-label mb-2">{t("settings.autoMemoryTitle")}</h2>
-          <label className="flex cursor-pointer items-start gap-3 text-sm text-parchment-dim">
+          <label className="touch-target flex cursor-pointer items-start gap-3 text-sm text-parchment-dim">
             <input
               type="checkbox"
               checked={settings.auto_memory}
@@ -390,9 +390,9 @@ function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
         <p className="mt-2 text-sm leading-relaxed text-mist">
           {t("settings.about.starHint")}
         </p>
-        <div className="mt-3 flex flex-wrap gap-4 text-sm">
+        <div className="mt-3 flex flex-wrap gap-4 text-sm pointer-coarse:gap-y-6">
           <a
-            className="text-ember-400 hover:text-ember-300"
+            className="touch-target text-ember-400 hover:text-ember-300"
             href="https://github.com/Phobetore/Evermind"
             target="_blank"
             rel="noreferrer noopener"
@@ -400,7 +400,7 @@ function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
             {t("settings.about.projectLink")}
           </a>
           <a
-            className="text-mist hover:text-parchment"
+            className="touch-target text-mist hover:text-parchment"
             href="https://github.com/Phobetore/Evermind/issues/new/choose"
             target="_blank"
             rel="noreferrer noopener"
@@ -410,7 +410,7 @@ function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
         </div>
 
         <div className="mt-4 border-t border-ink-700 pt-3">
-          <label className="flex cursor-pointer items-start gap-3 text-sm text-mist">
+          <label className="touch-target flex cursor-pointer items-start gap-3 text-sm text-mist">
             <input
               type="checkbox"
               checked={status?.enabled ?? false}

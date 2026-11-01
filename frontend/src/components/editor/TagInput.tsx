@@ -22,7 +22,14 @@ export function TagInput({
   }
 
   return (
-    <div className="field flex flex-wrap items-center gap-1.5 py-2">
+    // Rows of tags are further apart on a touch screen, so that the 44px
+    // reachable area of one tag's remove button does not meet the next row's.
+    <div
+      className="field flex flex-wrap items-center gap-1.5 py-2 pointer-coarse:gap-y-6"
+      // The box is what is seen, so the box is what is touched, not only the
+      // line of text inside it.
+      onClick={(e) => e.target === e.currentTarget && e.currentTarget.querySelector("input")?.focus()}
+    >
       {value.map((tag) => (
         <span
           key={tag}
@@ -32,7 +39,7 @@ export function TagInput({
           <button
             type="button"
             onClick={() => onChange(value.filter((tagValue) => tagValue !== tag))}
-            className="text-mist-dim hover:text-blood"
+            className="touch-target text-mist-dim hover:text-blood"
             aria-label={t("ui.tagInput.removeAriaLabel", { tag })}
           >
             <X className="h-3 w-3" />

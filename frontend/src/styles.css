@@ -169,6 +169,9 @@ input, textarea, select, button {
 /* iOS zooms into any focused input under 16px — never let that happen. */
 @media (max-width: 767px) {
   .field { font-size: 16px; }
+  /* A text box or a menu is something to hit with a thumb too. Textareas are
+     tall already, and the two editors that replace a title in place say so. */
+  .field:not(textarea) { min-height: 2.75rem; }
 }
 
 /* Actions revealed on hover on desktop; touch screens have no hover,
@@ -183,6 +186,30 @@ input, textarea, select, button {
 }
 @media (hover: none) {
   .hover-actions { opacity: 0.75; }
+}
+/* A keyboard has no hover either: whatever has focus must be seen. */
+.hover-actions:focus-visible,
+.hover-actions:focus-within {
+  opacity: 1;
+}
+
+/* A control that is small to look at and still has to be hit with a thumb. On a
+   touch screen the picture stays the size it is and the part that answers a
+   touch grows to 44px each way around its centre, without moving anything
+   else. Two of them side by side are spaced so that their areas meet and do not
+   overlap; where that takes room, the markup says so (pointer-coarse:...).
+   Anything already positioned keeps its own positioning. */
+@media (pointer: coarse) {
+  .touch-target:not(.absolute, .fixed, .sticky) { position: relative; }
+  .touch-target::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
 }
 /* Without this, links and buttons fall back to the browser ring, which is drawn
    from the element's own colour: on the logo that came out near-black on a

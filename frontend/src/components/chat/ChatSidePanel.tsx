@@ -249,7 +249,7 @@ export function ChatSidePanel({
         </Link>
         <button
           onClick={onClose}
-          className="shrink-0 rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment"
+          className="touch-target shrink-0 rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment"
           aria-label={t("chat.panel.closeAriaLabel")}
         >
           <X className="h-4 w-4" />
@@ -517,7 +517,10 @@ export function ChatSidePanel({
             <div
               key={memory.id}
               className={clsx(
-                "group/fact flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5",
+                // On a touch screen the row is as tall as the thumb, so that
+                // the two small controls in it, centred, have the room their
+                // reachable areas need and do not run into the next row's.
+                "group/fact flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5 pointer-coarse:min-h-11 pointer-coarse:items-center",
                 dormant.has(memory.id)
                   ? "border-ink-800 bg-ink-950/40 opacity-45"
                   : "border-ink-700 bg-ink-900/60",
@@ -528,7 +531,7 @@ export function ChatSidePanel({
                 onClick={() => togglePin(memory)}
                 title={memory.is_pinned ? t("chat.panel.facts.unpinTitle") : t("chat.panel.facts.pinTitle")}
                 className={clsx(
-                  "mt-0.5 shrink-0 transition-colors",
+                  "touch-target mt-0.5 shrink-0 transition-colors pointer-coarse:mt-0",
                   memory.is_pinned ? "text-ember-400" : "text-mist-dim hover:text-parchment",
                 )}
               >
@@ -542,7 +545,8 @@ export function ChatSidePanel({
               </span>
               <button
                 onClick={() => removeFact(memory)}
-                className="mt-0.5 shrink-0 text-mist-dim opacity-0 transition-all hover:text-blood group-hover/fact:opacity-100"
+                // Shown with the row on hover; where there is no hover, always.
+                className="hover-actions touch-target mt-0.5 shrink-0 text-mist-dim hover:text-blood pointer-coarse:mt-0"
                 aria-label={t("chat.panel.facts.forgetAriaLabel")}
               >
                 <X className="h-3.5 w-3.5" />

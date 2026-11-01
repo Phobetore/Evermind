@@ -99,7 +99,7 @@ export function ChatListPage() {
                 </div>
                 {renamingId === convo.id ? (
                   <input
-                    className="field mt-0.5 !w-full !rounded-md !px-1.5 !py-0.5 text-sm"
+                    className="field mt-0.5 !min-h-0 !w-full !rounded-md !px-1.5 !py-0.5 text-sm"
                     value={renameDraft}
                     autoFocus
                     onClick={(e) => e.preventDefault()}
@@ -124,14 +124,14 @@ export function ChatListPage() {
                   setRenameDraft(convo.title || "");
                   setRenamingId(convo.id);
                 }}
-                className="hover-actions rounded-lg p-2 text-mist-dim hover:bg-ink-700 hover:text-parchment"
+                className="hover-actions rounded-lg p-2 text-mist-dim hover:bg-ink-700 hover:text-parchment pointer-coarse:p-3.5"
                 aria-label={t("chatList.renameLabel")}
               >
                 <Pencil className="h-4 w-4" />
               </button>
               <button
                 onClick={(e) => remove(e, convo)}
-                className="hover-actions rounded-lg p-2 text-mist-dim hover:bg-blood/15 hover:text-blood"
+                className="hover-actions rounded-lg p-2 text-mist-dim hover:bg-blood/15 hover:text-blood pointer-coarse:p-3.5"
                 aria-label={t("common.delete")}
               >
                 <Trash2 className="h-4 w-4" />

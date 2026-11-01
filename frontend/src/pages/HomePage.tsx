@@ -144,15 +144,18 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Tag rail */}
+      {/* Tag rail. On a touch screen the chips are reached 7px beyond what is
+          drawn, which a rail that scrolls sideways would clip, so it has that much
+          padding there; and where they wrap, rows are far enough apart for those
+          areas not to meet. */}
       {allTags.length > 0 && (
-        <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:mb-6 sm:flex-wrap sm:overflow-x-visible sm:px-0 sm:pb-0">
+        <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 pointer-coarse:gap-y-5 pointer-coarse:py-2 sm:mx-0 sm:mb-6 sm:flex-wrap sm:overflow-x-visible sm:px-0 sm:pb-0">
           {allTags.map((tag) => (
             <button
               key={tag}
               onClick={() => setActiveTag(activeTag === tag ? null : tag)}
               className={clsx(
-                "shrink-0 rounded-full border px-3 py-1.5 font-display text-xs font-medium transition-colors sm:py-1",
+                "touch-target shrink-0 rounded-full border px-3 py-1.5 font-display text-xs font-medium transition-colors sm:py-1",
                 activeTag === tag
                   ? "border-ember-500 bg-ember-glow text-ember-300"
                   : "border-ink-600 text-mist hover:border-ink-500 hover:text-parchment",

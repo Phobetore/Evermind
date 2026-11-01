@@ -98,7 +98,7 @@ export function CharacterCard({
             e.preventDefault();
             navigate(`/characters/${character.id}?start=1`);
           }}
-          className="btn btn-primary mt-2 hidden w-full translate-y-1 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 sm:inline-flex"
+          className="btn btn-primary mt-2 hidden w-full translate-y-1 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100 sm:inline-flex"
         >
           <MessageCircle className="h-4 w-4" />
           {t("characters.card.startButton")}
