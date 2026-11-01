@@ -50,7 +50,7 @@ export async function makeConversation(request: APIRequestContext, fields: Recor
  *  running is how a suite comes to pass here and fail on a CI runner. */
 export async function conversationWithReply(
   request: APIRequestContext,
-  { slowly = false }: { slowly?: boolean } = {},
+  { slowly = false, failing = false }: { slowly?: boolean; failing?: boolean } = {},
 ) {
   const convo = await makeConversation(request);
   await request.post(`${API}/api/chat`, {
@@ -62,6 +62,12 @@ export async function conversationWithReply(
     // about, and putting it in the message would make setting up slow too.
     await request.patch(`${API}/api/conversations/${convo.id}`, {
       data: { author_note: "SLOWLY" },
+    });
+  }
+  if (failing) {
+    // The same, for a model that refuses a couple of seconds into a turn.
+    await request.patch(`${API}/api/conversations/${convo.id}`, {
+      data: { author_note: "MOCK_FAILS" },
     });
   }
   return (await request.get(`${API}/api/conversations/${convo.id}`)).json();

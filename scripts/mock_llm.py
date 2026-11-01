@@ -24,6 +24,9 @@ WORD_DELAY = float(os.environ.get("EVERMIND_MOCK_DELAY", "0.045"))
 # takes to close one page and open another, and that has nothing to do with how
 # quickly the other replies are wanted.
 SLOW_WORD_DELAY = 0.6
+# Seconds a conversation that says MOCK_FAILS waits before the model refuses, which
+# gives a test a turn it can watch before it fails.
+FAIL_AFTER = 2.0
 
 REPLIES = [
     "*{char} watches you for a moment, weighing something.* Now that is an interesting "
@@ -54,6 +57,11 @@ class Handler(BaseHTTPRequestHandler):
         payload = json.loads(self.rfile.read(length) or b"{}")
         if not self.path.rstrip("/").endswith("/chat/completions"):
             self._json(json.dumps({"error": {"message": "unknown endpoint"}}), status=404)
+            return
+
+        if "MOCK_FAILS" in json.dumps(payload):
+            time.sleep(FAIL_AFTER)
+            self._json(json.dumps({"error": {"message": "The mock was told to fail."}}), status=500)
             return
 
         system = next((m["content"] for m in payload.get("messages", [])
