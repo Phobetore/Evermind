@@ -173,7 +173,8 @@ with neither header, from curl or a script, is let through.
 
 Without a password, anything under `/api/` whose `Host` is not an address,
 `localhost` (or a name ending in `.localhost`), this machine's name (also with
-`.local`) or a name in `EVERMIND_ALLOWED_HOSTS` answers `403` with
+`.local`; the first label alone when the name has a domain, `nas` for
+`nas.home.lan`) or a name in `EVERMIND_ALLOWED_HOSTS` answers `403` with
 `"kind": "unknown_host"`: a page whose own name was pointed at 127.0.0.1 (DNS
 rebinding) looks same-origin in every other header. The header is read strictly,
 so a name with anything after it (`localhost:3000@evil.com`) is not the name in

@@ -76,7 +76,8 @@ what stands in its way:
   rebinding), and the browser then treats that page as Evermind itself, able to
   read and change everything. So the API only answers when it is reached by an
   address, `localhost` (or a name ending in `.localhost`), this computer's own
-  name (also with `.local` after it), or a name listed in
+  name (also with `.local` after it, and its first label alone when the name has
+  a domain, `nas` for `nas.home.lan`), or a name listed in
   `EVERMIND_ALLOWED_HOSTS`. A container cannot see the computer's own name, so
   with Docker it has to be listed too.
 - **With a password, the password protects the rest.** Any name is accepted, so
