@@ -174,15 +174,15 @@ HTTPS. A request with neither header, from curl or a script, is let through.
 
 Without a password, anything under `/api/` whose `Host` is not an address,
 `localhost` (or a name ending in `.localhost`), this machine's name (also with
-`.local`; the first label alone when the name has a domain, `nas` for
-`nas.home.lan`) or a name in `EVERMIND_ALLOWED_HOSTS` answers `403` with
-`"kind": "unknown_host"`: a page whose own name was pointed at 127.0.0.1 (DNS
-rebinding) looks same-origin in every other header. The header is read strictly,
-so a name with anything after it (`localhost:3000@evil.com`) is not the name in
-front of it, and a request without a `Host` header is refused with a sentence of
-its own. In a container the machine's name is the container's, which nobody
-types, so with Docker the computer's own name has to be listed. With a password
-the name is not checked.
+`.local`), its first label when the name has a domain (and that label followed
+by `.local`; `nas` for `nas.home.lan`) or a name in `EVERMIND_ALLOWED_HOSTS`
+answers `403` with `"kind": "unknown_host"`: a page whose own name was pointed
+at 127.0.0.1 (DNS rebinding) looks same-origin in every other header. The header
+is read strictly, so a name with anything after it (`localhost:3000@evil.com`)
+is not the name in front of it, and a request without a `Host` header is refused
+with a sentence of its own. In a container the machine's name is the container's,
+which nobody types, so with Docker the computer's own name has to be listed. With
+a password the name is not checked.
 
 Responses are plain dicts shaped by the repositories; Pydantic is used for input
 validation only.
