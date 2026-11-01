@@ -21,7 +21,7 @@ import { conversationWithReply } from "./fixtures";
 // is the same, and the test below covers its other side.
 test("a stream cut short still ends with the reply on screen", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
   await expect(page.locator("textarea").first()).toBeVisible();
 
   // Let the request through, then cut the stream once the turn is under way.
@@ -41,20 +41,22 @@ test("a stream cut short still ends with the reply on screen", async ({ page, re
   await page.locator("textarea").first().fill("Reponds-moi.");
   await page.locator('button[title="Send"]').click();
 
-  // The reply finished on the server regardless.
+  // The reply finished on the server regardless: what was there, the message
+  // just sent, and the answer to it.
+  const expected = convo.messages.length + 2;
   await expect.poll(async () =>
     (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).messages.length,
-    { timeout: 40_000 }).toBe(4);
+    { timeout: 40_000 }).toBe(expected);
 
   await expect(page.locator("p.text-blood"),
     "a reply that landed was reported as a failure").toHaveCount(0);
   await expect(page.locator("[data-message-id]"),
-    "the reply never reached the screen without a reload").toHaveCount(4);
+    "the reply never reached the screen without a reload").toHaveCount(expected);
 });
 
 test("a message that never reached Evermind is reported", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
   await expect(page.locator("textarea").first()).toBeVisible();
 
   // Refused outright: no turn ever begins, so the message may not have been
@@ -64,6 +66,9 @@ test("a message that never reached Evermind is reported", async ({ page, request
   await page.locator("textarea").first().fill("Personne n'ecoute.");
   await page.locator('button[title="Send"]').click();
 
-  await expect(page.locator("p.text-blood").first(),
+  const report = page.locator("p.text-blood").first();
+  await expect(report,
     "the message never got through and nothing said so").toBeVisible({ timeout: 20_000 });
+  // In words that say what to look at, not the browser's own "Failed to fetch".
+  await expect(report).toContainText("Evermind is not answering");
 });

@@ -1,10 +1,9 @@
-"use client";
-
 import { TagInput } from "@/components/editor/TagInput";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
+import { describeError } from "@/lib/errors";
 import { newId } from "@/lib/utils";
-import type { LoreEntry, LoreEntryDraft } from "@/types";
+import type { LoreEntryDraft } from "@/types";
 import { BookMarked, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -45,25 +44,25 @@ export function LorebookSection({
     };
     try {
       const saved = characterId
-        ? await api.post<LoreEntry>(`/api/characters/${characterId}/lore`, draft)
+        ? await data.lore.create(characterId, draft)
         : { ...draft, id: newId() };
       onChange([...entries, saved]);
       setNewKeys([]);
       setNewContent("");
     } catch (e) {
-      flash(e instanceof Error ? e.message : t("lorebook.addFailedError"));
+      flash(describeError(e, t, t("lorebook.addFailedError")));
     }
   }
 
   async function patch(entry: LoreEntryDraft, changes: Partial<LoreEntryDraft>) {
     const updated = characterId
-      ? await api.patch<LoreEntry>(`/api/lore/${entry.id}`, changes)
+      ? await data.lore.update(entry.id, changes)
       : { ...entry, ...changes };
     onChange(entries.map((e) => (e.id === entry.id ? updated : e)));
   }
 
   async function remove(entry: LoreEntryDraft) {
-    if (characterId) await api.delete(`/api/lore/${entry.id}`);
+    if (characterId) await data.lore.remove(entry.id);
     onChange(entries.filter((e) => e.id !== entry.id));
   }
 
@@ -81,7 +80,9 @@ export function LorebookSection({
       <div className="flex flex-col gap-2">
         {entries.map((entry) => (
           <div key={entry.id} className="rounded-lg border border-ink-700 bg-ink-900/60 p-3">
-            <div className="mb-1.5 flex items-center justify-between gap-2">
+            {/* Further from the text box below on a touch screen: the reachable
+                area of the delete button is 44px, and must not be over it. */}
+            <div className="mb-1.5 flex items-center justify-between gap-2 pointer-coarse:mb-3">
               <div className="flex flex-wrap gap-1.5">
                 {entry.keys.map((k) => (
                   <span
@@ -92,8 +93,8 @@ export function LorebookSection({
                   </span>
                 ))}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-mist">
+              <div className="flex shrink-0 items-center gap-2 pointer-coarse:gap-3">
+                <label className="touch-target flex cursor-pointer items-center gap-1.5 text-xs text-mist">
                   <input
                     type="checkbox"
                     checked={entry.enabled}
@@ -105,7 +106,7 @@ export function LorebookSection({
                 <button
                   type="button"
                   onClick={() => remove(entry)}
-                  className="rounded p-1 text-mist-dim hover:bg-blood/15 hover:text-blood"
+                  className="touch-target rounded p-1 text-mist-dim hover:bg-blood/15 hover:text-blood"
                   aria-label={t("lorebook.deleteEntryAriaLabel")}
                 >
                   <Trash2 className="h-3.5 w-3.5" />

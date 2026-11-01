@@ -11,7 +11,7 @@ test("the reply keeps being written after the page goes away", async ({ browser,
   const convo = await conversationWithReply(request);
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
 
   await page.locator("textarea").first().fill("Continue, je pars.");
   await page.locator('button[title="Send"]').click();
@@ -40,7 +40,7 @@ test("coming back shows the reply still arriving", async ({ browser, request }) 
   const convo = await conversationWithReply(request);
   const first = await browser.newContext();
   const page = await first.newPage();
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
   await page.locator("textarea").first().fill("Ecris longuement.");
   await page.locator('button[title="Send"]').click();
   await expect(page.locator('button[title="Stop generation"]')).toBeVisible();
@@ -49,7 +49,7 @@ test("coming back shows the reply still arriving", async ({ browser, request }) 
   // Somebody opens the conversation again while it is still being written.
   const second = await browser.newContext();
   const back = await second.newPage();
-  await back.goto(`/chat/${convo.id}`);
+  await back.goto(`/#/chat/${convo.id}`);
   await expect(back.locator('button[title="Stop generation"]'),
     "the conversation looked finished while a reply was still being written").toBeVisible();
   await second.close();

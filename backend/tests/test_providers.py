@@ -3,12 +3,11 @@
 import json
 
 import httpx
-import pytest
 
 from app.prompting.engine import PromptPayload
 from app.providers import get_provider
 from app.providers.anthropic import AnthropicProvider
-from app.providers.base import ProviderError
+from app.providers.base import Provider
 from app.providers.openai_compat import OpenAICompatProvider
 
 PAYLOAD = PromptPayload(
@@ -224,5 +223,6 @@ async def test_anthropic_http_error_readable():
 def test_get_provider_dispatch():
     assert isinstance(get_provider(OAI_CONN), OpenAICompatProvider)
     assert isinstance(get_provider(ANTH_CONN), AnthropicProvider)
-    with pytest.raises(ProviderError):
-        get_provider({"provider": "nope"})
+    # A type nobody knows still gets a provider, one that fails every use of it
+    # the way a model's server failing does (test_provider_failures.py).
+    assert isinstance(get_provider({"provider": "nope"}), Provider)

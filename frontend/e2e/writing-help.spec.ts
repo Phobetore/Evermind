@@ -5,20 +5,21 @@ import { conversationWithReply } from "./fixtures";
  *  checks the syntax it advertises against what it renders. */
 test("the reminder lists syntax the app actually renders", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
-  await page.goto(`/chat/${convo.id}`);
-  // Before this, isVisible() answers about a page that has not hydrated yet:
-  // false, and the button below never gets clicked.
-  await page.waitForLoadState("networkidle");
+  await page.goto(`/#/chat/${convo.id}`);
 
   // On a phone the panel is behind this button; on a laptop it is already open
   // beside the conversation, and the two asides are the nav and the panel.
   // By accessible name: this one carries an aria-label, not a title.
   const opener = page.getByRole("button", { name: /memory and settings/i });
-  if (await opener.isVisible()) await opener.click();
   // Visible, and by what it holds rather than where it sits. The laptop panel
   // stays in the page on a phone, hidden by CSS, so matching on content alone
   // finds that one and then waits forever for it to appear.
   const help = page.locator("aside:visible").filter({ hasText: "*text*" });
+  // isVisible() does not wait, and until the conversation has loaded there is
+  // neither the button nor the panel: it would answer false, and the button
+  // would never be clicked.
+  await expect(opener.or(help).first()).toBeVisible();
+  if (await opener.isVisible()) await opener.click();
   await expect(help).toBeVisible();
   await expect(help).toContainText("*text*");
   await expect(help).toContainText("**text**");

@@ -93,7 +93,8 @@ async def test_stopping_is_asked_for_and_takes_effect(client, unhurried):
     reader = turns.follow(turn)
     for _ in range(3):
         await reader.asend(None)
-    assert await turns.stop(convo["id"]) is True
+    stopped = await turns.stop(convo["id"])
+    assert stopped is True
     await reader.aclose()
 
     await asyncio.wait_for(turn.finished.wait(), timeout=15)

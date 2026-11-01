@@ -1,8 +1,6 @@
-"use client";
-
 import { useT } from "@/i18n/useT";
 import { Unplug } from "lucide-react";
-import Link from "next/link";
+import { Link } from "react-router";
 
 /** Said when the model did not answer at all — most often because the AI
  *  server behind it is simply not running.
@@ -21,7 +19,7 @@ export function ModelSilent({ onRetry }: { onRetry?: () => void }) {
       <p className="min-w-0 flex-1 leading-relaxed text-parchment-dim">
         {t("chat.modelSilent.title")}{" "}
         <span className="text-mist">{t("chat.modelSilent.hint")}</span>{" "}
-        <Link href="/settings" className="whitespace-nowrap text-ember-400 hover:text-ember-300">
+        <Link to="/settings" className="whitespace-nowrap text-ember-400 hover:text-ember-300">
           {t("chat.modelSilent.settingsLink")}
         </Link>
       </p>

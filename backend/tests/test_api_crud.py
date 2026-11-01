@@ -2,6 +2,10 @@
 conversations (+greeting seeding), settings."""
 
 import json
+import re
+from urllib.parse import unquote
+
+import pytest
 
 from .test_cards import CHAR_FIELDS, make_minimal_png
 
@@ -95,6 +99,121 @@ async def test_character_export_png(client):
 
     card = read_card_from_png(resp.content)
     assert card["data"]["name"] == "Serana"
+
+
+def _download_names(resp):
+    """The two names a Content-Disposition header carries: the plain fallback
+    and the decoded UTF-8 one (None when the header has no such parameter)."""
+    header = resp.headers["content-disposition"]
+    assert header.isascii(), header
+    fallback = re.search(r'filename="([^"]*)"', header)
+    encoded = re.search(r"filename\*=UTF-8''([^;\s]+)", header)
+    assert fallback, header
+    return fallback.group(1), unquote(encoded.group(1)) if encoded else None
+
+
+@pytest.mark.parametrize("format", ["json", "png"])
+async def test_export_names_outside_latin1(client, format):
+    created = await create_character(client, name="Алиса 紅 ✨")
+    resp = await client.get(f"/api/characters/{created['id']}/export", params={"format": format})
+    assert resp.status_code == 200
+    fallback, real = _download_names(resp)
+    assert real == f"Алиса 紅 ✨.{format}"
+    # Nothing ASCII is left of this name, so the fallback is a generic one.
+    assert fallback == f"card.{format}"
+
+
+@pytest.mark.parametrize("format", ["json", "png"])
+async def test_export_ascii_name_keeps_its_file_name(client, format):
+    created = await create_character(client, name="Dr. Vane")
+    resp = await client.get(f"/api/characters/{created['id']}/export", params={"format": format})
+    assert resp.status_code == 200
+    fallback, real = _download_names(resp)
+    assert fallback == f"Dr Vane.{format}"
+    assert real == f"Dr Vane.{format}"
+
+
+async def test_export_mixed_name_keeps_its_ascii_letters_in_the_fallback(client):
+    created = await create_character(client, name="Vane紅 the Ferryman")
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    fallback, real = _download_names(resp)
+    assert fallback == "Vane the Ferryman.json"
+    assert real == "Vane紅 the Ferryman.json"
+
+
+@pytest.mark.parametrize("name, fallback", [
+    ("Zoë", "Zoe"),
+    ("Éloïse", "Eloise"),
+    ("Crème Brûlée", "Creme Brulee"),
+    ("Ångström", "Angstrom"),
+    # Typed with the accent as a separate character, which some keyboards do.
+    ("Zoe" + chr(0x0308), "Zoe"),
+    # The compatibility forms of NFKD: a ligature and a full-width letter.
+    ("ﬁne Ａ", "fine A"),
+    ("Zoë 紅", "Zoe"),
+])
+async def test_export_fallback_folds_accents_instead_of_dropping_letters(client, name, fallback):
+    created = await create_character(client, name=name)
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    got_fallback, real = _download_names(resp)
+    assert got_fallback == f"{fallback}.json"
+    # The real name is the card's own, accents included.
+    assert real == f"{name}.json"
+
+
+@pytest.mark.parametrize("name, fallback, real", [
+    ("Dr.  Vane", "Dr Vane", "Dr Vane"),
+    ("A     B", "A B", "A B"),
+    # The space left behind by a letter that has no ASCII form.
+    ("Vane 紅 the Ferryman", "Vane the Ferryman", "Vane 紅 the Ferryman"),
+])
+async def test_export_name_collapses_repeated_spaces(client, name, fallback, real):
+    created = await create_character(client, name=name)
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    assert _download_names(resp) == (f"{fallback}.json", f"{real}.json")
+
+
+@pytest.mark.parametrize("name, stem", [
+    ("Alice" + chr(0x200D), "Alice"),
+    (chr(0x200D) + chr(0x200D) + "Alice" + chr(0x200C), "Alice"),
+    ("Alice " + chr(0x200D), "Alice"),
+    (chr(0x200D) + " Alice", "Alice"),
+])
+async def test_export_name_trims_joiners_at_its_ends(client, name, stem):
+    # Nothing comes before or after them to be joined to; between letters they
+    # stay (see the Persian name below).
+    created = await create_character(client, name=name)
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    assert _download_names(resp) == (f"{stem}.json", f"{stem}.json")
+
+
+@pytest.mark.parametrize("name", [
+    chr(0x200C), chr(0x200D) + chr(0x200C), " " + chr(0x200D) + " ",
+    chr(0x202E), ".", " ",
+    # Hyphens and underscores are kept in a name, but are no name by themselves.
+    "---", "_", "- _", "-_-", ". - .", "-" + chr(0x200D) + "_",
+])
+async def test_export_name_with_nothing_to_show_is_called_card(client, name):
+    # A joiner is only part of a name when there is something for it to join.
+    created = await create_character(client, name=name)
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    assert _download_names(resp) == ("card.json", "card.json")
+
+
+async def test_export_name_drops_invisible_controls_but_keeps_joiners(client):
+    bidi_override, zwnj = chr(0x202E), chr(0x200C)
+    created = await create_character(client, name=f"{bidi_override}می{zwnj}خواهم")
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    _, real = _download_names(resp)
+    assert real == f"می{zwnj}خواهم.json"
+
+
+async def test_export_name_cannot_inject_into_the_header(client):
+    created = await create_character(client, name='a"; filename=evil/../x\r\n')
+    resp = await client.get(f"/api/characters/{created['id']}/export")
+    assert resp.status_code == 200
+    fallback, real = _download_names(resp)
+    assert fallback == real == "a filenameevilx.json"
 
 
 async def test_avatar_upload(client):

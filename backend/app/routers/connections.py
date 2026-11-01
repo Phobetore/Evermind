@@ -2,9 +2,10 @@ import aiosqlite
 from fastapi import APIRouter, Depends
 
 from ..db import get_db
-from ..errors import NotFoundError
+from ..errors import NotFoundError, failure_fields
 from ..models.schemas import ConnectionIn, ConnectionUpdate
 from ..providers import ProviderError, get_provider
+from ..providers.base import NO_TEXT
 from ..repositories import connections as repo
 from ..repositories import settings as settings_repo
 
@@ -26,35 +27,29 @@ async def update_connection(conn_id: str, payload: ConnectionUpdate,
                             db: aiosqlite.Connection = Depends(get_db)):
     updated = await repo.update(db, conn_id, payload.model_dump(exclude_unset=True))
     if not updated:
-        raise NotFoundError("Connection not found.")
+        raise NotFoundError("Connection not found.", "connection")
     return updated
 
 
 @router.delete("/{conn_id}", status_code=204)
 async def delete_connection(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await repo.delete(db, conn_id):
-        raise NotFoundError("Connection not found.")
+        raise NotFoundError("Connection not found.", "connection")
     await settings_repo.forget(db, "default_connection_id", conn_id)
 
 
 @router.post("/test")
 async def test_connection_payload(payload: ConnectionIn):
     """Test a connection config before saving it."""
-    try:
-        return await get_provider(payload.model_dump()).test()
-    except ProviderError as exc:
-        return {"ok": False, "detail": exc.message}
+    return await get_provider(payload.model_dump()).test()
 
 
 @router.post("/{conn_id}/test")
 async def test_connection(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
     connection = await repo.get_raw(db, conn_id)
     if not connection:
-        raise NotFoundError("Connection not found.")
-    try:
-        return await get_provider(connection).test()
-    except ProviderError as exc:
-        return {"ok": False, "detail": exc.message}
+        raise NotFoundError("Connection not found.", "connection")
+    return await get_provider(connection).test()
 
 
 @router.post("/{conn_id}/benchmark")
@@ -67,7 +62,7 @@ async def benchmark_connection(conn_id: str, db: aiosqlite.Connection = Depends(
 
     connection = await repo.get_raw(db, conn_id)
     if not connection:
-        raise NotFoundError("Connection not found.")
+        raise NotFoundError("Connection not found.", "connection")
     connection = dict(connection, max_tokens=96)
     payload = PromptPayload(
         system="You are a speed test. Reply in plain prose.",
@@ -78,19 +73,16 @@ async def benchmark_connection(conn_id: str, db: aiosqlite.Connection = Depends(
     chunks: list[str] = []
     started = time.monotonic()
     first_token = None
-    try:
-        async for event in get_provider(connection).stream_chat(payload):
-            if event.type == "delta":
-                if first_token is None:
-                    first_token = time.monotonic()
-                chunks.append(event.text)
-            elif event.type == "error":
-                return {"ok": False, "detail": event.message}
-    except ProviderError as exc:
-        return {"ok": False, "detail": exc.message}
+    async for event in get_provider(connection).stream_chat(payload):
+        if event.type == "delta":
+            if first_token is None:
+                first_token = time.monotonic()
+            chunks.append(event.text)
+        elif event.type == "error":
+            return {"ok": False, "detail": event.message, **failure_fields(event.meta)}
     now = time.monotonic()
     if not chunks or first_token is None:
-        return {"ok": False, "detail": "No text generated."}
+        return {"ok": False, "detail": "No text generated.", "kind": NO_TEXT}
     tokens = estimate_tokens("".join(chunks))
     gen_time = max(0.05, now - first_token)
     return {
@@ -105,8 +97,8 @@ async def benchmark_connection(conn_id: str, db: aiosqlite.Connection = Depends(
 async def list_models(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
     connection = await repo.get_raw(db, conn_id)
     if not connection:
-        raise NotFoundError("Connection not found.")
+        raise NotFoundError("Connection not found.", "connection")
     try:
         return {"models": await get_provider(connection).list_models()}
     except ProviderError as exc:
-        return {"models": [], "error": exc.message}
+        return {"models": [], "error": exc.message, **exc.meta}

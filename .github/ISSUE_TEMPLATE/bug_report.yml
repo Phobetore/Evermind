@@ -35,7 +35,7 @@ body:
     attributes:
       label: How you run Evermind
       options:
-        - Docker, published images
+        - Docker, published image
         - Docker, built from source with --build
         - Directly, with the prod scripts
         - Development server
@@ -47,7 +47,7 @@ body:
     attributes:
       label: Version
       description: Shown under About, at the bottom of the Settings page
-      placeholder: "2.1.6"
+      placeholder: "3.0.0"
     validations:
       required: true
 

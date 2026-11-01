@@ -1,10 +1,7 @@
-"use client";
-
 import type { Character } from "@/types";
 import { clsx } from "clsx";
 import { BookOpenText, MessageCircle, Star } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useNavigate } from "react-router";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
 import { useT } from "@/i18n/useT";
@@ -16,13 +13,13 @@ export function CharacterCard({
   character: Character;
   onToggleFavorite?: (character: Character) => void;
 }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const t = useT();
   const isScenario = character.kind === "scenario";
 
   return (
     <Link
-      href={`/characters/${character.id}`}
+      to={`/characters/${character.id}`}
       className="group relative flex aspect-[3/4] flex-col justify-end overflow-hidden rounded-2xl border border-ink-700 bg-ink-850 shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:border-ember-600/50 hover:shadow-lift"
     >
       {/* Portrait */}
@@ -99,9 +96,9 @@ export function CharacterCard({
         <button
           onClick={(e) => {
             e.preventDefault();
-            router.push(`/characters/${character.id}?start=1`);
+            navigate(`/characters/${character.id}?start=1`);
           }}
-          className="btn btn-primary mt-2 hidden w-full translate-y-1 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 sm:inline-flex"
+          className="btn btn-primary mt-2 hidden w-full translate-y-1 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100 sm:inline-flex"
         >
           <MessageCircle className="h-4 w-4" />
           {t("characters.card.startButton")}

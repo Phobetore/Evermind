@@ -1,48 +1,62 @@
 #!/usr/bin/env bash
-# Launch Evermind in dev mode (backend + frontend).
+# Launch Evermind in dev mode: the API restarts on every change, and the
+# interface comes from the Vite dev server with hot reload.
 #   ./scripts/dev.sh        local only
-#   ./scripts/dev.sh --lan  frontend reachable from the local network
+#   ./scripts/dev.sh --lan  reachable from the local network
 #
-# Ports come from .env or the environment:
-#   PORT                    the web interface           (default 3000)
-#   EVERMIND_BACKEND_PORT   the API behind it           (default 8000)
+# Settings come from .env or the environment (see .env.example):
+#   PORT                    the interface, served by Vite    (default 3000)
+#   EVERMIND_BACKEND_PORT   the API behind it                (default 8000)
+# Vite and `python -m app` each read them, so this script only gets everything
+# ready and starts the two.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHON="$ROOT/backend/.venv/bin/python"
+
+# Left unquoted where it is used: empty has to mean no argument at all.
 LAN=""
-[ "${1:-}" = "--lan" ] && LAN=":lan"
-
-# Next only reads .env files sitting next to itself, and it runs from frontend/.
-# Without this the repository's .env is silently ignored here.
-if [ -f "$ROOT/.env" ]; then
-    while IFS='=' read -r key value || [ -n "$key" ]; do
-        case "$key" in ''|'#'*) continue ;; esac
-        key="$(printf '%s' "$key" | tr -d '[:space:]')"
-        # Whatever is already in the environment wins over the file.
-        [ -n "${!key:-}" ] && continue
-        export "$key=$value"
-    done < "$ROOT/.env"
+DEV_SCRIPT="dev"
+if [ "${1:-}" = "--lan" ]; then
+    LAN="--lan"
+    DEV_SCRIPT="dev:lan"
 fi
-
-PORT="${PORT:-3000}"
-BACKEND_PORT="${EVERMIND_BACKEND_PORT:-8000}"
-export PORT
-export EVERMIND_BACKEND_URL="${EVERMIND_BACKEND_URL:-http://127.0.0.1:${BACKEND_PORT}}"
 
 # Dependencies are installed again whenever the file they come from changes, not
 # only on the first run. Otherwise an update that moves one, a security fix for
 # instance, leaves the old copy in place to go on running.
 # A failed install stops here (set -e), before the copy that marks it as done.
-if [ ! -d "$ROOT/backend/.venv" ]; then
+#
+# Whether the environment exists is decided by whether its pip answers, not by
+# the folder being there. A creation that fails (on Debian and Ubuntu,
+# python3-venv not installed yet) or is interrupted leaves half an environment,
+# without pip, that a test on the folder would take for a finished one on every
+# later run. --clear starts such a folder over instead of building on it.
+if ! "$PYTHON" -m pip --version > /dev/null 2>&1; then
     echo "First run: creating the Python environment..."
-    python3 -m venv "$ROOT/backend/.venv"
+    # Python says by itself what to install when it is a package that is missing.
+    python3 -m venv --clear "$ROOT/backend/.venv" || {
+        echo "Creating the Python environment failed. Nothing was started." >&2
+        exit 1
+    }
 fi
 PY_INSTALLED="$ROOT/backend/.venv/.installed-pyproject.toml"
 if ! cmp -s "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"; then
     echo "Installing backend dependencies..."
     rm -f "$PY_INSTALLED"
-    "$ROOT/backend/.venv/bin/python" -m pip install -q -e "$ROOT/backend[dev]"
+    "$PYTHON" -m pip install -q -e "$ROOT/backend[dev]"
     cp "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"
 fi
+
+# Asked before the interface is installed, because the API exiting right after
+# it starts (its port taken, a settings file that cannot be read) would leave
+# Vite running against nothing, and the likeliest reason for the port to be
+# taken is a previous run of this script that is still going. The API makes the
+# same check itself when it starts, so this is what it would say, said first.
+if ! (cd "$ROOT/backend" && "$PYTHON" -m app --check --dev > /dev/null); then
+    echo "Nothing was started." >&2
+    exit 1
+fi
+
 LOCK_INSTALLED="$ROOT/frontend/node_modules/.installed-package-lock.json"
 if ! cmp -s "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"; then
     echo "Installing frontend dependencies (a minute or two)..."
@@ -53,31 +67,46 @@ if ! cmp -s "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"; then
     cp "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"
 fi
 
-# The backend always stays on the loopback: the frontend proxies /api to it,
-# and that proxy is what the password gate protects.
-echo "Backend  -> http://127.0.0.1:${BACKEND_PORT} (this machine only)"
-echo "Frontend -> http://localhost:${PORT}"
-if [ -n "$LAN" ]; then
-    IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-    [ -n "$IP" ] && echo "            http://${IP}:${PORT}  (from the local network)"
-    if [ -z "${EVERMIND_GATE_PASSWORD:-}" ]; then
-        echo ""
-        echo "  No password is set, so anyone on this network can read your conversations."
-        echo "  Put EVERMIND_GATE_PASSWORD in .env to be asked for one."
-    fi
-fi
-
-(cd "$ROOT/backend" && exec .venv/bin/python -m uvicorn app.main:app \
-    --host 127.0.0.1 --port "$BACKEND_PORT") &
-BACKEND_PID=$!
-trap 'kill $BACKEND_PID 2>/dev/null || true' EXIT
-
-# `next dev` moves to a free port by itself, so only the API needs saying.
-cd "$ROOT/frontend"
-if ! npm run "dev${LAN}"; then
-    status=$?
+# Vite is what the network sees, and the port it is asked for is PORT, which is
+# what --check --lan reads (with --dev it would give the API's port instead).
+# Vite does not stop for a port that is taken, and may end up on another one.
+if [ -n "$LAN" ] && ! (cd "$ROOT/backend" && "$PYTHON" -m app --check --lan > /dev/null); then
     echo "" >&2
-    echo "If the error above mentions port ${BACKEND_PORT}, set EVERMIND_BACKEND_PORT" >&2
-    echo "to a free port in .env and run this again." >&2
-    exit "$status"
+    echo "Starting anyway: Vite may end up on another port, so go by the address it prints." >&2
 fi
+
+# Stopping this script has to stop both programs when it is told to stop (Ctrl+C,
+# SIGTERM, the terminal being closed). Neither is one process: npm starts Vite
+# through a shell, and the API runs its server under a reloader, so a signal sent
+# to the process that was started never reaches the rest. Each program therefore
+# gets a process group of its own (set -m), and the traps below signal the group.
+#
+# Vite is waited for, not run in the foreground: bash holds back a trapped signal
+# until the command it is running has ended, so a SIGTERM would only be heard
+# once Vite quit by itself. From outside the terminal's foreground, a program
+# cannot read the keyboard either: its first read stops it, which froze Vite the
+# first time someone pressed Enter in this window. So neither program is given any
+# input, and Vite's keyboard shortcuts (h + enter and the others) are not
+# available here.
+set -m
+BACKEND_PID=""
+VITE_PID=""
+stop_children() {
+    for pid in $VITE_PID $BACKEND_PID; do
+        kill -TERM -- "-$pid" 2> /dev/null || true
+    done
+    # Their shutdown messages then come before the prompt, not after it.
+    wait 2> /dev/null || true
+}
+trap stop_children EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# The API only listens on the loopback: the dev server is what the network sees,
+# and it forwards /api here.
+(cd "$ROOT/backend" && exec "$PYTHON" -m app --dev $LAN) < /dev/null &
+BACKEND_PID=$!
+(cd "$ROOT/frontend" && exec npm run "$DEV_SCRIPT") < /dev/null &
+VITE_PID=$!
+wait "$VITE_PID"

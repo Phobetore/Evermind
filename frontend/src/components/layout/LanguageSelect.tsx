@@ -1,5 +1,3 @@
-"use client";
-
 import { LOCALES, LOCALE_NAMES, type Locale } from "@/i18n/config";
 import { useI18n } from "@/i18n/I18nProvider";
 

@@ -3,15 +3,17 @@ import { API } from "../playwright.config";
 import { conversationWithReply } from "./fixtures";
 
 /**
- * A reply whose turn was cut off keeps a mark saying it is still being written.
- * The view hides anything carrying that mark while a turn is live, so the reply
- * vanished for the length of every later generation — most visibly the moment
- * you tried to continue it, which is exactly what you do with one that stopped
- * short.
+ * A reply whose turn was cut off keeps a mark saying it is still being written,
+ * and while a turn is live the view hides the reply that turn is writing. Taken
+ * for that one, the reply left marked vanished for the length of every later
+ * generation — most visibly the moment you tried to continue it, which is
+ * exactly what you do with one that stopped short.
  */
 test("a reply left mid-write stays on screen while it is continued", async ({ page, request }) => {
-  const convo = await conversationWithReply(request);
-  await page.goto(`/chat/${convo.id}`);
+  // Slowly, so the reply is still being written when it is stopped however fast
+  // this machine is.
+  const convo = await conversationWithReply(request, { slowly: true });
+  await page.goto(`/#/chat/${convo.id}`);
 
   // A genuinely interrupted reply, made the way one happens: stopped part way
   // through. Setting the mark through the API is not an option — the endpoint
@@ -21,7 +23,10 @@ test("a reply left mid-write stays on screen while it is continued", async ({ pa
   await page.locator('button[title="Send"]').click();
   const stop = page.locator('button[title="Stop generation"]');
   await expect(stop).toBeVisible();
-  await page.waitForTimeout(400);
+  // Stopped once some of the reply has arrived, not after a delay: a stop before
+  // the first word leaves nothing written to be unfinished, and a stop after the
+  // last leaves a finished reply. The caret is only there while text is streaming.
+  await expect(page.locator(".stream-caret")).toBeVisible();
   await stop.click();
 
   await page.reload();
@@ -42,11 +47,20 @@ test("a reply left mid-write stays on screen while it is continued", async ({ pa
       "the reply disappeared while its continuation was being written").toBeVisible();
     await page.waitForTimeout(250);
   }
+
+  // The continuation is slow and the looking is done. Stopped here, and waited
+  // for on the server's own account of the turn, so it is not still writing
+  // into the tests that come next.
+  await stop.click();
+  await expect(stop).toBeHidden();
+  await expect.poll(async () =>
+    (await (await request.get(`${API}/api/conversations/${convo.id}/turn`)).json()).running,
+    { message: "the continuation kept running after it was stopped" }).toBe(false);
 });
 
 test("sending a message shows the reply arriving", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
-  await page.goto(`/chat/${convo.id}`);
+  await page.goto(`/#/chat/${convo.id}`);
 
   await page.locator("textarea").first().fill("And then?");
   await page.locator('button[title="Send"]').click();

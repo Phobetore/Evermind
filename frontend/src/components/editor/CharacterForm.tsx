@@ -1,22 +1,21 @@
-"use client";
-
 import { Field } from "@/components/editor/Field";
 import { LorebookSection } from "@/components/editor/LorebookSection";
 import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
+import { data, type CharacterInput } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
+import { describeError } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
-import type { Character, Connection, Kind, LoreEntry, LoreEntryDraft } from "@/types";
+import type { Character, Connection, Kind, LoreEntryDraft } from "@/types";
 import { clsx } from "clsx";
 import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
   UserRound, X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 
-type Draft = Omit<Character, "id" | "avatar_url" | "is_favorite" | "created_at" | "updated_at">;
+type Draft = CharacterInput;
 
 const EMPTY: Draft = {
   kind: "character",
@@ -58,7 +57,7 @@ const KIND_COPY: Record<Kind, Record<string, { labelKey: string; hintKey: string
 };
 
 export function CharacterForm({ initial }: { initial?: Character }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const t = useT();
   const editing = Boolean(initial);
   const [draft, setDraft] = useState<Draft>(initial ?? EMPTY);
@@ -67,6 +66,9 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   const [advanced, setAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Apart from `error`, which is about saving: an export that fails must not
+  // wipe out a save that did too, and its message belongs by the buttons.
+  const [exportError, setExportError] = useState<string | null>(null);
   const [brief, setBrief] = useState("");
   const [generating, setGenerating] = useState(false);
   const [assistError, setAssistError] = useState<string | null>(null);
@@ -76,9 +78,9 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    api.get<Connection[]>("/api/connections").then(setConnections).catch(() => {});
+    data.connections?.list().then(setConnections).catch(() => {});
     if (initial) {
-      api.get<LoreEntry[]>(`/api/characters/${initial.id}/lore`).then(setLoreEntries).catch(() => {});
+      data.lore.list(initial.id).then(setLoreEntries).catch(() => {});
     }
   }, [initial]);
 
@@ -98,9 +100,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
       }
       delete existing.kind;
       if (loreEntries.length > 0) existing.lore_entries = loreEntries;
-      const generated = await api.post<
-        Partial<Draft> & { lore_entries?: { keys: string[]; content: string }[] }
-      >("/api/characters/assist", {
+      const generated = await data.characters.assist({
         prompt: brief,
         kind: draft.kind,
         existing,
@@ -119,15 +119,13 @@ export function CharacterForm({ initial }: { initial?: Character }) {
         // editing an existing card: the entries must be persisted right away
         const saved = initial
           ? await Promise.all(
-              additions.map((entry) =>
-                api.post<LoreEntry>(`/api/characters/${initial.id}/lore`, entry),
-              ),
+              additions.map((entry) => data.lore.create(initial.id, entry)),
             )
           : additions;
         setLoreEntries((prev) => [...prev, ...saved]);
       }
     } catch (e) {
-      setAssistError(e instanceof Error ? e.message : t("characters.assist.generateError"));
+      setAssistError(describeError(e, t, t("characters.assist.generateError")));
     }
     setGenerating(false);
   }
@@ -141,15 +139,15 @@ export function CharacterForm({ initial }: { initial?: Character }) {
     setError(null);
     try {
       const saved = editing
-        ? await api.put<Character>(`/api/characters/${initial!.id}`, draft)
-        : await api.post<Character>("/api/characters", draft);
+        ? await data.characters.update(initial!.id, draft)
+        : await data.characters.create(draft);
       if (avatarFile) {
-        await api.upload<Character>(`/api/characters/${saved.id}/avatar`, avatarFile);
+        await data.characters.uploadAvatar(saved.id, avatarFile);
       }
       if (!editing) {
         // lorebook entries drafted before the card existed
         for (const entry of loreEntries) {
-          await api.post(`/api/characters/${saved.id}/lore`, {
+          await data.lore.create(saved.id, {
             keys: entry.keys,
             content: entry.content,
             enabled: entry.enabled,
@@ -158,10 +156,9 @@ export function CharacterForm({ initial }: { initial?: Character }) {
           });
         }
       }
-      router.push(`/characters/${saved.id}`);
-      router.refresh();
+      navigate(`/characters/${saved.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("personas.saveError"));
+      setError(describeError(e, t, t("personas.saveError")));
       setSaving(false);
     }
   }
@@ -169,15 +166,20 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   async function remove() {
     if (!initial) return;
     if (!confirm(t("characters.form.confirmDelete", { name: initial.name }))) return;
-    await api.delete(`/api/characters/${initial.id}`);
-    router.push("/");
-    router.refresh();
+    await data.characters.remove(initial.id);
+    navigate("/");
   }
 
   async function exportCard(format: "json" | "png") {
     if (!initial) return;
-    const resp = await fetch(`/api/characters/${initial.id}/export?format=${format}`);
-    downloadBlob(await resp.blob(), `${initial.name}.${format}`);
+    setExportError(null);
+    try {
+      const { blob, filename } = await data.characters.exportCard(initial.id, format);
+      downloadBlob(blob, filename);
+    } catch (e) {
+      // Called from a click, so a rejection would reach nobody: say it here.
+      setExportError(`${t("characters.form.exportError")} ${describeError(e, t)}`);
+    }
   }
 
   return (
@@ -195,6 +197,14 @@ export function CharacterForm({ initial }: { initial?: Character }) {
               <FileDown className="h-4 w-4" /> PNG
             </button>
           </div>
+        )}
+        {exportError && (
+          <p
+            role="alert"
+            className="w-full rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood"
+          >
+            {exportError}
+          </p>
         )}
       </header>
 
@@ -448,7 +458,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
         <button
           type="button"
           onClick={() => setAdvanced(!advanced)}
-          className="flex items-center gap-2 self-start font-display text-sm font-medium text-mist transition-colors hover:text-parchment"
+          className="touch-target flex items-center gap-2 self-start font-display text-sm font-medium text-mist transition-colors hover:text-parchment"
         >
           <ChevronDown className={clsx("h-4 w-4 transition-transform", advanced && "rotate-180")} />
           {t("characters.form.advancedSettingsToggle")}
@@ -516,7 +526,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
             <span />
           )}
           <div className="flex gap-2">
-            <button className="btn btn-ghost" onClick={() => router.back()}>
+            <button className="btn btn-ghost" onClick={() => navigate(-1)}>
               {t("common.cancel")}
             </button>
             <button className="btn btn-primary" onClick={save} disabled={saving}>

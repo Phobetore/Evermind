@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api", tags=["lore"])
 @router.get("/characters/{char_id}/lore")
 async def list_lore(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await characters_repo.get(db, char_id):
-        raise NotFoundError("Character not found.")
+        raise NotFoundError("Character not found.", "character")
     return await repo.list_for_character(db, char_id)
 
 
@@ -21,12 +21,13 @@ async def list_lore(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
 async def add_lore(char_id: str, payload: LoreEntryIn,
                    db: aiosqlite.Connection = Depends(get_db)):
     if not await characters_repo.get(db, char_id):
-        raise NotFoundError("Character not found.")
+        raise NotFoundError("Character not found.", "character")
     saved = await repo.add(db, char_id, keys=payload.keys, content=payload.content,
                            enabled=payload.enabled, case_sensitive=payload.case_sensitive,
                            priority=payload.priority)
     if not saved:
-        raise AppError("An entry needs at least one keyword and some content.")
+        raise AppError("An entry needs at least one keyword and some content.",
+                       kind="lore_entry_incomplete")
     return saved
 
 
@@ -35,11 +36,11 @@ async def patch_lore(entry_id: str, payload: LoreEntryPatch,
                      db: aiosqlite.Connection = Depends(get_db)):
     updated = await repo.update(db, entry_id, payload.model_dump(exclude_unset=True))
     if not updated:
-        raise NotFoundError("Entry not found.")
+        raise NotFoundError("Entry not found.", "lore_entry")
     return updated
 
 
 @router.delete("/lore/{entry_id}", status_code=204)
 async def delete_lore(entry_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await repo.delete(db, entry_id):
-        raise NotFoundError("Entry not found.")
+        raise NotFoundError("Entry not found.", "lore_entry")

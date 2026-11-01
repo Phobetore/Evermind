@@ -12,6 +12,13 @@ import logging
 import aiosqlite
 
 from ..db import _connect
+from ..errors import (
+    MODEL_UNREADABLE,
+    NO_CONNECTION,
+    AppError,
+    NotFoundError,
+    model_failure,
+)
 from ..prompting import embeddings
 from ..prompting.defaults import MEMORY_CONSOLIDATION_PROMPT, MEMORY_EXTRACTION_PROMPT
 from ..prompting.engine import PromptPayload, active_content
@@ -91,7 +98,7 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
     if connection is None:
         connection = await connections_repo.get_default_raw(db)
     if connection is None:
-        raise ValueError("No LLM connection configured.")
+        raise AppError("No LLM connection configured.", 502, kind=NO_CONNECTION)
     return connection
 
 
@@ -100,7 +107,7 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     Returns {"before": n, "after": n, "memories": [...]}."""
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
-        raise ValueError("Conversation not found.")
+        raise NotFoundError("Conversation not found.", "conversation")
     character = await characters_repo.get_raw(db, convo["character_id"]) or {}
     connection = await _resolve_connection(db, convo)
     char_name = character.get("name") or "Character"
@@ -124,12 +131,12 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise ValueError(event.message)
+            raise model_failure(event.message, event.meta)
     parsed = parse_llm_json("".join(chunks))
     merged = [f for f in (parsed or {}).get("facts") or []
               if isinstance(f, dict) and str(f.get("content") or "").strip()]
     if not merged:
-        raise ValueError("Unreadable consolidation — try again.")
+        raise AppError("Unreadable consolidation — try again.", 502, kind=MODEL_UNREADABLE)
 
     # Merged facts inherit the OLDEST source position: consolidation produces
     # long-term memory, and a recent stamp would make the engine treat it as
@@ -148,7 +155,7 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
 async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
-        raise ValueError("Conversation not found.")
+        raise NotFoundError("Conversation not found.", "conversation")
     character = await characters_repo.get_raw(db, convo["character_id"]) or {}
     persona = await personas_repo.get(db, convo["persona_id"]) if convo.get("persona_id") else None
     if persona is None:
@@ -193,11 +200,12 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
         if event.type == "delta":
             chunks.append(event.text)
         elif event.type == "error":
-            raise ValueError(event.message)
+            raise model_failure(event.message, event.meta)
 
     parsed = parse_llm_json("".join(chunks))
     if parsed is None:
-        raise ValueError("Unreadable memory response (JSON expected).")
+        raise AppError("Unreadable memory response (JSON expected).", 502,
+                       kind=MODEL_UNREADABLE)
 
     added = []
     for fact in parsed.get("facts") or []:

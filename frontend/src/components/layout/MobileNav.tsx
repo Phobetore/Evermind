@@ -1,9 +1,6 @@
-"use client";
-
 import { clsx } from "clsx";
 import { Flame, MessagesSquare, Settings, UserRound } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useLocation } from "react-router";
 import { useT } from "@/i18n/useT";
 
 const LINKS = [
@@ -16,7 +13,7 @@ const LINKS = [
 /** Thumb-reach navigation for small screens. Hidden inside a conversation:
     there the keyboard and the input own the bottom of the screen. */
 export function MobileNav() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
   const t = useT();
   return (
     <nav
@@ -29,7 +26,7 @@ export function MobileNav() {
           return (
             <Link
               key={href}
-              href={href}
+              to={href}
               className={clsx(
                 "flex flex-1 flex-col items-center gap-0.5 py-2 transition-colors",
                 active ? "text-ember-300" : "text-mist hover:text-parchment",

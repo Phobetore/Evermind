@@ -28,7 +28,7 @@ export async function makeCharacter(request: APIRequestContext, fields: Record<s
       kind: "character",
       tagline: "Made for a test",
       description: "Terse. Does not repeat herself.",
-      first_message: "The door was already open.",
+      greeting: "The door was already open.",
       ...fields,
     },
   })).json();

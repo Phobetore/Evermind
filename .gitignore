@@ -1,5 +1,6 @@
-# Data (local database, uploaded media)
-data/
+# Data (local database, uploaded media). Anchored to the root: the interface
+# keeps its source in frontend/src/data.
+/data/
 
 # Python
 __pycache__/
@@ -12,12 +13,8 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
-# Node / Next.js
+# Node
 node_modules/
-.next/
-out/
-.turbo/
-frontend/next-env.d.ts
 
 # IDE / OS
 .vscode/
@@ -34,10 +31,9 @@ logs/
 .env.local
 .env.production
 
-# Editor and tooling config
-.claude/
-
 # Left behind by the end-to-end suite.
 frontend/test-results/
 frontend/playwright-report/
 .e2e-data/
+.e2e-data-gate/
+frontend/dist-e2e/

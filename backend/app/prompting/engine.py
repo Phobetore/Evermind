@@ -346,11 +346,12 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
 
     # Some chat templates refuse a conversation whose first message is the
     # assistant's, and answer with nothing at all rather than an error. Evermind
-    # always opens on the character's greeting, so those models look broken on
-    # the very first reply. Folding the leading assistant turns into the system
-    # prompt keeps every word of them and leaves a list that starts with the
-    # player. Only ever done as a retry, since it is the weaker shape: the model
-    # reads the opening as instruction rather than as its own voice.
+    # opens a conversation on the character's greeting when it has one, so those
+    # models look broken on the very first reply. Folding the leading assistant
+    # turns into the system prompt keeps every word of them and leaves a list
+    # that starts with the player. Only ever done as a retry, since it is the
+    # weaker shape: the model reads the opening as instruction rather than as its
+    # own voice.
     folded = 0
     if fold_leading_assistant and any(t["role"] != "assistant" for t in turns):
         spoken = []

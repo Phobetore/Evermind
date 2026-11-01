@@ -26,14 +26,14 @@ async def update_persona(persona_id: str, payload: PersonaUpdate,
                          db: aiosqlite.Connection = Depends(get_db)):
     updated = await repo.update(db, persona_id, payload.model_dump(exclude_unset=True))
     if not updated:
-        raise NotFoundError("Persona not found.")
+        raise NotFoundError("Persona not found.", "persona")
     return updated
 
 
 @router.delete("/{persona_id}", status_code=204)
 async def delete_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await repo.delete(db, persona_id):
-        raise NotFoundError("Persona not found.")
+        raise NotFoundError("Persona not found.", "persona")
     await settings_repo.forget(db, "default_persona_id", persona_id)
 
 
@@ -45,6 +45,6 @@ async def upload_avatar(persona_id: str, file: UploadFile,
     filename = media.save(data, extension)
     updated = await repo.update(db, persona_id, {"avatar_path": filename})
     if not updated:
-        raise NotFoundError("Persona not found.")
+        raise NotFoundError("Persona not found.", "persona")
     await media.forget(db, previous.removeprefix("/api/media/"))
     return updated

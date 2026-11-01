@@ -13,6 +13,6 @@ _MEDIA_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp"
 async def get_media(filename: str):
     path = (media_dir() / filename).resolve()
     if path.parent != media_dir().resolve() or not path.is_file():
-        raise NotFoundError("File not found.")
+        raise NotFoundError("File not found.", "file")
     media_type = _MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
     return FileResponse(path, media_type=media_type)

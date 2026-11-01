@@ -1,7 +1,5 @@
-"use client";
-
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from "./config";
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, type Locale } from "./config";
 import de from "./locales/de.json";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
@@ -24,7 +22,7 @@ function interpolate(str: string, vars?: Record<string, string | number>): strin
   return str.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
 }
 
-type Translate = (key: string, vars?: Record<string, string | number>) => string;
+export type Translate = (key: string, vars?: Record<string, string | number>) => string;
 type Ctx = { locale: Locale; setLocale: (l: Locale) => void; t: Translate };
 
 const I18nContext = createContext<Ctx | null>(null);
@@ -40,7 +38,12 @@ export function I18nProvider({
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
-    document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    try {
+      localStorage.setItem(LOCALE_STORAGE_KEY, next);
+    } catch {
+      // Not kept for next time, but the page still changes language now.
+    }
+    document.documentElement.lang = next;
   }, []);
 
   const t = useCallback<Translate>(

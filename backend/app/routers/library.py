@@ -81,7 +81,7 @@ async def list_library(db: aiosqlite.Connection = Depends(get_db)):
 async def library_avatar(filename: str):
     path = _image_path(filename)
     if path is None:
-        raise NotFoundError("No illustration for this card.")
+        raise NotFoundError("No illustration for this card.", "illustration")
     return FileResponse(path, media_type=_IMAGE_TYPES.get(path.suffix, "image/jpeg"))
 
 
@@ -89,11 +89,11 @@ async def library_avatar(filename: str):
 async def install_card(filename: str, db: aiosqlite.Connection = Depends(get_db)):
     card = _read_card(filename)
     if card is None:
-        raise NotFoundError("Card not found in the library.")
+        raise NotFoundError("Card not found in the library.", "library_card")
     fields = card_to_character(card)
     existing = {c["name"] for c in await characters_repo.list_all(db)}
     if fields["name"] in existing:
-        raise AppError("This card is already installed.")
+        raise AppError("This card is already installed.", kind="already_installed")
     image = _image_path(filename)
     if image is not None:
         target = f"{new_id()}{image.suffix}"

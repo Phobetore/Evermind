@@ -20,7 +20,7 @@ async def read_upload(file: UploadFile) -> bytes:
     """Any upload, image or not: a card can arrive as JSON."""
     data = await file.read()
     if len(data) > MAX_UPLOAD_BYTES:
-        raise AppError("File too large (15 MB max).", 413)
+        raise AppError("File too large (15 MB max).", 413, kind="file_too_large")
     return data
 
 
@@ -28,7 +28,7 @@ async def read_image_upload(file: UploadFile) -> tuple[bytes, str]:
     """The bytes, plus the extension the declared type maps to."""
     extension = ALLOWED_IMAGE_TYPES.get(file.content_type or "")
     if not extension:
-        raise AppError("Unsupported image format (PNG, JPEG or WebP).")
+        raise AppError("Unsupported image format (PNG, JPEG or WebP).", kind="unsupported_image")
     return await read_upload(file), extension
 
 
@@ -55,7 +55,7 @@ async def forget(db: aiosqlite.Connection, filename: str) -> bool:
     good: nothing in the app could reach it again and nothing ever removed it,
     so the folder grew with every change. It cannot simply be deleted either —
     branching a conversation gives two of them the same backdrop, and one of
-    them clearing it must not blank the other. Hence the count first.
+    them clearing it must not blank the other. Hence the check first.
     """
     if not filename:
         return False

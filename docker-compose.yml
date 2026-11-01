@@ -2,19 +2,21 @@
 #   docker compose up -d
 # Then open http://localhost:3000.
 #
-# No .env is needed to start. Copy .env.example to .env only to change the port,
-# reach Evermind from another device, or turn on semantic memory.
+# No .env is needed to start. Make one next to this file only to change the port,
+# reach Evermind from another device, or turn on semantic memory: start from
+# env.example, which the release page has, or from .env.example in a copy of the
+# project, and name the file .env.
 #
-# Starting pulls ready-made images and takes seconds. To compile from source
+# Starting pulls a ready-made image and takes seconds. To compile from source
 # instead, add --build. You need --build if you want SEMANTIC=true, because
-# the published images are the light ones.
+# the published image is the light one.
 #
 # Your LLM (LM Studio / Ollama / ...) runs on the HOST, not in a container:
 # in the app's LLM connection use http://host.docker.internal:PORT/v1
 # (e.g. LM Studio -> http://host.docker.internal:1234/v1).
 services:
-  backend:
-    image: ghcr.io/phobetore/evermind-backend:${EVERMIND_VERSION:-latest}
+  evermind:
+    image: ghcr.io/phobetore/evermind:${EVERMIND_VERSION:-latest}
     # Explicit: fetch the published image, and only fall back to the build
     # section when asked with --build. Left to the default, a service that
     # declares both image and build can decide to compile instead, which is a
@@ -22,32 +24,32 @@ services:
     pull_policy: missing
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: Dockerfile
       args:
         SEMANTIC: "${SEMANTIC:-false}"
-    volumes:
-      - evermind-data:/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    restart: unless-stopped
-
-  frontend:
-    image: ghcr.io/phobetore/evermind-frontend:${EVERMIND_VERSION:-latest}
-    pull_policy: missing
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
     environment:
       # No default. Unset means the gate is off, which is the right answer while
       # BIND keeps this on localhost.
       EVERMIND_GATE_PASSWORD: "${EVERMIND_GATE_PASSWORD-}"
+      # The names, besides an address, localhost or *.localhost, that Evermind
+      # answers to while there is no password. The container cannot see this
+      # computer's own name, so it has to be listed here to be used.
+      EVERMIND_ALLOWED_HOSTS: "${EVERMIND_ALLOWED_HOSTS-}"
+      # The path a reverse proxy serves Evermind under, if any (/evermind).
+      EVERMIND_ROOT_PATH: "${EVERMIND_ROOT_PATH-}"
+    volumes:
+      # The name the data had when Evermind was two containers, so an install
+      # that is upgraded picks up its conversations where it left them.
+      - evermind-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       # Localhost only unless BIND says otherwise. Publishing a port binds every
       # interface by default, so without this a fresh install would be sitting on
       # the Wi-Fi from its first run, which is not something anyone asked for.
-      - "${BIND:-127.0.0.1}:${PORT:-3000}:3000"
-    depends_on:
-      - backend
+      # PORT is the number on this machine; inside the container the server
+      # always listens on 8000.
+      - "${BIND:-127.0.0.1}:${PORT:-3000}:8000"
     restart: unless-stopped
 
 volumes:

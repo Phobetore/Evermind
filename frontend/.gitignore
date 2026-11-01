@@ -13,12 +13,13 @@
 # testing
 /coverage
 
-# next.js
+# what earlier versions, built with Next.js, left behind
 /.next/
-/out/
+/next-env.d.ts
 
 # production
-/build
+/dist
+/dist-e2e
 
 # misc
 .DS_Store
@@ -33,9 +34,6 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# vercel
-.vercel
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts

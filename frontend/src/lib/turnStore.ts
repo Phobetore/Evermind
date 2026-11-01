@@ -10,10 +10,13 @@
  *  Only one turn runs at a time, which is what the interface allows anyway.
  */
 
+import { data } from "@/data";
+
 export interface Turn {
   conversationId: string;
   text: string;
-  /** Still receiving. False once the reply has landed or the turn has failed. */
+  /** Still receiving. True for as long as the store holds the turn: `end`
+   *  drops the turn rather than setting this to false. */
   busy: boolean;
 }
 
@@ -40,9 +43,6 @@ export const turnStore = {
   },
 
   read: () => snapshot,
-
-  /** Server snapshot: there is never a turn in flight during rendering on the server. */
-  readServer: () => null,
 
   begin(conversationId: string, controller: AbortController) {
     current = { conversationId, text: "", busy: true, controller };
@@ -72,7 +72,7 @@ export const turnStore = {
     const id = current?.conversationId;
     current?.controller.abort();
     if (id) {
-      void fetch(`/api/conversations/${id}/turn`, { method: "DELETE" }).catch(() => {});
+      void data.turns.stop(id).catch(() => {});
     }
   },
 

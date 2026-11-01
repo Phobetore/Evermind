@@ -1,9 +1,8 @@
-"use client";
-
 import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
+import { describeError } from "@/lib/errors";
 import type { LibraryItem } from "@/types";
 import { BookMarked, Check, Download, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -20,7 +19,7 @@ export function LibraryModal({
   const [installing, setInstalling] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () => api.get<LibraryItem[]>("/api/library").then(setItems);
+  const load = () => data.library.list().then(setItems);
   useEffect(() => {
     load().catch(() => setItems([]));
   }, []);
@@ -29,11 +28,11 @@ export function LibraryModal({
     setInstalling(item.filename);
     setError(null);
     try {
-      await api.post(`/api/library/${item.filename}/install`);
+      await data.library.install(item.filename);
       await load();
       onInstalled();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("cards.libraryModal.installError"));
+      setError(describeError(e, t, t("cards.libraryModal.installError")));
     }
     setInstalling(null);
   }
@@ -59,9 +58,8 @@ export function LibraryModal({
               className="flex flex-wrap items-start gap-3 rounded-xl border border-ink-700 bg-ink-900/60 p-3 sm:flex-nowrap sm:justify-between sm:gap-4 sm:p-4"
             >
               {item.has_avatar && (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={`/api/library/${item.filename}/avatar`}
+                  src={data.library.avatarUrl(item.filename)}
                   alt={item.name}
                   className="h-[4.5rem] w-14 shrink-0 rounded-lg border border-ink-600 object-cover sm:h-24 sm:w-[4.5rem]"
                   draggable={false}

@@ -1,12 +1,11 @@
-"use client";
-
 import { Field } from "@/components/editor/Field";
 import { Modal } from "@/components/ui/Modal";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
-import type { Character, Connection, Conversation, Persona, Settings } from "@/types";
-import { useRouter } from "next/navigation";
+import { describeError } from "@/lib/errors";
+import type { Character, Connection, Persona } from "@/types";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 
 export function StartChatModal({
   character,
@@ -15,7 +14,7 @@ export function StartChatModal({
   character: Character;
   onClose: () => void;
 }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const t = useT();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -27,9 +26,9 @@ export function StartChatModal({
 
   useEffect(() => {
     Promise.all([
-      api.get<Persona[]>("/api/personas"),
-      api.get<Connection[]>("/api/connections"),
-      api.get<Settings>("/api/settings"),
+      data.personas.list(),
+      data.connections ? data.connections.list() : Promise.resolve<Connection[]>([]),
+      data.settings.get(),
     ]).then(([p, c, s]) => {
       setPersonas(p);
       setConnections(c);
@@ -46,15 +45,15 @@ export function StartChatModal({
     setStarting(true);
     setError(null);
     try {
-      const convo = await api.post<Conversation>("/api/conversations", {
+      const convo = await data.conversations.create({
         character_id: character.id,
         persona_id: personaId || null,
         connection_id: connectionId || null,
         greeting_index: greetingIndex,
       });
-      router.push(`/chat/${convo.id}`);
+      navigate(`/chat/${convo.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("cards.startChatModal.startError"));
+      setError(describeError(e, t, t("cards.startChatModal.startError")));
       setStarting(false);
     }
   }
@@ -77,22 +76,24 @@ export function StartChatModal({
           </select>
         </Field>
 
-        <Field label={t("connections.modelLabel")}>
-          <select
-            className="field"
-            value={connectionId}
-            onChange={(e) => setConnectionId(e.target.value)}
-          >
-            {connections.length === 0 && (
-              <option value="">{t("cards.startChatModal.noConnectionOption")}</option>
-            )}
-            {connections.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} {c.model ? `· ${c.model}` : ""}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {data.connections && (
+          <Field label={t("connections.modelLabel")}>
+            <select
+              className="field"
+              value={connectionId}
+              onChange={(e) => setConnectionId(e.target.value)}
+            >
+              {connections.length === 0 && (
+                <option value="">{t("cards.startChatModal.noConnectionOption")}</option>
+              )}
+              {connections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {c.model ? `· ${c.model}` : ""}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         {greetings.length > 1 && (
           <Field label={t("characters.detail.openingHeading")}>
@@ -113,7 +114,7 @@ export function StartChatModal({
           </Field>
         )}
 
-        {connections.length === 0 && (
+        {data.connections && connections.length === 0 && (
           <p className="rounded-lg border border-ember-600/40 bg-ember-glow px-4 py-2.5 text-sm text-ember-300">
             {t("cards.startChatModal.noConnectionWarning")}
           </p>

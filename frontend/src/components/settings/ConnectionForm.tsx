@@ -1,9 +1,8 @@
-"use client";
-
 import { Field } from "@/components/editor/Field";
 import { Modal } from "@/components/ui/Modal";
+import type { BenchmarkResult, ConnectionInput, ConnectionTestResult, DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
+import { describeError, describeResult } from "@/lib/errors";
 import type { Connection, ProviderType } from "@/types";
 import { clsx } from "clsx";
 import { CheckCircle2, ChevronDown, Loader2, Trash2, XCircle } from "lucide-react";
@@ -28,26 +27,18 @@ const PRESETS: Preset[] = [
   { label: "Mistral", provider: "openai-compatible", base_url: "https://api.mistral.ai/v1" },
 ];
 
-interface DraftConnection {
-  name: string;
-  provider: ProviderType;
-  base_url: string;
-  api_key: string;
-  model: string;
-  context_size: number;
-  max_tokens: number;
-  temperature: number;
-  top_p: number;
-  frequency_penalty: number;
-  presence_penalty: number;
-  is_default: boolean;
-}
+/** The form always holds a key, empty when nothing was typed. */
+type DraftConnection = ConnectionInput & { api_key: string };
 
 export function ConnectionForm({
+  source,
   connection,
   onClose,
   onSaved,
 }: {
+  /** Taken as a prop, not read from `data`, because an edition without
+   *  connections has no such thing and never renders this form. */
+  source: NonNullable<DataSource["connections"]>;
   connection: Connection | null;
   onClose: () => void;
   onSaved: () => void;
@@ -69,11 +60,9 @@ export function ConnectionForm({
   });
   const [advanced, setAdvanced] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ ok: boolean; detail: string; models_sample?: string[] } | null>(null);
+  const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
   const [benchmarking, setBenchmarking] = useState(false);
-  const [benchResult, setBenchResult] = useState<{
-    ok: boolean; detail?: string; tokens_per_s?: number; first_token_seconds?: number;
-  } | null>(null);
+  const [benchResult, setBenchResult] = useState<BenchmarkResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,10 +71,9 @@ export function ConnectionForm({
     setTestResult(null);
   };
 
-  function buildPayload(includeEmptyKey = false) {
-    const payload: Record<string, unknown> = { ...draft };
-    if (!draft.api_key && !includeEmptyKey) delete payload.api_key;
-    return payload;
+  function buildPayload(): ConnectionInput {
+    const { api_key, ...rest } = draft;
+    return api_key ? { ...rest, api_key } : rest;
   }
 
   async function test() {
@@ -95,17 +83,14 @@ export function ConnectionForm({
       let result;
       if (connection && !draft.api_key) {
         // saved key lives server-side only: persist edits, then test by id
-        await api.put(`/api/connections/${connection.id}`, buildPayload());
-        result = await api.post<typeof testResult>(`/api/connections/${connection.id}/test`);
+        await source.update(connection.id, buildPayload());
+        result = await source.testSaved(connection.id);
       } else {
-        result = await api.post<typeof testResult>("/api/connections/test", {
-          ...draft,
-          name: draft.name || "test",
-        });
+        result = await source.test({ ...draft, name: draft.name || "test" });
       }
       setTestResult(result);
     } catch (e) {
-      setTestResult({ ok: false, detail: e instanceof Error ? e.message : t("connections.testFailed") });
+      setTestResult({ ok: false, detail: describeError(e, t, t("connections.testFailed")) });
     }
     setTesting(false);
   }
@@ -115,9 +100,9 @@ export function ConnectionForm({
     setBenchmarking(true);
     setBenchResult(null);
     try {
-      setBenchResult(await api.post<typeof benchResult>(`/api/connections/${connection.id}/benchmark`));
+      setBenchResult(await source.benchmark(connection.id));
     } catch (e) {
-      setBenchResult({ ok: false, detail: e instanceof Error ? e.message : t("connections.benchmarkFailed") });
+      setBenchResult({ ok: false, detail: describeError(e, t, t("connections.benchmarkFailed")) });
     }
     setBenchmarking(false);
   }
@@ -129,11 +114,11 @@ export function ConnectionForm({
     }
     setSaving(true);
     try {
-      if (connection) await api.put(`/api/connections/${connection.id}`, buildPayload());
-      else await api.post("/api/connections", { ...draft });
+      if (connection) await source.update(connection.id, buildPayload());
+      else await source.create({ ...draft });
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("connections.saveFailed"));
+      setError(describeError(e, t, t("connections.saveFailed")));
       setSaving(false);
     }
   }
@@ -141,7 +126,7 @@ export function ConnectionForm({
   async function remove() {
     if (!connection) return;
     if (!confirm(t("connections.confirmDelete", { name: connection.name }))) return;
-    await api.delete(`/api/connections/${connection.id}`);
+    await source.remove(connection.id);
     onSaved();
   }
 
@@ -269,7 +254,7 @@ export function ConnectionForm({
                     tokensPerSecond: benchResult.tokens_per_s ?? 0,
                     firstTokenSeconds: benchResult.first_token_seconds ?? 0,
                   })
-                : benchResult.detail}
+                : describeResult(benchResult, t)}
             </span>
           )}
           {testResult && (
@@ -280,7 +265,9 @@ export function ConnectionForm({
               )}
             >
               {testResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-              {testResult.detail}
+              {testResult.ok && testResult.model_count !== undefined
+                ? t("connections.modelsFound", { count: testResult.model_count })
+                : describeResult(testResult, t)}
             </span>
           )}
         </div>

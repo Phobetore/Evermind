@@ -33,7 +33,7 @@ test.describe("without the APIs a secure context provides", () => {
   test("a lorebook entry can still be added to a new card", async ({ page }) => {
     // A new card, not an existing one: on a card already saved the server
     // hands out the identifier, and the call that fails is never reached.
-    await page.goto("/characters/new");
+    await page.goto("/#/characters/new");
 
     const box = page.locator("div.border-dashed").last();
     await box.scrollIntoViewIfNeeded();
@@ -51,7 +51,7 @@ test.describe("without the APIs a secure context provides", () => {
 
   test("copying a message still reports that it worked", async ({ page, request }) => {
     const convo = await conversationWithReply(request);
-    await page.goto(`/chat/${convo.id}`);
+    await page.goto(`/#/chat/${convo.id}`);
 
     // No hover: on a touch screen the actions are simply always visible, and
     // asking for one there hangs.

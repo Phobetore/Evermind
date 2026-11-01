@@ -49,9 +49,8 @@ async def test_a_file_two_things_point_at_survives_one_of_them_letting_go(client
         await db.execute("UPDATE characters SET avatar_path = ? WHERE id = ?",
                          (shared, two["id"]))
         await db.commit()
-        assert await media.forget(db, shared) is False, (
-            "deleted a file another row still points at"
-        )
+        forgotten = await media.forget(db, shared)
+        assert forgotten is False, "deleted a file another row still points at"
     finally:
         await db.close()
 
@@ -66,8 +65,8 @@ async def test_a_name_from_outside_the_media_folder_is_refused(client):
 
     db = await _connect()
     try:
-        assert await media.forget(db, "") is False
-        assert await media.forget(db, "../evermind.db") is False
-        assert await media.forget(db, "does-not-exist.png") is False
+        for name in ("", "../evermind.db", "does-not-exist.png"):
+            forgotten = await media.forget(db, name)
+            assert forgotten is False, name
     finally:
         await db.close()

@@ -5,7 +5,13 @@ description = "Evermind — open source immersive AI roleplay platform (backend)
 license = "AGPL-3.0-or-later"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.115",
+    # 0.133 is the first FastAPI that accepts Starlette 1.x; the releases before
+    # it cap Starlette below 1.0, which would make the floor below unsatisfiable.
+    "fastapi>=0.133",
+    # Imported directly, and older Starlette releases answer a name with a NUL
+    # byte in it (/assets/x%00y) with a 500 instead of a 404. This is the release
+    # the tests run on.
+    "starlette>=1.3",
     "uvicorn[standard]>=0.32",
     "pydantic>=2.10",
     "aiosqlite>=0.20",
@@ -39,6 +45,9 @@ packages = ["app"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Named because pytest-asyncio warns when it is unset. Every fixture here is
+# function-scoped, so each test and its fixtures share one event loop.
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 
 [tool.ruff]

@@ -1,5 +1,3 @@
-"use client";
-
 import { useT } from "@/i18n/useT";
 import { X } from "lucide-react";
 import { useEffect } from "react";
@@ -36,7 +34,7 @@ export function Modal({
           <h2 className="text-xl font-semibold">{title}</h2>
           <button
             onClick={onClose}
-            className="-mr-1 shrink-0 rounded-lg p-2.5 text-mist transition-colors hover:bg-ink-700 hover:text-parchment sm:mr-0 sm:p-1.5"
+            className="-mr-1 shrink-0 rounded-lg p-3 text-mist transition-colors hover:bg-ink-700 hover:text-parchment sm:mr-0 sm:p-1.5 sm:pointer-coarse:p-3"
             aria-label={t("common.close")}
           >
             <X className="h-5 w-5" />

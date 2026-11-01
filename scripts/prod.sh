@@ -1,62 +1,62 @@
 #!/usr/bin/env bash
-# Launch Evermind in production mode (optimized build, no hot reload).
+# Launch Evermind in production mode: the interface is built once and served
+# together with the API, on one port.
 #   ./scripts/prod.sh                build then serve, local only
 #   ./scripts/prod.sh --lan          also reachable from the local network
 #   ./scripts/prod.sh --skip-build   serve the existing build (fast restart)
 #
-# Ports come from .env or the environment:
-#   PORT                    the web interface           (default 3000)
-#   EVERMIND_BACKEND_PORT   the API behind it           (default 8000)
+# The port, the password and the other settings come from .env or the
+# environment (see .env.example). `python -m app` reads them, so this script only
+# gets everything ready and starts it.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHON="$ROOT/backend/.venv/bin/python"
 
+# Left unquoted where it is used: empty has to mean no argument at all.
 LAN=""
 SKIP_BUILD=0
 for arg in "$@"; do
     case "$arg" in
-        --lan) LAN=":lan" ;;
+        --lan) LAN="--lan" ;;
         --skip-build) SKIP_BUILD=1 ;;
     esac
 done
-
-# Next only reads .env files sitting next to itself, and it runs from frontend/.
-# Without this the repository's .env is silently ignored here, which matters most
-# for EVERMIND_GATE_PASSWORD: the password would appear to be set and would not
-# actually be asked for.
-if [ -f "$ROOT/.env" ]; then
-    while IFS='=' read -r key value || [ -n "$key" ]; do
-        case "$key" in ''|'#'*) continue ;; esac
-        key="$(printf '%s' "$key" | tr -d '[:space:]')"
-        # Whatever is already in the environment wins: PORT=3001 ./scripts/prod.sh
-        # should not be quietly overruled by the file.
-        [ -n "${!key:-}" ] && continue
-        export "$key=$value"
-    done < "$ROOT/.env"
-fi
-
-PORT="${PORT:-3000}"
-BACKEND_PORT="${EVERMIND_BACKEND_PORT:-8000}"
-export PORT
-# Next resolves rewrites() during `next build`, so this has to be set before the
-# build for the interface to know where the API lives. Hence the warning further
-# down when someone changes it and then skips the build.
-export EVERMIND_BACKEND_URL="${EVERMIND_BACKEND_URL:-http://127.0.0.1:${BACKEND_PORT}}"
 
 # Dependencies are installed again whenever the file they come from changes, not
 # only on the first run. Otherwise an update that moves one, a security fix for
 # instance, leaves the old copy in place to be built and served as before.
 # A failed install stops here (set -e), before the copy that marks it as done.
-if [ ! -d "$ROOT/backend/.venv" ]; then
+#
+# Whether the environment exists is decided by whether its pip answers, not by
+# the folder being there. A creation that fails (on Debian and Ubuntu,
+# python3-venv not installed yet) or is interrupted leaves half an environment,
+# without pip, that a test on the folder would take for a finished one on every
+# later run. --clear starts such a folder over instead of building on it.
+if ! "$PYTHON" -m pip --version > /dev/null 2>&1; then
     echo "First run: creating the Python environment..."
-    python3 -m venv "$ROOT/backend/.venv"
+    # Python says by itself what to install when it is a package that is missing.
+    python3 -m venv --clear "$ROOT/backend/.venv" || {
+        echo "Creating the Python environment failed. Nothing was started." >&2
+        exit 1
+    }
 fi
 PY_INSTALLED="$ROOT/backend/.venv/.installed-pyproject.toml"
 if ! cmp -s "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"; then
     echo "Installing backend dependencies..."
     rm -f "$PY_INSTALLED"
-    "$ROOT/backend/.venv/bin/python" -m pip install -q -e "$ROOT/backend[dev]"
+    "$PYTHON" -m pip install -q -e "$ROOT/backend[dev]"
     cp "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"
 fi
+
+# Asked before the interface is installed or built, because the likeliest reason
+# for the port to be taken is Evermind itself, still running while it is being
+# updated, and nothing below should happen underneath it. It explains a failure
+# on its own; the port it prints on success is not needed here.
+if ! (cd "$ROOT/backend" && "$PYTHON" -m app --check $LAN > /dev/null); then
+    echo "Nothing was started." >&2
+    exit 1
+fi
+
 LOCK_INSTALLED="$ROOT/frontend/node_modules/.installed-package-lock.json"
 if ! cmp -s "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"; then
     echo "Installing frontend dependencies (a minute or two)..."
@@ -68,54 +68,16 @@ if ! cmp -s "$ROOT/frontend/package-lock.json" "$LOCK_INSTALLED"; then
 fi
 
 if [ "$SKIP_BUILD" = 1 ]; then
-    if [ ! -f "$ROOT/frontend/.next/BUILD_ID" ]; then
+    if [ ! -f "$ROOT/frontend/dist/index.html" ]; then
         echo "No build found. Run once without --skip-build first." >&2
         exit 1
     fi
     echo "Reusing the existing build (--skip-build)."
-    if [ "$BACKEND_PORT" != "8000" ]; then
-        echo "  Note: the API address is baked into that build. If you have just" >&2
-        echo "  changed EVERMIND_BACKEND_PORT, rebuild without --skip-build." >&2
-    fi
 else
     echo "Building the frontend (a minute or two)..."
     (cd "$ROOT/frontend" && npm run build)
 fi
 
-# The backend always stays on the loopback: the frontend proxies /api to it,
-# and that proxy is what the password gate protects.
-echo "Backend  -> http://127.0.0.1:${BACKEND_PORT} (this machine only)"
-echo "Frontend -> http://localhost:${PORT}"
-if [ -n "$LAN" ]; then
-    IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-    [ -n "$IP" ] && echo "            http://${IP}:${PORT}  (from the local network)"
-    if [ -z "${EVERMIND_GATE_PASSWORD:-}" ]; then
-        echo ""
-        echo "  No password is set, so anyone on this network can read your conversations."
-        echo "  Put EVERMIND_GATE_PASSWORD in .env to be asked for one."
-    fi
-fi
-
-# Single uvicorn worker on purpose: the memory-maintenance lock and SQLite
-# writes are per-process; multiple workers would race each other.
-(cd "$ROOT/backend" && exec .venv/bin/python -m uvicorn app.main:app \
-    --host 127.0.0.1 --port "$BACKEND_PORT") &
-BACKEND_PID=$!
-trap 'kill $BACKEND_PID 2>/dev/null || true' EXIT
-
-# Guidance rather than a pre-flight check: telling someone their port is free
-# when it is not would be worse than saying nothing, and there is no way to test
-# a port that is reliable everywhere this script runs without extra tools.
-cd "$ROOT/frontend"
-if ! npm run "start${LAN}"; then
-    status=$?
-    echo "" >&2
-    echo "The interface did not start. If the error above says EADDRINUSE," >&2
-    echo "port ${PORT} is already taken by something else. Put a free port in" >&2
-    echo ".env next to this script and run it again:" >&2
-    echo "" >&2
-    echo "    PORT=3001" >&2
-    echo "" >&2
-    echo "EVERMIND_BACKEND_PORT does the same for the API, currently ${BACKEND_PORT}." >&2
-    exit "$status"
-fi
+# python -m app prints the addresses and the no-password warning itself.
+cd "$ROOT/backend"
+exec "$PYTHON" -m app $LAN

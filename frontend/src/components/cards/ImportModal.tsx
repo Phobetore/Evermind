@@ -1,9 +1,7 @@
-"use client";
-
 import { Modal } from "@/components/ui/Modal";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
-import type { Character } from "@/types";
+import { describeError } from "@/lib/errors";
 import { Check, FileUp, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -37,12 +35,12 @@ export function ImportModal({
     // through should not cost the ones that already worked.
     for (const file of files) {
       try {
-        await api.upload<Character>("/api/characters/import", file);
+        await data.characters.importCard(file);
         done.push({ name: file.name });
       } catch (e) {
         done.push({
           name: file.name,
-          error: e instanceof Error ? e.message : t("home.importError"),
+          error: describeError(e, t, t("home.importError")),
         });
       }
       setResults([...done]);

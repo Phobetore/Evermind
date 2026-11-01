@@ -1,15 +1,14 @@
-"use client";
-
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
+import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { api } from "@/lib/api";
+import { describeError } from "@/lib/errors";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, NotebookPen, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router";
 
 // Mirrors the backend's select_facts: which facts actually reach the model,
 // so the panel can dim the dormant ones instead of hiding the limit.
@@ -70,14 +69,13 @@ export function ChatSidePanel({
     setWallpaperBusy(true);
     setWallpaperError(null);
     try {
-      const updated = await api.upload<Conversation>(
-        `/api/conversations/${conversation.id}/wallpaper`, file);
+      const updated = await data.conversations.setWallpaper(conversation.id, file);
       onConversationChange({
         wallpaper_url: updated.wallpaper_url,
         wallpaper_opacity: updated.wallpaper_opacity,
       });
     } catch (e) {
-      setWallpaperError(e instanceof Error ? e.message : t("chat.wallpaper.failed"));
+      setWallpaperError(describeError(e, t, t("chat.wallpaper.failed")));
     }
     setWallpaperBusy(false);
   }
@@ -85,10 +83,10 @@ export function ChatSidePanel({
   async function clearWallpaper() {
     setWallpaperBusy(true);
     try {
-      await api.delete(`/api/conversations/${conversation.id}/wallpaper`);
+      await data.conversations.clearWallpaper(conversation.id);
       onConversationChange({ wallpaper_url: null });
     } catch (e) {
-      setWallpaperError(e instanceof Error ? e.message : t("chat.wallpaper.failed"));
+      setWallpaperError(describeError(e, t, t("chat.wallpaper.failed")));
     }
     setWallpaperBusy(false);
   }
@@ -96,8 +94,9 @@ export function ChatSidePanel({
   useEffect(() => {
     // Caught: offline, these reject, and an unhandled rejection is noise in a
     // console that a real fault has to be found in.
-    api.get<Connection[]>("/api/connections").then(setConnections).catch(() => {});
-    api.get<Memory[]>(`/api/conversations/${conversation.id}/memories`)
+    data.connections?.list().then(setConnections).catch(() => {});
+    data.memories
+      .list(conversation.id)
       .then(setMemories)
       .catch(() => {});
   }, [conversation.id]);
@@ -122,7 +121,7 @@ export function ChatSidePanel({
   async function saveDirective() {
     const value = directive.trim();
     if (value === (conversation.author_note ?? "")) return;
-    await api.patch(`/api/conversations/${conversation.id}`, { author_note: value });
+    await data.conversations.update(conversation.id, { author_note: value });
     onConversationChange({ author_note: value });
   }
 
@@ -130,9 +129,7 @@ export function ChatSidePanel({
     setMemorizing(true);
     setMemoryNote(null);
     try {
-      const result = await api.post<{
-        facts_added: Memory[]; summary: string | null; memories: Memory[];
-      }>(`/api/conversations/${conversation.id}/memories/extract`);
+      const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
       if (result.summary) {
         setSummary(result.summary);
@@ -144,7 +141,7 @@ export function ChatSidePanel({
           : t("chat.panel.facts.noneNew"),
       );
     } catch (e) {
-      setMemoryNote(e instanceof Error ? e.message : t("chat.panel.facts.extractError"));
+      setMemoryNote(describeError(e, t, t("chat.panel.facts.extractError")));
     }
     setMemorizing(false);
     setTimeout(() => setMemoryNote(null), 4000);
@@ -154,9 +151,7 @@ export function ChatSidePanel({
     setConsolidating(true);
     setMemoryNote(null);
     try {
-      const result = await api.post<{ before: number; after: number; memories: Memory[]; skipped?: string }>(
-        `/api/conversations/${conversation.id}/memories/consolidate`,
-      );
+      const result = await data.memories.consolidate(conversation.id);
       setMemories(result.memories);
       setMemoryNote(
         result.skipped
@@ -164,7 +159,7 @@ export function ChatSidePanel({
           : t("chat.panel.facts.consolidated", { before: result.before, after: result.after }),
       );
     } catch (e) {
-      setMemoryNote(e instanceof Error ? e.message : t("chat.panel.facts.consolidateError"));
+      setMemoryNote(describeError(e, t, t("chat.panel.facts.consolidateError")));
     }
     setConsolidating(false);
     setTimeout(() => setMemoryNote(null), 5000);
@@ -174,26 +169,22 @@ export function ChatSidePanel({
     const content = newFact.trim();
     if (!content) return;
     try {
-      const saved = await api.post<Memory>(`/api/conversations/${conversation.id}/memories`, {
-        content, is_pinned: true,
-      });
+      const saved = await data.memories.create(conversation.id, { content, is_pinned: true });
       setMemories((prev) => [saved, ...prev]);
       setNewFact("");
     } catch (e) {
-      setMemoryNote(e instanceof Error ? e.message : t("chat.panel.facts.addError"));
+      setMemoryNote(describeError(e, t, t("chat.panel.facts.addError")));
       setTimeout(() => setMemoryNote(null), 3000);
     }
   }
 
   async function togglePin(memory: Memory) {
-    const updated = await api.patch<Memory>(`/api/memories/${memory.id}`, {
-      is_pinned: !memory.is_pinned,
-    });
+    const updated = await data.memories.update(memory.id, { is_pinned: !memory.is_pinned });
     setMemories((prev) => prev.map((m) => (m.id === memory.id ? updated : m)));
   }
 
   async function removeFact(memory: Memory) {
-    await api.delete(`/api/memories/${memory.id}`);
+    await data.memories.remove(memory.id);
     setMemories((prev) => prev.filter((m) => m.id !== memory.id));
   }
 
@@ -204,12 +195,12 @@ export function ChatSidePanel({
   );
 
   async function changeConnection(connectionId: string) {
-    await api.patch(`/api/conversations/${conversation.id}`, { connection_id: connectionId });
+    await data.conversations.update(conversation.id, { connection_id: connectionId });
     onConversationChange({ connection_id: connectionId });
   }
 
   async function saveSummary() {
-    await api.patch(`/api/conversations/${conversation.id}`, { summary });
+    await data.conversations.update(conversation.id, { summary });
     onConversationChange({ summary });
     setNote(t("chat.panel.summary.saved"));
     setTimeout(() => setNote(null), 1500);
@@ -219,14 +210,12 @@ export function ChatSidePanel({
     setSummarizing(true);
     setNote(null);
     try {
-      const updated = await api.post<Conversation>(
-        `/api/conversations/${conversation.id}/summarize`,
-      );
+      const updated = await data.conversations.summarize(conversation.id);
       setSummary(updated.summary);
       onConversationChange({ summary: updated.summary });
       setNote(t("chat.panel.summary.generated"));
     } catch (e) {
-      setNote(e instanceof Error ? e.message : t("chat.panel.summary.generateError"));
+      setNote(describeError(e, t, t("chat.panel.summary.generateError")));
     }
     setSummarizing(false);
     setTimeout(() => setNote(null), 4000);
@@ -242,15 +231,17 @@ export function ChatSidePanel({
       )}
       style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="flex items-start justify-between">
-        <Link href={`/characters/${character.id}`} className="group flex items-center gap-3">
+      <div className="flex items-start justify-between gap-2">
+        {/* min-w-0 down the chain, and the name allowed to break anywhere: a name
+            is whatever its owner typed, and a handle is one long word. */}
+        <Link to={`/characters/${character.id}`} className="group flex min-w-0 items-center gap-3">
           <Avatar
             name={character.name}
             src={character.avatar_url}
-            className="h-12 w-12 text-lg"
+            className="h-12 w-12 shrink-0 text-lg"
           />
-          <div>
-            <h3 className="font-display font-semibold leading-tight group-hover:text-ember-300">
+          <div className="min-w-0">
+            <h3 className="break-words font-display font-semibold leading-tight group-hover:text-ember-300">
               {character.name}
             </h3>
             <p className="text-xs text-mist">{character.kind === "scenario" ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}</p>
@@ -258,7 +249,7 @@ export function ChatSidePanel({
         </Link>
         <button
           onClick={onClose}
-          className="rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment"
+          className="touch-target shrink-0 rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment"
           aria-label={t("chat.panel.closeAriaLabel")}
         >
           <X className="h-4 w-4" />
@@ -266,27 +257,29 @@ export function ChatSidePanel({
       </div>
 
       {persona && (
-        <div className="text-sm text-mist">
+        <div className="break-words text-sm text-mist">
           {t("chat.panel.youArePlaying")} <span className="font-display font-semibold text-parchment-dim">{persona.name}</span>
         </div>
       )}
 
-      <Field label={t("chat.panel.modelLabel")}>
-        <select
-          className="field"
-          value={conversation.connection_id ?? ""}
-          onChange={(e) => changeConnection(e.target.value)}
-        >
-          <option value="" disabled>
-            {t("chat.panel.chooseModelOption")}
-          </option>
-          {connections.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} {c.model ? `· ${c.model}` : ""}
+      {data.connections && (
+        <Field label={t("chat.panel.modelLabel")}>
+          <select
+            className="field"
+            value={conversation.connection_id ?? ""}
+            onChange={(e) => changeConnection(e.target.value)}
+          >
+            <option value="" disabled>
+              {t("chat.panel.chooseModelOption")}
             </option>
-          ))}
-        </select>
-      </Field>
+            {connections.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.model ? `· ${c.model}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
 
       {/* What the text box actually understands. Everything listed is something
           this app renders or does — nothing aspirational, and nothing carried
@@ -333,7 +326,6 @@ export function ChatSidePanel({
         {conversation.wallpaper_url ? (
           <>
             <div className="flex items-start gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={conversation.wallpaper_url}
                 alt=""
@@ -413,7 +405,7 @@ export function ChatSidePanel({
             e.target.value = "";
           }}
         />
-        {wallpaperError && <p className="mt-2 text-xs text-blood">{wallpaperError}</p>}
+        {wallpaperError && <p className="mt-2 break-words text-xs text-blood">{wallpaperError}</p>}
       </div>
 
       {/* Scene directive: reaches the model at the most influential position
@@ -441,8 +433,13 @@ export function ChatSidePanel({
       </div>
 
       <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <span className="ui-label">{t("chat.panel.summary.title")}</span>
+        {/* A title and its button or buttons, here and under the facts. The title
+            gives way first, down to its longest word (no min-w-0: that is what
+            tells the row when to wrap); a button that still does not fit drops to
+            a line of its own instead of running past the edge. How wide a button
+            is depends on its word in the language it is read in. */}
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+          <span className="ui-label flex-1">{t("chat.panel.summary.title")}</span>
           <button
             className="btn btn-ghost !px-2.5 !py-1 text-xs"
             onClick={generateSummary}
@@ -468,14 +465,14 @@ export function ChatSidePanel({
             {t("chat.panel.summary.saveButton")}
           </button>
         )}
-        {note && <p className="mt-1.5 text-xs text-moss">{note}</p>}
+        {note && <p className="mt-1.5 break-words text-xs text-moss">{note}</p>}
       </div>
 
       {/* Established facts */}
       <div>
-        <div className="mb-1.5 flex items-center justify-between gap-2">
-          <span className="ui-label">{t("chat.panel.facts.title")} {memories.length > 0 && `(${memories.length})`}</span>
-          <div className="flex gap-1">
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+          <span className="ui-label flex-1">{t("chat.panel.facts.title")} {memories.length > 0 && `(${memories.length})`}</span>
+          <div className="flex max-w-full flex-wrap gap-1">
             <button
               className="btn btn-ghost !px-2 !py-1 text-xs"
               onClick={consolidateMemory}
@@ -520,7 +517,10 @@ export function ChatSidePanel({
             <div
               key={memory.id}
               className={clsx(
-                "group/fact flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5",
+                // On a touch screen the row is as tall as the thumb, so that
+                // the two small controls in it, centred, have the room their
+                // reachable areas need and do not run into the next row's.
+                "group/fact flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5 pointer-coarse:min-h-11 pointer-coarse:items-center",
                 dormant.has(memory.id)
                   ? "border-ink-800 bg-ink-950/40 opacity-45"
                   : "border-ink-700 bg-ink-900/60",
@@ -531,13 +531,13 @@ export function ChatSidePanel({
                 onClick={() => togglePin(memory)}
                 title={memory.is_pinned ? t("chat.panel.facts.unpinTitle") : t("chat.panel.facts.pinTitle")}
                 className={clsx(
-                  "mt-0.5 shrink-0 transition-colors",
+                  "touch-target mt-0.5 shrink-0 transition-colors pointer-coarse:mt-0",
                   memory.is_pinned ? "text-ember-400" : "text-mist-dim hover:text-parchment",
                 )}
               >
                 <Pin className={clsx("h-3.5 w-3.5", memory.is_pinned && "fill-current")} />
               </button>
-              <span className="min-w-0 flex-1 text-[0.82rem] leading-snug text-parchment-dim">
+              <span className="min-w-0 flex-1 break-words text-[0.82rem] leading-snug text-parchment-dim">
                 {memory.content}
                 {memory.source_position > 0 && (
                   <span className="ml-1 text-[0.68rem] text-mist-dim">{t("chat.panel.facts.turnBadge", { turn: memory.source_position })}</span>
@@ -545,7 +545,8 @@ export function ChatSidePanel({
               </span>
               <button
                 onClick={() => removeFact(memory)}
-                className="mt-0.5 shrink-0 text-mist-dim opacity-0 transition-all hover:text-blood group-hover/fact:opacity-100"
+                // Shown with the row on hover; where there is no hover, always.
+                className="hover-actions touch-target mt-0.5 shrink-0 text-mist-dim hover:text-blood pointer-coarse:mt-0"
                 aria-label={t("chat.panel.facts.forgetAriaLabel")}
               >
                 <X className="h-3.5 w-3.5" />
@@ -567,7 +568,7 @@ export function ChatSidePanel({
             placeholder={t("chat.panel.facts.addPlaceholder")}
           />
           <button
-            className="btn btn-ghost !px-2.5"
+            className="btn btn-ghost !px-2.5 pointer-coarse:min-w-11"
             onClick={addFact}
             disabled={!newFact.trim()}
             aria-label={t("chat.panel.facts.addAriaLabel")}
@@ -575,13 +576,13 @@ export function ChatSidePanel({
             <Plus className="h-4 w-4" />
           </button>
         </div>
-        {memoryNote && <p className="mt-1.5 text-xs text-moss">{memoryNote}</p>}
+        {memoryNote && <p className="mt-1.5 break-words text-xs text-moss">{memoryNote}</p>}
       </div>
 
       {character.scenario && (
         <div>
           <span className="ui-label mb-1.5 block">{t("chat.panel.sceneAnchor.title")}</span>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-mist">
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-mist">
             {previewMacros(character.scenario, character.name, persona?.name ?? t("chat.panel.sceneAnchor.youFallback"))}
           </p>
         </div>
