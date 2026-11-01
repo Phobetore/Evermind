@@ -341,9 +341,8 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     # opening on the assistant's turn streams nothing at all rather than
     # erroring, and Evermind opens a conversation on the character's greeting
     # when it has one, so the first message of a first conversation dies
-    # silently. Rather than hand that
-    # to someone as "try another model", fold the greeting into the system
-    # prompt and ask once more.
+    # silently. Rather than hand that to someone as "try another model", fold
+    # the greeting into the system prompt and ask once more.
     for attempt in (0, 1):
         # No cleanup handler here, on purpose: a stopped turn leaves this
         # generator while turns._run closes the database connection it was

@@ -2,9 +2,10 @@
 
 Several popular roleplay finetunes ship a chat template that refuses a
 conversation whose first message is the assistant's. They do not error: they
-stream zero tokens. Evermind always opens on the character's greeting, so on
-those models the first message of a first conversation dies in silence, which
-reads as "this application is broken" rather than "this model is picky".
+stream zero tokens. Evermind opens a conversation on the character's greeting
+when it has one, so on those models the first message of a first conversation
+dies in silence, which reads as "this application is broken" rather than "this
+model is picky".
 """
 
 from typing import ClassVar

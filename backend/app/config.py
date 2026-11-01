@@ -17,7 +17,7 @@ def default_env_file() -> Path:
 
 
 def _settings_text(data: bytes) -> str:
-    """The text of a settings file, whichever of UTF-8, UTF-16 and UTF-32 it is in.
+    """The text of a settings file, in UTF-8, UTF-16 or UTF-32.
 
     A byte order mark says which. The UTF-32 ones are looked for first: the
     little-endian one starts with the little-endian mark of UTF-16, and read as
@@ -137,10 +137,11 @@ def parse_root_path(raw: str, name: str) -> str:
     how the same prefix looks in a proxy's own configuration. Anything that
     could not be part of a path is refused here, because it would only come
     back as a redirect that leads nowhere, or somewhere else: a query, a
-    fragment or whitespace; ``//`` anywhere, which at the start is another site to a browser that
-    follows the redirect; a backslash, which a browser reads as a slash; a ``%``,
-    which hides dots and slashes from these checks until something decodes it;
-    and a ``.`` or ``..`` segment, which a browser or a proxy resolves away.
+    fragment or whitespace; ``//`` anywhere, which at the start is another site
+    to a browser that follows the redirect; a backslash, which a browser reads as
+    a slash; a ``%``, which hides dots and slashes from these checks until
+    something decodes it; and a ``.`` or ``..`` segment, which a browser or a
+    proxy resolves away.
     """
     path = raw.strip()
     if not path:
