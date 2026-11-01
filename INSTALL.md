@@ -320,9 +320,11 @@ PORT=3001
 ```
 
 Put the file next to your `docker-compose.yml`, or in the Evermind folder if you
-run it from the source, and start Evermind again. It works the same with Docker
-and with the launch scripts; under Docker it is the port on your computer, and
-inside its box Evermind keeps its own.
+run it from the source, and start Evermind again: with Docker, that is
+`docker compose up -d` (`docker compose restart` keeps the port the container
+started with). It works the same with Docker and with the launch scripts; under
+Docker it is the port on your computer, and inside its box Evermind keeps its
+own.
 
 **Sharper long-term memory.** By default, Evermind recalls the most recent facts.
 It can instead recall facts and old passages *by meaning*, so the right memory

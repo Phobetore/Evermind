@@ -77,9 +77,11 @@ old interface container and starts the new one in one go.
 The image `evermind-frontend` is no longer updated, and nothing uses it any more.
 `docker image rm ghcr.io/phobetore/evermind-frontend` gives the disk space back.
 The new image is also published as `evermind-backend`, which is the name the old
-file pulls, so a 2.x `docker-compose.yml` you have not replaced yet keeps running
-for now. Replace it when you can: it stays a two-container setup with the old
-sign-in.
+file pulls, but the old file does not work with it. Its interface container
+reaches the API under the name `backend`, which the new image does not answer
+to, so once a 2.x `docker-compose.yml` pulls it (`docker compose pull`, for
+instance), the interface can no longer show your characters and conversations.
+Nothing is lost: replacing the file as above brings them back.
 
 ### From the source
 
@@ -149,6 +151,7 @@ A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
   `EVERMIND_BACKEND_PORT` is only for development now (`scripts/dev`), and
   `EVERMIND_BACKEND_URL` is not read at all any more. If either is in your
   `.env`, you can delete the line.
-- **Your `.env` keeps working.** Evermind reads it itself now, the same file in
-  the same place, wherever it is started from. A value set in the environment
-  still wins over the file.
+- **Your `.env` keeps working.** From the source, Evermind reads it itself now,
+  the same file in the same place, wherever it is started from; with Docker,
+  `docker compose` reads it as before. A value set in the environment still wins
+  over the file.

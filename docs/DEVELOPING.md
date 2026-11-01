@@ -268,7 +268,7 @@ rules), then the raw history as native user/assistant turns, then a post-history
 block re-stating the guardrails and the player's scene directive as close to
 generation as possible.
 
-Two things are worth knowing before changing it:
+Three things are worth knowing before changing it:
 
 - **Facts whose source turn is still visible are dropped.** Re-stating a message
   the model can already see is pure echo, and was a leading cause of repetition
@@ -276,9 +276,10 @@ Two things are worth knowing before changing it:
 - **`stats["oldest_visible"]` is the true oldest rendered turn**, not the
   provisional estimate used internally for the anti-echo filter. Passage recall
   relies on that exactness to avoid injecting something already on screen.
-- **A conversation opens on an assistant turn**, because the character greets
-  first. Some chat templates refuse that shape and stream zero tokens rather than
-  erroring, so the first message of a first conversation dies in silence.
+- **A conversation opens on an assistant turn** when the character has a
+  greeting, since the character then speaks first. Some chat templates refuse
+  that shape and stream zero tokens rather than erroring, so the first message
+  of a first conversation dies in silence.
   `chat_service` retries once with `fold_leading_assistant=True`, which moves the
   leading assistant turns into the system prompt and leaves a list that starts
   with the player. It is the weaker shape, since the model reads its own opening
@@ -308,7 +309,7 @@ carry exactly the same keys; `en` is the fallback, so it has to be complete.
 Interpolation placeholders (`{count}`, `{name}`) and card macros (`{{char}}`,
 `{{user}}`) must survive translation untouched.
 
-Parity check, which CI also runs on every push:
+Parity check, which CI also runs:
 
 ```bash
 cd frontend && npm run check:i18n
@@ -333,10 +334,12 @@ and `.dockerignore` keeps every `.env*` file out of it), so
 be changed without rebuilding.
 
 It is published as `ghcr.io/phobetore/evermind`, and also as `evermind-backend`,
-the name the backend image had when Evermind was two containers, so that a 2.x
-`docker-compose.yml` keeps working until its owner replaces it. The interface
-image that file also pulls is no longer updated. [UPGRADING.md](UPGRADING.md)
-walks people through the move.
+the name the backend image had when Evermind was two containers. A 2.x
+`docker-compose.yml` that pulls it does not work with it, though: its interface
+container calls the API as `backend:8000`, a host name the image refuses while
+no password is set, and that file gives the container none. The interface image
+that file also pulls is no longer updated. [UPGRADING.md](UPGRADING.md) walks
+people through the move.
 
 ## Cutting a release
 

@@ -94,7 +94,7 @@ what stands in its way:
   that should not be reachable from where the request came from
 - Injection of any kind that escapes its context: SQL, template, path traversal
   into the data directory, or a card that executes something when imported
-- Anything in the published Docker images that runs with more privilege than it
+- Anything in the published Docker image that runs with more privilege than it
   needs, or ships a credential
 - Dependency vulnerabilities that are actually reachable from Evermind's code
   paths, rather than a scanner's raw output
