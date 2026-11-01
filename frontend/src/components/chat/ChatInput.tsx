@@ -12,8 +12,7 @@ type MessageMode = "say" | "narrate" | "ooc";
 /** A pointing device that hovers, which in practice means a real keyboard is
  *  attached too. Read at the moment of the keypress rather than remembered. */
 const KEYBOARD_QUERY = "(hover: hover) and (pointer: fine)";
-const hasKeyboard = () =>
-  typeof window === "undefined" || window.matchMedia(KEYBOARD_QUERY).matches;
+const hasKeyboard = () => window.matchMedia(KEYBOARD_QUERY).matches;
 
 const MODES: Record<MessageMode, {
   next: MessageMode;

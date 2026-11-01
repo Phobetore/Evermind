@@ -5,11 +5,10 @@
 const PREFIX = "evermind:draft:";
 
 export function loadDraft(conversationId: string): string {
-  if (typeof window === "undefined") return "";
   try {
     return localStorage.getItem(PREFIX + conversationId) ?? "";
   } catch {
-    return ""; // private mode / storage disabled
+    return ""; // storage this site may not use keeps no draft
   }
 }
 
@@ -26,7 +25,7 @@ export function clearDraft(conversationId: string): void {
   try {
     localStorage.removeItem(PREFIX + conversationId);
   } catch {
-    /* ignore */
+    /* storage this site may not use has nothing to clear */
   }
 }
 
@@ -35,7 +34,6 @@ export function clearDraft(conversationId: string): void {
 export function pruneDrafts(existingIds: string[]): Set<string> {
   const alive = new Set(existingIds);
   const withDraft = new Set<string>();
-  if (typeof window === "undefined") return withDraft;
   try {
     for (const key of Object.keys(localStorage)) {
       if (!key.startsWith(PREFIX)) continue;
@@ -44,7 +42,7 @@ export function pruneDrafts(existingIds: string[]): Set<string> {
       else localStorage.removeItem(key);
     }
   } catch {
-    /* ignore */
+    /* storage this site may not use keeps no draft */
   }
   return withDraft;
 }
