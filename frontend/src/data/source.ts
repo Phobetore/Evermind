@@ -1,6 +1,6 @@
 import type {
   ChatEvent, Character, Connection, Conversation, Kind, LibraryItem, LoreEntry, LoreEntryDraft,
-  Memory, Message, Persona, ProviderType, Settings, UpdateStatus,
+  Memory, Message, Persona, ProviderType, Settings, TurnState, UpdateStatus,
 } from "@/types";
 
 /** Everything the interface asks of its server, and nothing about how the
@@ -61,7 +61,7 @@ export interface DataSource {
     stop(conversationId: string): Promise<void>;
     /** Whether a reply is being written for this conversation right now, asked
      *  for from this page or from another device. */
-    state(conversationId: string): Promise<{ running: boolean }>;
+    state(conversationId: string): Promise<TurnState>;
     impersonate(conversationId: string): Promise<{ text: string }>;
   };
   library: {

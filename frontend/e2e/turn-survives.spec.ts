@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
+import {
+  conversation, conversationWithReply, makeConversation, stopTurn, turnRunning,
+} from "./fixtures";
 
 /**
  * Evermind is most often used from a phone against a machine somewhere else,
@@ -82,7 +84,7 @@ test("coming back shows the reply still arriving", async ({ browser, request }) 
  *
  * Both kinds, because only a new reply carries a mark while it is being written.
  * A regeneration looks finished at every word, so what was read cannot say whether
- * it needs reading again.
+ * it needs reading again: the server says, when asked about the turn.
  */
 for (const turn of [
   { mode: "send", content: "Ecris longuement.", message_mode: "say" },
@@ -124,3 +126,47 @@ for (const turn of [
     await expect(page.locator('button[title="Stop generation"]')).toBeHidden();
   });
 }
+
+test("a reply ending before the page has its first read is shown whole", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { slowly: true });
+  const writing = request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "Ecris.", message_mode: "say" },
+    timeout: 120_000,
+  });
+  await expect.poll(async () =>
+    (await conversation(request, convo.id)).messages.at(-1).meta.streaming === true,
+  { timeout: 10_000 }).toBe(true);
+
+  // A long conversation on a slow connection: read mid-reply, and still on its way
+  // to the page when the page, attached to the turn, has already seen it end.
+  let held = false;
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (held || route.request().method() !== "GET") return route.continue();
+    held = true;
+    const response = await route.fetch();
+    await writing;
+    await route.fulfill({ response });
+  });
+  await page.goto(`/#/chat/${convo.id}`);
+
+  await writing;
+  const reply = (await conversation(request, convo.id)).messages.at(-1);
+  const ending = reply.content.trim().split(" ").slice(-3).join(" ");
+  await expect(page.locator(`[data-message-id="${reply.id}"]`),
+    "the reply stayed as far as it had got when the page read it").toContainText(ending);
+  await expect(page.locator('button[title="Stop generation"]')).toBeHidden();
+});
+
+test("opening a conversation with no recent turn reads it once", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const path = `/api/conversations/${convo.id}`;
+  let reads = 0;
+  page.on("request", (sent) => {
+    if (sent.method() === "GET" && new URL(sent.url()).pathname === path) reads += 1;
+  });
+  const asked = page.waitForResponse((response) => new URL(response.url()).pathname === `${path}/turn`);
+  await page.goto(`/#/chat/${convo.id}`);
+  await asked;
+  await page.waitForLoadState("networkidle");
+  expect(reads, "an ordinary opening paid for a second read").toBe(1);
+});

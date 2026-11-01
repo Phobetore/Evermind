@@ -94,12 +94,8 @@ function ChatView({ id }: { id: string }) {
   );
 
   /** Watch a reply that is being written elsewhere — by a server that carried
-   *  on after the phone that asked for it went to sleep. Says whether there was
-   *  a turn to watch. */
+   *  on after the phone that asked for it went to sleep. */
   const attachToRunningTurn = useCallback(async (controller: AbortController) => {
-    if (turnStore.isRunning(id)) return true; // this page is already the one running it
-    const state = await data.turns.state(id).catch(() => ({ running: false }));
-    if (!state.running || controller.signal.aborted) return false;
     turnStore.begin(id, controller);
     const onEvent = (event: ChatEvent) => {
       // The replay starts at the beginning, so this is the same `start` the
@@ -125,7 +121,6 @@ function ChatView({ id }: { id: string }) {
       turnStore.end();
       setRegenTargetId(null);
     }
-    return true;
   }, [id, pickTurnBackUp]);
 
   useEffect(() => {
@@ -144,17 +139,22 @@ function ChatView({ id }: { id: string }) {
       })
       .catch((error) => setLoadFailure({ error }));
 
-    // The conversation and the state of the turn are two reads, not one moment.
-    // A turn that ended between them leaves a reply as far as it had got, with no
-    // turn to watch and so nothing coming to replace it. What was read cannot say:
-    // only a new reply is marked while it is written, a regeneration or a
-    // continuation looks finished at every word. So it is read once more, which is
-    // enough: nothing was running when this one was asked for. Nearly always it
-    // says the same, and then what is on screen is left alone rather than every
-    // message being drawn twice.
     void (async () => {
-      if ((await attachToRunningTurn(controller)) || controller.signal.aborted) return;
+      if (turnStore.isRunning(id)) return; // this page is already the one running it
+      const state = await data.turns.state(id);
+      if (controller.signal.aborted) return;
+      if (state.running) await attachToRunningTurn(controller);
+      else if (!state.ended_recently) return;
+      // The conversation and the state of the turn are two reads, not one moment.
+      // A turn that ended between them leaves a reply as far as it had got, with
+      // no turn to watch and so nothing coming to replace it. What was read cannot
+      // say so, since only a new reply is marked while it is written, but the
+      // server can. The same goes for a read still on its way when the turn this
+      // page attached to ended. Once more is enough: nothing was running when this
+      // is asked for. Nearly always it says the same, and then what is on screen
+      // is left alone rather than every message being drawn twice.
       await opening;
+      if (controller.signal.aborted) return;
       const latest = (await data.conversations.get(id)).messages ?? [];
       if (controller.signal.aborted || turnStore.isRunning(id)) return;
       setMessages((shown) => (JSON.stringify(shown) === JSON.stringify(latest) ? shown : latest));

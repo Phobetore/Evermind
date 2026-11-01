@@ -163,6 +163,15 @@ export interface Memory {
   created_at: string;
 }
 
+/** What the server says of a conversation's turn. */
+export interface TurnState {
+  running: boolean;
+  mode: "send" | "regenerate" | "continue" | null;
+  /** One ended a moment ago, so what was read of the conversation just before
+   *  may be out of date. */
+  ended_recently: boolean;
+}
+
 export type ChatEvent =
   | { type: "start"; conversation_id: string; user_message: Message | null;
       /** The reply this turn replaces or extends, if any. */
