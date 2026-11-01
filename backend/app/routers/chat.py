@@ -43,9 +43,11 @@ async def turn_state(convo_id: str) -> dict:
 @router.get("/conversations/{convo_id}/turn/stream")
 async def follow_turn(convo_id: str):
     """Attach to a turn already under way: the reply so far, then the rest as it
-    arrives. Empty stream if nothing is running, rather than an error — a page
-    that opens on a finished conversation is not a mistake."""
-    turn = turns.running_for(convo_id)
+    arrives. A turn that has just ended is still handed over, ending included, for
+    a page that asked a moment too late or a phone that has just woken. Empty stream
+    if there is none, rather than an error — a page that opens on a finished
+    conversation is not a mistake."""
+    turn = turns.kept_for(convo_id)
     if not turn:
         return StreamingResponse(iter(()), media_type="text/event-stream",
                                  headers=_SSE_HEADERS)

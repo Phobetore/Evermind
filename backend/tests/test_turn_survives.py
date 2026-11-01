@@ -192,3 +192,20 @@ async def test_the_state_of_a_turn_says_when_one_has_just_ended(client, unhurrie
     await asyncio.sleep(0.4)
     state = (await client.get(url)).json()
     assert state == {"running": False, "mode": None, "ended_recently": False}
+
+
+async def test_the_ending_of_a_turn_is_still_there_to_be_read(client, unhurried, monkeypatch):
+    """A phone that wakes just after its reply ended is handed the ending, including
+    a failure, which is nowhere in the conversation to be found afterwards."""
+    monkeypatch.setattr(turns, "_KEEP_FINISHED_SECONDS", 0.2)
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Fini"))
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    url = f"/api/conversations/{convo['id']}/turn/stream"
+    ended = (await client.get(url)).text
+    assert '"delta"' in ended and '"done"' in ended, f"nothing of the turn was handed over: {ended!r}"
+
+    await asyncio.sleep(0.4)
+    assert (await client.get(url)).text == "", "a turn that has been forgotten has nothing to say"

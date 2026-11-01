@@ -65,6 +65,13 @@ def ended_recently(conversation_id: str) -> bool:
     return turn is not None and turn.finished.is_set()
 
 
+def kept_for(conversation_id: str) -> Turn | None:
+    """A turn being written, or one that has ended and is still being kept: what
+    it said can still be read, and how it ended, even if that was a failure, which
+    is nowhere in the conversation to be found afterwards."""
+    return _running.get(conversation_id)
+
+
 def _forget(turn: Turn) -> None:
     """Only if it is still this one. The next turn of the conversation takes the
     same place, often before this one's time is up, and would go with it."""
