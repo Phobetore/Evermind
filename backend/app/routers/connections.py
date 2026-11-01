@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends
 
 from ..db import get_db
 from ..errors import NotFoundError, failure_fields
-from ..providers.base import NO_TEXT
 from ..models.schemas import ConnectionIn, ConnectionUpdate
 from ..providers import ProviderError, get_provider
+from ..providers.base import NO_TEXT
 from ..repositories import connections as repo
 from ..repositories import settings as settings_repo
 
