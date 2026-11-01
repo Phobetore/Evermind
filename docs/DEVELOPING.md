@@ -53,9 +53,9 @@ about `PORT`, development about the API's `EVERMIND_BACKEND_PORT`, and neither
 goes on if it is taken. `dev.ps1 -Lan` and `dev.sh --lan` also ask about `PORT`,
 the one Vite uses, and only warn, since Vite does not stop for a port that is
 taken. On Windows, `-Lan` also checks that the firewall lets the port through.
-`dev.sh` stops the API and Vite whichever way it is stopped (Ctrl+C, SIGTERM, a
-closed terminal), and for that Vite runs without a keyboard to read, so its
-shortcuts (`h` + enter) are not available there.
+`dev.sh` stops the API and Vite when told to stop (Ctrl+C, SIGTERM, a closed
+terminal). For that neither has the keyboard to read, so Vite's shortcuts
+(`h` + enter) are not available there.
 
 `python -m app` is the one way Evermind is started, whoever starts it: the
 scripts, the container, the end-to-end suite. From `backend/`, with the
