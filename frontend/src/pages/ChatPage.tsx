@@ -39,6 +39,14 @@ const fingerprint = (message?: Message) => (message ? `${message.id}:${message.c
  *  on it. As far as the person can tell, Evermind has stopped answering. */
 const streamEndedEarly = () => new DataError("The stream ended early.", { kind: "network" });
 
+/** The server's word for it that the conversation's last message is still waiting
+ *  for a reply. Where a conversation ends says nothing by itself: a reply can have
+ *  been deleted, or stopped before its first word, or a story branched there. */
+function unanswered(messages: Message[]) {
+  const last = messages.at(-1);
+  return last?.role === "user" && last.meta?.unanswered === true;
+}
+
 /** Keyed by the id, so that a branch, which opens at an address of its own,
  *  starts from its own messages rather than from the ones it was cut from. */
 export function ChatPage() {
@@ -243,7 +251,8 @@ function ChatView({ id }: { id: string }) {
           return { result: "not sent", messages: latest };
         }
         if (last?.role !== "assistant") {
-          setFailure("no reply");
+          // Quietly, if it was stopped before any word: that is what was asked for.
+          setFailure(unanswered(latest) ? "no reply" : null);
           return { result: "no reply", messages: latest };
         }
         setFailure(null);
@@ -335,6 +344,8 @@ function ChatView({ id }: { id: string }) {
         turnStore.begin(id, controller);
         await readToTheEnd(controller, true);
       } else if (!state.ended_recently) {
+        // A reply that failed with no page open to say so.
+        if (unanswered((await opening).messages ?? [])) setFailure("no reply");
         return;
       }
       // The conversation and the state of the turn are two reads, not one moment.
@@ -346,9 +357,10 @@ function ChatView({ id }: { id: string }) {
       // is asked for.
       await opening;
       if (controller.signal.aborted) return;
-      const { show } = await readAgain();
+      const { latest, show } = await readAgain();
       if (controller.signal.aborted || turnStore.isRunning(id)) return;
       show();
+      if (!state.running && unanswered(latest)) setFailure("no reply");
     })().catch(() => {
       /* whatever was read first stays on screen, or its failure is reported above */
     });

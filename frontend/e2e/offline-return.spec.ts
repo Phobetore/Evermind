@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
+import { conversation, conversationWithReply, makeConversation, stopTurn, turnRunning } from "./fixtures";
 
 /**
  * Reported: close the tab, leave it a while, come back, and there is an error
@@ -507,6 +507,104 @@ test("a stream that closes again and again with no new word gives up, and says s
 });
 
 const retryButton = (page: Page) => page.getByRole("button", { name: "Retry" });
+
+test("a reply that failed with no page open is reported on opening, and can be asked for again", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { failing: true });
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "Personne.", message_mode: "say" },
+    timeout: 60_000,
+  });
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
+
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("p.text-blood").first()).toContainText("The reply did not arrive");
+  await expect(stopButton(page)).toBeHidden();
+
+  await retryButton(page).click();
+  const expected = convo.messages.length + 2;
+  await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
+    { timeout: 30_000, message: "no reply was asked for" }).toBe(expected);
+  await expect(page.locator("[data-message-id]")).toHaveCount(expected);
+  await expect(page.locator("p.text-blood")).toHaveCount(0);
+});
+
+test("it is reported long after, when the server has forgotten the turn", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { failing: true });
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "Personne.", message_mode: "say" },
+    timeout: 60_000,
+  });
+  await page.route("**/turn", (route) => route.fulfill({
+    json: { running: false, mode: null, ended_recently: false },
+  }));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("p.text-blood").first()).toContainText("The reply did not arrive");
+});
+
+test("no alarm if the state of the turn cannot be read", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { failing: true });
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "Personne.", message_mode: "say" },
+    timeout: 60_000,
+  });
+  const asked = page.waitForRequest("**/turn");
+  await page.route("**/turn", (route) => route.abort("failed"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await asked;
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("textarea").first()).toBeVisible();
+  await expect(page.locator("p.text-blood")).toHaveCount(0);
+});
+
+/** Opens a conversation and checks, once the page has read everything, that it has
+ *  nothing to report. */
+async function expectNoAlarm(page: Page, convoId: string, because: string) {
+  await page.goto(`/#/chat/${convoId}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("p.text-blood"), `a false alarm: ${because}`).toHaveCount(0);
+  await expect(retryButton(page)).toHaveCount(0);
+}
+
+test("a new conversation raises no alarm", async ({ page, request }) => {
+  const greeted = await makeConversation(request);
+  await expectNoAlarm(page, greeted.id, "nothing has been said yet");
+  const silent = await makeConversation(request, { greeting: "" });
+  expect(silent.messages ?? [], "this one was meant to have no greeting").toHaveLength(0);
+  await expectNoAlarm(page, silent.id, "nothing has been said yet, and no greeting either");
+});
+
+test("a reply stopped before any word raises no alarm", async ({ page, request }) => {
+  // The model takes a couple of seconds to refuse, which is the time to stop it in.
+  const convo = await conversationWithReply(request, { failing: true });
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.locator("textarea").first().fill("Non, rien.");
+  await page.locator('button[title="Send"]').click();
+  await stopButton(page).click();
+  await expect(stopButton(page)).toBeHidden();
+  await expect.poll(() => turnRunning(request, convo.id), { timeout: 15_000 }).toBe(false);
+  await expect(page.getByText("Non, rien."), "what was said is still there").toBeVisible();
+
+  const last = (await conversation(request, convo.id)).messages.at(-1);
+  expect(last.role, "a word arrived before it was stopped").toBe("user");
+  await expectNoAlarm(page, convo.id, "the person stopped it themselves");
+});
+
+test("a conversation that ends on a message for other reasons raises no alarm", async ({ page, request }) => {
+  // The reply was deleted: it was there, and now it is not on purpose.
+  const convo = await conversationWithReply(request);
+  const reply = convo.messages.at(-1);
+  await request.delete(`${API}/api/messages/${reply.id}?following=true`);
+  expect((await conversation(request, convo.id)).messages.at(-1).role).toBe("user");
+  await expectNoAlarm(page, convo.id, "the reply was deleted");
+
+  // A branch, cut at a message of the person's.
+  const asked = (await conversation(request, convo.id)).messages.at(-1);
+  const branch = await (await request.post(`${API}/api/messages/${asked.id}/branch`)).json();
+  expect(branch.messages.at(-1).role).toBe("user");
+  await expectNoAlarm(page, branch.id, "the story was branched here");
+});
+
 
 test("retrying joins a reply that is still being written", async ({ page, request }) => {
   const convo = await conversationWithReply(request, { slowly: true });
