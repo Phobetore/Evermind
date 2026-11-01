@@ -7,6 +7,7 @@ address, so the cookie has to work without the Secure flag there.
 """
 
 import asyncio
+import contextlib
 import logging
 import sqlite3
 import unicodedata
@@ -549,10 +550,9 @@ async def test_a_sign_in_during_sign_out_everywhere_is_kept_or_ended_whole(make_
                 # Give the sign-in, once its password is checked, every chance
                 # to write its row before the sessions are deleted.
                 await asyncio.wait_for(checked.wait(), timeout=5)
-                try:
+                # Timing out is the expected outcome when the lock holds the sign-in back.
+                with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(written.wait(), timeout=0.5)
-                except TimeoutError:
-                    pass
 
         def committed(statements: list[str]) -> None:
             if any(sql.startswith("INSERT INTO gate_sessions") for sql in statements):
