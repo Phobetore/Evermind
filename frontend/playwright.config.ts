@@ -87,11 +87,11 @@ export default defineConfig({
 
   webServer: [
     {
-      // Slower than the default on purpose. Several tests are about what
-      // happens while a reply is being written, and at full speed the reply is
-      // finished before a second browser has opened the page — which passes on
-      // a fast laptop and fails on a CI runner.
-      ...isolated(`${python} ../scripts/mock_llm.py ${MOCK_PORT}`, { EVERMIND_MOCK_DELAY: "0.15" }),
+      // Quick, because nearly every test waits for a reply in its setup and only
+      // needs it to exist. A test about what happens while a reply is being
+      // written asks for a slow one in the conversation (`slowly` in
+      // e2e/fixtures.ts), and this does not change how slow that is.
+      ...isolated(`${python} ../scripts/mock_llm.py ${MOCK_PORT}`, { EVERMIND_MOCK_DELAY: "0.05" }),
       url: `http://127.0.0.1:${MOCK_PORT}/v1/models`,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,

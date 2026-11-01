@@ -15,10 +15,15 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 5599
-# Seconds between words. The end-to-end suite raises it: several of its tests
-# are about what happens *during* a reply, and at the default pace the reply is
-# over before a second browser has finished opening the page.
+# Seconds between words. The end-to-end suite sets its own, a little over the
+# default: nearly all of its tests only need a reply to exist, and wait for it
+# in their setup.
 WORD_DELAY = float(os.environ.get("EVERMIND_MOCK_DELAY", "0.045"))
+# Seconds between words in a conversation that says SLOWLY. A fixed pace, not a
+# multiple of the one above: how slow is slow enough depends on how long a browser
+# takes to close one page and open another, and that has nothing to do with how
+# quickly the other replies are wanted.
+SLOW_WORD_DELAY = 0.6
 
 REPLIES = [
     "*{char} watches you for a moment, weighing something.* Now that is an interesting "
@@ -107,7 +112,7 @@ class Handler(BaseHTTPRequestHandler):
         # reply to still be going when it looks. Rather than tune sleeps
         # against whatever machine is running, it says so in the
         # conversation and this slows right down.
-        delay = WORD_DELAY * 4 if "SLOWLY" in json.dumps(payload) else WORD_DELAY
+        delay = SLOW_WORD_DELAY if "SLOWLY" in json.dumps(payload) else WORD_DELAY
         for word in reply.split(" "):
             chunk = {"choices": [{"delta": {"content": word + " "}}]}
             self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
