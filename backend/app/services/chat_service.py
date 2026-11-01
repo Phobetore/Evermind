@@ -63,6 +63,13 @@ def _sse(obj: dict) -> str:
     return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n"
 
 
+def ends_turn(chunk: str) -> bool:
+    """Whether this event is the turn saying how it ended."""
+    return chunk.startswith((
+        'data: {"type": "done"', 'data: {"type": "error"', 'data: {"type": "discarded"',
+    ))
+
+
 def error_event(message: str, kind: str, resource: str | None = None, **details) -> str:
     """The event that ends a turn that could not be done. ``details`` are more
     fields for the interface, such as what a model's server said."""
@@ -291,6 +298,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     # that a page arriving in the middle of one knows not to show that reply and
     # its replacement at the same time.
     yield _sse({"type": "start", "conversation_id": convo["id"],
+                "mode": request.mode,
                 "user_message": user_message,
                 "target_message_id": target_message["id"] if target_message else None})
 
@@ -307,11 +315,14 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     # whatever has arrived is already kept, without depending on cleanup at all.
     draft_id: str | None = None
     flushed_at = 0.0
+    # The message this reply answers or belongs to has been deleted, mid-turn, by the
+    # person. There is nothing to write it into, and nothing further to generate.
+    reply_gone = False
 
     async def persist(*, final: bool) -> dict | None:
         """Write what has streamed so far. Recomputed from the original variants
         every time, so calling it repeatedly is the same as calling it once."""
-        nonlocal draft_id
+        nonlocal draft_id, reply_gone
         body = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
         if not body and not final:
             return None
@@ -322,12 +333,16 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
             joiner = "" if (not existing or existing[-1].isspace() or
                             (body and body[0].isspace())) else " "
             variants[target_message["active_index"]] = existing + joiner + body
-            return await convo_repo.update_message(db, target_message["id"], variants=variants)
+            saved = await convo_repo.update_message(db, target_message["id"], variants=variants)
+            reply_gone = saved is None
+            return saved
 
         if target_message is not None:
             variants = list(target_message["variants"]) + [body]
-            return await convo_repo.update_message(
+            saved = await convo_repo.update_message(
                 db, target_message["id"], variants=variants, active_index=len(variants) - 1)
+            reply_gone = saved is None
+            return saved
 
         # A new reply. "streaming" marks it as still being written, so a client
         # arriving mid-turn can tell the difference between a short reply and one
@@ -340,10 +355,15 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
         else:
             meta = {"streaming": True}
         if draft_id is None:
+            if user_message and not await convo_repo.get_message(db, user_message["id"]):
+                reply_gone = True
+                return None
             created = await convo_repo.add_message(db, convo["id"], "assistant", [body], meta=meta)
             draft_id = created["id"]
             return created
-        return await convo_repo.update_message(db, draft_id, variants=[body], meta=meta)
+        saved = await convo_repo.update_message(db, draft_id, variants=[body], meta=meta)
+        reply_gone = saved is None
+        return saved
 
     # At most two passes. A model whose chat template rejects a conversation
     # opening on the assistant's turn streams nothing at all rather than
@@ -365,6 +385,9 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
                 if time.monotonic() - flushed_at >= _FLUSH_SECONDS:
                     flushed_at = time.monotonic()
                     await persist(final=False)
+                    if reply_gone:
+                        yield _sse({"type": "discarded"})
+                        return
             elif event.type == "done":
                 usage = event.usage
                 finish_reason = (event.meta or {}).get("finish_reason")
@@ -396,6 +419,9 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
         return
 
     saved = await persist(final=True)
+    if reply_gone:
+        yield _sse({"type": "discarded"})
+        return
 
     await convo_repo.touch(db, convo["id"])
 

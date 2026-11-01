@@ -17,6 +17,7 @@ import logging
 from dataclasses import dataclass, field
 
 from ..db import _connect
+from ..errors import TURN_RUNNING, AppError
 from ..models.schemas import ChatRequest
 from ..repositories import conversations as convo_repo
 from . import chat_service
@@ -27,6 +28,9 @@ logger = logging.getLogger(__name__)
 # someone whose phone woke up to attach and be handed the ending; short enough
 # that a day of chatting does not accumulate transcripts in memory.
 _KEEP_FINISHED_SECONDS = 120
+# How long a request waits for a turn that is on its way out, whether stopped or
+# having said how it ended, before saying that one is still being written.
+_WAIT_FOR_ENDING_SECONDS = 10
 
 
 @dataclass
@@ -43,10 +47,18 @@ class Turn:
     readers: set[asyncio.Queue] = field(default_factory=set)
     finished: asyncio.Event = field(default_factory=asyncio.Event)
     stopped: bool = False
+    # It has said how it ended and is only tidying up. For that moment it still
+    # counts as running, and someone who has seen the ending may already be asking
+    # for the next one.
+    ending: bool = False
+    # The task has begun, and so will get to its `finally` if cancelled.
+    under_way: bool = False
     task: asyncio.Task | None = None
 
     def emit(self, chunk: str) -> None:
         self.events.append(chunk)
+        if chat_service.ends_turn(chunk):
+            self.ending = True
         for queue in self.readers:
             queue.put_nowait(chunk)
 
@@ -88,14 +100,21 @@ async def _settle_last_question(db, turn: Turn) -> None:
     the end of a turn can say. A conversation can end on such a message for other
     reasons, a reply deleted or a story branched there, and being stopped before any
     word is one too: nothing is missing, since the person chose that. So it is said
-    outright, for a page opening later, rather than read into where things end."""
+    outright, for a page opening later, rather than read into where things end.
+
+    A send has marked its message already, when it saved it. Otherwise only a
+    regeneration can add the mark, having asked for a reply to that very message: a
+    turn refused for some reason of its own says nothing about one it never touched.
+    """
     messages = await convo_repo.list_messages(db, turn.conversation_id)
     question = next((m for m in reversed(messages) if m["role"] == "user"), None)
     if not question:
         return
     meta = dict(question.get("meta") or {})
-    unanswered = messages[-1] is question and not turn.stopped
-    if bool(meta.get("unanswered")) == unanswered:
+    marked = bool(meta.get("unanswered"))
+    unanswered = (messages[-1] is question and not turn.stopped
+                  and (marked or turn.mode == "regenerate"))
+    if marked == unanswered:
         return
     if unanswered:
         meta["unanswered"] = True
@@ -105,8 +124,10 @@ async def _settle_last_question(db, turn: Turn) -> None:
 
 
 async def _run(turn: Turn, request: ChatRequest) -> None:
-    db = await _connect()
+    turn.under_way = True
+    db = None
     try:
+        db = await _connect()
         async for chunk in chat_service.stream_turn(db, request):
             turn.emit(chunk)
             if turn.stopped:
@@ -120,11 +141,12 @@ async def _run(turn: Turn, request: ChatRequest) -> None:
     finally:
         # Before the turn says it has finished, so that whoever sees that it has
         # also sees this.
-        try:
-            await _settle_last_question(db, turn)
-        except Exception:  # this must not keep readers waiting
-            logger.exception("Could not settle the last question of a turn")
-        await db.close()
+        if db is not None:
+            try:
+                await _settle_last_question(db, turn)
+            except Exception:  # this must not keep readers waiting
+                logger.exception("Could not settle the last question of a turn")
+            await db.close()
         turn.finished.set()
         for queue in turn.readers:
             queue.put_nowait(None)
@@ -132,15 +154,28 @@ async def _run(turn: Turn, request: ChatRequest) -> None:
 
 
 async def start(request: ChatRequest) -> Turn:
-    """Begin a turn, or hand back the one already under way.
+    """Begin a turn, or hand back the one already under way if it is what was asked.
 
-    Two requests for the same conversation are the same turn: a phone that
-    reconnects and asks again must not set a second reply generating alongside
-    the first.
+    Asking again for the regeneration or the continuation being written is the same
+    turn: a phone that reconnects and asks again must not set a second reply
+    generating alongside the first. Anything else is a different request, and handing
+    back a turn that has nothing to do with it would swallow it: above all a message,
+    which would be gone from the box and saved nowhere. So one that is on its way out
+    is waited for, and otherwise the answer is that one is still being written.
     """
+    existing = running_for(request.conversation_id)
+    if existing and (existing.stopped or existing.ending):
+        # Not under the lock, which other conversations need.
+        try:
+            await asyncio.wait_for(existing.finished.wait(), _WAIT_FOR_ENDING_SECONDS)
+        except TimeoutError:
+            pass
     async with _lock:
         existing = running_for(request.conversation_id)
         if existing:
+            if (existing.stopped or existing.ending or request.mode == "send"
+                    or request.mode != existing.mode):
+                raise AppError("A reply is still being written.", 409, kind=TURN_RUNNING)
             return existing
         turn = Turn(conversation_id=request.conversation_id, mode=request.mode)
         _running[request.conversation_id] = turn
@@ -151,11 +186,20 @@ async def start(request: ChatRequest) -> Turn:
 async def stop(conversation_id: str) -> bool:
     """Stop is a decision, and it now has to be said out loud. While the request
     owned the generation, hanging up was how you stopped it; a turn that
-    survives being unwatched cannot read anything into a reader leaving."""
+    survives being unwatched cannot read anything into a reader leaving.
+
+    It ends the provider request there and then, rather than at the model's next
+    word, which on a local model with a long prompt can be minutes away. Once only:
+    a second cancellation would land in the tidying up that the first one led to."""
     turn = running_for(conversation_id)
     if not turn:
         return False
-    turn.stopped = True
+    if not turn.stopped:
+        turn.stopped = True
+        # One not begun yet would be cancelled before it could say it had finished.
+        # It will see that it was stopped at its first chunk.
+        if turn.task and turn.under_way:
+            turn.task.cancel()
     return True
 
 
