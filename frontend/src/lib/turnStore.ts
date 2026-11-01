@@ -8,6 +8,10 @@
  *  A module-level store survives the unmount that page state does not. The page
  *  reads it through useSyncExternalStore and can leave and return at will.
  *  Only one turn runs at a time, which is what the interface allows anyway.
+ *
+ *  A turn is read through one connection at a time, its reader, known by the
+ *  controller that can abort it. The turn itself is the server's and outlives any
+ *  of them, so a reader can break, or go quiet, and be replaced.
  */
 
 import { data } from "@/data";
@@ -15,12 +19,14 @@ import { data } from "@/data";
 export interface Turn {
   conversationId: string;
   text: string;
-  /** Still receiving. True for as long as the store holds the turn: `end`
-   *  drops the turn rather than setting this to false. */
+  /** Still receiving. True until `lose`; `end` drops the turn altogether. */
   busy: boolean;
+  /** Why it stopped receiving, once it has: the connection was lost, and the words
+   *  that had arrived stay here until something better takes their place. */
+  lost: unknown;
 }
 
-let current: (Turn & { controller: AbortController }) | null = null;
+let current: (Turn & { controller: AbortController; lastWordAt: number }) | null = null;
 const listeners = new Set<() => void>();
 
 // A new object on every change and the same one otherwise: useSyncExternalStore
@@ -29,7 +35,12 @@ let snapshot: Turn | null = null;
 
 function publish() {
   snapshot = current
-    ? { conversationId: current.conversationId, text: current.text, busy: current.busy }
+    ? {
+        conversationId: current.conversationId,
+        text: current.text,
+        busy: current.busy,
+        lost: current.lost,
+      }
     : null;
   for (const listener of listeners) listener();
 }
@@ -45,20 +56,66 @@ export const turnStore = {
   read: () => snapshot,
 
   begin(conversationId: string, controller: AbortController) {
-    current = { conversationId, text: "", busy: true, controller };
+    current = {
+      conversationId, text: "", busy: true, lost: null, controller, lastWordAt: Date.now(),
+    };
     publish();
+  },
+
+  /** A new reader takes over the turn, and the one it replaces is stopped. What
+   *  has arrived stays until the new one starts again with `begin`, which is how
+   *  a reader starts, since a turn is always read from its first word. */
+  handOver(conversationId: string, controller: AbortController) {
+    if (current?.conversationId !== conversationId) {
+      turnStore.begin(conversationId, controller);
+      return;
+    }
+    const replaced = current.controller;
+    current = { ...current, busy: true, lost: null, controller, lastWordAt: Date.now() };
+    publish();
+    replaced.abort();
   },
 
   append(text: string) {
     if (!current) return;
-    current = { ...current, text: current.text + text };
+    current = { ...current, text: current.text + text, lastWordAt: Date.now() };
     publish();
   },
 
-  /** The turn is over, whether it landed, failed or was stopped. */
-  end() {
+  /** This reader's turn is over, whether it landed, failed or was stopped. Says
+   *  whether that ended anything: a reader that was replaced, or that lost its
+   *  connection, ends nothing. */
+  end(controller: AbortController) {
+    if (current?.controller !== controller || !current.busy) return false;
     current = null;
     publish();
+    return true;
+  },
+
+  /** This reader's connection is gone and could not be replaced. The turn is not
+   *  over as far as anyone knows, so what has arrived stays on screen. */
+  lose(controller: AbortController, why: unknown) {
+    if (current?.controller !== controller || !current.busy) return;
+    current = { ...current, busy: false, lost: why };
+    publish();
+  },
+
+  /** Enough is known without this reader, whose turn and words are dropped. */
+  drop(controller: AbortController | null) {
+    if (!controller || current?.controller !== controller) return;
+    current = null;
+    publish();
+    controller.abort();
+  },
+
+  /** Whichever reader holds this conversation's turn, if any. */
+  readerOf(conversationId: string) {
+    return current?.conversationId === conversationId ? current.controller : null;
+  },
+
+  /** How long the turn has gone without a word. */
+  quietFor() {
+    return current ? Date.now() - current.lastWordAt : 0;
   },
 
   /** Stop the turn from anywhere, including a page that was not there when it

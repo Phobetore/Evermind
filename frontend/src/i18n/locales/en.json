@@ -211,6 +211,7 @@
     },
     "errors": {
       "connectionFailed": "Server connection error.",
+      "noReply": "The reply did not arrive.",
       "retryButton": "Retry"
     },
     "input": {
