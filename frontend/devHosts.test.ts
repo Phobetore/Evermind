@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { allowedHosts } from "./devHosts";
+import { allowedHosts } from "./devHosts.ts";
 
 describe("allowedHosts", () => {
   test("a computer's name comes with its first label, and each with .local", () => {
@@ -43,8 +43,10 @@ describe("allowedHosts", () => {
   });
 
   test("an entry that starts with a dot allows nothing", () => {
-    // Vite would take ".example.com" for every name under example.com, and the
-    // API reads it as no name at all.
+    // The API keeps ".example.com" as that literal name, which no browser sends,
+    // so there it matches nothing in practice. The dev server is stricter and
+    // lists nothing for it, where Vite would take it for every name under
+    // example.com.
     expect(allowedHosts("nas", ".example.com")).toEqual(["nas", "nas.local"]);
     expect(allowedHosts("nas", ".example.com,evermind.example")).toEqual([
       "nas",
