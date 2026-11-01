@@ -1,0 +1,44 @@
+// Starts a run of the browser suite on clean data, as CI does.
+//
+//   node e2e/clean-data.mjs
+//
+// The two copies of the server keep what the tests make in folders of their own,
+// and tests only ever add to them. Run after run on one machine, the home page came
+// to have thousands of characters to draw, and tests about something else entirely
+// began to fail on it. Only these two folders are ever touched, by name.
+//
+// A copy that is already running is left alone: the suite will use it rather than
+// start its own, and its data is in use.
+
+import { rmSync } from "node:fs";
+import net from "node:net";
+import path from "node:path";
+
+const root = path.resolve(import.meta.dirname, "..", "..");
+
+// As in playwright.config.ts, which a plain script cannot import.
+const COPIES = [
+  { folder: ".e2e-data", port: 3099 },
+  { folder: ".e2e-data-gate", port: 3098 },
+];
+
+function isAnswering(port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: "127.0.0.1", port, timeout: 1000 });
+    const settle = (answer) => {
+      socket.destroy();
+      resolve(answer);
+    };
+    socket.once("connect", () => settle(true));
+    socket.once("error", () => settle(false));
+    socket.once("timeout", () => settle(false));
+  });
+}
+
+for (const { folder, port } of COPIES) {
+  if (await isAnswering(port)) {
+    console.log(`Leaving ${folder} as it is: something is answering on port ${port}.`);
+    continue;
+  }
+  rmSync(path.join(root, folder), { recursive: true, force: true });
+}
