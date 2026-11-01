@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply } from "./fixtures";
+import { conversationWithReply, stopTurn, turnRunning } from "./fixtures";
 
 /**
  * A reply whose turn was cut off keeps a mark saying it is still being written,
@@ -28,6 +28,11 @@ test("a reply left mid-write stays on screen while it is continued", async ({ pa
   // last leaves a finished reply. The caret is only there while text is streaming.
   await expect(page.locator(".stream-caret")).toBeVisible();
   await stop.click();
+  // Over on the server's account before the page goes: a reload can overtake the
+  // stop, and a page reloaded sooner attaches to what is left of the turn.
+  await expect.poll(() => turnRunning(request, convo.id), {
+    message: "the reply kept being written after it was stopped",
+  }).toBe(false);
 
   await page.reload();
   await page.waitForLoadState("networkidle");
@@ -41,11 +46,14 @@ test("a reply left mid-write stays on screen while it is continued", async ({ pa
 
   await page.locator('button[title="Continue the reply"]').first().click({ force: true });
 
-  // Through the whole generation, not just at the end of it.
+  // Through the generation, not just at the end of it: looked at again with each
+  // new word, however long those take to come here.
+  const writing = page.locator(".stream-caret");
+  await expect(writing).toBeVisible();
   for (let i = 0; i < 6; i++) {
     await expect(onScreen,
       "the reply disappeared while its continuation was being written").toBeVisible();
-    await page.waitForTimeout(250);
+    await expect(writing).not.toHaveText((await writing.textContent()) ?? "");
   }
 
   // The continuation is slow and the looking is done. Stopped here, and waited
@@ -53,13 +61,14 @@ test("a reply left mid-write stays on screen while it is continued", async ({ pa
   // into the tests that come next.
   await stop.click();
   await expect(stop).toBeHidden();
-  await expect.poll(async () =>
-    (await (await request.get(`${API}/api/conversations/${convo.id}/turn`)).json()).running,
+  await expect.poll(() => turnRunning(request, convo.id),
     { message: "the continuation kept running after it was stopped" }).toBe(false);
 });
 
 test("sending a message shows the reply arriving", async ({ page, request }) => {
-  const convo = await conversationWithReply(request);
+  // Slowly, so that the sign of it is still there however long this machine
+  // takes to look.
+  const convo = await conversationWithReply(request, { slowly: true });
   await page.goto(`/#/chat/${convo.id}`);
 
   await page.locator("textarea").first().fill("And then?");
@@ -69,4 +78,9 @@ test("sending a message shows the reply arriving", async ({ page, request }) => 
   // Something has to say the character is answering, or a slow model looks
   // like a broken one.
   await expect(page.locator(".animate-pulse-soft, svg.lucide-square").first()).toBeVisible();
+
+  // And then the words. The looking is done, so stopped here rather than left
+  // writing into the tests that come next.
+  await expect(page.locator(".stream-caret")).toBeVisible();
+  await stopTurn(request, convo.id);
 });

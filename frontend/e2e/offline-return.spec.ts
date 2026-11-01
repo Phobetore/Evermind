@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply } from "./fixtures";
+import { conversationWithReply, turnRunning } from "./fixtures";
 
 /**
  * Reported: close the tab, leave it a while, come back, and there is an error
@@ -47,11 +47,15 @@ test("a stream cut short still ends with the reply on screen", async ({ page, re
   await expect.poll(async () =>
     (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).messages.length,
     { timeout: 40_000 }).toBe(expected);
+  // The count is reached with the reply's first word, so it says nothing about
+  // the turn being over. The page only hears of the cut after that, and finding
+  // no error any sooner than this is finding what was always there.
+  await expect.poll(() => turnRunning(request, convo.id), { timeout: 40_000 }).toBe(false);
 
-  await expect(page.locator("p.text-blood"),
-    "a reply that landed was reported as a failure").toHaveCount(0);
   await expect(page.locator("[data-message-id]"),
     "the reply never reached the screen without a reload").toHaveCount(expected);
+  await expect(page.locator("p.text-blood"),
+    "a reply that landed was reported as a failure").toHaveCount(0);
 });
 
 test("a message that never reached Evermind is reported", async ({ page, request }) => {
