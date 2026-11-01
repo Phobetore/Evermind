@@ -48,8 +48,8 @@ if ! cmp -s "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"; then
     cp "$ROOT/backend/pyproject.toml" "$PY_INSTALLED"
 fi
 
-# Asked before anything is installed or built, because the likeliest reason for
-# the port to be taken is Evermind itself, still running while it is being
+# Asked before the interface is installed or built, because the likeliest reason
+# for the port to be taken is Evermind itself, still running while it is being
 # updated, and nothing below should happen underneath it. It explains a failure
 # on its own; the port it prints on success is not needed here.
 if ! (cd "$ROOT/backend" && "$PYTHON" -m app --check $LAN > /dev/null); then

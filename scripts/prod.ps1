@@ -62,10 +62,10 @@ if (-not (Test-Path $pyInstalled) -or (Get-FileHash $pyproject).Hash -ne (Get-Fi
     Copy-Item $pyproject $pyInstalled
 }
 
-# Asked before anything is installed or built, because the likeliest reason for
-# the port to be taken is Evermind itself, still running while it is being
-# updated, and nothing below should happen underneath it. --check prints the port
-# and nothing else, and explains a failure on its own.
+# Asked before the interface is installed or built, because the likeliest reason
+# for the port to be taken is Evermind itself, still running while it is being
+# updated, and nothing below should happen underneath it. --check prints the
+# port and nothing else, and explains a failure on its own.
 Push-Location "$root\backend"
 $port = & $python -m app --check @appArgs
 $checkFailed = $LASTEXITCODE -ne 0
