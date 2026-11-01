@@ -167,3 +167,28 @@ async def test_a_finished_turn_does_not_take_the_next_one_with_it(client, unhurr
     await asyncio.wait_for(second.finished.wait(), timeout=15)
     await asyncio.sleep(0.4)
     assert convo["id"] not in turns._running, "a finished turn was never forgotten"
+
+
+async def test_the_state_of_a_turn_says_when_one_has_just_ended(client, unhurried, monkeypatch):
+    """A page reads the conversation and asks about the turn at the same time. If
+    a turn ended between the two, what it read is out of date, and this is how it
+    knows to read again, rather than doing so on every opening."""
+    monkeypatch.setattr(turns, "_KEEP_FINISHED_SECONDS", 0.2)
+    convo = await setup_conversation(client)
+    url = f"/api/conversations/{convo['id']}/turn"
+
+    state = (await client.get(url)).json()
+    assert state == {"running": False, "mode": None, "ended_recently": False}
+
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Vas-y"))
+    state = (await client.get(url)).json()
+    assert state == {"running": True, "mode": "send", "ended_recently": False}
+
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+    state = (await client.get(url)).json()
+    assert state == {"running": False, "mode": None, "ended_recently": True}
+
+    await asyncio.sleep(0.4)
+    state = (await client.get(url)).json()
+    assert state == {"running": False, "mode": None, "ended_recently": False}

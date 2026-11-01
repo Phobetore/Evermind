@@ -30,9 +30,14 @@ async def chat(request: ChatRequest):
 async def turn_state(convo_id: str) -> dict:
     """Whether a reply is being written right now. A page opening asks this
     before deciding whether it is looking at a finished conversation or one
-    still in progress somewhere else."""
+    still in progress somewhere else. It reads the conversation at the same time,
+    so `ended_recently` also says when what it read may already be out of date."""
     turn = turns.running_for(convo_id)
-    return {"running": turn is not None, "mode": turn.mode if turn else None}
+    return {
+        "running": turn is not None,
+        "mode": turn.mode if turn else None,
+        "ended_recently": turns.ended_recently(convo_id),
+    }
 
 
 @router.get("/conversations/{convo_id}/turn/stream")
