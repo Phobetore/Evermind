@@ -70,14 +70,15 @@ virtualenv the scripts create:
 It reads `.env` at the repository root, then the environment, and **the
 environment wins** over the file. The file may have been saved by Notepad or
 PowerShell (a byte order mark, CRLF line endings, even UTF-16, which it also
-reads without the mark, or UTF-32 with one); it reads the same as a plain one. `BIND` (default
-`127.0.0.1`) and `PORT` (default `3000`) say where to listen, and `--lan` is
-`BIND=0.0.0.0`. Before anything else it checks that the port is free; `--check`
-stops right after that and prints the port, so the scripts can ask once Python
-is installed and before the interface is installed or built. Once it starts, it
-prints the local address and, when it listens on the network, that one too, with
-a warning if no password is set. Inside the container it prints neither, since
-`docker-compose.yml` is what decides what is exposed there.
+reads without the mark, or UTF-32 with one); it reads the same as a plain one.
+`BIND` (default `127.0.0.1`) and `PORT` (default `3000`) say where to listen,
+and `--lan` is `BIND=0.0.0.0`. Before anything else it checks that the port is
+free; `--check` stops right after that and prints the port, so the scripts can
+ask once Python is installed and before the interface is installed or built.
+Once it starts, it prints the local address and, when it listens on the network,
+that one too, with a warning if no password is set. Inside the container it
+prints neither, since `docker-compose.yml` is what decides what is exposed
+there.
 
 **In production there is one process and one port.** FastAPI answers `/api/` and
 serves the built interface (`frontend/dist`, or wherever `EVERMIND_UI_DIR`
@@ -333,13 +334,13 @@ and `.dockerignore` keeps every `.env*` file out of it), so
 `EVERMIND_GATE_PASSWORD` is read when the container starts and the password can
 be changed without rebuilding.
 
-It is published as `ghcr.io/phobetore/evermind`, and under that name only. The two
-images of 2.x, `evermind-backend` and `evermind-frontend`, are no longer updated,
-so a 2.x `docker-compose.yml` keeps running 2.1.6 until its owner switches to the
-new file. The new image must not take the old backend name: that file's interface
-container would call it as `backend:8000`, a host name it refuses without a
-password, and pass on the browser's `Origin`, which does not match that `Host`.
-[UPGRADING.md](UPGRADING.md) walks people through the move.
+It is published as `ghcr.io/phobetore/evermind`, and under that name only. The
+two images of 2.x, `evermind-backend` and `evermind-frontend`, are no longer
+updated, so a 2.x `docker-compose.yml` keeps running 2.1.6 until its owner
+switches to the new file. The new image must not take the old backend name: that
+file's interface container would call it as `backend:8000`, a host name it
+refuses without a password, and pass on the browser's `Origin`, which does not
+match that `Host`. [UPGRADING.md](UPGRADING.md) walks people through the move.
 
 ## Cutting a release
 

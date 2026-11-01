@@ -80,9 +80,12 @@ not move it to 3.0, because the two images it names, `evermind-backend` and
 `evermind-frontend`, are no longer updated. The steps above are what switches
 it.
 
-Once you have switched, nothing uses those two images any more.
-`docker image rm ghcr.io/phobetore/evermind-backend ghcr.io/phobetore/evermind-frontend`
-gives the disk space back.
+Once you have switched, nothing uses those two images any more. This gives the
+disk space back:
+
+```bash
+docker image rm ghcr.io/phobetore/evermind-backend ghcr.io/phobetore/evermind-frontend
+```
 
 ### From the source
 
