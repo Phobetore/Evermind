@@ -310,8 +310,10 @@ Running without Docker instead? `scripts\prod.ps1 -Lan` (or
 Set `EVERMIND_GATE_PASSWORD` in your `.env` there too, in the Evermind folder.
 
 **Using a different port.** Evermind answers on port 3000, interface and API
-together. If something on your computer already has it, copy `.env.example` to
-`.env` and change it:
+together. If something on your computer already has it, make a file named `.env`
+(from the source, copy `.env.example`; with Docker, rename the
+[env.example](https://github.com/Phobetore/Evermind/releases/latest/download/env.example)
+you can download) and change it:
 
 ```
 PORT=3001
@@ -353,10 +355,10 @@ program that starts Evermind, which always writes in English.
 | The character forgets things, or repeats itself | Your **Context (tokens)** is probably set higher than your AI really offers. Match it to the real value. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
 | Replies are very slow | Normal for a large model on a modest machine. Try a smaller one, or an online service. |
 | "The model returned nothing, twice" | That model's chat template will not work for roleplay here, whatever you write. Nothing you can configure fixes it; pick another model. |
-| "Port 3000 is already in use", or Docker says the port is already allocated | Something else on your computer already uses that port, and often it is Evermind itself, still running. Stop it first. Otherwise copy `.env.example` to `.env` and set `PORT` to a free one, `3001` for instance. |
-| "Port 80 needs administrator rights" | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Copy `.env.example` to `.env` and set `PORT` to a number above 1024, `3001` for instance. |
+| "Port 3000 is already in use", or Docker says the port is already allocated | Something else on your computer already uses that port, and often it is Evermind itself, still running. Stop it first. Otherwise set `PORT` to a free one, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
+| "Port 80 needs administrator rights" | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Set `PORT` to a number above 1024, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
 | Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you ran `docker compose up -d` again afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. The launch script tells you the exact command if the rule is missing. |
-| "Evermind does not answer to this address" | You opened Evermind by a name it does not know, and no password is set. Open it by its address (`http://192.168.1.42:3000`), by `localhost` (or a name ending in `.localhost`) or by the computer's own name, also with `.local` after it. Or list the name in `EVERMIND_ALLOWED_HOSTS` in your `.env`, separated by commas if there are several. Setting a password works too: with one, any name is accepted. With Docker, the computer's own name has to be listed as well, because the container cannot see it. After changing `.env`, run `docker compose up -d` again: `docker compose restart` keeps the settings the container started with. |
+| "Evermind does not answer to this address" | You opened Evermind by a name it does not know, and no password is set. Open it by its address (`http://192.168.1.42:3000`), by `localhost` (or a name ending in `.localhost`) or by the computer's own name, also with `.local` after it. Or list the name in `EVERMIND_ALLOWED_HOSTS` in your `.env`, separated by commas if there are several. Setting a password works too: with one, any name is accepted. With Docker, the computer's own name has to be listed as well, because the container cannot see it. With Docker, after changing `.env`, run `docker compose up -d` again (`docker compose restart` keeps the settings the container started with); otherwise start Evermind again. |
 | "Evermind refused this request because it seems to come from another address" | Evermind turns away changes that a page from another website sends. If you reach it through a reverse proxy, the proxy has to serve it over HTTPS, or pass the browser's original `Host` header on unchanged. [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an example. |
 | A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Each device is asked once, then stays signed in for 30 days after its last visit. Clear that line and start Evermind again to remove the page (with Docker, `docker compose up -d`). |
 | You changed the password and every device asks for it again | That is on purpose: changing or removing the password signs every device out. |

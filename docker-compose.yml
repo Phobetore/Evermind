@@ -2,8 +2,10 @@
 #   docker compose up -d
 # Then open http://localhost:3000.
 #
-# No .env is needed to start. Copy .env.example to .env only to change the port,
-# reach Evermind from another device, or turn on semantic memory.
+# No .env is needed to start. Make one next to this file only to change the port,
+# reach Evermind from another device, or turn on semantic memory: start from
+# env.example, which the release page has, or from .env.example in a copy of the
+# project, and name the file .env.
 #
 # Starting pulls a ready-made image and takes seconds. To compile from source
 # instead, add --build. You need --build if you want SEMANTIC=true, because
