@@ -81,6 +81,14 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
+def listen_host(*flags: str) -> str:
+    """The host ``python -m app`` listens on for these flags, which is what it
+    hands to ``port_in_use``. The tests that need every interface ask for it the
+    way a person does, with ``--lan`` or ``--host ::``, so that they follow what
+    the command means by it rather than a copy of the address."""
+    return resolve_listen(parse_args(list(flags)), {}).host
+
+
 @pytest.fixture()
 def busy_port():
     """A port that something is listening on."""
@@ -95,7 +103,7 @@ def busy_port_on_every_interface():
     """A port that something is listening on, on every interface rather than
     only on this computer."""
     with socket.socket() as s:
-        s.bind(("0.0.0.0", 0))
+        s.bind((listen_host("--lan"), 0))
         s.listen()
         yield s.getsockname()[1]
 
@@ -519,11 +527,11 @@ def test_port_in_use_is_not_fooled_by_an_address_this_computer_does_not_have():
 def test_port_in_use_sees_a_loopback_listener_when_asked_about_every_interface(busy_port):
     # Windows lets the bind to 0.0.0.0 succeed next to a listener on 127.0.0.1
     # alone, so the bind says the port is free. Something is answering there.
-    assert launch.port_in_use("0.0.0.0", busy_port) is True
+    assert launch.port_in_use(listen_host("--lan"), busy_port) is True
 
 
 def test_port_in_use_lets_a_free_port_through_on_every_interface():
-    assert launch.port_in_use("0.0.0.0", free_port()) is False
+    assert launch.port_in_use(listen_host("--lan"), free_port()) is False
 
 
 def test_port_in_use_sees_a_loopback_listener_when_asked_about_every_ipv6_interface():
@@ -535,7 +543,7 @@ def test_port_in_use_sees_a_loopback_listener_when_asked_about_every_ipv6_interf
         except OSError:
             pytest.skip("no IPv6 loopback on this computer")
         s.listen()
-        assert launch.port_in_use("::", s.getsockname()[1]) is True
+        assert launch.port_in_use(listen_host("--host", "::"), s.getsockname()[1]) is True
 
 
 def test_port_in_use_sees_a_listener_on_every_interface_when_asked_about_the_loopback(
@@ -670,7 +678,7 @@ def test_port_probe_says_when_the_rights_are_missing(monkeypatch, code):
     fake_sockets(monkeypatch, bind_error=OSError(code, "Permission denied"))
     monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
     with pytest.raises(PermissionError):
-        launch.port_in_use("0.0.0.0", 80)
+        launch.port_in_use(listen_host("--lan"), 80)
 
 
 @pytest.mark.parametrize("code", sorted(set(NO_RIGHTS)))
@@ -752,7 +760,7 @@ def test_every_spelling_of_a_wildcard_is_probed_on_its_loopback(monkeypatch, hos
 
 
 def test_a_wildcard_is_probed_on_the_loopback_alone_without_a_network_address(monkeypatch):
-    assert probed_by_port_in_use(monkeypatch, "0.0.0.0", lan=None) == ["127.0.0.1"]
+    assert probed_by_port_in_use(monkeypatch, listen_host("--lan"), lan=None) == ["127.0.0.1"]
 
 
 @pytest.mark.parametrize("host", ["127.0.0.1", "192.168.1.42", "::1", "10", "localhost"])
@@ -769,7 +777,7 @@ def test_port_in_use_sees_a_listener_on_the_network_address_alone_when_asked_abo
     with socket.socket() as s:
         s.bind((address, 0))
         s.listen()
-        assert launch.port_in_use("0.0.0.0", s.getsockname()[1]) is True
+        assert launch.port_in_use(listen_host("--lan"), s.getsockname()[1]) is True
 
 
 def test_lan_address_asks_the_routing_table_without_sending_anything(monkeypatch):
