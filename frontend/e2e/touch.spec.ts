@@ -108,16 +108,23 @@ function settled(page: Page) {
  *  shows: a box wider than its parent paints over what is beside it. This is
  *  about the elements that carry an added area, and where they are. */
 async function expectInsideTheirParents(scope: Locator, what: string) {
-  const outside = await scope.evaluate((root) =>
-    [...root.querySelectorAll<HTMLElement>(".touch-target")]
-      .filter((el) => el.getBoundingClientRect().width > 0)
-      .filter((el) => {
-        const own = el.getBoundingClientRect();
-        const around = el.parentElement!.getBoundingClientRect();
-        return own.left < around.left - 0.5 || own.right > around.right + 0.5
-          || own.top < around.top - 0.5 || own.bottom > around.bottom + 0.5;
-      })
-      .map((el) => `${el.tagName.toLowerCase()} "${(el.textContent ?? "").trim().slice(0, 24)}"`));
+  const { found, outside } = await scope.evaluate((root) => {
+    const shown = [...root.querySelectorAll<HTMLElement>(".touch-target")]
+      .filter((el) => el.getBoundingClientRect().width > 0);
+    return {
+      found: shown.length,
+      outside: shown
+        .filter((el) => {
+          const own = el.getBoundingClientRect();
+          const around = el.parentElement!.getBoundingClientRect();
+          return own.left < around.left - 0.5 || own.right > around.right + 0.5
+            || own.top < around.top - 0.5 || own.bottom > around.bottom + 0.5;
+        })
+        .map((el) => `${el.tagName.toLowerCase()} "${(el.textContent ?? "").trim().slice(0, 24)}"`),
+    };
+  });
+  // Nothing found would be nothing looked at.
+  expect(found, `${what}: no box with a touch area to look at`).toBeGreaterThan(0);
   expect(outside, `${what}: a box with a touch area is larger than the box it is in`).toEqual([]);
 }
 
@@ -272,6 +279,25 @@ test.describe("on a touch screen", () => {
       const box = (await opener.boundingBox())!;
       await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
       await expect(page.locator("aside:visible:has(textarea)"), `the button did not open the panel at ${width}px`).toBeVisible();
+      await page.locator("aside:visible:has(textarea)").getByRole("button", { name: "Close panel" }).click();
+
+      // While the title is being edited the text box that takes its place is as
+      // wide as the box it is in, and stays clear of the button beside it,
+      // which is still the button it was.
+      const at = (await title.boundingBox())!;
+      await page.touchscreen.tap(at.x + at.width / 2, at.y + at.height / 2);
+      const editor = page.locator("header input");
+      await expect(editor, `the title did not turn into a text box at ${width}px`).toBeVisible();
+      const [field, room, beside] = await Promise.all([
+        editor.boundingBox(),
+        editor.locator("xpath=..").boundingBox(),
+        opener.boundingBox(),
+      ]);
+      expect(field!.x + field!.width, `the text box for the title is wider than its place at ${width}px`).toBeLessThanOrEqual(room!.x + room!.width + 0.5);
+      expect(field!.x + field!.width, `the text box for the title runs under the button beside it at ${width}px`).toBeLessThanOrEqual(beside!.x + 0.5);
+      await expectReachable(opener, "the memory and settings button, while the title is edited");
+      await page.touchscreen.tap(beside!.x + beside!.width / 2, beside!.y + beside!.height / 2);
+      await expect(page.locator("aside:visible:has(textarea)"), `the button did not open the panel while the title was edited at ${width}px`).toBeVisible();
       await page.locator("aside:visible:has(textarea)").getByRole("button", { name: "Close panel" }).click();
     }
   });

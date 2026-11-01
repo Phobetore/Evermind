@@ -361,7 +361,7 @@ function ChatView({ id }: { id: string }) {
             <h1 className="truncate font-display font-semibold leading-tight">{character.name}</h1>
             {titleDraft !== null ? (
               <input
-                className="field !min-h-0 !w-64 !rounded-md !px-1.5 !py-0 text-xs"
+                className="field !min-h-0 !w-64 !max-w-full !rounded-md !px-1.5 !py-0 text-xs"
                 value={titleDraft}
                 autoFocus
                 onChange={(e) => setTitleDraft(e.target.value)}
