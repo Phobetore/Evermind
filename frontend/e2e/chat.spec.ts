@@ -10,7 +10,9 @@ import { conversationWithReply } from "./fixtures";
  * exactly what you do with one that stopped short.
  */
 test("a reply left mid-write stays on screen while it is continued", async ({ page, request }) => {
-  const convo = await conversationWithReply(request);
+  // Slowly, so the reply is still being written when it is stopped however fast
+  // this machine is.
+  const convo = await conversationWithReply(request, { slowly: true });
   await page.goto(`/#/chat/${convo.id}`);
 
   // A genuinely interrupted reply, made the way one happens: stopped part way
@@ -21,7 +23,10 @@ test("a reply left mid-write stays on screen while it is continued", async ({ pa
   await page.locator('button[title="Send"]').click();
   const stop = page.locator('button[title="Stop generation"]');
   await expect(stop).toBeVisible();
-  await page.waitForTimeout(400);
+  // Stopped once some of the reply has arrived, not after a delay: a stop before
+  // the first word leaves nothing written to be unfinished, and a stop after the
+  // last leaves a finished reply. The caret is only there while text is streaming.
+  await expect(page.locator(".stream-caret")).toBeVisible();
   await stop.click();
 
   await page.reload();
