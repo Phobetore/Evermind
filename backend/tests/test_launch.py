@@ -192,6 +192,23 @@ def test_env_file_utf16_without_a_byte_order_mark(tmp_path, clean_env, codec):
     assert os.environ["EVERMIND_GATE_PASSWORD"] == "mot de passé ✨"
 
 
+@pytest.mark.parametrize(
+    ("bom", "codec"),
+    [(codecs.BOM_UTF32_LE, "utf-32-le"), (codecs.BOM_UTF32_BE, "utf-32-be")],
+    ids=["little-endian", "big-endian"],
+)
+def test_env_file_utf32_with_a_byte_order_mark_reads_like_utf8(tmp_path, clean_env, bom, codec):
+    # What `Out-File -Encoding utf32` writes. Its little-endian mark starts with
+    # the UTF-16 one, and taken for UTF-16 the file would set nothing at all.
+    text = "PORT=3001\r\nexport BIND=0.0.0.0\r\nEVERMIND_GATE_PASSWORD=mot de passé ✨\r\n"
+    f = tmp_path / ".env"
+    f.write_bytes(bom + text.encode(codec))
+    assert load_env_file(f) == ["PORT", "BIND", "EVERMIND_GATE_PASSWORD"]
+    assert os.environ["PORT"] == "3001"
+    assert os.environ["BIND"] == "0.0.0.0"
+    assert os.environ["EVERMIND_GATE_PASSWORD"] == "mot de passé ✨"
+
+
 @pytest.mark.parametrize("codec", ["utf-16-le", "utf-16-be"])
 def test_env_file_utf16_without_a_mark_may_start_with_an_accent(tmp_path, clean_env, codec):
     # The first character is not ASCII, but one of its two bytes is still a NUL.
@@ -216,7 +233,7 @@ def test_env_file_utf8_that_starts_with_a_multi_byte_character_is_not_taken_for_
 @pytest.mark.parametrize(
     "data",
     [
-        # UTF-32 has NULs on both sides of every ASCII character.
+        # UTF-32 without its mark: NULs on both sides of every ASCII character.
         "PORT=3001\n".encode("utf-32-le"),
         "PORT=3001\n".encode("utf-32-be"),
         # UTF-16 cut in the middle of a character.
@@ -1085,6 +1102,24 @@ def test_undecodable_env_file_names_the_file_and_exits(
     assert captured.err.splitlines() == [
         f"Cannot read the settings file {f}: it is not valid UTF-8 or UTF-16 text."
     ]
+    assert served == []
+
+
+@pytest.mark.parametrize("codec", ["utf-32-le", "utf-32-be"])
+def test_utf32_without_a_mark_is_reported_rather_than_misread(
+    clean_env, tmp_path, served, capsys, codec
+):
+    # Only the mark tells UTF-32 apart: without it the file is refused in one
+    # line, and nothing from it is set.
+    f = tmp_path / "utf32.env"
+    f.write_bytes("EVERMIND_GATE_PASSWORD=secret\n".encode(codec))
+    assert launch.main(["--check", "--port", str(free_port()), "--env-file", str(f)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        f"Cannot read the settings file {f}: it is not valid UTF-8 or UTF-16 text."
+    ]
+    assert "EVERMIND_GATE_PASSWORD" not in os.environ
     assert served == []
 
 

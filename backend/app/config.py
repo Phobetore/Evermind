@@ -17,13 +17,18 @@ def default_env_file() -> Path:
 
 
 def _settings_text(data: bytes) -> str:
-    """The text of a settings file, whichever of UTF-8 and UTF-16 it is in.
+    """The text of a settings file, whichever of UTF-8, UTF-16 and UTF-32 it is in.
 
-    A byte order mark says which. Without one, a file that starts with ASCII
-    characters gives itself away by its NUL bytes: UTF-16 puts one after each
-    character in little-endian and before each in big-endian. UTF-32 without a
-    mark has NULs on both sides, which fits neither, and is refused.
+    A byte order mark says which. The UTF-32 ones are looked for first: the
+    little-endian one starts with the little-endian mark of UTF-16, and read as
+    UTF-16 the file would come out with a NUL between its letters and not one
+    key. Without a mark, a file that starts with ASCII characters gives itself
+    away by its NUL bytes: UTF-16 puts one after each character in little-endian
+    and before each in big-endian. UTF-32 without a mark has NULs on both sides,
+    which fits neither, and is refused rather than guessed at.
     """
+    if data.startswith((codecs.BOM_UTF32_LE, codecs.BOM_UTF32_BE)):
+        return data.decode("utf-32")
     if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
         return data.decode("utf-16")
     head = data[:8]
@@ -51,6 +56,8 @@ def load_env_file(path: Path) -> list[str]:
     - UTF-16 is understood as well as UTF-8, because that is what ``>`` and
       ``Out-File`` write in Windows PowerShell 5.1. That PowerShell always writes
       a byte order mark; other tools may not, and the NUL bytes show the order.
+      UTF-32 is understood too when it starts with its mark, as
+      ``Out-File -Encoding utf32`` writes it.
     - There are no trailing comments. ``#`` starts a comment only at the start of
       a line, because a password is allowed to contain one.
     - A variable that is already set and not empty wins over the file, so that
@@ -58,8 +65,8 @@ def load_env_file(path: Path) -> list[str]:
       launch scripts always treated it as unset.
 
     A missing file is not an error. One that exists but cannot be read, or is not
-    text in either encoding, raises OSError or UnicodeError, before anything has
-    been set.
+    text in any of these encodings, raises OSError or UnicodeError, before
+    anything has been set.
     """
     try:
         data = path.read_bytes()
