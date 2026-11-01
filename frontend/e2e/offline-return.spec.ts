@@ -559,7 +559,9 @@ test("no alarm if the state of the turn cannot be read", async ({ page, request 
 /** Opens a conversation and checks, once the page has read everything, that it has
  *  nothing to report. */
 async function expectNoAlarm(page: Page, convoId: string, because: string) {
+  // Reloaded, because going to the address a page is already at opens nothing.
   await page.goto(`/#/chat/${convoId}`);
+  await page.reload();
   await expect(page.locator("textarea").first()).toBeVisible();
   await page.waitForLoadState("networkidle");
   await expect(page.locator("p.text-blood"), `a false alarm: ${because}`).toHaveCount(0);
