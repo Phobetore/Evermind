@@ -173,7 +173,8 @@ async def test_a_lore_entry_without_keywords_or_content(client):
 async def test_a_fact_that_is_already_known(client, provider):
     convo = await setup_conversation(client)
     url = f"/api/conversations/{convo['id']}/memories"
-    assert (await client.post(url, json={"content": "She lies."})).status_code == 201
+    resp = await client.post(url, json={"content": "She lies."})
+    assert resp.status_code == 201
     resp = await client.post(url, json={"content": "She lies."})
     assert resp.status_code == 400
     assert resp.json() == {"error": "This fact already exists.", "kind": "fact_exists"}
@@ -185,7 +186,8 @@ async def test_a_library_card_that_is_already_installed(client, tmp_path, monkey
     (shelf / "vane.json").write_text(json.dumps({"name": "Vane", "description": "x"}),
                                      encoding="utf-8")
     monkeypatch.setenv("EVERMIND_LIBRARY_DIR", str(shelf))
-    assert (await client.post("/api/library/vane.json/install")).status_code == 201
+    resp = await client.post("/api/library/vane.json/install")
+    assert resp.status_code == 201
     resp = await client.post("/api/library/vane.json/install")
     assert resp.status_code == 400
     assert resp.json() == {"error": "This card is already installed.", "kind": "already_installed"}

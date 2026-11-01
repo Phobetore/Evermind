@@ -55,7 +55,8 @@ async def test_warmup_short_circuits_after_failed_attempt(monkeypatch):
     # never touches the real model.
     monkeypatch.setattr(embeddings, "_model", None)
     monkeypatch.setattr(embeddings, "_load_attempted", True)
-    assert await embeddings.warmup() is False
+    warmed = await embeddings.warmup()
+    assert warmed is False
 
 
 async def test_warmup_returns_false_on_load_error(monkeypatch):
@@ -69,4 +70,5 @@ async def test_warmup_returns_false_on_load_error(monkeypatch):
         raise RuntimeError("model load failed")
 
     monkeypatch.setattr(embeddings.asyncio, "to_thread", boom)
-    assert await embeddings.warmup() is False
+    warmed = await embeddings.warmup()
+    assert warmed is False

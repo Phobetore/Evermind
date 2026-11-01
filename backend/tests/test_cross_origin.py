@@ -42,9 +42,11 @@ async def test_fetch_metadata_wins_over_origin(client):
     # Behind an https proxy that rewrites Host, Origin names the proxy's
     # address and Host the backend's, but the browser's own verdict is there.
     proxied = {"sec-fetch-site": "same-origin", "origin": "https://evermind.example"}
-    assert (await client.post("/api/characters", json=CHARACTER, headers=proxied)).status_code == 201
+    r = await client.post("/api/characters", json=CHARACTER, headers=proxied)
+    assert r.status_code == 201
     forged = {"sec-fetch-site": "cross-site", "origin": "http://localhost"}
-    assert (await client.post("/api/characters", json=CHARACTER, headers=forged)).status_code == 403
+    r = await client.post("/api/characters", json=CHARACTER, headers=forged)
+    assert r.status_code == 403
 
 
 async def test_same_origin_json_post_is_allowed(client):
@@ -55,14 +57,16 @@ async def test_same_origin_json_post_is_allowed(client):
 async def test_a_phone_on_the_network_is_allowed(client):
     # Plain http to a LAN address: no Fetch Metadata, only Origin.
     phone = {"host": "192.168.1.42:3000", "origin": "http://192.168.1.42:3000"}
-    assert (await client.post("/api/characters", json=CHARACTER, headers=phone)).status_code == 201
+    r = await client.post("/api/characters", json=CHARACTER, headers=phone)
+    assert r.status_code == 201
 
 
 async def test_the_development_proxy_is_allowed(client):
     # Vite's proxy keeps the browser's Host (changeOrigin is off in
     # vite.config.ts), so both name the address the page was opened on.
     dev = {"host": "localhost:3000", "origin": "http://localhost:3000"}
-    assert (await client.post("/api/characters", json=CHARACTER, headers=dev)).status_code == 201
+    r = await client.post("/api/characters", json=CHARACTER, headers=dev)
+    assert r.status_code == 201
 
 
 @pytest.mark.parametrize("origin", [
@@ -108,7 +112,8 @@ async def test_reads_from_another_origin_are_allowed(client):
 
 async def test_requests_without_browser_headers_are_allowed(client):
     # curl, a script, Playwright's request fixture.
-    assert (await client.post("/api/characters", json=CHARACTER)).status_code == 201
+    r = await client.post("/api/characters", json=CHARACTER)
+    assert r.status_code == 201
 
 
 async def test_pages_outside_the_api_are_not_judged(client):

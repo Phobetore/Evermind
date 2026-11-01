@@ -319,7 +319,8 @@ async def test_backfill_noop_without_model(client, fake_provider, monkeypatch):
     await client.post(f"/api/conversations/{convo['id']}/memories", json={"content": "A."})
     db = await _connect()
     try:
-        assert await memory_service.backfill_embeddings(db) == 0  # nothing embedded, no crash
+        filled = await memory_service.backfill_embeddings(db)
+        assert filled == 0  # nothing embedded, no crash
     finally:
         await db.close()
 
@@ -482,7 +483,8 @@ async def test_backfill_messages_noop_without_model(client, fake_provider, monke
     await setup_conversation(client)
     db = await _connect()
     try:
-        assert await memory_service.backfill_message_embeddings(db) == 0
+        filled = await memory_service.backfill_message_embeddings(db)
+        assert filled == 0
     finally:
         await db.close()
 

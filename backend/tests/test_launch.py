@@ -111,7 +111,8 @@ def test_env_file_fills_only_missing_keys(tmp_path, clean_env, monkeypatch):
     f = tmp_path / ".env"
     f.write_text("PORT=3000\nBIND=0.0.0.0\n", encoding="utf-8")
     monkeypatch.setenv("PORT", "4000")
-    assert sorted(load_env_file(f)) == ["BIND"]
+    keys = load_env_file(f)
+    assert sorted(keys) == ["BIND"]
     assert os.environ["PORT"] == "4000" and os.environ["BIND"] == "0.0.0.0"
 
 
@@ -121,14 +122,16 @@ def test_env_file_replaces_empty_variables(tmp_path, clean_env, monkeypatch):
     f = tmp_path / ".env"
     f.write_text("BIND=0.0.0.0\n", encoding="utf-8")
     monkeypatch.setenv("BIND", "")
-    assert load_env_file(f) == ["BIND"]
+    keys = load_env_file(f)
+    assert keys == ["BIND"]
     assert os.environ["BIND"] == "0.0.0.0"
 
 
 def test_env_file_reports_keys_in_file_order(tmp_path, clean_env):
     f = tmp_path / ".env"
     f.write_text("PORT=3000\nBIND=0.0.0.0\nEVERMIND_BACKEND_PORT=8000\n", encoding="utf-8")
-    assert load_env_file(f) == ["PORT", "BIND", "EVERMIND_BACKEND_PORT"]
+    keys = load_env_file(f)
+    assert keys == ["PORT", "BIND", "EVERMIND_BACKEND_PORT"]
 
 
 @pytest.mark.parametrize(
@@ -156,7 +159,8 @@ def test_env_file_parsing(tmp_path, clean_env, raw, key, value):
     # on Windows and test the platform instead of the parser.
     f = tmp_path / ".env"
     f.write_bytes(raw.encode("utf-8"))
-    assert load_env_file(f) == [key]
+    keys = load_env_file(f)
+    assert keys == [key]
     assert os.environ[key] == value
 
 
@@ -172,7 +176,8 @@ def test_env_file_utf16_reads_like_utf8(tmp_path, clean_env, bom, codec):
     text = "PORT=3001\r\nexport BIND=0.0.0.0\r\nEVERMIND_GATE_PASSWORD=mot de passé ✨\r\n"
     f = tmp_path / ".env"
     f.write_bytes(bom + text.encode(codec))
-    assert load_env_file(f) == ["PORT", "BIND", "EVERMIND_GATE_PASSWORD"]
+    keys = load_env_file(f)
+    assert keys == ["PORT", "BIND", "EVERMIND_GATE_PASSWORD"]
     assert os.environ["PORT"] == "3001"
     assert os.environ["BIND"] == "0.0.0.0"
     assert os.environ["EVERMIND_GATE_PASSWORD"] == "mot de passé ✨"
@@ -186,7 +191,8 @@ def test_env_file_utf16_without_a_byte_order_mark(tmp_path, clean_env, codec):
     text = "PORT=3001\r\nexport BIND=0.0.0.0\r\nEVERMIND_GATE_PASSWORD=mot de passé ✨\r\n"
     f = tmp_path / ".env"
     f.write_bytes(text.encode(codec))
-    assert load_env_file(f) == ["PORT", "BIND", "EVERMIND_GATE_PASSWORD"]
+    keys = load_env_file(f)
+    assert keys == ["PORT", "BIND", "EVERMIND_GATE_PASSWORD"]
     assert os.environ["PORT"] == "3001"
     assert os.environ["BIND"] == "0.0.0.0"
     assert os.environ["EVERMIND_GATE_PASSWORD"] == "mot de passé ✨"
@@ -203,7 +209,8 @@ def test_env_file_utf32_with_a_byte_order_mark_reads_like_utf8(tmp_path, clean_e
     text = "PORT=3001\r\nexport BIND=0.0.0.0\r\nEVERMIND_GATE_PASSWORD=mot de passé ✨\r\n"
     f = tmp_path / ".env"
     f.write_bytes(bom + text.encode(codec))
-    assert load_env_file(f) == ["PORT", "BIND", "EVERMIND_GATE_PASSWORD"]
+    keys = load_env_file(f)
+    assert keys == ["PORT", "BIND", "EVERMIND_GATE_PASSWORD"]
     assert os.environ["PORT"] == "3001"
     assert os.environ["BIND"] == "0.0.0.0"
     assert os.environ["EVERMIND_GATE_PASSWORD"] == "mot de passé ✨"
@@ -214,7 +221,8 @@ def test_env_file_utf16_without_a_mark_may_start_with_an_accent(tmp_path, clean_
     # The first character is not ASCII, but one of its two bytes is still a NUL.
     f = tmp_path / ".env"
     f.write_bytes("é\nPORT=3001\n".encode(codec))
-    assert load_env_file(f) == ["PORT"]
+    keys = load_env_file(f)
+    assert keys == ["PORT"]
 
 
 @pytest.mark.parametrize("first_line", ["é=1", "日本=1", "# été", "# 日本語", "😀=1"])
@@ -226,7 +234,8 @@ def test_env_file_utf8_that_starts_with_a_multi_byte_character_is_not_taken_for_
     # is asked for.
     f = tmp_path / ".env"
     f.write_bytes(f"{first_line}\nPORT=3001\n".encode())
-    assert load_env_file(f) == ["PORT"]
+    keys = load_env_file(f)
+    assert keys == ["PORT"]
     assert os.environ["PORT"] == "3001"
 
 
@@ -263,13 +272,15 @@ def test_env_file_ignores_comments_and_garbage(tmp_path, clean_env):
         "# PORT=1\n\n  # BIND=0.0.0.0\nnot a line\n=novalue\n1BAD=x\nBAD KEY=x\n",
         encoding="utf-8",
     )
-    assert load_env_file(f) == []
+    keys = load_env_file(f)
+    assert keys == []
     assert "PORT" not in os.environ and "BIND" not in os.environ
     assert "1BAD" not in os.environ and "BAD KEY" not in os.environ
 
 
 def test_missing_env_file_is_fine(tmp_path, clean_env):
-    assert load_env_file(tmp_path / "nope") == []
+    keys = load_env_file(tmp_path / "nope")
+    assert keys == []
 
 
 def test_ui_dir_defaults_to_the_frontend_build(clean_env):
@@ -465,25 +476,29 @@ def test_resolve_listen_names_the_bad_root_path(argv, env, message):
 
 def test_the_root_path_is_handed_to_uvicorn(clean_env, ui_built, served):
     p = free_port()
-    assert launch.main(["--no-env-file", "--port", str(p), "--root-path", "/evermind/"]) == 0
+    code = launch.main(["--no-env-file", "--port", str(p), "--root-path", "/evermind/"])
+    assert code == 0
     assert served[0][1]["root_path"] == "/evermind"
 
 
 def test_the_root_path_can_be_set_in_the_environment(clean_env, ui_built, monkeypatch, served):
     monkeypatch.setenv("EVERMIND_ROOT_PATH", "/evermind")
-    assert launch.main(["--no-env-file", "--port", str(free_port())]) == 0
+    code = launch.main(["--no-env-file", "--port", str(free_port())])
+    assert code == 0
     assert served[0][1]["root_path"] == "/evermind"
 
 
 def test_a_bad_root_path_is_reported_before_anything_starts(clean_env, ui_built, served, capsys):
-    assert launch.main(["--no-env-file", "--root-path", "evermind"]) == 1
+    code = launch.main(["--no-env-file", "--root-path", "evermind"])
+    assert code == 1
     assert capsys.readouterr().err == "--root-path must start with /, got 'evermind'\n"
     assert served == []
 
 
 def test_invalid_port_is_reported(clean_env, monkeypatch, capsys):
     monkeypatch.setenv("PORT", "abc")
-    assert launch.main(["--no-env-file"]) == 1
+    code = launch.main(["--no-env-file"])
+    assert code == 1
     assert "PORT must be a number" in capsys.readouterr().err
 
 
@@ -670,7 +685,8 @@ def test_a_refused_bind_next_to_a_listener_means_the_port_is_taken(monkeypatch, 
 def test_a_port_that_needs_rights_is_reported(clean_env, ui_built, monkeypatch, served, capsys):
     fake_sockets(monkeypatch, bind_error=PermissionError(errno.EACCES, "Permission denied"))
     monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
-    assert launch.main(["--no-env-file", "--port", "80"]) == 1
+    code = launch.main(["--no-env-file", "--port", "80"])
+    assert code == 1
     captured = capsys.readouterr()
     assert captured.err.splitlines() == [
         "Port 80 needs administrator rights. Pick a port above 1024, for example PORT=3001."
@@ -685,7 +701,8 @@ def test_a_port_that_needs_rights_in_development_names_the_api_port_setting(
     # PORT is Vite's in development: setting it would not move the API.
     fake_sockets(monkeypatch, bind_error=PermissionError(errno.EACCES, "Permission denied"))
     monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
-    assert launch.main(["--no-env-file", "--dev", "--port", "80"]) == 1
+    code = launch.main(["--no-env-file", "--dev", "--port", "80"])
+    assert code == 1
     assert capsys.readouterr().err.splitlines() == [
         (
             "Port 80 needs administrator rights. "
@@ -698,7 +715,8 @@ def test_a_port_that_needs_rights_in_development_names_the_api_port_setting(
 def test_check_reports_a_port_that_needs_rights_too(clean_env, monkeypatch, served, capsys):
     fake_sockets(monkeypatch, bind_error=PermissionError(errno.EACCES, "Permission denied"))
     monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
-    assert launch.main(["--check", "--no-env-file", "--port", "443"]) == 1
+    code = launch.main(["--check", "--no-env-file", "--port", "443"])
+    assert code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "Port 443 needs administrator rights." in captured.err
@@ -812,7 +830,8 @@ def test_the_entry_point_names_the_api_port_setting_for_a_busy_port_in_developme
 
 
 def test_busy_port_is_reported(clean_env, ui_built, busy_port, served, capsys):
-    assert launch.main(["--no-env-file", "--port", str(busy_port)]) == 1
+    code = launch.main(["--no-env-file", "--port", str(busy_port)])
+    assert code == 1
     captured = capsys.readouterr()
     assert f"Port {busy_port} is already in use." in captured.err
     assert "put a free port in .env next to the scripts, for example PORT=3001." in captured.err
@@ -822,7 +841,8 @@ def test_busy_port_is_reported(clean_env, ui_built, busy_port, served, capsys):
 
 def test_busy_port_in_development_names_the_api_port_setting(clean_env, busy_port, served, capsys):
     # PORT is Vite's in development: setting it would not move the API.
-    assert launch.main(["--no-env-file", "--dev", "--port", str(busy_port)]) == 1
+    code = launch.main(["--no-env-file", "--dev", "--port", str(busy_port)])
+    assert code == 1
     captured = capsys.readouterr()
     assert f"Port {busy_port} is already in use." in captured.err
     assert (
@@ -836,7 +856,8 @@ def test_busy_port_in_development_names_the_api_port_setting(clean_env, busy_por
 
 def test_check_prints_port_and_starts_nothing(clean_env, served, capsys):
     p = free_port()
-    assert launch.main(["--check", "--no-env-file", "--port", str(p)]) == 0
+    code = launch.main(["--check", "--no-env-file", "--port", str(p)])
+    assert code == 0
     captured = capsys.readouterr()
     assert captured.out.strip() == str(p)
     assert captured.err == ""
@@ -846,12 +867,14 @@ def test_check_prints_port_and_starts_nothing(clean_env, served, capsys):
 def test_check_in_dev_prints_the_api_port(clean_env, monkeypatch, served, capsys):
     p = free_port()
     monkeypatch.setenv("EVERMIND_BACKEND_PORT", str(p))
-    assert launch.main(["--check", "--dev", "--no-env-file"]) == 0
+    code = launch.main(["--check", "--dev", "--no-env-file"])
+    assert code == 0
     assert capsys.readouterr().out.strip() == str(p)
 
 
 def test_check_still_fails_on_a_busy_port(clean_env, busy_port, served, capsys):
-    assert launch.main(["--check", "--no-env-file", "--port", str(busy_port)]) == 1
+    code = launch.main(["--check", "--no-env-file", "--port", str(busy_port)])
+    assert code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "already in use" in captured.err
@@ -860,7 +883,8 @@ def test_check_still_fails_on_a_busy_port(clean_env, busy_port, served, capsys):
 def test_check_on_the_network_sees_a_loopback_listener(clean_env, busy_port, served, capsys):
     # prod.ps1 -Lan after a local-only run: the port looks free to a bind to
     # 0.0.0.0 on Windows, and starting would put two servers on it.
-    assert launch.main(["--check", "--no-env-file", "--lan", "--port", str(busy_port)]) == 1
+    code = launch.main(["--check", "--no-env-file", "--lan", "--port", str(busy_port)])
+    assert code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert f"Port {busy_port} is already in use." in captured.err
@@ -872,7 +896,8 @@ def test_check_sees_a_listener_on_every_interface(
 ):
     # Evermind started with -Lan or BIND=0.0.0.0, then started again local only.
     p = busy_port_on_every_interface
-    assert launch.main(["--check", "--no-env-file", "--port", str(p)]) == 1
+    code = launch.main(["--check", "--no-env-file", "--port", str(p)])
+    assert code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert f"Port {p} is already in use." in captured.err
@@ -881,7 +906,8 @@ def test_check_sees_a_listener_on_every_interface(
 
 def test_check_on_the_network_lets_a_free_port_through(clean_env, served, capsys):
     p = free_port()
-    assert launch.main(["--check", "--no-env-file", "--lan", "--port", str(p)]) == 0
+    code = launch.main(["--check", "--no-env-file", "--lan", "--port", str(p)])
+    assert code == 0
     assert capsys.readouterr().out.strip() == str(p)
 
 
@@ -889,7 +915,8 @@ def test_refuses_to_start_without_built_ui(clean_env, tmp_path, monkeypatch, ser
     empty = tmp_path / "empty"
     empty.mkdir()
     monkeypatch.setenv("EVERMIND_UI_DIR", str(empty))
-    assert launch.main(["--no-env-file", "--port", str(free_port())]) == 1
+    code = launch.main(["--no-env-file", "--port", str(free_port())])
+    assert code == 1
     err = capsys.readouterr().err
     assert f"The interface has not been built ({empty} has no index.html)." in err
     assert 'Run scripts/prod.ps1 or scripts/prod.sh, which build it, or "npm run build"' in err
@@ -898,7 +925,8 @@ def test_refuses_to_start_without_built_ui(clean_env, tmp_path, monkeypatch, ser
 
 def test_starts_uvicorn_with_resolved_values(clean_env, ui_built, served, capsys):
     p = free_port()
-    assert launch.main(["--no-env-file", "--port", str(p)]) == 0
+    code = launch.main(["--no-env-file", "--port", str(p)])
+    assert code == 0
     assert served == [
         ("app.main:app", {"host": "127.0.0.1", "port": p, "reload": False, "root_path": ""})
     ]
@@ -911,7 +939,8 @@ def test_lan_lists_the_address_other_devices_use(clean_env, ui_built, monkeypatc
     monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "secret")
     monkeypatch.setattr(launch, "lan_address", lambda: "192.168.1.20")
     p = free_port()
-    assert launch.main(["--no-env-file", "--lan", "--port", str(p)]) == 0
+    code = launch.main(["--no-env-file", "--lan", "--port", str(p)])
+    assert code == 0
     assert served[0][1]["host"] == "0.0.0.0"
     assert capsys.readouterr().out == (
         f"Evermind -> http://localhost:{p}\n"
@@ -923,7 +952,8 @@ def test_lan_without_a_route_lists_only_localhost(clean_env, ui_built, monkeypat
     monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "secret")
     monkeypatch.setattr(launch, "lan_address", lambda: None)
     p = free_port()
-    assert launch.main(["--no-env-file", "--lan", "--port", str(p)]) == 0
+    code = launch.main(["--no-env-file", "--lan", "--port", str(p)])
+    assert code == 0
     assert capsys.readouterr().out == f"Evermind -> http://localhost:{p}\n"
 
 
@@ -947,7 +977,8 @@ def test_the_printed_address_is_one_that_answers(
     # localhost: the line has to name the address that was bound.
     monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "secret")
     p = free_port()
-    assert launch.main(["--no-env-file", "--host", host, "--port", str(p)]) == 0
+    code = launch.main(["--no-env-file", "--host", host, "--port", str(p)])
+    assert code == 0
     assert capsys.readouterr().out == f"Evermind -> http://{shown}:{p}\n"
 
 
@@ -958,7 +989,8 @@ def test_every_spelling_of_the_wildcard_lists_the_network_address(
     monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "secret")
     monkeypatch.setattr(launch, "lan_address", lambda: "192.168.1.20")
     p = free_port()
-    assert launch.main(["--no-env-file", "--host", host, "--port", str(p)]) == 0
+    code = launch.main(["--no-env-file", "--host", host, "--port", str(p)])
+    assert code == 0
     assert capsys.readouterr().out == (
         f"Evermind -> http://localhost:{p}\n"
         f"            http://192.168.1.20:{p}  (from the local network)\n"
@@ -971,13 +1003,15 @@ def test_a_specific_address_gets_no_second_line(clean_env, ui_built, monkeypatch
     monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "secret")
     monkeypatch.setattr(launch, "lan_address", lambda: "192.168.1.20")
     p = free_port()
-    assert launch.main(["--no-env-file", "--host", "192.168.1.42", "--port", str(p)]) == 0
+    code = launch.main(["--no-env-file", "--host", "192.168.1.42", "--port", str(p)])
+    assert code == 0
     assert capsys.readouterr().out == f"Evermind -> http://192.168.1.42:{p}\n"
 
 
 def test_lan_without_password_warns(clean_env, ui_built, monkeypatch, served, capsys):
     monkeypatch.setattr(launch, "lan_address", lambda: "192.168.1.20")
-    assert launch.main(["--no-env-file", "--lan", "--port", str(free_port())]) == 0
+    code = launch.main(["--no-env-file", "--lan", "--port", str(free_port())])
+    assert code == 0
     err = capsys.readouterr().err
     assert "No password is set, so anyone on this network can read your conversations." in err
     assert "Put EVERMIND_GATE_PASSWORD in .env to be asked for one." in err
@@ -986,7 +1020,8 @@ def test_lan_without_password_warns(clean_env, ui_built, monkeypatch, served, ca
 def test_lan_with_password_does_not_warn(clean_env, ui_built, monkeypatch, served, capsys):
     monkeypatch.setattr(launch, "lan_address", lambda: "192.168.1.20")
     monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "secret")
-    assert launch.main(["--no-env-file", "--lan", "--port", str(free_port())]) == 0
+    code = launch.main(["--no-env-file", "--lan", "--port", str(free_port())])
+    assert code == 0
     assert "anyone on this network" not in capsys.readouterr().err
 
 
@@ -1002,12 +1037,14 @@ def test_lan_with_password_does_not_warn(clean_env, ui_built, monkeypatch, serve
     ],
 )
 def test_warning_follows_the_host_not_the_flag(clean_env, ui_built, served, capsys, flags, warns):
-    assert launch.main(["--no-env-file", "--port", str(free_port()), *flags]) == 0
+    code = launch.main(["--no-env-file", "--port", str(free_port()), *flags])
+    assert code == 0
     assert ("anyone on this network" in capsys.readouterr().err) is warns
 
 
 def test_a_local_only_start_without_password_is_silent(clean_env, ui_built, served, capsys):
-    assert launch.main(["--no-env-file", "--port", str(free_port())]) == 0
+    code = launch.main(["--no-env-file", "--port", str(free_port())])
+    assert code == 0
     assert capsys.readouterr().err == ""
 
 
@@ -1015,7 +1052,8 @@ def test_dev_starts_the_api_with_reload_and_no_built_ui(clean_env, served, capsy
     # Nothing was built here, and nothing needs to be: in development the page
     # comes from the Vite server, so the API alone is started and watched.
     p = free_port()
-    assert launch.main(["--dev", "--no-env-file", "--port", str(p)]) == 0
+    code = launch.main(["--dev", "--no-env-file", "--port", str(p)])
+    assert code == 0
     app_dir = str(Path(launch.__file__).resolve().parent)
     assert served == [
         (
@@ -1032,7 +1070,8 @@ def test_dev_starts_the_api_with_reload_and_no_built_ui(clean_env, served, capsy
 
 
 def test_dev_on_the_network_without_password_warns(clean_env, served, capsys):
-    assert launch.main(["--dev", "--lan", "--no-env-file", "--port", str(free_port())]) == 0
+    code = launch.main(["--dev", "--lan", "--no-env-file", "--port", str(free_port())])
+    assert code == 0
     assert "anyone on this network" in capsys.readouterr().err
 
 
@@ -1042,7 +1081,8 @@ def test_container_prints_no_addresses_and_no_warning(
     # docker-compose.yml decides what is exposed; from inside, 0.0.0.0 is simply
     # how the published port reaches the process.
     monkeypatch.setattr(update_check, "install_kind", lambda: "docker")
-    assert launch.main(["--no-env-file", "--host", "0.0.0.0", "--port", str(free_port())]) == 0
+    code = launch.main(["--no-env-file", "--host", "0.0.0.0", "--port", str(free_port())])
+    assert code == 0
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""
@@ -1064,13 +1104,15 @@ def test_env_file_flags(clean_env, tmp_path, monkeypatch, flags, expected):
     custom.write_text("EVERMIND_GATE_PASSWORD=from-custom\n", encoding="utf-8")
     monkeypatch.setattr(config, "default_env_file", lambda: default)
     argv = [str(custom) if flag == "<custom>" else flag for flag in flags]
-    assert launch.main(["--check", "--port", str(free_port()), *argv]) == 0
+    code = launch.main(["--check", "--port", str(free_port()), *argv])
+    assert code == 0
     assert os.environ.get("EVERMIND_GATE_PASSWORD") == expected
 
 
 def test_explicit_env_file_that_does_not_exist_is_an_error(clean_env, tmp_path, served, capsys):
     missing = tmp_path / "nope.env"
-    assert launch.main(["--check", "--env-file", str(missing), "--port", str(free_port())]) == 1
+    code = launch.main(["--check", "--env-file", str(missing), "--port", str(free_port())])
+    assert code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.splitlines() == [f"The settings file {missing} does not exist."]
@@ -1079,13 +1121,15 @@ def test_explicit_env_file_that_does_not_exist_is_an_error(clean_env, tmp_path, 
 
 def test_missing_default_env_file_stays_silent(clean_env, served, capsys):
     # clean_env points the default file at one that does not exist.
-    assert launch.main(["--check", "--port", str(free_port())]) == 0
+    code = launch.main(["--check", "--port", str(free_port())])
+    assert code == 0
     assert capsys.readouterr().err == ""
 
 
 def test_no_env_file_wins_over_a_missing_explicit_one(clean_env, tmp_path, served, capsys):
     argv = ["--check", "--no-env-file", "--env-file", str(tmp_path / "nope.env")]
-    assert launch.main([*argv, "--port", str(free_port())]) == 0
+    code = launch.main([*argv, "--port", str(free_port())])
+    assert code == 0
     assert capsys.readouterr().err == ""
 
 
@@ -1098,7 +1142,8 @@ def test_undecodable_env_file_names_the_file_and_exits(
     flags = ["--env-file", str(f)] if explicit else []
     if not explicit:
         monkeypatch.setattr(config, "default_env_file", lambda: f)
-    assert launch.main(["--check", "--port", str(free_port()), *flags]) == 1
+    code = launch.main(["--check", "--port", str(free_port()), *flags])
+    assert code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.splitlines() == [
@@ -1115,7 +1160,8 @@ def test_utf32_without_a_mark_is_reported_rather_than_misread(
     # line, and nothing from it is set.
     f = tmp_path / "utf32.env"
     f.write_bytes("EVERMIND_GATE_PASSWORD=secret\n".encode(codec))
-    assert launch.main(["--check", "--port", str(free_port()), "--env-file", str(f)]) == 1
+    code = launch.main(["--check", "--port", str(free_port()), "--env-file", str(f)])
+    assert code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.splitlines() == [
@@ -1136,7 +1182,8 @@ def test_utf32_cut_short_is_reported_and_sets_nothing(
     # The mark says UTF-32, and the last character is missing a byte.
     f = tmp_path / "cut.env"
     f.write_bytes(bom + "PORT=3001\nEVERMIND_GATE_PASSWORD=secret\n".encode(codec)[:-1])
-    assert launch.main(["--check", "--port", str(free_port()), "--env-file", str(f)]) == 1
+    code = launch.main(["--check", "--port", str(free_port()), "--env-file", str(f)])
+    assert code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.splitlines() == [
@@ -1149,7 +1196,8 @@ def test_utf32_cut_short_is_reported_and_sets_nothing(
 def test_unreadable_env_file_names_the_file_and_exits(clean_env, tmp_path, served, capsys):
     # A folder where a file is expected: PermissionError on Windows, IsADirectoryError
     # elsewhere, and either way an OSError.
-    assert launch.main(["--check", "--env-file", str(tmp_path), "--port", str(free_port())]) == 1
+    code = launch.main(["--check", "--env-file", str(tmp_path), "--port", str(free_port())])
+    assert code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert len(captured.err.splitlines()) == 1
@@ -1160,14 +1208,16 @@ def test_unreadable_env_file_names_the_file_and_exits(clean_env, tmp_path, serve
 def test_settings_from_the_file_decide_where_to_listen(clean_env, tmp_path, served, capsys):
     env_file = tmp_path / "custom.env"
     env_file.write_text(f"BIND=0.0.0.0\nPORT={free_port()}\n", encoding="utf-8")
-    assert launch.main(["--check", "--env-file", str(env_file)]) == 0
+    code = launch.main(["--check", "--env-file", str(env_file)])
+    assert code == 0
     assert capsys.readouterr().out.strip() == os.environ["PORT"]
 
 
 def test_data_dir_flag(clean_env, tmp_path):
     d = tmp_path / "elsewhere"
-    assert launch.main(["--check", "--no-env-file", "--port", str(free_port()),
-                        "--data-dir", str(d)]) == 0
+    code = launch.main(["--check", "--no-env-file", "--port", str(free_port()),
+                        "--data-dir", str(d)])
+    assert code == 0
     assert os.environ["EVERMIND_DATA_DIR"] == str(d)
 
 
@@ -1175,6 +1225,7 @@ def test_data_dir_flag_beats_the_env_file(clean_env, tmp_path):
     env_file = tmp_path / "custom.env"
     env_file.write_text("EVERMIND_DATA_DIR=from-the-file\n", encoding="utf-8")
     d = tmp_path / "from-the-flag"
-    assert launch.main(["--check", "--env-file", str(env_file), "--port", str(free_port()),
-                        "--data-dir", str(d)]) == 0
+    code = launch.main(["--check", "--env-file", str(env_file), "--port", str(free_port()),
+                        "--data-dir", str(d)])
+    assert code == 0
     assert os.environ["EVERMIND_DATA_DIR"] == str(d)

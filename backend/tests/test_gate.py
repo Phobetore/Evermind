@@ -391,7 +391,8 @@ async def test_odd_login_bodies_are_refused_not_errors(make_client, pauses):
 async def test_attempts_are_limited(make_client, pauses, clock):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         for _ in range(gate.MAX_FAILURES):
-            assert (await c.post("/api/gate", json={"password": "nope"})).status_code == 401
+            r = await c.post("/api/gate", json={"password": "nope"})
+            assert r.status_code == 401
         # The right password does not help while the address is blocked.
         r = await c.post("/api/gate", json={"password": PW})
         assert r.status_code == 429
@@ -399,7 +400,8 @@ async def test_attempts_are_limited(make_client, pauses, clock):
         assert int(r.headers["retry-after"]) > 0
         assert "set-cookie" not in r.headers
         clock.advance(seconds=gate.FAILURE_WINDOW_S + 1)
-        assert (await c.post("/api/gate", json={"password": PW})).status_code == 204
+        r = await c.post("/api/gate", json={"password": PW})
+        assert r.status_code == 204
 
 
 async def test_success_forgets_earlier_failures(make_client, pauses):
@@ -408,7 +410,8 @@ async def test_success_forgets_earlier_failures(make_client, pauses):
             await c.post("/api/gate", json={"password": "nope"})
         await sign_in(c)
         for _ in range(gate.MAX_FAILURES):
-            assert (await c.post("/api/gate", json={"password": "nope"})).status_code == 401
+            r = await c.post("/api/gate", json={"password": "nope"})
+            assert r.status_code == 401
 
 
 async def test_parallel_attempts_cannot_pass_the_limit(make_client, monkeypatch):
@@ -444,8 +447,10 @@ async def test_passwords_are_checked_off_the_event_loop(make_client, monkeypatch
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         await c.get("/api/gate")
         monkeypatch.setattr(gate, "verify_password", spy)
-        assert (await c.post("/api/gate", json={"password": "nope"})).status_code == 401
-        assert (await c.post("/api/gate", json={"password": PW})).status_code == 204
+        r = await c.post("/api/gate", json={"password": "nope"})
+        assert r.status_code == 401
+        r = await c.post("/api/gate", json={"password": PW})
+        assert r.status_code == 204
     assert where == ["thread", "thread"]
 
 
@@ -471,7 +476,8 @@ async def test_logout_revokes_on_the_server(make_client):
         # The token itself is dead, not just forgotten by this browser.
         assert (await c.get("/api/characters", headers=device(token))).status_code == 401
         # Logging out without a session is not a mistake worth an error.
-        assert (await c.delete("/api/gate")).status_code == 204
+        r = await c.delete("/api/gate")
+        assert r.status_code == 204
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         assert (await c.get("/api/characters", headers=device(token))).status_code == 401
 
@@ -482,7 +488,8 @@ async def test_logout_everywhere(make_client):
         laptop = await sign_in(c)
         for token in (phone, laptop):
             assert (await c.get("/api/characters", headers=device(token))).status_code == 200
-        assert (await c.delete("/api/gate/sessions", headers=device(phone))).status_code == 204
+        r = await c.delete("/api/gate/sessions", headers=device(phone))
+        assert r.status_code == 204
         for token in (phone, laptop):
             assert (await c.get("/api/characters", headers=device(token))).status_code == 401
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
@@ -573,8 +580,10 @@ async def test_changed_password_revokes_sessions(make_client, pauses):
         token = await sign_in(c)
     async with make_client(EVERMIND_GATE_PASSWORD="other") as c:
         assert (await c.get("/api/characters", headers=device(token))).status_code == 401
-        assert (await c.post("/api/gate", json={"password": PW})).status_code == 401
-        assert (await c.post("/api/gate", json={"password": "other"})).status_code == 204
+        r = await c.post("/api/gate", json={"password": PW})
+        assert r.status_code == 401
+        r = await c.post("/api/gate", json={"password": "other"})
+        assert r.status_code == 204
 
 
 async def test_removed_password_clears_sessions(make_client):
@@ -720,7 +729,8 @@ def test_accents_compare_however_they_were_typed():
                                                    (DECOMPOSED, COMPOSED)])
 async def test_an_accent_typed_another_way_opens(make_client, configured, typed):
     async with make_client(EVERMIND_GATE_PASSWORD=configured) as c:
-        assert (await c.post("/api/gate", json={"password": typed})).status_code == 204
+        r = await c.post("/api/gate", json={"password": typed})
+        assert r.status_code == 204
 
 
 async def test_the_same_password_written_another_way_keeps_sessions(make_client):
@@ -739,7 +749,8 @@ async def test_garbage_cookie_is_locked_not_an_error(make_client):
             assert r.status_code == 401, value
             r = await c.get("/api/gate", headers=header)
             assert r.json() == {"enabled": True, "authenticated": False}
-            assert (await c.delete("/api/gate", headers=header)).status_code == 204
+            r = await c.delete("/api/gate", headers=header)
+            assert r.status_code == 204
 
 
 async def test_turn_stream_passes_through(make_client):

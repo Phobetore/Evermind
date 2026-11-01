@@ -229,7 +229,8 @@ async def test_the_interface_answers_head_too(ui_client):
 
 
 async def test_a_page_cannot_be_written_to(ui_client):
-    assert (await ui_client.post("/", json={})).status_code == 405
+    r = await ui_client.post("/", json={})
+    assert r.status_code == 405
 
 
 @pytest.mark.parametrize("path", ["/nope", "/api/nope"])

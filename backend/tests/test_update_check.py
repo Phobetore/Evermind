@@ -202,7 +202,8 @@ async def test_endpoint_follows_the_setting(client, monkeypatch):
     assert body["update_available"] is True
     assert body["install"] in ("docker", "source")
 
-    assert (await client.put("/api/settings", json={"update_check": False})).status_code == 200
+    r = await client.put("/api/settings", json={"update_check": False})
+    assert r.status_code == 200
     body = (await client.get("/api/update")).json()
     assert body["enabled"] is False
     assert body["update_available"] is False
