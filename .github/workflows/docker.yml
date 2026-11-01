@@ -34,19 +34,18 @@ jobs:
       # .env.example promises it tracks the newest release, so neither a manual
       # run nor a v2.1.0-rc1 may claim it.
       #
-      # One build, two names. evermind-backend is what the image was called when
-      # Evermind was two containers, and a docker-compose.yml from that time
-      # still pulls it by that name. Such a file does not work with this image,
-      # though: its interface container calls the API as backend:8000, a host
-      # name this image refuses while no password is set, and that file gives
-      # this container none. evermind-frontend is not published any more:
-      # nothing in the new image needs it.
+      # One name. A docker-compose.yml from 2.x pulls evermind-backend and
+      # evermind-frontend, neither of which is published any more, so it keeps
+      # running the last 2.x images until its owner switches to the new file
+      # (docs/UPGRADING.md). This image must not take the old backend name:
+      # that file's interface container would call it as backend:8000, a host
+      # name it refuses without a password, and pass on the browser's Origin,
+      # which does not match that Host.
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: |
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/evermind
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/evermind-backend
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
