@@ -3,9 +3,8 @@ export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 /** Where the chosen language is kept, on this device. */
 export const LOCALE_STORAGE_KEY = "evermind:locale";
-/** Where it was kept before, when a server rendered the pages and needed to
- *  read it from each request. Only read now, so that nobody loses their choice
- *  with the update. */
+/** The language chosen in earlier versions was kept in this cookie. It is
+ *  only read now, so that nobody loses their choice with the update. */
 export const LOCALE_COOKIE = "evermind_locale";
 export const LOCALE_NAMES: Record<Locale, string> = {
   en: "English",
