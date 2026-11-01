@@ -510,6 +510,41 @@ def test_the_excerpt_keeps_the_words_around_a_style_and_a_script_that_close():
     assert excerpt(page) == "Down for now"
 
 
+@pytest.mark.parametrize(
+    ("opening", "closing"),
+    [
+        ("<style>", "</STYLE>"),
+        ("<SCRIPT>", "</script>"),
+        ('<Style type="x">', "</sTyLe\n>"),
+        ("<script\n>", "</Script>"),
+    ],
+)
+def test_the_excerpt_drops_a_block_whose_end_tag_is_in_another_case(opening, closing):
+    from app.providers.base import excerpt
+
+    assert excerpt(f"Down {opening}p {{ color: red }}{closing} now") == "Down now"
+
+
+@pytest.mark.parametrize("tag", ["style-guide", "script-x", "scripts", "styled", "style.x"])
+def test_the_excerpt_does_not_take_another_tag_for_a_style_or_a_script(tag):
+    """Only a tag named script or style opens a block. One that merely starts that way
+    has no end tag of the same name, so it would be taken for a block that never
+    closes, and everything after it would go."""
+    from app.providers.base import excerpt
+
+    assert excerpt(f"Error <{tag}>real words</{tag}> after") == "Error real words after"
+
+
+@pytest.mark.parametrize("name", ["style", "script"])
+def test_the_excerpt_drops_a_block_cut_off_right_after_its_name(name):
+    from app.providers.base import _EXCERPT_SCAN, excerpt
+
+    opening = f"<{name}"
+    page = "Bad gateway".ljust(_EXCERPT_SCAN - len(opening)) + opening + ">a { color: red }"
+    assert page[_EXCERPT_SCAN - len(opening):].startswith(opening)
+    assert excerpt(page) == "Bad gateway"
+
+
 async def test_the_anthropic_model_list_message_quotes_the_words_of_a_page():
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(502, content=b"<html>\n<body><h1>502   Bad gateway</h1></body>\n</html>")
