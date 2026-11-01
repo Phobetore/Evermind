@@ -132,14 +132,14 @@ A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
   conversations through your browser. Opened by an address
   (`http://192.168.1.42:3000`), by `localhost` (or a name ending in
   `.localhost`) or by the computer's own name, also with `.local` after it (when
-  the name has a domain, as in `nas.home.lan`, its first part, `nas`, is
-  enough), nothing changes. Opened by any other name, an install without a
-  password now says "Evermind does not answer to this address" (the API's own
-  words are "Unknown host name"). List the name in `EVERMIND_ALLOWED_HOSTS` in
-  your `.env`, separated by commas, or set a password: with one, any name works.
-  With Docker, the computer's own name counts as unknown too, because the
-  container cannot see it, so list it as well and run `docker compose up -d`
-  again.
+  the name has a domain, as in `nas.home.lan`, its first part works too, `nas`
+  and `nas.local`), nothing changes. Opened by any other name, an install
+  without a password now says "Evermind does not answer to this address" (the
+  API's own words are "Unknown host name"). List the name in
+  `EVERMIND_ALLOWED_HOSTS` in your `.env`, separated by commas, or set a
+  password: with one, any name works. With Docker, the computer's own name
+  counts as unknown too, because the container cannot see it, so list it as
+  well and run `docker compose up -d` again.
 - **A reverse proxy has to keep the address the browser used.** Evermind now
   turns away the changes that a page of another origin sends. Behind a proxy
   that changes the `Host` header, the interface's own changes look like that
