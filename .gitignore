@@ -31,9 +31,6 @@ logs/
 .env.local
 .env.production
 
-# Editor and tooling config
-.claude/
-
 # Left behind by the end-to-end suite.
 frontend/test-results/
 frontend/playwright-report/
