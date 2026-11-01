@@ -333,13 +333,13 @@ and `.dockerignore` keeps every `.env*` file out of it), so
 `EVERMIND_GATE_PASSWORD` is read when the container starts and the password can
 be changed without rebuilding.
 
-It is published as `ghcr.io/phobetore/evermind`, and also as `evermind-backend`,
-the name the backend image had when Evermind was two containers. A 2.x
-`docker-compose.yml` that pulls it does not work with it, though: its interface
-container calls the API as `backend:8000`, a host name the image refuses while
-no password is set, and that file gives the container none. The interface image
-that file also pulls is no longer updated. [UPGRADING.md](UPGRADING.md) walks
-people through the move.
+It is published as `ghcr.io/phobetore/evermind`, and under that name only. The two
+images of 2.x, `evermind-backend` and `evermind-frontend`, are no longer updated,
+so a 2.x `docker-compose.yml` keeps running 2.1.6 until its owner switches to the
+new file. The new image must not take the old backend name: that file's interface
+container would call it as `backend:8000`, a host name it refuses without a
+password, and pass on the browser's `Origin`, which does not match that `Host`.
+[UPGRADING.md](UPGRADING.md) walks people through the move.
 
 ## Cutting a release
 
@@ -349,9 +349,8 @@ people through the move.
    read `__version__` rather than the installed distribution, whose metadata
    keeps the number it had when `pip install -e` last ran.
 2. Push a `v*` tag. That builds the image for amd64 and arm64, pushes it to
-   ghcr.io under both of its names, and attaches `docker-compose.yml` and
-   `env.example` to the release, creating an empty release first if the tag
-   arrived before it.
+   ghcr.io, and attaches `docker-compose.yml` and `env.example` to the release,
+   creating an empty release first if the tag arrived before it.
 3. Write the notes once that release exists. Published any earlier, it becomes
    `releases/latest` while the image is still building, without the files
    described below.

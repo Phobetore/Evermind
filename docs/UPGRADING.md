@@ -74,14 +74,15 @@ If you replaced the file before stopping the old one and ran into that "port is
 already allocated" error, `docker compose up -d --remove-orphans` stops the
 old interface container and starts the new one in one go.
 
-The image `evermind-frontend` is no longer updated, and nothing uses it any more.
-`docker image rm ghcr.io/phobetore/evermind-frontend` gives the disk space back.
-The new image is also published as `evermind-backend`, which is the name the old
-file pulls, but the old file does not work with it. Its interface container
-reaches the API under the name `backend`, which the new image does not answer
-to, so once a 2.x `docker-compose.yml` pulls it (`docker compose pull`, for
-instance), the interface can no longer show your characters and conversations.
-Nothing is lost: replacing the file as above brings them back.
+Until you replace the file, nothing changes: an old `docker-compose.yml` keeps
+running 2.1.6 (or the 2.x version your `.env` pins). `docker compose pull` does
+not move it to 3.0, because the two images it names, `evermind-backend` and
+`evermind-frontend`, are no longer updated. The steps above are what switches
+it.
+
+Once you have switched, nothing uses those two images any more.
+`docker image rm ghcr.io/phobetore/evermind-backend ghcr.io/phobetore/evermind-frontend`
+gives the disk space back.
 
 ### From the source
 
