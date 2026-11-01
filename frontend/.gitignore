@@ -15,6 +15,7 @@
 
 # what earlier versions, built with Next.js, left behind
 /.next/
+/next-env.d.ts
 
 # production
 /dist
