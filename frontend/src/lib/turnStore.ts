@@ -26,7 +26,16 @@ export interface Turn {
   lost: unknown;
 }
 
-let current: (Turn & { controller: AbortController; lastWordAt: number }) | null = null;
+let current: (Turn & {
+  controller: AbortController;
+  lastWordAt: number;
+  /** Being read from its first word again: what has come back so far, kept aside
+   *  until it has caught up with what is on screen, which never goes backwards. */
+  replay: string | null;
+  /** Readers in a row that ended with the turn unfinished and no new word. */
+  closes: number;
+  textAtLastClose: number;
+}) | null = null;
 const listeners = new Set<() => void>();
 
 // A new object on every change and the same one otherwise: useSyncExternalStore
@@ -58,13 +67,12 @@ export const turnStore = {
   begin(conversationId: string, controller: AbortController) {
     current = {
       conversationId, text: "", busy: true, lost: null, controller, lastWordAt: Date.now(),
+      replay: null, closes: 0, textAtLastClose: 0,
     };
     publish();
   },
 
-  /** A new reader takes over the turn, and the one it replaces is stopped. What
-   *  has arrived stays until the new one starts again with `begin`, which is how
-   *  a reader starts, since a turn is always read from its first word. */
+  /** A new reader takes over the turn, and the one it replaces is stopped. */
   handOver(conversationId: string, controller: AbortController) {
     if (current?.conversationId !== conversationId) {
       turnStore.begin(conversationId, controller);
@@ -76,10 +84,31 @@ export const turnStore = {
     replaced.abort();
   },
 
+  /** This reader is at the first word again, which is where a reader starts. */
+  restart(controller: AbortController) {
+    if (current?.controller === controller) current = { ...current, replay: "" };
+  },
+
   append(text: string) {
     if (!current) return;
-    current = { ...current, text: current.text + text, lastWordAt: Date.now() };
+    if (current.replay === null) {
+      current = { ...current, text: current.text + text, lastWordAt: Date.now() };
+    } else {
+      const replay = current.replay + text;
+      current = replay.length < current.text.length
+        ? { ...current, replay, lastWordAt: Date.now() }
+        : { ...current, text: replay, replay: null, lastWordAt: Date.now() };
+    }
     publish();
+  },
+
+  /** A reader ended with the turn unfinished. Says how many have, in a row, without
+   *  a new word to show for it. */
+  closedEarly() {
+    if (!current) return 0;
+    const closes = current.text.length > current.textAtLastClose ? 1 : current.closes + 1;
+    current = { ...current, closes, textAtLastClose: current.text.length };
+    return closes;
   },
 
   /** This reader's turn is over, whether it landed, failed or was stopped. Says
@@ -96,7 +125,7 @@ export const turnStore = {
    *  over as far as anyone knows, so what has arrived stays on screen. */
   lose(controller: AbortController, why: unknown) {
     if (current?.controller !== controller || !current.busy) return;
-    current = { ...current, busy: false, lost: why };
+    current = { ...current, busy: false, lost: why, closes: 0, textAtLastClose: 0 };
     publish();
   },
 

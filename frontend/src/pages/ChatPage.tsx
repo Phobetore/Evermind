@@ -10,7 +10,7 @@ import { describeError, describeEvent } from "@/lib/errors";
 import { turnStore } from "@/lib/turnStore";
 import type { ChatEvent, ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
 /** How long a turn goes without a word before a phone coming back asks about it.
@@ -19,6 +19,9 @@ import { Link, useNavigate, useParams } from "react-router";
 const QUIET_BEFORE_ASKING_MS = 5_000;
 /** `online` and `visibilitychange` tend to arrive together as a phone wakes. */
 const COMING_BACK_WAIT_MS = 400;
+/** Readers in a row that may end with a reply unfinished and no new word, before
+ *  the page stops taking the server's word for it that it is running. */
+const CLOSES_WITHOUT_A_WORD = 5;
 
 type TurnFailure = { event: Extract<ChatEvent, { type: "error" }> } | { error: unknown } | "no reply";
 
@@ -31,6 +34,10 @@ type TurnCheck =
 
 /** Enough of a message to tell whether a turn has touched it. */
 const fingerprint = (message?: Message) => (message ? `${message.id}:${message.content}` : "");
+
+/** A stream can also just end, when something between here and the server gives up
+ *  on it. As far as the person can tell, Evermind has stopped answering. */
+const streamEndedEarly = () => new DataError("The stream ended early.", { kind: "network" });
 
 /** Keyed by the id, so that a branch, which opens at an address of its own,
  *  starts from its own messages rather than from the ones it was cut from. */
@@ -134,7 +141,7 @@ function ChatView({ id }: { id: string }) {
   }, []);
 
   /** Read a turn from its first word, which is where a reader starts. Says whether
-   *  the turn ended in a failure, and what broke the reading, if anything did. */
+   *  it saw the turn end, and how, and what broke the reading, if anything did. */
   const readTurn = useCallback(async (controller: AbortController, arriving: boolean) => {
     let failed = false;
     let ended = false;
@@ -146,7 +153,7 @@ function ChatView({ id }: { id: string }) {
           // both the old reply and its replacement arriving underneath. Otherwise
           // the page already knows that, and it is the words that start again.
           if (arriving) setRegenTargetId(event.target_message_id ?? null);
-          else turnStore.begin(id, controller);
+          else turnStore.restart(controller);
         } else if (event.type === "error") {
           failed = true;
           ended = true;
@@ -155,11 +162,9 @@ function ChatView({ id }: { id: string }) {
         }
         applyTurnEvent(event);
       }, controller.signal);
-      // A stream can also just end, when something between here and the server
-      // gives up on it. That is not the turn ending, and worth one question.
-      return { failed, broken: arriving && !ended ? new Error("The stream ended early.") : undefined };
+      return { failed, ended };
     } catch (error) {
-      return { failed, broken: controller.signal.aborted ? undefined : error };
+      return { failed, ended, broken: controller.signal.aborted ? undefined : error };
     }
   }, [id, applyTurnEvent]);
 
@@ -182,26 +187,46 @@ function ChatView({ id }: { id: string }) {
     };
   }, [id]);
 
-  /** Ask the server about the turn and act on the answer. A reply being written is
-   *  read from its first word by a new reader; one that has just ended is handed
-   *  over with its ending; and otherwise the conversation says how things stand.
-   *  Whoever asks while this is going gets the same answer. */
-  const checkOnTurn = useCallback((): Promise<TurnCheck> => {
-    const ask = async (): Promise<TurnCheck> => {
+  const { checkOnTurn, pickTurnBackUp, readToTheEnd } = useMemo(() => {
+    /** Ask the server about the turn and act on the answer. A reply being written
+     *  is read from its first word by a new reader; one that has just ended is
+     *  handed over with its ending; and otherwise the conversation says how things
+     *  stand. Whoever asks while this is going gets the same answer. */
+    function checkOnTurn(): Promise<TurnCheck> {
+      checking.current ??= ask().finally(() => {
+        checking.current = null;
+      });
+      return checking.current;
+    }
+
+    async function ask(): Promise<TurnCheck> {
       try {
         const state = await data.turns.state(id);
-        if (state.running || state.ended_recently) {
+        if (state.running) {
           const reader = new AbortController();
           turnStore.handOver(id, reader);
           setFailure(null);
-          const reading = readTurn(reader, false).then(({ failed, broken }) => {
-            if (broken !== undefined) turnStore.lose(reader, broken);
+          void readToTheEnd(reader, false);
+          return { result: "running" };
+        }
+        if (state.ended_recently) {
+          // Nothing more can come of this one, so nothing further to ask.
+          const reader = new AbortController();
+          turnStore.handOver(id, reader);
+          setFailure(null);
+          const { failed, broken } = await readTurn(reader, false);
+          if (broken !== undefined) {
+            turnStore.lose(reader, broken);
+            return { result: "unreachable" };
+          }
+          if (failed) {
+            // The failure is what the person is told. Nothing came of the turn, so
+            // somebody asking again really is asking for something new.
             finishReading(reader);
-            return failed;
-          });
-          if (state.running) return { result: "running" };
-          if (await reading) return { result: "settled" };
-          if (turnStore.readerOf(id) === reader) return { result: "unreachable" };
+            const { latest, show } = await readAgain();
+            show();
+            return { result: "no reply", messages: latest };
+          }
         }
 
         const reader = turnStore.readerOf(id);
@@ -226,22 +251,34 @@ function ChatView({ id }: { id: string }) {
       } catch {
         return { result: "unreachable" };
       }
-    };
-    checking.current ??= ask().finally(() => {
-      checking.current = null;
-    });
-    return checking.current;
-  }, [id, readTurn, finishReading, readAgain]);
+    }
 
-  /** A reader's connection broke: a phone went to sleep, or lost its wifi. The turn
-   *  is the server's and has not noticed, so what had arrived stays up, and so does
-   *  the stop button, until the server has said how things stand. If it cannot be
-   *  reached the person is told, rather than left looking at a reply that has
-   *  silently stopped, and a phone coming back tries again. */
-  const pickTurnBackUp = useCallback(async (controller: AbortController, broken: unknown) => {
-    const { result } = await checkOnTurn();
-    if (result === "unreachable" && !controller.signal.aborted) turnStore.lose(controller, broken);
-  }, [checkOnTurn]);
+    /** A reader ended without seeing the turn end. A phone went to sleep or lost its
+     *  wifi, or something between here and the server gave up on the stream, and
+     *  the turn, being the server's, has not noticed. So what had arrived stays up,
+     *  and so does the stop button, until the server has said how things stand. If
+     *  it cannot be reached the person is told, rather than left looking at a reply
+     *  that has silently stopped, and a phone coming back tries again. So they are
+     *  too if readers keep ending with nothing to show for it. */
+    async function pickTurnBackUp(controller: AbortController, why: unknown) {
+      if (controller.signal.aborted) return;
+      if (turnStore.closedEarly() >= CLOSES_WITHOUT_A_WORD) {
+        turnStore.lose(controller, why);
+        return;
+      }
+      const { result } = await checkOnTurn();
+      if (result === "unreachable" && !controller.signal.aborted) turnStore.lose(controller, why);
+    }
+
+    /** Read a turn until it ends, whatever that takes. */
+    async function readToTheEnd(reader: AbortController, arriving: boolean) {
+      const { ended, broken } = await readTurn(reader, arriving);
+      if (!ended) await pickTurnBackUp(reader, broken ?? streamEndedEarly());
+      finishReading(reader);
+    }
+
+    return { checkOnTurn, pickTurnBackUp, readToTheEnd };
+  }, [id, readTurn, finishReading, readAgain]);
 
   // A phone coming back. Sleeping is when a connection goes, sometimes with an
   // error that came too soon to do anything about, and sometimes without one: a
@@ -296,9 +333,7 @@ function ChatView({ id }: { id: string }) {
         // Watch a reply that is being written elsewhere — by a server that carried
         // on after the phone that asked for it went to sleep.
         turnStore.begin(id, controller);
-        const { broken } = await readTurn(controller, true);
-        if (broken !== undefined) await pickTurnBackUp(controller, broken);
-        finishReading(controller);
+        await readToTheEnd(controller, true);
       } else if (!state.ended_recently) {
         return;
       }
@@ -319,7 +354,7 @@ function ChatView({ id }: { id: string }) {
     });
 
     return () => controller.abort();
-  }, [id, readTurn, pickTurnBackUp, finishReading, readAgain]);
+  }, [id, readToTheEnd, readAgain]);
 
   /** Fetch the conversation again. */
   const reload = useCallback(async () => {
@@ -429,7 +464,7 @@ function ChatView({ id }: { id: string }) {
       if (!finished) {
         // Stream closed without done/error. Stopped somewhere else, or given up on
         // by something between here and the server, which is no end to the turn.
-        await pickTurnBackUp(controller, new Error("The stream ended early."));
+        await pickTurnBackUp(controller, streamEndedEarly());
       }
     } catch (e) {
       if (controller.signal.aborted) {

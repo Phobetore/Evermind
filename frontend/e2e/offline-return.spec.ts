@@ -436,6 +436,76 @@ test("a regeneration cut off keeps the new words, not the old reply, until it co
   expect(after.at(-1).variants.length).toBe(2);
 });
 
+/** Every stream of a turn, sent or followed, ends cleanly after `chunks` chunks, for
+ *  the first `times` of them, which `window.__closesLeft` can change meanwhile. */
+async function streamsKeepClosing(page: Page, times: number, chunks = 3) {
+  await page.addInitScript(({ times, chunks }) => {
+    const realFetch = window.fetch;
+    const page_ = window as unknown as { __closesLeft: number };
+    page_.__closesLeft = times;
+    window.fetch = async (input, init) => {
+      const response = await realFetch(input, init);
+      const url = String(input);
+      const stream = url.endsWith("api/chat") || url.endsWith("/turn/stream");
+      if (!stream || page_.__closesLeft <= 0 || !response.body) return response;
+      page_.__closesLeft -= 1;
+      const reader = response.body.getReader();
+      let passed = 0;
+      const body = new ReadableStream({
+        async pull(controller) {
+          if (passed++ >= chunks) {
+            await reader.cancel();
+            controller.close();
+            return;
+          }
+          const next = await reader.read();
+          if (next.done) controller.close();
+          else controller.enqueue(next.value);
+        },
+      });
+      return new Response(body, { status: response.status, headers: response.headers });
+    };
+  }, { times, chunks });
+}
+
+test("a stream that keeps closing does not leave part of a reply on screen", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { slowly: true });
+  await streamsKeepClosing(page, 2);
+  const streams = countingStreams(page);
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.locator("textarea").first().fill("Coupe.");
+  await page.locator('button[title="Send"]').click();
+
+  await expect.poll(streams, { timeout: 20_000, message: "not read again" }).toBe(2);
+  await expect(stopButton(page), "nothing to stop the reply with").toBeVisible();
+  await expect.poll(() => turnRunning(request, convo.id), { timeout: 60_000 }).toBe(false);
+  const reply = (await conversation(request, convo.id)).messages.at(-1);
+  await expect(page.locator(`[data-message-id="${reply.id}"]`),
+    "the reply stayed as far as it had got").toContainText(endingOf(reply.content));
+  await expect(page.locator("p.text-blood")).toHaveCount(0);
+});
+
+test("a stream that closes again and again with no new word gives up, and says so", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { slowly: true });
+  await streamsKeepClosing(page, 1_000, 1);
+  const streams = countingStreams(page);
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.locator("textarea").first().fill("Coupe.");
+  await page.locator('button[title="Send"]').click();
+
+  const report = page.locator("p.text-blood").first();
+  await expect(report, "still trying, or silent").toContainText("Evermind is not answering", { timeout: 20_000 });
+  await expect(stopButton(page)).toBeHidden();
+  expect(streams(), "no limit on reading it again").toBeLessThan(20);
+
+  // Whatever was closing them lets go, and the phone coming back finds the reply.
+  await page.evaluate(() => { (window as unknown as { __closesLeft: number }).__closesLeft = 0; });
+  await phoneComesBack(page);
+  await expect(report, "the report stayed once it worked").toBeHidden();
+  await stopTurn(request, convo.id);
+  await expect(stopButton(page)).toBeHidden();
+});
+
 const retryButton = (page: Page) => page.getByRole("button", { name: "Retry" });
 
 test("retrying joins a reply that is still being written", async ({ page, request }) => {
