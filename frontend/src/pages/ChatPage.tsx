@@ -7,7 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError, describeEvent } from "@/lib/errors";
-import { turnStore } from "@/lib/turnStore";
+import { turnStore, type TurnFailure } from "@/lib/turnStore";
 import type { ChatEvent, ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -22,15 +22,31 @@ const COMING_BACK_WAIT_MS = 400;
 /** Readers in a row that may end with a reply unfinished and no new word, before
  *  the page stops taking the server's word for it that it is running. */
 const CLOSES_WITHOUT_A_WORD = 5;
-
-type TurnFailure = { event: Extract<ChatEvent, { type: "error" }> } | { error: unknown } | "no reply";
+/** How long a question asked in order to recover is waited for. On a connection that
+ *  has died without saying so it would otherwise never be answered, and nothing else
+ *  could be asked in the meantime. */
+const QUESTION_TIMEOUT_MS = 10_000;
 
 /** What asking the server about a turn came to. */
 type TurnCheck =
-  | { result: "unreachable" | "running" | "settled" }
-  /** Nothing to show. It never reached the server, or it did and no reply came of
-   *  it: the messages are what the server has, for asking again from. */
-  | { result: "not sent" | "no reply"; messages: Message[] };
+  /** Something happened meanwhile that makes the answer out of date: the person
+   *  stopped the turn, or asked for another. */
+  | { result: "unreachable" | "running" | "superseded" }
+  /** The server has what is below, and that is how things stand. "not sent": it
+   *  never reached the server. "no reply": it did, and no reply came of it. */
+  | { result: "settled" | "not sent" | "no reply"; messages: Message[] };
+
+/** The answer to a question, or a failure if it takes too long. */
+function inTime<T>(question: Promise<T>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new DataError("No answer in time.", { kind: "network" })),
+      QUESTION_TIMEOUT_MS,
+    );
+  });
+  return Promise.race([question, late]).finally(() => clearTimeout(timer));
+}
 
 /** Enough of a message to tell whether a turn has touched it. */
 const fingerprint = (message?: Message) => (message ? `${message.id}:${message.content}` : "");
@@ -62,22 +78,25 @@ function ChatView({ id }: { id: string }) {
   const [persona, setPersona] = useState<Persona | null>(null);
   // Read from the store rather than held here: leaving the page used to throw
   // this away while the reply carried on arriving.
-  const turn = useSyncExternalStore(turnStore.subscribe, turnStore.read);
-  const turnHere = turn?.conversationId === id ? turn : null;
-  const busy = turnHere?.busy ?? false;
-  const cutOff = turnHere !== null && !turnHere.busy;
+  const turn = useSyncExternalStore(turnStore.subscribe, () => turnStore.read(id));
+  const busy = turn?.busy ?? false;
+  const cutOff = turn !== null && !turn.busy;
   // The words of the reply being read, or of one cut off, if any had arrived.
-  const streamText = turnHere && (turnHere.busy || turnHere.text) ? turnHere.text : null;
+  const streamText = turn && (turn.busy || turn.text) ? turn.text : null;
   const [regenTargetId, setRegenTargetId] = useState<string | null>(null);
-  // What went wrong, described when drawn, so that a change of language reaches
-  // the sentence too, and so that what follows a turn does not depend on it.
-  const [failure, setFailure] = useState<TurnFailure | null>(null);
+  const failure: TurnFailure | null = useSyncExternalStore(
+    turnStore.subscribe,
+    () => turnStore.failureOf(id),
+  );
+  // A model that never answered is not a fault to raise the alarm about; usually
+  // the server behind it is simply not running.
+  const silent = typeof failure === "object" && failure !== null && "event" in failure
+    && failure.event.kind === "unreachable";
   const [panelOpen, setPanelOpen] = useState(true); // desktop, inline column
   // Phones: the panel covers the conversation, so a backdrop cannot be judged
   // from inside it. Adjusting closes the panel and leaves a bar over the real
   // thing instead.
   const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
-  const [silent, setSilent] = useState(false);
   const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false); // phone, overlay
   // The error itself, described when drawn, so that a change of language
@@ -119,9 +138,11 @@ function ChatView({ id }: { id: string }) {
     lastMessageBefore: string;
   } | null>(null);
   const checking = useRef<Promise<TurnCheck> | null>(null);
+  // The first read of the conversation, which whatever reads it next must come after.
+  const opening = useRef<Promise<unknown> | null>(null);
 
   /** What the events of a turn do to the page, whoever asked for the turn. */
-  const applyTurnEvent = useCallback((event: ChatEvent) => {
+  const applyTurnEvent = useCallback((event: ChatEvent, controller: AbortController) => {
     if (event.type === "start") {
       const real = event.user_message;
       if (!real) return;
@@ -132,21 +153,23 @@ function ChatView({ id }: { id: string }) {
         real,
       ].sort((a, b) => a.position - b.position));
     } else if (event.type === "delta") {
-      turnStore.append(event.text);
+      turnStore.append(id, controller, event.text);
     } else if (event.type === "done") {
+      // Never without a message from this version of the server, but an older one
+      // sends one if the message was deleted, and this is no reason to fall over.
+      const saved = event.message;
+      if (!saved) return;
       setMessages((prev) => {
-        const others = prev.filter((m) => m.id !== event.message.id);
-        return [...others, event.message].sort((a, b) => a.position - b.position);
+        const others = prev.filter((m) => m.id !== saved.id);
+        return [...others, saved].sort((a, b) => a.position - b.position);
       });
       if (event.context) setContextStats(event.context);
       if (event.perf) setPerf(event.perf);
     } else if (event.type === "error") {
-      // A model that never answered is not a fault to raise the alarm
-      // about; usually the server behind it is simply not running.
-      if (event.kind === "unreachable") setSilent(true);
-      else setFailure({ event });
+      // In the store, since the page that hears of it may not be the one on screen.
+      turnStore.fail(id, { event });
     }
-  }, []);
+  }, [id]);
 
   /** Read a turn from its first word, which is where a reader starts. Says whether
    *  it saw the turn end, and how, and what broke the reading, if anything did. */
@@ -156,19 +179,20 @@ function ChatView({ id }: { id: string }) {
     try {
       await data.turns.follow(id, (event) => {
         if (event.type === "start") {
-          // A page arriving knows nothing of the turn yet. A regeneration replaces
-          // a reply rather than adding one; without knowing which, the page shows
-          // both the old reply and its replacement arriving underneath. Otherwise
-          // the page already knows that, and it is the words that start again.
-          if (arriving) setRegenTargetId(event.target_message_id ?? null);
-          else turnStore.restart(controller);
+          if (!arriving) turnStore.restart(id, controller);
+          // A regeneration replaces a reply rather than adding one; without knowing
+          // which, the page shows both the old reply and its replacement arriving
+          // underneath, whoever asked for it. A continuation extends one, and what
+          // was read of it on arriving has the new words in it already, but this
+          // page's own copy of one it was already reading does not.
+          if (arriving || event.mode !== "continue") setRegenTargetId(event.target_message_id ?? null);
         } else if (event.type === "error") {
           failed = true;
           ended = true;
-        } else if (event.type === "done") {
+        } else if (event.type === "done" || event.type === "discarded") {
           ended = true;
         }
-        applyTurnEvent(event);
+        applyTurnEvent(event, controller);
       }, controller.signal);
       return { failed, ended };
     } catch (error) {
@@ -177,15 +201,15 @@ function ChatView({ id }: { id: string }) {
   }, [id, applyTurnEvent]);
 
   const finishReading = useCallback((controller: AbortController) => {
-    if (turnStore.end(controller)) setRegenTargetId(null);
-  }, []);
+    if (turnStore.end(id, controller)) setRegenTargetId(null);
+  }, [id]);
 
   /** Read the conversation, and put it on screen unless the person has changed a
    *  message since the read was sent. Nearly always it says what is there already,
    *  and then that is left alone rather than every message being drawn twice. */
   const readAgain = useCallback(async () => {
     const changes = changesByHand.current;
-    const latest = (await data.conversations.get(id)).messages ?? [];
+    const latest = (await inTime(data.conversations.get(id))).messages ?? [];
     return {
       latest,
       show() {
@@ -208,29 +232,36 @@ function ChatView({ id }: { id: string }) {
     }
 
     async function ask(): Promise<TurnCheck> {
+      const before = turnStore.readerOf(id);
+      // An answer takes a while, and it is about how things stood when it was asked.
+      // If the person has stopped the turn since, or asked for another, it is out
+      // of date, and acting on it would undo what they did.
+      const outOfDate = () => turnStore.readerOf(id) !== before || turnStore.isStopping(id);
+      let handedOver: AbortController | null = null;
       try {
-        const state = await data.turns.state(id);
+        const state = await inTime(data.turns.state(id));
+        if (outOfDate()) return { result: "superseded" };
         if (state.running) {
           const reader = new AbortController();
           turnStore.handOver(id, reader);
-          setFailure(null);
+          turnStore.fail(id, null);
           void readToTheEnd(reader, false);
           return { result: "running" };
         }
         if (state.ended_recently) {
           // Nothing more can come of this one, so nothing further to ask.
-          const reader = new AbortController();
-          turnStore.handOver(id, reader);
-          setFailure(null);
-          const { failed, broken } = await readTurn(reader, false);
+          handedOver = new AbortController();
+          turnStore.handOver(id, handedOver);
+          turnStore.fail(id, null);
+          const { failed, broken } = await readTurn(handedOver, false);
           if (broken !== undefined) {
-            turnStore.lose(reader, broken);
+            turnStore.lose(id, handedOver, broken);
             return { result: "unreachable" };
           }
           if (failed) {
             // The failure is what the person is told. Nothing came of the turn, so
             // somebody asking again really is asking for something new.
-            finishReading(reader);
+            finishReading(handedOver);
             const { latest, show } = await readAgain();
             show();
             return { result: "no reply", messages: latest };
@@ -239,25 +270,30 @@ function ChatView({ id }: { id: string }) {
 
         const reader = turnStore.readerOf(id);
         const { latest, show } = await readAgain();
-        // Something else took over while that was on its way.
-        if (turnStore.readerOf(id) !== reader) return { result: "running" };
+        if (turnStore.readerOf(id) !== reader || turnStore.isStopping(id)) {
+          // A reader handed over here has nobody else to end it.
+          if (handedOver) finishReading(handedOver);
+          return { result: "superseded" };
+        }
         show();
-        turnStore.drop(reader);
+        turnStore.drop(id, reader);
         setRegenTargetId(null);
 
         const last = latest.at(-1);
         if (fingerprint(last) === lastAsked.current?.lastMessageBefore) {
-          setFailure("no reply");
+          turnStore.fail(id, "no reply");
           return { result: "not sent", messages: latest };
         }
         if (last?.role !== "assistant") {
           // Quietly, if it was stopped before any word: that is what was asked for.
-          setFailure(unanswered(latest) ? "no reply" : null);
+          turnStore.fail(id, unanswered(latest) ? "no reply" : null);
           return { result: "no reply", messages: latest };
         }
-        setFailure(null);
-        return { result: "settled" };
-      } catch {
+        turnStore.fail(id, null);
+        return { result: "settled", messages: latest };
+      } catch (error) {
+        // A reader handed over here has nobody else to end it.
+        if (handedOver) turnStore.lose(id, handedOver, error);
         return { result: "unreachable" };
       }
     }
@@ -271,12 +307,12 @@ function ChatView({ id }: { id: string }) {
      *  too if readers keep ending with nothing to show for it. */
     async function pickTurnBackUp(controller: AbortController, why: unknown) {
       if (controller.signal.aborted) return;
-      if (turnStore.closedEarly() >= CLOSES_WITHOUT_A_WORD) {
-        turnStore.lose(controller, why);
+      if (turnStore.closedEarly(id, controller) >= CLOSES_WITHOUT_A_WORD) {
+        turnStore.lose(id, controller, why);
         return;
       }
       const { result } = await checkOnTurn();
-      if (result === "unreachable" && !controller.signal.aborted) turnStore.lose(controller, why);
+      if (result === "unreachable" && !controller.signal.aborted) turnStore.lose(id, controller, why);
     }
 
     /** Read a turn until it ends, whatever that takes. */
@@ -289,17 +325,36 @@ function ChatView({ id }: { id: string }) {
     return { checkOnTurn, pickTurnBackUp, readToTheEnd };
   }, [id, readTurn, finishReading, readAgain]);
 
+  /** Fetch the conversation again, after the first read if that is still on its way:
+   *  coming back to a reply just as it ends, what that read says is out of date. */
+  const reload = useCallback(
+    () =>
+      Promise.resolve(opening.current)
+        .catch(() => {})
+        .then(readAgain)
+        .then(({ show }) => show())
+        .catch(() => {}), // keep current state
+    [readAgain],
+  );
+
   // A phone coming back. Sleeping is when a connection goes, sometimes with an
   // error that came too soon to do anything about, and sometimes without one: a
   // stream can simply stop. Each event is worth one question, and only if there is
   // something to ask: a reply cut off, or one that has gone quiet. If the server is
-  // still out of reach, things stay as they are until the next event.
+  // still out of reach, a reply cut off stays as it is until the next event, and one
+  // that had gone quiet now says so.
   useEffect(() => {
     let waiting: ReturnType<typeof setTimeout> | undefined;
     const ask = () => {
-      const here = turnStore.read();
-      if (here?.conversationId !== id) return;
-      if (!here.busy || turnStore.quietFor() >= QUIET_BEFORE_ASKING_MS) void checkOnTurn();
+      void turnStore.sayStopAgain(id).then((said) => {
+        if (said) void reload();
+      });
+      const here = turnStore.read(id);
+      if (!here || (here.busy && turnStore.quietFor(id) < QUIET_BEFORE_ASKING_MS)) return;
+      const reader = turnStore.readerOf(id);
+      void checkOnTurn().then(({ result }) => {
+        if (result === "unreachable" && reader) turnStore.lose(id, reader, streamEndedEarly());
+      });
     };
     const comingBack = () => {
       if (document.visibilityState !== "visible") return;
@@ -313,12 +368,13 @@ function ChatView({ id }: { id: string }) {
       window.removeEventListener("online", comingBack);
       document.removeEventListener("visibilitychange", comingBack);
     };
-  }, [id, checkOnTurn]);
+  }, [id, checkOnTurn, reload]);
 
   useEffect(() => {
     const controller = new AbortController();
-    const opening = data.conversations.get(id);
-    opening
+    const firstRead = data.conversations.get(id);
+    opening.current = firstRead;
+    firstRead
       .then((convo) => {
         setConversation(convo);
         setMessages(convo.messages ?? []);
@@ -331,21 +387,39 @@ function ChatView({ id }: { id: string }) {
       })
       .catch((error) => setLoadFailure({ error }));
 
+    /** A reply that failed with no page open to say so. Unless something more exact
+     *  is known about it, or another device has just started on it: the conversation
+     *  and the state of the turn are two reads, and one that came first says nothing
+     *  about what happened in between. */
+    async function reportIfUnanswered(messages: Message[]) {
+      if (!unanswered(messages)) {
+        if (turnStore.failureOf(id) === "no reply") turnStore.fail(id, null);
+        return;
+      }
+      const known = turnStore.failureOf(id);
+      if (known && known !== "turn running") return;
+      const again = await inTime(data.turns.state(id));
+      if (controller.signal.aborted || turnStore.isRunning(id)) return;
+      if (again.running) void checkOnTurn();
+      else turnStore.fail(id, "no reply");
+    }
+
     void (async () => {
+      void turnStore.sayStopAgain(id);
       if (turnStore.isRunning(id)) return; // this page is already the one running it
       // Left from a reply cut off before the person went elsewhere. They are back
       // at the start, and it will be read like everything else.
-      turnStore.drop(turnStore.readerOf(id));
+      turnStore.drop(id, turnStore.readerOf(id));
       const state = await data.turns.state(id);
       if (controller.signal.aborted) return;
       if (state.running) {
         // Watch a reply that is being written elsewhere — by a server that carried
         // on after the phone that asked for it went to sleep.
         turnStore.begin(id, controller);
+        turnStore.fail(id, null);
         await readToTheEnd(controller, true);
       } else if (!state.ended_recently) {
-        // A reply that failed with no page open to say so.
-        if (unanswered((await opening).messages ?? [])) setFailure("no reply");
+        await reportIfUnanswered((await firstRead).messages ?? []);
         return;
       }
       // The conversation and the state of the turn are two reads, not one moment.
@@ -355,27 +429,18 @@ function ChatView({ id }: { id: string }) {
       // server can. The same goes for a read still on its way when the turn this
       // page attached to ended. Once more is enough: nothing was running when this
       // is asked for.
-      await opening;
+      await firstRead;
       if (controller.signal.aborted) return;
       const { latest, show } = await readAgain();
       if (controller.signal.aborted || turnStore.isRunning(id)) return;
       show();
-      if (!state.running && unanswered(latest)) setFailure("no reply");
+      if (!state.running) await reportIfUnanswered(latest);
     })().catch(() => {
       /* whatever was read first stays on screen, or its failure is reported above */
     });
 
     return () => controller.abort();
-  }, [id, readToTheEnd, readAgain]);
-
-  /** Fetch the conversation again. */
-  const reload = useCallback(async () => {
-    if (!conversation) return;
-    await data.conversations
-      .get(conversation.id)
-      .then((convo) => setMessages(convo.messages ?? []))
-      .catch(() => {}); // keep current state
-  }, [conversation]);
+  }, [id, readToTheEnd, readAgain, checkOnTurn]);
 
   // What was already on screen when this page started the current turn. The
   // filter below hides a reply marked as still being written, so that a page
@@ -418,9 +483,9 @@ function ChatView({ id }: { id: string }) {
     messageMode: "say" | "narrate" | "ooc" = "say",
     known: Message[] = messages,
   ) {
-    if (!conversation || busy) return;
-    setFailure(null);
-    setSilent(false);
+    if (!conversation || busy) return false;
+    turnStore.fail(id, null);
+    let refused = false;
     stickToBottom.current = true;
     const controller = new AbortController();
     setBeforeTurn(new Set(known.map((m) => m.id)));
@@ -461,10 +526,10 @@ function ChatView({ id }: { id: string }) {
         if (!conversation.title && content && messageMode === "say") {
           setConversation((c) => (c ? { ...c, title: content.slice(0, 60) } : c));
         }
-      } else if (event.type === "done" || event.type === "error") {
+      } else if (event.type === "done" || event.type === "error" || event.type === "discarded") {
         finished = true;
       }
-      applyTurnEvent(event);
+      applyTurnEvent(event, controller);
     };
 
     try {
@@ -482,7 +547,7 @@ function ChatView({ id }: { id: string }) {
       if (controller.signal.aborted) {
         // Stopped, in which case the backend persisted the partial text. Unless it
         // was only this connection that was given up on, for another reader.
-        if (turnStore.readerOf(conversation.id) === controller) await reload();
+        if (turnStore.isRunning(id) && turnStore.readerOf(id) === controller) await reload();
       } else if (startReceived) {
         // Whether the turn ever began is what decides this, and `start` is how
         // we know. Losing the connection after it began is not losing the
@@ -497,11 +562,18 @@ function ChatView({ id }: { id: string }) {
       } else if (e instanceof DataError && e.kind === "network") {
         // Failing before it began means the message may never have been sent,
         // which is worth saying, and a phone coming back asks whether it was.
-        turnStore.lose(controller, e);
+        turnStore.lose(id, controller, e);
+      } else if (e instanceof DataError && e.kind === "turn_running") {
+        // One is being written already, and it is not this. Nothing was saved of
+        // what was asked. Show the one there is, and say why this did not go.
+        refused = true;
+        lastAsked.current = null;
+        await checkOnTurn();
+        turnStore.fail(id, "turn running");
       } else {
         // Evermind answered, and said no.
         await reload();
-        setFailure({ error: e });
+        turnStore.fail(id, { error: e });
       }
     }
 
@@ -512,6 +584,21 @@ function ChatView({ id }: { id: string }) {
     }
 
     finishReading(controller);
+    return refused;
+  }
+
+  /** A message from the box. If the last reply was cut off, the server may well still
+   *  be writing it, and is asked first, since it would refuse this anyway. If it
+   *  cannot be reached, nothing is lost by the message staying where it is. */
+  async function sendMessage(content: string, messageMode: "say" | "narrate" | "ooc") {
+    let known = messages;
+    if (cutOff) {
+      const check = await checkOnTurn();
+      if (check.result === "running") turnStore.fail(id, "turn running");
+      if (!("messages" in check)) return true;
+      known = check.messages;
+    }
+    return runTurn("send", content, messageMode, known);
   }
 
   /** Trying again after a connection was lost asks first: the reply may be being
@@ -548,6 +635,12 @@ function ChatView({ id }: { id: string }) {
     await data.messages.removeFrom(message.id);
     changesByHand.current += 1;
     setMessages((prev) => prev.filter((m) => m.position < message.position));
+    // Whatever was being reported was about what has just gone.
+    turnStore.fail(id, null);
+    if (cutOff) {
+      turnStore.drop(id, turnStore.readerOf(id));
+      setRegenTargetId(null);
+    }
   }
 
   async function branchFrom(message: Message) {
@@ -573,14 +666,17 @@ function ChatView({ id }: { id: string }) {
   const character = conversation.character;
   const lastMessage = messages[messages.length - 1];
   const problem = cutOff
-    ? describeError(turnHere.lost, t, t("chat.errors.connectionFailed"))
-    : failure === "no reply"
-      ? t("chat.errors.noReply")
-      : failure === null
-        ? null
-        : "event" in failure
-          ? describeEvent(failure.event, t)
-          : describeError(failure.error, t, t("chat.errors.connectionFailed"));
+    ? describeError(turn.lost, t, t("chat.errors.connectionFailed"))
+    : failure === null || silent
+      ? null
+      : failure === "no reply"
+        ? t("chat.errors.noReply")
+        : failure === "turn running"
+          // Only as long as that is true: there is nothing to say once it has ended.
+          ? (busy ? t("errors.turnRunning") : null)
+          : "event" in failure
+            ? describeEvent(failure.event, t)
+            : describeError(failure.error, t, t("chat.errors.connectionFailed"));
   // While regenerating an existing message, hide it (its replacement streams
   // below). A reply still being written is hidden the same way while its turn is
   // live: the backend saves it as it goes, so arriving mid-turn would otherwise
@@ -756,7 +852,7 @@ function ChatView({ id }: { id: string }) {
             {problem && (
               <div className="mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 bg-blood/10 px-4 py-3">
                 <p className="text-sm text-blood">{problem}</p>
-                {lastMessage && (
+                {lastMessage && !busy && (
                   <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
                     {t("chat.errors.retryButton")}
                   </button>
@@ -769,8 +865,8 @@ function ChatView({ id }: { id: string }) {
         <ChatInput
           key={conversation.id}
           conversationId={conversation.id}
-          onSend={(content, messageMode) => runTurn("send", content, messageMode)}
-          onStop={() => turnStore.stop()}
+          onSend={sendMessage}
+          onStop={() => turnStore.stop(id)}
           busy={busy}
           characterName={character.name}
         />

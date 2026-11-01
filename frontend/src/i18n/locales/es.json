@@ -483,6 +483,7 @@
     "modelError": "El modelo ha devuelto un error: {message}",
     "modelUnreachable": "Evermind no puede conectar con el servidor del modelo en {url}. Comprueba que está en marcha y que la dirección de la conexión es correcta.",
     "modelUnreachableNoAddress": "El servidor del modelo no responde. Comprueba que está en marcha y que la dirección de la conexión es correcta.",
+    "turnRunning": "Ya se está escribiendo una respuesta, así que esto no se ha enviado.",
     "modelEmpty": "El modelo ha devuelto una respuesta vacía. Inténtalo de nuevo o cambia de modelo.",
     "modelEmptyRetried": "El modelo no ha devuelto nada en dos intentos, ni siquiera dejando aparte la línea de apertura. Es probable que su plantilla de chat no sirva aquí para el rol; prueba con otro modelo.",
     "modelUnreadable": "No se ha podido leer la respuesta del modelo. Inténtalo de nuevo.",

@@ -174,9 +174,12 @@ export interface TurnState {
 
 export type ChatEvent =
   | { type: "start"; conversation_id: string; user_message: Message | null;
+      mode?: TurnState["mode"];
       /** The reply this turn replaces or extends, if any. */
       target_message_id?: string | null }
   | { type: "delta"; text: string }
+  /** What it was writing into has been deleted, so nothing came of it. */
+  | { type: "discarded" }
   | { type: "done"; message: Message; context?: ContextStats; perf?: TurnPerf }
   | {
       type: "error"; message: string; kind?: string | null; resource?: string;

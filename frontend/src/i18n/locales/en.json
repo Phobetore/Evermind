@@ -483,6 +483,7 @@
     "modelError": "The model reported an error: {message}",
     "modelUnreachable": "Evermind cannot reach the model's server at {url}. Check that it is running and that the address in the connection is right.",
     "modelUnreachableNoAddress": "The model's server is not answering. Check that it is running and that the address in the connection is right.",
+    "turnRunning": "A reply is already being written, so this was not sent.",
     "modelEmpty": "The model returned an empty reply. Try again or switch models.",
     "modelEmptyRetried": "The model returned nothing, twice, even with the opening line moved out of its way. Its chat template is probably not usable for roleplay here; try another model.",
     "modelUnreadable": "The model's answer could not be read. Try again.",

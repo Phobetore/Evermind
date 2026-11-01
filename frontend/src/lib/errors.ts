@@ -45,6 +45,7 @@ const KIND_KEYS: Record<string, string> = {
   empty_message: "errors.emptyMessage",
   nothing_to_regenerate: "errors.nothingToRegenerate",
   nothing_to_continue: "errors.nothingToContinue",
+  turn_running: "errors.turnRunning",
   // No answer from Evermind itself.
   network: "errors.unreachable",
 };

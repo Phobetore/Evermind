@@ -52,7 +52,8 @@ export function ChatInput({
   characterName,
 }: {
   conversationId: string;
-  onSend: (content: string, messageMode: MessageMode) => void;
+  /** Says whether the message was refused, and so belongs back in the box. */
+  onSend: (content: string, messageMode: MessageMode) => Promise<boolean>;
   onStop: () => void;
   busy: boolean;
   characterName: string;
@@ -114,8 +115,14 @@ export function ChatInput({
     setSilent(false);
     setValue("");
     clearDraft(conversationId);
-    onSend(content, mode);
+    const sentAs = mode;
     setMode("say"); // narration and OOC are one-shot by nature
+    void onSend(content, sentAs).then((refused) => {
+      if (!refused) return;
+      // Unless something else has been started in the box in the meantime.
+      setValue((typed) => typed || content);
+      setMode(sentAs);
+    });
   }
 
   async function ghostwrite() {
