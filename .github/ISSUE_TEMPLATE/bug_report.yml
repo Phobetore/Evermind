@@ -35,7 +35,7 @@ body:
     attributes:
       label: How you run Evermind
       options:
-        - Docker, published images
+        - Docker, published image
         - Docker, built from source with --build
         - Directly, with the prod scripts
         - Development server

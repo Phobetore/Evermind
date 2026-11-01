@@ -8,7 +8,7 @@ on:
 
 # Read-only unless a job asks for more, as the dependency review does to comment
 # on a pull request. The image is built and thrown away; publishing lives in the
-# release workflow, with its own permissions.
+# Docker image workflow (docker.yml), with its own permissions.
 permissions:
   contents: read
 
@@ -130,7 +130,8 @@ jobs:
 
   # The image was only ever built when cutting a release, so a broken COPY or a
   # stale base image stayed invisible behind a green CI until publishing failed.
-  # Built here and never pushed: publishing stays the release workflow's job.
+  # Built here and never pushed: publishing stays the job of the Docker image
+  # workflow (docker.yml).
   images:
     name: Image
     runs-on: ubuntu-latest
