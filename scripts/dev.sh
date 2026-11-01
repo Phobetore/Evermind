@@ -54,8 +54,6 @@ fi
 # same check itself when it starts, so this is what it would say, said first.
 if ! (cd "$ROOT/backend" && "$PYTHON" -m app --check --dev > /dev/null); then
     echo "Nothing was started." >&2
-    echo "In development the API's port is EVERMIND_BACKEND_PORT: if it is the one taken, set" >&2
-    echo "that in .env, instead of PORT." >&2
     exit 1
 fi
 
@@ -77,19 +75,19 @@ if [ -n "$LAN" ] && ! (cd "$ROOT/backend" && "$PYTHON" -m app --check --lan > /d
     echo "Starting anyway: Vite may end up on another port, so go by the address it prints." >&2
 fi
 
-# Stopping this script has to stop both programs, whichever way that happens
-# (Ctrl+C, SIGTERM, the terminal being closed). Neither is one process: npm
-# starts Vite through a shell, and the API runs its server under a reloader, so
-# a signal sent to the process that was started never reaches the rest. Each
-# program therefore gets a process group of its own (set -m), and the traps
-# below signal the group.
+# Stopping this script has to stop both programs when it is told to stop (Ctrl+C,
+# SIGTERM, the terminal being closed). Neither is one process: npm starts Vite
+# through a shell, and the API runs its server under a reloader, so a signal sent
+# to the process that was started never reaches the rest. Each program therefore
+# gets a process group of its own (set -m), and the traps below signal the group.
 #
 # Vite is waited for, not run in the foreground: bash holds back a trapped signal
 # until the command it is running has ended, so a SIGTERM would only be heard
-# once Vite quit by itself. From outside the terminal's foreground, Vite cannot
-# read the keyboard either: its first read stops it, which froze the dev server
-# the first time someone pressed Enter in this window. So it gets no input, and
-# its keyboard shortcuts (h + enter and the others) are not available here.
+# once Vite quit by itself. From outside the terminal's foreground, a program
+# cannot read the keyboard either: its first read stops it, which froze Vite the
+# first time someone pressed Enter in this window. So neither program is given any
+# input, and Vite's keyboard shortcuts (h + enter and the others) are not
+# available here.
 set -m
 BACKEND_PID=""
 VITE_PID=""
@@ -107,7 +105,7 @@ trap 'exit 143' TERM
 
 # The API only listens on the loopback: the dev server is what the network sees,
 # and it forwards /api here.
-(cd "$ROOT/backend" && exec "$PYTHON" -m app --dev $LAN) &
+(cd "$ROOT/backend" && exec "$PYTHON" -m app --dev $LAN) < /dev/null &
 BACKEND_PID=$!
 (cd "$ROOT/frontend" && exec npm run "$DEV_SCRIPT") < /dev/null &
 VITE_PID=$!

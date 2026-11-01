@@ -74,7 +74,6 @@ $checkFailed = $LASTEXITCODE -ne 0
 Pop-Location
 if ($checkFailed) {
     Write-Host "Nothing was started." -ForegroundColor Red
-    Write-Host "In development the API's port is EVERMIND_BACKEND_PORT: if it is the one taken, set that in .env, instead of PORT." -ForegroundColor Yellow
     exit 1
 }
 
