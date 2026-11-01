@@ -45,6 +45,9 @@ packages = ["app"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Named because pytest-asyncio warns when it is unset. Every fixture here is
+# function-scoped, so each test and its fixtures share one event loop.
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 
 [tool.ruff]
