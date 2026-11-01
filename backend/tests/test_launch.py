@@ -662,6 +662,20 @@ def test_a_port_that_needs_rights_is_reported(clean_env, ui_built, monkeypatch, 
     assert served == []
 
 
+def test_a_port_that_needs_rights_in_development_names_the_api_port_setting(
+    clean_env, monkeypatch, served, capsys
+):
+    # PORT is Vite's in development: setting it would not move the API.
+    fake_sockets(monkeypatch, bind_error=PermissionError(errno.EACCES, "Permission denied"))
+    monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
+    assert launch.main(["--no-env-file", "--dev", "--port", "80"]) == 1
+    assert capsys.readouterr().err.splitlines() == [
+        "Port 80 needs administrator rights. "
+        "Pick a port above 1024, for example EVERMIND_BACKEND_PORT=8001."
+    ]
+    assert served == []
+
+
 def test_check_reports_a_port_that_needs_rights_too(clean_env, monkeypatch, served, capsys):
     fake_sockets(monkeypatch, bind_error=PermissionError(errno.EACCES, "Permission denied"))
     monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
@@ -768,6 +782,14 @@ def test_the_entry_point_refuses_a_busy_port_and_exits_with_1(busy_port):
     assert done.returncode == 1
     assert done.stdout == ""
     assert f"Port {busy_port} is already in use." in done.stderr
+    assert "for example PORT=3001." in done.stderr
+
+
+def test_the_entry_point_names_the_api_port_setting_for_a_busy_port_in_development(busy_port):
+    done = run_entry_point("--check", "--dev", "--no-env-file", "--port", str(busy_port))
+    assert done.returncode == 1
+    assert "for example EVERMIND_BACKEND_PORT=8001." in done.stderr
+    assert "PORT=3001" not in done.stderr
 
 
 def test_busy_port_is_reported(clean_env, ui_built, busy_port, served, capsys):
@@ -775,6 +797,20 @@ def test_busy_port_is_reported(clean_env, ui_built, busy_port, served, capsys):
     captured = capsys.readouterr()
     assert f"Port {busy_port} is already in use." in captured.err
     assert "put a free port in .env next to the scripts, for example PORT=3001." in captured.err
+    assert captured.out == ""
+    assert served == []
+
+
+def test_busy_port_in_development_names_the_api_port_setting(clean_env, busy_port, served, capsys):
+    # PORT is Vite's in development: setting it would not move the API.
+    assert launch.main(["--no-env-file", "--dev", "--port", str(busy_port)]) == 1
+    captured = capsys.readouterr()
+    assert f"Port {busy_port} is already in use." in captured.err
+    assert (
+        "put a free port in .env next to the scripts, for example EVERMIND_BACKEND_PORT=8001."
+        in captured.err
+    )
+    assert "PORT=3001" not in captured.err
     assert captured.out == ""
     assert served == []
 

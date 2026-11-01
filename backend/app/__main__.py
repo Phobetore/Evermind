@@ -274,12 +274,15 @@ def main(argv: list[str] | None = None) -> int:
         _say(str(err), file=sys.stderr)
         return 1
 
+    # In development the API's port is a setting of its own: PORT is Vite's, and
+    # changing it would not move the API.
+    example = "EVERMIND_BACKEND_PORT=8001" if listen.dev else "PORT=3001"
     try:
         taken = port_in_use(listen.host, listen.port)
     except PermissionError:
         _say(
             f"Port {listen.port} needs administrator rights. "
-            "Pick a port above 1024, for example PORT=3001.",
+            f"Pick a port above 1024, for example {example}.",
             file=sys.stderr,
         )
         return 1
@@ -287,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
         _say(
             f"Port {listen.port} is already in use.",
             "If Evermind is still running, stop it and run this again. "
-            "Otherwise put a free port in .env next to the scripts, for example PORT=3001.",
+            f"Otherwise put a free port in .env next to the scripts, for example {example}.",
             file=sys.stderr,
         )
         return 1
