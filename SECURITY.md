@@ -69,8 +69,11 @@ what stands in its way:
   is turned away. The browser says so in `Sec-Fetch-Site` over HTTPS and on
   localhost, and otherwise only in `Origin`, which Evermind compares with the
   address the request was sent to. A reverse proxy in front of Evermind must
-  therefore either serve it over HTTPS or pass the `Host` header through
-  unchanged; otherwise the interface's own changes are refused too.
+  therefore pass the `Host` header through unchanged, which works with every
+  browser. Serving it over HTTPS is the second safety net, since browsers then
+  send `Sec-Fetch-Site`, though Safari before 16.4 sends no Fetch Metadata even
+  over HTTPS. A proxy that does neither gets the interface's own changes refused
+  too.
 - **Without a password, Evermind only answers to names it knows.** A website can
   point a name of its own at your computer once its page is loaded (DNS
   rebinding), and the browser then treats that page as Evermind itself, able to

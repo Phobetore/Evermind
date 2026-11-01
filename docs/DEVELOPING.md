@@ -168,8 +168,9 @@ browser sends from a page of another origin answers `403` with
 `"kind": "cross_origin"`, and such a page's websocket is closed. The browser
 says so in `Sec-Fetch-Site` over HTTPS and on localhost, and otherwise only in
 `Origin`, which the API compares with the scheme and `Host` the request arrived
-with. So a reverse proxy must either use HTTPS or preserve `Host`. A request
-with neither header, from curl or a script, is let through.
+with. So a reverse proxy should preserve `Host`, which always works; HTTPS is
+the second safety net, but Safari before 16.4 sends no Fetch Metadata even over
+HTTPS. A request with neither header, from curl or a script, is let through.
 
 Without a password, anything under `/api/` whose `Host` is not an address,
 `localhost` (or a name ending in `.localhost`), this machine's name (also with

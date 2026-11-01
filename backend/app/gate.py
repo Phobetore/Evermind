@@ -397,8 +397,9 @@ def _from_another_origin(scope: Scope) -> bool:
     is sent with every write and every websocket handshake, to any address,
     so without Fetch Metadata it is compared with the origin the request was
     addressed to, rebuilt from the scheme and the Host header. A reverse proxy
-    that rewrites Host breaks that comparison, but one that serves https gets
-    Sec-Fetch-Site, which is read first.
+    that rewrites Host breaks that comparison, unless the browser sends
+    Sec-Fetch-Site, which is read first: it does over https, but Safari before
+    16.4 does not, even there.
     """
     headers = Headers(scope=scope)
     site = headers.get("sec-fetch-site")

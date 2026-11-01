@@ -142,12 +142,13 @@ A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
   again.
 - **A reverse proxy has to keep the address the browser used.** Evermind now
   turns away the changes that a page of another origin sends. Behind a proxy
-  that serves it over plain HTTP and changes the `Host` header, the interface's
-  own changes look like that too. Serve it over HTTPS or pass `Host` on unchanged
-  ([DEVELOPING.md](DEVELOPING.md#serving-under-a-path-prefix) shows how). If the
-  proxy serves Evermind under a path such as `/evermind/`, also set
-  `EVERMIND_ROOT_PATH=/evermind`, so that an old bookmark such as `/chat/<id>`
-  lands on the right page.
+  that changes the `Host` header, the interface's own changes look like that
+  too. Pass `Host` on unchanged, which always works
+  ([DEVELOPING.md](DEVELOPING.md#serving-under-a-path-prefix) shows how).
+  Serving it over HTTPS is the second safety net, but Safari before 16.4 sends
+  no Fetch Metadata even over HTTPS. If the proxy serves Evermind under a path
+  such as `/evermind/`, also set `EVERMIND_ROOT_PATH=/evermind`, so that an old
+  bookmark such as `/chat/<id>` lands on the right page.
 - **Bookmarks still work.** The address is the same, and the old links such as
   `/chat/<id>` or `/settings` redirect to their new form (`/#/chat/<id>`), so
   the ones on your phone keep opening the right place.
