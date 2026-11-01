@@ -13,11 +13,15 @@ if it is still running, and finds the finished reply if it is not.
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 
 from ..db import _connect
 from ..models.schemas import ChatRequest
+from ..repositories import conversations as convo_repo
 from . import chat_service
+
+logger = logging.getLogger(__name__)
 
 # How long a finished turn stays around after its last event. Long enough for
 # someone whose phone woke up to attach and be handed the ending; short enough
@@ -79,6 +83,27 @@ def _forget(turn: Turn) -> None:
         del _running[turn.conversation_id]
 
 
+async def _settle_last_question(db, turn: Turn) -> None:
+    """Whether the person's last message is still waiting for a reply, which only
+    the end of a turn can say. A conversation can end on such a message for other
+    reasons, a reply deleted or a story branched there, and being stopped before any
+    word is one too: nothing is missing, since the person chose that. So it is said
+    outright, for a page opening later, rather than read into where things end."""
+    messages = await convo_repo.list_messages(db, turn.conversation_id)
+    question = next((m for m in reversed(messages) if m["role"] == "user"), None)
+    if not question:
+        return
+    meta = dict(question.get("meta") or {})
+    unanswered = messages[-1] is question and not turn.stopped
+    if bool(meta.get("unanswered")) == unanswered:
+        return
+    if unanswered:
+        meta["unanswered"] = True
+    else:
+        del meta["unanswered"]
+    await convo_repo.update_message(db, question["id"], meta=meta)
+
+
 async def _run(turn: Turn, request: ChatRequest) -> None:
     db = await _connect()
     try:
@@ -93,6 +118,12 @@ async def _run(turn: Turn, request: ChatRequest) -> None:
     except Exception as exc:  # noqa: BLE001 - a crash here must still release readers
         turn.emit(chat_service.error_event(str(exc), "internal"))
     finally:
+        # Before the turn says it has finished, so that whoever sees that it has
+        # also sees this.
+        try:
+            await _settle_last_question(db, turn)
+        except Exception:  # this must not keep readers waiting
+            logger.exception("Could not settle the last question of a turn")
         await db.close()
         turn.finished.set()
         for queue in turn.readers:

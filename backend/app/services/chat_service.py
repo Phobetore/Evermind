@@ -194,7 +194,9 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
         if not content:
             yield error_event("Empty message.", "empty_message")
             return
-        message_meta = {}
+        # From the start, so that it is still said if the server dies before the
+        # reply comes. turns.py takes it away when the turn ends with one.
+        message_meta = {"unanswered": True}
         if request.message_mode in ("narrate", "ooc"):
             message_meta["mode"] = request.message_mode
         user_message = await convo_repo.add_message(db, convo["id"], "user", [content],

@@ -11,6 +11,7 @@ import asyncio
 import pytest
 
 from app.models.schemas import ChatRequest
+from app.providers.base import NETWORK_ERROR, ProviderEvent, failure
 from app.services import turns
 from tests.test_chat import setup_conversation
 from tests.test_streaming_persistence import UnhurriedProvider
@@ -209,3 +210,94 @@ async def test_the_ending_of_a_turn_is_still_there_to_be_read(client, unhurried,
 
     await asyncio.sleep(0.4)
     assert (await client.get(url)).text == "", "a turn that has been forgotten has nothing to say"
+
+
+class RefusingProvider:
+    """Fails without a word, as a model does when it is not there."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        await asyncio.sleep(0.05)
+        yield ProviderEvent(type="error", message="Non.", meta=failure(NETWORK_ERROR, upstream="Non."))
+
+
+def _refusing(monkeypatch):
+    monkeypatch.setattr("app.services.chat_service.get_provider", RefusingProvider)
+
+
+async def test_a_message_left_without_a_reply_says_so(client, monkeypatch):
+    """So that opening the conversation later, on a page that was not there when
+    the turn failed, can tell. Absence alone cannot: a conversation can end on the
+    person's message because a reply was deleted, or because it was branched there."""
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Personne ?"))
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    last = (await _messages(client, convo["id"]))[-1]
+    assert last["role"] == "user"
+    assert last["meta"].get("unanswered") is True, "nothing says the reply never came"
+
+
+async def test_it_says_so_from_the_start_in_case_the_server_dies(client, unhurried):
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Vas-y"))
+    reader = turns.follow(turn)
+    await reader.asend(None)  # the start event: the message is saved by then
+    await reader.aclose()
+
+    messages = await _messages(client, convo["id"])
+    user = next(m for m in reversed(messages) if m["role"] == "user")
+    assert user["meta"].get("unanswered") is True
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+
+async def test_a_reply_takes_it_away(client, unhurried):
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Vas-y"))
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    user, reply = (await _messages(client, convo["id"]))[-2:]
+    assert reply["role"] == "assistant"
+    assert "unanswered" not in user["meta"], (
+        "deleting that reply later would report one that never came"
+    )
+
+
+async def test_stopping_before_any_word_is_not_a_reply_that_went_missing(client, monkeypatch):
+    """Nothing is missing: the person chose this. Saying otherwise, on every later
+    opening of the conversation, would be a false alarm."""
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Non, rien"))
+    reader = turns.follow(turn)
+    await reader.asend(None)
+    await reader.aclose()
+    assert await turns.stop(convo["id"]) is True
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    last = (await _messages(client, convo["id"]))[-1]
+    assert last["role"] == "user", "the reply was meant to stop before any word"
+    assert "unanswered" not in last["meta"]
+
+
+async def test_a_later_reply_takes_it_away_too(client, unhurried, monkeypatch):
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    failed = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Encore"))
+    await asyncio.wait_for(failed.finished.wait(), timeout=15)
+
+    monkeypatch.setattr("app.services.chat_service.get_provider", UnhurriedProvider)
+    answered = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    await asyncio.wait_for(answered.finished.wait(), timeout=15)
+
+    user, reply = (await _messages(client, convo["id"]))[-2:]
+    assert reply["role"] == "assistant"
+    assert "unanswered" not in user["meta"]
