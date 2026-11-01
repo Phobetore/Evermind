@@ -144,3 +144,26 @@ async def test_a_regeneration_also_finishes_after_its_reader_leaves(client, unhu
     assert replaced["variants"][-1].strip().endswith("mot11"), (
         "the replacement was cut short"
     )
+
+
+async def test_a_finished_turn_does_not_take_the_next_one_with_it(client, unhurried, monkeypatch):
+    """A finished turn is forgotten a while after it ends, and the next turn of the
+    conversation takes the same place, often within that while. Forgetting by
+    conversation dropped that one in the middle of its reply: a page then saw
+    nothing running, and a second request would have started a second reply."""
+    monkeypatch.setattr(turns, "_KEEP_FINISHED_SECONDS", 0.2)
+    convo = await setup_conversation(client)
+
+    first = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Un"))
+    await asyncio.wait_for(first.finished.wait(), timeout=15)
+
+    second = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Deux"))
+    await asyncio.sleep(0.4)  # the first is forgotten, the second is at its 5th word
+    assert not second.finished.is_set(), "the reply was over before the moment this is about"
+    assert turns.running_for(convo["id"]) is second, "the next turn was forgotten with the last"
+
+    await asyncio.wait_for(second.finished.wait(), timeout=15)
+    await asyncio.sleep(0.4)
+    assert convo["id"] not in turns._running, "a finished turn was never forgotten"

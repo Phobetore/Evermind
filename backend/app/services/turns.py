@@ -58,6 +58,13 @@ def running_for(conversation_id: str) -> Turn | None:
     return turn if turn and not turn.finished.is_set() else None
 
 
+def _forget(turn: Turn) -> None:
+    """Only if it is still this one. The next turn of the conversation takes the
+    same place, often before this one's time is up, and would go with it."""
+    if _running.get(turn.conversation_id) is turn:
+        del _running[turn.conversation_id]
+
+
 async def _run(turn: Turn, request: ChatRequest) -> None:
     db = await _connect()
     try:
@@ -76,8 +83,7 @@ async def _run(turn: Turn, request: ChatRequest) -> None:
         turn.finished.set()
         for queue in turn.readers:
             queue.put_nowait(None)
-        asyncio.get_running_loop().call_later(
-            _KEEP_FINISHED_SECONDS, _running.pop, turn.conversation_id, None)
+        asyncio.get_running_loop().call_later(_KEEP_FINISHED_SECONDS, _forget, turn)
 
 
 async def start(request: ChatRequest) -> Turn:
