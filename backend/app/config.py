@@ -21,9 +21,8 @@ def _settings_text(data: bytes) -> str:
 
     A byte order mark says which. Without one, a file that starts with ASCII
     characters gives itself away by its NUL bytes: UTF-16 puts one after each
-    character in little-endian and before each in big-endian. UTF-32 has NULs on
-    both sides, which fits neither, and is refused like any other text that is
-    not UTF-8 or UTF-16.
+    character in little-endian and before each in big-endian. UTF-32 without a
+    mark has NULs on both sides, which fits neither, and is refused.
     """
     if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
         return data.decode("utf-16")
@@ -130,8 +129,8 @@ def parse_root_path(raw: str, name: str) -> str:
     A trailing slash is taken off rather than refused, since ``/evermind/`` is
     how the same prefix looks in a proxy's own configuration. Anything that
     could not be part of a path is refused here, because it would only come
-    back as a redirect that leads nowhere, or somewhere else: a query or a
-    space; ``//`` anywhere, which at the start is another site to a browser that
+    back as a redirect that leads nowhere, or somewhere else: a query, a
+    fragment or whitespace; ``//`` anywhere, which at the start is another site to a browser that
     follows the redirect; a backslash, which a browser reads as a slash; a ``%``,
     which hides dots and slashes from these checks until something decodes it;
     and a ``.`` or ``..`` segment, which a browser or a proxy resolves away.
@@ -161,8 +160,8 @@ def root_path(env: Mapping[str, str] | None = None) -> str:
 
 
 def allowed_hosts() -> list[str]:
-    """The host names, besides addresses, localhost and this computer's own
-    name, that the API answers to without a password. Comma-separated; empty
-    entries are dropped."""
+    """The host names, besides addresses, localhost, names ending in .localhost
+    and this computer's own name (alone or followed by .local), that the API
+    answers to without a password. Comma-separated; empty entries are dropped."""
     raw = os.environ.get("EVERMIND_ALLOWED_HOSTS", "")
     return [name.strip() for name in raw.split(",") if name.strip()]

@@ -1,12 +1,13 @@
 """One chat turn, streamed end to end.
 
 SSE wire contract (one `data: <json>` line per event):
-  {"type":"start","conversation_id":...,"user_message":{...}|null}
+  {"type":"start","conversation_id":...,"user_message":{...}|null,"target_message_id":...|null}
   {"type":"delta","text":"..."}
-  {"type":"done","message":{...MessageOut}}
+  {"type":"done","message":{...MessageOut},"context":{...},"perf":{...}}
   {"type":"error","message":"...","kind":"...","resource":"..."}
   (``kind`` names the failure for the interface; ``resource`` only goes with
-  "not_found", and says what was not found.)
+  "not_found", and says what was not found. A model's failure also carries
+  what its server said: ``upstream``, ``upstream_status``, ``upstream_url``.)
 
 Modes:
   send        — persist the user message, generate the reply.
@@ -140,7 +141,6 @@ def _trim_reply(text: str, char_name: str, user_name: str) -> str:
 
 
 async def _generate(connection: dict, payload: PromptPayload):
-    """Run the provider, yielding deltas; returns via StopAsyncIteration value pattern."""
     provider = get_provider(connection)
     async for event in provider.stream_chat(payload):
         yield event
@@ -149,18 +149,12 @@ async def _generate(connection: dict, payload: PromptPayload):
 async def _settle_unfinished(db: aiosqlite.Connection, messages: list[dict]) -> list[dict]:
     """Turn a stale "still writing" mark into what it actually means.
 
-    The mark says a turn is writing that message right now. When the reader
-    goes away mid-reply there is nothing left holding a connection to clear it,
-    so it outlives the turn. The chat view hides anything carrying it while a
-    turn is live — otherwise a page opened mid-turn shows the same text twice,
-    once from the database and once from the stream — so a leftover mark made
-    that reply vanish during every later generation, most visibly the moment
-    you tried to continue it, which is exactly what you do with a reply that
-    was cut off.
+    The mark says a turn is writing that message right now. A turn that ends
+    before its reply is complete, because it was stopped, the model failed or
+    the server went down, never clears it, so it outlives the turn.
 
     By the time another turn starts, nothing is writing it any more. Settle it
-    as interrupted, which is the key the view already knows how to label and
-    which nothing was setting.
+    as interrupted, which the view labels as such.
     """
     settled = []
     for message in messages:
@@ -300,11 +294,9 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     retried_folded = False
 
     # The reply is written to the database while it streams, not only once it is
-    # finished. Closing a tab tears the request down, and there is no moment
-    # afterwards that reliably still has a database connection to save with: the
-    # handler that used to try was never once reached under a real disconnect.
-    # Flushing as we go means whatever has been written is already kept, without
-    # depending on cleanup at all.
+    # finished. A turn that is stopped leaves this generator at a yield, and a
+    # server that goes down leaves it anywhere: flushing as it goes means
+    # whatever has arrived is already kept, without depending on cleanup at all.
     draft_id: str | None = None
     flushed_at = 0.0
 
@@ -331,7 +323,8 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
 
         # A new reply. "streaming" marks it as still being written, so a client
         # arriving mid-turn can tell the difference between a short reply and one
-        # that was cut off. Cleared when the turn ends.
+        # that was cut off. The final write clears it; when that write never
+        # comes, the next turn settles the mark (_settle_unfinished).
         # finish_reason kept for diagnosis: "length" means the reply was cut
         # mid-sentence by max_tokens, not by the model's choice.
         if final:
@@ -346,16 +339,16 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
 
     # At most two passes. A model whose chat template rejects a conversation
     # opening on the assistant's turn streams nothing at all rather than
-    # erroring, and Evermind always opens on the character's greeting, so the
-    # first message of a first conversation dies silently. Rather than hand that
+    # erroring, and Evermind opens a conversation on the character's greeting
+    # when it has one, so the first message of a first conversation dies
+    # silently. Rather than hand that
     # to someone as "try another model", fold the greeting into the system
     # prompt and ask once more.
     for attempt in (0, 1):
-        # No handler for the reader going away, on purpose. There used to be one
-        # that saved the partial text, and it never ran once under a real
-        # disconnect: by the time the request is being torn down there is nothing
-        # left to save with. persist() above has already written whatever
-        # arrived, which is what that handler was for.
+        # No cleanup handler here, on purpose: a stopped turn leaves this
+        # generator while turns._run closes the database connection it was
+        # given, so there is nothing reliable left to save with. persist() has
+        # already written what arrived, up to its last flush.
         async for event in _generate(connection, payload):
             if event.type == "delta":
                 if first_token_at is None:

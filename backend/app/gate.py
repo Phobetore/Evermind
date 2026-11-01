@@ -357,9 +357,12 @@ class GateStore:
 
 
 def set_session_cookie(response: Response, token: str, *, secure: bool) -> None:
-    """A cookie that outlives the browser (Max-Age), sent only by this site's
-    own pages (SameSite=Lax) and out of reach of scripts (HttpOnly). Secure only
-    when asked: a phone on http://192.168.x.y would never send it back."""
+    """A cookie that outlives the browser (Max-Age), out of reach of scripts
+    (HttpOnly), and left out of what pages of other sites send, a link to
+    Evermind aside (SameSite=Lax). Another port of the same machine is the same
+    site and still gets it sent, which is why GateMiddleware judges origins.
+    Secure only when asked: a phone on http://192.168.x.y would never send it
+    back."""
     response.set_cookie(SESSION_COOKIE, token, max_age=SESSION_DAYS * 86400, path="/",
                         secure=secure, httponly=True, samesite="lax")
 
@@ -429,8 +432,9 @@ def _host_name(host: str) -> str | None:
 
 def _known_host(host: str) -> bool:
     """Whether a Host header names this computer in a way that a website
-    cannot borrow: an address, localhost, the computer's own name, alone or
-    followed by .local, or a name listed in EVERMIND_ALLOWED_HOSTS.
+    cannot borrow: an address, localhost or a name ending in .localhost, the
+    computer's own name, alone or followed by .local, or a name listed in
+    EVERMIND_ALLOWED_HOSTS.
 
     A website can point a name of its own at 127.0.0.1 once its page is
     loaded (DNS rebinding). The browser then takes that page and Evermind for
@@ -490,9 +494,10 @@ class GateMiddleware:
     pages from other origins. Without a password, it answers only to host
     names it knows; with one, only to a device with a session.
 
-    Pure ASGI on purpose: BaseHTTPMiddleware would sit between the app and the
-    client on every response, and a reply still being written (the stream of
-    a turn) has to reach the client as it comes.
+    Pure ASGI on purpose: BaseHTTPMiddleware lets websockets through without
+    looking at them, and relays every response, the stream of a turn included,
+    through a stream of its own instead of handing each message on as the app
+    sends it.
     """
 
     def __init__(self, app: ASGIApp, store: GateStore) -> None:

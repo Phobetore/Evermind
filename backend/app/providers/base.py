@@ -108,7 +108,7 @@ class ProviderError(Exception):
 
 
 class Provider:
-    """One instance per configured connection."""
+    """Built from a connection's settings for each use of it."""
 
     def __init__(self, connection: dict):
         self.connection = connection

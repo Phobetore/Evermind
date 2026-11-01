@@ -55,7 +55,7 @@ async def forget(db: aiosqlite.Connection, filename: str) -> bool:
     good: nothing in the app could reach it again and nothing ever removed it,
     so the folder grew with every change. It cannot simply be deleted either —
     branching a conversation gives two of them the same backdrop, and one of
-    them clearing it must not blank the other. Hence the count first.
+    them clearing it must not blank the other. Hence the check first.
     """
     if not filename:
         return False

@@ -34,7 +34,9 @@ async def login(payload: LoginRequest, request: Request) -> Response:
     if not store.enabled:
         return Response(status_code=204)
     # Behind a reverse proxy every attempt seems to come from the proxy, and so
-    # shares one limit, unless uvicorn is told to trust its forwarded headers.
+    # shares one limit, unless the proxy sends X-Forwarded-For and uvicorn
+    # trusts it: it does from 127.0.0.1, and from anywhere else only once
+    # FORWARDED_ALLOW_IPS names the proxy.
     key = request.client.host if request.client else "unknown"
     wait = store.limiter.retry_after(key)
     if wait > 0:
