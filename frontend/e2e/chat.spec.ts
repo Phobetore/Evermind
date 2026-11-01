@@ -47,6 +47,15 @@ test("a reply left mid-write stays on screen while it is continued", async ({ pa
       "the reply disappeared while its continuation was being written").toBeVisible();
     await page.waitForTimeout(250);
   }
+
+  // The continuation is slow and the looking is done. Stopped here, and waited
+  // for on the server's own account of the turn, so it is not still writing
+  // into the tests that come next.
+  await stop.click();
+  await expect(stop).toBeHidden();
+  await expect.poll(async () =>
+    (await (await request.get(`${API}/api/conversations/${convo.id}/turn`)).json()).running,
+    { message: "the continuation kept running after it was stopped" }).toBe(false);
 });
 
 test("sending a message shows the reply arriving", async ({ page, request }) => {
