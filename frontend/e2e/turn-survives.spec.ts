@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { API } from "../playwright.config";
 import {
   conversation, conversationWithReply, makeConversation, stopTurn, turnRunning,
@@ -170,3 +170,61 @@ test("opening a conversation with no recent turn reads it once", async ({ page, 
   await page.waitForLoadState("networkidle");
   expect(reads, "an ordinary opening paid for a second read").toBe(1);
 });
+
+/**
+ * Reading again must not undo what somebody did meanwhile. The read is answered by
+ * the server before the change and only reaches the page after it.
+ */
+const changes = {
+  edit: async (message: Locator) => {
+    await message.locator('button[title="Edit"]').click({ force: true });
+    await message.locator("textarea").fill("Changed by hand.");
+    await message.getByRole("button", { name: "Save" }).click();
+    await expect(message).toContainText("Changed by hand.");
+  },
+  delete: async (message: Locator) => {
+    await message.page().once("dialog", (dialog) => dialog.accept());
+    await message.locator('button[title="Delete from here"]').click({ force: true });
+    await expect(message).toHaveCount(0);
+  },
+};
+
+for (const [name, change] of Object.entries(changes)) {
+  test(`a message changed while the page reads again stays changed (${name})`, async ({ page, request }) => {
+    // A turn has just ended, so the page will read the conversation twice.
+    const convo = await conversationWithReply(request);
+    const message = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
+
+    let reads = 0;
+    let release = () => {};
+    const released = new Promise<void>((resolve) => { release = resolve; });
+    let answered = () => {};
+    const answer = new Promise<void>((resolve) => { answered = resolve; });
+    await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+      reads += route.request().method() === "GET" ? 1 : 0;
+      if (route.request().method() !== "GET" || reads !== 2) return route.continue();
+      const response = await route.fetch();
+      answered();
+      await released;
+      await route.fulfill({ response });
+    });
+
+    const secondRead = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === `/api/conversations/${convo.id}`
+        && response.request().method() === "GET" && reads === 2);
+    await page.goto(`/#/chat/${convo.id}`);
+    await answer;
+    await expect(message).toBeVisible();
+
+    await change(message);
+    const after = await page.locator("[data-message-id]").allTextContents();
+
+    release();
+    await (await secondRead).finished();
+    // Two frames, so that anything the read was going to change has been drawn.
+    await page.evaluate(() => new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    expect(await page.locator("[data-message-id]").allTextContents(),
+      "the second read undid what was done meanwhile").toEqual(after);
+  });
+}

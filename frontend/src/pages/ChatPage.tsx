@@ -70,6 +70,9 @@ function ChatView({ id }: { id: string }) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+  // Counts what the person has done to the messages, so that a read sent before
+  // one of those does not undo it.
+  const changesByHand = useRef(0);
 
   /** A connection to a turn broke: a phone went to sleep, or lost its wifi. The
    *  turn is the server's and has not noticed, so read it again, from its first
@@ -155,8 +158,10 @@ function ChatView({ id }: { id: string }) {
       // is left alone rather than every message being drawn twice.
       await opening;
       if (controller.signal.aborted) return;
+      const changes = changesByHand.current;
       const latest = (await data.conversations.get(id)).messages ?? [];
       if (controller.signal.aborted || turnStore.isRunning(id)) return;
+      if (changesByHand.current !== changes) return;
       setMessages((shown) => (JSON.stringify(shown) === JSON.stringify(latest) ? shown : latest));
     })().catch(() => {
       /* whatever was read first stays on screen, or its failure is reported above */
@@ -329,17 +334,20 @@ function ChatView({ id }: { id: string }) {
 
   async function swipe(message: Message, index: number) {
     const updated = await data.messages.update(message.id, { active_index: index });
+    changesByHand.current += 1;
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
   }
 
   async function edit(message: Message, content: string) {
     const updated = await data.messages.update(message.id, { content });
+    changesByHand.current += 1;
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
   }
 
   async function deleteFrom(message: Message) {
     if (!confirm(t("chat.message.confirmDeleteFrom"))) return;
     await data.messages.removeFrom(message.id);
+    changesByHand.current += 1;
     setMessages((prev) => prev.filter((m) => m.position < message.position));
   }
 
