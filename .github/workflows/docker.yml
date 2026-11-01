@@ -36,9 +36,11 @@ jobs:
       #
       # One build, two names. evermind-backend is what the image was called when
       # Evermind was two containers, and a docker-compose.yml from that time
-      # still pulls it by that name. Publishing the same image there keeps such
-      # an install working until its owner replaces the file. evermind-frontend
-      # is not published any more: nothing in the new image needs it.
+      # still pulls it by that name. Such a file does not work with this image,
+      # though: its interface container calls the API as backend:8000, a host
+      # name this image refuses while no password is set, and that file gives
+      # this container none. evermind-frontend is not published any more:
+      # nothing in the new image needs it.
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
