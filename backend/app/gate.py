@@ -430,11 +430,21 @@ def _host_name(host: str) -> str | None:
     return match["name"].lower().removesuffix(".")
 
 
+def _own_names() -> set[str]:
+    """What this computer can be called by: the name the system gives it and,
+    when that name carries a domain, its first label (``nas`` for
+    ``nas.home.lan``, which is what people type), each alone or followed by
+    .local."""
+    machine = machine_name().lower()
+    names = {machine, machine.partition(".")[0]} - {""}
+    return names | {name + ".local" for name in names}
+
+
 def _known_host(host: str) -> bool:
     """Whether a Host header names this computer in a way that a website
     cannot borrow: an address, localhost or a name ending in .localhost, the
-    computer's own name, alone or followed by .local, or a name listed in
-    EVERMIND_ALLOWED_HOSTS.
+    computer's own name (or its first label, if it has a domain), alone or
+    followed by .local, or a name listed in EVERMIND_ALLOWED_HOSTS.
 
     A website can point a name of its own at 127.0.0.1 once its page is
     loaded (DNS rebinding). The browser then takes that page and Evermind for
@@ -453,8 +463,7 @@ def _known_host(host: str) -> bool:
         return True
     if name == "localhost" or name.endswith(".localhost"):
         return True
-    machine = machine_name().lower()
-    if machine and name in (machine, machine + ".local"):
+    if name in _own_names():
         return True
     # An entry that is not a host name is None here, and allows nothing.
     return name in map(_host_name, config.allowed_hosts())

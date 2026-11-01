@@ -93,6 +93,37 @@ async def test_names_that_only_look_known_are_refused(client, machine, host):
     assert r.json() == REFUSED
 
 
+@pytest.fixture()
+def machine_with_domain(monkeypatch):
+    """A computer whose system name carries its domain, as a NAS or a server on
+    a home network often does."""
+    monkeypatch.setattr(gate, "machine_name", lambda: "NAS.home.lan")
+
+
+@pytest.mark.parametrize("host", ["nas.home.lan", "NAS.Home.LAN:3000", "nas", "nas:3000",
+                                  "nas.local", "NAS.LOCAL:3000"])
+async def test_a_name_with_a_domain_is_answered_by_its_first_label_too(
+        client, machine_with_domain, host):
+    assert (await client.get("/api/characters", headers={"host": host})).status_code == 200
+
+
+@pytest.mark.parametrize("host", ["nas.evil.com", "nas.home.lan.evil.com", "nas.lan",
+                                  "home.lan", "home", "lan.local", "nas.local.evil.com"])
+async def test_only_the_first_label_of_a_name_with_a_domain_is_borrowed(
+        client, machine_with_domain, host):
+    r = await client.get("/api/characters", headers={"host": host})
+    assert r.status_code == 403
+    assert r.json() == REFUSED
+
+
+async def test_a_system_without_a_name_lends_nothing(client, monkeypatch):
+    # An empty name must not turn ".local" into this computer's own.
+    monkeypatch.setattr(gate, "machine_name", lambda: "")
+    r = await client.get("/api/characters", headers={"host": ".local"})
+    assert r.status_code == 403
+    assert r.json() == REFUSED
+
+
 @pytest.mark.parametrize("host", [
     # What a name looks like with something else behind it: a browser never
     # sends these, and a parser that stops at the first colon would take the
