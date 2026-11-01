@@ -182,7 +182,10 @@ is read strictly, so a name with anything after it (`localhost:3000@evil.com`)
 is not the name in front of it, and a request without a `Host` header is refused
 with a sentence of its own. In a container the machine's name is the container's,
 which nobody types, so with Docker the computer's own name has to be listed. With
-a password the name is not checked.
+a password the name is not checked. The Vite dev server asks the same of `Host`
+before a request reaches the API (`server.allowedHosts` in `vite.config.ts`, from
+the machine's name and `EVERMIND_ALLOWED_HOSTS`), so a development server
+started with `--lan` answers to the machine's name too.
 
 Responses are plain dicts shaped by the repositories; Pydantic is used for input
 validation only.
