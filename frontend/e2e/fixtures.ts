@@ -1,4 +1,4 @@
-import type { APIRequestContext } from "@playwright/test";
+import { expect, type APIRequestContext } from "@playwright/test";
 import { API } from "../playwright.config";
 
 const MOCK = "http://127.0.0.1:5699/v1";
@@ -69,6 +69,23 @@ export async function conversationWithReply(
 
 export async function conversation(request: APIRequestContext, id: string) {
   return (await request.get(`${API}/api/conversations/${id}`)).json();
+}
+
+/** The server's own account of whether a reply is being written. */
+export async function turnRunning(request: APIRequestContext, id: string): Promise<boolean> {
+  return (await (await request.get(`${API}/api/conversations/${id}/turn`)).json()).running;
+}
+
+/** Ends a reply and waits for the server to say it has ended. A turn carries on
+ *  with nobody watching, so a slow one left behind would go on writing into the
+ *  tests that come next. Only for a turn the server already has: a stop that
+ *  overtakes the request starting it stops nothing. */
+export async function stopTurn(request: APIRequestContext, id: string) {
+  await request.delete(`${API}/api/conversations/${id}/turn`);
+  await expect.poll(() => turnRunning(request, id), {
+    message: "the reply kept being written after it was stopped",
+    timeout: 10_000,
+  }).toBe(false);
 }
 
 /** A tiny PNG, for anything that needs a file to upload. */
