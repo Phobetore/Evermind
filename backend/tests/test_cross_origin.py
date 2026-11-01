@@ -59,7 +59,8 @@ async def test_a_phone_on_the_network_is_allowed(client):
 
 
 async def test_the_development_proxy_is_allowed(client):
-    # Vite relays /api without changing Host, so both name its own address.
+    # Vite's proxy keeps the browser's Host (changeOrigin is off in
+    # vite.config.ts), so both name the address the page was opened on.
     dev = {"host": "localhost:3000", "origin": "http://localhost:3000"}
     assert (await client.post("/api/characters", json=CHARACTER, headers=dev)).status_code == 201
 

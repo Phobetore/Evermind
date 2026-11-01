@@ -95,10 +95,10 @@ is always revalidated, which is how a phone picks up a new build.
 whenever `backend/app` changes. The Vite dev server serves the interface on
 `PORT` (default `3000`) with hot reload and relays `/api` to the API, so the
 browser still sees one origin, as it does in production. The relay leaves the
-`Host` header as the browser sent it, which the API needs to recognise the
-interface's writes as its own (see below). With `--lan` it is Vite
-that listens on the network and the API stays behind it. `EVERMIND_BACKEND_PORT`
-means nothing outside this mode.
+`Host` header as the browser sent it (`changeOrigin: false` in
+`vite.config.ts`), which the API needs to recognise the interface's writes as
+its own (see below). With `--lan` it is Vite that listens on the network and the
+API stays behind it. `EVERMIND_BACKEND_PORT` means nothing outside this mode.
 
 Components never call `fetch`. Everything the interface asks of the server goes
 through `src/data/`, a typed `DataSource` with an HTTP implementation, so the

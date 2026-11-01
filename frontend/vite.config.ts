@@ -46,7 +46,11 @@ export default defineConfig(({ mode }) => {
     server: {
       port: Number(PORT || 3000),
       proxy: {
-        "/api": "http://127.0.0.1:" + (EVERMIND_BACKEND_PORT || 8000),
+        "/api": {
+          target: "http://127.0.0.1:" + (EVERMIND_BACKEND_PORT || 8000),
+          // Keep the browser's Host: the API compares a write's Origin with it.
+          changeOrigin: false,
+        },
       },
     },
   };
