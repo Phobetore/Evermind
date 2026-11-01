@@ -82,10 +82,12 @@ def free_port() -> int:
 
 
 def listen_host(*flags: str) -> str:
-    """The host ``python -m app`` listens on for these flags, which is what it
-    hands to ``port_in_use``. The tests that need every interface ask for it the
-    way a person does, with ``--lan`` or ``--host ::``, so that they follow what
-    the command means by it rather than a copy of the address."""
+    """The host ``python -m app`` hands to ``port_in_use`` for these flags. For
+    ``--lan`` it is the address the command resolves for that flag, and for an
+    explicit ``--host`` it is that value as given. The tests that need every
+    interface ask the way a person does, with ``--lan`` or ``--host ::``, so that
+    ``--lan`` follows what the command means by it rather than a copy of the
+    address."""
     return resolve_listen(parse_args(list(flags)), {}).host
 
 

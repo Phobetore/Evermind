@@ -168,8 +168,8 @@ def root_path(env: Mapping[str, str] | None = None) -> str:
 
 def allowed_hosts() -> list[str]:
     """The host names, besides addresses, localhost, names ending in .localhost
-    and this computer's own name (alone or followed by .local, and for a name
-    with a domain also its first label), that the API answers to without a
-    password. Comma-separated; empty entries are dropped."""
+    and this computer's own name (alone or followed by .local; for a name with a
+    domain, its first label too, alone or followed by .local), that the API
+    answers to without a password. Comma-separated; empty entries are dropped."""
     raw = os.environ.get("EVERMIND_ALLOWED_HOSTS", "")
     return [name.strip() for name in raw.split(",") if name.strip()]
