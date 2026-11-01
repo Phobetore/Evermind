@@ -8,7 +8,7 @@ import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError, describeEvent } from "@/lib/errors";
 import { turnStore } from "@/lib/turnStore";
-import type { ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
+import type { ChatEvent, ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -44,6 +44,7 @@ function ChatView({ id }: { id: string }) {
   // The error itself, described when drawn, so that a change of language
   // reaches the sentence too.
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
+  const [connectionLost, setConnectionLost] = useState<{ error: unknown } | null>(null);
   const [contextStats, setContextStats] = useState<ContextStats | null>(null);
   const [perf, setPerf] = useState<TurnPerf | null>(null);
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
@@ -70,40 +71,62 @@ function ChatView({ id }: { id: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
+  /** A connection to a turn broke: a phone went to sleep, or lost its wifi. The
+   *  turn is the server's and has not noticed, so read it again, from its first
+   *  word, which is where a reader starts; what had arrived stays up until those
+   *  words are back, and so does the stop button. If nothing is running any more
+   *  the reply has landed, and the page reads it when the turn ends, as it always
+   *  does. This is tried once. If it fails too the person is told, rather than
+   *  left looking at a reply that has silently stopped. */
+  const pickTurnBackUp = useCallback(
+    async (controller: AbortController, onEvent: (event: ChatEvent) => void) => {
+      try {
+        if (!(await data.turns.state(id)).running) return;
+        await data.turns.follow(id, (event) => {
+          if (event.type === "start") turnStore.begin(id, controller);
+          onEvent(event);
+        }, controller.signal);
+      } catch (error) {
+        if (!controller.signal.aborted) setConnectionLost({ error });
+      }
+    },
+    [id],
+  );
+
   /** Watch a reply that is being written elsewhere — by a server that carried
-   *  on after the phone that asked for it went to sleep. Used on arriving at
-   *  the conversation, and again after a connection comes back. Says whether
-   *  there was a turn to watch. */
+   *  on after the phone that asked for it went to sleep. Says whether there was
+   *  a turn to watch. */
   const attachToRunningTurn = useCallback(async (controller: AbortController) => {
     if (turnStore.isRunning(id)) return true; // this page is already the one running it
     const state = await data.turns.state(id).catch(() => ({ running: false }));
     if (!state.running || controller.signal.aborted) return false;
     turnStore.begin(id, controller);
+    const onEvent = (event: ChatEvent) => {
+      // The replay starts at the beginning, so this is the same `start` the
+      // page that asked for the turn saw. A regeneration replaces a reply
+      // rather than adding one; without knowing which, the page shows both
+      // the old reply and its replacement arriving underneath.
+      if (event.type === "start") {
+        setRegenTargetId(event.target_message_id ?? null);
+      } else if (event.type === "delta") {
+        turnStore.append(event.text);
+      } else if (event.type === "done") {
+        setMessages((prev) => {
+          const others = prev.filter((m) => m.id !== event.message.id);
+          return [...others, event.message].sort((a, b) => a.position - b.position);
+        });
+      }
+    };
     try {
-      await data.turns.follow(id, (event) => {
-        // The replay starts at the beginning, so this is the same `start` the
-        // page that asked for the turn saw. A regeneration replaces a reply
-        // rather than adding one; without knowing which, the page shows both
-        // the old reply and its replacement arriving underneath.
-        if (event.type === "start") {
-          setRegenTargetId(event.target_message_id ?? null);
-        } else if (event.type === "delta") {
-          turnStore.append(event.text);
-        } else if (event.type === "done") {
-          setMessages((prev) => {
-            const others = prev.filter((m) => m.id !== event.message.id);
-            return [...others, event.message].sort((a, b) => a.position - b.position);
-          });
-        }
-      }, controller.signal);
+      await data.turns.follow(id, onEvent, controller.signal);
     } catch {
-      /* the reply is saved as it goes; a resync will find it */
+      if (!controller.signal.aborted) await pickTurnBackUp(controller, onEvent);
     } finally {
       turnStore.end();
       setRegenTargetId(null);
     }
     return true;
-  }, [id]);
+  }, [id, pickTurnBackUp]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -142,17 +165,14 @@ function ChatView({ id }: { id: string }) {
     return () => controller.abort();
   }, [id, attachToRunningTurn]);
 
-  /** Fetch the conversation again. Returns whether Evermind answered: callers
-   *  that lost a connection use that to tell "the reply landed while we were
-   *  away" from "the server is not there". */
+  /** Fetch the conversation again. */
   const reload = useCallback(async () => {
-    if (!conversation) return true;
+    if (!conversation) return;
     try {
       const convo = await data.conversations.get(conversation.id);
       setMessages(convo.messages ?? []);
-      return true;
     } catch {
-      return false; // keep current state
+      /* keep current state */
     }
   }, [conversation]);
 
@@ -196,6 +216,7 @@ function ChatView({ id }: { id: string }) {
   ) {
     if (!conversation || busy) return;
     setError(null);
+    setConnectionLost(null);
     setSilent(false);
     stickToBottom.current = true;
     const controller = new AbortController();
@@ -230,40 +251,43 @@ function ChatView({ id }: { id: string }) {
 
     let finished = false;
 
+    const onEvent = (event: ChatEvent) => {
+      if (event.type === "start") {
+        startReceived = true;
+        if (event.user_message) {
+          const real = event.user_message;
+          // Not added twice: a turn picked back up is read from its start again.
+          setMessages((prev) => [
+            ...prev.filter((m) => m.id !== optimisticId && m.id !== real.id),
+            real,
+          ]);
+        }
+        if (!conversation.title && content && messageMode === "say") {
+          setConversation((c) => (c ? { ...c, title: content.slice(0, 60) } : c));
+        }
+      } else if (event.type === "delta") {
+        turnStore.append(event.text);
+      } else if (event.type === "done") {
+        finished = true;
+        setMessages((prev) => {
+          const others = prev.filter((m) => m.id !== event.message.id);
+          return [...others, event.message].sort((a, b) => a.position - b.position);
+        });
+        if (event.context) setContextStats(event.context);
+        if (event.perf) setPerf(event.perf);
+      } else if (event.type === "error") {
+        finished = true;
+        // A model that never answered is not a fault to raise the alarm
+        // about; usually the server behind it is simply not running.
+        if (event.kind === "unreachable") setSilent(true);
+        else setError(describeEvent(event, t));
+      }
+    };
+
     try {
       await data.turns.send(
         { conversation_id: conversation.id, mode, content, message_mode: messageMode },
-        (event) => {
-          if (event.type === "start") {
-            startReceived = true;
-            if (event.user_message) {
-              const real = event.user_message;
-              setMessages((prev) => [
-                ...prev.filter((m) => m.id !== optimisticId),
-                real,
-              ]);
-            }
-            if (!conversation.title && content && messageMode === "say") {
-              setConversation((c) => (c ? { ...c, title: content.slice(0, 60) } : c));
-            }
-          } else if (event.type === "delta") {
-            turnStore.append(event.text);
-          } else if (event.type === "done") {
-            finished = true;
-            setMessages((prev) => {
-              const others = prev.filter((m) => m.id !== event.message.id);
-              return [...others, event.message].sort((a, b) => a.position - b.position);
-            });
-            if (event.context) setContextStats(event.context);
-            if (event.perf) setPerf(event.perf);
-          } else if (event.type === "error") {
-            finished = true;
-            // A model that never answered is not a fault to raise the alarm
-            // about; usually the server behind it is simply not running.
-            if (event.kind === "unreachable") setSilent(true);
-            else setError(describeEvent(event, t));
-          }
-        },
+        onEvent,
         controller.signal,
       );
       if (!finished) {
@@ -273,26 +297,22 @@ function ChatView({ id }: { id: string }) {
     } catch (e) {
       if (controller.signal.aborted) {
         await reload(); // backend persisted the partial text
-      } else {
+      } else if (startReceived) {
         // Whether the turn ever began is what decides this, and `start` is how
         // we know. Losing the connection after it began is not losing the
         // reply — the turn belongs to the server and finishes without us — so
-        // there is nothing to report and everything to resync. Failing before
-        // it began means the message may never have been sent, which is worth
-        // saying.
+        // there is nothing to report and everything to pick back up.
         //
         // Asking instead whether a turn is *still* running was not enough: come
         // back an hour later and of course it is not, so a reply that had landed
         // perfectly well was reported as a network error until the page was
         // reloaded by hand.
-        const reachable = await reload();
-        if (!startReceived || !reachable) {
-          setError(describeError(e, t, t("chat.errors.connectionFailed")));
-        } else {
-          // If the reply is still being written, pick it back up rather than
-          // leaving the conversation looking finished.
-          void attachToRunningTurn(new AbortController());
-        }
+        await pickTurnBackUp(controller, onEvent);
+      } else {
+        // Failing before it began means the message may never have been sent,
+        // which is worth saying.
+        await reload();
+        setError(describeError(e, t, t("chat.errors.connectionFailed")));
       }
     }
 
@@ -345,6 +365,10 @@ function ChatView({ id }: { id: string }) {
 
   const character = conversation.character;
   const lastMessage = messages[messages.length - 1];
+  // A lost connection is kept as the error itself and described here, so that
+  // what reports it does not depend on the language.
+  const problem = error ?? (connectionLost
+    && describeError(connectionLost.error, t, t("chat.errors.connectionFailed")));
   // While regenerating an existing message, hide it (its replacement streams
   // below). A reply still being written is hidden the same way while its turn is
   // live: the backend saves it as it goes, so arriving mid-turn would otherwise
@@ -517,9 +541,9 @@ function ChatView({ id }: { id: string }) {
               </div>
             )}
 
-            {error && (
+            {problem && (
               <div className="mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 bg-blood/10 px-4 py-3">
-                <p className="text-sm text-blood">{error}</p>
+                <p className="text-sm text-blood">{problem}</p>
                 {lastMessage && (
                   <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={() => runTurn("regenerate")}>
                     {t("chat.errors.retryButton")}
