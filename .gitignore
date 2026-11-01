@@ -15,8 +15,6 @@ venv/
 
 # Node
 node_modules/
-out/
-.turbo/
 
 # IDE / OS
 .vscode/
