@@ -13,7 +13,11 @@ import aiosqlite
 
 from ..db import _connect
 from ..errors import (
-    MODEL_UNREADABLE, NO_CONNECTION, AppError, NotFoundError, model_failure,
+    MODEL_UNREADABLE,
+    NO_CONNECTION,
+    AppError,
+    NotFoundError,
+    model_failure,
 )
 from ..prompting import embeddings
 from ..prompting.defaults import MEMORY_CONSOLIDATION_PROMPT, MEMORY_EXTRACTION_PROMPT

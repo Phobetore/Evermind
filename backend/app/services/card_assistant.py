@@ -9,7 +9,11 @@ import json
 import aiosqlite
 
 from ..errors import (
-    MODEL_EMPTY, MODEL_UNREADABLE, NO_CONNECTION, AppError, model_failure,
+    MODEL_EMPTY,
+    MODEL_UNREADABLE,
+    NO_CONNECTION,
+    AppError,
+    model_failure,
 )
 from ..prompting.defaults import CARD_ASSISTANT_PROMPT
 from ..prompting.engine import PromptPayload

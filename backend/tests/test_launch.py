@@ -687,8 +687,10 @@ def test_a_port_that_needs_rights_in_development_names_the_api_port_setting(
     monkeypatch.setattr(launch, "_has_listener", lambda host, port: False)
     assert launch.main(["--no-env-file", "--dev", "--port", "80"]) == 1
     assert capsys.readouterr().err.splitlines() == [
-        "Port 80 needs administrator rights. "
-        "Pick a port above 1024, for example EVERMIND_BACKEND_PORT=8001."
+        (
+            "Port 80 needs administrator rights. "
+            "Pick a port above 1024, for example EVERMIND_BACKEND_PORT=8001."
+        )
     ]
     assert served == []
 
@@ -1157,7 +1159,7 @@ def test_unreadable_env_file_names_the_file_and_exits(clean_env, tmp_path, serve
 
 def test_settings_from_the_file_decide_where_to_listen(clean_env, tmp_path, served, capsys):
     env_file = tmp_path / "custom.env"
-    env_file.write_text("BIND=0.0.0.0\nPORT=%d\n" % free_port(), encoding="utf-8")
+    env_file.write_text(f"BIND=0.0.0.0\nPORT={free_port()}\n", encoding="utf-8")
     assert launch.main(["--check", "--env-file", str(env_file)]) == 0
     assert capsys.readouterr().out.strip() == os.environ["PORT"]
 

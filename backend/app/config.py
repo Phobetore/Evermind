@@ -77,8 +77,7 @@ def load_env_file(path: Path) -> list[str]:
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        if line.startswith("export "):
-            line = line[len("export "):]
+        line = line.removeprefix("export ")
         key, equals, value = line.partition("=")
         key, value = key.strip(), value.strip()
         if not equals or not _ENV_KEY.fullmatch(key):

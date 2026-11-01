@@ -24,7 +24,13 @@ from collections.abc import AsyncIterator
 import aiosqlite
 
 from ..errors import (
-    MODEL_EMPTY, NO_CONNECTION, NOT_FOUND, AppError, NotFoundError, failure_fields, model_failure,
+    MODEL_EMPTY,
+    NO_CONNECTION,
+    NOT_FOUND,
+    AppError,
+    NotFoundError,
+    failure_fields,
+    model_failure,
 )
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval

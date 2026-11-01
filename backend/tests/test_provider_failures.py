@@ -163,9 +163,13 @@ async def test_listing_models_keeps_an_excerpt_of_an_answer_that_is_not_json(nam
     ("page", "words"),
     [
         (b"<h1>502 Bad Gateway</h1><hr><center>nginx/1.25</center>", "502 Bad Gateway nginx/1.25"),
-        (b"<html><head><title>Oops</title><style>h1 { color: red }</style></head>"
-         b"<body><script>track('x')</script><h1>Server is down</h1></body></html>",
-         "Oops Server is down"),
+        (
+            (
+                b"<html><head><title>Oops</title><style>h1 { color: red }</style></head>"
+                b"<body><script>track('x')</script><h1>Server is down</h1></body></html>"
+            ),
+            "Oops Server is down",
+        ),
         (b"<!-- generated --><p>Error &amp; retry &lt;soon&gt;, it&#39;s &quot;busy&quot;</p>",
          "Error & retry <soon>, it's \"busy\""),
         # Text that is not markup is left as it is, a comparison included.
