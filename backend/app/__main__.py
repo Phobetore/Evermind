@@ -250,7 +250,7 @@ def _load_settings(args: argparse.Namespace) -> str | None:
     try:
         config.load_env_file(env_file)
     except UnicodeError:
-        reason = "it is not valid UTF-8 or UTF-16 text"
+        reason = "it is not valid UTF-8, UTF-16 or UTF-32 text"
     except OSError as err:
         reason = err.strerror or str(err)
     else:

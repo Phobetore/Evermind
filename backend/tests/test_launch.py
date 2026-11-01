@@ -1100,7 +1100,7 @@ def test_undecodable_env_file_names_the_file_and_exits(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.splitlines() == [
-        f"Cannot read the settings file {f}: it is not valid UTF-8 or UTF-16 text."
+        f"Cannot read the settings file {f}: it is not valid UTF-8, UTF-16 or UTF-32 text."
     ]
     assert served == []
 
@@ -1117,7 +1117,28 @@ def test_utf32_without_a_mark_is_reported_rather_than_misread(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.splitlines() == [
-        f"Cannot read the settings file {f}: it is not valid UTF-8 or UTF-16 text."
+        f"Cannot read the settings file {f}: it is not valid UTF-8, UTF-16 or UTF-32 text."
+    ]
+    assert "EVERMIND_GATE_PASSWORD" not in os.environ
+    assert served == []
+
+
+@pytest.mark.parametrize(
+    ("bom", "codec"),
+    [(codecs.BOM_UTF32_LE, "utf-32-le"), (codecs.BOM_UTF32_BE, "utf-32-be")],
+    ids=["little-endian", "big-endian"],
+)
+def test_utf32_cut_short_is_reported_and_sets_nothing(
+    clean_env, tmp_path, served, capsys, bom, codec
+):
+    # The mark says UTF-32, and the last character is missing a byte.
+    f = tmp_path / "cut.env"
+    f.write_bytes(bom + "PORT=3001\nEVERMIND_GATE_PASSWORD=secret\n".encode(codec)[:-1])
+    assert launch.main(["--check", "--port", str(free_port()), "--env-file", str(f)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        f"Cannot read the settings file {f}: it is not valid UTF-8, UTF-16 or UTF-32 text."
     ]
     assert "EVERMIND_GATE_PASSWORD" not in os.environ
     assert served == []
