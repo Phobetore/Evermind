@@ -70,7 +70,7 @@ virtualenv the scripts create:
 It reads `.env` at the repository root, then the environment, and **the
 environment wins** over the file. The file may have been saved by Notepad or
 PowerShell (a byte order mark, CRLF line endings, even UTF-16, which it also
-reads without the mark); it reads the same as a plain one. `BIND` (default
+reads without the mark, or UTF-32 with one); it reads the same as a plain one. `BIND` (default
 `127.0.0.1`) and `PORT` (default `3000`) say where to listen, and `--lan` is
 `BIND=0.0.0.0`. Before anything else it checks that the port is free; `--check`
 stops right after that and prints the port, so the scripts can ask once Python
