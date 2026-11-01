@@ -456,7 +456,7 @@
     "locked": "Deine Sitzung ist beendet. Melde dich erneut an.",
     "wrongPassword": "Zugriff verweigert.",
     "rateLimited": "Zu viele Versuche. Versuch es in {minutes} Min. noch einmal.",
-    "crossOrigin": "Evermind hat diese Anfrage abgelehnt, weil sie von einer anderen Adresse zu kommen scheint. Hinter einem Reverse-Proxy muss der Proxy HTTPS verwenden oder den ursprünglichen Host-Header weiterreichen.",
+    "crossOrigin": "Evermind hat diese Anfrage abgelehnt, weil sie von einer anderen Adresse zu kommen scheint. Hinter einem Reverse-Proxy muss der Proxy den ursprünglichen Host-Header unverändert weiterreichen; Evermind über HTTPS auszuliefern hilft zusätzlich.",
     "unknownHost": "Evermind antwortet auf diese Adresse nicht. Trage ihren Namen in EVERMIND_ALLOWED_HOSTS ein oder lege ein Passwort fest.",
     "notFound": {
       "character": "Diese Karte gibt es nicht mehr.",
