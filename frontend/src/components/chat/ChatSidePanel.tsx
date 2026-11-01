@@ -568,7 +568,7 @@ export function ChatSidePanel({
             placeholder={t("chat.panel.facts.addPlaceholder")}
           />
           <button
-            className="btn btn-ghost !px-2.5"
+            className="btn btn-ghost !px-2.5 pointer-coarse:min-w-11"
             onClick={addFact}
             disabled={!newFact.trim()}
             aria-label={t("chat.panel.facts.addAriaLabel")}

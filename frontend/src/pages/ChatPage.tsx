@@ -373,12 +373,16 @@ function ChatView({ id }: { id: string }) {
               />
             ) : (
               <button
-                className="touch-target block max-w-64 text-left text-xs text-mist transition-colors hover:text-parchment"
+                className="touch-target block w-full max-w-64 text-left text-xs text-mist transition-colors hover:text-parchment"
                 onClick={() => setTitleDraft(conversation.title || "")}
                 title={t("chat.header.renameTitle")}
               >
-                {/* Inside, because a button that clips its text clips the area
-                    that is added to it for a touch screen too. */}
+                {/* w-full above, so that the button is no wider than the box
+                    it is in and the text, which does not wrap, is cut here:
+                    a button that is wider spreads its area over what is next
+                    to it. And the text is cut inside, because a button that
+                    clips its text clips the area added to it for a touch
+                    screen too. */}
                 <span className="block truncate">
                   {conversation.title || t("chatList.newConversationFallback")}
                 </span>

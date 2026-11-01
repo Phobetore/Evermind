@@ -169,16 +169,13 @@ input, textarea, select, button {
 /* iOS zooms into any focused input under 16px — never let that happen. */
 @media (max-width: 767px) {
   .field { font-size: 16px; }
-  /* A text box or a menu is something to hit with a thumb too. Textareas are
-     tall already, and the two editors that replace a title in place say so. */
-  .field:not(textarea) { min-height: 2.75rem; }
 }
 
 /* Actions revealed on hover on desktop; touch screens have no hover,
    so they stay visible (slightly dimmed) there. */
 .hover-actions {
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, color 0.15s ease;
 }
 .group:hover .hover-actions,
 .group\/fact:hover .hover-actions {
@@ -187,9 +184,11 @@ input, textarea, select, button {
 @media (hover: none) {
   .hover-actions { opacity: 0.75; }
 }
-/* A keyboard has no hover either: whatever has focus must be seen. */
+/* A keyboard has no hover either: whatever it has reached must be seen. Focus-
+   visible, not focus: a click with a mouse leaves focus on the button, and the
+   row would stay on show after the pointer has gone. */
 .hover-actions:focus-visible,
-.hover-actions:focus-within {
+.hover-actions:has(:focus-visible) {
   opacity: 1;
 }
 
@@ -200,6 +199,9 @@ input, textarea, select, button {
    overlap; where that takes room, the markup says so (pointer-coarse:...).
    Anything already positioned keeps its own positioning. */
 @media (pointer: coarse) {
+  /* A text box or a menu is something to hit with a thumb too. Textareas are
+     tall already, and the two editors that replace a title in place say so. */
+  .field:not(textarea) { min-height: 2.75rem; }
   .touch-target:not(.absolute, .fixed, .sticky) { position: relative; }
   .touch-target::after {
     content: "";

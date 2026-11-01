@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply } from "./fixtures";
+import { conversationWithReply, makeConversation } from "./fixtures";
 
 /**
  * Small controls on a touch screen. The owner uses Evermind from his phone, and
@@ -9,7 +9,9 @@ import { conversationWithReply } from "./fixtures";
  * a thumb misses. The first is a question of opacity; the second is answered by
  * asking the page what is under a finger at the edge of the 44px square around
  * each control, which is what "reachable" means, rather than by measuring the
- * picture.
+ * picture. And the area added to a control must not end up over its neighbour:
+ * a title that was wider than the box it was in once covered the button next
+ * to it, which no measuring of that button could have shown.
  */
 
 const FACTS = ["Mira keeps the key.", "The ferry runs on Tuesdays only.", "She does not take sugar."];
@@ -22,11 +24,27 @@ async function withFacts(request: APIRequestContext) {
   return convo as { id: string; character_id: string };
 }
 
-/** The page's own answer to "what is at this point", for the middle of the
- *  control and for the edge of a 44px square around it, on each side. The
- *  points are one pixel inside that square, and the diagonals further in so that
- *  a rounded corner does not count against it. Anything that is not the
- *  control, or in it, is something that would take the touch. */
+/** A conversation as most of them are named: after the first message, cut at 60
+ *  characters, which on a phone is more than the title has room for. */
+async function withALongTitle(request: APIRequestContext) {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/chat`, {
+    data: {
+      conversation_id: convo.id, mode: "send", message_mode: "say",
+      content: "I came as soon as I could, and I brought everything you asked me for, so tell me what you owe me.",
+    },
+    timeout: 60_000,
+  });
+  const { title } = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(title.length, "the title is not long enough to test with").toBeGreaterThan(40);
+  return convo as { id: string; character_id: string };
+}
+
+/** What the page says is under a point, for the middle of the control and for
+ *  the edge of a 44px square around it, on each side. The points are one pixel
+ *  inside that square, and the diagonals further in so that a rounded corner
+ *  does not count against it. Anything that is not the control, or in it, is
+ *  something that would take the touch. */
 async function whatTakesTheTouch(control: Locator): Promise<string[]> {
   return control.evaluate((el) => {
     // To the middle of the screen: at the edge there may be a bar over it.
@@ -51,17 +69,17 @@ async function expectReachable(control: Locator, what: string) {
   expect(await whatTakesTheTouch(control), `${what} is not reachable across 44x44`).toEqual([]);
 }
 
-/** Every one of them, up to a dozen: the shared database this suite runs
- *  against holds a great many cards and conversations from other tests. */
-async function expectAllReachable(controls: Locator, what: string) {
-  const count = Math.min(await controls.count(), 12);
-  expect(count, `no ${what} to look at`).toBeGreaterThan(0);
+/** Every visible one of them, up to `max`: the shared database this suite runs
+ *  against holds a great many cards and conversations from other tests. None
+ *  visible at all is a failure, not a pass: there would be nothing looked at. */
+async function expectAllReachable(controls: Locator, what: string, max = 12) {
+  const visible = controls.filter({ visible: true });
+  const count = Math.min(await visible.count(), max);
+  expect(count, `no visible ${what} to look at`).toBeGreaterThan(0);
   for (let i = 0; i < count; i++) {
-    const one = controls.nth(i);
-    if (await one.isVisible()) {
-      const label = (await one.getAttribute("aria-label")) ?? (await one.getAttribute("title")) ?? (await one.textContent()) ?? `#${i}`;
-      await expectReachable(one, `${what} "${label?.trim()}"`);
-    }
+    const one = visible.nth(i);
+    const label = (await one.getAttribute("aria-label")) ?? (await one.getAttribute("title")) ?? (await one.textContent()) ?? `#${i}`;
+    await expectReachable(one, `${what} "${label?.trim()}"`);
   }
 }
 
@@ -75,6 +93,43 @@ function seen(control: Locator) {
   });
 }
 
+/** Everything that comes in with an animation (the panel rises, the messages
+ *  fade in) has arrived, so that what is measured is where it stays. */
+function settled(page: Page) {
+  return page.evaluate(() => Promise.all(
+    document.getAnimations()
+      .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+      // One that is cut short (an element going away) has still stopped.
+      .map((a) => a.finished.catch(() => undefined)),
+  ));
+}
+
+/** No touch area stuck out of what it belongs to is not something a picture
+ *  shows: a box wider than its parent paints over what is beside it. This is
+ *  about the elements that carry an added area, and where they are. */
+async function expectInsideTheirParents(scope: Locator, what: string) {
+  const outside = await scope.evaluate((root) =>
+    [...root.querySelectorAll<HTMLElement>(".touch-target")]
+      .filter((el) => el.getBoundingClientRect().width > 0)
+      .filter((el) => {
+        const own = el.getBoundingClientRect();
+        const around = el.parentElement!.getBoundingClientRect();
+        return own.left < around.left - 0.5 || own.right > around.right + 0.5
+          || own.top < around.top - 0.5 || own.bottom > around.bottom + 0.5;
+      })
+      .map((el) => `${el.tagName.toLowerCase()} "${(el.textContent ?? "").trim().slice(0, 24)}"`));
+  expect(outside, `${what}: a box with a touch area is larger than the box it is in`).toEqual([]);
+}
+
+/** Press Tab until `target` has the focus, as a person at a keyboard would. */
+async function tabTo(page: Page, target: Locator, presses = 120) {
+  for (let i = 0; i < presses; i++) {
+    await page.keyboard.press("Tab");
+    if (await target.evaluate((el) => el === document.activeElement)) return;
+  }
+  throw new Error(`Tab did not reach ${target} in ${presses} presses`);
+}
+
 async function openPanel(page: Page, id: string) {
   await page.goto(`/#/chat/${id}`);
   await expect(page.locator("textarea").first()).toBeVisible();
@@ -83,7 +138,14 @@ async function openPanel(page: Page, id: string) {
   const panel = page.locator("aside:visible:has(textarea)");
   await expect(panel).toBeVisible();
   await expect(panel.getByText(FACTS[0])).toBeVisible();
+  await settled(page);
   return panel;
+}
+
+async function messagesIn(page: Page, id: string) {
+  await page.goto(`/#/chat/${id}`);
+  await expect(page.locator("[data-message-id]").first()).toBeVisible();
+  await settled(page);
 }
 
 test.describe("on a touch screen", () => {
@@ -119,6 +181,12 @@ test.describe("on a touch screen", () => {
       expect((await rows.nth(i).boundingBox())!.height, "a fact row is shorter than a thumb").toBeGreaterThanOrEqual(43.5);
     }
 
+    // Every button in the panel, and as wide as it is tall: the "+" beside the
+    // text box for a new fact was 38 across.
+    await expectAllReachable(panel.getByRole("button"), "a button in the panel", 60);
+    expect((await panel.getByRole("button", { name: "Add fact" }).boundingBox())!.width, "the button for a new fact is narrower than a thumb").toBeGreaterThanOrEqual(43.5);
+    await expectInsideTheirParents(panel, "in the panel");
+
     // And a touch that is not on the picture, but within its square: 18px
     // to the side of the cross.
     const cross = (await forget.first().boundingBox())!;
@@ -138,9 +206,7 @@ test.describe("on a touch screen", () => {
     });
     for (const width of [412, 360, 320]) {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto(`/#/chat/${convo.id}`);
-      await expect(page.locator("[data-message-id]").first()).toBeVisible();
-      await page.waitForTimeout(700); // the messages fade in
+      await messagesIn(page, convo.id);
 
       const actions = page.locator("[data-message-id] button");
       await expectAllReachable(actions, `a message's action at ${width}px`);
@@ -152,20 +218,62 @@ test.describe("on a touch screen", () => {
           .map((b) => b.getAttribute("title") ?? b.getAttribute("aria-label")), width);
       expect(gone, `actions past the right edge at ${width}px`).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth), `the page scrolls sideways at ${width}px`).toBeLessThanOrEqual(width);
+
+      // Where the six of the last reply do not fit on one line they are on two,
+      // not five and one on its own.
+      const last = page.locator("[data-message-id]").last().locator("button[title]");
+      const lines = await last.evaluateAll((buttons) => {
+        const perLine = new Map<number, number>();
+        for (const b of buttons) {
+          const top = Math.round(b.getBoundingClientRect().top);
+          perLine.set(top, (perLine.get(top) ?? 0) + 1);
+        }
+        return [...perLine.values()];
+      });
+      expect(lines.reduce((a, b) => a + b, 0), "the last reply is missing actions").toBe(6);
+      expect(lines.filter((n) => n === 1), `an action on a line by itself at ${width}px: ${lines}`).toEqual([]);
     }
   });
 
   test("the header of a conversation, and the list of them, can be hit", async ({ page, request }) => {
     const convo = await withFacts(request);
-    await page.goto(`/#/chat/${convo.id}`);
-    await expect(page.locator("[data-message-id]").first()).toBeVisible();
+    await messagesIn(page, convo.id);
     await expectAllReachable(page.locator("header a, header button"), "a control in the header");
+    await expectInsideTheirParents(page.locator("header"), "in the header");
 
     await page.goto("/#/chat");
     const rename = page.getByRole("button", { name: "Rename" }).first();
     await expect(rename).toBeVisible();
+    await settled(page);
     await expect.poll(() => seen(rename), "Rename is not visible without hover").toBeGreaterThan(0.5);
     await expectAllReachable(page.locator("a.group button"), "an action on a conversation in the list");
+  });
+
+  test("a long title does not take the buttons beside it", async ({ page, request }) => {
+    const convo = await withALongTitle(request);
+    for (const width of [412, 390, 360, 320]) {
+      await page.setViewportSize({ width, height: 800 });
+      await messagesIn(page, convo.id);
+      await page.locator("aside:visible:has(textarea)").waitFor({ state: "hidden" });
+
+      // The title is cut, not spread: it is wider than its place, if it is not.
+      const title = page.locator("header button[title]").first();
+      expect(
+        await title.locator("span").evaluate((span) => span.scrollWidth > span.clientWidth),
+        `the title is not cut at ${width}px, so it is not what is being tested`,
+      ).toBe(true);
+      await expectInsideTheirParents(page.locator("header"), `with a long title at ${width}px`);
+      await expectReachable(title, "the title");
+
+      // And the button beside it opens what it says it opens, by a real touch
+      // in the middle of it.
+      const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+      await expectReachable(opener, "the memory and settings button");
+      const box = (await opener.boundingBox())!;
+      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+      await expect(page.locator("aside:visible:has(textarea)"), `the button did not open the panel at ${width}px`).toBeVisible();
+      await page.locator("aside:visible:has(textarea)").getByRole("button", { name: "Close panel" }).click();
+    }
   });
 
   test("the tags, the lorebook and a window's own button can be hit", async ({ page, request }) => {
@@ -203,15 +311,15 @@ test.describe("on a touch screen", () => {
     await expectReachable(page.getByRole("button", { name: /advanced/i }), "the advanced settings toggle");
 
     // A text box is something to hit too.
-    for (const field of await page.locator("select.field, input.field").all()) {
-      if (await field.isVisible()) {
-        expect((await field.boundingBox())!.height, "a field is shorter than a thumb").toBeGreaterThanOrEqual(43.5);
-      }
+    const fields = page.locator("select.field, input.field").filter({ visible: true });
+    expect(await fields.count(), "no fields to look at").toBeGreaterThan(0);
+    for (const field of await fields.all()) {
+      expect((await field.boundingBox())!.height, "a field is shorter than a thumb").toBeGreaterThanOrEqual(43.5);
     }
   });
 
   test("on a tablet, which is touched too, the same holds", async ({ page, request }) => {
-    const convo = await withFacts(request);
+    const convo = await withALongTitle(request);
     await request.post(`${API}/api/chat`, {
       data: { conversation_id: convo.id, mode: "regenerate" }, timeout: 60_000,
     });
@@ -222,12 +330,39 @@ test.describe("on a touch screen", () => {
     const start = page.getByRole("button", { name: "Start", exact: true }).first();
     await expect.poll(() => seen(start), "the button on a card is not visible without hover").toBeGreaterThan(0.9);
 
-    await page.goto(`/#/chat/${convo.id}`);
-    await expect(page.locator("[data-message-id]").first()).toBeVisible();
-    await page.waitForTimeout(700);
+    // Text boxes and menus are taller here too, where the screen is wide.
+    await page.goto("/#/settings");
+    const menu = page.locator("main select.field").first();
+    await expect(menu).toBeVisible();
+    expect((await menu.boundingBox())!.height, "a menu is shorter than a thumb on a tablet").toBeGreaterThanOrEqual(43.5);
+
+    await messagesIn(page, convo.id);
     await expectAllReachable(page.locator("[data-message-id] button"), "a message's action on a tablet");
     await expectAllReachable(page.locator("header a, header button"), "a control in the header on a tablet");
     await expectAllReachable(page.getByRole("button", { name: /close/i }), "Close on a tablet");
+
+    // With the panel open beside the conversation, the title is above its
+    // header: the link to the character, and the cross, can be touched.
+    const panel = page.locator("aside:visible:has(textarea)");
+    await expect(panel).toBeVisible();
+    await settled(page);
+    await expectInsideTheirParents(page.locator("header"), "with a long title on a tablet");
+    await expectInsideTheirParents(panel, "in the panel on a tablet");
+    const link = panel.locator("a[href*='/characters/']").first();
+    await expectReachable(link, "the link to the character");
+    const at = (await link.boundingBox())!;
+    await page.touchscreen.tap(at.x + at.width / 2, at.y + at.height / 2);
+    await expect(page).toHaveURL(/#\/characters\//);
+
+    // And with it closed, the button that brings it back, beside that title.
+    await messagesIn(page, convo.id);
+    await panel.getByRole("button", { name: "Close panel" }).click();
+    await expect(panel).toBeHidden();
+    const reopen = page.getByRole("button", { name: "Open panel" });
+    await expectReachable(reopen, "the button that opens the panel");
+    const spot = (await reopen.boundingBox())!;
+    await page.touchscreen.tap(spot.x + spot.width / 2, spot.y + spot.height / 2);
+    await expect(panel).toBeVisible();
 
     await page.goto("/#/");
     await page.getByRole("button", { name: /import/i }).first().click();
@@ -246,16 +381,16 @@ test.describe("with a mouse", () => {
     const forget = rows.first().getByRole("button", { name: "Forget this fact" });
     const pin = rows.first().getByRole("button", { name: /^Pin/ });
 
-    // Away from the row it is not there, over the row it is, and a keyboard
-    // that reaches it sees it.
+    // Away from the row it is not there, and over the row it is.
     await page.mouse.move(2, 2);
     await expect(forget).toHaveCSS("opacity", "0");
     await rows.first().hover();
     await expect(forget).toHaveCSS("opacity", "1");
     await page.mouse.move(2, 2);
     await expect(forget).toHaveCSS("opacity", "0");
-    await forget.focus();
-    await expect(forget).toHaveCSS("opacity", "1");
+
+    // The cross still changes colour over it, with a transition, as it did.
+    expect(await forget.evaluate((el) => getComputedStyle(el).transitionProperty), "no colour transition on the cross").toContain("color");
 
     // No reachable area added where a pointer is precise, and no taller rows.
     for (const small of [forget, pin]) {
@@ -272,5 +407,64 @@ test.describe("with a mouse", () => {
     await expect(start).toHaveCSS("opacity", "0");
     await start.locator("xpath=ancestor::a[1]").hover();
     await expect(start).toHaveCSS("opacity", "1");
+
+    // A narrow window is not a touch screen: the fields keep their size.
+    await page.setViewportSize({ width: 600, height: 800 });
+    await page.goto("/#/settings");
+    const menu = page.locator("main select.field").first();
+    await expect(menu).toBeVisible();
+    expect((await menu.boundingBox())!.height, "a menu grew in a narrow window with a mouse").toBeLessThan(42);
+  });
+
+  test("what shows on hover shows to a keyboard, with Tab, and only to one", async ({ page, request }) => {
+    const convo = await withFacts(request);
+    const panel = await openPanel(page, convo.id);
+    await page.mouse.move(2, 2);
+
+    // The cross on a fact.
+    const forget = panel.locator("div.group\\/fact").first().getByRole("button", { name: "Forget this fact" });
+    await expect(forget).toHaveCSS("opacity", "0");
+    await tabTo(page, forget);
+    await expect(forget).toHaveCSS("opacity", "1");
+    await page.keyboard.press("Tab");
+    await expect(forget).toHaveCSS("opacity", "0");
+
+    // The actions of a message: a group, shown while any button in it has
+    // the focus, and gone when the focus has left it.
+    const edit = page.locator("[data-message-id] button[title='Edit']").first();
+    const group = edit.locator("xpath=ancestor::div[contains(@class,'hover-actions')][1]");
+    await expect(edit).toBeVisible();
+    await expect(group).toHaveCSS("opacity", "0");
+    await tabTo(page, edit);
+    await expect(group).toHaveCSS("opacity", "1");
+    for (let i = 0; i < 8 && (await group.evaluate((g) => g.contains(document.activeElement))); i++) {
+      await page.keyboard.press("Tab");
+    }
+    await expect(group).toHaveCSS("opacity", "0");
+
+    // A mouse is not a keyboard: pressing a button gives it the focus, and the
+    // row must not stay on show once the pointer has gone. (Pressed and let go
+    // elsewhere, so that nothing is done by it, and the focus is all there is.)
+    const copy = page.locator("[data-message-id] button[title='Copy']").first();
+    const spot = (await copy.boundingBox())!;
+    await page.mouse.move(spot.x + spot.width / 2, spot.y + spot.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(2, 2);
+    await page.mouse.up();
+    expect(await copy.evaluate((el) => el === document.activeElement), "the press did not focus the button").toBe(true);
+    await expect(group).toHaveCSS("opacity", "0");
+
+    // Rename and delete in the list of conversations.
+    await page.goto("/#/chat");
+    const rename = page.getByRole("button", { name: "Rename" }).first();
+    const remove = rename.locator("xpath=following-sibling::button[1]");
+    await expect(rename).toBeVisible();
+    await page.mouse.move(2, 2);
+    await expect(rename).toHaveCSS("opacity", "0");
+    await tabTo(page, rename);
+    await expect(rename).toHaveCSS("opacity", "1");
+    await page.keyboard.press("Tab");
+    await expect(remove).toHaveCSS("opacity", "1");
+    await expect(rename).toHaveCSS("opacity", "0");
   });
 });
