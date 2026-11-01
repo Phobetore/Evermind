@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply, stopTurn, turnRunning } from "./fixtures";
+import { conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
 
 /**
  * Evermind is most often used from a phone against a machine somewhere else,
@@ -73,3 +73,54 @@ test("coming back shows the reply still arriving", async ({ browser, request }) 
   await second.close();
   await stopTurn(request, convo.id);
 });
+
+/**
+ * A page opening asks two things, what the conversation says and whether a reply
+ * is being written, and the answers are not from one moment. A turn ending between
+ * them left the reply as far as it had got, with nothing saying so and nothing
+ * coming to replace it until the page was reloaded.
+ *
+ * Both kinds, because only a new reply carries a mark while it is being written.
+ * A regeneration looks finished at every word, so what was read cannot say whether
+ * it needs reading again.
+ */
+for (const turn of [
+  { mode: "send", content: "Ecris longuement.", message_mode: "say" },
+  { mode: "regenerate" },
+]) {
+  test(`a reply ending while the page opens is shown whole (${turn.mode})`, async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+
+    // Not awaited: the reply is being written while the page below opens.
+    const writing = request.post(`${API}/api/chat`, {
+      data: { conversation_id: convo.id, ...turn }, timeout: 120_000,
+    });
+
+    // Some of it has landed, so that what the page reads below is unfinished.
+    await expect.poll(async () => {
+      const last = (await conversation(request, convo.id)).messages.at(-1);
+      return last.meta.streaming === true || last.variants.length > 1;
+    }, { timeout: 10_000 }).toBe(true);
+
+    // The order this is about, forced: the conversation is read now, and whether
+    // anything is running is only answered once nothing is.
+    await page.route("**/turn", async (route) => {
+      await writing;
+      await route.continue();
+    });
+    const firstRead = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === `/api/conversations/${convo.id}`);
+    await page.goto(`/#/chat/${convo.id}`);
+    const seen = (await (await firstRead).json()).messages.at(-1);
+
+    await writing;
+    const reply = (await conversation(request, convo.id)).messages.at(-1);
+    expect(seen.content.length, "the page did not read the reply unfinished")
+      .toBeLessThan(reply.content.length);
+
+    const ending = reply.content.trim().split(" ").slice(-3).join(" ");
+    await expect(page.locator(`[data-message-id="${reply.id}"]`),
+      "the reply stayed as far as it had got when the page read it").toContainText(ending);
+    await expect(page.locator('button[title="Stop generation"]')).toBeHidden();
+  });
+}

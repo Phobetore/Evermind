@@ -70,29 +70,14 @@ function ChatView({ id }: { id: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
-  useEffect(() => {
-    data.conversations
-      .get(id)
-      .then((convo) => {
-        setConversation(convo);
-        setMessages(convo.messages ?? []);
-        if (convo.persona_id) {
-          data.personas
-            .list()
-            .then((all) => setPersona(all.find((p) => p.id === convo.persona_id) ?? null))
-            .catch(() => {});
-        }
-      })
-      .catch((error) => setLoadFailure({ error }));
-  }, [id]);
-
   /** Watch a reply that is being written elsewhere — by a server that carried
    *  on after the phone that asked for it went to sleep. Used on arriving at
-   *  the conversation, and again after a connection comes back. */
+   *  the conversation, and again after a connection comes back. Says whether
+   *  there was a turn to watch. */
   const attachToRunningTurn = useCallback(async (controller: AbortController) => {
-    if (turnStore.isRunning(id)) return; // this page is already the one running it
+    if (turnStore.isRunning(id)) return true; // this page is already the one running it
     const state = await data.turns.state(id).catch(() => ({ running: false }));
-    if (!state.running || controller.signal.aborted) return;
+    if (!state.running || controller.signal.aborted) return false;
     turnStore.begin(id, controller);
     try {
       await data.turns.follow(id, (event) => {
@@ -117,13 +102,45 @@ function ChatView({ id }: { id: string }) {
       turnStore.end();
       setRegenTargetId(null);
     }
+    return true;
   }, [id]);
 
   useEffect(() => {
     const controller = new AbortController();
-    void attachToRunningTurn(controller);
+    const opening = data.conversations.get(id);
+    opening
+      .then((convo) => {
+        setConversation(convo);
+        setMessages(convo.messages ?? []);
+        if (convo.persona_id) {
+          data.personas
+            .list()
+            .then((all) => setPersona(all.find((p) => p.id === convo.persona_id) ?? null))
+            .catch(() => {});
+        }
+      })
+      .catch((error) => setLoadFailure({ error }));
+
+    // The conversation and the state of the turn are two reads, not one moment.
+    // A turn that ended between them leaves a reply as far as it had got, with no
+    // turn to watch and so nothing coming to replace it. What was read cannot say:
+    // only a new reply is marked while it is written, a regeneration or a
+    // continuation looks finished at every word. So it is read once more, which is
+    // enough: nothing was running when this one was asked for. Nearly always it
+    // says the same, and then what is on screen is left alone rather than every
+    // message being drawn twice.
+    void (async () => {
+      if ((await attachToRunningTurn(controller)) || controller.signal.aborted) return;
+      await opening;
+      const latest = (await data.conversations.get(id)).messages ?? [];
+      if (controller.signal.aborted || turnStore.isRunning(id)) return;
+      setMessages((shown) => (JSON.stringify(shown) === JSON.stringify(latest) ? shown : latest));
+    })().catch(() => {
+      /* whatever was read first stays on screen, or its failure is reported above */
+    });
+
     return () => controller.abort();
-  }, [attachToRunningTurn]);
+  }, [id, attachToRunningTurn]);
 
   /** Fetch the conversation again. Returns whether Evermind answered: callers
    *  that lost a connection use that to tell "the reply landed while we were
