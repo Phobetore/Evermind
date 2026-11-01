@@ -231,15 +231,17 @@ export function ChatSidePanel({
       )}
       style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="flex items-start justify-between">
-        <Link to={`/characters/${character.id}`} className="group flex items-center gap-3">
+      <div className="flex items-start justify-between gap-2">
+        {/* min-w-0 down the chain, and the name allowed to break anywhere: a name
+            is whatever its owner typed, and a handle is one long word. */}
+        <Link to={`/characters/${character.id}`} className="group flex min-w-0 items-center gap-3">
           <Avatar
             name={character.name}
             src={character.avatar_url}
-            className="h-12 w-12 text-lg"
+            className="h-12 w-12 shrink-0 text-lg"
           />
-          <div>
-            <h3 className="font-display font-semibold leading-tight group-hover:text-ember-300">
+          <div className="min-w-0">
+            <h3 className="break-words font-display font-semibold leading-tight group-hover:text-ember-300">
               {character.name}
             </h3>
             <p className="text-xs text-mist">{character.kind === "scenario" ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}</p>
@@ -247,7 +249,7 @@ export function ChatSidePanel({
         </Link>
         <button
           onClick={onClose}
-          className="rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment"
+          className="shrink-0 rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment"
           aria-label={t("chat.panel.closeAriaLabel")}
         >
           <X className="h-4 w-4" />
@@ -255,7 +257,7 @@ export function ChatSidePanel({
       </div>
 
       {persona && (
-        <div className="text-sm text-mist">
+        <div className="break-words text-sm text-mist">
           {t("chat.panel.youArePlaying")} <span className="font-display font-semibold text-parchment-dim">{persona.name}</span>
         </div>
       )}
@@ -403,7 +405,7 @@ export function ChatSidePanel({
             e.target.value = "";
           }}
         />
-        {wallpaperError && <p className="mt-2 text-xs text-blood">{wallpaperError}</p>}
+        {wallpaperError && <p className="mt-2 break-words text-xs text-blood">{wallpaperError}</p>}
       </div>
 
       {/* Scene directive: reaches the model at the most influential position
@@ -431,8 +433,13 @@ export function ChatSidePanel({
       </div>
 
       <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <span className="ui-label">{t("chat.panel.summary.title")}</span>
+        {/* A title and its button or buttons, here and under the facts. The title
+            gives way first, down to its longest word (no min-w-0: that is what
+            tells the row when to wrap); a button that still does not fit drops to
+            a line of its own instead of running past the edge. How wide a button
+            is depends on its word in the language it is read in. */}
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+          <span className="ui-label flex-1">{t("chat.panel.summary.title")}</span>
           <button
             className="btn btn-ghost !px-2.5 !py-1 text-xs"
             onClick={generateSummary}
@@ -458,14 +465,14 @@ export function ChatSidePanel({
             {t("chat.panel.summary.saveButton")}
           </button>
         )}
-        {note && <p className="mt-1.5 text-xs text-moss">{note}</p>}
+        {note && <p className="mt-1.5 break-words text-xs text-moss">{note}</p>}
       </div>
 
       {/* Established facts */}
       <div>
-        <div className="mb-1.5 flex items-center justify-between gap-2">
-          <span className="ui-label">{t("chat.panel.facts.title")} {memories.length > 0 && `(${memories.length})`}</span>
-          <div className="flex gap-1">
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+          <span className="ui-label flex-1">{t("chat.panel.facts.title")} {memories.length > 0 && `(${memories.length})`}</span>
+          <div className="flex max-w-full flex-wrap gap-1">
             <button
               className="btn btn-ghost !px-2 !py-1 text-xs"
               onClick={consolidateMemory}
@@ -527,7 +534,7 @@ export function ChatSidePanel({
               >
                 <Pin className={clsx("h-3.5 w-3.5", memory.is_pinned && "fill-current")} />
               </button>
-              <span className="min-w-0 flex-1 text-[0.82rem] leading-snug text-parchment-dim">
+              <span className="min-w-0 flex-1 break-words text-[0.82rem] leading-snug text-parchment-dim">
                 {memory.content}
                 {memory.source_position > 0 && (
                   <span className="ml-1 text-[0.68rem] text-mist-dim">{t("chat.panel.facts.turnBadge", { turn: memory.source_position })}</span>
@@ -565,13 +572,13 @@ export function ChatSidePanel({
             <Plus className="h-4 w-4" />
           </button>
         </div>
-        {memoryNote && <p className="mt-1.5 text-xs text-moss">{memoryNote}</p>}
+        {memoryNote && <p className="mt-1.5 break-words text-xs text-moss">{memoryNote}</p>}
       </div>
 
       {character.scenario && (
         <div>
           <span className="ui-label mb-1.5 block">{t("chat.panel.sceneAnchor.title")}</span>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-mist">
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-mist">
             {previewMacros(character.scenario, character.name, persona?.name ?? t("chat.panel.sceneAnchor.youFallback"))}
           </p>
         </div>
