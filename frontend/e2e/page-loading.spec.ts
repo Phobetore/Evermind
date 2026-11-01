@@ -256,7 +256,7 @@ test("the same goes for a page opened from another one", async ({ page }) => {
 
 test("a page whose code fails as it starts is not blamed on the download", async ({ page }) => {
   // The file arrives, and breaks as soon as it runs: a fault in the page, which
-  // fetching it again would only repeat.
+  // fetching it again may well repeat.
   await serveInstead(page, PERSONAS_CODE, 'throw new Error("a bug at the top of the page");');
   const logged = consoleErrors(page);
 

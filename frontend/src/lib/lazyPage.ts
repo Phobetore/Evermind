@@ -1,8 +1,8 @@
 import type { ComponentType, ErrorInfo } from "react";
 
 /** The code of a page could not be fetched. Kept apart from what a page
- *  raises once it is on screen: fetching it again is the cure for the first
- *  and does nothing for the second. */
+ *  raises once it is on screen: fetching it again is the cure for the first,
+ *  and no sure cure for the second. */
 export class PageLoadError extends Error {
   constructor(cause: unknown) {
     super("The code of a page could not be loaded.", { cause });
@@ -40,7 +40,7 @@ function fetchFailed(error: unknown): boolean {
  *
  *  Only a module that could not be fetched becomes a `PageLoadError`. One that
  *  was fetched and failed as it ran is the page's own fault: it goes on as it
- *  is, and reloading would only repeat it. */
+ *  is, since loading the page again may well fail the same way. */
 export function lazyPage<Name extends string>(
   load: () => Promise<Record<Name, ComponentType>>,
   name: Name,

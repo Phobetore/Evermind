@@ -34,9 +34,8 @@ export function LoginPage() {
       const fresh = await refresh();
       if (fresh.enabled && !fresh.authenticated) {
         // The server took the password and this browser did not keep the
-        // session it gave back, as phones with strict cookie settings do for
-        // an address that is not https. Going on would land on this very
-        // page again, silently.
+        // session it gave back, as one set to refuse cookies does. Going on
+        // would land on this very page again, silently.
         setError(t("login.cookieRefused"));
         setChecking(false);
         return;
@@ -51,7 +50,7 @@ export function LoginPage() {
   }
 
   return (
-    // Fixed overlay: the root layout renders the sidebar behind this page.
+    // Fixed overlay: AppShell still draws the sidebar behind this page.
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950 px-6">
       <div
         className="pointer-events-none absolute inset-0 opacity-70"

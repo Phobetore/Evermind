@@ -3,16 +3,18 @@ import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 
-// The repository's .env is where people set their ports. It is read here, by
-// the configuration, and nowhere else: `envPrefix` keeps its default, so none
-// of it (the access password included) can end up in the built interface.
+// The repository's .env is where people set their ports, and the configuration
+// takes only those two from it. What Vite itself hands to the page is VITE_
+// names alone (`envPrefix` keeps its default), from the environment and the
+// .env files in frontend/, never from this one, so nothing in the repository's
+// file, the access password included, can end up in the built interface.
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const { PORT, EVERMIND_BACKEND_PORT } = loadEnv(mode, repoRoot, "");
   return {
     // Relative asset paths: the same build works at the root of the server
-    // and inside a package that is served from somewhere else.
+    // and under a path prefix, such as a reverse proxy's /evermind/.
     base: "./",
     plugins: [react(), tailwindcss()],
     resolve: {

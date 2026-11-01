@@ -86,10 +86,6 @@ function ChatView({ id }: { id: string }) {
       .catch((error) => setLoadFailure({ error }));
   }, [id]);
 
-  // A reply may be being written for this conversation right now, by a server
-  // that carried on after the phone that asked for it went to sleep. Attach to
-  // it and watch the rest arrive, rather than showing a conversation that looks
-  // finished and is not.
   /** Watch a reply that is being written elsewhere — by a server that carried
    *  on after the phone that asked for it went to sleep. Used on arriving at
    *  the conversation, and again after a connection comes back. */
@@ -143,15 +139,15 @@ function ChatView({ id }: { id: string }) {
     }
   }, [conversation]);
 
-  // The closure that updates the message list belongs to whichever page instance
-  // started the turn. Arrive after it started, or come back to it, and nothing
-  // would tell this instance the reply had landed: watch the turn end instead.
   // What was already on screen when this page started the current turn. The
   // filter below hides a reply marked as still being written, so that a page
   // opened mid-turn does not show the same text twice; one that was already
   // here predates the turn and is not what is being written.
   const [beforeTurn, setBeforeTurn] = useState<Set<string>>(new Set());
 
+  // The closure that updates the message list belongs to whichever page instance
+  // started the turn. Arrive after it started, or come back to it, and nothing
+  // would tell this instance the reply had landed: watch the turn end instead.
   const wasBusy = useRef(false);
   useEffect(() => {
     if (busy) {

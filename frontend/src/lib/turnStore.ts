@@ -15,7 +15,8 @@ import { data } from "@/data";
 export interface Turn {
   conversationId: string;
   text: string;
-  /** Still receiving. False once the reply has landed or the turn has failed. */
+  /** Still receiving. True for as long as the store holds the turn: `end`
+   *  drops the turn rather than setting this to false. */
   busy: boolean;
 }
 

@@ -62,8 +62,8 @@ function isolated(command: string, env: Record<string, string>) {
 
 export default defineConfig({
   testDir: "./e2e",
-  // Everything here drives one shared backend, so tests take turns rather than
-  // racing each other through it.
+  // The tests share the servers below, so they take turns rather than racing
+  // each other through them.
   workers: 1,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

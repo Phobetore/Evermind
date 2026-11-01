@@ -3,11 +3,11 @@ import { API } from "../playwright.config";
 import { conversationWithReply } from "./fixtures";
 
 /**
- * A reply whose turn was cut off keeps a mark saying it is still being written.
- * The view hides anything carrying that mark while a turn is live, so the reply
- * vanished for the length of every later generation — most visibly the moment
- * you tried to continue it, which is exactly what you do with one that stopped
- * short.
+ * A reply whose turn was cut off keeps a mark saying it is still being written,
+ * and while a turn is live the view hides the reply that turn is writing. Taken
+ * for that one, the reply left marked vanished for the length of every later
+ * generation — most visibly the moment you tried to continue it, which is
+ * exactly what you do with one that stopped short.
  */
 test("a reply left mid-write stays on screen while it is continued", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
