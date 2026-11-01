@@ -10,6 +10,7 @@ context, so you can validate the whole pipeline (streaming, swipes, summary).
 import json
 import os
 import random
+import re
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -27,6 +28,9 @@ SLOW_WORD_DELAY = 0.6
 # Seconds a conversation that says MOCK_FAILS waits before the model refuses, which
 # gives a test a turn it can watch before it fails.
 FAIL_AFTER = 2.0
+# Seconds a conversation that says MOCK_QUIET waits before its first word, as a local
+# model does on a long prompt.
+QUIET_FOR = 8.0
 
 REPLIES = [
     "*{char} watches you for a moment, weighing something.* Now that is an interesting "
@@ -112,10 +116,19 @@ class Handler(BaseHTTPRequestHandler):
         else:
             reply = random.choice(REPLIES).replace("{char}", char)
 
+        # A conversation that says MOCK_SAYS_word gets a reply of its own, which
+        # can be told apart from another's, and which has a definite end.
+        says = re.search(r"MOCK_SAYS_(\w+)", json.dumps(payload))
+        if says:
+            word = says.group(1)
+            reply = f"{word} one two three four five six seven eight nine ten end{word}"
+
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
+        if "MOCK_QUIET" in json.dumps(payload):
+            time.sleep(QUIET_FOR)
         # A test that is about what happens *during* a reply needs the
         # reply to still be going when it looks. Rather than tune sleeps
         # against whatever machine is running, it says so in the

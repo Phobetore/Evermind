@@ -1,5 +1,9 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
+import {
+  connectionDiesDuring, countingPosts, countingStreams, countingTurnQuestions, endingOf,
+  expectPickedUp, looseWords, phoneComesBack, retryButton, stopButton, streamsKeepClosing, writing,
+} from "./connection";
 import { conversation, conversationWithReply, makeConversation, stopTurn, turnRunning } from "./fixtures";
 
 /**
@@ -74,114 +78,6 @@ test("a message that never reached Evermind is reported", async ({ page, request
   await expect(report).toContainText("Evermind is not answering");
 });
 
-/**
- * What a phone going to sleep does to a reply being read: the request rejects part
- * way through the answer, and the server, whose turn it is, carries on. Routing
- * cannot produce that (fulfilling a route always ends the body cleanly, and
- * offline mode leaves an established connection alone), so it is `fetch` in the
- * page that is replaced, for the first request to `path`.
- *
- * After `chunks` chunks of the answer it fails, or when the test calls
- * `window.__cutConnection()` if there is no such number. With `staysDead`, nothing
- * gets through afterwards until `window.__connectionBack()`. With `hangs` it fails
- * in another way a stream can: no error, no end, just nothing more. With `closes`,
- * in the third: it ends cleanly, as when something in between gives up on it.
- */
-type ConnectionTrouble = { chunks?: number; staysDead?: boolean; hangs?: boolean; closes?: boolean };
-
-async function connectionDiesDuring(page: Page, path: string, trouble: ConnectionTrouble = {}) {
-  const options = {
-    chunks: null as number | null, staysDead: false, hangs: false, closes: false, ...trouble,
-  };
-  await page.addInitScript(({ path, chunks, staysDead, hangs, closes }) => {
-    const realFetch = window.fetch;
-    const page_ = window as unknown as Record<string, () => void>;
-    let cut = false;
-    let dead = false;
-    let cutNow = () => {};
-    const asked = new Promise<"cut">((resolve) => { cutNow = () => resolve("cut"); });
-    page_.__cutConnection = () => cutNow();
-    page_.__connectionBack = () => { dead = false; };
-    window.fetch = async (input, init) => {
-      if (dead) throw new TypeError("Failed to fetch");
-      const response = await realFetch(input, init);
-      if (cut || !String(input).endsWith(path) || !response.body) return response;
-      cut = true;
-      const reader = response.body.getReader();
-      let passed = 0;
-      const body = new ReadableStream({
-        async pull(controller) {
-          const next = chunks !== null && passed++ >= chunks
-            ? "cut" as const
-            : await Promise.race([reader.read(), asked]);
-          if (next !== "cut") {
-            if (next.done) controller.close();
-            else controller.enqueue(next.value);
-            return;
-          }
-          if (hangs) return new Promise<void>(() => {});
-          dead = staysDead;
-          await reader.cancel();
-          if (closes) controller.close();
-          else controller.error(new TypeError("network error"));
-        },
-      });
-      return new Response(body, { status: response.status, headers: response.headers });
-    };
-  }, { path, ...options });
-}
-
-/** Says what a phone coming back says, and lets the page's short wait go by. */
-async function phoneComesBack(page: Page) {
-  await page.evaluate(() => {
-    window.dispatchEvent(new Event("online"));
-    document.dispatchEvent(new Event("visibilitychange"));
-  });
-}
-
-const stopButton = (page: Page) => page.locator('button[title="Stop generation"]');
-/** The words of a reply outside the messages: arriving, or kept after being cut off. */
-const looseWords = (page: Page) => page.locator("main .rp-prose:not([data-message-id] .rp-prose)");
-const writing = (page: Page) => page.locator(".stream-caret");
-
-const endingOf = (content: string) =>
-  content.trim().split(" ").slice(-3).join(" ").replaceAll("*", "");
-
-function turnPath(url: string) {
-  return new URL(url).pathname;
-}
-
-/** How many times the page has asked about the turn since this was called. */
-async function countingTurnQuestions(page: Page) {
-  let asks = 0;
-  page.on("request", (sent) => { if (turnPath(sent.url()).endsWith("/turn")) asks += 1; });
-  return () => asks;
-}
-
-/** How many times the page has started reading a turn's stream. */
-function countingStreams(page: Page) {
-  let streams = 0;
-  page.on("request", (sent) => { if (turnPath(sent.url()).endsWith("/turn/stream")) streams += 1; });
-  return () => streams;
-}
-
-/** How many times the page has asked for a turn. */
-function countingPosts(page: Page) {
-  let posts = 0;
-  page.on("request", (sent) => { if (turnPath(sent.url()).endsWith("/api/chat")) posts += 1; });
-  return () => posts;
-}
-
-/** The stream has been read again, and more words than it had are arriving. */
-async function expectPickedUp(page: Page, pickedUp: Promise<unknown>) {
-  await pickedUp;
-  await expect(stopButton(page), "nothing to stop the reply with").toBeVisible();
-  await expect(writing(page)).toBeVisible();
-  await expect(writing(page)).not.toHaveText((await writing(page).textContent()) ?? "");
-  await expect(stopButton(page), "nothing to stop the reply with").toBeVisible();
-  await expect(page.locator("p.text-blood"), "a lost connection was reported as a failure").toHaveCount(0);
-}
-
 test("a connection lost in the middle of a reply is picked back up", async ({ page, request }) => {
   const convo = await conversationWithReply(request, { slowly: true });
   await connectionDiesDuring(page, "api/chat", { chunks: 3 });
@@ -219,7 +115,7 @@ test("a stream that simply ends in the middle of a reply is picked back up", asy
 });
 
 test("a reply that landed while the connection was down is on screen when it returns", async ({ page, request }) => {
-  const convo = await conversationWithReply(request, { slowly: true });
+  const convo = await conversationWithReply(request);
   await connectionDiesDuring(page, "api/chat", { chunks: 3 });
   // The connection comes back too late: by the time the page gets an answer about
   // the turn, the turn is over. Opening the page asks too, with nothing running yet.
@@ -231,8 +127,9 @@ test("a reply that landed while the connection was down is on screen when it ret
 
   await page.locator("textarea").first().fill("Coupe.");
   await page.locator('button[title="Send"]').click();
-  await expect(writing(page)).toBeVisible();
 
+  await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
+    { timeout: 15_000 }).toBe(convo.messages.length + 2);
   await expect.poll(() => turnRunning(request, convo.id), { timeout: 60_000 }).toBe(false);
   const reply = (await conversation(request, convo.id)).messages.at(-1);
   const ending = reply.content.trim().split(" ").slice(-3).join(" ");
@@ -320,7 +217,7 @@ async function replyCutOff(page: Page, context: BrowserContext, convoId: string)
 test("a reply cut off comes back by itself with the connection", async ({ page, context, request }) => {
   const convo = await conversationWithReply(request, { slowly: true });
   const { report, kept } = await replyCutOff(page, context, convo.id);
-  const asks = await countingTurnQuestions(page);
+  const asks = countingTurnQuestions(page);
 
   // Still nothing: one quiet attempt for a burst of events, and nothing changes.
   await phoneComesBack(page);
@@ -402,7 +299,7 @@ test("a phone coming back does not disturb a reply that is arriving", async ({ p
   await page.locator('button[title="Send"]').click();
   await expect(writing(page)).toBeVisible();
 
-  const asks = await countingTurnQuestions(page);
+  const asks = countingTurnQuestions(page);
   await phoneComesBack(page);
   // Two more words, which is longer than the page waits before acting on that.
   for (let word = 0; word < 2; word++) {
@@ -435,38 +332,6 @@ test("a regeneration cut off keeps the new words, not the old reply, until it co
   expect(after.length, "a reply was added instead of replaced").toBe(convo.messages.length);
   expect(after.at(-1).variants.length).toBe(2);
 });
-
-/** Every stream of a turn, sent or followed, ends cleanly after `chunks` chunks, for
- *  the first `times` of them, which `window.__closesLeft` can change meanwhile. */
-async function streamsKeepClosing(page: Page, times: number, chunks = 3) {
-  await page.addInitScript(({ times, chunks }) => {
-    const realFetch = window.fetch;
-    const page_ = window as unknown as { __closesLeft: number };
-    page_.__closesLeft = times;
-    window.fetch = async (input, init) => {
-      const response = await realFetch(input, init);
-      const url = String(input);
-      const stream = url.endsWith("api/chat") || url.endsWith("/turn/stream");
-      if (!stream || page_.__closesLeft <= 0 || !response.body) return response;
-      page_.__closesLeft -= 1;
-      const reader = response.body.getReader();
-      let passed = 0;
-      const body = new ReadableStream({
-        async pull(controller) {
-          if (passed++ >= chunks) {
-            await reader.cancel();
-            controller.close();
-            return;
-          }
-          const next = await reader.read();
-          if (next.done) controller.close();
-          else controller.enqueue(next.value);
-        },
-      });
-      return new Response(body, { status: response.status, headers: response.headers });
-    };
-  }, { times, chunks });
-}
 
 test("a stream that keeps closing does not leave part of a reply on screen", async ({ page, request }) => {
   const convo = await conversationWithReply(request, { slowly: true });
@@ -505,8 +370,6 @@ test("a stream that closes again and again with no new word gives up, and says s
   await stopTurn(request, convo.id);
   await expect(stopButton(page)).toBeHidden();
 });
-
-const retryButton = (page: Page) => page.getByRole("button", { name: "Retry" });
 
 test("a reply that failed with no page open is reported on opening, and can be asked for again", async ({ page, request }) => {
   const convo = await conversationWithReply(request, { failing: true });

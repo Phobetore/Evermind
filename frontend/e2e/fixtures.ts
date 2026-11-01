@@ -50,24 +50,31 @@ export async function makeConversation(request: APIRequestContext, fields: Recor
  *  running is how a suite comes to pass here and fail on a CI runner. */
 export async function conversationWithReply(
   request: APIRequestContext,
-  { slowly = false, failing = false }: { slowly?: boolean; failing?: boolean } = {},
+  { slowly = false, failing = false, quiet = false, says }: {
+    slowly?: boolean;
+    failing?: boolean;
+    /** The model takes eight seconds over its first word. */
+    quiet?: boolean;
+    /** The reply is this word, then numbers, then "end" and this word. */
+    says?: string;
+  } = {},
 ) {
   const convo = await makeConversation(request);
   await request.post(`${API}/api/chat`, {
     data: { conversation_id: convo.id, mode: "send", content: "Tell me.", message_mode: "say" },
     timeout: 60_000,
   });
-  if (slowly) {
-    // After the first reply, not before: the marker is for the turn the test is
-    // about, and putting it in the message would make setting up slow too.
+  // After the first reply, not before: the markers are for the turn the test is
+  // about, and putting them in the message would make setting up slow too.
+  const markers = [
+    slowly && "SLOWLY",
+    failing && "MOCK_FAILS", // a model that refuses a couple of seconds into a turn
+    quiet && "MOCK_QUIET",
+    says && `MOCK_SAYS_${says}`,
+  ].filter(Boolean);
+  if (markers.length) {
     await request.patch(`${API}/api/conversations/${convo.id}`, {
-      data: { author_note: "SLOWLY" },
-    });
-  }
-  if (failing) {
-    // The same, for a model that refuses a couple of seconds into a turn.
-    await request.patch(`${API}/api/conversations/${convo.id}`, {
-      data: { author_note: "MOCK_FAILS" },
+      data: { author_note: markers.join(" ") },
     });
   }
   return (await request.get(`${API}/api/conversations/${convo.id}`)).json();
