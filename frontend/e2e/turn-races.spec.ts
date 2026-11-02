@@ -5,7 +5,7 @@ import {
   expectPickedUp, goWithinThePage, looseWords, phoneComesBack, report, retryButton, stopButton,
   writing,
 } from "./connection";
-import { conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
+import { conversation, conversationWithReply, makeCharacter, stopTurn, turnRunning } from "./fixtures";
 
 /**
  * What happens when two things meant for the same turn, or for two turns, arrive in
@@ -804,6 +804,8 @@ test.describe("what is asked of a connection that does not answer", () => {
 test.describe("a message that does not go", () => {
   const box = (page: Page) => page.locator("textarea").first();
   const badGateway = { status: 502, contentType: "text/html", body: "<html>Bad gateway</html>" };
+  const said = async (request: Parameters<typeof turnRunning>[0], id: string, text: string) =>
+    (await conversation(request, id)).messages.filter((m: { content: string }) => m.content === text).length;
 
   test("sent with no connection, it is there on coming back", async ({ page, context, request }) => {
     const convo = await conversationWithReply(request);
@@ -881,6 +883,66 @@ test.describe("a message that does not go", () => {
     await expect(box(page), "the message was lost").toHaveValue("Passe donc.");
   });
 
+  test("turned away, then left and come back to, retrying sends it and nothing else", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    const reply = convo.messages.at(-1);
+    await page.route("**/api/chat", (route) => route.fulfill(badGateway));
+    await page.goto(`/#/chat/${convo.id}`);
+    await send(page, "Passe donc.");
+    await expect(report(page).first()).toBeVisible({ timeout: 20_000 });
+    await page.unroute("**/api/chat");
+    await goWithinThePage(page, "/chat");
+    await expect(page.locator("textarea")).toHaveCount(0);
+    await goWithinThePage(page, `/chat/${convo.id}`);
+    await expect(box(page)).toHaveValue("Passe donc.");
+
+    await retryButton(page).click();
+
+    await expect.poll(() => said(request, convo.id, "Passe donc."), { timeout: 30_000 }).toBe(1);
+    await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
+      { timeout: 30_000 }).toBe(convo.messages.length + 2);
+    const same = (await conversation(request, convo.id)).messages.find((m: { id: string }) => m.id === reply.id);
+    expect(same.variants.length, "asked for a new version of the reply before it").toBe(reply.variants.length);
+    await expect(box(page)).toHaveValue("");
+  });
+
+  test("an error instead of a beginning, then Retry straight away, sends it", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    const reply = convo.messages.at(-1);
+    const connections = await (await request.get(`${API}/api/connections`)).json();
+    for (const connection of connections) await request.delete(`${API}/api/connections/${connection.id}`);
+    await page.goto(`/#/chat/${convo.id}`);
+    await send(page, "Sans connexion.");
+    await expect(report(page).first()).toBeVisible({ timeout: 20_000 });
+    await expect(box(page), "the message was lost").toHaveValue("Sans connexion.");
+    await makeCharacter(request); // which sees that there is a connection again
+
+    await retryButton(page).click();
+
+    await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
+      { timeout: 30_000 }).toBe(convo.messages.length + 2);
+    expect(await said(request, convo.id, "Sans connexion."), "not sent").toBe(1);
+    const same = (await conversation(request, convo.id)).messages.find((m: { id: string }) => m.id === reply.id);
+    expect(same.variants.length, "asked for a new version of the reply before it").toBe(reply.variants.length);
+    await expect(box(page)).toHaveValue("");
+  });
+
+  test("two quick Retries send it once", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await page.route("**/api/chat", (route) => route.fulfill(badGateway));
+    await page.goto(`/#/chat/${convo.id}`);
+    await send(page, "Deux fois ?");
+    await expect(report(page).first()).toBeVisible({ timeout: 20_000 });
+    await page.unroute("**/api/chat");
+
+    const posts = countingPosts(page);
+    await retryButton(page).dblclick();
+    await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
+      { timeout: 30_000 }).toBe(convo.messages.length + 2);
+    expect(posts()).toBe(1);
+    expect(await said(request, convo.id, "Deux fois ?")).toBe(1);
+  });
+
   test("retrying with the box emptied by hand asks for nothing", async ({ page, request }) => {
     const convo = await conversationWithReply(request);
     await page.route("**/api/chat", (route) => route.fulfill(badGateway));
@@ -913,6 +975,222 @@ test.describe("a message that does not go", () => {
     await page.goto(`/#/chat/${convo.id}`);
     await page.reload();
     await expect(box(page), "the message was lost").toHaveValue("Me revoilà.");
+  });
+
+  /** A message that got there, with the answer lost on the way back. */
+  async function sentWithTheAnswerLost(page: Page, id: string, text: string) {
+    await connectionDiesDuring(page, "api/chat", { chunks: 0, staysDead: true });
+    await page.goto(`/#/chat/${id}`);
+    await send(page, text);
+    await expect(report(page).first()).toBeVisible({ timeout: 20_000 });
+    await expect(box(page), "there is no telling yet, so it is kept").toHaveValue(text);
+  }
+
+  test("one that arrived and was answered is not said twice by pressing Send", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await sentWithTheAnswerLost(page, convo.id, "Arrivé quand même.");
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+    await connectionBack(page); // and nothing says so
+
+    const posts = countingPosts(page);
+    await page.locator('button[title="Send"]').click();
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2, { timeout: 15_000 });
+    await expect(box(page)).toHaveValue("");
+    await expect(report(page)).toHaveCount(0);
+    expect(await said(request, convo.id, "Arrivé quand même."), "sent twice").toBe(1);
+    expect((await conversation(request, convo.id)).messages.length, "a second reply").toBe(convo.messages.length + 2);
+    expect(posts(), "there was nothing to ask for").toBe(0);
+  });
+
+  test("the same with the reply still being written, which it joins", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    await sentWithTheAnswerLost(page, convo.id, "Encore là.");
+    await connectionBack(page);
+
+    await page.locator('button[title="Send"]').click();
+
+    await expect(writing(page), "did not join the reply").toBeVisible({ timeout: 15_000 });
+    await expect(box(page)).toHaveValue("", { timeout: 10_000 });
+    await expect(report(page).filter({ hasText: "already being written" }), "it was sent, and this is it").toHaveCount(0);
+    await stopTurn(request, convo.id);
+    expect(await said(request, convo.id, "Encore là."), "sent twice").toBe(1);
+  });
+
+  test("the same with a message that changed: that is another message", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await sentWithTheAnswerLost(page, convo.id, "Une première.");
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+    await connectionBack(page);
+
+    await send(page, "Une première, et plus.");
+
+    await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
+      { timeout: 30_000 }).toBe(convo.messages.length + 4);
+    expect(await said(request, convo.id, "Une première.")).toBe(1);
+    expect(await said(request, convo.id, "Une première, et plus.")).toBe(1);
+  });
+
+  test("Retry on one that arrived and was answered asks for nothing", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    const reply = convo.messages.at(-1);
+    await sentWithTheAnswerLost(page, convo.id, "Une fois.");
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+    await connectionBack(page);
+
+    const posts = countingPosts(page);
+    await retryButton(page).click();
+
+    await expect(box(page)).toHaveValue("", { timeout: 10_000 });
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2, { timeout: 15_000 });
+    expect(posts()).toBe(0);
+    const same = (await conversation(request, convo.id)).messages.find((m: { id: string }) => m.id === reply.id);
+    expect(same.variants.length).toBe(reply.variants.length);
+  });
+
+  test("Retry on one that arrived with no reply gets it one, and does not say it twice", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { failing: true });
+    const reply = convo.messages.at(-1);
+    await sentWithTheAnswerLost(page, convo.id, "Réponds.");
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+    await connectionBack(page);
+    await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
+
+    await retryButton(page).click();
+
+    await expect(box(page)).toHaveValue("", { timeout: 10_000 });
+    await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
+      { timeout: 30_000 }).toBe(convo.messages.length + 2);
+    const { messages } = await conversation(request, convo.id);
+    expect(messages.at(-1).role, "no reply").toBe("assistant");
+    expect(await said(request, convo.id, "Réponds."), "sent twice").toBe(1);
+    expect(messages.find((m: { id: string }) => m.id === reply.id).variants.length,
+      "asked for a new version of the reply before it").toBe(reply.variants.length);
+  });
+
+  test("one that arrived is not offered after a reload", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await sentWithTheAnswerLost(page, convo.id, "Recharge.");
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+
+    await page.reload();
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2, { timeout: 15_000 });
+    await expect(box(page), "still offered for sending").toHaveValue("");
+    expect(await said(request, convo.id, "Recharge.")).toBe(1);
+  });
+
+  /** Long enough after the turn that the server has forgotten it, so that reading the
+   *  conversation is all there is to go by. */
+  const turnLongForgotten = (page: Page) => page.route("**/turn", (route) => (
+    route.request().method() === "GET"
+      ? route.fulfill({ json: { running: false, mode: null, ended_recently: false } })
+      : route.continue()
+  ));
+
+  test("nor long after, on opening", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await sentWithTheAnswerLost(page, convo.id, "Bien plus tard.");
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+    await turnLongForgotten(page);
+
+    await page.reload();
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2, { timeout: 15_000 });
+    await expect(box(page), "still offered for sending").toHaveValue("");
+  });
+
+  test("nor long after, with the page still open and a phone coming back", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await sentWithTheAnswerLost(page, convo.id, "Bien plus tard.");
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+    await connectionBack(page);
+    await turnLongForgotten(page);
+
+    await phoneComesBack(page);
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2, { timeout: 15_000 });
+    await expect(box(page), "still offered for sending").toHaveValue("");
+    await expect(report(page)).toHaveCount(0);
+  });
+
+  test("nor after leaving and coming back", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await sentWithTheAnswerLost(page, convo.id, "Parti.");
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+    await connectionBack(page);
+    await goWithinThePage(page, "/chat");
+    await expect(page.locator("textarea")).toHaveCount(0);
+
+    await goWithinThePage(page, `/chat/${convo.id}`);
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2, { timeout: 15_000 });
+    await expect(box(page), "still offered for sending").toHaveValue("");
+  });
+
+  test("a tab that goes before anything is known of a message that arrived offers nothing", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    await connectionDiesDuring(page, "api/chat", { chunks: 0, hangs: true });
+    await page.goto(`/#/chat/${convo.id}`);
+    await send(page, "Parti trop tôt.");
+    await expect(box(page)).toHaveValue("");
+    await expect.poll(async () => said(request, convo.id, "Parti trop tôt.")).toBe(1);
+
+    await page.reload();
+
+    await expect(page.locator("[data-message-id]").filter({ hasText: "Parti trop tôt." })).toHaveCount(1);
+    await expect(box(page), "still offered for sending").toHaveValue("");
+    await stopTurn(request, convo.id);
+  });
+
+  test("a tab that goes before a message has got anywhere has it back", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await page.route("**/api/chat", () => {}); // and that is the last that is heard of it
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(box(page)).toBeVisible();
+    await narrating(page);
+    await send(page, "Trop tard.");
+    await expect(box(page)).toHaveValue("");
+    await expect(stopButton(page)).toBeVisible();
+
+    await page.reload();
+
+    await expect(box(page), "the message was lost").toHaveValue("Trop tard.");
+    await expect(narrationMode(page), "it came back as something else").toBeVisible();
+    await page.unroute("**/api/chat");
+    await page.locator('button[title="Send"]').click();
+    await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
+      { timeout: 30_000 }).toBe(convo.messages.length + 2);
+    expect(await said(request, convo.id, "Trop tard.")).toBe(1);
+    await expect(box(page)).toHaveValue("");
+  });
+
+  test("with storage blocked, it is there on coming back while the page lasts", async ({ page, request }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(String(error)));
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "localStorage", { get() { throw new DOMException("denied", "SecurityError"); } });
+    });
+    const convo = await conversationWithReply(request);
+    let release = () => {};
+    const released = new Promise<void>((resolve) => { release = resolve; });
+    await page.route("**/api/chat", async (route) => {
+      await released;
+      await route.fulfill(badGateway);
+    });
+    await page.goto(`/#/chat/${convo.id}`);
+    const turnedAway = page.waitForResponse((r) => r.url().endsWith("/api/chat") && r.status() === 502);
+    await send(page, "Parti entre-temps.");
+    await expect(box(page)).toHaveValue("");
+    await goWithinThePage(page, "/chat");
+    await expect(page.locator("textarea")).toHaveCount(0);
+    release();
+    await turnedAway;
+    await settled(page);
+
+    await goWithinThePage(page, `/chat/${convo.id}`);
+    await expect(box(page), "the message was lost").toHaveValue("Parti entre-temps.");
+    expect(errors).toEqual([]);
   });
 
   test("one that arrived, its answer being what was lost, does not stay to be sent twice", async ({ page, request }) => {

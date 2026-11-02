@@ -85,7 +85,7 @@ export function ChatInput({
   useEffect(
     () => openBox(conversationId, {
       read: () => held.current.value,
-      write(text, nextMode) {
+      write(text, nextMode = held.current.mode) {
         held.current = { value: text, mode: nextMode };
         setValue(text);
         setMode(nextMode);

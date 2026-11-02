@@ -56,6 +56,8 @@ const turns = new Map<string, HeldTurn>();
 const failures = new Map<string, TurnFailure>();
 /** A stop that could not be said, and the failure that reports it, to say it again. */
 const stopsToSay = new Map<string, TurnFailure>();
+/** How many turns have begun, for knowing a stop was about one that has gone. */
+const begun = new Map<string, number>();
 const listeners = new Set<() => void>();
 
 // A new object on every change and the same one otherwise: useSyncExternalStore
@@ -80,6 +82,7 @@ function held(conversationId: string, controller: AbortController) {
 }
 
 function sayStop(conversationId: string) {
+  const asOf = begun.get(conversationId);
   return data.turns.stop(conversationId).then(
     () => {
       const reported = stopsToSay.get(conversationId);
@@ -91,6 +94,8 @@ function sayStop(conversationId: string) {
       return true;
     },
     (error: unknown) => {
+      // The next turn has begun meanwhile, and a stop said again would land on that.
+      if (begun.get(conversationId) !== asOf) return false;
       const failure = { error };
       stopsToSay.set(conversationId, failure);
       failures.set(conversationId, failure);
@@ -123,6 +128,7 @@ export const turnStore = {
     // A stop still to be said was for a turn that has been left behind by now, and
     // must not land on this one.
     stopsToSay.delete(conversationId);
+    begun.set(conversationId, (begun.get(conversationId) ?? 0) + 1);
     turns.set(conversationId, {
       conversationId, text: "", busy: true, lost: null, controller, lastWordAt: Date.now(),
       replay: null, closes: 0, textAtLastClose: 0, stopping: false,
@@ -225,8 +231,8 @@ export const turnStore = {
    *  going to sleep does. Stopping has to be said, and if it cannot be, that is
    *  reported, and it is said again when the connection returns.
    *
-   *  Says whether it got through, which the server answers once the turn has ended
-   *  and everything that arrived is in the conversation. */
+   *  Says whether it got through. The server answers once the turn has ended and all
+   *  that arrived is in the conversation, or after ten seconds if it still has not. */
   stop(conversationId: string) {
     const turn = turns.get(conversationId);
     if (!turn) return Promise.resolve(false);

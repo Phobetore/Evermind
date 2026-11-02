@@ -214,6 +214,23 @@ describe("stopping", () => {
     expect(stop).not.toHaveBeenCalled();
   });
 
+  test("a stop that fails once the next turn has begun is not said again", async () => {
+    const { id } = reading();
+    let refuse: (reason: unknown) => void = () => {};
+    stop.mockReturnValueOnce(new Promise((_, reject) => { refuse = reject; }));
+    const said = turnStore.stop(id);
+
+    turnStore.begin(id, new AbortController());
+    refuse(new Error("gone"));
+    await expect(said).resolves.toBe(false);
+
+    expect(turnStore.hasStopToSay(id), "it would land on this one").toBe(false);
+    expect(turnStore.failureOf(id), "reported against a turn it has nothing to do with").toBeNull();
+    stop.mockClear();
+    await expect(turnStore.sayStopAgain(id)).resolves.toBe(false);
+    expect(stop).not.toHaveBeenCalled();
+  });
+
   test("a stop left unsaid does not land on the next turn", async () => {
     const { id } = reading();
     stop.mockRejectedValueOnce(new Error("gone"));

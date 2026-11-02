@@ -156,6 +156,8 @@ export interface TurnRequest {
   mode: "send" | "regenerate" | "continue";
   content?: string;
   message_mode?: "say" | "narrate" | "ooc";
+  /** For a message: says it is the same one, if it has to be sent again. */
+  client_id?: string;
 }
 
 /** A connection as the form holds it. `api_key` is left out when editing a
