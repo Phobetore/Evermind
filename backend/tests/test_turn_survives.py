@@ -109,9 +109,12 @@ async def test_a_different_request_is_refused_rather_than_swallowed(client, unhu
     })
     assert response.status_code == 409
     assert response.json()["kind"] == "turn_running"
-    assert await _messages(client, convo["id"]) == before, "something was saved of it"
 
+    # Read once the running turn is over, since it writes its own reply as it goes.
     await asyncio.wait_for(running.finished.wait(), timeout=15)
+    after = await _messages(client, convo["id"])
+    assert [m["id"] for m in after] == [m["id"] for m in before], "something was saved of it"
+    assert after[-1]["variants"] == before[-1]["variants"][:1] * 2, "it was acted on as well"
 
 
 async def test_a_message_is_refused_while_a_message_is_being_answered(client, unhurried):
