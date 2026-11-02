@@ -26,6 +26,11 @@ const kindOf = (value: unknown): string =>
 const textOf = (value: unknown): string =>
   typeof value === "string" && isWritable(value) ? pyStrip(value) : "";
 
+/** Whether the model may correct, drop or merge a fact: it wrote it and nobody pinned
+ *  it. What a person typed or pinned is left alone. */
+export const isMovable = (fact: { is_pinned?: boolean | null; source?: string | null }): boolean =>
+  !fact.is_pinned && fact.source === "auto";
+
 /** What `planMemoryChanges` reads of a fact the conversation remembers. */
 export interface KnownFact {
   content: string;
@@ -83,7 +88,6 @@ export function planMemoryChanges(
     ops.push({ op: "delete", target: fact.content });
     known.splice(known.indexOf(fact), 1);
   };
-  const forTheModel = (fact: (typeof known)[number]) => !fact.is_pinned && fact.source === "auto";
 
   for (const fact of items(parsed.facts)) {
     if (isRecord(fact)) add(textOf(fact.content), kindOf(fact.kind));
@@ -96,7 +100,7 @@ export function planMemoryChanges(
     const target = find(isRecord(update) ? update.replaces : undefined);
     if (target === undefined) {
       add(newContent, "fact");
-    } else if (forTheModel(target)) {
+    } else if (isMovable(target)) {
       if (known.some((m) => m !== target && m.content === newContent)) {
         drop(target);
       } else {
@@ -108,7 +112,7 @@ export function planMemoryChanges(
 
   for (const obsolete of items(parsed.obsolete_facts)) {
     const target = find(obsolete);
-    if (target && forTheModel(target)) drop(target);
+    if (target && isMovable(target)) drop(target);
   }
 
   return { ops, summary: textOf(parsed.summary) || null };

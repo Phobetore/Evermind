@@ -1,5 +1,6 @@
 """Memory system tests: extraction, dedup, scheduling, injection, endpoints."""
 
+import asyncio
 import json
 
 import pytest
@@ -348,67 +349,182 @@ async def consolidate_while(client, monkeypatch, convo_id, meanwhile):
     return await client.post(f"/api/conversations/{convo_id}/memories/consolidate")
 
 
-async def test_a_fact_pinned_or_edited_while_the_model_merges_is_not_merged(
-        client, fake_provider, monkeypatch):
+@pytest.mark.parametrize("change", ["pinned", "edited", "deleted", "replaced"])
+async def test_nothing_is_written_when_a_fact_sent_to_the_model_changed_meanwhile(
+        client, fake_provider, monkeypatch, change):
+    """The merge was written from all the facts that were sent: with one of them
+    changed, its old text could come back inside a merged fact, so nothing is written."""
     from app.db import _connect
 
     convo = await setup_conversation(client)
     await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
                     by_the_model=True)
-    db = await _connect()
-    await db.execute("UPDATE memories SET source_position = 7")
-    await db.execute("UPDATE memories SET source_position = 1 WHERE content = 'Movable fact 0.'")
-    await db.commit()
-    await db.close()
-    facts = {f["content"]: f["id"] for f in
-             (await client.get(f"/api/conversations/{convo['id']}/memories")).json()}
+    before = await stored_facts(client, convo["id"])
+    sent = {f["content"]: f["id"] for f in
+            (await client.get(f"/api/conversations/{convo['id']}/memories")).json()}["Movable fact 3."]
 
     async def meanwhile():
-        await client.patch(f"/api/memories/{facts['Movable fact 0.']}", json={"is_pinned": True})
-        await client.patch(f"/api/memories/{facts['Movable fact 1.']}",
-                           json={"content": "Movable fact 1, edited."})
-        # A fact of the same text, made since, is not the one that was sent.
-        db = await _connect()
-        await db.execute("UPDATE memories SET id = 'made-since' WHERE id = ?",
-                         (facts["Movable fact 2."],))
-        await db.commit()
-        await db.close()
+        if change == "pinned":
+            await client.patch(f"/api/memories/{sent}", json={"is_pinned": True})
+        elif change == "edited":
+            await client.patch(f"/api/memories/{sent}", json={"content": "Movable fact 3, edited."})
+        elif change == "deleted":
+            await client.delete(f"/api/memories/{sent}")
+        else:
+            # A fact of the same text, made since, is not the one that was sent.
+            db = await _connect()
+            await db.execute("UPDATE memories SET id = 'made-since' WHERE id = ?", (sent,))
+            await db.commit()
+            await db.close()
+
+    resp = await consolidate_while(client, monkeypatch, convo["id"], meanwhile)
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["skipped"] == "changed"
+    assert body["before"] == body["after"] == len(body["memories"])
+
+    def as_left(row):
+        content, kind, position, pinned, source = row
+        if content != "Movable fact 3.":
+            return row
+        return {"pinned": (content, kind, position, True, source),
+                "edited": ("Movable fact 3, edited.", kind, position, pinned, source),
+                "deleted": None, "replaced": row}[change]
+
+    assert await stored_facts(client, convo["id"]) == sorted(
+        row for row in map(as_left, before) if row)
+
+
+async def test_a_fact_added_meanwhile_does_not_stop_the_merge(client, fake_provider, monkeypatch):
+    """It is not one of the facts that were sent, so the merge cannot have used it."""
+    convo = await setup_conversation(client)
+    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
+                    by_the_model=True)
+
+    async def meanwhile():
         await client.post(f"/api/conversations/{convo['id']}/memories",
                           json={"content": "Added meanwhile."})
 
     resp = await consolidate_while(client, monkeypatch, convo["id"], meanwhile)
 
     assert resp.status_code == 200, resp.text
-    assert resp.json()["before"] == 9 and resp.json()["after"] == 5
-    # The merged fact takes the oldest position of the ones it replaced: not that of
-    # the pinned one, which is not among them.
-    assert await stored_facts(client, convo["id"]) == [
-        ("Added meanwhile.", "fact", 0, False, "user"),
-        ("All of it, merged.", "fact", 7, False, "auto"),
-        ("Movable fact 0.", "fact", 1, True, "auto"),
-        ("Movable fact 1, edited.", "fact", 7, False, "auto"),
-        ("Movable fact 2.", "fact", 7, False, "auto")]
+    assert resp.json()["before"] == 9 and resp.json()["after"] == 2
+    assert [f[0] for f in await stored_facts(client, convo["id"])] == [
+        "Added meanwhile.", "All of it, merged."]
 
 
-async def test_nothing_is_written_when_every_fact_sent_to_the_model_changed_meanwhile(
+def waiting_provider(monkeypatch):
+    """A provider for the memory passes that does not answer until ``release`` is set,
+    and says when it was asked and with what."""
+    started, release, asked = asyncio.Event(), asyncio.Event(), []
+
+    class Waiting(FakeProvider):
+        async def stream_chat(self, payload):
+            asked.append(payload)
+            started.set()
+            await release.wait()
+            async for event in super().stream_chat(payload):
+                yield event
+
+    monkeypatch.setattr("app.services.memory_service.get_provider", Waiting)
+    return started, release, asked
+
+
+async def within(seconds, awaitable):
+    """So that a pass that waits for another fails the test instead of hanging it."""
+    return await asyncio.wait_for(awaitable, seconds)
+
+
+async def test_a_second_pass_while_a_consolidation_runs_changes_nothing_and_asks_nothing(
         client, fake_provider, monkeypatch):
     convo = await setup_conversation(client)
     await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
                     by_the_model=True)
-    before = await stored_facts(client, convo["id"])
-    ids = [f["id"] for f in (await client.get(f"/api/conversations/{convo['id']}/memories")).json()]
+    started, release, asked = waiting_provider(monkeypatch)
+    FakeProvider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
+    url = f"/api/conversations/{convo['id']}/memories"
 
-    async def meanwhile():
-        for fact_id in ids:
-            await client.patch(f"/api/memories/{fact_id}", json={"is_pinned": True})
+    first = asyncio.create_task(client.post(f"{url}/consolidate"))
+    try:
+        await within(5, started.wait())
+        second = await within(5, client.post(f"{url}/consolidate"))
+        extraction = await within(5, client.post(f"{url}/extract"))
+    finally:
+        release.set()
+    merged = await within(5, first)
 
-    resp = await consolidate_while(client, monkeypatch, convo["id"], meanwhile)
+    assert second.status_code == 200, second.text
+    assert second.json()["skipped"] == "changed"
+    assert second.json()["before"] == second.json()["after"] == 8
+    assert len(second.json()["memories"]) == 8
+    assert extraction.json()["facts_added"] == []
+    assert len(asked) == 1
+    assert merged.status_code == 200, merged.text
+    assert merged.json()["before"] == 8 and merged.json()["after"] == 1
+    assert "skipped" not in merged.json()
+    assert [f[0] for f in await stored_facts(client, convo["id"])] == ["All of it, merged."]
+
+
+async def test_a_consolidation_while_an_extraction_runs_changes_nothing_and_asks_nothing(
+        client, fake_provider, monkeypatch):
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
+                    by_the_model=True)
+    started, release, asked = waiting_provider(monkeypatch)
+    FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                           ProviderEvent(type="done")]
+    url = f"/api/conversations/{convo['id']}/memories"
+
+    extraction = asyncio.create_task(client.post(f"{url}/extract"))
+    try:
+        await within(5, started.wait())
+        consolidation = await within(5, client.post(f"{url}/consolidate"))
+    finally:
+        release.set()
+    extracted = await within(5, extraction)
+
+    assert consolidation.status_code == 200, consolidation.text
+    assert consolidation.json()["skipped"] == "changed"
+    assert consolidation.json()["before"] == consolidation.json()["after"] == 8
+    assert len(asked) == 1
+    assert len(extracted.json()["facts_added"]) == 2
+    assert len(await stored_facts(client, convo["id"])) == 10
+
+
+class Raises(FakeProvider):
+    async def stream_chat(self, payload):
+        raise RuntimeError("the connection broke")
+        yield  # pragma: no cover  (makes this a generator)
+
+
+@pytest.mark.parametrize("failure", ["refused", "unreadable", "raised"])
+async def test_a_consolidation_that_fails_lets_the_next_one_run(
+        client, fake_provider, monkeypatch, failure):
+    convo = await setup_conversation(client)
+    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
+                    by_the_model=True)
+    url = f"/api/conversations/{convo['id']}/memories/consolidate"
+
+    if failure == "raised":
+        monkeypatch.setattr("app.services.memory_service.get_provider", Raises)
+        with pytest.raises(RuntimeError):
+            await client.post(url)
+    else:
+        fake_provider.script = (
+            [ProviderEvent(type="error", message="Quota exceeded.")] if failure == "refused"
+            else [ProviderEvent(type="delta", text="no json here"), ProviderEvent(type="done")])
+        assert (await client.post(url)).status_code == 502
+    assert len(await stored_facts(client, convo["id"])) == 8
+
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    fake_provider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
+    resp = await client.post(url)
 
     assert resp.status_code == 200, resp.text
-    assert resp.json()["skipped"] == "changed"
-    assert resp.json()["before"] == resp.json()["after"] == 8
-    assert await stored_facts(client, convo["id"]) == sorted(
-        (content, kind, position, True, source) for content, kind, position, _, source in before)
+    assert "skipped" not in resp.json()
+    assert [f[0] for f in await stored_facts(client, convo["id"])] == ["All of it, merged."]
 
 
 async def test_consolidation_with_no_fact_that_is_text_changes_nothing(client, fake_provider):

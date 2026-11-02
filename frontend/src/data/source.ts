@@ -143,8 +143,9 @@ export interface ExtractResult {
 }
 
 /** `skipped` is set, and nothing changed, when there were too few facts to be
- *  worth merging (`too_few`), or when none of the facts the model was given was
- *  still there to merge once it had answered (`changed`). */
+ *  worth merging (`too_few`), or when one of the facts the model was given was
+ *  edited, pinned or deleted while it answered, or another memory pass was running
+ *  (`changed`). */
 export interface ConsolidateResult {
   before: number;
   after: number;

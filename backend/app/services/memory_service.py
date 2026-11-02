@@ -109,7 +109,21 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Merge non-pinned facts into a shorter, denser set (pinned untouched).
     Returns {"before": n, "after": n, "memories": [...]}, with "skipped" set and nothing
-    changed when there were too few facts, or none of those sent was still to merge."""
+    changed when there were too few facts, or when one of those sent to the model was
+    changed, pinned or deleted while it answered, or another pass was running."""
+    if convo_id in _running:
+        # Another pass is changing the facts: nothing is altered here, which is what
+        # "changed" says to the person, as for a fact edited while the model answers.
+        facts = await memories_repo.list_for_conversation(db, convo_id)
+        return {"before": len(facts), "after": len(facts), "memories": facts, "skipped": "changed"}
+    _running.add(convo_id)
+    try:
+        return await _consolidate(db, convo_id)
+    finally:
+        _running.discard(convo_id)
+
+
+async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
@@ -131,19 +145,20 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
         elif event.type == "error":
             raise model_failure(event.message, event.meta)
 
-    # What the memory holds now rather than before the model was asked: a fact pinned
-    # or edited in the meantime is not the one that was sent, and is not for the merge
-    # to remove.
-    now = await memories_repo.list_for_conversation(db, convo_id)
-    sent = {(m["id"], m["content"]) for m in movable}
-    replaced = [m for m in movable_facts(now) if (m["id"], m["content"]) in sent]
-    merged = plan_consolidation(parse_llm_json("".join(chunks)), replaced)
+    merged = plan_consolidation(parse_llm_json("".join(chunks)), movable)
     if merged is None:
         raise AppError("Unreadable consolidation — try again.", 502, kind=MODEL_UNREADABLE)
-    if not replaced:
+
+    # The memory as it is now rather than before the model was asked. The merge was
+    # written from all the facts that were sent: if one of them was edited, pinned or
+    # deleted since, its old text may be inside a merged fact, and removing only the
+    # others would keep both.
+    now = await memories_repo.list_for_conversation(db, convo_id)
+    still = {(m["id"], m["content"]) for m in movable_facts(now)}
+    if any((m["id"], m["content"]) not in still for m in movable):
         return {"before": len(now), "after": len(now), "memories": now, "skipped": "changed"}
 
-    for m in replaced:
+    for m in movable:
         await memories_repo.delete(db, m["id"])
     for f in merged["facts"]:
         await memories_repo.add(db, convo_id, content=f["content"], kind=f["kind"],

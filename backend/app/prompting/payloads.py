@@ -17,6 +17,7 @@ from .defaults import (
 )
 from .engine import PromptPayload, active_content, build_chat_payload
 from .macros import substitute
+from .memory_changes import is_movable
 
 MAX_TURNS_PER_RUN = 40  # safety cap on turns fed to one extraction call
 MIN_FACTS_TO_CONSOLIDATE = 8  # fewer than this and merging them is not worth a call
@@ -107,7 +108,7 @@ def build_extraction_payload(character: dict, persona: dict | None, conversation
 
 def movable_facts(memories: list[dict]) -> list[dict]:
     """The facts that consolidation may merge: neither pinned nor written by hand."""
-    return [m for m in memories if not m["is_pinned"] and m["source"] == "auto"]
+    return [m for m in memories if is_movable(m)]
 
 
 def build_consolidation_payload(character: dict, persona: dict | None,

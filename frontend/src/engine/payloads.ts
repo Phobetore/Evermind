@@ -20,6 +20,7 @@ import {
   SUMMARIZE_PROMPT,
 } from "./defaults";
 import { substitute } from "./macros";
+import { isMovable } from "./memoryChanges";
 import { pyStrip } from "./text";
 import { isRecord } from "./values";
 
@@ -149,7 +150,7 @@ export function buildExtractionPayload(
 export function movableFacts<M extends { is_pinned?: boolean | null; source?: string | null }>(
   memories: readonly M[],
 ): M[] {
-  return memories.filter((m) => !m.is_pinned && m.source === "auto");
+  return memories.filter(isMovable);
 }
 
 export interface ConsolidationInput {

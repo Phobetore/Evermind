@@ -31,6 +31,12 @@ def _text(value: object) -> str:
     return value.strip() if isinstance(value, str) and is_writable(value) else ""
 
 
+def is_movable(fact: dict) -> bool:
+    """Whether the model may correct, drop or merge a fact: it wrote it and nobody pinned
+    it. What a person typed or pinned is left alone."""
+    return not fact["is_pinned"] and fact["source"] == "auto"
+
+
 def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -> dict:
     """The changes that an extraction's answer makes, in the order they are applied:
     the facts it adds, then those it corrects, then those it drops.
@@ -75,9 +81,6 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
         ops.append({"op": "delete", "target": fact["content"]})
         known[:] = [m for m in known if m is not fact]
 
-    def for_the_model(fact: dict) -> bool:
-        return not fact["is_pinned"] and fact["source"] == "auto"
-
     for fact in _items(parsed.get("facts")):
         if isinstance(fact, dict):
             add(_text(fact.get("content")), _kind(fact.get("kind")))
@@ -90,7 +93,7 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
         target = find(update.get("replaces"))
         if target is None:
             add(new_content, "fact")
-        elif for_the_model(target):
+        elif is_movable(target):
             if any(m is not target and m["content"] == new_content for m in known):
                 drop(target)
             else:
@@ -99,7 +102,7 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
 
     for obsolete in _items(parsed.get("obsolete_facts")):
         target = find(obsolete)
-        if target and for_the_model(target):
+        if target and is_movable(target):
             drop(target)
 
     return {"ops": ops, "summary": _text(parsed.get("summary")) or None}
