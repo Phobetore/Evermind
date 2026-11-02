@@ -3,7 +3,7 @@
 // checks what it is given: the caller says the last message is a reply when
 // continuing, and a position is a number.
 
-import { activeContent, type ActiveMessage } from "./chat";
+import { activeContent, type ActiveMessage, type PromptPayload } from "./chat";
 import { pyLstrip, pyRstrip } from "./text";
 
 export const CONTINUE_INSTRUCTION =
@@ -38,7 +38,10 @@ export interface ContinueTurn {
 }
 
 /** The history of a continuation: the chat, then an instruction from the player
- *  to carry on, one position after the reply that is being extended. */
+ *  to carry on, one position after the reply that is being extended. Python
+ *  raises on a null position; here a null one gives 1 and a missing one NaN,
+ *  since the type says a position is a number. Only an empty list raises, in
+ *  both. */
 export function continueHistory<M extends { position: number }>(
   messages: readonly M[],
 ): (M | ContinueTurn)[] {
@@ -59,10 +62,9 @@ export function sceneOf(history: readonly ActiveMessage[]): string {
   return history.slice(-2).map(activeContent).join("\n");
 }
 
-export interface PassageStats {
-  oldest_visible?: number | null;
-  fact_positions?: (number | null)[] | null;
-}
+// Optional, since a payload with no statistics has no window and nothing is a
+// candidate: Python's `.get(...) or 0` reads a null the same way, and so does this.
+export type PassageStats = Pick<PromptPayload["stats"], "oldest_visible" | "fact_positions">;
 
 /** The messages that recall may draw on, and the turns that a fact already
  *  covers, sorted since a set has no order to compare. `stats` is that of the

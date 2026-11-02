@@ -90,12 +90,31 @@ export interface ChatInput {
   fold_leading_assistant?: boolean;
 }
 
+/** What the builder reports about the prompt it made. */
+export interface PromptStats {
+  used_tokens: number;
+  budget: number;
+  context_size: number;
+  messages_included: number;
+  messages_total: number;
+  lore_matched: number;
+  facts_injected: number;
+  facts_total: number;
+  /** The position of the oldest turn in the prompt, 0 when there is none. */
+  oldest_visible: number;
+  /** The `source_position` of each fact shown, null for a fact with none. */
+  fact_positions: (number | null)[];
+  passages_injected: number;
+  leading_assistant_folded: number;
+}
+
 export interface PromptPayload {
   system: string;
   messages: { role: string; content: string }[];
   stop: string[];
   post_history: string;
-  stats: Record<string, unknown>;
+  // Partial: a payload that is not the prompt of a chat turn reports nothing.
+  stats: Partial<PromptStats>;
 }
 
 // Enough for what someone has deliberately marked, not so many that the block
@@ -520,7 +539,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     estimateTokens(system) +
     estimateTokens(postHistory) +
     spokenTurns.reduce((sum, t) => sum + estimateTokens(t.content) + 4, 0);
-  const stats = {
+  const stats: PromptStats = {
     used_tokens: used,
     budget,
     context_size: contextSize,

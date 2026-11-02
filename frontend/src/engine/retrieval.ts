@@ -41,8 +41,10 @@ export function selectPassages<C extends RankedCandidate>(
 /** Cosine similarity of a query vector against each row. The vectors are
  *  normalised where they are made, so it is a dot product. Python adds up in
  *  float32 and this in double: the two agree when the numbers are exact in
- *  float32, and differ in the last digits when they are not, so nothing here
- *  may depend on the last digits.
+ *  float32 (the only ones the cases use), and differ by rounding when they are
+ *  not, around 1e-7 and more on a long vector. Two different texts whose scores
+ *  lie that close may therefore rank in another order here than on the server.
+ *  Identical vectors score the same in both and tie in both. That is accepted.
  *
  *  Throws on rows of different lengths and on a query that is not as long as
  *  they are, as numpy does: the Python ranking catches that and falls back on
