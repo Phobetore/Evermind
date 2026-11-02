@@ -1,0 +1,724 @@
+{
+ "cases": [
+  {
+   "fn": "py_strip",
+   "name": "file separator at the left",
+   "input": {
+    "text": "\u001cab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "file separator at the right",
+   "input": {
+    "text": "ab\u001c"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "file separator in the middle",
+   "input": {
+    "text": "a\u001cb"
+   },
+   "expected": "a\u001cb"
+  },
+  {
+   "fn": "py_strip",
+   "name": "next line at the left",
+   "input": {
+    "text": "ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "next line at the right",
+   "input": {
+    "text": "ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "next line in the middle",
+   "input": {
+    "text": "ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "no-break space at the left",
+   "input": {
+    "text": " ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "no-break space at the right",
+   "input": {
+    "text": "ab "
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "no-break space in the middle",
+   "input": {
+    "text": "a b"
+   },
+   "expected": "a b"
+  },
+  {
+   "fn": "py_strip",
+   "name": "em space at the left",
+   "input": {
+    "text": " ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "em space at the right",
+   "input": {
+    "text": "ab "
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "em space in the middle",
+   "input": {
+    "text": "a b"
+   },
+   "expected": "a b"
+  },
+  {
+   "fn": "py_strip",
+   "name": "ideographic space at the left",
+   "input": {
+    "text": "　ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "ideographic space at the right",
+   "input": {
+    "text": "ab　"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "ideographic space in the middle",
+   "input": {
+    "text": "a　b"
+   },
+   "expected": "a　b"
+  },
+  {
+   "fn": "py_strip",
+   "name": "byte order mark at the left",
+   "input": {
+    "text": "﻿ab"
+   },
+   "expected": "﻿ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "byte order mark at the right",
+   "input": {
+    "text": "ab﻿"
+   },
+   "expected": "ab﻿"
+  },
+  {
+   "fn": "py_strip",
+   "name": "byte order mark in the middle",
+   "input": {
+    "text": "a﻿b"
+   },
+   "expected": "a﻿b"
+  },
+  {
+   "fn": "py_strip",
+   "name": "zero width space at the left",
+   "input": {
+    "text": "​ab"
+   },
+   "expected": "​ab"
+  },
+  {
+   "fn": "py_strip",
+   "name": "zero width space at the right",
+   "input": {
+    "text": "ab​"
+   },
+   "expected": "ab​"
+  },
+  {
+   "fn": "py_strip",
+   "name": "zero width space in the middle",
+   "input": {
+    "text": "a​b"
+   },
+   "expected": "a​b"
+  },
+  {
+   "fn": "py_strip",
+   "name": "empty",
+   "input": {
+    "text": ""
+   },
+   "expected": ""
+  },
+  {
+   "fn": "py_strip",
+   "name": "nothing to strip",
+   "input": {
+    "text": "abc"
+   },
+   "expected": "abc"
+  },
+  {
+   "fn": "py_strip",
+   "name": "spaces inside are kept",
+   "input": {
+    "text": "  a  b  "
+   },
+   "expected": "a  b"
+  },
+  {
+   "fn": "py_strip",
+   "name": "only whitespace",
+   "input": {
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "py_strip",
+   "name": "every whitespace around a letter",
+   "input": {
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　x\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+   },
+   "expected": "x"
+  },
+  {
+   "fn": "py_strip",
+   "name": "what is not whitespace stays",
+   "input": {
+    "text": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+   },
+   "expected": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+  },
+  {
+   "fn": "py_strip",
+   "name": "a byte order mark hides the spaces behind it",
+   "input": {
+    "text": "﻿  x  ﻿"
+   },
+   "expected": "﻿  x  ﻿"
+  },
+  {
+   "fn": "py_strip",
+   "name": "line breaks and separators",
+   "input": {
+    "text": "\r\n x   "
+   },
+   "expected": "x"
+  },
+  {
+   "fn": "py_strip",
+   "name": "emoji around spaces",
+   "input": {
+    "text": "😀 x 😀"
+   },
+   "expected": "😀 x 😀"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "file separator at the left",
+   "input": {
+    "text": "\u001cab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "file separator at the right",
+   "input": {
+    "text": "ab\u001c"
+   },
+   "expected": "ab\u001c"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "file separator in the middle",
+   "input": {
+    "text": "a\u001cb"
+   },
+   "expected": "a\u001cb"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "next line at the left",
+   "input": {
+    "text": "ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "next line at the right",
+   "input": {
+    "text": "ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "next line in the middle",
+   "input": {
+    "text": "ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "no-break space at the left",
+   "input": {
+    "text": " ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "no-break space at the right",
+   "input": {
+    "text": "ab "
+   },
+   "expected": "ab "
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "no-break space in the middle",
+   "input": {
+    "text": "a b"
+   },
+   "expected": "a b"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "em space at the left",
+   "input": {
+    "text": " ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "em space at the right",
+   "input": {
+    "text": "ab "
+   },
+   "expected": "ab "
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "em space in the middle",
+   "input": {
+    "text": "a b"
+   },
+   "expected": "a b"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "ideographic space at the left",
+   "input": {
+    "text": "　ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "ideographic space at the right",
+   "input": {
+    "text": "ab　"
+   },
+   "expected": "ab　"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "ideographic space in the middle",
+   "input": {
+    "text": "a　b"
+   },
+   "expected": "a　b"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "byte order mark at the left",
+   "input": {
+    "text": "﻿ab"
+   },
+   "expected": "﻿ab"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "byte order mark at the right",
+   "input": {
+    "text": "ab﻿"
+   },
+   "expected": "ab﻿"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "byte order mark in the middle",
+   "input": {
+    "text": "a﻿b"
+   },
+   "expected": "a﻿b"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "zero width space at the left",
+   "input": {
+    "text": "​ab"
+   },
+   "expected": "​ab"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "zero width space at the right",
+   "input": {
+    "text": "ab​"
+   },
+   "expected": "ab​"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "zero width space in the middle",
+   "input": {
+    "text": "a​b"
+   },
+   "expected": "a​b"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "empty",
+   "input": {
+    "text": ""
+   },
+   "expected": ""
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "nothing to strip",
+   "input": {
+    "text": "abc"
+   },
+   "expected": "abc"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "spaces inside are kept",
+   "input": {
+    "text": "  a  b  "
+   },
+   "expected": "a  b  "
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "only whitespace",
+   "input": {
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "every whitespace around a letter",
+   "input": {
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　x\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+   },
+   "expected": "x\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "what is not whitespace stays",
+   "input": {
+    "text": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+   },
+   "expected": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "a byte order mark hides the spaces behind it",
+   "input": {
+    "text": "﻿  x  ﻿"
+   },
+   "expected": "﻿  x  ﻿"
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "line breaks and separators",
+   "input": {
+    "text": "\r\n x   "
+   },
+   "expected": "x   "
+  },
+  {
+   "fn": "py_lstrip",
+   "name": "emoji around spaces",
+   "input": {
+    "text": "😀 x 😀"
+   },
+   "expected": "😀 x 😀"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "file separator at the left",
+   "input": {
+    "text": "\u001cab"
+   },
+   "expected": "\u001cab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "file separator at the right",
+   "input": {
+    "text": "ab\u001c"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "file separator in the middle",
+   "input": {
+    "text": "a\u001cb"
+   },
+   "expected": "a\u001cb"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "next line at the left",
+   "input": {
+    "text": "ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "next line at the right",
+   "input": {
+    "text": "ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "next line in the middle",
+   "input": {
+    "text": "ab"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "no-break space at the left",
+   "input": {
+    "text": " ab"
+   },
+   "expected": " ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "no-break space at the right",
+   "input": {
+    "text": "ab "
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "no-break space in the middle",
+   "input": {
+    "text": "a b"
+   },
+   "expected": "a b"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "em space at the left",
+   "input": {
+    "text": " ab"
+   },
+   "expected": " ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "em space at the right",
+   "input": {
+    "text": "ab "
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "em space in the middle",
+   "input": {
+    "text": "a b"
+   },
+   "expected": "a b"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "ideographic space at the left",
+   "input": {
+    "text": "　ab"
+   },
+   "expected": "　ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "ideographic space at the right",
+   "input": {
+    "text": "ab　"
+   },
+   "expected": "ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "ideographic space in the middle",
+   "input": {
+    "text": "a　b"
+   },
+   "expected": "a　b"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "byte order mark at the left",
+   "input": {
+    "text": "﻿ab"
+   },
+   "expected": "﻿ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "byte order mark at the right",
+   "input": {
+    "text": "ab﻿"
+   },
+   "expected": "ab﻿"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "byte order mark in the middle",
+   "input": {
+    "text": "a﻿b"
+   },
+   "expected": "a﻿b"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "zero width space at the left",
+   "input": {
+    "text": "​ab"
+   },
+   "expected": "​ab"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "zero width space at the right",
+   "input": {
+    "text": "ab​"
+   },
+   "expected": "ab​"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "zero width space in the middle",
+   "input": {
+    "text": "a​b"
+   },
+   "expected": "a​b"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "empty",
+   "input": {
+    "text": ""
+   },
+   "expected": ""
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "nothing to strip",
+   "input": {
+    "text": "abc"
+   },
+   "expected": "abc"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "spaces inside are kept",
+   "input": {
+    "text": "  a  b  "
+   },
+   "expected": "  a  b"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "only whitespace",
+   "input": {
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "every whitespace around a letter",
+   "input": {
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　x\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+   },
+   "expected": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　x"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "what is not whitespace stays",
+   "input": {
+    "text": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+   },
+   "expected": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "a byte order mark hides the spaces behind it",
+   "input": {
+    "text": "﻿  x  ﻿"
+   },
+   "expected": "﻿  x  ﻿"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "line breaks and separators",
+   "input": {
+    "text": "\r\n x   "
+   },
+   "expected": "\r\n x"
+  },
+  {
+   "fn": "py_rstrip",
+   "name": "emoji around spaces",
+   "input": {
+    "text": "😀 x 😀"
+   },
+   "expected": "😀 x 😀"
+  }
+ ]
+}
