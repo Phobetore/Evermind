@@ -13,7 +13,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from app.prompting import defaults
+import numpy
+
+from app.prompting import defaults, retrieval, turn
 from app.prompting.engine import active_content, build_chat_payload, match_lore, select_facts
 from app.prompting.macros import has_original_macro, substitute, substitute_original
 from app.prompting.tokens import estimate_tokens
@@ -31,6 +33,29 @@ def py_lstrip(text: str) -> str:
 
 def py_rstrip(text: str) -> str:
     return text.rstrip()
+
+
+def passage_candidates(history: list[dict], stats: dict) -> dict[str, Any]:
+    """A set is not JSON: the positions come back as a sorted list."""
+    candidates, fact_positions = turn.passage_candidates(history, stats)
+    return {"candidates": candidates, "fact_positions": sorted(fact_positions)}
+
+
+def select_passages(
+    ranked: dict[str, float],
+    candidates: list[dict],
+    token_budget: int,
+    exclude_positions: list | None = None,
+) -> list[dict]:
+    exclude = None if exclude_positions is None else set(exclude_positions)
+    return retrieval.select_passages(ranked, candidates, token_budget, exclude)
+
+
+def cosine_scores(query_vec: list[float], rows: list[list[float]]) -> list[float]:
+    """The rows as the matrix that ``rank`` builds. float32, like the vectors in
+    the database, so a case may only hold numbers that float32 holds exactly:
+    the TypeScript side adds up in double."""
+    return retrieval._cosine_scores(query_vec, numpy.array(rows, dtype=numpy.float32))
 
 
 def default_prompts() -> dict[str, str]:
@@ -57,6 +82,13 @@ FUNCTIONS: dict[str, Callable[..., Any]] = {
     "build_chat_payload": build_chat_payload,
     "select_facts": select_facts,
     "match_lore": match_lore,
+    "trim_reply": turn.trim_reply,
+    "continue_history": turn.continue_history,
+    "scene_of": turn.scene_of,
+    "passage_candidates": passage_candidates,
+    "passage_infos": turn.passage_infos,
+    "select_passages": select_passages,
+    "cosine_scores": cosine_scores,
 }
 
 

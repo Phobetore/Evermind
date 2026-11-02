@@ -132,7 +132,7 @@ const LORE_TOKEN_BUDGET = 800;
  *  keys keep the order they came in, even reversed. The keys are compared with
  *  `<` and `>`, not subtracted, so that two keys of -Infinity (a fact with no
  *  score) tie by comparison and not as the NaN of `-Infinity - -Infinity`. */
-function sortedBy<T>(items: readonly T[], key: (item: T) => number, reverse = false): T[] {
+export function sortedBy<T>(items: readonly T[], key: (item: T) => number, reverse = false): T[] {
   const keyed = items.map((item) => ({ item, key: key(item) }));
   const sign = reverse ? -1 : 1;
   keyed.sort((a, b) => (a.key < b.key ? -sign : a.key > b.key ? sign : 0));

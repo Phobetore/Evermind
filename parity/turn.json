@@ -1,0 +1,1606 @@
+{
+ "cases": [
+  {
+   "fn": "trim_reply",
+   "name": "nothing to remove",
+   "input": {
+    "text": "She smiles and waits.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles and waits."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "trailing whitespace goes",
+   "input": {
+    "text": "She smiles.  \n\n \t",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker without a space",
+   "input": {
+    "text": "She nods.\nAlex: I think so",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker with a space before the colon",
+   "input": {
+    "text": "She nods.\nAlex : I think so",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "both markers, the one without a space first",
+   "input": {
+    "text": "She nods.\nAlex: one\nAlex : two",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "both markers, the one with a space first",
+   "input": {
+    "text": "She nods.\nAlex : one\nAlex: two",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker twice, the text stops at the first",
+   "input": {
+    "text": "She nods.\nAlex: one\nAlex: two",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker with a space twice, the text stops at the first",
+   "input": {
+    "text": "She nods.\nAlex : one\nAlex : two",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker needs a line break before it",
+   "input": {
+    "text": "She nods and says Alex: no",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods and says Alex: no"
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker is not a longer name",
+   "input": {
+    "text": "She nods.\nAlexander: hello",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods.\nAlexander: hello"
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker is case sensitive",
+   "input": {
+    "text": "She nods.\nalex: hello",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods.\nalex: hello"
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker at the very start leaves nothing",
+   "input": {
+    "text": "\nAlex: hello",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "trim_reply",
+   "name": "windows line ends before the marker",
+   "input": {
+    "text": "She nods.\r\nAlex: hello",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "only whitespace",
+   "input": {
+    "text": "  \n \t",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "trim_reply",
+   "name": "an empty reply",
+   "input": {
+    "text": "",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's tag without a space",
+   "input": {
+    "text": "Mira: She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's tag with a space before the colon",
+   "input": {
+    "text": "Mira : She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's tag after leading whitespace",
+   "input": {
+    "text": "  \n Mira: She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's tag is taken off once",
+   "input": {
+    "text": "Mira: Mira: She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "Mira: She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's tag is not a longer name",
+   "input": {
+    "text": "Mirage: She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "Mirage: She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's tag in the middle of a line stays",
+   "input": {
+    "text": "She said Mira: hello",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She said Mira: hello"
+  },
+  {
+   "fn": "trim_reply",
+   "name": "leading whitespace stays when there is no tag",
+   "input": {
+    "text": "  She smiles.  ",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "  She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's tag and the player's marker",
+   "input": {
+    "text": "Mira: She smiles.\nAlex: and then",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a next-line character before the tag is whitespace",
+   "input": {
+    "text": "\u0085Mira: She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a byte order mark before the tag is not whitespace",
+   "input": {
+    "text": "\ufeffMira: She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "\ufeffMira: She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a next-line character after the tag is whitespace",
+   "input": {
+    "text": "Mira:\u0085She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a byte order mark after the tag is not whitespace",
+   "input": {
+    "text": "Mira:\ufeffShe smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "\ufeffShe smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a trailing next-line character goes",
+   "input": {
+    "text": "She smiles.\u0085",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a trailing byte order mark stays",
+   "input": {
+    "text": "She smiles.\ufeff",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles.\ufeff"
+  },
+  {
+   "fn": "trim_reply",
+   "name": "information separators around the text",
+   "input": {
+    "text": "\u001f\u001cMira: She smiles.\u001d\u001e",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's name is empty",
+   "input": {
+    "text": ": She smiles.",
+    "char_name": "",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's name is empty and the text begins with a space",
+   "input": {
+    "text": " : She smiles.",
+    "char_name": "",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's name is empty",
+   "input": {
+    "text": "She nods.\n: hello",
+    "char_name": "Mira",
+    "user_name": ""
+   },
+   "expected": "She nods."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's name is empty and there is a space before the colon",
+   "input": {
+    "text": "She nods.\n : hello",
+    "char_name": "Mira",
+    "user_name": ""
+   },
+   "expected": "She nods."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the names are emoji",
+   "input": {
+    "text": "🙂: She smiles.\n😀: hello",
+    "char_name": "🙂",
+    "user_name": "😀"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the names are emoji and there is a space before the colon",
+   "input": {
+    "text": "🙂 : She smiles.\n😀 : hello",
+    "char_name": "🙂",
+    "user_name": "😀"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "names that a substitution would read",
+   "input": {
+    "text": "$&: She smiles.\n\\d: hello",
+    "char_name": "$&",
+    "user_name": "\\d"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "names with backslashes and dollars, again",
+   "input": {
+    "text": "$1: She smiles.\n\\1: hello",
+    "char_name": "$1",
+    "user_name": "\\1"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "continue_history",
+   "name": "after one reply",
+   "input": {
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "Hello."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": [
+    {
+     "role": "assistant",
+     "variants": [
+      "Hello."
+     ],
+     "active_index": 0,
+     "position": 1
+    },
+    {
+     "role": "user",
+     "variants": [
+      "[Continue your previous reply exactly where it stopped. Do not repeat anything, do not start over — just keep going seamlessly.]"
+     ],
+     "active_index": 0,
+     "position": 2
+    }
+   ]
+  },
+  {
+   "fn": "continue_history",
+   "name": "after a chat",
+   "input": {
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Hi."
+      ],
+      "active_index": 0,
+      "position": 1,
+      "id": "a"
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Hello there."
+      ],
+      "active_index": 0,
+      "position": 2,
+      "id": "b",
+      "meta": {
+       "mode": "ooc"
+      }
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Go on."
+      ],
+      "active_index": 0,
+      "position": 3,
+      "id": "c"
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "She smiles"
+      ],
+      "active_index": 0,
+      "position": 4,
+      "id": "d"
+     }
+    ]
+   },
+   "expected": [
+    {
+     "role": "user",
+     "variants": [
+      "Hi."
+     ],
+     "active_index": 0,
+     "position": 1,
+     "id": "a"
+    },
+    {
+     "role": "assistant",
+     "variants": [
+      "Hello there."
+     ],
+     "active_index": 0,
+     "position": 2,
+     "id": "b",
+     "meta": {
+      "mode": "ooc"
+     }
+    },
+    {
+     "role": "user",
+     "variants": [
+      "Go on."
+     ],
+     "active_index": 0,
+     "position": 3,
+     "id": "c"
+    },
+    {
+     "role": "assistant",
+     "variants": [
+      "She smiles"
+     ],
+     "active_index": 0,
+     "position": 4,
+     "id": "d"
+    },
+    {
+     "role": "user",
+     "variants": [
+      "[Continue your previous reply exactly where it stopped. Do not repeat anything, do not start over — just keep going seamlessly.]"
+     ],
+     "active_index": 0,
+     "position": 5
+    }
+   ]
+  },
+  {
+   "fn": "continue_history",
+   "name": "after a reply at position zero",
+   "input": {
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "role": "assistant",
+     "variants": [
+      "x"
+     ],
+     "active_index": 0,
+     "position": 0
+    },
+    {
+     "role": "user",
+     "variants": [
+      "[Continue your previous reply exactly where it stopped. Do not repeat anything, do not start over — just keep going seamlessly.]"
+     ],
+     "active_index": 0,
+     "position": 1
+    }
+   ]
+  },
+  {
+   "fn": "continue_history",
+   "name": "after a reply whose position has a gap",
+   "input": {
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Hi."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Hello."
+      ],
+      "active_index": 0,
+      "position": 12
+     }
+    ]
+   },
+   "expected": [
+    {
+     "role": "user",
+     "variants": [
+      "Hi."
+     ],
+     "active_index": 0,
+     "position": 3
+    },
+    {
+     "role": "assistant",
+     "variants": [
+      "Hello."
+     ],
+     "active_index": 0,
+     "position": 12
+    },
+    {
+     "role": "user",
+     "variants": [
+      "[Continue your previous reply exactly where it stopped. Do not repeat anything, do not start over — just keep going seamlessly.]"
+     ],
+     "active_index": 0,
+     "position": 13
+    }
+   ]
+  },
+  {
+   "fn": "continue_history",
+   "name": "after a reply with several variants",
+   "input": {
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "one",
+       "two"
+      ],
+      "active_index": 1,
+      "position": 5
+     }
+    ]
+   },
+   "expected": [
+    {
+     "role": "assistant",
+     "variants": [
+      "one",
+      "two"
+     ],
+     "active_index": 1,
+     "position": 5
+    },
+    {
+     "role": "user",
+     "variants": [
+      "[Continue your previous reply exactly where it stopped. Do not repeat anything, do not start over — just keep going seamlessly.]"
+     ],
+     "active_index": 0,
+     "position": 6
+    }
+   ]
+  },
+  {
+   "fn": "scene_of",
+   "name": "no messages",
+   "input": {
+    "history": []
+   },
+   "expected": ""
+  },
+  {
+   "fn": "scene_of",
+   "name": "one message",
+   "input": {
+    "history": [
+     {
+      "role": "user",
+      "variants": [
+       "Only this."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": "Only this."
+  },
+  {
+   "fn": "scene_of",
+   "name": "two messages",
+   "input": {
+    "history": [
+     {
+      "role": "user",
+      "variants": [
+       "First."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Second."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": "First.\nSecond."
+  },
+  {
+   "fn": "scene_of",
+   "name": "three messages",
+   "input": {
+    "history": [
+     {
+      "role": "user",
+      "variants": [
+       "First."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Second."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Third."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": "Second.\nThird."
+  },
+  {
+   "fn": "scene_of",
+   "name": "the active variant is the one that counts",
+   "input": {
+    "history": [
+     {
+      "role": "user",
+      "variants": [
+       "a",
+       "b"
+      ],
+      "active_index": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "c",
+       "d",
+       "e"
+      ],
+      "active_index": 2
+     }
+    ]
+   },
+   "expected": "b\ne"
+  },
+  {
+   "fn": "scene_of",
+   "name": "an empty message first",
+   "input": {
+    "history": [
+     {
+      "role": "user",
+      "variants": [
+       ""
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "b"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": "\nb"
+  },
+  {
+   "fn": "scene_of",
+   "name": "an empty message last",
+   "input": {
+    "history": [
+     {
+      "role": "user",
+      "variants": [
+       "a"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       ""
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": "a\n"
+  },
+  {
+   "fn": "scene_of",
+   "name": "a message with no variants",
+   "input": {
+    "history": [
+     {
+      "role": "user",
+      "variants": [
+       "a"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [],
+      "active_index": 0
+     }
+    ]
+   },
+   "expected": "a\n"
+  },
+  {
+   "fn": "scene_of",
+   "name": "emoji and line breaks are kept",
+   "input": {
+    "history": [
+     {
+      "role": "user",
+      "variants": [
+       "😀\nline"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "end\n"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": "😀\nline\nend\n"
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "the messages before the window",
+   "input": {
+    "history": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 6
+     }
+    ],
+    "stats": {
+     "oldest_visible": 4,
+     "fact_positions": [
+      2
+     ]
+    }
+   },
+   "expected": {
+    "candidates": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 3
+     }
+    ],
+    "fact_positions": [
+     2
+    ]
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "the message where the window starts is in it",
+   "input": {
+    "history": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 4
+     }
+    ],
+    "stats": {
+     "oldest_visible": 4,
+     "fact_positions": []
+    }
+   },
+   "expected": {
+    "candidates": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 3
+     }
+    ],
+    "fact_positions": []
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "no window yet",
+   "input": {
+    "history": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 3
+     }
+    ],
+    "stats": {}
+   },
+   "expected": {
+    "candidates": [],
+    "fact_positions": []
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "the window starts at zero",
+   "input": {
+    "history": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "stats": {
+     "oldest_visible": 0,
+     "fact_positions": [
+      1
+     ]
+    }
+   },
+   "expected": {
+    "candidates": [],
+    "fact_positions": [
+     1
+    ]
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "the window start is null",
+   "input": {
+    "history": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "stats": {
+     "oldest_visible": null,
+     "fact_positions": null
+    }
+   },
+   "expected": {
+    "candidates": [],
+    "fact_positions": []
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "a null position counts as zero",
+   "input": {
+    "history": [
+     {
+      "role": "user",
+      "variants": [
+       "a"
+      ],
+      "active_index": 0,
+      "position": null
+     },
+     {
+      "role": "user",
+      "variants": [
+       "b"
+      ],
+      "active_index": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "stats": {
+     "oldest_visible": 1,
+     "fact_positions": []
+    }
+   },
+   "expected": {
+    "candidates": [
+     {
+      "role": "user",
+      "variants": [
+       "a"
+      ],
+      "active_index": 0,
+      "position": null
+     },
+     {
+      "role": "user",
+      "variants": [
+       "b"
+      ],
+      "active_index": 0
+     }
+    ],
+    "fact_positions": []
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "a null position is not before a window at zero",
+   "input": {
+    "history": [
+     {
+      "role": "user",
+      "variants": [
+       "a"
+      ],
+      "active_index": 0,
+      "position": null
+     }
+    ],
+    "stats": {
+     "oldest_visible": 0,
+     "fact_positions": []
+    }
+   },
+   "expected": {
+    "candidates": [],
+    "fact_positions": []
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "fact positions are sorted, unique and never null",
+   "input": {
+    "history": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 3
+     }
+    ],
+    "stats": {
+     "oldest_visible": 3,
+     "fact_positions": [
+      5,
+      null,
+      2,
+      5,
+      3,
+      null
+     ]
+    }
+   },
+   "expected": {
+    "candidates": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "fact_positions": [
+     2,
+     3,
+     5
+    ]
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "a fact at position zero is a position",
+   "input": {
+    "history": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "stats": {
+     "oldest_visible": 2,
+     "fact_positions": [
+      0,
+      null
+     ]
+    }
+   },
+   "expected": {
+    "candidates": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "fact_positions": [
+     0
+    ]
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "fact positions that sort as numbers",
+   "input": {
+    "history": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "stats": {
+     "oldest_visible": 2,
+     "fact_positions": [
+      10,
+      9,
+      100,
+      2
+     ]
+    }
+   },
+   "expected": {
+    "candidates": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "fact_positions": [
+     2,
+     9,
+     10,
+     100
+    ]
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "fact positions are missing",
+   "input": {
+    "history": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "stats": {
+     "oldest_visible": 2
+    }
+   },
+   "expected": {
+    "candidates": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "fact_positions": []
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "no history",
+   "input": {
+    "history": [],
+    "stats": {
+     "oldest_visible": 9,
+     "fact_positions": [
+      1
+     ]
+    }
+   },
+   "expected": {
+    "candidates": [],
+    "fact_positions": [
+     1
+    ]
+   }
+  },
+  {
+   "fn": "passage_candidates",
+   "name": "other statistics are ignored",
+   "input": {
+    "history": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1,
+      "id": "a",
+      "meta": {
+       "x": 1
+      }
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 5,
+      "id": "b"
+     }
+    ],
+    "stats": {
+     "oldest_visible": 3,
+     "fact_positions": [
+      1
+     ],
+     "used_tokens": 12,
+     "budget": 100
+    }
+   },
+   "expected": {
+    "candidates": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1,
+      "id": "a",
+      "meta": {
+       "x": 1
+      }
+     }
+    ],
+    "fact_positions": [
+     1
+    ]
+   }
+  },
+  {
+   "fn": "passage_infos",
+   "name": "only those with a vector, in the order of the candidates",
+   "input": {
+    "candidates": [
+     {
+      "role": "user",
+      "variants": [
+       "one"
+      ],
+      "active_index": 0,
+      "position": 1,
+      "id": "a"
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "two"
+      ],
+      "active_index": 0,
+      "position": 2,
+      "id": "b"
+     },
+     {
+      "role": "user",
+      "variants": [
+       "three"
+      ],
+      "active_index": 0,
+      "position": 3,
+      "id": "c"
+     }
+    ],
+    "ids": [
+     "c",
+     "a"
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "one",
+     "position": 1,
+     "role": "user"
+    },
+    {
+     "id": "c",
+     "content": "three",
+     "position": 3,
+     "role": "user"
+    }
+   ]
+  },
+  {
+   "fn": "passage_infos",
+   "name": "the active variant is the text",
+   "input": {
+    "candidates": [
+     {
+      "id": "a",
+      "role": "assistant",
+      "variants": [
+       "first",
+       "second"
+      ],
+      "active_index": 1,
+      "position": 4
+     }
+    ],
+    "ids": [
+     "a"
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "second",
+     "position": 4,
+     "role": "assistant"
+    }
+   ]
+  },
+  {
+   "fn": "passage_infos",
+   "name": "a null or missing position is zero",
+   "input": {
+    "candidates": [
+     {
+      "id": "a",
+      "role": "user",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": null
+     },
+     {
+      "id": "b",
+      "role": "user",
+      "variants": [
+       "y"
+      ],
+      "active_index": 0
+     }
+    ],
+    "ids": [
+     "a",
+     "b"
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "x",
+     "position": 0,
+     "role": "user"
+    },
+    {
+     "id": "b",
+     "content": "y",
+     "position": 0,
+     "role": "user"
+    }
+   ]
+  },
+  {
+   "fn": "passage_infos",
+   "name": "no ids",
+   "input": {
+    "candidates": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1,
+      "id": "a"
+     }
+    ],
+    "ids": []
+   },
+   "expected": []
+  },
+  {
+   "fn": "passage_infos",
+   "name": "ids that match nothing",
+   "input": {
+    "candidates": [
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1,
+      "id": "a"
+     }
+    ],
+    "ids": [
+     "z"
+    ]
+   },
+   "expected": []
+  },
+  {
+   "fn": "passage_infos",
+   "name": "no candidates",
+   "input": {
+    "candidates": [],
+    "ids": [
+     "a"
+    ]
+   },
+   "expected": []
+  },
+  {
+   "fn": "passage_infos",
+   "name": "only what ranking needs is kept",
+   "input": {
+    "candidates": [
+     {
+      "role": "user",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 2,
+      "id": "a",
+      "meta": {
+       "mode": "ooc"
+      },
+      "created_at": "then"
+     }
+    ],
+    "ids": [
+     "a"
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "x",
+     "position": 2,
+     "role": "user"
+    }
+   ]
+  }
+ ]
+}

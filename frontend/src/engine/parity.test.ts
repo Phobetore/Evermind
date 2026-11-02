@@ -14,8 +14,17 @@ import {
 } from "./chat";
 import * as defaults from "./defaults";
 import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
+import { cosineScores, selectPassages, type RankedCandidate } from "./retrieval";
 import { pyLstrip, pyRstrip, pyStrip } from "./text";
 import { estimateTokens } from "./tokens";
+import {
+  continueHistory,
+  passageCandidates,
+  passageInfos,
+  sceneOf,
+  trimReply,
+  type PassageStats,
+} from "./turn";
 
 // The cases in parity/ at the root of the repository are the ones the Python
 // engine runs too (backend/tests/test_parity.py): the Python is the reference,
@@ -57,6 +66,35 @@ const FUNCTIONS: Record<string, (input: unknown) => unknown> = {
   }>((i) => selectFacts(i.memories, i.token_budget, i.relevance_scores)),
   match_lore: adapt<{ entries: PromptLoreEntry[]; messages: PromptMessage[] }>((i) =>
     matchLore(i.entries, i.messages),
+  ),
+  trim_reply: adapt<{ text: string; char_name: string; user_name: string }>((i) =>
+    trimReply(i.text, i.char_name, i.user_name),
+  ),
+  continue_history: adapt<{ messages: { position: number }[] }>((i) => continueHistory(i.messages)),
+  scene_of: adapt<{ history: ActiveMessage[] }>((i) => sceneOf(i.history)),
+  passage_candidates: adapt<{ history: PromptMessage[]; stats: PassageStats }>((i) =>
+    passageCandidates(i.history, i.stats),
+  ),
+  passage_infos: adapt<{
+    candidates: (ActiveMessage & { id: string; role: string; position?: number | null })[];
+    ids: string[];
+  }>((i) => passageInfos(i.candidates, i.ids)),
+  // A set is not JSON: the list in the case is read as one, and null is no set.
+  select_passages: adapt<{
+    ranked: Record<string, number>;
+    candidates: RankedCandidate[];
+    token_budget: number;
+    exclude_positions?: (number | null)[] | null;
+  }>((i) =>
+    selectPassages(
+      i.ranked,
+      i.candidates,
+      i.token_budget,
+      i.exclude_positions ? new Set(i.exclude_positions) : null,
+    ),
+  ),
+  cosine_scores: adapt<{ query_vec: number[]; rows: number[][] }>((i) =>
+    cosineScores(i.query_vec, i.rows),
   ),
 };
 

@@ -44,6 +44,13 @@ from ..prompting.defaults import IMPERSONATE_PROMPT, SUMMARIZE_PROMPT
 from ..prompting.engine import PromptPayload, active_content, build_chat_payload
 from ..prompting.macros import substitute
 from ..prompting.tokens import estimate_tokens
+from ..prompting.turn import (
+    continue_history,
+    passage_candidates,
+    passage_infos,
+    scene_of,
+    trim_reply,
+)
 from ..providers import get_provider
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
@@ -58,11 +65,6 @@ from . import memory_service
 # server going down loses at most a second of text, rarely enough that a long reply
 # costs a handful of writes rather than one per token.
 _FLUSH_SECONDS = 1.0
-
-_CONTINUE_INSTRUCTION = (
-    "[Continue your previous reply exactly where it stopped. Do not repeat anything, "
-    "do not start over — just keep going seamlessly.]"
-)
 
 
 def _sse(obj: dict) -> str:
@@ -165,21 +167,6 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
         )
     settings = await settings_repo.get_all(db)
     return convo, character, persona, connection, settings
-
-
-def _trim_reply(text: str, char_name: str, user_name: str) -> str:
-    """Post-generation cleanup: drop anything the model wrote for the player,
-    and a leading "Name:" speaker tag if present."""
-    for marker in (f"\n{user_name}:", f"\n{user_name} :"):
-        index = text.find(marker)
-        if index != -1:
-            text = text[:index]
-    stripped = text.lstrip()
-    for prefix in (f"{char_name}:", f"{char_name} :"):
-        if stripped.startswith(prefix):
-            text = stripped[len(prefix):].lstrip()
-            break
-    return text.rstrip()
 
 
 async def _generate(connection: dict, payload: PromptPayload):
@@ -325,10 +312,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
             return
         target_message = messages[-1]
         continue_mode = True
-        history = messages + [{
-            "role": "user", "variants": [_CONTINUE_INSTRUCTION], "active_index": 0,
-            "position": messages[-1]["position"] + 1,
-        }]
+        history = continue_history(messages)
     else:  # the request schema lets only the three modes above through
         yield error_event(f"Unknown mode: {request.mode}", "internal")
         return
@@ -338,7 +322,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
 
     # Semantic recall: rank out-of-window facts by relevance to the live scene
     # (the last couple of turns). Falls back to recency when embeddings are off.
-    scene = "\n".join(active_content(m) for m in history[-2:]) if history else ""
+    scene = scene_of(history)
     embedding_map = await memories_repo.list_embeddings(db, convo["id"])
     relevance_scores = await retrieval.rank(scene, embedding_map)
 
@@ -363,9 +347,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
     passages = None
     passage_budget = int(settings.get("passage_budget") or 0)
     if passage_budget and scene:
-        oldest_visible = payload.stats.get("oldest_visible") or 0
-        fact_positions = {p for p in (payload.stats.get("fact_positions") or []) if p is not None}
-        candidates = [m for m in history if (m.get("position") or 0) < oldest_visible]
+        candidates, fact_positions = passage_candidates(history, payload.stats)
         if candidates:
             msg_emb = await convo_repo.list_message_embeddings(db, convo["id"])
             for m in candidates:  # lazy-fill vectors for newly out-of-window messages
@@ -382,9 +364,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
             cand_map = {m["id"]: msg_emb[m["id"]] for m in candidates if m["id"] in msg_emb}
             scores = None if stopped.is_set() else await retrieval.rank(scene, cand_map)
             if scores:
-                infos = [{"id": m["id"], "content": active_content(m),
-                          "position": m.get("position") or 0, "role": m["role"]}
-                         for m in candidates if m["id"] in cand_map]
+                infos = passage_infos(candidates, cand_map)
                 passages = retrieval.select_passages(scores, infos, passage_budget,
                                                      exclude_positions=fact_positions)
                 if passages:
@@ -419,7 +399,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         """Write what has streamed so far. Recomputed from the original variants
         every time, so calling it repeatedly is the same as calling it once."""
         nonlocal draft_id, reply_gone
-        body = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
+        body = trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
         if not body and not final:
             return None
 
@@ -499,7 +479,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
                 yield _sse({"type": "discarded"})
             return
 
-        text = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
+        text = trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
         # Only worth a second pass when nothing at all came back and the payload
         # has the shape that provokes it. A reply that arrived and then trimmed
         # to nothing is a different problem, and its deltas already reached the
@@ -583,7 +563,7 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
             chunks.append(event.text)
         elif event.type == "error":
             raise model_failure(event.message, event.meta)
-    text = _trim_reply("".join(chunks), char_name=user_name, user_name=char_name)
+    text = trim_reply("".join(chunks), char_name=user_name, user_name=char_name)
     if not text:
         raise AppError("The model did not suggest anything. Try again.", 502, kind=MODEL_EMPTY)
     return {"text": text}
