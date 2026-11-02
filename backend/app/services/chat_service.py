@@ -81,6 +81,24 @@ def discards_turn(chunk: str) -> bool:
     return chunk.startswith('data: {"type": "discarded"')
 
 
+def message_sent_as(messages: list[dict], client_id: str | None) -> dict | None:
+    """The message that a page sent under this id, if it is among these."""
+    if not client_id:
+        return None
+    return next((m for m in messages if (m.get("meta") or {}).get("client_id") == client_id), None)
+
+
+def said_already(conversation_id: str, message: dict, following: dict) -> list[str]:
+    """What a turn for a message says when that turn is long over: the message, and
+    the reply that came of it. With none, and others sent since, a reply now would
+    answer the wrong thing, so nothing comes of it."""
+    start = {"type": "start", "conversation_id": conversation_id, "mode": "send",
+             "user_message": message, "target_message_id": None}
+    ending = ({"type": "done", "message": following} if following["role"] == "assistant"
+              else {"type": "discarded"})
+    return [_sse(start), _sse(ending)]
+
+
 def error_event(message: str, kind: str, resource: str | None = None, **details) -> str:
     """The event that ends a turn that could not be done. ``details`` are more
     fields for the interface, such as what a model's server said."""
@@ -264,17 +282,26 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         if not content:
             yield error_event("Empty message.", "empty_message")
             return
-        # From the start, so that it is still said if the server dies before the
-        # reply comes. turns.py takes it away when the turn ends with one.
-        message_meta = {"unanswered": True}
-        if request.message_mode in ("narrate", "ooc"):
-            message_meta["mode"] = request.message_mode
-        user_message = await convo_repo.add_message(db, convo["id"], "user", [content],
-                                                    meta=message_meta)
-        if not (convo.get("title") or "").strip() and request.message_mode == "say":
-            await convo_repo.update(db, convo["id"], {"title": _auto_title(content)})
+        # Here already if it is being sent again, and turns.py has seen that what it
+        # is missing is its reply. That is all there is to do about it.
+        user_message = message_sent_as(messages, request.client_id)
+        if user_message is None:
+            # From the start, so that it is still said if the server dies before the
+            # reply comes. turns.py takes it away when the turn ends with one.
+            message_meta = {"unanswered": True}
+            if request.message_mode in ("narrate", "ooc"):
+                message_meta["mode"] = request.message_mode
+            if request.client_id:
+                message_meta["client_id"] = request.client_id
+            user_message = await convo_repo.add_message(db, convo["id"], "user", [content],
+                                                        meta=message_meta)
+            if not (convo.get("title") or "").strip() and request.message_mode == "say":
+                await convo_repo.update(db, convo["id"], {"title": _auto_title(content)})
+            messages = messages + [user_message]
+        elif not user_message["meta"].get("unanswered"):
+            await convo_repo.update_message(
+                db, user_message["id"], meta={**user_message["meta"], "unanswered": True})
         answering = user_message
-        messages = messages + [user_message]
         history = messages
     elif request.mode == "regenerate":
         if not messages:

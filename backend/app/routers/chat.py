@@ -19,11 +19,12 @@ _SSE_HEADERS = {
 @router.post("/chat")
 async def chat(request: ChatRequest):
     """Starts a turn, or attaches to the one already running for this conversation
-    if that is what was asked for: the same regeneration or continuation. Anything
-    else, a message above all, is refused with a 409 of kind "turn_running" and
-    nothing saved, after waiting for a turn that is on its way out. No database
-    dependency: the turn holds its own connection, because it outlives this request
-    on purpose."""
+    if that is what was asked for: the same regeneration or continuation, or a message
+    sent again under its `client_id`, which adds nothing and gets the reply it has if
+    it has one. Anything else, a message above all, is refused with a 409 of kind
+    "turn_running" and nothing saved, after waiting for a turn that is on its way out.
+    No database dependency: the turn holds its own connection, because it outlives
+    this request on purpose."""
     turn = await turns.start(request)
     return StreamingResponse(turns.follow(turn), media_type="text/event-stream",
                              headers=_SSE_HEADERS)

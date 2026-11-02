@@ -165,9 +165,11 @@ async def update_message(db: aiosqlite.Connection, message_id: str,
 def _meta_for_branch(raw: str | None) -> str:
     """A message's mark as still waiting for a reply says something about the turn
     that was asked for in the conversation it comes from, not about a branch, where
-    ending on that message is what the person has just chosen."""
+    ending on that message is what the person has just chosen. So does the id it was
+    sent under: nothing was sent to the branch."""
     meta = loads(raw, {})
     meta.pop("unanswered", None)
+    meta.pop("client_id", None)
     return dumps(meta)
 
 

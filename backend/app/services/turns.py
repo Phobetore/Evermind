@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 # that a day of chatting does not accumulate transcripts in memory.
 _KEEP_FINISHED_SECONDS = 120
 # How long a request waits for a turn that is on its way out, whether stopped or
-# having said how it ended, before saying that one is still being written.
+# having said how it ended, before saying that one is still being written, or, if
+# it is the stop itself, before answering that it has been told.
 _WAIT_FOR_ENDING_SECONDS = 10
 
 
@@ -54,6 +55,9 @@ class Turn:
     # What it was writing into was deleted, by the person, while it was at it.
     discarded: bool = False
     task: asyncio.Task | None = None
+    # The id of the message it was started for, for knowing that message when it is
+    # sent again before it is in the conversation.
+    client_id: str | None = None
 
     @property
     def stopped(self) -> bool:
@@ -175,15 +179,56 @@ async def _run(turn: Turn, request: ChatRequest) -> None:
             asyncio.get_running_loop().call_later(_KEEP_FINISHED_SECONDS, _forget, turn)
 
 
+@dataclass
+class _SentBefore:
+    """A message that is being sent again."""
+
+    message: dict
+    # What comes straight after it, its reply if it has one.
+    following: dict | None
+    # Nothing of the person's has come since, so whatever is being written is for this.
+    last_question: bool
+
+
+async def _sent_before(request: ChatRequest) -> _SentBefore | None:
+    if request.mode != "send" or not request.client_id:
+        return None
+    db = await _connect()
+    try:
+        messages = await convo_repo.list_messages(db, request.conversation_id)
+    finally:
+        await db.close()
+    message = chat_service.message_sent_as(messages, request.client_id)
+    if message is None:
+        return None
+    since = messages[messages.index(message) + 1:]
+    return _SentBefore(message=message, following=since[0] if since else None,
+                       last_question=not any(m["role"] == "user" for m in since))
+
+
+def _is_what_was_asked(existing: Turn, request: ChatRequest, sent: _SentBefore | None) -> bool:
+    if existing.stopped or existing.ending:
+        return False
+    if request.mode != "send":
+        return request.mode == existing.mode
+    return sent is not None or (request.client_id is not None
+                                and request.client_id == existing.client_id)
+
+
 async def start(request: ChatRequest) -> Turn:
     """Begin a turn, or hand back the one already under way if it is what was asked.
 
     Asking again for the regeneration or the continuation being written is the same
     turn: a phone that reconnects and asks again must not set a second reply
-    generating alongside the first. Anything else is a different request, and handing
-    back a turn that has nothing to do with it would swallow it: above all a message,
-    which would be gone from the box and saved nowhere. So one that is on its way out
-    is waited for, and otherwise the answer is that one is still being written.
+    generating alongside the first. So is sending a message again under the id it was
+    sent with, by a page that does not know what became of it: it joins the turn
+    writing the reply, is told the reply if there is one, and otherwise gets one,
+    and nothing is added to the conversation in any of these.
+
+    Anything else is a different request, and handing back a turn that has nothing to
+    do with it would swallow it: above all a message, which would be gone from the box
+    and saved nowhere. So one that is on its way out is waited for, and otherwise the
+    answer is that one is still being written.
     """
     existing = running_for(request.conversation_id)
     if existing and (existing.stopped or existing.ending):
@@ -193,13 +238,25 @@ async def start(request: ChatRequest) -> Turn:
         except TimeoutError:
             pass
     async with _lock:
+        # Read under the lock, briefly, since two of these at once must come to one turn.
         existing = running_for(request.conversation_id)
+        sent = await _sent_before(request)
+        if existing and existing.finished.is_set():
+            # It ended during that read, which may be from before its reply was written.
+            existing = None
+            sent = await _sent_before(request)
+        if sent and sent.following and not (existing and sent.last_question):
+            turn = Turn(conversation_id=request.conversation_id, client_id=request.client_id,
+                        events=chat_service.said_already(
+                            request.conversation_id, sent.message, sent.following))
+            turn.finished.set()
+            return turn
         if existing:
-            if (existing.stopped or existing.ending or request.mode == "send"
-                    or request.mode != existing.mode):
+            if not _is_what_was_asked(existing, request, sent):
                 raise AppError("A reply is still being written.", 409, kind=TURN_RUNNING)
             return existing
-        turn = Turn(conversation_id=request.conversation_id, mode=request.mode)
+        turn = Turn(conversation_id=request.conversation_id, mode=request.mode,
+                    client_id=request.client_id)
         _running[request.conversation_id] = turn
         turn.task = asyncio.create_task(_run(turn, request))
         return turn
@@ -215,7 +272,8 @@ async def stop(conversation_id: str) -> bool:
     including in the writing of what arrived or in the tidying up after an ending.
 
     It answers once the turn has ended, so that whoever asked can read what arrived
-    straight away and find all of it."""
+    straight away and find all of it, or after `_WAIT_FOR_ENDING_SECONDS` if it has
+    not, when what arrived may not all be written yet."""
     turn = running_for(conversation_id)
     if not turn:
         return False
