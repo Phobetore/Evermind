@@ -297,6 +297,17 @@ describe("a message given back", () => {
     close();
   });
 
+  test("not if another has taken its place, which is not its to give back", () => {
+    const id = aConversation();
+    const box = aBox();
+    const close = openBox(id, box);
+    const first = beginSending(id, "First.", "say");
+    beginSending(id, "Second.", "say");
+    giveBack(id, first);
+    expect(box.shown).toBe("");
+    close();
+  });
+
   test("something that is not one, in storage, is not taken for one", async () => {
     const id = aConversation();
     localStorage.setItem(`evermind:sending:${id}`, "not what this writes");
