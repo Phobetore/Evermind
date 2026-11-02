@@ -51,6 +51,12 @@ def test_substitute_macros_case_insensitive():
     assert out == "Serana meets Alex and Serana"
 
 
+def test_a_name_is_inserted_as_written():
+    for name in [r"Ana\d", r"C:\new", r"\1", r"\g<0>", "$&", "$1"]:
+        assert substitute("{{char}}!", char_name=name, user_name="U") == f"{name}!"
+        assert substitute("{{user}}!", char_name="C", user_name=name) == f"{name}!"
+
+
 def test_estimate_tokens_monotonic():
     assert estimate_tokens("") >= 0
     assert estimate_tokens("hello world " * 100) > estimate_tokens("hello")
