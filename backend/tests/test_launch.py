@@ -484,6 +484,13 @@ def test_resolve_listen_names_the_bad_root_path(argv, env, message):
         resolve_listen(parse_args(argv), env)
 
 
+def test_shutting_down_does_not_wait_for_ever_on_a_page_reading_a_reply(clean_env, ui_built, served):
+    """A page reading a reply holds its connection open, and the model behind it may
+    have hung. Nothing else would end that."""
+    assert launch.main(["--no-env-file", "--port", str(free_port())]) == 0
+    assert 0 < served[0][1]["timeout_graceful_shutdown"] <= 30
+
+
 def test_the_root_path_is_handed_to_uvicorn(clean_env, ui_built, served):
     p = free_port()
     code = launch.main(["--no-env-file", "--port", str(p), "--root-path", "/evermind/"])
@@ -938,7 +945,10 @@ def test_starts_uvicorn_with_resolved_values(clean_env, ui_built, served, capsys
     code = launch.main(["--no-env-file", "--port", str(p)])
     assert code == 0
     assert served == [
-        ("app.main:app", {"host": "127.0.0.1", "port": p, "reload": False, "root_path": ""})
+        ("app.main:app", {
+            "host": "127.0.0.1", "port": p, "reload": False, "root_path": "",
+            "timeout_graceful_shutdown": 5,
+        })
     ]
     captured = capsys.readouterr()
     assert captured.out == f"Evermind -> http://localhost:{p}\n"
@@ -1070,7 +1080,7 @@ def test_dev_starts_the_api_with_reload_and_no_built_ui(clean_env, served, capsy
             "app.main:app",
             {
                 "host": "127.0.0.1", "port": p, "reload": True, "root_path": "",
-                "reload_dirs": [app_dir],
+                "timeout_graceful_shutdown": 5, "reload_dirs": [app_dir],
             },
         )
     ]

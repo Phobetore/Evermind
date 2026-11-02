@@ -335,7 +335,11 @@ def main(argv: list[str] | None = None) -> int:
         options["reload_dirs"] = [str(Path(__file__).resolve().parent)]
     uvicorn.run(
         "app.main:app", host=listen.host, port=listen.port, reload=listen.dev,
-        root_path=listen.root_path, **options,
+        root_path=listen.root_path,
+        # A page reading a reply holds its connection open. Shutting down waits for
+        # those a moment and no longer, or a model that has hung would hang this too.
+        timeout_graceful_shutdown=5,
+        **options,
     )
     return 0
 

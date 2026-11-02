@@ -25,6 +25,7 @@ import json
 import re
 import time
 from collections.abc import AsyncIterator
+from contextlib import aclosing
 
 import aiosqlite
 
@@ -53,8 +54,8 @@ from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
 from . import memory_service
 
-# How often a reply in progress is written to the database. Often enough that
-# closing a tab loses at most a second of text, rarely enough that a long reply
+# How often a reply in progress is written to the database. Often enough that a
+# server going down loses at most a second of text, rarely enough that a long reply
 # costs a handful of writes rather than one per token.
 _FLUSH_SECONDS = 1.0
 
@@ -165,8 +166,11 @@ def _trim_reply(text: str, char_name: str, user_name: str) -> str:
 
 async def _generate(connection: dict, payload: PromptPayload):
     provider = get_provider(connection)
-    async for event in provider.stream_chat(payload):
-        yield event
+    # Closed here and now whichever way this ends, rather than whenever the garbage
+    # collector comes round, which is how long the request to the model would last.
+    async with aclosing(provider.stream_chat(payload)) as stream:
+        async for event in stream:
+            yield event
 
 
 async def _until_stopped(events: AsyncIterator, stopped: asyncio.Event) -> AsyncIterator:
@@ -186,8 +190,9 @@ async def _until_stopped(events: AsyncIterator, stopped: asyncio.Event) -> Async
 
     async def read() -> None:
         try:
-            async for event in events:
-                queue.put_nowait(event)
+            async with aclosing(events) as stream:
+                async for event in stream:
+                    queue.put_nowait(event)
         except Exception as exc:  # noqa: BLE001 - it belongs to whoever is reading
             queue.put_nowait(exc)
         finally:
@@ -250,6 +255,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
     messages = await _settle_unfinished(db, await convo_repo.list_messages(db, convo["id"]))
 
     user_message = None
+    answering = None  # the person's message this reply is an answer to, if it is a new one
     target_message = None  # existing assistant message receiving a new/extended variant
     continue_mode = False
 
@@ -267,6 +273,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
                                                     meta=message_meta)
         if not (convo.get("title") or "").strip() and request.message_mode == "say":
             await convo_repo.update(db, convo["id"], {"title": _auto_title(content)})
+        answering = user_message
         messages = messages + [user_message]
         history = messages
     elif request.mode == "regenerate":
@@ -282,6 +289,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
             target_message = last
             history = messages[:-1]
         else:
+            answering = last
             history = messages
     elif request.mode == "continue":
         if not messages or messages[-1]["role"] != "assistant":
@@ -334,6 +342,10 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         if candidates:
             msg_emb = await convo_repo.list_message_embeddings(db, convo["id"])
             for m in candidates:  # lazy-fill vectors for newly out-of-window messages
+                # There can be hundreds of these, each one a request of its own, and
+                # a stop should not have to wait for them.
+                if stopped.is_set():
+                    break
                 if m["id"] not in msg_emb:
                     vecs = await embeddings.embed([active_content(m)], kind="passage")
                     if vecs:
@@ -341,7 +353,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
                         await convo_repo.set_message_embedding(db, m["id"], blob)
                         msg_emb[m["id"]] = blob
             cand_map = {m["id"]: msg_emb[m["id"]] for m in candidates if m["id"] in msg_emb}
-            scores = await retrieval.rank(scene, cand_map)
+            scores = None if stopped.is_set() else await retrieval.rank(scene, cand_map)
             if scores:
                 infos = [{"id": m["id"], "content": active_content(m),
                           "position": m.get("position") or 0, "role": m["role"]}
@@ -412,7 +424,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         else:
             meta = {"streaming": True}
         if draft_id is None:
-            if user_message and not await convo_repo.get_message(db, user_message["id"]):
+            if answering and not await convo_repo.get_message(db, answering["id"]):
                 reply_gone = True
                 return None
             created = await convo_repo.add_message(db, convo["id"], "assistant", [body], meta=meta)
@@ -429,25 +441,28 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
     # silently. Rather than hand that to someone as "try another model", fold
     # the greeting into the system prompt and ask once more.
     for attempt in (0, 1):
-        async for event in _until_stopped(_generate(connection, payload), stopped):
-            if event.type == "delta":
-                if first_token_at is None:
-                    first_token_at = time.monotonic()
-                chunks.append(event.text)
-                yield _sse({"type": "delta", "text": event.text})
-                if time.monotonic() - flushed_at >= _FLUSH_SECONDS:
-                    flushed_at = time.monotonic()
-                    await persist(final=False)
-                    if reply_gone:
-                        yield _sse({"type": "discarded"})
-                        return
-            elif event.type == "done":
-                usage = event.usage
-                finish_reason = (event.meta or {}).get("finish_reason")
-            elif event.type == "error":
-                fields = failure_fields(event.meta)
-                yield error_event(event.message, fields.pop("kind"), **fields)
-                return
+        # Closed on the way out of here, however that happens, and the request to the
+        # model with it.
+        async with aclosing(_until_stopped(_generate(connection, payload), stopped)) as events:
+            async for event in events:
+                if event.type == "delta":
+                    if first_token_at is None:
+                        first_token_at = time.monotonic()
+                    chunks.append(event.text)
+                    yield _sse({"type": "delta", "text": event.text})
+                    if time.monotonic() - flushed_at >= _FLUSH_SECONDS:
+                        flushed_at = time.monotonic()
+                        await persist(final=False)
+                        if reply_gone:
+                            yield _sse({"type": "discarded"})
+                            return
+                elif event.type == "done":
+                    usage = event.usage
+                    finish_reason = (event.meta or {}).get("finish_reason")
+                elif event.type == "error":
+                    fields = failure_fields(event.meta)
+                    yield error_event(event.message, fields.pop("kind"), **fields)
+                    return
 
         if stopped.is_set():
             # Stop the turn and keep what arrived, every word of it, which is what

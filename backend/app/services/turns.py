@@ -212,11 +212,18 @@ async def stop(conversation_id: str) -> bool:
 
     The turn hears of it where it waits for the model, and nowhere else: see
     `chat_service._until_stopped`. It is not cancelled, which could land anywhere,
-    including in the writing of what arrived or in the tidying up after an ending."""
+    including in the writing of what arrived or in the tidying up after an ending.
+
+    It answers once the turn has ended, so that whoever asked can read what arrived
+    straight away and find all of it."""
     turn = running_for(conversation_id)
     if not turn:
         return False
     turn.stop_asked.set()
+    try:
+        await asyncio.wait_for(turn.finished.wait(), _WAIT_FOR_ENDING_SECONDS)
+    except TimeoutError:
+        pass
     return True
 
 
