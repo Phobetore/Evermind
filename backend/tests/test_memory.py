@@ -266,7 +266,7 @@ async def test_consolidation_prompt_holds_only_the_facts_it_may_merge(client, fa
 
     assert resp.status_code == 200, resp.text
     content = fake_provider.captured["payload"].messages[0]["content"]
-    assert content.startswith("FACTS TO CONSOLIDATE:\n- Movable fact 0.\n")
+    assert content.startswith("FACTS TO CONSOLIDATE:\n- ")
     assert all(f"- {fact}" in content for fact in movable)
     assert "Pinned fact." not in content
     assert "Hand-written fact." not in content

@@ -147,9 +147,7 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
     character = await characters_repo.get_raw(db, convo["character_id"])
     if not character:
         raise _TurnError("Character not found.", NOT_FOUND, "character")
-    persona = await personas_repo.get(db, convo["persona_id"]) if convo.get("persona_id") else None
-    if persona is None:
-        persona = await personas_repo.get_default(db)
+    persona = await personas_repo.for_conversation(db, convo)
     connection = None
     if convo.get("connection_id"):
         connection = await connections_repo.get_raw(db, convo["connection_id"])
