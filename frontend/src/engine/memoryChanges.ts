@@ -4,25 +4,27 @@
 //
 // Only a string is text. A `content`, a `kind` or a `replaces` that is a number,
 // a list or null is absent; and what is not an array is no array, where a string
-// would be read letter by letter.
+// would be read letter by letter. A string that cannot be written (a lone surrogate)
+// is absent too: it would fail in the database, after the changes before it were saved.
 
-import { isRecord } from "./llmJson";
-import { pyStrip } from "./text";
+import { isWritable, pyStrip } from "./text";
+import { isRecord } from "./values";
 
-export const ALLOWED_KINDS: ReadonlySet<string> = new Set([
+const ALLOWED_KINDS: ReadonlySet<string> = new Set([
   "fact",
   "event",
   "relationship",
   "promise",
   "state",
 ]);
-export const MAX_CONSOLIDATED_FACTS = 30; // what one consolidation may leave of the model's merge
+const MAX_CONSOLIDATED_FACTS = 30; // what one consolidation may leave of the model's merge
 
 const items = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 const kindOf = (value: unknown): string =>
   typeof value === "string" && ALLOWED_KINDS.has(value) ? value : "fact";
-// What a value says once stripped, "" when it is not a string.
-const textOf = (value: unknown): string => (typeof value === "string" ? pyStrip(value) : "");
+// What a value says once stripped, "" when it is not a string or cannot be written.
+const textOf = (value: unknown): string =>
+  typeof value === "string" && isWritable(value) ? pyStrip(value) : "";
 
 /** What `planMemoryChanges` reads of a fact the conversation remembers. */
 export interface KnownFact {
@@ -44,10 +46,15 @@ export interface MemoryChanges {
 /** The changes that an extraction's answer makes, in the order they are applied:
  *  the facts it adds, then those it corrects, then those it drops. Each is decided
  *  on what the ones before it leave, so that one can reach a fact that an earlier
- *  one added. Several facts can say the same thing, since a correction may write
- *  what another already says: the first of `existing` is the one a later correction
- *  or drop reaches, so it comes in the order in which the repository looks a fact up
- *  (the pinned ones, then the oldest). */
+ *  one added. Several facts can say the same thing, since a person may edit one into
+ *  what another says: the first of `existing` is the one a later correction or drop
+ *  reaches, so it comes in the order in which the repository looks a fact up (the
+ *  pinned ones, then the oldest).
+ *
+ *  Only a fact that the model wrote and nobody pinned is for it to correct or drop:
+ *  it leaves alone what a person typed or pinned, and adds nothing in its place. A
+ *  correction into the text of another fact drops the corrected one instead, since
+ *  what it says is recorded already. */
 export function planMemoryChanges(
   parsed: Record<string, unknown>,
   existing: readonly KnownFact[],
@@ -72,30 +79,36 @@ export function planMemoryChanges(
     const wanted = textOf(text);
     return known.find((m) => m.content === wanted);
   };
+  const drop = (fact: (typeof known)[number]) => {
+    ops.push({ op: "delete", target: fact.content });
+    known.splice(known.indexOf(fact), 1);
+  };
+  const forTheModel = (fact: (typeof known)[number]) => !fact.is_pinned && fact.source === "auto";
 
   for (const fact of items(parsed.facts)) {
     if (isRecord(fact)) add(textOf(fact.content), kindOf(fact.kind));
   }
 
-  // Corrections and merges. A pinned fact is never touched.
+  // Corrections and merges.
   for (const update of items(parsed.updated_facts)) {
     const newContent = isRecord(update) ? textOf(update.content) : "";
     if (!newContent) continue;
     const target = find(isRecord(update) ? update.replaces : undefined);
     if (target === undefined) {
       add(newContent, "fact");
-    } else if (!target.is_pinned) {
-      ops.push({ op: "update", target: target.content, content: newContent });
-      target.content = newContent;
+    } else if (forTheModel(target)) {
+      if (known.some((m) => m !== target && m.content === newContent)) {
+        drop(target);
+      } else {
+        ops.push({ op: "update", target: target.content, content: newContent });
+        target.content = newContent;
+      }
     }
   }
 
   for (const obsolete of items(parsed.obsolete_facts)) {
     const target = find(obsolete);
-    if (target && !target.is_pinned && target.source === "auto") {
-      ops.push({ op: "delete", target: target.content });
-      known.splice(known.indexOf(target), 1);
-    }
+    if (target && forTheModel(target)) drop(target);
   }
 
   return { ops, summary: textOf(parsed.summary) || null };

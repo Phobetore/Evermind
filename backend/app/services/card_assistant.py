@@ -20,6 +20,7 @@ from ..prompting.payloads import (
     existing_fields,
     lore_keyword,
 )
+from ..prompting.text import is_writable
 from ..providers import get_provider
 from ..repositories import connections as connections_repo
 from ..repositories import settings as settings_repo
@@ -49,10 +50,12 @@ def _words(value: object) -> list[str]:
     """The words in what the model gave for a list: the text of each element that
     is text or a whole number, and a bare string is a list of one. Anything else is
     not a word, and a value that is no list holds none: a string is not a row of
-    letters, which lore matching would find in nearly every message."""
+    letters, which lore matching would find in nearly every message. A text that cannot
+    be written back (a lone surrogate) is no word either."""
     if isinstance(value, str):
         value = [value]
-    return [word for word in map(lore_keyword, value if isinstance(value, list) else []) if word]
+    words = map(lore_keyword, value if isinstance(value, list) else [])
+    return [word for word in words if word and is_writable(word)]
 
 
 def clean_card_draft(draft: dict) -> dict:
@@ -60,7 +63,7 @@ def clean_card_draft(draft: dict) -> dict:
     out: dict = {}
     for field in TEXT_FIELDS:
         value = draft.get(field)
-        if isinstance(value, str) and value.strip():
+        if isinstance(value, str) and value.strip() and is_writable(value):
             out[field] = value.strip()
     for field in LIST_FIELDS:
         items = _words(draft.get(field))
@@ -76,7 +79,7 @@ def clean_card_draft(draft: dict) -> dict:
             continue
         keys = _words(raw.get("keys"))
         content = raw.get("content")
-        content = content.strip() if isinstance(content, str) else ""
+        content = content.strip() if isinstance(content, str) and is_writable(content) else ""
         if keys and content:
             entries.append({"keys": keys[:6], "content": content})
     if entries:

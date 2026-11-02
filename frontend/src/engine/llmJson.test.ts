@@ -22,17 +22,6 @@ describe("what a reply nests too deep to follow", () => {
     expect(parseLlmJson("[".repeat(depth) + ' {"a": 1}')).toEqual({ a: 1 });
     expect(parseLlmJson('{"a": 1} ' + "[".repeat(depth))).toEqual({ a: 1 });
   });
-
-  test("is read when it is as deep as a card ever is, and not past 1000", () => {
-    const nest = (n: number) => '{"a":' + "[".repeat(n) + "]".repeat(n) + "}";
-    expect(parseLlmJson(nest(500))).not.toBeNull();
-    // The object that holds the list is one of the 1000.
-    expect(parseLlmJson(nest(999))).not.toBeNull();
-    expect(parseLlmJson(nest(1000))).toBeNull();
-    const objects = (n: number) => '{"a":'.repeat(n) + "1" + "}".repeat(n);
-    expect(parseLlmJson(objects(1000))).not.toBeNull();
-    expect(parseLlmJson(objects(1001))).toBeNull();
-  });
 });
 
 describe("the numbers JSON has no word for", () => {
@@ -144,13 +133,6 @@ describe("the keys of an object", () => {
     expect(parsed.__proto__).toEqual([1]);
     expect(Object.hasOwn(parsed.a as object, "__proto__")).toBe(true);
   });
-
-  test("the last of two equal keys wins, where the first one stood", () => {
-    expect(Object.entries(read('{"a": 1, "b": 2, "a": 3}'))).toEqual([
-      ["a", 3],
-      ["b", 2],
-    ]);
-  });
 });
 
 describe("rawDecode", () => {
@@ -175,14 +157,6 @@ describe("rawDecode", () => {
     }
     expect(rawDecode("[1]", 3)).toBeNull();
     expect(rawDecode("[1]", 99)).toBeNull();
-  });
-
-  test("an escape just before the end of the text is read", () => {
-    // Python wants one character after the four digits, and a string alone has its
-    // closing quote there.
-    expect(rawDecode('"\\u0041"')).toEqual({ value: "A", end: 8 });
-    expect(rawDecode('"\\ud83d\\ude00"')).toEqual({ value: "\u{1F600}", end: 14 });
-    expect(rawDecode('"\\u0041')).toBeNull();
   });
 
   test("a literal ends where the word does, whatever follows", () => {

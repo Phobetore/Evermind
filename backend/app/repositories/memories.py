@@ -47,7 +47,7 @@ async def add(db: aiosqlite.Connection, convo_id: str, content: str,
     return await get(db, memory_id)
 
 
-# A correction can write what another fact already says, so that a text may name
+# A person can edit a fact into what another already says, so that a text may name
 # several facts. The one a lookup by content gives is the first in this order:
 # the pinned ones, then the oldest. It is the order in which idx_memories_conversation
 # is walked, so the lookup always gave that one; it is written out so that

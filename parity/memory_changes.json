@@ -2053,7 +2053,7 @@
   },
   {
    "fn": "memory_reply",
-   "name": "a correction of a hand-written fact",
+   "name": "a correction of a hand-written fact does nothing, not even an addition",
    "input": {
     "text": "{\"updated_facts\": [{\"replaces\": \"Hand fact.\", \"content\": \"Hand fact, corrected.\"}]}",
     "existing": [
@@ -2086,13 +2086,7 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "update",
-      "target": "Hand fact.",
-      "content": "Hand fact, corrected."
-     }
-    ],
+    "ops": [],
     "summary": null
    }
   },
@@ -2517,9 +2511,8 @@
    "expected": {
     "ops": [
      {
-      "op": "update",
-      "target": "Old two.",
-      "content": "Old one."
+      "op": "delete",
+      "target": "Old two."
      }
     ],
     "summary": null
@@ -2944,9 +2937,1040 @@
    "expected": {
     "ops": [
      {
+      "op": "delete",
+      "target": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction of a fact that a person pinned does nothing",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Typed by hand.\", \"content\": \"Rewritten.\"}]}",
+    "existing": [
+     {
+      "content": "Typed by hand.",
+      "is_pinned": true,
+      "source": "user"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction of a fact from another source does nothing",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"From elsewhere.\", \"content\": \"Rewritten.\"}]}",
+    "existing": [
+     {
+      "content": "From elsewhere.",
+      "is_pinned": false,
+      "source": "import"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a hand-written fact is not corrected into what another says",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Hand fact.\", \"content\": \"Old one.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a pinned fact is not corrected into what another says",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Pinned fact.\", \"content\": \"Old one.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction into what a hand-written fact says drops the corrected one",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Hand fact.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction into what is said, with spaces around, drops the corrected one",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"  Old one.\\n\", \"content\": \"\u00a0Old two.\\t\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction into its own text, said by a double of it, drops it",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Same.\", \"content\": \"Same.\"}]}",
+    "existing": [
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Same."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction into its own text, said by a double of it that a person wrote, drops it",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Same.\", \"content\": \"Same.\"}]}",
+    "existing": [
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "user"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Same."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction into the text of a fact that the same answer adds drops the corrected one",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Fresh.\"}], \"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Fresh.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Fresh.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "delete",
+      "target": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction into what an earlier correction wrote drops the corrected one",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Second.\"}, {\"replaces\": \"Old two.\", \"content\": \"Second.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
       "op": "update",
       "target": "Old one.",
-      "content": "Pinned fact."
+      "content": "Second."
+     },
+     {
+      "op": "delete",
+      "target": "Old two."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a fact that a correction dropped is not found again, so a correction of it adds",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old two.\", \"content\": \"Old one.\"}, {\"replaces\": \"Old two.\", \"content\": \"Fresh.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Old two."
+     },
+     {
+      "op": "add",
+      "content": "Fresh.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop of a fact that a correction dropped finds nothing",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old two.\", \"content\": \"Old one.\"}], \"obsolete_facts\": [\"Old two.\", \"Old one.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Old two."
+     },
+     {
+      "op": "delete",
+      "target": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "the text of a fact that a correction dropped can be written again",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old two.\", \"content\": \"Old one.\"}, {\"content\": \"Old two.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Old two."
+     },
+     {
+      "op": "add",
+      "content": "Old two.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a content that cannot be written is absent",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Before.\"}, {\"content\": \"\\ud800\"}, {\"content\": \"After.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Before.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "After.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a content of a high surrogate and a letter is absent",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"\\ud83dx\"}, {\"content\": \"Kept.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kept.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a content of a low surrogate is absent",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"\\ude00\"}, {\"content\": \"Kept.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kept.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a content of two lone surrogates in reverse order is absent",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"\\ude00\\ud83d\"}, {\"content\": \"Kept.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kept.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a content with a lone surrogate inside is absent",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Before \\ud800 after\"}, {\"content\": \"Kept.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kept.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a surrogate pair is a character that can be written",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"A \\ud83d\\ude00 fact.\"}, {\"content\": \"\\ud83d\\ude00\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "A 😀 fact.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "😀",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a kind that cannot be written is no kind",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"A fact.\", \"kind\": \"\\ud800\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "A fact.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a replaces that cannot be written replaces nothing",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"\\ud800\", \"content\": \"Added.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Added.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction that cannot be written does nothing",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"\\ud800\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop that cannot be written finds nothing",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"\\ud800\", \"Old one.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary that cannot be written is none",
+   "input": {
+    "text": "{\"summary\": \"\\ud800\", \"facts\": [{\"content\": \"Kept.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kept.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
      }
     ],
     "summary": null
@@ -5085,11 +6109,6 @@
       "source": "auto"
      },
      {
-      "op": "update",
-      "target": "Hand fact.",
-      "content": "Hand fact, corrected."
-     },
-     {
       "op": "add",
       "content": "Replaces nothing.",
       "kind": "fact",
@@ -6647,6 +7666,106 @@
     ]
    },
    "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "a merged fact that cannot be written is left out",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"\\ud800\"}, {\"content\": \"Kept.\"}, {\"content\": \"Lone \\ude00\", \"kind\": \"event\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Kept.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "only merged facts that cannot be written",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"\\ud800\"}, {\"content\": \"\\ude00\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "a merged fact that is a surrogate pair is kept",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"\\ud83d\\ude00\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "😀",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "a kind that cannot be written is no kind",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Kept.\", \"kind\": \"\\ud800\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Kept.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
   }
  ]
 }

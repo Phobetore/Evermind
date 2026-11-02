@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
-import { planConsolidation, planMemoryChanges } from "./memoryChanges";
+import { planMemoryChanges } from "./memoryChanges";
 
 // What the cases of parity/memory_changes.json cannot say, since they only see what
-// a function returns: what it leaves alone. backend/tests/test_memory_changes.py
+// a function returns: that it leaves the facts alone. backend/tests/test_memory_changes.py
 // says the same of the Python.
 
 const existing = () => [
@@ -20,31 +20,12 @@ const answer = () => ({
   summary: " Summed up. ",
 });
 
-test("planning leaves the facts and the answer as they were", () => {
+test("planning leaves the facts as they were", () => {
   const facts = existing();
-  const reply = answer();
 
-  const plan = planMemoryChanges(reply, facts, 9);
+  const plan = planMemoryChanges(answer(), facts, 9);
 
   expect(facts).toEqual(existing());
-  expect(reply).toEqual(answer());
   // What it did decide, so that the test is about an answer that changes things.
   expect(plan.ops.map((op) => op.op)).toEqual(["add", "update", "update", "delete"]);
-});
-
-test("planning a consolidation leaves the answer and the facts as they were", () => {
-  const reply = { facts: [{ content: " One. " }, { content: "Two.", kind: "event" }] };
-  const movable = [{ source_position: 5 }, { source_position: 2 }];
-
-  const plan = planConsolidation(reply, movable);
-
-  expect(reply).toEqual({ facts: [{ content: " One. " }, { content: "Two.", kind: "event" }] });
-  expect(movable).toEqual([{ source_position: 5 }, { source_position: 2 }]);
-  expect(plan).toEqual({
-    facts: [
-      { content: "One.", kind: "fact" },
-      { content: "Two.", kind: "event" },
-    ],
-    source_position: 2,
-  });
 });

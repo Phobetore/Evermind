@@ -8,8 +8,11 @@ these read, and apply what they return through the repository.
 Only a string is text. A ``content``, a ``kind`` or a ``replaces`` that is a number,
 a list or ``null`` is absent, where ``str()`` of it used to be saved as a memory
 ("12", "['a']"); and what is not a list is no list, where a string used to be read
-letter by letter.
+letter by letter. A string that cannot be written (a lone surrogate) is absent too:
+it would fail in the database, after the changes before it were saved.
 """
+
+from .text import is_writable
 
 ALLOWED_KINDS = {"fact", "event", "relationship", "promise", "state"}
 MAX_CONSOLIDATED_FACTS = 30  # what one consolidation may leave of the model's merge
@@ -24,8 +27,8 @@ def _kind(value: object) -> str:
 
 
 def _text(value: object) -> str:
-    """What a value says once stripped, "" when it is not a string."""
-    return value.strip() if isinstance(value, str) else ""
+    """What a value says once stripped, "" when it is not a string or cannot be written."""
+    return value.strip() if isinstance(value, str) and is_writable(value) else ""
 
 
 def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -> dict:
@@ -35,10 +38,15 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
     ``existing`` is what the conversation remembers. Each change is decided on
     what the ones before it leave, so that one can reach a fact that an earlier one
     added, and the result is what applying them one by one to the memory gives.
-    Several facts can say the same thing, since a correction may write what another
-    already says: the first of ``existing`` is the one that a later correction or
+    Several facts can say the same thing, since a person may edit one into what
+    another says: the first of ``existing`` is the one that a later correction or
     drop reaches, so ``existing`` comes in the order in which the repository looks
     a fact up (``memories_repo.list_in_lookup_order``).
+
+    Only a fact that the model wrote and nobody pinned is for it to correct or drop:
+    the model leaves alone what a person typed or pinned, and adds nothing in its place.
+    A correction into the text of another fact drops the corrected one instead, since
+    what it says is recorded already.
 
     ``{"ops": [...], "summary": ...}``. An op is ``{"op": "add", "content", "kind",
     "source_position", "source": "auto"}``, ``{"op": "update", "target", "content"}``
@@ -63,11 +71,18 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
         wanted = _text(text)
         return next((m for m in known if m["content"] == wanted), None)
 
+    def drop(fact: dict) -> None:
+        ops.append({"op": "delete", "target": fact["content"]})
+        known[:] = [m for m in known if m is not fact]
+
+    def for_the_model(fact: dict) -> bool:
+        return not fact["is_pinned"] and fact["source"] == "auto"
+
     for fact in _items(parsed.get("facts")):
         if isinstance(fact, dict):
             add(_text(fact.get("content")), _kind(fact.get("kind")))
 
-    # Corrections and merges. A pinned fact is never touched.
+    # Corrections and merges.
     for update in _items(parsed.get("updated_facts")):
         new_content = _text(update.get("content")) if isinstance(update, dict) else ""
         if not new_content:
@@ -75,15 +90,17 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
         target = find(update.get("replaces"))
         if target is None:
             add(new_content, "fact")
-        elif not target["is_pinned"]:
-            ops.append({"op": "update", "target": target["content"], "content": new_content})
-            target["content"] = new_content
+        elif for_the_model(target):
+            if any(m is not target and m["content"] == new_content for m in known):
+                drop(target)
+            else:
+                ops.append({"op": "update", "target": target["content"], "content": new_content})
+                target["content"] = new_content
 
     for obsolete in _items(parsed.get("obsolete_facts")):
         target = find(obsolete)
-        if target and not target["is_pinned"] and target["source"] == "auto":
-            ops.append({"op": "delete", "target": target["content"]})
-            known[:] = [m for m in known if m is not target]
+        if target and for_the_model(target):
+            drop(target)
 
     return {"ops": ops, "summary": _text(parsed.get("summary")) or None}
 

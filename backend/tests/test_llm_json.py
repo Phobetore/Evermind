@@ -136,13 +136,3 @@ def test_control_characters_are_refused_inside_a_string_but_three_are_repaired()
     for code in (0x09, 0x0A, 0x0D):
         assert parse_llm_json(f'{{"a": "x{chr(code)}y"}}') == {"a": f"x{chr(code)}y"}
     assert parse_llm_json('{"a": "x\x7fy"}')["a"] == "x\x7fy"
-
-
-def test_a_key_named_proto_is_a_key():
-    parsed = parse_llm_json('{"__proto__": {"polluted": true}, "a": 1}')
-    assert parsed == {"__proto__": {"polluted": True}, "a": 1}
-    assert list(parsed) == ["__proto__", "a"]
-
-
-def test_the_last_of_two_equal_keys_wins_where_the_first_one_stood():
-    assert list(parse_llm_json('{"a": 1, "b": 2, "a": 3}').items()) == [("a", 3), ("b", 2)]

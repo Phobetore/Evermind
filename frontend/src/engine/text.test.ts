@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { codePoints, sliceCodePoints } from "./text";
+import { codePoints, isWritable, sliceCodePoints } from "./text";
 
 // What len(s) and s[:n] give in Python, on text where UTF-16 units and code
 // points part ways. A lone surrogate, which a cut string can leave, is one
@@ -32,3 +32,22 @@ test.each([
 ])("sliceCodePoints(%j, %j) -> %j", (text, end, expected) =>
   expect(sliceCodePoints(text, end)).toBe(expected),
 );
+
+// What `is_writable` says in Python: a lone surrogate cannot be encoded.
+const high = String.fromCharCode(0xd83d);
+const low = String.fromCharCode(0xde00);
+test.each([
+  ["", true],
+  ["abc", true],
+  ["\u{1F600}", true],
+  [high + low, true],
+  ["a" + high + low + "b", true],
+  [high, false],
+  [low, false],
+  [low + high, false],
+  [high + "x", false],
+  ["x" + low, false],
+  [high + high + low, false],
+  [high + low + low, false],
+  ["a" + high, false],
+])("isWritable(%j) is %j", (text, expected) => expect(isWritable(text)).toBe(expected));

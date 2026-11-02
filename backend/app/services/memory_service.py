@@ -108,7 +108,8 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
 
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Merge non-pinned facts into a shorter, denser set (pinned untouched).
-    Returns {"before": n, "after": n, "memories": [...]}."""
+    Returns {"before": n, "after": n, "memories": [...]}, with "skipped" set and nothing
+    changed when there were too few facts, or none of those sent was still to merge."""
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
@@ -129,17 +130,26 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
             chunks.append(event.text)
         elif event.type == "error":
             raise model_failure(event.message, event.meta)
-    merged = plan_consolidation(parse_llm_json("".join(chunks)), movable)
+
+    # What the memory holds now rather than before the model was asked: a fact pinned
+    # or edited in the meantime is not the one that was sent, and is not for the merge
+    # to remove.
+    now = await memories_repo.list_for_conversation(db, convo_id)
+    sent = {(m["id"], m["content"]) for m in movable}
+    replaced = [m for m in movable_facts(now) if (m["id"], m["content"]) in sent]
+    merged = plan_consolidation(parse_llm_json("".join(chunks)), replaced)
     if merged is None:
         raise AppError("Unreadable consolidation — try again.", 502, kind=MODEL_UNREADABLE)
+    if not replaced:
+        return {"before": len(now), "after": len(now), "memories": now, "skipped": "changed"}
 
-    for m in movable:
+    for m in replaced:
         await memories_repo.delete(db, m["id"])
     for f in merged["facts"]:
         await memories_repo.add(db, convo_id, content=f["content"], kind=f["kind"],
                                 source_position=merged["source_position"], source="auto")
     remaining = await memories_repo.list_for_conversation(db, convo_id)
-    return {"before": len(all_facts), "after": len(remaining), "memories": remaining}
+    return {"before": len(now), "after": len(remaining), "memories": remaining}
 
 
 async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict]) -> list[dict]:

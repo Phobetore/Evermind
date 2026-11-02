@@ -19,9 +19,9 @@ import {
   MEMORY_EXTRACTION_PROMPT,
   SUMMARIZE_PROMPT,
 } from "./defaults";
-import { isRecord } from "./llmJson";
 import { substitute } from "./macros";
 import { pyStrip } from "./text";
+import { isRecord } from "./values";
 
 export const MAX_TURNS_PER_RUN = 40; // safety cap on turns fed to one extraction call
 export const MIN_FACTS_TO_CONSOLIDATE = 8; // fewer than this and merging them is not worth a call
@@ -182,10 +182,11 @@ export function existingFields(existing: Record<string, unknown> | null): Record
 }
 
 /** The text of a keyword of an existing lorebook entry, "" when it is none: a
- *  string, or a whole number written out. Two numbers are read otherwise than in
- *  Python, since `JSON.parse` keeps neither the type nor the digits of a number:
- *  `1.0` is a float there and no keyword, where the parsed `1` is "1" here; and an
- *  integer past 2^53 is a keyword there, and none here. */
+ *  string, or a whole number written out. Two kinds of number are read otherwise than
+ *  in Python, since `JSON.parse` keeps neither the type nor the digits of a number: a
+ *  float of whole value (`1.0`, `1e3`, `5E0`, `-0.0`) is no keyword there, where the
+ *  parsed number is a keyword here; and an integer past 2^53 is a keyword there, and
+ *  none here. */
 export function loreKeyword(key: unknown): string {
   if (typeof key === "string") return pyStrip(key);
   if (typeof key === "number" && Number.isSafeInteger(key)) return String(key);

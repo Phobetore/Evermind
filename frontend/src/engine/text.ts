@@ -27,6 +27,18 @@ export function pyStrip(s: string): string {
 const isHigh = (unit: number) => unit >= 0xd800 && unit <= 0xdbff;
 const isLow = (unit: number) => unit >= 0xdc00 && unit <= 0xdfff;
 
+/** Whether the text can be written out, as `is_writable` says in Python. A lone
+ *  surrogate cannot: an escape of one in a model's answer gives it, and it fails
+ *  wherever it is encoded. A high surrogate followed by a low one is a character. */
+export function isWritable(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    const unit = s.charCodeAt(i);
+    if (isHigh(unit) && isLow(s.charCodeAt(i + 1))) i++;
+    else if (isHigh(unit) || isLow(unit)) return false;
+  }
+  return true;
+}
+
 /** Python's `len(s)`: a character outside the basic plane, an emoji for one,
  *  counts once where `.length` counts its two UTF-16 units. */
 export function codePoints(s: string): number {

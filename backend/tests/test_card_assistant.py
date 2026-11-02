@@ -234,3 +234,17 @@ async def test_assist_reads_only_lists_of_entries_and_text_in_them(client, fake_
         {"keys": ["c"], "content": "  Padded.  "},
     ]})
     assert draft["lore_entries"] == [{"keys": ["c"], "content": "Padded."}]
+
+
+async def test_assist_leaves_out_a_text_that_cannot_be_sent_back(client, fake_provider):
+    """A lone surrogate, which an escape of one in the answer gives, cannot be written to
+    the response: it ended the request in an error."""
+    lone = chr(0xD800)
+    draft = await assist_with(client, fake_provider, {
+        "name": "Kenji", "tagline": lone, "tags": ["a", lone, "b" + lone],
+        "alternate_greetings": lone,
+        "lore_entries": [{"keys": [lone], "content": "No keyword left."},
+                         {"keys": ["k"], "content": lone},
+                         {"keys": ["k", lone], "content": "Kept."}]})
+    assert draft == {"name": "Kenji", "tags": ["a"],
+                     "lore_entries": [{"keys": ["k"], "content": "Kept."}]}

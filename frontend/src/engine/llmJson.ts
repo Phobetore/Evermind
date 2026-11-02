@@ -6,16 +6,14 @@
 // `rawDecode` is that decoder, rule for rule, in its strict mode.
 
 import { PY_WS, pyStrip } from "./text";
+import { isRecord } from "./values";
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-// Python's decoder gives up where its recursion limit does: at about 1000 arrays
-// or objects inside one another with Python 3.11, and a good deal later with the
-// builds of 3.13 (3000 on Windows, 10000 elsewhere). A reply nested so deep is no
-// card and no memory, so the twin gives up at the lowest of them, which no stack
-// is short of.
+// Python's decoder gives up where its recursion limit does. With 3.11 that is 1000
+// frames, of which those of the caller are used already; with 3.13 the limit is on
+// calls in C: 3000 on Windows, 10000 elsewhere (2998 measured here). A reply nested
+// so deep is no card and no memory, so the twin gives up at 1000, where no JavaScript
+// stack is short. A Python build with a lower limit, or a caller deep in frames,
+// gives up sooner than the twin does.
 const MAX_DEPTH = 1000;
 
 // Python 3.11 and later refuse to make an integer of more than this many digits
@@ -104,8 +102,6 @@ function readString(text: string, from: number): [string, number] {
       continue;
     }
     at++;
-    // Python wants something after the four digits, if only the closing quote.
-    if (at + 4 >= text.length) fail();
     const unit = hex4(text, at);
     at += 4;
     // Python joins a high surrogate and the low one that follows it into one
@@ -118,10 +114,7 @@ function readString(text: string, from: number): [string, number] {
 function readNumber(text: string, from: number): Read {
   let at = from;
   const negative = text[at] === "-";
-  if (negative) {
-    at++;
-    if (at >= text.length) fail();
-  }
+  if (negative) at++;
   const first = text.charCodeAt(at);
   if (first >= 0x31 && first <= 0x39) {
     at++;
@@ -133,17 +126,16 @@ function readNumber(text: string, from: number): Read {
   }
   const intEnd = at;
 
-  // `at < text.length - 1`: Python looks for what follows only where something does.
   let fraction = false;
-  if (at < text.length - 1 && text[at] === "." && isDigit(text.charCodeAt(at + 1))) {
+  if (text[at] === "." && isDigit(text.charCodeAt(at + 1))) {
     fraction = true;
     at += 2;
     while (at < text.length && isDigit(text.charCodeAt(at))) at++;
   }
-  if (at < text.length - 1 && (text[at] === "e" || text[at] === "E")) {
+  if (text[at] === "e" || text[at] === "E") {
     const mark = at;
     at++;
-    if (at < text.length - 1 && (text[at] === "-" || text[at] === "+")) at++;
+    if (text[at] === "-" || text[at] === "+") at++;
     while (at < text.length && isDigit(text.charCodeAt(at))) at++;
     if (isDigit(text.charCodeAt(at - 1))) fraction = true;
     else at = mark; // an "e" with no digits after it is not part of the number
@@ -230,8 +222,9 @@ function readValue(text: string, at: number, depth: number): Read {
 
 /** Python's `json.JSONDecoder().raw_decode(text, start)`: the one value that
  *  begins at `start`, whatever follows it, and where it ends. Null where Python
- *  raises. A number is a double, so an integer past 2^53 is rounded, and `1.0`
- *  is `1`; both are told apart in Python and cannot be here. */
+ *  raises. A number is a double: an integer past 2^53 is rounded, and a float whose
+ *  value is whole (`1.0`, `1e3`, `5E0`, `-0.0`) is told from an integer in Python and
+ *  cannot be here. */
 export function rawDecode(text: string, start = 0): { value: unknown; end: number } | null {
   try {
     const [value, end] = readValue(text, start, 0);
