@@ -6,6 +6,7 @@ import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { giveBack, takeFromBox, withdraw } from "@/lib/drafts";
 import { describeError, describeEvent } from "@/lib/errors";
 import { turnStore, type TurnFailure } from "@/lib/turnStore";
 import type { ChatEvent, ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
@@ -136,7 +137,13 @@ function ChatView({ id }: { id: string }) {
     content?: string;
     messageMode: "say" | "narrate" | "ooc";
     lastMessageBefore: string;
+    // For recognising the message, if it turns out to have arrived after all.
+    idsBefore: Set<string>;
+    // The conversation it went back to the box of, if it did.
+    givenBackTo: string | null;
   } | null>(null);
+  // Counts the reads of the conversation, the last of which knows the most.
+  const readsSent = useRef(0);
   const checking = useRef<Promise<TurnCheck> | null>(null);
   // The first read of the conversation, which whatever reads it next must come after.
   const opening = useRef<Promise<unknown> | null>(null);
@@ -209,11 +216,12 @@ function ChatView({ id }: { id: string }) {
    *  and then that is left alone rather than every message being drawn twice. */
   const readAgain = useCallback(async () => {
     const changes = changesByHand.current;
+    const sent = ++readsSent.current;
     const latest = (await inTime(data.conversations.get(id))).messages ?? [];
     return {
       latest,
       show() {
-        if (changesByHand.current !== changes) return;
+        if (changesByHand.current !== changes || readsSent.current !== sent) return;
         setMessages((shown) => (JSON.stringify(shown) === JSON.stringify(latest) ? shown : latest));
       },
     };
@@ -482,6 +490,17 @@ function ChatView({ id }: { id: string }) {
     }
   }, [busy, cutOff, reload]);
 
+  // A message given back because its answer was lost may have got there all the same.
+  useEffect(() => {
+    const asked = lastAsked.current;
+    if (asked?.givenBackTo !== id || !asked.content) return;
+    const arrived = messages.some((m) => m.role === "user" && m.content === asked.content
+      && !asked.idsBefore.has(m.id) && !m.id.startsWith("optimistic-"));
+    if (!arrived) return;
+    asked.givenBackTo = null;
+    withdraw(id, asked.content);
+  }, [id, messages]);
+
   // Auto-scroll while streaming if the reader is already at the bottom.
   useEffect(() => {
     const el = scrollRef.current;
@@ -500,14 +519,18 @@ function ChatView({ id }: { id: string }) {
     messageMode: "say" | "narrate" | "ooc" = "say",
     known: Message[] = messages,
   ) {
-    if (!conversation || busy) return false;
+    if (!conversation || busy) return;
     turnStore.fail(id, null);
-    let refused = false;
     stickToBottom.current = true;
     const controller = new AbortController();
-    setBeforeTurn(new Set(known.map((m) => m.id)));
+    const idsBefore = new Set(known.map((m) => m.id));
+    setBeforeTurn(idsBefore);
     turnStore.begin(conversation.id, controller);
-    lastAsked.current = { mode, content, messageMode, lastMessageBefore: fingerprint(known.at(-1)) };
+    const asked = {
+      mode, content, messageMode, lastMessageBefore: fingerprint(known.at(-1)), idsBefore,
+      givenBackTo: null as string | null,
+    };
+    lastAsked.current = asked;
 
     // The sent message appears instantly; the persisted version from the
     // `start` event replaces it (or it is rolled back if nothing was saved).
@@ -527,6 +550,15 @@ function ChatView({ id }: { id: string }) {
       }]);
     }
     let startReceived = false;
+
+    /** A message whose turn did not begin is still the person's, whatever got in the
+     *  way, and is theirs to send again. If it did reach the server, and it was only
+     *  the answer that was lost, the conversation will say so: see `withdraw`. */
+    const giveBackIfNotBegun = () => {
+      if (mode !== "send" || !content || startReceived || asked.givenBackTo) return;
+      asked.givenBackTo = conversation.id;
+      giveBack(conversation.id, content, messageMode);
+    };
 
     if (mode === "regenerate") {
       const last = known[known.length - 1];
@@ -555,15 +587,18 @@ function ChatView({ id }: { id: string }) {
         onEvent,
         controller.signal,
       );
+      giveBackIfNotBegun(); // an error instead of a beginning, or nothing at all
       if (!finished) {
         // Stream closed without done/error. Stopped somewhere else, or given up on
         // by something between here and the server, which is no end to the turn.
         await pickTurnBackUp(controller, streamEndedEarly());
       }
     } catch (e) {
+      giveBackIfNotBegun();
       if (controller.signal.aborted) {
-        // Stopped, in which case the backend persisted the partial text. Unless it
-        // was only this connection that was given up on, for another reader.
+        // Stopped, and what this reads may not yet be all that arrived: `stop` reads
+        // again once the server has finished. Or it was only this connection that was
+        // given up on, for another reader, in which case there is nothing to do.
         if (turnStore.isRunning(id) && turnStore.readerOf(id) === controller) await reload();
       } else if (startReceived) {
         // Whether the turn ever began is what decides this, and `start` is how
@@ -583,7 +618,6 @@ function ChatView({ id }: { id: string }) {
       } else if (e instanceof DataError && e.kind === "turn_running") {
         // One is being written already, and it is not this. Nothing was saved of
         // what was asked. Show the one there is, and say why this did not go.
-        refused = true;
         lastAsked.current = null;
         await checkOnTurn();
         turnStore.fail(id, "turn running");
@@ -601,39 +635,56 @@ function ChatView({ id }: { id: string }) {
     }
 
     finishReading(controller);
-    return refused;
   }
 
   /** A message from the box. If the last reply was cut off, the server may well still
    *  be writing it, and is asked first, since it would refuse this anyway. If it
-   *  cannot be reached, nothing is lost by the message staying where it is. */
+   *  cannot be reached, nothing is lost by the message going back where it was. */
   async function sendMessage(content: string, messageMode: "say" | "narrate" | "ooc") {
     let known = messages;
     if (cutOff) {
       const check = await checkOnTurn();
       if (check.result === "running") turnStore.fail(id, "turn running");
-      if (!("messages" in check)) return true;
+      if (!("messages" in check)) {
+        giveBack(id, content, messageMode);
+        return;
+      }
       known = check.messages;
     }
-    return runTurn("send", content, messageMode, known);
+    await runTurn("send", content, messageMode, known);
+  }
+
+  /** Words written just before the stop may have reached only the server until now,
+   *  and the read that came with the end of the reader knows nothing of them. */
+  async function stop() {
+    if (await turnStore.stop(id)) await reload();
   }
 
   /** Trying again after a connection was lost asks first: the reply may be being
-   *  written, or be there already, and asking for it again would make another. */
+   *  written, or be there already, and asking for it again would make another. A
+   *  message that went back to the box is sent as the box has it now, and only if it
+   *  really did not arrive; asking for a new reply would leave it unsent, and replace
+   *  a reply that was never the trouble. */
   async function retry() {
     // What was reported is a stop that could not be said, and that is what to retry.
     if (turnStore.hasStopToSay(id)) {
       if (await turnStore.sayStopAgain(id)) await reload();
       return;
     }
-    if (!cutOff && failure !== "no reply") {
+    const asked = lastAsked.current;
+    const givenBack = asked?.givenBackTo === id;
+    if (!cutOff && failure !== "no reply" && !givenBack) {
       await runTurn("regenerate");
       return;
     }
     if (checking.current) return;
     const check = await checkOnTurn();
-    if (check.result === "not sent" && lastAsked.current) {
-      const { mode, content, messageMode } = lastAsked.current;
+    if (check.result === "not sent" && givenBack) {
+      const held = takeFromBox(id);
+      if (held) await runTurn("send", held.text, held.mode, check.messages);
+      else turnStore.fail(id, null); // emptied by hand: there is nothing to try again
+    } else if (check.result === "not sent" && asked) {
+      const { mode, content, messageMode } = asked;
       await runTurn(mode, content, messageMode, check.messages);
     } else if (check.result === "no reply" || check.result === "not sent") {
       await runTurn("regenerate", undefined, "say", check.messages);
@@ -888,7 +939,7 @@ function ChatView({ id }: { id: string }) {
           key={conversation.id}
           conversationId={conversation.id}
           onSend={sendMessage}
-          onStop={() => turnStore.stop(id)}
+          onStop={stop}
           busy={busy}
           characterName={character.name}
         />

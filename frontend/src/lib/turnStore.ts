@@ -223,13 +223,16 @@ export const turnStore = {
    *  so that closing a tab does not end it — which also means that dropping the
    *  connection cannot be read as "stop", because it is exactly what a phone
    *  going to sleep does. Stopping has to be said, and if it cannot be, that is
-   *  reported, and it is said again when the connection returns. */
+   *  reported, and it is said again when the connection returns.
+   *
+   *  Says whether it got through, which the server answers once the turn has ended
+   *  and everything that arrived is in the conversation. */
   stop(conversationId: string) {
     const turn = turns.get(conversationId);
-    if (!turn) return;
+    if (!turn) return Promise.resolve(false);
     turns.set(conversationId, { ...turn, stopping: true });
     turn.controller.abort();
-    void sayStop(conversationId);
+    return sayStop(conversationId);
   },
 
   /** Whether the person has asked for this conversation's turn to stop. */

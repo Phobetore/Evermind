@@ -184,6 +184,16 @@ describe("stopping", () => {
     expect(turnStore.isStopping(id)).toBe(true);
   });
 
+  test("says whether the server heard, once it has", async () => {
+    const { id } = reading();
+    await expect(turnStore.stop(id)).resolves.toBe(true);
+    expect(await turnStore.stop("nothing is being read here")).toBe(false);
+
+    const { id: other } = reading();
+    stop.mockRejectedValueOnce(new Error("gone"));
+    await expect(turnStore.stop(other)).resolves.toBe(false);
+  });
+
   test("a stop that could not be said is reported, and said again", async () => {
     const { id } = reading();
     const down = new Error("gone");
