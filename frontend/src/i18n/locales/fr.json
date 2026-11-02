@@ -300,6 +300,7 @@
         "extractError": "Échec de la mémorisation",
         "tooFewToConsolidate": "Trop peu de faits pour consolider.",
         "changedWhileConsolidating": "Les faits ont changé pendant que le modèle les fusionnait. Rien n'a été modifié ; réessayez.",
+        "memoryTaskRunning": "Une autre tâche de mémoire est en cours. Rien n'a été modifié ; réessayez dans un instant.",
         "consolidated": "Mémoire condensée : {before} → {after} faits.",
         "consolidateError": "Échec de la consolidation",
         "addError": "Ajout impossible"

@@ -105,6 +105,17 @@ async def delete(db: aiosqlite.Connection, memory_id: str) -> bool:
     return cursor.rowcount > 0
 
 
+async def delete_if_unchanged(db: aiosqlite.Connection, memory_id: str, content: str) -> bool:
+    """Delete a fact only if it still says ``content`` and nobody has pinned it since
+    it was read, so that a change made meanwhile is not undone by what was decided
+    on the fact as it was."""
+    cursor = await db.execute(
+        "DELETE FROM memories WHERE id = ? AND content = ? AND is_pinned = 0",
+        (memory_id, content))
+    await db.commit()
+    return cursor.rowcount > 0
+
+
 async def list_embeddings(db: aiosqlite.Connection, convo_id: str) -> dict[str, bytes]:
     """{memory_id: blob} for facts of this conversation that carry a vector."""
     rows = await (await db.execute(

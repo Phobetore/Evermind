@@ -110,12 +110,11 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Merge non-pinned facts into a shorter, denser set (pinned untouched).
     Returns {"before": n, "after": n, "memories": [...]}, with "skipped" set and nothing
     changed when there were too few facts, or when one of those sent to the model was
-    changed, pinned or deleted while it answered, or another pass was running."""
+    changed, pinned or deleted while it answered ("changed"), or another pass, an
+    extraction or a consolidation, was running ("busy")."""
     if convo_id in _running:
-        # Another pass is changing the facts: nothing is altered here, which is what
-        # "changed" says to the person, as for a fact edited while the model answers.
         facts = await memories_repo.list_for_conversation(db, convo_id)
-        return {"before": len(facts), "after": len(facts), "memories": facts, "skipped": "changed"}
+        return {"before": len(facts), "after": len(facts), "memories": facts, "skipped": "busy"}
     _running.add(convo_id)
     try:
         return await _consolidate(db, convo_id)
@@ -158,11 +157,17 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     if any((m["id"], m["content"]) not in still for m in movable):
         return {"before": len(now), "after": len(now), "memories": now, "skipped": "changed"}
 
-    for m in movable:
-        await memories_repo.delete(db, m["id"])
+    # The merged facts first, then the ones they replace: an error or a stop in between
+    # leaves a fact twice, never a fact lost. A fact that the merge repeats stays as it
+    # is, since adding it again is refused as a double. And a delete asks again whether
+    # the fact is still the one that was sent: a person may pin or edit it just now.
     for f in merged["facts"]:
         await memories_repo.add(db, convo_id, content=f["content"], kind=f["kind"],
                                 source_position=merged["source_position"], source="auto")
+    kept = {f["content"] for f in merged["facts"]}
+    for m in movable:
+        if m["content"] not in kept:
+            await memories_repo.delete_if_unchanged(db, m["id"], m["content"])
     remaining = await memories_repo.list_for_conversation(db, convo_id)
     return {"before": len(now), "after": len(remaining), "memories": remaining}
 

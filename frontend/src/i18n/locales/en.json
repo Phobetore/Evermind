@@ -300,6 +300,7 @@
         "extractError": "Memory extraction failed",
         "tooFewToConsolidate": "Too few facts to consolidate.",
         "changedWhileConsolidating": "The facts changed while the model was merging them. Nothing was altered; try again.",
+        "memoryTaskRunning": "Another memory task is running. Nothing was altered; try again in a moment.",
         "consolidated": "Memory condensed: {before} → {after} facts.",
         "consolidateError": "Consolidation failed",
         "addError": "Could not add fact"

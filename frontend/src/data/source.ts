@@ -143,14 +143,14 @@ export interface ExtractResult {
 }
 
 /** `skipped` is set, and nothing changed, when there were too few facts to be
- *  worth merging (`too_few`), or when one of the facts the model was given was
- *  edited, pinned or deleted while it answered, or another memory pass was running
- *  (`changed`). */
+ *  worth merging (`too_few`), when one of the facts the model was given was
+ *  edited, pinned or deleted while it answered (`changed`), or when another memory
+ *  pass, an extraction or a consolidation, was running (`busy`). */
 export interface ConsolidateResult {
   before: number;
   after: number;
   memories: Memory[];
-  skipped?: "too_few" | "changed";
+  skipped?: "too_few" | "changed" | "busy";
 }
 
 export interface TurnRequest {

@@ -455,7 +455,7 @@ async def test_a_second_pass_while_a_consolidation_runs_changes_nothing_and_asks
     merged = await within(5, first)
 
     assert second.status_code == 200, second.text
-    assert second.json()["skipped"] == "changed"
+    assert second.json()["skipped"] == "busy"
     assert second.json()["before"] == second.json()["after"] == 8
     assert len(second.json()["memories"]) == 8
     assert extraction.json()["facts_added"] == []
@@ -486,7 +486,7 @@ async def test_a_consolidation_while_an_extraction_runs_changes_nothing_and_asks
     extracted = await within(5, extraction)
 
     assert consolidation.status_code == 200, consolidation.text
-    assert consolidation.json()["skipped"] == "changed"
+    assert consolidation.json()["skipped"] == "busy"
     assert consolidation.json()["before"] == consolidation.json()["after"] == 8
     assert len(asked) == 1
     assert len(extracted.json()["facts_added"]) == 2
@@ -525,6 +525,104 @@ async def test_a_consolidation_that_fails_lets_the_next_one_run(
     assert resp.status_code == 200, resp.text
     assert "skipped" not in resp.json()
     assert [f[0] for f in await stored_facts(client, convo["id"])] == ["All of it, merged."]
+
+
+async def break_sqlite_when(sql_trigger: str):
+    """Make the database refuse a statement, as a disk that fills up or a lock that
+    times out would, whatever function of the repository issues it."""
+    from app.db import _connect
+
+    db = await _connect()
+    try:
+        await db.execute(sql_trigger)
+        await db.commit()
+    finally:
+        await db.close()
+
+
+async def test_a_merge_that_breaks_while_deleting_loses_no_fact(client, fake_provider):
+    """The merged facts are written first: stopped half way through the deletes, the
+    memory holds the merge and the facts not deleted yet, never less than before."""
+    convo = await setup_conversation(client)
+    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
+                    by_the_model=True)
+    await break_sqlite_when(
+        "CREATE TRIGGER refuse BEFORE DELETE ON memories WHEN old.content = 'Movable fact 5.'"
+        " BEGIN SELECT RAISE(ABORT, 'refused'); END")
+    fake_provider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
+
+    with pytest.raises(Exception, match="refused"):
+        await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
+
+    assert [f[0] for f in await stored_facts(client, convo["id"])] == [
+        "All of it, merged.", "Movable fact 5.", "Movable fact 6.", "Movable fact 7."]
+
+
+async def test_a_merge_that_breaks_while_writing_loses_no_fact(client, fake_provider):
+    convo = await setup_conversation(client)
+    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
+                    by_the_model=True)
+    await break_sqlite_when(
+        "CREATE TRIGGER refuse BEFORE INSERT ON memories WHEN new.content = 'Second merged.'"
+        " BEGIN SELECT RAISE(ABORT, 'refused'); END")
+    merged = {"facts": [{"content": "First merged."}, {"content": "Second merged."}]}
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(merged)),
+                            ProviderEvent(type="done")]
+
+    with pytest.raises(Exception, match="refused"):
+        await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
+
+    assert [f[0] for f in await stored_facts(client, convo["id"])] == sorted(
+        [f"Movable fact {i}." for i in range(8)] + ["First merged."])
+
+
+async def test_a_fact_pinned_or_edited_while_the_merge_is_written_is_not_deleted(
+        client, fake_provider, monkeypatch):
+    """The check that nothing changed is made before the merged facts are written, and
+    a person can still act on a fact while they are: the delete asks again."""
+    from app.prompting import embeddings
+
+    convo = await setup_conversation(client)
+    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
+                    by_the_model=True)
+    facts = {f["content"]: f["id"] for f in
+             (await client.get(f"/api/conversations/{convo['id']}/memories")).json()}
+    done = []
+
+    async def embed_and_meanwhile(texts, kind="passage"):
+        if not done:
+            done.append(True)
+            await client.patch(f"/api/memories/{facts['Movable fact 2.']}", json={"is_pinned": True})
+            await client.patch(f"/api/memories/{facts['Movable fact 4.']}",
+                               json={"content": "Movable fact 4, edited."})
+
+    monkeypatch.setattr(embeddings, "embed", embed_and_meanwhile)
+    fake_provider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
+
+    assert resp.status_code == 200, resp.text
+    assert [(f[0], f[3]) for f in await stored_facts(client, convo["id"])] == [
+        ("All of it, merged.", False), ("Movable fact 2.", True),
+        ("Movable fact 4, edited.", False)]
+
+
+async def test_a_merged_fact_that_repeats_a_fact_sent_leaves_that_fact_in_place(
+        client, fake_provider):
+    """Adding it again is refused as a double, so deleting the one sent would lose it."""
+    convo = await setup_conversation(client)
+    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
+                    by_the_model=True)
+    merged = {"facts": [{"content": "Movable fact 3.", "kind": "event"}, {"content": "And more."}]}
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(merged)),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["before"] == 8 and resp.json()["after"] == 2
+    assert [f[0] for f in await stored_facts(client, convo["id"])] == [
+        "And more.", "Movable fact 3."]
 
 
 async def test_consolidation_with_no_fact_that_is_text_changes_nothing(client, fake_provider):

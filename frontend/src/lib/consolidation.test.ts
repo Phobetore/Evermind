@@ -29,10 +29,17 @@ describe("what a consolidation says it did", () => {
     );
   });
 
+  test("that another memory task is running, and nothing was altered, when it was skipped for that", () => {
+    expect(describeConsolidation({ before: 8, after: 8, memories: [], skipped: "busy" }, t)).toBe(
+      "chat.panel.facts.memoryTaskRunning",
+    );
+  });
+
   test.each([
     "chat.panel.facts.consolidated",
     "chat.panel.facts.tooFewToConsolidate",
     "chat.panel.facts.changedWhileConsolidating",
+    "chat.panel.facts.memoryTaskRunning",
   ])("%s is a sentence of the interface", (key) => {
     expect(typeof lookup(key)).toBe("string");
   });

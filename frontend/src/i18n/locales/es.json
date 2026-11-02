@@ -300,6 +300,7 @@
         "extractError": "Error en la extracción de memoria",
         "tooFewToConsolidate": "Hay muy pocos hechos para condensar.",
         "changedWhileConsolidating": "Los hechos han cambiado mientras el modelo los fusionaba. No se ha modificado nada; inténtalo de nuevo.",
+        "memoryTaskRunning": "Hay otra tarea de memoria en curso. No se ha modificado nada; inténtalo de nuevo en un momento.",
         "consolidated": "Memoria condensada: {before} → {after} hechos.",
         "consolidateError": "Error al condensar",
         "addError": "No se ha podido añadir el hecho"
