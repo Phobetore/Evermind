@@ -40,8 +40,7 @@ export interface ContinueTurn {
 /** The history of a continuation: the chat, then an instruction from the player
  *  to carry on, one position after the reply that is being extended. Python
  *  raises on a null position; here a null one gives 1 and a missing one NaN,
- *  since the type says a position is a number. Only an empty list raises, in
- *  both. */
+ *  since the type says a position is a number. An empty list raises in both. */
 export function continueHistory<M extends { position: number }>(
   messages: readonly M[],
 ): (M | ContinueTurn)[] {

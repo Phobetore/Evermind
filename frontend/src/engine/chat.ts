@@ -117,6 +117,9 @@ export interface PromptPayload {
   stats: Partial<PromptStats>;
 }
 
+/** What `buildChatPayload` returns: it always fills every statistic. */
+export type ChatPayload = PromptPayload & { stats: PromptStats };
+
 // Enough for what someone has deliberately marked, not so many that the block
 // becomes another wall of text to skim. Pinning more than this is a sign the
 // facts want consolidating rather than repeating.
@@ -390,7 +393,7 @@ function oldestPosition(turns: readonly Turn[], fallback: number): number {
   );
 }
 
-export function buildChatPayload(input: ChatInput): PromptPayload {
+export function buildChatPayload(input: ChatInput): ChatPayload {
   const { character, persona, conversation, messages, connection } = input;
   const memories = input.memories ?? null;
   const historyLimit = input.history_limit ?? 0;

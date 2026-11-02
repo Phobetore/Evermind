@@ -44,7 +44,9 @@ export function selectPassages<C extends RankedCandidate>(
  *  float32 (the only ones the cases use), and differ by rounding when they are
  *  not, around 1e-7 and more on a long vector. Two different texts whose scores
  *  lie that close may therefore rank in another order here than on the server.
- *  Identical vectors score the same in both and tie in both. That is accepted.
+ *  Identical vectors always tie here; in numpy they can differ by one rounding
+ *  depending on the row's index (BLAS treats the last rows differently from
+ *  the others), so even they may rank in another order. That is accepted.
  *
  *  Throws on rows of different lengths and on a query that is not as long as
  *  they are, as numpy does: the Python ranking catches that and falls back on
