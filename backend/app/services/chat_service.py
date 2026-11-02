@@ -1,13 +1,17 @@
 """One chat turn, streamed end to end.
 
 SSE wire contract (one `data: <json>` line per event):
-  {"type":"start","conversation_id":...,"user_message":{...}|null,"target_message_id":...|null}
+  {"type":"start","conversation_id":...,"mode":"send|regenerate|continue",
+   "user_message":{...}|null,"target_message_id":...|null}
   {"type":"delta","text":"..."}
   {"type":"done","message":{...MessageOut},"context":{...},"perf":{...}}
+  {"type":"discarded"}
+  (what the reply was being written into was deleted, so nothing came of it)
   {"type":"error","message":"...","kind":"...","resource":"..."}
   (``kind`` names the failure for the interface; ``resource`` only goes with
   "not_found", and says what was not found. A model's failure also carries
   what its server said: ``upstream``, ``upstream_status``, ``upstream_url``.)
+A turn that is stopped just ends, with neither ``done`` nor ``error``.
 
 Modes:
   send        — persist the user message, generate the reply.
@@ -16,6 +20,7 @@ Modes:
   continue    — extend the active variant of the last assistant message.
 """
 
+import asyncio
 import json
 import re
 import time
@@ -68,6 +73,11 @@ def ends_turn(chunk: str) -> bool:
     return chunk.startswith((
         'data: {"type": "done"', 'data: {"type": "error"', 'data: {"type": "discarded"',
     ))
+
+
+def discards_turn(chunk: str) -> bool:
+    """Whether this event is the turn saying that nothing came of it."""
+    return chunk.startswith('data: {"type": "discarded"')
 
 
 def error_event(message: str, kind: str, resource: str | None = None, **details) -> str:
@@ -159,6 +169,51 @@ async def _generate(connection: dict, payload: PromptPayload):
         yield event
 
 
+async def _until_stopped(events: AsyncIterator, stopped: asyncio.Event) -> AsyncIterator:
+    """A model's events, until someone says stop, which ends the request to it there
+    and then rather than at its next word: on a local model with a long prompt, that
+    can be minutes away.
+
+    Only the waiting for the model is interrupted. What is done with each event never
+    is, so a stop cannot land in the middle of writing to the database. The model is
+    read on a task of its own, since it is that task which gets cancelled, and
+    everything of a request to a model happens on one task, as its client expects.
+    """
+    if stopped.is_set():
+        return
+    queue: asyncio.Queue = asyncio.Queue()
+    finished = object()
+
+    async def read() -> None:
+        try:
+            async for event in events:
+                queue.put_nowait(event)
+        except Exception as exc:  # noqa: BLE001 - it belongs to whoever is reading
+            queue.put_nowait(exc)
+        finally:
+            queue.put_nowait(finished)
+
+    reading = asyncio.create_task(read())
+    stop_said = asyncio.create_task(stopped.wait())
+    try:
+        while not stopped.is_set():
+            arrived = asyncio.create_task(queue.get())
+            await asyncio.wait({arrived, stop_said}, return_when=asyncio.FIRST_COMPLETED)
+            if not arrived.done():
+                arrived.cancel()
+                return
+            item = arrived.result()
+            if item is finished:
+                return
+            if isinstance(item, Exception):
+                raise item
+            yield item
+    finally:
+        stop_said.cancel()
+        reading.cancel()
+        await asyncio.wait({reading})
+
+
 async def _settle_unfinished(db: aiosqlite.Connection, messages: list[dict]) -> list[dict]:
     """Turn a stale "still writing" mark into what it actually means.
 
@@ -181,7 +236,9 @@ async def _settle_unfinished(db: aiosqlite.Connection, messages: list[dict]) -> 
     return settled
 
 
-async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIterator[str]:
+async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
+                      stopped: asyncio.Event | None = None) -> AsyncIterator[str]:
+    stopped = stopped or asyncio.Event()
     try:
         convo, character, persona, connection, settings = await _resolve(db, request.conversation_id)
     except _TurnError as exc:
@@ -310,9 +367,9 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     retried_folded = False
 
     # The reply is written to the database while it streams, not only once it is
-    # finished. A turn that is stopped leaves this generator at a yield, and a
-    # server that goes down leaves it anywhere: flushing as it goes means
-    # whatever has arrived is already kept, without depending on cleanup at all.
+    # finished. A server that goes down leaves this generator anywhere: flushing
+    # as it goes means whatever has arrived is already kept, without depending on
+    # cleanup at all. A turn that is stopped writes what has arrived when it ends.
     draft_id: str | None = None
     flushed_at = 0.0
     # The message this reply answers or belongs to has been deleted, mid-turn, by the
@@ -372,11 +429,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
     # silently. Rather than hand that to someone as "try another model", fold
     # the greeting into the system prompt and ask once more.
     for attempt in (0, 1):
-        # No cleanup handler here, on purpose: a stopped turn leaves this
-        # generator while turns._run closes the database connection it was
-        # given, so there is nothing reliable left to save with. persist() has
-        # already written what arrived, up to its last flush.
-        async for event in _generate(connection, payload):
+        async for event in _until_stopped(_generate(connection, payload), stopped):
             if event.type == "delta":
                 if first_token_at is None:
                     first_token_at = time.monotonic()
@@ -395,6 +448,14 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest) -> AsyncIt
                 fields = failure_fields(event.meta)
                 yield error_event(event.message, fields.pop("kind"), **fields)
                 return
+
+        if stopped.is_set():
+            # Stop the turn and keep what arrived, every word of it, which is what
+            # stopping is. Flushing only now and then would lose up to the last second.
+            await persist(final=False)
+            if reply_gone:
+                yield _sse({"type": "discarded"})
+            return
 
         text = _trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
         # Only worth a second pass when nothing at all came back and the payload

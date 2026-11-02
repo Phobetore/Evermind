@@ -46,19 +46,25 @@ class Turn:
     events: list[str] = field(default_factory=list)
     readers: set[asyncio.Queue] = field(default_factory=set)
     finished: asyncio.Event = field(default_factory=asyncio.Event)
-    stopped: bool = False
+    stop_asked: asyncio.Event = field(default_factory=asyncio.Event)
     # It has said how it ended and is only tidying up. For that moment it still
     # counts as running, and someone who has seen the ending may already be asking
     # for the next one.
     ending: bool = False
-    # The task has begun, and so will get to its `finally` if cancelled.
-    under_way: bool = False
+    # What it was writing into was deleted, by the person, while it was at it.
+    discarded: bool = False
     task: asyncio.Task | None = None
+
+    @property
+    def stopped(self) -> bool:
+        return self.stop_asked.is_set()
 
     def emit(self, chunk: str) -> None:
         self.events.append(chunk)
         if chat_service.ends_turn(chunk):
             self.ending = True
+        if chat_service.discards_turn(chunk):
+            self.discarded = True
         for queue in self.readers:
             queue.put_nowait(chunk)
 
@@ -104,7 +110,8 @@ async def _settle_last_question(db, turn: Turn) -> None:
 
     A send has marked its message already, when it saved it. Otherwise only a
     regeneration can add the mark, having asked for a reply to that very message: a
-    turn refused for some reason of its own says nothing about one it never touched.
+    turn refused for some reason of its own says nothing about one it never touched,
+    and nor does one whose reply the person deleted, which they know about.
     """
     messages = await convo_repo.list_messages(db, turn.conversation_id)
     question = next((m for m in reversed(messages) if m["role"] == "user"), None)
@@ -112,7 +119,7 @@ async def _settle_last_question(db, turn: Turn) -> None:
         return
     meta = dict(question.get("meta") or {})
     marked = bool(meta.get("unanswered"))
-    unanswered = (messages[-1] is question and not turn.stopped
+    unanswered = (messages[-1] is question and not turn.stopped and not turn.discarded
                   and (marked or turn.mode == "regenerate"))
     if marked == unanswered:
         return
@@ -123,34 +130,49 @@ async def _settle_last_question(db, turn: Turn) -> None:
     await convo_repo.update_message(db, question["id"], meta=meta)
 
 
+async def _tidy_up(db, turn: Turn) -> None:
+    try:
+        await _settle_last_question(db, turn)
+    except Exception:  # this must not keep readers waiting
+        logger.exception("Could not settle the last question of a turn")
+    finally:
+        await db.close()
+
+
+async def _whatever_happens(work) -> None:
+    """Sees `work` through to its end, even if this task is cancelled meanwhile. A
+    write cut off half way leaves a transaction open, which is the whole database
+    locked for as long as the connection lasts, and the connection would then last
+    until a restart, along with the turn it belongs to looking as if it were running."""
+    task = asyncio.ensure_future(work)
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            pass
+
+
 async def _run(turn: Turn, request: ChatRequest) -> None:
-    turn.under_way = True
     db = None
     try:
         db = await _connect()
-        async for chunk in chat_service.stream_turn(db, request):
+        async for chunk in chat_service.stream_turn(db, request, turn.stop_asked):
             turn.emit(chunk)
-            if turn.stopped:
-                # Asked to stop, rather than merely unwatched. Closing the
-                # generator here is what ends the provider request too.
-                break
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001 - a crash here must still release readers
         turn.emit(chat_service.error_event(str(exc), "internal"))
     finally:
-        # Before the turn says it has finished, so that whoever sees that it has
-        # also sees this.
-        if db is not None:
-            try:
-                await _settle_last_question(db, turn)
-            except Exception:  # this must not keep readers waiting
-                logger.exception("Could not settle the last question of a turn")
-            await db.close()
-        turn.finished.set()
-        for queue in turn.readers:
-            queue.put_nowait(None)
-        asyncio.get_running_loop().call_later(_KEEP_FINISHED_SECONDS, _forget, turn)
+        try:
+            # Before the turn says it has finished, so that whoever sees that it has
+            # also sees this.
+            if db is not None:
+                await _whatever_happens(_tidy_up(db, turn))
+        finally:
+            turn.finished.set()
+            for queue in turn.readers:
+                queue.put_nowait(None)
+            asyncio.get_running_loop().call_later(_KEEP_FINISHED_SECONDS, _forget, turn)
 
 
 async def start(request: ChatRequest) -> Turn:
@@ -188,18 +210,13 @@ async def stop(conversation_id: str) -> bool:
     owned the generation, hanging up was how you stopped it; a turn that
     survives being unwatched cannot read anything into a reader leaving.
 
-    It ends the provider request there and then, rather than at the model's next
-    word, which on a local model with a long prompt can be minutes away. Once only:
-    a second cancellation would land in the tidying up that the first one led to."""
+    The turn hears of it where it waits for the model, and nowhere else: see
+    `chat_service._until_stopped`. It is not cancelled, which could land anywhere,
+    including in the writing of what arrived or in the tidying up after an ending."""
     turn = running_for(conversation_id)
     if not turn:
         return False
-    if not turn.stopped:
-        turn.stopped = True
-        # One not begun yet would be cancelled before it could say it had finished.
-        # It will see that it was stopped at its first chunk.
-        if turn.task and turn.under_way:
-            turn.task.cancel()
+    turn.stop_asked.set()
     return True
 
 
