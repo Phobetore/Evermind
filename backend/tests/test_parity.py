@@ -16,6 +16,8 @@ from tests.parity_cases import (
     serialize,
     write_cases,
 )
+from tests.parity_fuzz import PATH as FUZZ_PATH
+from tests.parity_fuzz import generate
 
 CASES = [
     pytest.param(case, id=f"{path.stem}::{case['fn']}::{case['name']}")
@@ -63,6 +65,17 @@ def test_the_case_files_hold_none_of_them_raw():
         text = path.read_bytes().decode("utf-8")
         assert not INVISIBLE.search(text), path.name
         assert "\r" not in text, path.name
+
+
+def test_the_fuzz_file_is_what_the_generator_writes(tmp_path):
+    # Regenerating changes no file, and a change to the generator comes with its file.
+    written = tmp_path / "fuzz.json"
+    write_cases(written, generate())
+    assert written.read_bytes() == FUZZ_PATH.read_bytes()
+
+
+def test_the_fuzz_file_stays_small_enough_to_read_in_a_diff():
+    assert FUZZ_PATH.stat().st_size < 500_000
 
 
 def test_a_result_is_compared_as_it_reads_back_from_a_file():

@@ -15,6 +15,14 @@ Each `fn` is registered on both sides, in `FUNCTIONS` (`backend/tests/parity_cas
 with no function. Characters that cannot be told apart in a file (controls, spaces other
 than " ", zero-width marks, the byte order mark) are written as `\uXXXX` escapes.
 
+`fuzz.json` is the one file whose inputs nobody wrote. `python -m tests.parity_fuzz`
+draws them from a fixed seed (`backend/tests/parity_fuzz.py`) and `python -m tests.parity_cases`
+leaves them alone, rewriting only `expected`, as for every file. A divergence that it shows
+is a defect of one engine: fix that engine, and put the reduced case in the file of its
+family. Never remove a case from `fuzz.json` to make a test pass; to change what it draws,
+change the generator and run it again. The file stays under 500 KB, so the counts in the
+generator are chosen for that.
+
 What a case file cannot hold is tested directly, on both sides, in `frontend/src/engine/llmJson.test.ts`
 and `backend/tests/test_llm_json.py`: NaN and the infinities, lone surrogates, integers past 2^53,
 and replies nested 100,000 deep.

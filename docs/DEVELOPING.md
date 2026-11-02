@@ -24,8 +24,10 @@ frontend/  Vite + React 19 + Tailwind v4, a single-page app routed by hash
   src/router.tsx   the routes, which live after the "#" of the address
   src/data/        the typed DataSource the interface talks to; http/ implements it
   src/components/  layout/Access.tsx keeps the pages behind the access password
+  src/engine/      the prompt engine in TypeScript, the twin of app/prompting/
   src/i18n/        homemade i18n: JSON dictionaries + useT() hook (en, fr, de, es)
   e2e/             Playwright tests, run against the real server
+parity/    the cases the two prompt engines must answer alike
 library/   starter cards shipped with the repo
 data/      SQLite database + uploaded media (created at first run, never committed)
 ```
@@ -291,6 +293,41 @@ Three things are worth knowing before changing it:
   with the player. It is the weaker shape, since the model reads its own opening
   as instruction rather than as its voice, so it is only ever a fallback.
   Observed on `rocinante-x-12b-v1`; `snowpiercer-15b-v4` handles either.
+
+## Two prompt engines
+
+What is sent to a model is decided twice, and the two must agree to the letter.
+The Python one, `backend/app/prompting/` and the reading of a model's answer
+in `app/services/llm_json.py` and `card_assistant.py`, is what the server runs and
+is the reference. Its TypeScript twin, `frontend/src/engine/`, is for an edition
+that talks to a model from the browser. The twin imports neither React nor
+anything of the interface, and the interface the server serves does not ship it:
+a build of that interface holds none of the prompts.
+
+`parity/` holds the cases they share. A case is `{fn, name, input, expected}`:
+`input` is the named arguments of the function and `expected` is what the Python
+returns. pytest (`backend/tests/test_parity.py`) and vitest
+(`frontend/src/engine/parity.test.ts`) run the same files, so a change to one
+engine that the other does not follow fails a test. `parity/fuzz.json` holds
+random inputs from a fixed seed, drawn from the characters that tell two
+implementations apart (emoji, letters that fold differently, spaces that one
+language strips and the other does not). [parity/README.md](../parity/README.md)
+says what a file can hold.
+
+**Changing a prompt means changing both engines in the same commit.** That is
+the wording of a default prompt, but also a section header, a budget, and how a
+text is counted or cut. Change the Python, then regenerate what it expects, from
+`backend/`:
+
+```bash
+.venv/Scripts/python -m tests.parity_cases   # the expected of every file
+.venv/Scripts/python -m tests.parity_fuzz    # new random inputs, if the generator changed
+```
+
+Read the diff, since it is the change in behaviour, and follow it in
+`frontend/src/engine/` until `npm test` agrees. Never edit an `expected` by hand,
+and never remove a case that fails: it is the engines disagreeing, and one of them
+is wrong.
 
 ## Optional semantic memory
 
