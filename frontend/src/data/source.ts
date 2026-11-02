@@ -143,12 +143,13 @@ export interface ExtractResult {
 }
 
 /** `skipped` is set, and nothing changed, when there were too few facts to be
- *  worth merging. */
+ *  worth merging (`too_few`), or when none of the facts the model was given was
+ *  still there to merge once it had answered (`changed`). */
 export interface ConsolidateResult {
   before: number;
   after: number;
   memories: Memory[];
-  skipped?: string;
+  skipped?: "too_few" | "changed";
 }
 
 export interface TurnRequest {

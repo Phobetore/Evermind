@@ -299,6 +299,7 @@
         "noneNew": "Nothing new to remember.",
         "extractError": "Memory extraction failed",
         "tooFewToConsolidate": "Too few facts to consolidate.",
+        "changedWhileConsolidating": "The facts changed while the model was merging them. Nothing was altered; try again.",
         "consolidated": "Memory condensed: {before} → {after} facts.",
         "consolidateError": "Consolidation failed",
         "addError": "Could not add fact"

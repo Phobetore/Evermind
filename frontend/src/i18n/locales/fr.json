@@ -299,6 +299,7 @@
         "noneNew": "Rien de nouveau à retenir.",
         "extractError": "Échec de la mémorisation",
         "tooFewToConsolidate": "Trop peu de faits pour consolider.",
+        "changedWhileConsolidating": "Les faits ont changé pendant que le modèle les fusionnait. Rien n'a été modifié ; réessayez.",
         "consolidated": "Mémoire condensée : {before} → {after} faits.",
         "consolidateError": "Échec de la consolidation",
         "addError": "Ajout impossible"
