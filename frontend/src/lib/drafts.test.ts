@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
-  beginSending, clearDraft, giveBack, givenBack, loadDraft, messageArrived, openBox, pruneDrafts, saveDraft,
-  settleSending, takeFromBox, type MessageMode,
+  beginSending, clearDraft, giveBack, givenBack, isSending, loadDraft, forgetSending, openBox, pruneDrafts, saveDraft,
+  sendAgain, settleSending, stillInBox, type MessageMode,
 } from "./drafts";
 
 /** Kept items are own properties, the methods are not, so `Object.keys` lists
@@ -94,11 +94,6 @@ function aBox(typed = "") {
       box.shown = text;
       if (mode) box.mode = mode;
     },
-    take() {
-      const held = box.shown ? { text: box.shown, mode: box.mode } : null;
-      box.shown = "";
-      return held;
-    },
   };
   return box;
 }
@@ -137,7 +132,7 @@ describe("a message being sent", () => {
   test("gets a new one once it has arrived, since saying it again is saying it again", () => {
     const id = aConversation();
     const first = beginSending(id, "Hello.", "say");
-    messageArrived(id, first);
+    forgetSending(id, first);
     expect(beginSending(id, "Hello.", "say")).not.toBe(first);
   });
 
@@ -157,12 +152,35 @@ describe("a message being sent", () => {
     const id = aConversation();
     beginSending(id, "Hello.", "narrate");
     const { openBox: openNext, givenBack: nextGivenBack } = await anotherPage();
-    expect(nextGivenBack(id)?.text, "not on its way from this page").toBe("Hello.");
+    expect(nextGivenBack(id), "nothing has given it back yet").toBeNull();
     const box = aBox();
     openNext(id, box)();
     expect(box.shown).toBe("Hello.");
     expect(box.mode).toBe("narrate");
     expect(loadDraft(id), "and is an ordinary draft from then on").toBe("Hello.");
+    expect(nextGivenBack(id)?.text).toBe("Hello.");
+  });
+
+  test("left waiting by a tab that has gone, is not written over by the next one sent", async () => {
+    const id = aConversation();
+    const here = await anotherPage();
+    const box = aBox();
+    const close = here.openBox(id, box);
+    const gone = await anotherPage();
+    gone.beginSending(id, "From the tab that went.", "ooc");
+
+    here.beginSending(id, "From this one.", "say");
+    expect(box.shown, "the message was lost").toBe("From the tab that went.");
+    close();
+  });
+
+  test("is known to be written down until it arrives", () => {
+    const id = aConversation();
+    const clientId = beginSending(id, "Hello.", "say");
+    expect(isSending(id, clientId)).toBe(true);
+    expect(isSending(id, "another")).toBe(false);
+    forgetSending(id, clientId);
+    expect(isSending(id, clientId)).toBe(false);
   });
 
   test("is not offered by the next page if the conversation has it", async () => {
@@ -414,6 +432,37 @@ describe("a message given back that had arrived after all", () => {
     expect(next.loadDraft(id)).toBe("");
   });
 
+  test("goes from a draft that an open box never held", async () => {
+    const id = aConversation();
+    const here = await anotherPage();
+    const box = aBox();
+    const close = here.openBox(id, box); // open since before any of this
+
+    const elsewhere = await anotherPage();
+    const elsewhereBox = aBox();
+    const closeElsewhere = elsewhere.openBox(id, elsewhereBox);
+    const clientId = elsewhere.beginSending(id, "Arrived.", "say");
+    elsewhere.giveBack(id, clientId);
+    closeElsewhere();
+    expect(here.loadDraft(id)).toBe("Arrived.");
+
+    here.settleSending(id, inConversation(clientId));
+    expect(here.loadDraft(id), "the next page would open on it, with nothing to know it by").toBe("");
+    expect(box.shown).toBe("");
+    close();
+  });
+
+  test("keeps what has been typed under it even if the draft has not caught up yet", () => {
+    const id = aConversation();
+    const box = aBox();
+    const { clientId, close } = inABox(id, "Arrived.", "say", box);
+    box.shown = "Arrived.\nJust typed.";
+    settleSending(id, inConversation(clientId));
+    expect(box.shown).toBe("Just typed.");
+    expect(loadDraft(id)).toBe("Just typed.");
+    close();
+  });
+
   test("goes from a tab whose message another tab saw arrive", async () => {
     const id = aConversation();
     const box = aBox();
@@ -428,20 +477,60 @@ describe("a message given back that had arrived after all", () => {
   });
 });
 
-describe("taking what a box holds", () => {
+describe("a message that came back", () => {
   beforeEach(() => useStorage(new MemoryStorage()));
 
-  test("empties it", () => {
-    const id = aConversation();
-    const box = aBox("Hello.");
-    box.mode = "ooc";
+  const backInABox = (id: string, box: ReturnType<typeof aBox>) => {
     const close = openBox(id, box);
-    expect(takeFromBox(id)).toEqual({ text: "Hello.", mode: "ooc" });
-    expect(box.shown).toBe("");
+    const clientId = beginSending(id, "Back.", "narrate");
+    giveBack(id, clientId);
+    return { clientId, close, message: givenBack(id)! };
+  };
+
+  test("is still in the box as it came back, with or without something typed under it", () => {
+    const id = aConversation();
+    const box = aBox();
+    const { message, close } = backInABox(id, box);
+    expect(stillInBox(id, message)).toBe(true);
+    box.shown = "Back.\nAnd more.";
+    expect(stillInBox(id, message)).toBe(true);
     close();
   });
 
-  test("comes to nothing with no box open", () => {
-    expect(takeFromBox(aConversation())).toBeNull();
+  test("is not once it has been rewritten or emptied", () => {
+    const id = aConversation();
+    const box = aBox();
+    const { message, close } = backInABox(id, box);
+    box.shown = "Back, and changed.";
+    expect(stillInBox(id, message)).toBe(false);
+    box.shown = "";
+    expect(stillInBox(id, message)).toBe(false);
+    close();
+    expect(stillInBox(id, message), "with no box open at all").toBe(false);
+  });
+
+  test("goes again from the box, leaving what was typed under it, and under the same id", () => {
+    const id = aConversation();
+    const box = aBox();
+    const { clientId, message, close } = backInABox(id, box);
+    box.shown = "Back.\nAnd more.";
+    expect(sendAgain(id, message)).toBe(true);
+    expect(box.shown).toBe("And more.");
+    expect(loadDraft(id)).toBe("And more.");
+    expect(givenBack(id), "on its way").toBeNull();
+    giveBack(id, clientId);
+    expect(box.shown, "and back again if that comes to nothing").toBe("Back.\nAnd more.");
+    close();
+  });
+
+  test("goes again only if the box still holds it", () => {
+    const id = aConversation();
+    const box = aBox();
+    const { message, close } = backInABox(id, box);
+    box.shown = "Back, and changed.";
+    expect(sendAgain(id, message)).toBe(false);
+    expect(box.shown).toBe("Back, and changed.");
+    expect(givenBack(id), "still written down").not.toBeNull();
+    close();
   });
 });

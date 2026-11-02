@@ -6,7 +6,9 @@ import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { beginSending, giveBack, givenBack, messageArrived, settleSending, takeFromBox } from "@/lib/drafts";
+import {
+  beginSending, forgetSending, giveBack, givenBack, isSending, sendAgain, settleSending, stillInBox, type Sending,
+} from "@/lib/drafts";
 import { describeError, describeEvent } from "@/lib/errors";
 import { turnStore, type TurnFailure } from "@/lib/turnStore";
 import type { ChatEvent, ContextStats, Conversation, Message, Persona, TurnPerf } from "@/types";
@@ -82,6 +84,7 @@ function ChatView({ id }: { id: string }) {
   const turn = useSyncExternalStore(turnStore.subscribe, () => turnStore.read(id));
   const busy = turn?.busy ?? false;
   const cutOff = turn !== null && !turn.busy;
+  const asking = useSyncExternalStore(turnStore.subscribe, () => turnStore.isAsking(id));
   // The words of the reply being read, or of one cut off, if any had arrived.
   const streamText = turn && (turn.busy || turn.text) ? turn.text : null;
   const [regenTargetId, setRegenTargetId] = useState<string | null>(null);
@@ -555,16 +558,21 @@ function ChatView({ id }: { id: string }) {
     }
 
     let finished = false;
+    let wrote = false;
+    let toldOfAReply = false;
 
     const onEvent = (event: ChatEvent) => {
       if (event.type === "start") {
         startReceived = true;
-        if (clientId) messageArrived(conversation.id, clientId);
+        if (clientId) forgetSending(conversation.id, clientId);
         if (!conversation.title && content && messageMode === "say") {
           setConversation((c) => (c ? { ...c, title: content.slice(0, 60) } : c));
         }
+      } else if (event.type === "delta") {
+        wrote = true;
       } else if (event.type === "done" || event.type === "error" || event.type === "discarded") {
         finished = true;
+        toldOfAReply = event.type !== "error" && !wrote;
       }
       applyTurnEvent(event, controller);
     };
@@ -609,6 +617,14 @@ function ChatView({ id }: { id: string }) {
         lastAsked.current = null;
         await checkOnTurn();
         turnStore.fail(id, "turn running");
+      } else if (clientId) {
+        // Evermind answered, and said no. Or something on the way to it did, after
+        // passing the message on, which only the conversation can say. Then there is
+        // nothing to report, and perhaps a reply to read. If one is being written, that
+        // is either this message's, which its first word will say, or the reason it failed.
+        const { result } = await checkOnTurn();
+        if (result === "running") turnStore.fail(id, "turn running");
+        else if (isSending(id, clientId)) turnStore.fail(id, { error: e });
       } else {
         // Evermind answered, and said no.
         await reload();
@@ -623,6 +639,22 @@ function ChatView({ id }: { id: string }) {
     }
 
     finishReading(controller);
+
+    // Told of a reply from before instead of given one, by a server that has no reason
+    // to mention that it is writing something else, for someone else.
+    if (clientId && toldOfAReply) void checkOnTurn();
+  }
+
+  /** The server is asked something on the person's behalf, who cannot send anything
+   *  until it answers. Answering can take a while, and whatever is sent meanwhile would
+   *  overlap with what is waiting for this, which has only one place to come back to. */
+  async function askFirst() {
+    turnStore.setAsking(id, true);
+    try {
+      return await checkOnTurn();
+    } finally {
+      turnStore.setAsking(id, false);
+    }
   }
 
   /** A message from the box. If the last reply was cut off, the server may well still
@@ -632,7 +664,7 @@ function ChatView({ id }: { id: string }) {
     const clientId = beginSending(id, content, messageMode);
     let known = messages;
     if (cutOff) {
-      const check = await checkOnTurn();
+      const check = await askFirst();
       if (check.result === "running") turnStore.fail(id, "turn running");
       if (!("messages" in check)) {
         giveBack(id, clientId);
@@ -666,44 +698,48 @@ function ChatView({ id }: { id: string }) {
       return;
     }
     const asked = lastAsked.current;
-    // A message that went back to the box, unless something else has been asked for
-    // since, which is then what is being reported.
-    const message = !asked || asked.mode === "send" ? givenBack(id) : null;
-    if (message) {
-      await retryMessage(message.clientId, message.text, message.mode);
+    // The message that went back to the box is what is being reported, unless something
+    // else has been asked for since. Rewritten or emptied since, it is the person's to
+    // do something else with, and all that is left of it is that it was refused.
+    const refused = !asked || asked.mode === "send" ? givenBack(id) : null;
+    if (refused && stillInBox(id, refused)) {
+      await retryMessage(refused);
       return;
     }
-    if (!cutOff && failure !== "no reply") {
-      await runTurn("regenerate");
-      return;
+    if (refused) forgetSending(id, refused.clientId);
+
+    let known = messages;
+    let nothingLost = refused !== null;
+    if (cutOff || failure === "no reply") {
+      if (checking.current) return;
+      const check = await askFirst();
+      if (!("messages" in check) || check.result === "settled") return;
+      known = check.messages;
+      // Sent, and gone again since, or the same message this reports as refused.
+      nothingLost ||= check.result === "not sent" && asked?.mode === "send";
     }
-    if (checking.current) return;
-    const check = await checkOnTurn();
-    if (!("messages" in check)) return;
-    if (check.result === "not sent" && asked && asked.mode !== "send") {
-      await runTurn(asked.mode, undefined, "say", check.messages);
-    } else if (check.result === "no reply" || (check.result === "not sent" && check.messages.at(-1)?.role === "user")) {
-      await runTurn("regenerate", undefined, "say", check.messages);
-    } else if (check.result === "not sent") {
-      turnStore.fail(id, null); // gone since it was sent: nothing is missing
-    }
+    // With the person's message last, asking for a new version is asking for its reply,
+    // which is always worth asking for. With a reply last, a refused message is no reason
+    // to replace it.
+    const answered = known.at(-1)?.role !== "user";
+    if (answered && nothingLost) turnStore.fail(id, null);
+    else await runTurn(answered && asked?.mode === "continue" ? "continue" : "regenerate", undefined, "say", known);
   }
 
   /** A message that went back to the box. Whether it arrived decides, and what became
    *  of the turn does not: one that failed may be for this message or for another. It
    *  never asks for a new version of the reply before it, which is not what is wrong,
-   *  and which would leave the message unsent. */
-  async function retryMessage(clientId: string, content: string, messageMode: "say" | "narrate" | "ooc") {
+   *  and which would leave the message unsent. What has been typed under it stays. */
+  async function retryMessage(message: Sending) {
     if (checking.current) return;
-    const check = await checkOnTurn();
+    const check = await askFirst();
     if (!("messages" in check)) return;
-    if (check.messages.some((m) => m.meta?.client_id === clientId)) {
-      await deliver(clientId, content, messageMode, check.messages);
-      return;
+    const arrived = check.messages.some((m) => m.meta?.client_id === message.clientId);
+    if (arrived || sendAgain(id, message)) {
+      await deliver(message.clientId, message.text, message.mode, check.messages);
+    } else {
+      turnStore.fail(id, null); // rewritten or emptied while the answer was on its way
     }
-    const held = takeFromBox(id);
-    if (held) await deliver(beginSending(id, held.text, held.mode), held.text, held.mode, check.messages);
-    else turnStore.fail(id, null); // emptied by hand: there is nothing to try again
   }
 
   async function swipe(message: Message, index: number) {
@@ -940,7 +976,7 @@ function ChatView({ id }: { id: string }) {
             {problem && (
               <div className="mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 bg-blood/10 px-4 py-3">
                 <p className="text-sm text-blood">{problem}</p>
-                {lastMessage && !busy && (
+                {lastMessage && !busy && !asking && (
                   <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
                     {t("chat.errors.retryButton")}
                   </button>
@@ -955,7 +991,7 @@ function ChatView({ id }: { id: string }) {
           conversationId={conversation.id}
           onSend={sendMessage}
           onStop={stop}
-          busy={busy}
+          busy={busy || asking}
           characterName={character.name}
         />
       </div>

@@ -82,8 +82,9 @@ function saveSending(conversationId: string, message: Sending): void {
   }
 }
 
-/** The conversation has this message, so nothing more is to be done with it. */
-export function messageArrived(conversationId: string, clientId: string): void {
+/** Nothing more is to be done with this message: the conversation has it, or the
+ *  person has made it into something else. */
+export function forgetSending(conversationId: string, clientId: string): void {
   onItsWay.delete(clientId);
   if (sending.get(conversationId)?.clientId === clientId) sending.delete(conversationId);
   try {
@@ -107,8 +108,6 @@ interface Box {
   read(): string;
   /** With a mode to change to, if it is to change. */
   write(text: string, mode?: MessageMode): void;
-  /** Empties it, as sending what it holds does, and says what that was, if anything. */
-  take(): Pick<Sending, "text" | "mode"> | null;
 }
 const boxes = new Map<string, Box>();
 
@@ -119,6 +118,23 @@ function intoBox(conversationId: string, message: Sending, box: Box): void {
   saveDraft(conversationId, kept);
   saveSending(conversationId, { ...message, inBox: true });
   box.write(kept, typed.trim() ? undefined : message.mode);
+}
+
+/** Takes a message that went back to a box out of it, and out of the draft. Says whether
+ *  the box held it. If not, the draft still may: a box can have opened before the message
+ *  came back in another tab, and the next one would open on it. What was typed around it
+ *  is not touched, nor is the message once it has been changed. */
+function outOfBox(conversationId: string, text: string): boolean {
+  const box = boxes.get(conversationId);
+  const rest = box ? without(box.read(), text) : null;
+  if (box && rest !== null) {
+    saveDraft(conversationId, rest);
+    box.write(rest, rest.trim() ? undefined : "say");
+    return true;
+  }
+  const inDraft = without(loadDraft(conversationId), text);
+  if (inDraft !== null) saveDraft(conversationId, inDraft);
+  return false;
 }
 
 /** Says that this box is open, and hands it a message that did not get anywhere and
@@ -142,6 +158,12 @@ export function openBox(conversationId: string, box: Box): () => void {
 export function beginSending(conversationId: string, text: string, mode: MessageMode): string {
   const before = loadSending(conversationId);
   const clientId = before?.text === text ? before.clientId : newId();
+  // Left waiting for a box by a tab that has gone, and about to be written over. This
+  // tab cannot have one of its own: nothing can be sent here while one is on its way.
+  const box = boxes.get(conversationId);
+  if (box && before && before.clientId !== clientId && !before.inBox && !onItsWay.has(before.clientId)) {
+    intoBox(conversationId, before, box);
+  }
   saveSending(conversationId, { clientId, text, mode, inBox: false });
   onItsWay.add(clientId);
   return clientId;
@@ -160,33 +182,43 @@ export function giveBack(conversationId: string, clientId: string): void {
 
 /** What has been read of a conversation, which says whether a message sent to it has
  *  arrived. One that went back to a box goes from there too, as sending it again would
- *  come to nothing. What was typed around it is not touched, nor is the message once it
- *  has been changed, which makes it another message. Says whether it had arrived. */
+ *  come to nothing. Says whether it had arrived. */
 export function settleSending(
   conversationId: string,
   messages: { meta?: Record<string, unknown> }[],
 ): boolean {
   const message = loadSending(conversationId);
   if (!message || !messages.some((m) => m.meta?.client_id === message.clientId)) return false;
-  messageArrived(conversationId, message.clientId);
-  if (!message.inBox) return true;
-  const box = boxes.get(conversationId);
-  const rest = without(box ? box.read() : loadDraft(conversationId), message.text);
-  if (rest === null) return true;
-  saveDraft(conversationId, rest);
-  box?.write(rest, rest.trim() ? undefined : "say");
+  forgetSending(conversationId, message.clientId);
+  if (message.inBox) outOfBox(conversationId, message.text);
   return true;
 }
 
-/** The message that came back rather than arriving, if there is one here. */
-export function givenBack(conversationId: string): Sending | null {
-  const message = loadSending(conversationId);
-  return message && !onItsWay.has(message.clientId) ? message : null;
+/** Whether this message is still written down, as neither arrived nor forgotten. */
+export function isSending(conversationId: string, clientId: string): boolean {
+  return loadSending(conversationId)?.clientId === clientId;
 }
 
-/** What the box holds, for sending it: gone from there, as if its button had been pressed. */
-export function takeFromBox(conversationId: string): Pick<Sending, "text" | "mode"> | null {
-  return boxes.get(conversationId)?.take() ?? null;
+/** The last message here to have gone back to a box, if nothing has come of it since.
+ *  The person may have rewritten or emptied the box by now: see `stillInBox`. */
+export function givenBack(conversationId: string): Sending | null {
+  const message = loadSending(conversationId);
+  return message?.inBox ? message : null;
+}
+
+/** Whether the box still holds this message, with or without something typed under it. */
+export function stillInBox(conversationId: string, message: Sending): boolean {
+  const box = boxes.get(conversationId);
+  return box !== undefined && without(box.read(), message.text) !== null;
+}
+
+/** A message from the box goes again, under its id, and what was typed under it stays.
+ *  Says whether it could: not if the box no longer holds it. */
+export function sendAgain(conversationId: string, message: Sending): boolean {
+  if (!outOfBox(conversationId, message.text)) return false;
+  saveSending(conversationId, { ...message, inBox: false });
+  onItsWay.add(message.clientId);
+  return true;
 }
 
 /** Ids that currently hold a draft, restricted to conversations that still

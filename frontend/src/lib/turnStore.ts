@@ -58,6 +58,8 @@ const failures = new Map<string, TurnFailure>();
 const stopsToSay = new Map<string, TurnFailure>();
 /** How many turns have begun, for knowing a stop was about one that has gone. */
 const begun = new Map<string, number>();
+/** Conversations where the person is waiting on a question about the turn. */
+const asking = new Set<string>();
 const listeners = new Set<() => void>();
 
 // A new object on every change and the same one otherwise: useSyncExternalStore
@@ -210,6 +212,17 @@ export const turnStore = {
     publish(conversationId);
     controller.abort();
   },
+
+  /** The person has asked for something that needs a question about the turn answered
+   *  first. Nothing else can be sent until it is, from this page or from the same
+   *  conversation opened again meanwhile: only one message can be on its way at once. */
+  setAsking(conversationId: string, waiting: boolean) {
+    if (waiting) asking.add(conversationId);
+    else asking.delete(conversationId);
+    publish(conversationId);
+  },
+
+  isAsking: (conversationId: string) => asking.has(conversationId),
 
   /** Whichever reader holds this conversation's turn, if any. */
   readerOf(conversationId: string) {

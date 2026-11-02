@@ -87,20 +87,10 @@ export function ChatInput({
       read: () => held.current.value,
       write(text, nextMode = held.current.mode) {
         held.current = { value: text, mode: nextMode };
+        saved.current = text; // whoever writes here has written the draft too
         setValue(text);
         setMode(nextMode);
         setRestored(text.trim() !== "");
-      },
-      take() {
-        const text = held.current.value.trim();
-        if (!text) return null;
-        const taken = { text, mode: held.current.mode };
-        held.current = { value: "", mode: "say" };
-        setValue("");
-        setMode("say");
-        clearDraft(conversationId);
-        saved.current = "";
-        return taken;
       },
     }),
     [conversationId],
@@ -151,6 +141,7 @@ export function ChatInput({
     clearDraft(conversationId);
     saved.current = "";
     setMode("say"); // narration and OOC are one-shot by nature
+    held.current = { value: "", mode: "say" }; // before anything is given back to it
     void onSend(content, mode);
   }
 
