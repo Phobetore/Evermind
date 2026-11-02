@@ -1,6 +1,15 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import {
+  buildChatPayload,
+  matchLore,
+  selectFacts,
+  type ChatInput,
+  type PromptLoreEntry,
+  type PromptMemory,
+  type PromptMessage,
+} from "./chat";
 import * as defaults from "./defaults";
 import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
 import { pyLstrip, pyRstrip, pyStrip } from "./text";
@@ -37,6 +46,15 @@ const FUNCTIONS: Record<string, (input: unknown) => unknown> = {
   py_lstrip: adapt<{ text: string }>((i) => pyLstrip(i.text)),
   py_rstrip: adapt<{ text: string }>((i) => pyRstrip(i.text)),
   default_prompts: () => ({ ...defaults }),
+  build_chat_payload: adapt<ChatInput>(buildChatPayload),
+  select_facts: adapt<{
+    memories: PromptMemory[];
+    token_budget?: number;
+    relevance_scores?: Record<string, number> | null;
+  }>((i) => selectFacts(i.memories, i.token_budget, i.relevance_scores)),
+  match_lore: adapt<{ entries: PromptLoreEntry[]; messages: PromptMessage[] }>((i) =>
+    matchLore(i.entries, i.messages),
+  ),
 };
 
 const dir = fileURLToPath(new URL("../../../parity/", import.meta.url));

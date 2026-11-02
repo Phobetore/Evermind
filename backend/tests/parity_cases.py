@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from app.prompting import defaults
+from app.prompting.engine import build_chat_payload, match_lore, select_facts
 from app.prompting.macros import has_original_macro, substitute, substitute_original
 from app.prompting.tokens import estimate_tokens
 
@@ -52,6 +53,9 @@ FUNCTIONS: dict[str, Callable[..., Any]] = {
     "py_lstrip": py_lstrip,
     "py_rstrip": py_rstrip,
     "default_prompts": default_prompts,
+    "build_chat_payload": build_chat_payload,
+    "select_facts": select_facts,
+    "match_lore": match_lore,
 }
 
 

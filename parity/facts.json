@@ -1,0 +1,1248 @@
+{
+ "cases": [
+  {
+   "fn": "select_facts",
+   "name": "no memories",
+   "input": {
+    "memories": []
+   },
+   "expected": []
+  },
+  {
+   "fn": "select_facts",
+   "name": "pinned first, then the newest that fit",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact one is here.",
+      "is_pinned": false,
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact two is here.",
+      "is_pinned": true,
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact three is here.",
+      "is_pinned": false,
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact four is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12
+   },
+   "expected": [
+    {
+     "id": "b",
+     "content": "Fact two is here.",
+     "is_pinned": true,
+     "source_position": 2
+    },
+    {
+     "id": "d",
+     "content": "Fact four is here.",
+     "source_position": 4
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "a fact that does not fit is skipped and a smaller older one is taken",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Tiny.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Small one.",
+      "source_position": 3
+     }
+    ],
+    "token_budget": 10
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Tiny.",
+     "source_position": 1
+    },
+    {
+     "id": "c",
+     "content": "Small one.",
+     "source_position": 3
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "a fact that costs exactly the budget fits and one token more does not",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "alpha beta gam",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "alpha beta gamma d",
+      "source_position": 2
+     }
+    ],
+    "token_budget": 5
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "alpha beta gam",
+     "source_position": 1
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "pinned facts go past the budget and loose ones then no longer fit",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Loose and short.",
+      "source_position": 5
+     },
+     {
+      "id": "b",
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha bet",
+      "is_pinned": true,
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta a",
+      "is_pinned": true,
+      "source_position": 3
+     }
+    ],
+    "token_budget": 50
+   },
+   "expected": [
+    {
+     "id": "b",
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha bet",
+     "is_pinned": true,
+     "source_position": 2
+    },
+    {
+     "id": "c",
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta a",
+     "is_pinned": true,
+     "source_position": 3
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "the default budget",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamma delta aalpha beta gamm",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamm",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamm",
+      "source_position": 3
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "b",
+     "content": "balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamma delta balpha beta gamm",
+     "source_position": 2
+    },
+    {
+     "id": "c",
+     "content": "calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamma delta calpha beta gamm",
+     "source_position": 3
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "scores rank the loose facts",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {
+     "a": 0.9,
+     "b": 0.1,
+     "c": 0.5,
+     "d": 0.7
+    }
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 1
+    },
+    {
+     "id": "d",
+     "content": "Fact d is here.",
+     "source_position": 4
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "an id without a score comes last",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {
+     "a": -3,
+     "c": 0
+    }
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 1
+    },
+    {
+     "id": "c",
+     "content": "Fact c is here.",
+     "source_position": 3
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "an empty map of scores leaves every fact tied and in order",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {}
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 1
+    },
+    {
+     "id": "b",
+     "content": "Fact b is here.",
+     "source_position": 2
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "no scores at all ranks by position",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": null
+   },
+   "expected": [
+    {
+     "id": "c",
+     "content": "Fact c is here.",
+     "source_position": 3
+    },
+    {
+     "id": "d",
+     "content": "Fact d is here.",
+     "source_position": 4
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "equal scores keep the order they came in",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 4
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 3
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 2
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 1
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {
+     "a": 0.5,
+     "b": 0.5,
+     "c": 0.5,
+     "d": 0.9
+    }
+   },
+   "expected": [
+    {
+     "id": "d",
+     "content": "Fact d is here.",
+     "source_position": 1
+    },
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 4
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "negative, zero and fractional scores",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 17,
+    "relevance_scores": {
+     "a": -0.5,
+     "b": -2,
+     "c": 0,
+     "d": -0.25
+    }
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 1
+    },
+    {
+     "id": "c",
+     "content": "Fact c is here.",
+     "source_position": 3
+    },
+    {
+     "id": "d",
+     "content": "Fact d is here.",
+     "source_position": 4
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "ids that are the names of what every object has",
+   "input": {
+    "memories": [
+     {
+      "id": "constructor",
+      "content": "Fact one is here.",
+      "source_position": 1
+     },
+     {
+      "id": "toString",
+      "content": "Fact two is here.",
+      "source_position": 2
+     },
+     {
+      "id": "__proto__",
+      "content": "Fact three is here.",
+      "source_position": 3
+     },
+     {
+      "id": "x",
+      "content": "Fact four is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {
+     "x": 0.1,
+     "__proto__": 0.9
+    }
+   },
+   "expected": [
+    {
+     "id": "__proto__",
+     "content": "Fact three is here.",
+     "source_position": 3
+    },
+    {
+     "id": "x",
+     "content": "Fact four is here.",
+     "source_position": 4
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "a fact without an id has no score",
+   "input": {
+    "memories": [
+     {
+      "content": "Fact a is here.",
+      "source_position": 1
+     },
+     {
+      "content": "Fact b is here.",
+      "source_position": 2,
+      "id": null
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     }
+    ],
+    "token_budget": 10,
+    "relevance_scores": {
+     "c": 1
+    }
+   },
+   "expected": [
+    {
+     "content": "Fact a is here.",
+     "source_position": 1
+    },
+    {
+     "id": "c",
+     "content": "Fact c is here.",
+     "source_position": 3
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "position zero and a missing position sort first",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 3
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 0
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here."
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 1
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "b",
+     "content": "Fact b is here.",
+     "source_position": 0
+    },
+    {
+     "id": "c",
+     "content": "Fact c is here."
+    },
+    {
+     "id": "d",
+     "content": "Fact d is here.",
+     "source_position": 1
+    },
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 3
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "equal positions keep the order they came in",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 5
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 5
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 5
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 5
+     }
+    ],
+    "token_budget": 12
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 5
+    },
+    {
+     "id": "b",
+     "content": "Fact b is here.",
+     "source_position": 5
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "equal positions around a distinct one",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 2
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 7
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 2
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 7
+     },
+     {
+      "id": "e",
+      "content": "Fact e is here.",
+      "is_pinned": true,
+      "source_position": 5
+     },
+     {
+      "id": "f",
+      "content": "Fact f is here.",
+      "is_pinned": true,
+      "source_position": 5
+     }
+    ],
+    "token_budget": 25
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 2
+    },
+    {
+     "id": "e",
+     "content": "Fact e is here.",
+     "is_pinned": true,
+     "source_position": 5
+    },
+    {
+     "id": "f",
+     "content": "Fact f is here.",
+     "is_pinned": true,
+     "source_position": 5
+    },
+    {
+     "id": "b",
+     "content": "Fact b is here.",
+     "source_position": 7
+    },
+    {
+     "id": "d",
+     "content": "Fact d is here.",
+     "source_position": 7
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "a missing or null content costs nothing",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": null,
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     }
+    ],
+    "token_budget": 0
+   },
+   "expected": [
+    {
+     "id": "a",
+     "source_position": 1
+    },
+    {
+     "id": "b",
+     "content": null,
+     "source_position": 2
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "a cap of sixty facts, the pinned ones counted first",
+   "input": {
+    "memories": [
+     {
+      "content": "Fact 1.",
+      "source_position": 1
+     },
+     {
+      "content": "Fact 2.",
+      "source_position": 2
+     },
+     {
+      "content": "Fact 3.",
+      "source_position": 3
+     },
+     {
+      "content": "Fact 4.",
+      "source_position": 4
+     },
+     {
+      "content": "Fact 5.",
+      "source_position": 5
+     },
+     {
+      "content": "Fact 6.",
+      "source_position": 6
+     },
+     {
+      "content": "Fact 7.",
+      "source_position": 7
+     },
+     {
+      "content": "Fact 8.",
+      "source_position": 8
+     },
+     {
+      "content": "Fact 9.",
+      "source_position": 9
+     },
+     {
+      "content": "Fact 10.",
+      "source_position": 10
+     },
+     {
+      "content": "Fact 11.",
+      "source_position": 11
+     },
+     {
+      "content": "Fact 12.",
+      "source_position": 12
+     },
+     {
+      "content": "Fact 13.",
+      "source_position": 13
+     },
+     {
+      "content": "Fact 14.",
+      "source_position": 14
+     },
+     {
+      "content": "Fact 15.",
+      "source_position": 15
+     },
+     {
+      "content": "Fact 16.",
+      "source_position": 16
+     },
+     {
+      "content": "Fact 17.",
+      "source_position": 17
+     },
+     {
+      "content": "Fact 18.",
+      "source_position": 18
+     },
+     {
+      "content": "Fact 19.",
+      "source_position": 19
+     },
+     {
+      "content": "Fact 20.",
+      "source_position": 20
+     },
+     {
+      "content": "Fact 21.",
+      "source_position": 21
+     },
+     {
+      "content": "Fact 22.",
+      "source_position": 22
+     },
+     {
+      "content": "Fact 23.",
+      "source_position": 23
+     },
+     {
+      "content": "Fact 24.",
+      "source_position": 24
+     },
+     {
+      "content": "Fact 25.",
+      "source_position": 25
+     },
+     {
+      "content": "Fact 26.",
+      "source_position": 26
+     },
+     {
+      "content": "Fact 27.",
+      "source_position": 27
+     },
+     {
+      "content": "Fact 28.",
+      "source_position": 28
+     },
+     {
+      "content": "Fact 29.",
+      "source_position": 29
+     },
+     {
+      "content": "Fact 30.",
+      "source_position": 30
+     },
+     {
+      "content": "Fact 31.",
+      "source_position": 31
+     },
+     {
+      "content": "Fact 32.",
+      "source_position": 32
+     },
+     {
+      "content": "Fact 33.",
+      "source_position": 33
+     },
+     {
+      "content": "Fact 34.",
+      "source_position": 34
+     },
+     {
+      "content": "Fact 35.",
+      "source_position": 35
+     },
+     {
+      "content": "Fact 36.",
+      "source_position": 36
+     },
+     {
+      "content": "Fact 37.",
+      "source_position": 37
+     },
+     {
+      "content": "Fact 38.",
+      "source_position": 38
+     },
+     {
+      "content": "Fact 39.",
+      "source_position": 39
+     },
+     {
+      "content": "Fact 40.",
+      "source_position": 40
+     },
+     {
+      "content": "Fact 41.",
+      "source_position": 41
+     },
+     {
+      "content": "Fact 42.",
+      "source_position": 42
+     },
+     {
+      "content": "Fact 43.",
+      "source_position": 43
+     },
+     {
+      "content": "Fact 44.",
+      "source_position": 44
+     },
+     {
+      "content": "Fact 45.",
+      "source_position": 45
+     },
+     {
+      "content": "Fact 46.",
+      "source_position": 46
+     },
+     {
+      "content": "Fact 47.",
+      "source_position": 47
+     },
+     {
+      "content": "Fact 48.",
+      "source_position": 48
+     },
+     {
+      "content": "Fact 49.",
+      "source_position": 49
+     },
+     {
+      "content": "Fact 50.",
+      "source_position": 50
+     },
+     {
+      "content": "Fact 51.",
+      "source_position": 51
+     },
+     {
+      "content": "Fact 52.",
+      "source_position": 52
+     },
+     {
+      "content": "Fact 53.",
+      "source_position": 53
+     },
+     {
+      "content": "Fact 54.",
+      "source_position": 54
+     },
+     {
+      "content": "Fact 55.",
+      "source_position": 55
+     },
+     {
+      "content": "Fact 56.",
+      "source_position": 56
+     },
+     {
+      "content": "Fact 57.",
+      "source_position": 57
+     },
+     {
+      "content": "Fact 58.",
+      "source_position": 58
+     },
+     {
+      "content": "Fact 59.",
+      "source_position": 59
+     },
+     {
+      "content": "Pinned 1.",
+      "source_position": 10,
+      "is_pinned": true
+     },
+     {
+      "content": "Pinned 2.",
+      "source_position": 20,
+      "is_pinned": true
+     },
+     {
+      "content": "Pinned 3.",
+      "source_position": 30,
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": [
+    {
+     "content": "Fact 3.",
+     "source_position": 3
+    },
+    {
+     "content": "Fact 4.",
+     "source_position": 4
+    },
+    {
+     "content": "Fact 5.",
+     "source_position": 5
+    },
+    {
+     "content": "Fact 6.",
+     "source_position": 6
+    },
+    {
+     "content": "Fact 7.",
+     "source_position": 7
+    },
+    {
+     "content": "Fact 8.",
+     "source_position": 8
+    },
+    {
+     "content": "Fact 9.",
+     "source_position": 9
+    },
+    {
+     "content": "Pinned 1.",
+     "source_position": 10,
+     "is_pinned": true
+    },
+    {
+     "content": "Fact 10.",
+     "source_position": 10
+    },
+    {
+     "content": "Fact 11.",
+     "source_position": 11
+    },
+    {
+     "content": "Fact 12.",
+     "source_position": 12
+    },
+    {
+     "content": "Fact 13.",
+     "source_position": 13
+    },
+    {
+     "content": "Fact 14.",
+     "source_position": 14
+    },
+    {
+     "content": "Fact 15.",
+     "source_position": 15
+    },
+    {
+     "content": "Fact 16.",
+     "source_position": 16
+    },
+    {
+     "content": "Fact 17.",
+     "source_position": 17
+    },
+    {
+     "content": "Fact 18.",
+     "source_position": 18
+    },
+    {
+     "content": "Fact 19.",
+     "source_position": 19
+    },
+    {
+     "content": "Pinned 2.",
+     "source_position": 20,
+     "is_pinned": true
+    },
+    {
+     "content": "Fact 20.",
+     "source_position": 20
+    },
+    {
+     "content": "Fact 21.",
+     "source_position": 21
+    },
+    {
+     "content": "Fact 22.",
+     "source_position": 22
+    },
+    {
+     "content": "Fact 23.",
+     "source_position": 23
+    },
+    {
+     "content": "Fact 24.",
+     "source_position": 24
+    },
+    {
+     "content": "Fact 25.",
+     "source_position": 25
+    },
+    {
+     "content": "Fact 26.",
+     "source_position": 26
+    },
+    {
+     "content": "Fact 27.",
+     "source_position": 27
+    },
+    {
+     "content": "Fact 28.",
+     "source_position": 28
+    },
+    {
+     "content": "Fact 29.",
+     "source_position": 29
+    },
+    {
+     "content": "Pinned 3.",
+     "source_position": 30,
+     "is_pinned": true
+    },
+    {
+     "content": "Fact 30.",
+     "source_position": 30
+    },
+    {
+     "content": "Fact 31.",
+     "source_position": 31
+    },
+    {
+     "content": "Fact 32.",
+     "source_position": 32
+    },
+    {
+     "content": "Fact 33.",
+     "source_position": 33
+    },
+    {
+     "content": "Fact 34.",
+     "source_position": 34
+    },
+    {
+     "content": "Fact 35.",
+     "source_position": 35
+    },
+    {
+     "content": "Fact 36.",
+     "source_position": 36
+    },
+    {
+     "content": "Fact 37.",
+     "source_position": 37
+    },
+    {
+     "content": "Fact 38.",
+     "source_position": 38
+    },
+    {
+     "content": "Fact 39.",
+     "source_position": 39
+    },
+    {
+     "content": "Fact 40.",
+     "source_position": 40
+    },
+    {
+     "content": "Fact 41.",
+     "source_position": 41
+    },
+    {
+     "content": "Fact 42.",
+     "source_position": 42
+    },
+    {
+     "content": "Fact 43.",
+     "source_position": 43
+    },
+    {
+     "content": "Fact 44.",
+     "source_position": 44
+    },
+    {
+     "content": "Fact 45.",
+     "source_position": 45
+    },
+    {
+     "content": "Fact 46.",
+     "source_position": 46
+    },
+    {
+     "content": "Fact 47.",
+     "source_position": 47
+    },
+    {
+     "content": "Fact 48.",
+     "source_position": 48
+    },
+    {
+     "content": "Fact 49.",
+     "source_position": 49
+    },
+    {
+     "content": "Fact 50.",
+     "source_position": 50
+    },
+    {
+     "content": "Fact 51.",
+     "source_position": 51
+    },
+    {
+     "content": "Fact 52.",
+     "source_position": 52
+    },
+    {
+     "content": "Fact 53.",
+     "source_position": 53
+    },
+    {
+     "content": "Fact 54.",
+     "source_position": 54
+    },
+    {
+     "content": "Fact 55.",
+     "source_position": 55
+    },
+    {
+     "content": "Fact 56.",
+     "source_position": 56
+    },
+    {
+     "content": "Fact 57.",
+     "source_position": 57
+    },
+    {
+     "content": "Fact 58.",
+     "source_position": 58
+    },
+    {
+     "content": "Fact 59.",
+     "source_position": 59
+    }
+   ]
+  }
+ ]
+}

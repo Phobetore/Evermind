@@ -257,8 +257,9 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
 
     # Post-history block: what the model reads LAST, right before generating,
     # so it carries the most weight when the system prompt is far away up top.
-    # Order: card's own jailbreak, then the player's live scene directive, then
-    # a compact reminder of the guardrails models most often drift on.
+    # Order: the card's own note, the pinned facts, then the player's live scene
+    # directive, then a compact reminder of the guardrails models most often
+    # drift on.
     post_bits = []
     card_note = (character.get("post_history_instructions") or "").strip()
     if card_note:
