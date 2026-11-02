@@ -10,8 +10,10 @@ _ORIGINAL_RE = re.compile(r"\{\{\s*original\s*\}\}", re.IGNORECASE)
 def substitute(text: str, char_name: str, user_name: str) -> str:
     if not text:
         return ""
-    text = _CHAR_RE.sub(char_name, text)
-    return _USER_RE.sub(user_name, text)
+    # A function, not the name itself: re reads a replacement string for
+    # escapes such as \1 and \d, and a name may contain them.
+    text = _CHAR_RE.sub(lambda _: char_name, text)
+    return _USER_RE.sub(lambda _: user_name, text)
 
 
 def substitute_original(text: str, original: str) -> str:
