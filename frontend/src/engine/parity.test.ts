@@ -2,9 +2,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  activeContent,
   buildChatPayload,
   matchLore,
   selectFacts,
+  type ActiveMessage,
   type ChatInput,
   type PromptLoreEntry,
   type PromptMemory,
@@ -46,6 +48,7 @@ const FUNCTIONS: Record<string, (input: unknown) => unknown> = {
   py_lstrip: adapt<{ text: string }>((i) => pyLstrip(i.text)),
   py_rstrip: adapt<{ text: string }>((i) => pyRstrip(i.text)),
   default_prompts: () => ({ ...defaults }),
+  active_content: adapt<{ message: ActiveMessage }>((i) => activeContent(i.message)),
   build_chat_payload: adapt<ChatInput>(buildChatPayload),
   select_facts: adapt<{
     memories: PromptMemory[];

@@ -942,6 +942,242 @@
   },
   {
    "fn": "match_lore",
+   "name": "more than six messages at one position are read in the order they came in",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "start"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "alpha"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "beta"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "gamma"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "start"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "alpha"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "beta"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "gamma"
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "c",
+     "keys": [
+      "beta"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "gamma"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "more than six messages in groups of equal positions",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "start"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "alpha"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "beta"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "gamma"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "start"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "alpha"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "beta"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "gamma"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "c",
+     "keys": [
+      "beta"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "gamma"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
    "name": "fewer than six messages are all read",
    "input": {
     "entries": [

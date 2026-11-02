@@ -1,8 +1,8 @@
 // The prompt of one chat turn, a copy of backend/app/prompting/engine.py:
-// parity/chat.json, facts.json and lore.json fail when a single word differs.
-// Where Python's behaviour is odd it is kept, not smoothed: `x or y` falls back
-// on 0, "" and null alike, `int()` truncates, and a stable sort that ties keeps
-// the order it was given.
+// the cases of parity/ (chat, facts, lore, active) fail when a single word
+// differs. Where Python's behaviour is odd it is kept, not smoothed: `x or y`
+// falls back on 0, "" and null alike, `int()` truncates, and a stable sort that
+// ties keeps the order it was given.
 
 import { DEFAULT_RP_RULES, SCENARIO_RP_RULES } from "./defaults";
 import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
@@ -10,7 +10,12 @@ import { pyRstrip, pyStrip } from "./text";
 import { estimateTokens } from "./tokens";
 
 // What the engine reads, not the types of src/types: a card saved by an older
-// version has fields missing or null, and the Python takes both in its stride.
+// version has fields missing or null. A text, a list, a mode or a flag that is
+// missing or null is read as Python reads it (`x or ""`, `.get(k, default)`),
+// a null `enabled` included, which switches an entry off. Not a null
+// `position`, `priority` or `source_position`: Python sorts and compares them
+// as numbers and fails on a null, where this reads 0. Those columns are NOT
+// NULL in the database, so no stored row holds one.
 export interface PromptCharacter {
   kind?: string | null;
   name?: string | null;
@@ -37,10 +42,13 @@ export interface PromptConnection {
   max_tokens?: number | null;
 }
 
-export interface PromptMessage {
-  role: string;
+export interface ActiveMessage {
   variants?: string[] | null;
   active_index?: number | null;
+}
+
+export interface PromptMessage extends ActiveMessage {
+  role: string;
   position?: number | null;
   meta?: Record<string, unknown> | null;
 }
@@ -91,9 +99,13 @@ export interface PromptPayload {
 }
 
 // Enough for what someone has deliberately marked, not so many that the block
-// becomes another wall of text to skim.
+// becomes another wall of text to skim. Pinning more than this is a sign the
+// facts want consolidating rather than repeating.
 const MAX_PINNED_RESTATED = 8;
 
+// Re-stated at generation time because rule adherence decays with distance:
+// on a long chat the system prompt is thousands of tokens away, drowned out
+// by the model's own recent output.
 const POST_HISTORY_REMINDER =
   "[Stay in character as {{char}}. Write only {{char}}'s next turn. Every line " +
   "of dialogue and every action must be a COMPLETE sentence — never leave " +
@@ -117,9 +129,9 @@ const LORE_SCAN_MESSAGES = 6;
 const LORE_TOKEN_BUDGET = 800;
 
 /** Python's `sorted(items, key=key, reverse=reverse)`. Stable both ways: equal
- *  keys keep the order they came in, even reversed. Compared with `<` and `>`
- *  rather than a subtraction, which is NaN for two keys of -Infinity (a fact
- *  with no score) and would leave the order to the engine. */
+ *  keys keep the order they came in, even reversed. The keys are compared with
+ *  `<` and `>`, not subtracted, so that two keys of -Infinity (a fact with no
+ *  score) tie by comparison and not as the NaN of `-Infinity - -Infinity`. */
 function sortedBy<T>(items: readonly T[], key: (item: T) => number, reverse = false): T[] {
   const keyed = items.map((item) => ({ item, key: key(item) }));
   const sign = reverse ? -1 : 1;
@@ -127,10 +139,7 @@ function sortedBy<T>(items: readonly T[], key: (item: T) => number, reverse = fa
   return keyed.map((entry) => entry.item);
 }
 
-export function activeContent(message: {
-  variants?: string[] | null;
-  active_index?: number | null;
-}): string {
+export function activeContent(message: ActiveMessage): string {
   const variants = message.variants?.length ? message.variants : [""];
   let index = message.active_index || 0;
   if (!(index >= 0 && index < variants.length)) index = variants.length - 1;
@@ -178,7 +187,7 @@ function formatFacts(
   for (const memory of selectFacts(memories, tokenBudget, relevanceScores)) {
     const position = memory.source_position || 0;
     const prefix = position ? `(turn ${position}) ` : "";
-    lines.push(`- ${prefix}${pyStrip(memory.content ?? "")}`);
+    lines.push(`- ${prefix}${pyStrip(memory.content || "")}`);
   }
   return lines.join("\n");
 }
@@ -235,7 +244,20 @@ interface SystemParts {
 }
 
 function buildSystem(parts: SystemParts): string {
-  const { character, persona, summary, globalInstructions, charName, userName } = parts;
+  const {
+    character,
+    persona,
+    summary,
+    globalInstructions,
+    includeExamples,
+    charName,
+    userName,
+    memories,
+    lore,
+    factsBudget,
+    relevanceScores,
+    passages,
+  } = parts;
   const isScenario = character.kind === "scenario";
   const sections: string[] = [];
 
@@ -268,13 +290,13 @@ function buildSystem(parts: SystemParts): string {
 
   if (summary) sections.push(`### STORY SO FAR\n${summary}`);
 
-  if (parts.lore.length) {
-    const loreBlock = parts.lore.map((entry) => pyStrip(entry.content ?? "")).join("\n\n");
+  if (lore.length) {
+    const loreBlock = lore.map((entry) => pyStrip(entry.content || "")).join("\n\n");
     sections.push(`### WORLD KNOWLEDGE (relevant to the current scene)\n${loreBlock}`);
   }
 
-  if (parts.memories?.length) {
-    const facts = formatFacts(parts.memories, parts.factsBudget, parts.relevanceScores);
+  if (memories?.length) {
+    const facts = formatFacts(memories, factsBudget, relevanceScores);
     if (facts) {
       sections.push(
         "### ESTABLISHED FACTS (hard canon — never contradict these, " +
@@ -283,9 +305,9 @@ function buildSystem(parts: SystemParts): string {
     }
   }
 
-  if (parts.passages?.length) {
+  if (passages?.length) {
     const lines: string[] = [];
-    for (const p of sortedBy(parts.passages, (p) => p.position || 0)) {
+    for (const p of sortedBy(passages, (p) => p.position || 0)) {
       const speaker = p.role === "assistant" ? charName : userName;
       const pos = p.position || 0;
       lines.push(`(turn ${pos}) ${speaker}: ${pyStrip(p.content || "")}`);
@@ -297,7 +319,7 @@ function buildSystem(parts: SystemParts): string {
     );
   }
 
-  if (parts.includeExamples && character.example_dialogues) {
+  if (includeExamples && character.example_dialogues) {
     sections.push(
       "### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\n" +
         character.example_dialogues,

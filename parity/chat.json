@@ -5742,6 +5742,1806 @@
   },
   {
    "fn": "build_chat_payload",
+   "name": "the facts budget is twelve percent of the budget",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Go on."
+      ],
+      "active_index": 0,
+      "position": 40
+     }
+    ],
+    "connection": {
+     "context_size": 16000,
+     "max_tokens": 1003
+    },
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Fact 1. f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta",
+      "source_position": 1
+     },
+     {
+      "id": "f2",
+      "content": "Fact 2. f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha",
+      "source_position": 2
+     },
+     {
+      "id": "f3",
+      "content": "Fact 3. f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f",
+      "source_position": 3
+     },
+     {
+      "id": "f4",
+      "content": "Fact 4. f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma",
+      "source_position": 4
+     },
+     {
+      "id": "f5",
+      "content": "Fact 5. f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta",
+      "source_position": 5
+     },
+     {
+      "id": "f6",
+      "content": "Fact 6. f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta",
+      "source_position": 6
+     },
+     {
+      "id": "f7",
+      "content": "Fact 7. f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta",
+      "source_position": 7
+     },
+     {
+      "id": "f8",
+      "content": "Fact 8. f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta",
+      "source_position": 8
+     },
+     {
+      "id": "f9",
+      "content": "Fact 9. f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta",
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### ESTABLISHED FACTS (hard canon — never contradict these, Ana never forgets them)\n- (turn 2) Fact 2. f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha\n- (turn 3) Fact 3. f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f\n- (turn 5) Fact 5. f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta\n- (turn 6) Fact 6. f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta\n- (turn 7) Fact 7. f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta\n- (turn 8) Fact 8. f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta\n- (turn 9) Fact 9. f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta f9 alpha beta gamma delta\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Go on."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 1884,
+     "budget": 14797,
+     "context_size": 16000,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 0,
+     "facts_injected": 7,
+     "facts_total": 9,
+     "oldest_visible": 40,
+     "fact_positions": [
+      2,
+      3,
+      5,
+      6,
+      7,
+      8,
+      9
+     ],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "the facts budget stops at two thousand tokens",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Go on."
+      ],
+      "active_index": 0,
+      "position": 40
+     }
+    ],
+    "connection": {
+     "context_size": 32000,
+     "max_tokens": 1000
+    },
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Fact 1. f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f",
+      "source_position": 1
+     },
+     {
+      "id": "f2",
+      "content": "Fact 2. f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta",
+      "source_position": 2
+     },
+     {
+      "id": "f3",
+      "content": "Fact 3. f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta",
+      "source_position": 3
+     },
+     {
+      "id": "f4",
+      "content": "Fact 4. f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta",
+      "source_position": 4
+     },
+     {
+      "id": "f5",
+      "content": "Fact 5. f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta",
+      "source_position": 5
+     },
+     {
+      "id": "f6",
+      "content": "Fact 6. f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta",
+      "source_position": 6
+     },
+     {
+      "id": "f7",
+      "content": "Fact 7. f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta",
+      "source_position": 7
+     },
+     {
+      "id": "f8",
+      "content": "Fact 8. f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta",
+      "source_position": 8
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### ESTABLISHED FACTS (hard canon — never contradict these, Ana never forgets them)\n- (turn 2) Fact 2. f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta gamma delta f2 alpha beta\n- (turn 3) Fact 3. f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta f3 alpha beta gamma delta\n- (turn 4) Fact 4. f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta f4 alpha beta gamma delta\n- (turn 5) Fact 5. f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta f5 alpha beta gamma delta\n- (turn 6) Fact 6. f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta f6 alpha beta gamma delta\n- (turn 7) Fact 7. f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta f7 alpha beta gamma delta\n- (turn 8) Fact 8. f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta f8 alpha beta gamma delta\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Go on."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 2234,
+     "budget": 30800,
+     "context_size": 32000,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 0,
+     "facts_injected": 7,
+     "facts_total": 8,
+     "oldest_visible": 40,
+     "fact_positions": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+     ],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "no fact fits the budget, so there is no block of facts",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Go on."
+      ],
+      "active_index": 0,
+      "position": 40
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    },
+    "memories": [
+     {
+      "id": "a",
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta g",
+      "source_position": 5
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Go on."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 192,
+     "budget": 3640,
+     "context_size": 4096,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 0,
+     "facts_injected": 0,
+     "facts_total": 1,
+     "oldest_visible": 40,
+     "fact_positions": [],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a fact outside the worst-case window is kept",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Turn 00 t0 alpha beta gamma delta t0 alpha beta gamma delta t0 alpha beta gamma delta t0 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 01 t1 alpha beta gamma delta t1 alpha beta gamma delta t1 alpha beta gamma delta t1 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 02 t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 03 t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 04 t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 05 t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 06 t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 07 t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 7
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 08 t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 8
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 09 t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 9
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 10 t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha b"
+      ],
+      "active_index": 0,
+      "position": 10
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 11 t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha b"
+      ],
+      "active_index": 0,
+      "position": 11
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 12 t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha b"
+      ],
+      "active_index": 0,
+      "position": 12
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 13 t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha b"
+      ],
+      "active_index": 0,
+      "position": 13
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 14 t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha b"
+      ],
+      "active_index": 0,
+      "position": 14
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 15 t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha b"
+      ],
+      "active_index": 0,
+      "position": 15
+     }
+    ],
+    "connection": {
+     "context_size": 1000,
+     "max_tokens": 100
+    },
+    "memories": [
+     {
+      "id": "a",
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta",
+      "source_position": 10
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### ESTABLISHED FACTS (hard canon — never contradict these, Ana never forgets them)\n- (turn 10) alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "assistant",
+      "content": "Turn 15 t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha b"
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 818,
+     "budget": 700,
+     "context_size": 1000,
+     "messages_included": 1,
+     "messages_total": 16,
+     "lore_matched": 0,
+     "facts_injected": 1,
+     "facts_total": 1,
+     "oldest_visible": 15,
+     "fact_positions": [
+      10
+     ],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "the post-history takes room from the window that facts are judged against",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Turn 00 t0 alpha beta gamma delta t0 alpha beta gamma delta t0 alpha beta gamma delta t0 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 01 t1 alpha beta gamma delta t1 alpha beta gamma delta t1 alpha beta gamma delta t1 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 02 t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 03 t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 04 t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 05 t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 06 t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 07 t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 7
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 08 t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 8
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 09 t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 9
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 10 t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha b"
+      ],
+      "active_index": 0,
+      "position": 10
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 11 t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha b"
+      ],
+      "active_index": 0,
+      "position": 11
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 12 t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha b"
+      ],
+      "active_index": 0,
+      "position": 12
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 13 t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha b"
+      ],
+      "active_index": 0,
+      "position": 13
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 14 t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha b"
+      ],
+      "active_index": 0,
+      "position": 14
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 15 t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha b"
+      ],
+      "active_index": 0,
+      "position": 15
+     }
+    ],
+    "connection": {
+     "context_size": 1000,
+     "max_tokens": 100
+    },
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Fact 1 here.",
+      "source_position": 1
+     },
+     {
+      "id": "f2",
+      "content": "Fact 2 here.",
+      "source_position": 2
+     },
+     {
+      "id": "f3",
+      "content": "Fact 3 here.",
+      "source_position": 3
+     },
+     {
+      "id": "f4",
+      "content": "Fact 4 here.",
+      "source_position": 4
+     },
+     {
+      "id": "f5",
+      "content": "Fact 5 here.",
+      "source_position": 5
+     },
+     {
+      "id": "f6",
+      "content": "Fact 6 here.",
+      "source_position": 6
+     },
+     {
+      "id": "f7",
+      "content": "Fact 7 here.",
+      "source_position": 7
+     },
+     {
+      "id": "f8",
+      "content": "Fact 8 here.",
+      "source_position": 8
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### ESTABLISHED FACTS (hard canon — never contradict these, Ana never forgets them)\n- (turn 1) Fact 1 here.\n- (turn 2) Fact 2 here.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Turn 02 t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 03 t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 04 t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 05 t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 06 t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 07 t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 08 t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 09 t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 10 t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha b"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 11 t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha b"
+     },
+     {
+      "role": "user",
+      "content": "Turn 12 t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha b"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 13 t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha b"
+     },
+     {
+      "role": "user",
+      "content": "Turn 14 t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha b"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 15 t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha b"
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 686,
+     "budget": 700,
+     "context_size": 1000,
+     "messages_included": 14,
+     "messages_total": 16,
+     "lore_matched": 0,
+     "facts_injected": 2,
+     "facts_total": 8,
+     "oldest_visible": 2,
+     "fact_positions": [
+      1,
+      2
+     ],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "examples are judged on the facts that stay",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}.",
+     "example_dialogues": "{{char}}: A short sample."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Turn 00 t0 alpha beta gamma delta t0 alpha beta gamma delta t0 alpha beta gamma delta t0 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 01 t1 alpha beta gamma delta t1 alpha beta gamma delta t1 alpha beta gamma delta t1 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 02 t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 03 t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 04 t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 05 t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 06 t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 07 t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 7
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 08 t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 8
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 09 t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 9
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 10 t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha b"
+      ],
+      "active_index": 0,
+      "position": 10
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 11 t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha b"
+      ],
+      "active_index": 0,
+      "position": 11
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 12 t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha b"
+      ],
+      "active_index": 0,
+      "position": 12
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 13 t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha b"
+      ],
+      "active_index": 0,
+      "position": 13
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 14 t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha b"
+      ],
+      "active_index": 0,
+      "position": 14
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 15 t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha b"
+      ],
+      "active_index": 0,
+      "position": 15
+     }
+    ],
+    "connection": {
+     "context_size": 1000,
+     "max_tokens": 100
+    },
+    "memories": [
+     {
+      "id": "a",
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta",
+      "source_position": 15
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\nAna: A short sample.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Turn 02 t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 03 t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 04 t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 05 t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 06 t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 07 t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 08 t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 09 t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 10 t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha b"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 11 t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha b"
+     },
+     {
+      "role": "user",
+      "content": "Turn 12 t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha b"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 13 t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha b"
+     },
+     {
+      "role": "user",
+      "content": "Turn 14 t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha b"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 15 t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha b"
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 678,
+     "budget": 700,
+     "context_size": 1000,
+     "messages_included": 14,
+     "messages_total": 16,
+     "lore_matched": 0,
+     "facts_injected": 0,
+     "facts_total": 1,
+     "oldest_visible": 2,
+     "fact_positions": [],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "dropping the examples keeps the covered facts out",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta ga",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}.",
+     "example_dialogues": "{{char}}: A short sample."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Go on."
+      ],
+      "active_index": 0,
+      "position": 40
+     }
+    ],
+    "connection": {
+     "context_size": 1000,
+     "max_tokens": 100
+    },
+    "memories": [
+     {
+      "id": "a",
+      "content": "Covered by the only turn.",
+      "source_position": 40
+     },
+     {
+      "id": "b",
+      "content": "Older.",
+      "source_position": 3
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nalpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta ga\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### ESTABLISHED FACTS (hard canon — never contradict these, Ana never forgets them)\n- (turn 3) Older.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Go on."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 676,
+     "budget": 700,
+     "context_size": 1000,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 0,
+     "facts_injected": 1,
+     "facts_total": 2,
+     "oldest_visible": 40,
+     "fact_positions": [
+      3
+     ],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a fact with a null content reads as empty",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Go on."
+      ],
+      "active_index": 0,
+      "position": 40
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    },
+    "memories": [
+     {
+      "id": "a",
+      "content": null,
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Kept.",
+      "source_position": 2
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### ESTABLISHED FACTS (hard canon — never contradict these, Ana never forgets them)\n- (turn 1) \n- (turn 2) Kept.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Go on."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 225,
+     "budget": 3640,
+     "context_size": 4096,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 0,
+     "facts_injected": 2,
+     "facts_total": 2,
+     "oldest_visible": 40,
+     "fact_positions": [
+      1,
+      2
+     ],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a lore entry with a null content reads as empty",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "The oven."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    },
+    "lore_entries": [
+     {
+      "keys": [
+       "oven"
+      ],
+      "content": null
+     },
+     {
+      "keys": [
+       "oven"
+      ],
+      "content": "Old."
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### WORLD KNOWLEDGE (relevant to the current scene)\n\n\nOld.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The oven."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 210,
+     "budget": 3640,
+     "context_size": 4096,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 2,
+     "facts_injected": 0,
+     "facts_total": 0,
+     "oldest_visible": 0,
+     "fact_positions": [],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "empty lists of facts, lore and passages",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Hello, {{char}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    },
+    "memories": [],
+    "lore_entries": [],
+    "retrieved_passages": []
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Hello, Ana."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 194,
+     "budget": 3640,
+     "context_size": 4096,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 0,
+     "facts_injected": 0,
+     "facts_total": 0,
+     "oldest_visible": 0,
+     "fact_positions": [],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "reply length short after a byte order mark and a next line",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Hello, {{char}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    },
+    "reply_length": "short",
+    "global_instructions": "\ufeff\u0085 Be vivid."
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\nHouse rules for Ana and Alex.\n\n### PLAYER'S STANDING INSTRUCTIONS\n\ufeff\u0085 Be vivid.\n\nLENGTH OVERRIDE: keep every reply to ONE tight paragraph. Dense, punchy, no padding.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Hello, Ana."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 233,
+     "budget": 3640,
+     "context_size": 4096,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 0,
+     "facts_injected": 0,
+     "facts_total": 0,
+     "oldest_visible": 0,
+     "fact_positions": [],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "reply length long after a byte order mark and a next line",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Hello, {{char}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    },
+    "reply_length": "long",
+    "global_instructions": "\ufeff\u0085 Be vivid."
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\nHouse rules for Ana and Alex.\n\n### PLAYER'S STANDING INSTRUCTIONS\n\ufeff\u0085 Be vivid.\n\nLENGTH OVERRIDE: write expansive replies of 3 to 5 rich paragraphs, with deep sensory and emotional detail — still ending on something Alex can react to.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Hello, Ana."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 252,
+     "budget": 3640,
+     "context_size": 4096,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 0,
+     "facts_injected": 0,
+     "facts_total": 0,
+     "oldest_visible": 0,
+     "fact_positions": [],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "max tokens with a fraction above one half is truncated",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Turn 00 t0 alpha beta gamma delta t0 alpha beta gamma delta t0 alpha beta gamma delta t0 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 01 t1 alpha beta gamma delta t1 alpha beta gamma delta t1 alpha beta gamma delta t1 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 02 t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 03 t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 04 t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 05 t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 06 t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 07 t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 7
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 08 t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 8
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 09 t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta"
+      ],
+      "active_index": 0,
+      "position": 9
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 10 t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha b"
+      ],
+      "active_index": 0,
+      "position": 10
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 11 t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha b"
+      ],
+      "active_index": 0,
+      "position": 11
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 12 t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha b"
+      ],
+      "active_index": 0,
+      "position": 12
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 13 t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha b"
+      ],
+      "active_index": 0,
+      "position": 13
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 14 t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha b"
+      ],
+      "active_index": 0,
+      "position": 14
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 15 t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha b"
+      ],
+      "active_index": 0,
+      "position": 15
+     }
+    ],
+    "connection": {
+     "context_size": 1000,
+     "max_tokens": 100.9
+    }
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "assistant",
+      "content": "Turn 01 t1 alpha beta gamma delta t1 alpha beta gamma delta t1 alpha beta gamma delta t1 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 02 t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta gamma delta t2 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 03 t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta gamma delta t3 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 04 t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta gamma delta t4 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 05 t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta gamma delta t5 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 06 t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta gamma delta t6 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 07 t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta gamma delta t7 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 08 t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta gamma delta t8 alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 09 t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta gamma delta t9 alpha beta"
+     },
+     {
+      "role": "user",
+      "content": "Turn 10 t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha beta gamma delta t10 alpha b"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 11 t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha beta gamma delta t11 alpha b"
+     },
+     {
+      "role": "user",
+      "content": "Turn 12 t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha beta gamma delta t12 alpha b"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 13 t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha beta gamma delta t13 alpha b"
+     },
+     {
+      "role": "user",
+      "content": "Turn 14 t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha beta gamma delta t14 alpha b"
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 15 t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha beta gamma delta t15 alpha b"
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 681,
+     "budget": 700,
+     "context_size": 1000,
+     "messages_included": 15,
+     "messages_total": 16,
+     "lore_matched": 0,
+     "facts_injected": 0,
+     "facts_total": 0,
+     "oldest_visible": 1,
+     "fact_positions": [],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "an older message that fits the room left exactly",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "n alpha beta gamma delta n alpha beta gamma delta n alpha beta gamma delta n alpha beta gamma delta"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "connection": {
+     "context_size": 1000,
+     "max_tokens": 100
+    }
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta"
+     },
+     {
+      "role": "assistant",
+      "content": "n alpha beta gamma delta n alpha beta gamma delta n alpha beta gamma delta n alpha beta gamma delta"
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 700,
+     "budget": 700,
+     "context_size": 1000,
+     "messages_included": 2,
+     "messages_total": 2,
+     "lore_matched": 0,
+     "facts_injected": 0,
+     "facts_total": 0,
+     "oldest_visible": 0,
+     "fact_positions": [],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "an older message that is one token over the room left",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gam"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "n alpha beta gamma delta n alpha beta gamma delta n alpha beta gamma delta n alpha beta gamma delta"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "connection": {
+     "context_size": 1000,
+     "max_tokens": 100
+    }
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "assistant",
+      "content": "n alpha beta gamma delta n alpha beta gamma delta n alpha beta gamma delta n alpha beta gamma delta"
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 219,
+     "budget": 700,
+     "context_size": 1000,
+     "messages_included": 1,
+     "messages_total": 2,
+     "lore_matched": 0,
+     "facts_injected": 0,
+     "facts_total": 0,
+     "oldest_visible": 1,
+     "fact_positions": [],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
    "name": "fold one leading assistant message",
    "input": {
     "character": {

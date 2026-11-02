@@ -15,14 +15,14 @@ from .defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
 from .macros import has_original_macro, substitute, substitute_original
 from .tokens import estimate_tokens
 
-# Re-stated at generation time because rule adherence decays with distance:
-# on a long chat the system prompt is thousands of tokens away, drowned out
-# by the model's own recent output.
 # Enough for what someone has deliberately marked, not so many that the block
 # becomes another wall of text to skim. Pinning more than this is a sign the
 # facts want consolidating rather than repeating.
 _MAX_PINNED_RESTATED = 8
 
+# Re-stated at generation time because rule adherence decays with distance:
+# on a long chat the system prompt is thousands of tokens away, drowned out
+# by the model's own recent output.
 _POST_HISTORY_REMINDER = (
     "[Stay in character as {{char}}. Write only {{char}}'s next turn. Every line "
     "of dialogue and every action must be a COMPLETE sentence — never leave "
@@ -83,7 +83,7 @@ def select_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
         if len(kept) >= _MAX_FACTS:
             break
         cost = estimate_tokens(memory.get("content") or "")
-        if memory not in pinned and cost > budget:
+        if not memory.get("is_pinned") and cost > budget:
             continue
         budget -= cost
         kept.append(memory)
@@ -98,7 +98,7 @@ def _format_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
     for memory in select_facts(memories, token_budget, relevance_scores):
         position = memory.get("source_position") or 0
         prefix = f"(turn {position}) " if position else ""
-        lines.append(f"- {prefix}{memory.get('content', '').strip()}")
+        lines.append(f"- {prefix}{(memory.get('content') or '').strip()}")
     return "\n".join(lines)
 
 
@@ -175,7 +175,7 @@ def _build_system(character: dict, persona: dict | None, summary: str,
         sections.append(f"### STORY SO FAR\n{summary}")
 
     if lore:
-        lore_block = "\n\n".join(entry.get("content", "").strip() for entry in lore)
+        lore_block = "\n\n".join((entry.get("content") or "").strip() for entry in lore)
         sections.append(f"### WORLD KNOWLEDGE (relevant to the current scene)\n{lore_block}")
 
     if memories:
