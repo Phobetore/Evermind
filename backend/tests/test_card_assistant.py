@@ -178,3 +178,59 @@ async def test_assist_reads_lore_entries_and_their_keys_only_when_they_are_lists
     assert resp.status_code == 200, resp.text
     content = fake_provider.captured["payload"].messages[0]["content"]
     assert "EXISTING LOREBOOK KEYWORDS (cover other subjects):\nclan\n" in content
+
+
+async def assist_with(client, fake_provider, reply):
+    await add_connection(client)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(reply)),
+                            ProviderEvent(type="done")]
+    resp = await client.post("/api/characters/assist", json={"prompt": "yakuza"})
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+async def test_assist_keeps_only_text_and_whole_numbers_in_a_list(client, fake_provider):
+    """``str()`` of a ``None`` or a ``True`` is "None" or "True", and is no tag."""
+    draft = await assist_with(client, fake_provider, {
+        "name": "Kenji",
+        "tags": ["a", None, True, 1984, 1.5, ["x"], {"b": 1}, "  Clan  "],
+        "alternate_greetings": [None, "*Rain.*", False, 7],
+    })
+    assert draft["tags"] == ["a", "1984", "clan"]
+    assert draft["alternate_greetings"] == ["*Rain.*", "7"]
+
+    draft = await assist_with(client, fake_provider, {"name": "Kenji", "tags": [None, True, 2.5]})
+    assert "tags" not in draft
+
+
+async def test_assist_reads_a_bare_string_as_one_keyword(client, fake_provider):
+    """``"keys": "yakuza"`` is one keyword, as ``"tags": "yakuza"`` is one tag, and
+    not the five letters that would each be found in nearly every message."""
+    draft = await assist_with(client, fake_provider, {
+        "lore_entries": [
+            {"keys": "  yakuza ", "content": "A crime syndicate."},
+            {"keys": "   ", "content": "No keyword once stripped."},
+            {"keys": 1984, "content": "A number is no list."},
+            {"keys": {"clan": 1}, "content": "An object is no list."},
+            {"keys": None, "content": "Nor is null."},
+            {"keys": ["a", None, 1984, True], "content": "Text and whole numbers."},
+        ],
+    })
+    assert draft["lore_entries"] == [
+        {"keys": ["yakuza"], "content": "A crime syndicate."},
+        {"keys": ["a", "1984"], "content": "Text and whole numbers."},
+    ]
+
+
+async def test_assist_reads_only_lists_of_entries_and_text_in_them(client, fake_provider):
+    # Not a list: no entries, and no failure (a number could not be sliced).
+    for lore in (5, True, "Kabukicho", {"keys": ["a"], "content": "c"}):
+        draft = await assist_with(client, fake_provider, {"name": "Kenji", "lore_entries": lore})
+        assert "lore_entries" not in draft, lore
+
+    draft = await assist_with(client, fake_provider, {"lore_entries": [
+        {"keys": ["a"], "content": ["not text"]},
+        {"keys": ["b"], "content": 12},
+        {"keys": ["c"], "content": "  Padded.  "},
+    ]})
+    assert draft["lore_entries"] == [{"keys": ["c"], "content": "Padded."}]

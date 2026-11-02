@@ -18,7 +18,10 @@ import numpy
 from app.prompting import defaults, payloads, retrieval, turn
 from app.prompting.engine import active_content, build_chat_payload, match_lore, select_facts
 from app.prompting.macros import has_original_macro, substitute, substitute_original
+from app.prompting.memory_changes import plan_consolidation, plan_memory_changes
 from app.prompting.tokens import estimate_tokens
+from app.services.card_assistant import clean_card_draft
+from app.services.llm_json import parse_llm_json
 
 PARITY_DIR = Path(__file__).resolve().parents[2] / "parity"
 
@@ -88,6 +91,19 @@ def default_prompts() -> dict[str, str]:
     }
 
 
+def memory_reply(text: str, existing: list[dict], top_position: int) -> dict | None:
+    """What an extraction does with a model's answer. None when the answer cannot
+    be read: the service raises then."""
+    parsed = parse_llm_json(text)
+    return None if parsed is None else plan_memory_changes(parsed, existing, top_position)
+
+
+def consolidation_reply(text: str, movable: list[dict]) -> dict | None:
+    """What a consolidation does with a model's answer. None when nothing in it can
+    be read: the service raises then."""
+    return plan_consolidation(parse_llm_json(text), movable)
+
+
 # One entry per ``fn`` named in the case files; a case calls it with its
 # ``input`` as keyword arguments. A function added here needs its twin in the
 # registry of frontend/src/engine/parity.test.ts.
@@ -118,6 +134,10 @@ FUNCTIONS: dict[str, Callable[..., Any]] = {
     "build_consolidation_payload": payloads.build_consolidation_payload,
     "build_card_payload": payloads.build_card_payload,
     "payload_limits": payload_limits,
+    "parse_llm_json": parse_llm_json,
+    "memory_reply": memory_reply,
+    "consolidation_reply": consolidation_reply,
+    "clean_card_draft": clean_card_draft,
 }
 
 

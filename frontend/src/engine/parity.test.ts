@@ -12,8 +12,11 @@ import {
   type PromptMemory,
   type PromptMessage,
 } from "./chat";
+import { cleanCardDraft } from "./cardDraft";
 import * as defaults from "./defaults";
+import { parseLlmJson } from "./llmJson";
 import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
+import { planConsolidation, planMemoryChanges, type KnownFact } from "./memoryChanges";
 import {
   MAX_TURNS_PER_RUN,
   MIN_FACTS_TO_CONSOLIDATE,
@@ -123,6 +126,16 @@ const FUNCTIONS: Record<string, (input: unknown) => unknown> = {
     max_turns_per_run: MAX_TURNS_PER_RUN,
     min_facts_to_consolidate: MIN_FACTS_TO_CONSOLIDATE,
   }),
+  parse_llm_json: adapt<{ text: string }>((i) => parseLlmJson(i.text)),
+  // The service raises on an answer that cannot be read: here it is null.
+  memory_reply: adapt<{ text: string; existing: KnownFact[]; top_position: number }>((i) => {
+    const parsed = parseLlmJson(i.text);
+    return parsed && planMemoryChanges(parsed, i.existing, i.top_position);
+  }),
+  consolidation_reply: adapt<{ text: string; movable: { source_position: number }[] }>((i) =>
+    planConsolidation(parseLlmJson(i.text), i.movable),
+  ),
+  clean_card_draft: adapt<{ draft: Record<string, unknown> }>((i) => cleanCardDraft(i.draft)),
 };
 
 const dir = fileURLToPath(new URL("../../../parity/", import.meta.url));

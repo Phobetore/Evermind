@@ -1,0 +1,2397 @@
+{
+ "cases": [
+  {
+   "fn": "clean_card_draft",
+   "name": "an empty draft",
+   "input": {
+    "draft": {}
+   },
+   "expected": {}
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "every text field",
+   "input": {
+    "draft": {
+     "name": "The name.",
+     "tagline": "The tagline.",
+     "description": "The description.",
+     "personality": "The personality.",
+     "scenario": "The scenario.",
+     "greeting": "The greeting.",
+     "example_dialogues": "The example_dialogues."
+    }
+   },
+   "expected": {
+    "name": "The name.",
+    "tagline": "The tagline.",
+    "description": "The description.",
+    "personality": "The personality.",
+    "scenario": "The scenario.",
+    "greeting": "The greeting.",
+    "example_dialogues": "The example_dialogues."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "text fields are stripped like Python strips",
+   "input": {
+    "draft": {
+     "name": "  Kenji  ",
+     "tagline": "\u00a0Nbsp\u00a0",
+     "description": "\u0085Nel\u0085",
+     "personality": "\u001cFs\u001f",
+     "scenario": "\u3000Ideographic\u3000",
+     "greeting": "\u2028Line\u2029",
+     "example_dialogues": "\u000b\fVertical\r\n"
+    }
+   },
+   "expected": {
+    "name": "Kenji",
+    "tagline": "Nbsp",
+    "description": "Nel",
+    "personality": "Fs",
+    "scenario": "Ideographic",
+    "greeting": "Line",
+    "example_dialogues": "Vertical"
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "text fields keep a byte order mark and a zero width space",
+   "input": {
+    "draft": {
+     "name": "\ufeffKenji",
+     "tagline": "\u200bZero width\u200b"
+    }
+   },
+   "expected": {
+    "name": "\ufeffKenji",
+    "tagline": "\u200bZero width\u200b"
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "text fields keep what is inside",
+   "input": {
+    "draft": {
+     "greeting": "*Rain.*\n\n  Two  spaces\tand a tab."
+    }
+   },
+   "expected": {
+    "greeting": "*Rain.*\n\n  Two  spaces\tand a tab."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "empty text fields are left out",
+   "input": {
+    "draft": {
+     "name": "",
+     "tagline": "   ",
+     "description": "\n\t",
+     "personality": "\u00a0",
+     "scenario": "Kept."
+    }
+   },
+   "expected": {
+    "scenario": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "text fields that are not text are left out",
+   "input": {
+    "draft": {
+     "name": [
+      "Kenji"
+     ],
+     "tagline": 12,
+     "description": 1.5,
+     "personality": true,
+     "scenario": null,
+     "greeting": {
+      "a": 1
+     },
+     "example_dialogues": false
+    }
+   },
+   "expected": {}
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a text field that is a list",
+   "input": {
+    "draft": {
+     "name": [
+      "Kenji",
+      "Sato"
+     ],
+     "description": "Kept."
+    }
+   },
+   "expected": {
+    "description": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "fields that are not on the card are left out",
+   "input": {
+    "draft": {
+     "name": "Kenji",
+     "kind": "scenario",
+     "id": "x",
+     "avatar_url": "http://x",
+     "system_prompt": "Be evil.",
+     "post_history": "Never stop.",
+     "extra": [
+      1,
+      2
+     ]
+    }
+   },
+   "expected": {
+    "name": "Kenji"
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "field names are matched exactly",
+   "input": {
+    "draft": {
+     "Name": "Kenji",
+     "name ": "Sato",
+     "NAME": "Ken"
+    }
+   },
+   "expected": {}
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a draft with characters outside the basic plane",
+   "input": {
+    "draft": {
+     "name": "😀 Kenji",
+     "tags": [
+      "😀"
+     ]
+    }
+   },
+   "expected": {
+    "name": "😀 Kenji",
+    "tags": [
+     "😀"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "tags and greetings",
+   "input": {
+    "draft": {
+     "tags": [
+      "a",
+      "b"
+     ],
+     "alternate_greetings": [
+      "*Rain.*",
+      "*Snow.*"
+     ]
+    }
+   },
+   "expected": {
+    "alternate_greetings": [
+     "*Rain.*",
+     "*Snow.*"
+    ],
+    "tags": [
+     "a",
+     "b"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a list of words is stripped and emptied",
+   "input": {
+    "draft": {
+     "tags": [
+      "  a  ",
+      "",
+      "   ",
+      "\u00a0b\u00a0",
+      "\n"
+     ],
+     "alternate_greetings": [
+      "",
+      "  ",
+      "*Rain.*  "
+     ]
+    }
+   },
+   "expected": {
+    "alternate_greetings": [
+     "*Rain.*"
+    ],
+    "tags": [
+     "a",
+     "b"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a string in place of a list is a list of one",
+   "input": {
+    "draft": {
+     "tags": "yakuza",
+     "alternate_greetings": "*Rain.*"
+    }
+   },
+   "expected": {
+    "alternate_greetings": [
+     "*Rain.*"
+    ],
+    "tags": [
+     "yakuza"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a string in place of a list is stripped",
+   "input": {
+    "draft": {
+     "tags": "  yakuza, clan  ",
+     "alternate_greetings": "\u00a0*Rain.*\n"
+    }
+   },
+   "expected": {
+    "alternate_greetings": [
+     "*Rain.*"
+    ],
+    "tags": [
+     "yakuza, clan"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a blank string in place of a list is nothing",
+   "input": {
+    "draft": {
+     "tags": "   ",
+     "alternate_greetings": "",
+     "name": "Kept."
+    }
+   },
+   "expected": {
+    "name": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "an empty list is nothing",
+   "input": {
+    "draft": {
+     "tags": [],
+     "alternate_greetings": [],
+     "name": "Kept."
+    }
+   },
+   "expected": {
+    "name": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a list of blanks is nothing",
+   "input": {
+    "draft": {
+     "tags": [
+      "",
+      " ",
+      "\n"
+     ],
+     "alternate_greetings": [
+      "  "
+     ],
+     "name": "Kept."
+    }
+   },
+   "expected": {
+    "name": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "what is no list and no string holds nothing",
+   "input": {
+    "draft": {
+     "tags": 5,
+     "alternate_greetings": {
+      "a": "b"
+     },
+     "name": "Kept."
+    }
+   },
+   "expected": {
+    "name": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "what is no list and no string holds nothing: true and null",
+   "input": {
+    "draft": {
+     "tags": true,
+     "alternate_greetings": null,
+     "name": "Kept."
+    }
+   },
+   "expected": {
+    "name": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "what is no list and no string holds nothing: a float",
+   "input": {
+    "draft": {
+     "tags": 2.5,
+     "alternate_greetings": false
+    }
+   },
+   "expected": {}
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "only text and whole numbers are words of a list",
+   "input": {
+    "draft": {
+     "tags": [
+      "a",
+      null,
+      true,
+      1984,
+      1.5,
+      [
+       "x"
+      ],
+      {
+       "b": 1
+      },
+      false,
+      "  Clan  ",
+      0,
+      -7
+     ],
+     "alternate_greetings": [
+      null,
+      "*Rain.*",
+      false,
+      7,
+      2.5,
+      [],
+      {}
+     ]
+    }
+   },
+   "expected": {
+    "alternate_greetings": [
+     "*Rain.*",
+     "7"
+    ],
+    "tags": [
+     "a",
+     "1984",
+     "clan",
+     "0",
+     "-7"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "tags that are not text",
+   "input": {
+    "draft": {
+     "tags": [
+      null,
+      true,
+      2.5,
+      [],
+      {}
+     ]
+    }
+   },
+   "expected": {}
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a whole number is its digits",
+   "input": {
+    "draft": {
+     "tags": [
+      1984,
+      0,
+      -3,
+      10,
+      100000
+     ],
+     "alternate_greetings": [
+      42
+     ]
+    }
+   },
+   "expected": {
+    "alternate_greetings": [
+     "42"
+    ],
+    "tags": [
+     "1984",
+     "0",
+     "-3",
+     "10",
+     "100000"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "the largest whole numbers that a float holds exactly",
+   "input": {
+    "draft": {
+     "tags": [
+      9007199254740991,
+      -9007199254740991
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "9007199254740991",
+     "-9007199254740991"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a number as text and as a number are two tags",
+   "input": {
+    "draft": {
+     "tags": [
+      "1984",
+      1984
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "1984",
+     "1984"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "the same tag twice is kept twice",
+   "input": {
+    "draft": {
+     "tags": [
+      "a",
+      "a",
+      "A"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "a",
+     "a",
+     "a"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "tags are lower-cased",
+   "input": {
+    "draft": {
+     "tags": [
+      "Fantasy",
+      "MYSTERY",
+      "Sci-Fi",
+      "cafÉ",
+      "À la carte"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "fantasy",
+     "mystery",
+     "sci-fi",
+     "café",
+     "à la carte"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "tags in a language with other capitals",
+   "input": {
+    "draft": {
+     "tags": [
+      "İstanbul",
+      "STRASSE",
+      "Straße",
+      "ẞeta",
+      "ǅ",
+      "Ĳ",
+      "Ångström"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "i\u0307stanbul",
+     "strasse",
+     "straße",
+     "ßeta",
+     "ǆ",
+     "ĳ",
+     "ångström"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "tags with a final sigma",
+   "input": {
+    "draft": {
+     "tags": [
+      "ΟΔΟΣ",
+      "Σ",
+      "ΣΑ",
+      "ΑΣ.",
+      "ΣΣ",
+      "ΑΣΑ",
+      "ΑΣ Α"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "οδος",
+     "σ",
+     "σα",
+     "ας.",
+     "σς",
+     "ασα",
+     "ας α"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "tags with the dotted capital I",
+   "input": {
+    "draft": {
+     "tags": [
+      "İ",
+      "İİ",
+      "AİB",
+      "I",
+      "ı"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "i\u0307",
+     "i\u0307i\u0307",
+     "ai\u0307b",
+     "i",
+     "ı"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag with characters outside the basic plane",
+   "input": {
+    "draft": {
+     "tags": [
+      "😀A",
+      "A😀",
+      "𐐀"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "😀a",
+     "a😀",
+     "𐐨"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "more than 8 tags are cut to 8",
+   "input": {
+    "draft": {
+     "tags": [
+      "Tag0",
+      "Tag1",
+      "Tag2",
+      "Tag3",
+      "Tag4",
+      "Tag5",
+      "Tag6",
+      "Tag7",
+      "Tag8",
+      "Tag9",
+      "Tag10",
+      "Tag11"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "tag0",
+     "tag1",
+     "tag2",
+     "tag3",
+     "tag4",
+     "tag5",
+     "tag6",
+     "tag7"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "8 tags are kept",
+   "input": {
+    "draft": {
+     "tags": [
+      "Tag0",
+      "Tag1",
+      "Tag2",
+      "Tag3",
+      "Tag4",
+      "Tag5",
+      "Tag6",
+      "Tag7"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "tag0",
+     "tag1",
+     "tag2",
+     "tag3",
+     "tag4",
+     "tag5",
+     "tag6",
+     "tag7"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "9 tags are cut to 8",
+   "input": {
+    "draft": {
+     "tags": [
+      "Tag0",
+      "Tag1",
+      "Tag2",
+      "Tag3",
+      "Tag4",
+      "Tag5",
+      "Tag6",
+      "Tag7",
+      "Tag8"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "tag0",
+     "tag1",
+     "tag2",
+     "tag3",
+     "tag4",
+     "tag5",
+     "tag6",
+     "tag7"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "the cut counts the tags that are words",
+   "input": {
+    "draft": {
+     "tags": [
+      null,
+      "",
+      "a",
+      true,
+      "b",
+      1,
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
+      "i",
+      "j"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "a",
+     "b",
+     "1",
+     "c",
+     "d",
+     "e",
+     "f",
+     "g"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag of 40 characters is kept",
+   "input": {
+    "draft": {
+     "tags": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag of 41 characters is cut to 40",
+   "input": {
+    "draft": {
+     "tags": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a long tag is cut after it is lower-cased",
+   "input": {
+    "draft": {
+     "tags": [
+      "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag cut before an emoji",
+   "input": {
+    "draft": {
+     "tags": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag cut after an emoji",
+   "input": {
+    "draft": {
+     "tags": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀b"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag that is all emoji is cut at 40",
+   "input": {
+    "draft": {
+     "tags": [
+      "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag cut through a pair of characters that lower-casing made",
+   "input": {
+    "draft": {
+     "tags": [
+      "İİİİİİİİİİİİİİİİİİİİİ",
+      "aİİİİİİİİİİİİİİİİİİİİ"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307",
+     "ai\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag cut leaves a space at its end",
+   "input": {
+    "draft": {
+     "tags": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag of 40 characters once lower-cased",
+   "input": {
+    "draft": {
+     "tags": [
+      "İİİİİİİİİİİİİİİİİİİİ"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "the alternate greetings are not cut or lower-cased",
+   "input": {
+    "draft": {
+     "alternate_greetings": [
+      "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA😀",
+      "*Rain.*",
+      "X",
+      "Greeting",
+      "Greeting",
+      "Greeting",
+      "Greeting",
+      "Greeting",
+      "Greeting",
+      "Greeting",
+      "Greeting",
+      "Greeting",
+      "Greeting",
+      "Greeting",
+      "Greeting"
+     ]
+    }
+   },
+   "expected": {
+    "alternate_greetings": [
+     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA😀",
+     "*Rain.*",
+     "X",
+     "Greeting",
+     "Greeting",
+     "Greeting",
+     "Greeting",
+     "Greeting",
+     "Greeting",
+     "Greeting",
+     "Greeting",
+     "Greeting",
+     "Greeting",
+     "Greeting",
+     "Greeting"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a lore entry",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "Kabukicho",
+        "kabukicho"
+       ],
+       "content": "The red-light district."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "Kabukicho",
+       "kabukicho"
+      ],
+      "content": "The red-light district."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore entries as the model writes them",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "Kabukicho",
+        "kabukicho"
+       ],
+       "content": "The red-light district of Shinjuku."
+      },
+      {
+       "keys": [
+        "clan Sato"
+       ],
+       "content": "The family that runs the docks."
+      },
+      {
+       "keys": [],
+       "content": "Entry with no keyword, to discard."
+      },
+      {
+       "keys": [
+        "vide"
+       ],
+       "content": "   "
+      },
+      "not an object"
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "Kabukicho",
+       "kabukicho"
+      ],
+      "content": "The red-light district of Shinjuku."
+     },
+     {
+      "keys": [
+       "clan Sato"
+      ],
+      "content": "The family that runs the docks."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore keys are stripped, and the empty ones go",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "  Kabukicho  ",
+        "",
+        "  ",
+        "\u00a0clan\u00a0"
+       ],
+       "content": "Text."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "Kabukicho",
+       "clan"
+      ],
+      "content": "Text."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore content is stripped",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "a"
+       ],
+       "content": "  \u00a0Padded.\n\t"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "a"
+      ],
+      "content": "Padded."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a bare string is one lore keyword",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": "yakuza",
+       "content": "A crime syndicate."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "yakuza"
+      ],
+      "content": "A crime syndicate."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a bare string with spaces is one lore keyword, stripped",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": "  yakuza, clan  ",
+       "content": "A crime syndicate."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "yakuza, clan"
+      ],
+      "content": "A crime syndicate."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a blank string is no lore keyword",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": "   ",
+       "content": "No keyword once stripped."
+      },
+      {
+       "keys": "",
+       "content": "Nor this."
+      }
+     ]
+    }
+   },
+   "expected": {}
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a bare string is not read letter by letter",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": "abc",
+       "content": "Not three keywords."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "abc"
+      ],
+      "content": "Not three keywords."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore keys that are a number or an object hold nothing",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": 1984,
+       "content": "A number is no list."
+      },
+      {
+       "keys": 2.5,
+       "content": "Nor a float."
+      },
+      {
+       "keys": {
+        "clan": 1
+       },
+       "content": "An object is no list."
+      },
+      {
+       "keys": true,
+       "content": "Nor true."
+      },
+      {
+       "keys": null,
+       "content": "Nor null."
+      },
+      {
+       "content": "Nor nothing."
+      },
+      {
+       "keys": [
+        "clan"
+       ],
+       "content": "Kept."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "clan"
+      ],
+      "content": "Kept."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "only text and whole numbers are lore keywords",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "a",
+        null,
+        1984,
+        true,
+        2.5,
+        [
+         "x"
+        ],
+        {
+         "y": 1
+        },
+        false,
+        "  b  "
+       ],
+       "content": "Mixed."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "a",
+       "1984",
+       "b"
+      ],
+      "content": "Mixed."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore keywords that are not text",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        null,
+        true,
+        2.5
+       ],
+       "content": "None."
+      }
+     ]
+    }
+   },
+   "expected": {}
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "more than 6 lore keywords are cut to 6",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "key0",
+        "key1",
+        "key2",
+        "key3",
+        "key4",
+        "key5",
+        "key6",
+        "key7",
+        "key8",
+        "key9"
+       ],
+       "content": "Many."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "key0",
+       "key1",
+       "key2",
+       "key3",
+       "key4",
+       "key5"
+      ],
+      "content": "Many."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "6 and 7 lore keywords",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "key0",
+        "key1",
+        "key2",
+        "key3",
+        "key4",
+        "key5"
+       ],
+       "content": "Six."
+      },
+      {
+       "keys": [
+        "key0",
+        "key1",
+        "key2",
+        "key3",
+        "key4",
+        "key5",
+        "key6"
+       ],
+       "content": "Seven."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "key0",
+       "key1",
+       "key2",
+       "key3",
+       "key4",
+       "key5"
+      ],
+      "content": "Six."
+     },
+     {
+      "keys": [
+       "key0",
+       "key1",
+       "key2",
+       "key3",
+       "key4",
+       "key5"
+      ],
+      "content": "Seven."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "the cut counts the keywords that are words",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        null,
+        "a",
+        "",
+        "b",
+        true,
+        "c",
+        1,
+        "d",
+        "e",
+        "f",
+        "g"
+       ],
+       "content": "Cut."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "a",
+       "b",
+       "c",
+       "1",
+       "d",
+       "e"
+      ],
+      "content": "Cut."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore keywords keep their case",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "Kabukicho",
+        "KABUKICHO"
+       ],
+       "content": "Text."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "Kabukicho",
+       "KABUKICHO"
+      ],
+      "content": "Text."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore content that is not text",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "a"
+       ],
+       "content": [
+        "not text"
+       ]
+      },
+      {
+       "keys": [
+        "b"
+       ],
+       "content": 12
+      },
+      {
+       "keys": [
+        "c"
+       ],
+       "content": null
+      },
+      {
+       "keys": [
+        "d"
+       ],
+       "content": true
+      },
+      {
+       "keys": [
+        "e"
+       ],
+       "content": {
+        "x": 1
+       }
+      },
+      {
+       "keys": [
+        "f"
+       ]
+      },
+      {
+       "keys": [
+        "g"
+       ],
+       "content": "  Padded.  "
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "g"
+      ],
+      "content": "Padded."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "an entry with no keyword or no content goes",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [],
+       "content": "No keyword."
+      },
+      {
+       "keys": [
+        "a"
+       ],
+       "content": ""
+      },
+      {
+       "keys": [
+        "b"
+       ],
+       "content": "   "
+      },
+      {
+       "keys": [
+        ""
+       ],
+       "content": "Blank keyword."
+      },
+      {},
+      {
+       "keys": [
+        "c"
+       ],
+       "content": "Kept."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "c"
+      ],
+      "content": "Kept."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "entries that are not objects go",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      "text",
+      5,
+      null,
+      [
+       "a"
+      ],
+      true,
+      [
+       {
+        "keys": [
+         "a"
+        ],
+        "content": "In a list."
+       }
+      ],
+      {
+       "keys": [
+        "b"
+       ],
+       "content": "Kept."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "b"
+      ],
+      "content": "Kept."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "8 lore entries are kept",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "k0"
+       ],
+       "content": "Entry 0."
+      },
+      {
+       "keys": [
+        "k1"
+       ],
+       "content": "Entry 1."
+      },
+      {
+       "keys": [
+        "k2"
+       ],
+       "content": "Entry 2."
+      },
+      {
+       "keys": [
+        "k3"
+       ],
+       "content": "Entry 3."
+      },
+      {
+       "keys": [
+        "k4"
+       ],
+       "content": "Entry 4."
+      },
+      {
+       "keys": [
+        "k5"
+       ],
+       "content": "Entry 5."
+      },
+      {
+       "keys": [
+        "k6"
+       ],
+       "content": "Entry 6."
+      },
+      {
+       "keys": [
+        "k7"
+       ],
+       "content": "Entry 7."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "k0"
+      ],
+      "content": "Entry 0."
+     },
+     {
+      "keys": [
+       "k1"
+      ],
+      "content": "Entry 1."
+     },
+     {
+      "keys": [
+       "k2"
+      ],
+      "content": "Entry 2."
+     },
+     {
+      "keys": [
+       "k3"
+      ],
+      "content": "Entry 3."
+     },
+     {
+      "keys": [
+       "k4"
+      ],
+      "content": "Entry 4."
+     },
+     {
+      "keys": [
+       "k5"
+      ],
+      "content": "Entry 5."
+     },
+     {
+      "keys": [
+       "k6"
+      ],
+      "content": "Entry 6."
+     },
+     {
+      "keys": [
+       "k7"
+      ],
+      "content": "Entry 7."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "9 lore entries are cut to 8",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "k0"
+       ],
+       "content": "Entry 0."
+      },
+      {
+       "keys": [
+        "k1"
+       ],
+       "content": "Entry 1."
+      },
+      {
+       "keys": [
+        "k2"
+       ],
+       "content": "Entry 2."
+      },
+      {
+       "keys": [
+        "k3"
+       ],
+       "content": "Entry 3."
+      },
+      {
+       "keys": [
+        "k4"
+       ],
+       "content": "Entry 4."
+      },
+      {
+       "keys": [
+        "k5"
+       ],
+       "content": "Entry 5."
+      },
+      {
+       "keys": [
+        "k6"
+       ],
+       "content": "Entry 6."
+      },
+      {
+       "keys": [
+        "k7"
+       ],
+       "content": "Entry 7."
+      },
+      {
+       "keys": [
+        "k8"
+       ],
+       "content": "Entry 8."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "k0"
+      ],
+      "content": "Entry 0."
+     },
+     {
+      "keys": [
+       "k1"
+      ],
+      "content": "Entry 1."
+     },
+     {
+      "keys": [
+       "k2"
+      ],
+      "content": "Entry 2."
+     },
+     {
+      "keys": [
+       "k3"
+      ],
+      "content": "Entry 3."
+     },
+     {
+      "keys": [
+       "k4"
+      ],
+      "content": "Entry 4."
+     },
+     {
+      "keys": [
+       "k5"
+      ],
+      "content": "Entry 5."
+     },
+     {
+      "keys": [
+       "k6"
+      ],
+      "content": "Entry 6."
+     },
+     {
+      "keys": [
+       "k7"
+      ],
+      "content": "Entry 7."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "12 lore entries are cut to 8",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "k0"
+       ],
+       "content": "Entry 0."
+      },
+      {
+       "keys": [
+        "k1"
+       ],
+       "content": "Entry 1."
+      },
+      {
+       "keys": [
+        "k2"
+       ],
+       "content": "Entry 2."
+      },
+      {
+       "keys": [
+        "k3"
+       ],
+       "content": "Entry 3."
+      },
+      {
+       "keys": [
+        "k4"
+       ],
+       "content": "Entry 4."
+      },
+      {
+       "keys": [
+        "k5"
+       ],
+       "content": "Entry 5."
+      },
+      {
+       "keys": [
+        "k6"
+       ],
+       "content": "Entry 6."
+      },
+      {
+       "keys": [
+        "k7"
+       ],
+       "content": "Entry 7."
+      },
+      {
+       "keys": [
+        "k8"
+       ],
+       "content": "Entry 8."
+      },
+      {
+       "keys": [
+        "k9"
+       ],
+       "content": "Entry 9."
+      },
+      {
+       "keys": [
+        "k10"
+       ],
+       "content": "Entry 10."
+      },
+      {
+       "keys": [
+        "k11"
+       ],
+       "content": "Entry 11."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "k0"
+      ],
+      "content": "Entry 0."
+     },
+     {
+      "keys": [
+       "k1"
+      ],
+      "content": "Entry 1."
+     },
+     {
+      "keys": [
+       "k2"
+      ],
+      "content": "Entry 2."
+     },
+     {
+      "keys": [
+       "k3"
+      ],
+      "content": "Entry 3."
+     },
+     {
+      "keys": [
+       "k4"
+      ],
+      "content": "Entry 4."
+     },
+     {
+      "keys": [
+       "k5"
+      ],
+      "content": "Entry 5."
+     },
+     {
+      "keys": [
+       "k6"
+      ],
+      "content": "Entry 6."
+     },
+     {
+      "keys": [
+       "k7"
+      ],
+      "content": "Entry 7."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "the cut counts the entries that are not usable",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      "junk",
+      5,
+      null,
+      {
+       "keys": [
+        "k0"
+       ],
+       "content": "Entry 0."
+      },
+      {
+       "keys": [
+        "k1"
+       ],
+       "content": "Entry 1."
+      },
+      {
+       "keys": [
+        "k2"
+       ],
+       "content": "Entry 2."
+      },
+      {
+       "keys": [
+        "k3"
+       ],
+       "content": "Entry 3."
+      },
+      {
+       "keys": [
+        "k4"
+       ],
+       "content": "Entry 4."
+      },
+      {
+       "keys": [
+        "k5"
+       ],
+       "content": "Entry 5."
+      },
+      {
+       "keys": [
+        "k6"
+       ],
+       "content": "Entry 6."
+      },
+      {
+       "keys": [
+        "k7"
+       ],
+       "content": "Entry 7."
+      },
+      {
+       "keys": [
+        "k8"
+       ],
+       "content": "Entry 8."
+      },
+      {
+       "keys": [
+        "k9"
+       ],
+       "content": "Entry 9."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "k0"
+      ],
+      "content": "Entry 0."
+     },
+     {
+      "keys": [
+       "k1"
+      ],
+      "content": "Entry 1."
+     },
+     {
+      "keys": [
+       "k2"
+      ],
+      "content": "Entry 2."
+     },
+     {
+      "keys": [
+       "k3"
+      ],
+      "content": "Entry 3."
+     },
+     {
+      "keys": [
+       "k4"
+      ],
+      "content": "Entry 4."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "the cut counts entries with no keyword",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [],
+       "content": "Dropped."
+      },
+      {
+       "keys": [],
+       "content": "Dropped."
+      },
+      {
+       "keys": [],
+       "content": "Dropped."
+      },
+      {
+       "keys": [],
+       "content": "Dropped."
+      },
+      {
+       "keys": [
+        "k0"
+       ],
+       "content": "Entry 0."
+      },
+      {
+       "keys": [
+        "k1"
+       ],
+       "content": "Entry 1."
+      },
+      {
+       "keys": [
+        "k2"
+       ],
+       "content": "Entry 2."
+      },
+      {
+       "keys": [
+        "k3"
+       ],
+       "content": "Entry 3."
+      },
+      {
+       "keys": [
+        "k4"
+       ],
+       "content": "Entry 4."
+      },
+      {
+       "keys": [
+        "k5"
+       ],
+       "content": "Entry 5."
+      },
+      {
+       "keys": [
+        "k6"
+       ],
+       "content": "Entry 6."
+      },
+      {
+       "keys": [
+        "k7"
+       ],
+       "content": "Entry 7."
+      },
+      {
+       "keys": [
+        "k8"
+       ],
+       "content": "Entry 8."
+      },
+      {
+       "keys": [
+        "k9"
+       ],
+       "content": "Entry 9."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "k0"
+      ],
+      "content": "Entry 0."
+     },
+     {
+      "keys": [
+       "k1"
+      ],
+      "content": "Entry 1."
+     },
+     {
+      "keys": [
+       "k2"
+      ],
+      "content": "Entry 2."
+     },
+     {
+      "keys": [
+       "k3"
+      ],
+      "content": "Entry 3."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "no lore entries",
+   "input": {
+    "draft": {
+     "lore_entries": []
+    }
+   },
+   "expected": {}
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore entries that are a number",
+   "input": {
+    "draft": {
+     "lore_entries": 5,
+     "name": "Kept."
+    }
+   },
+   "expected": {
+    "name": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore entries that are true",
+   "input": {
+    "draft": {
+     "lore_entries": true,
+     "name": "Kept."
+    }
+   },
+   "expected": {
+    "name": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore entries that are null",
+   "input": {
+    "draft": {
+     "lore_entries": null,
+     "name": "Kept."
+    }
+   },
+   "expected": {
+    "name": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore entries that are a string",
+   "input": {
+    "draft": {
+     "lore_entries": "Kabukicho",
+     "name": "Kept."
+    }
+   },
+   "expected": {
+    "name": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore entries that are one object",
+   "input": {
+    "draft": {
+     "lore_entries": {
+      "keys": [
+       "a"
+      ],
+      "content": "Not in a list."
+     },
+     "name": "Kept."
+    }
+   },
+   "expected": {
+    "name": "Kept."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore entries that are a list of lists",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      [
+       {
+        "keys": [
+         "a"
+        ],
+        "content": "Deep."
+       }
+      ]
+     ]
+    }
+   },
+   "expected": {}
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "an entry keeps no other field",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "a"
+       ],
+       "content": "Text.",
+       "id": "x",
+       "priority": 3,
+       "enabled": false
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "a"
+      ],
+      "content": "Text."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a whole card",
+   "input": {
+    "draft": {
+     "name": "Kenji Sato",
+     "tagline": "A quiet man with a loud past.",
+     "description": "A yakuza of Kabukicho.",
+     "personality": "calm, watchful",
+     "scenario": "{{user}} owes him a favour.",
+     "greeting": "*Rain falls.* Tu n'es personne, {{user}}.",
+     "alternate_greetings": [
+      "*He nods.*"
+     ],
+     "example_dialogues": "<START>\n{{user}}: Hi\n{{char}}: Hm.",
+     "tags": [
+      "Yakuza",
+      "Realistic",
+      "Noir"
+     ],
+     "lore_entries": [
+      {
+       "keys": [
+        "Kabukicho"
+       ],
+       "content": "The district."
+      },
+      {
+       "keys": "clan Sato",
+       "content": "The clan."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "name": "Kenji Sato",
+    "tagline": "A quiet man with a loud past.",
+    "description": "A yakuza of Kabukicho.",
+    "personality": "calm, watchful",
+    "scenario": "{{user}} owes him a favour.",
+    "greeting": "*Rain falls.* Tu n'es personne, {{user}}.",
+    "example_dialogues": "<START>\n{{user}}: Hi\n{{char}}: Hm.",
+    "alternate_greetings": [
+     "*He nods.*"
+    ],
+    "tags": [
+     "yakuza",
+     "realistic",
+     "noir"
+    ],
+    "lore_entries": [
+     {
+      "keys": [
+       "Kabukicho"
+      ],
+      "content": "The district."
+     },
+     {
+      "keys": [
+       "clan Sato"
+      ],
+      "content": "The clan."
+     }
+    ]
+   }
+  }
+ ]
+}

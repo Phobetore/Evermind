@@ -19,6 +19,7 @@ import {
   MEMORY_EXTRACTION_PROMPT,
   SUMMARIZE_PROMPT,
 } from "./defaults";
+import { isRecord } from "./llmJson";
 import { substitute } from "./macros";
 import { pyStrip } from "./text";
 
@@ -189,10 +190,6 @@ export function loreKeyword(key: unknown): string {
   if (typeof key === "string") return pyStrip(key);
   if (typeof key === "number" && Number.isSafeInteger(key)) return String(key);
   return "";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 // A lorebook, or the keys of an entry, that is not a list holds nothing, whatever

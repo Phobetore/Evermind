@@ -13,7 +13,13 @@ from ..errors import (
     AppError,
     model_failure,
 )
-from ..prompting.payloads import LIST_FIELDS, TEXT_FIELDS, build_card_payload, existing_fields
+from ..prompting.payloads import (
+    LIST_FIELDS,
+    TEXT_FIELDS,
+    build_card_payload,
+    existing_fields,
+    lore_keyword,
+)
 from ..providers import get_provider
 from ..repositories import connections as connections_repo
 from ..repositories import settings as settings_repo
@@ -39,7 +45,17 @@ async def _resolve_connection(db: aiosqlite.Connection, connection_id: str | Non
     return connection
 
 
-def _clean(draft: dict) -> dict:
+def _words(value: object) -> list[str]:
+    """The words in what the model gave for a list: the text of each element that
+    is text or a whole number, and a bare string is a list of one. Anything else is
+    not a word, and a value that is no list holds none: a string is not a row of
+    letters, which lore matching would find in nearly every message."""
+    if isinstance(value, str):
+        value = [value]
+    return [word for word in map(lore_keyword, value if isinstance(value, list) else []) if word]
+
+
+def clean_card_draft(draft: dict) -> dict:
     """Whitelist and normalize what the model returned."""
     out: dict = {}
     for field in TEXT_FIELDS:
@@ -47,22 +63,20 @@ def _clean(draft: dict) -> dict:
         if isinstance(value, str) and value.strip():
             out[field] = value.strip()
     for field in LIST_FIELDS:
-        value = draft.get(field)
-        if isinstance(value, list):
-            items = [str(v).strip() for v in value if str(v).strip()]
-            if items:
-                out[field] = items
-        elif isinstance(value, str) and value.strip():
-            out[field] = [value.strip()]
+        items = _words(draft.get(field))
+        if items:
+            out[field] = items
     if "tags" in out:
         out["tags"] = [t.lower()[:40] for t in out["tags"]][:8]
 
     entries = []
-    for raw in (draft.get("lore_entries") or [])[:_MAX_LORE_ENTRIES]:
+    lore = draft.get("lore_entries")
+    for raw in (lore if isinstance(lore, list) else [])[:_MAX_LORE_ENTRIES]:
         if not isinstance(raw, dict):
             continue
-        keys = [str(k).strip() for k in raw.get("keys") or [] if str(k).strip()]
-        content = str(raw.get("content") or "").strip()
+        keys = _words(raw.get("keys"))
+        content = raw.get("content")
+        content = content.strip() if isinstance(content, str) else ""
         if keys and content:
             entries.append({"keys": keys[:6], "content": content})
     if entries:
@@ -92,7 +106,7 @@ async def generate_card(db: aiosqlite.Connection, prompt: str, kind: str,
     if parsed is None:
         raise AppError("The model did not return a readable card. Try again.", 502,
                        kind=MODEL_UNREADABLE)
-    draft = _clean(parsed)
+    draft = clean_card_draft(parsed)
     if not draft:
         raise AppError("The model returned an empty card. Try again.", 502, kind=MODEL_EMPTY)
     # never overwrite what the creator already wrote

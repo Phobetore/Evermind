@@ -21,6 +21,7 @@ from ..errors import (
 )
 from ..prompting import embeddings
 from ..prompting.engine import active_content
+from ..prompting.memory_changes import plan_consolidation, plan_memory_changes
 from ..prompting.payloads import (
     MIN_FACTS_TO_CONSOLIDATE,
     build_consolidation_payload,
@@ -128,24 +129,39 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
             chunks.append(event.text)
         elif event.type == "error":
             raise model_failure(event.message, event.meta)
-    parsed = parse_llm_json("".join(chunks))
-    merged = [f for f in (parsed or {}).get("facts") or []
-              if isinstance(f, dict) and str(f.get("content") or "").strip()]
-    if not merged:
+    merged = plan_consolidation(parse_llm_json("".join(chunks)), movable)
+    if merged is None:
         raise AppError("Unreadable consolidation — try again.", 502, kind=MODEL_UNREADABLE)
 
-    # Merged facts inherit the OLDEST source position: consolidation produces
-    # long-term memory, and a recent stamp would make the engine treat it as
-    # covered by the visible history window and mute it for dozens of turns.
-    base_position = min((m["source_position"] for m in movable), default=0)
     for m in movable:
         await memories_repo.delete(db, m["id"])
-    for f in merged[:30]:
-        await memories_repo.add(db, convo_id, content=str(f.get("content")),
-                                kind=str(f.get("kind") or "fact"),
-                                source_position=base_position, source="auto")
+    for f in merged["facts"]:
+        await memories_repo.add(db, convo_id, content=f["content"], kind=f["kind"],
+                                source_position=merged["source_position"], source="auto")
     remaining = await memories_repo.list_for_conversation(db, convo_id)
     return {"before": len(all_facts), "after": len(remaining), "memories": remaining}
+
+
+async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict]) -> list[dict]:
+    """Make the changes of ``plan_memory_changes`` one after the other, and return the
+    facts that were added. A fact that cannot be found any more is left alone."""
+    added = []
+    for op in ops:
+        if op["op"] == "add":
+            saved = await memories_repo.add(
+                db, convo_id, content=op["content"], kind=op["kind"],
+                source_position=op["source_position"], source=op["source"])
+            if saved:
+                added.append(saved)
+            continue
+        target = await memories_repo.find_by_content(db, convo_id, op["target"])
+        if target is None:
+            continue
+        if op["op"] == "update":
+            await memories_repo.update(db, target["id"], content=op["content"])
+        else:
+            await memories_repo.delete(db, target["id"])
+    return added
 
 
 async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
@@ -176,45 +192,15 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
         raise AppError("Unreadable memory response (JSON expected).", 502,
                        kind=MODEL_UNREADABLE)
 
-    added = []
-    for fact in parsed.get("facts") or []:
-        if not isinstance(fact, dict):
-            continue
-        saved = await memories_repo.add(
-            db, convo_id,
-            content=str(fact.get("content") or ""),
-            kind=str(fact.get("kind") or "fact"),
-            source_position=top_position,
-            source="auto",
-        )
-        if saved:
-            added.append(saved)
-
-    # Maintenance: corrections and merges. Pinned facts are untouchable.
-    for update in parsed.get("updated_facts") or []:
-        if not isinstance(update, dict):
-            continue
-        new_content = str(update.get("content") or "").strip()
-        if not new_content:
-            continue
-        target = await memories_repo.find_by_content(db, convo_id,
-                                                     str(update.get("replaces") or ""))
-        if target is None:
-            saved = await memories_repo.add(db, convo_id, content=new_content,
-                                            source_position=top_position, source="auto")
-            if saved:
-                added.append(saved)
-        elif not target["is_pinned"]:
-            await memories_repo.update(db, target["id"], content=new_content)
-    for obsolete in parsed.get("obsolete_facts") or []:
-        target = await memories_repo.find_by_content(db, convo_id, str(obsolete or ""))
-        if target and not target["is_pinned"] and target["source"] == "auto":
-            await memories_repo.delete(db, target["id"])
+    # What the memory holds now rather than before the model was asked: a fact
+    # pinned in the meantime is no longer one to correct or drop.
+    changes = plan_memory_changes(
+        parsed, await memories_repo.list_in_lookup_order(db, convo_id), top_position)
+    added = await _apply(db, convo_id, changes["ops"])
 
     updates: dict = {}
-    summary = parsed.get("summary")
-    if isinstance(summary, str) and summary.strip():
-        updates["summary"] = summary.strip()
+    if changes["summary"]:
+        updates["summary"] = changes["summary"]
     await convo_repo.update(db, convo_id, updates)
     await db.execute("UPDATE conversations SET memory_position = ? WHERE id = ?",
                      (top_position, convo_id))

@@ -35,10 +35,12 @@ def _try_decode(text: str) -> dict | None:
     text = text.strip()
     if not text:
         return None
+    # A RecursionError is no ValueError: a reply nested past what the decoder
+    # follows is one that cannot be read, not a turn that ends.
     try:
         obj = json.loads(text)
         return obj if isinstance(obj, dict) else None
-    except ValueError:
+    except (ValueError, RecursionError):
         pass
     start = text.find("{")
     if start == -1:
@@ -47,7 +49,7 @@ def _try_decode(text: str) -> dict | None:
         # raw_decode reads one complete object and ignores trailing chatter
         obj, _ = json.JSONDecoder().raw_decode(text[start:])
         return obj if isinstance(obj, dict) else None
-    except ValueError:
+    except (ValueError, RecursionError):
         return None
 
 

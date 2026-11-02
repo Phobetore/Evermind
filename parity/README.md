@@ -14,3 +14,7 @@ Each `fn` is registered on both sides, in `FUNCTIONS` (`backend/tests/parity_cas
 `frontend/src/engine/parity.test.ts`; a test fails for a function with no case or a case
 with no function. Characters that cannot be told apart in a file (controls, spaces other
 than " ", zero-width marks, the byte order mark) are written as `\uXXXX` escapes.
+
+What a case file cannot hold is tested directly, on both sides, in `frontend/src/engine/llmJson.test.ts`
+and `backend/tests/test_llm_json.py`: NaN and the infinities, lone surrogates, integers past 2^53,
+and replies nested 100,000 deep.

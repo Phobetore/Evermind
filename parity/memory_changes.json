@@ -1,0 +1,6652 @@
+{
+ "cases": [
+  {
+   "fn": "memory_reply",
+   "name": "a fact",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Alex broke the seal.\", \"kind\": \"event\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Alex broke the seal.",
+      "kind": "event",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "every allowed kind",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"A fact.\", \"kind\": \"fact\"}, {\"content\": \"A event.\", \"kind\": \"event\"}, {\"content\": \"A relationship.\", \"kind\": \"relationship\"}, {\"content\": \"A promise.\", \"kind\": \"promise\"}, {\"content\": \"A state.\", \"kind\": \"state\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "A fact.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "A event.",
+      "kind": "event",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "A relationship.",
+      "kind": "relationship",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "A promise.",
+      "kind": "promise",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "A state.",
+      "kind": "state",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a kind that is not allowed becomes a fact",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Kind 0.\", \"kind\": \"Event\"}, {\"content\": \"Kind 1.\", \"kind\": \" event\"}, {\"content\": \"Kind 2.\", \"kind\": \"events\"}, {\"content\": \"Kind 3.\", \"kind\": \"\"}, {\"content\": \"Kind 4.\", \"kind\": \"junk\"}, {\"content\": \"Kind 5.\", \"kind\": \"FACT\"}, {\"content\": \"Kind 6.\", \"kind\": \"state \"}, {\"content\": \"Kind 7.\", \"kind\": \"relationship\\n\"}, {\"content\": \"Kind 8.\", \"kind\": \"événement\"}, {\"content\": \"Kind 9.\", \"kind\": \"rumour\"}, {\"content\": \"Kind 10.\", \"kind\": \"note\"}, {\"content\": \"Kind 11.\", \"kind\": \"memory\"}, {\"content\": \"Kind 12.\", \"kind\": \"goal\"}, {\"content\": \"Kind 13.\", \"kind\": \"secret\"}, {\"content\": \"Kind 14.\", \"kind\": \"location\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kind 0.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 1.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 2.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 3.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 4.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 5.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 6.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 7.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 8.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 9.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 10.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 11.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 12.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 13.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 14.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "no kind",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"No kind.\"}, {\"content\": \"Null kind.\", \"kind\": null}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "No kind.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Null kind.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a kind that is not text is no kind",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Kind 0.\", \"kind\": 3}, {\"content\": \"Kind 1.\", \"kind\": [\"event\"]}, {\"content\": \"Kind 2.\", \"kind\": {\"a\": 1}}, {\"content\": \"Kind 3.\", \"kind\": true}, {\"content\": \"Kind 4.\", \"kind\": 1.5}, {\"content\": \"Kind 5.\", \"kind\": false}, {\"content\": \"Kind 6.\", \"kind\": []}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kind 0.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 1.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 2.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 3.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 4.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 5.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Kind 6.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a content is stripped like Python strips",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"  padded  \"}, {\"content\": \"\u00a0no-break\u00a0\"}, {\"content\": \"\u0085next line\u0085\"}, {\"content\": \"\\u001cfile\\u001f\"}, {\"content\": \"\u3000ideographic\u3000\"}, {\"content\": \"\u2028line\u2029\"}, {\"content\": \"\\u000b\\fvertical and form feed\\r\\n\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "padded",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "no-break",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "next line",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "file",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "ideographic",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "line",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "vertical and form feed",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a content with a byte order mark or a zero width space is not stripped",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"\ufeffBom fact.\"}, {\"content\": \"\u200bZero width fact.\u200b\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "\ufeffBom fact.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "\u200bZero width fact.\u200b",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "the inside of a content is left alone",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"two  spaces\\tand\\nlines\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "two  spaces\tand\nlines",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a content with characters outside the basic plane",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Alex gave Serana a 🗡\ufe0f.\"}, {\"content\": \"😀\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Alex gave Serana a 🗡\ufe0f.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "😀",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "the same text twice",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Same.\"}, {\"content\": \"Same.\", \"kind\": \"event\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Same.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "the same text twice, once stripped",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Same.\"}, {\"content\": \"  Same.\\n\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Same.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a text that differs by its case or an inner space is another",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Same.\"}, {\"content\": \"same.\"}, {\"content\": \"Sa me.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Same.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "same.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Sa me.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a text that is already known",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Old one.\", \"kind\": \"event\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a text that is already known, once stripped",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"  Old one.\\t\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a text that is a pinned fact",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Pinned fact.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a known text with a stray space is not the same",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Old one.\", \"kind\": \"state\"}]}",
+    "existing": [
+     {
+      "content": " Old one. ",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Old one.",
+      "kind": "state",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an empty content",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"\"}, {\"content\": \"   \"}, {\"content\": \"\\n\\t\"}, {\"content\": \"\u00a0\"}, {\"kind\": \"event\"}, {\"content\": null}, {\"content\": \"Kept.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kept.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a content that is not text",
+   "input": {
+    "text": "{\"facts\": [{\"content\": [\"a\"]}, {\"content\": 12}, {\"content\": 1.5}, {\"content\": true}, {\"content\": false}, {\"content\": null}, {\"content\": {\"a\": 1}}, {\"content\": []}, {\"content\": \"Kept.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kept.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a fact that is not an object",
+   "input": {
+    "text": "{\"facts\": [\"a line\", 5, null, [\"a\"], true, [{\"content\": \"In a list.\"}], {\"content\": \"Kept.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kept.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "facts that are not a list",
+   "input": {
+    "text": "{\"facts\": \"abc\"}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "facts that are an object",
+   "input": {
+    "text": "{\"facts\": {\"content\": \"Not in a list.\"}}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "facts that are a number",
+   "input": {
+    "text": "{\"facts\": 5}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "facts that are null",
+   "input": {
+    "text": "{\"facts\": null}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "facts that are true",
+   "input": {
+    "text": "{\"facts\": true}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "no facts at all",
+   "input": {
+    "text": "{}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "45 facts are all kept",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Fact number 0.\"}, {\"content\": \"Fact number 1.\"}, {\"content\": \"Fact number 2.\"}, {\"content\": \"Fact number 3.\"}, {\"content\": \"Fact number 4.\"}, {\"content\": \"Fact number 5.\"}, {\"content\": \"Fact number 6.\"}, {\"content\": \"Fact number 7.\"}, {\"content\": \"Fact number 8.\"}, {\"content\": \"Fact number 9.\"}, {\"content\": \"Fact number 10.\"}, {\"content\": \"Fact number 11.\"}, {\"content\": \"Fact number 12.\"}, {\"content\": \"Fact number 13.\"}, {\"content\": \"Fact number 14.\"}, {\"content\": \"Fact number 15.\"}, {\"content\": \"Fact number 16.\"}, {\"content\": \"Fact number 17.\"}, {\"content\": \"Fact number 18.\"}, {\"content\": \"Fact number 19.\"}, {\"content\": \"Fact number 20.\"}, {\"content\": \"Fact number 21.\"}, {\"content\": \"Fact number 22.\"}, {\"content\": \"Fact number 23.\"}, {\"content\": \"Fact number 24.\"}, {\"content\": \"Fact number 25.\"}, {\"content\": \"Fact number 26.\"}, {\"content\": \"Fact number 27.\"}, {\"content\": \"Fact number 28.\"}, {\"content\": \"Fact number 29.\"}, {\"content\": \"Fact number 30.\"}, {\"content\": \"Fact number 31.\"}, {\"content\": \"Fact number 32.\"}, {\"content\": \"Fact number 33.\"}, {\"content\": \"Fact number 34.\"}, {\"content\": \"Fact number 35.\"}, {\"content\": \"Fact number 36.\"}, {\"content\": \"Fact number 37.\"}, {\"content\": \"Fact number 38.\"}, {\"content\": \"Fact number 39.\"}, {\"content\": \"Fact number 40.\"}, {\"content\": \"Fact number 41.\"}, {\"content\": \"Fact number 42.\"}, {\"content\": \"Fact number 43.\"}, {\"content\": \"Fact number 44.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Fact number 0.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 1.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 2.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 3.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 4.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 5.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 6.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 7.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 8.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 9.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 10.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 11.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 12.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 13.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 14.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 15.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 16.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 17.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 18.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 19.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 20.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 21.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 22.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 23.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 24.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 25.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 26.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 27.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 28.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 29.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 30.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 31.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 32.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 33.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 34.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 35.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 36.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 37.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 38.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 39.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 40.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 41.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 42.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 43.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Fact number 44.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "the position of the newest turn",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"A fact.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 0
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "A fact.",
+      "kind": "fact",
+      "source_position": 0,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a large position",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"A fact.\"}], \"updated_facts\": [{\"content\": \"Another.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 123456
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "A fact.",
+      "kind": "fact",
+      "source_position": 123456,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Another.",
+      "kind": "fact",
+      "source_position": 123456,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an empty memory",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"A fact.\"}, {\"content\": \"A fact.\"}]}",
+    "existing": [],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "A fact.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "existing facts with more fields than the plan reads",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"New.\"}], \"obsolete_facts\": [\"Rich.\"]}",
+    "existing": [
+     {
+      "id": "x1",
+      "conversation_id": "c",
+      "kind": "event",
+      "content": "Rich.",
+      "source_position": 3,
+      "is_pinned": false,
+      "source": "auto",
+      "created_at": "2026-01-01"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "New.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "delete",
+      "target": "Rich."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a stored fact with spaces around it is not found by its text",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Better.\"}], \"obsolete_facts\": [\"Old one.\"]}",
+    "existing": [
+     {
+      "content": " Old one. ",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Better.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a stored fact with a no-break space around it is not found either",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Old one.\"], \"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Better.\"}]}",
+    "existing": [
+     {
+      "content": "\u00a0Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Better.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a text that is a stored fact once the stored one is stripped is not known",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Old one.\"}]}",
+    "existing": [
+     {
+      "content": "Old one.\n",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Old one.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction of a fact",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old two.\", \"content\": \"Old two, corrected.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Old two.",
+      "content": "Old two, corrected."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction with spaces around both",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"  Old two.\\n\", \"content\": \"\u00a0Corrected.\\t\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Old two.",
+      "content": "Corrected."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction of a pinned fact does nothing, not even an addition",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Pinned fact.\", \"content\": \"Overwritten.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction of a hand-written fact",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Hand fact.\", \"content\": \"Hand fact, corrected.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Hand fact.",
+      "content": "Hand fact, corrected."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction with nothing to replace is a fact",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Never said.\", \"content\": \"Said now.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Said now.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction with no replaces is a fact",
+   "input": {
+    "text": "{\"updated_facts\": [{\"content\": \"No replaces.\"}, {\"replaces\": \"\", \"content\": \"Empty replaces.\"}, {\"replaces\": \"   \", \"content\": \"Blank replaces.\"}, {\"replaces\": null, \"content\": \"Null replaces.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "No replaces.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Empty replaces.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Blank replaces.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Null replaces.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a replaces that is not text replaces nothing",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": 5, \"content\": \"A number.\"}, {\"replaces\": [\"Old one.\"], \"content\": \"A list.\"}, {\"replaces\": {\"a\": 1}, \"content\": \"An object.\"}, {\"replaces\": true, \"content\": \"True.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "A number.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "A list.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "An object.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "True.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction with no usable content does nothing",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"\"}, {\"replaces\": \"Old one.\", \"content\": \"  \"}, {\"replaces\": \"Old one.\", \"content\": null}, {\"replaces\": \"Old one.\", \"content\": 5}, {\"replaces\": \"Old one.\", \"content\": [\"x\"]}, {\"replaces\": \"Old one.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction that is not an object",
+   "input": {
+    "text": "{\"updated_facts\": [\"a line\", 5, null, [\"a\"], true, {\"replaces\": \"Old one.\", \"content\": \"Kept.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Old one.",
+      "content": "Kept."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "corrections that are not a list",
+   "input": {
+    "text": "{\"updated_facts\": \"Old one.\"}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "corrections that are an object",
+   "input": {
+    "text": "{\"updated_facts\": {\"replaces\": \"Old one.\", \"content\": \"x\"}}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "corrections that are a number",
+   "input": {
+    "text": "{\"updated_facts\": 5}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction into what another fact says",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old two.\", \"content\": \"Old one.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Old two.",
+      "content": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction into itself",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Old one.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Old one.",
+      "content": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction into itself, once stripped",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \" Old one. \"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Old one.",
+      "content": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction with nothing to replace and a text that is known",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Never said.\", \"content\": \"Old one.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction of a fact that the same answer adds",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Fresh fact.\", \"kind\": \"event\"}], \"updated_facts\": [{\"replaces\": \"Fresh fact.\", \"content\": \"Fresh fact, corrected.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Fresh fact.",
+      "kind": "event",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "update",
+      "target": "Fresh fact.",
+      "content": "Fresh fact, corrected."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction of a correction",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Second.\"}, {\"replaces\": \"Second.\", \"content\": \"Third.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Old one.",
+      "content": "Second."
+     },
+     {
+      "op": "update",
+      "target": "Second.",
+      "content": "Third."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "the old text of a correction is gone",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Second.\"}, {\"replaces\": \"Old one.\", \"content\": \"Other.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Old one.",
+      "content": "Second."
+     },
+     {
+      "op": "add",
+      "content": "Other.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "two corrections with nothing to replace say the same",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Nope.\", \"content\": \"Same.\"}, {\"replaces\": \"Nada.\", \"content\": \"Same.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Same.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction of a fact that a correction added",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Nope.\", \"content\": \"Born of an update.\"}, {\"replaces\": \"Born of an update.\", \"content\": \"Grown.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Born of an update.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "update",
+      "target": "Born of an update.",
+      "content": "Grown."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a correction into a pinned fact's text, then a correction of that text",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Pinned fact.\"}, {\"replaces\": \"Pinned fact.\", \"content\": \"Touched?\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Old one.",
+      "content": "Pinned fact."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Old one.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop with spaces around",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"  Old one.\\n\", \"\u00a0Old two.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Old one."
+     },
+     {
+      "op": "delete",
+      "target": "Old two."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop of a pinned fact does nothing",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Pinned fact.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop of a hand-written fact does nothing",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Hand fact.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop of what is not known",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Never said.\", \"old one.\", \"Old one\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop of an empty text",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"\", \"  \"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "the same drop twice",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Old one.\", \"Old one.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Old one."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop of what the same answer adds",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Fresh fact.\"}], \"obsolete_facts\": [\"Fresh fact.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Fresh fact.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "delete",
+      "target": "Fresh fact."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop of what the same answer corrects",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Corrected.\"}], \"obsolete_facts\": [\"Old one.\", \"Corrected.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Old one.",
+      "content": "Corrected."
+     },
+     {
+      "op": "delete",
+      "target": "Corrected."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop of what a correction adds",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Nope.\", \"content\": \"Born of an update.\"}], \"obsolete_facts\": [\"Born of an update.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Born of an update.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     },
+     {
+      "op": "delete",
+      "target": "Born of an update."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a drop of what is not text",
+   "input": {
+    "text": "{\"obsolete_facts\": [[\"Old one.\"], null, 0, false, {\"a\": 1}, 5, \"Old two.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Old two."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "drops that are not a list",
+   "input": {
+    "text": "{\"obsolete_facts\": \"Old one.\"}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "drops that are an object",
+   "input": {
+    "text": "{\"obsolete_facts\": {\"Old one.\": 1}}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "drops that are a number",
+   "input": {
+    "text": "{\"obsolete_facts\": 5}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "drops of single letters when the memory holds them",
+   "input": {
+    "text": "{\"obsolete_facts\": \"ab\"}",
+    "existing": [
+     {
+      "content": "a",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "b",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "two facts say the same: a drop reaches the first",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Same.\"]}",
+    "existing": [
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Same."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "two facts say the same: two drops reach both",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Same.\", \"Same.\"]}",
+    "existing": [
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Same."
+     },
+     {
+      "op": "delete",
+      "target": "Same."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "two facts say the same: three drops",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Same.\", \"Same.\", \"Same.\"]}",
+    "existing": [
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "delete",
+      "target": "Same."
+     },
+     {
+      "op": "delete",
+      "target": "Same."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "two facts say the same, the pinned one first: a drop does nothing",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Same.\"]}",
+    "existing": [
+     {
+      "content": "Same.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "two facts say the same, a hand-written one first: a drop does nothing",
+   "input": {
+    "text": "{\"obsolete_facts\": [\"Same.\"]}",
+    "existing": [
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "two facts say the same: a correction reaches the first",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Same.\", \"content\": \"Different.\"}, {\"replaces\": \"Same.\", \"content\": \"Again.\"}]}",
+    "existing": [
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "update",
+      "target": "Same.",
+      "content": "Different."
+     },
+     {
+      "op": "update",
+      "target": "Same.",
+      "content": "Again."
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "two facts say the same, the pinned one first: a correction does nothing",
+   "input": {
+    "text": "{\"updated_facts\": [{\"replaces\": \"Same.\", \"content\": \"Different.\"}]}",
+    "existing": [
+     {
+      "content": "Same.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Same.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary",
+   "input": {
+    "text": "{\"summary\": \"They met in a crypt.\"}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": "They met in a crypt."
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary with spaces around",
+   "input": {
+    "text": "{\"summary\": \"  \u00a0They met.\\n\\t\"}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": "They met."
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary that is empty",
+   "input": {
+    "text": "{\"summary\": \"\"}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary that is blank",
+   "input": {
+    "text": "{\"summary\": \" \\n\u00a0\u3000\"}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary that is not text",
+   "input": {
+    "text": "{\"summary\": [\"They met.\"]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary that is a number",
+   "input": {
+    "text": "{\"summary\": 5}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary that is null",
+   "input": {
+    "text": "{\"summary\": null}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary that is an object",
+   "input": {
+    "text": "{\"summary\": {\"text\": \"They met.\"}}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary with a byte order mark is not stripped",
+   "input": {
+    "text": "{\"summary\": \"\ufeffThey met.\"}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": "\ufeffThey met."
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "no summary and no change",
+   "input": {
+    "text": "{\"facts\": [], \"updated_facts\": [], \"obsolete_facts\": []}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a summary and nothing else",
+   "input": {
+    "text": "{\"facts\": [], \"summary\": \"Only this.\"}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": "Only this."
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an answer that cannot be read",
+   "input": {
+    "text": "I could not do it.",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": null
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an answer that is a list",
+   "input": {
+    "text": "[{\"content\": \"x\"}]",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an answer that is empty",
+   "input": {
+    "text": "",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": null
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an answer that is a string of JSON",
+   "input": {
+    "text": "\"{\\\"facts\\\": [{\\\"content\\\": \\\"x\\\"}]}\"",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": null
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an answer in a fence with chatter and a trailing comma",
+   "input": {
+    "text": "Here is the memory:\n```json\n{\n \"facts\": [{\"content\": \"In a fence.\",},],\n \"summary\": \"Fenced.\",\n}\n```\nDone!",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "In a fence.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": "Fenced."
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an answer with prose around it",
+   "input": {
+    "text": "Of course! {\"facts\": [{\"content\": \"Prose.\"}]} Hope that helps {really}.",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Prose.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an answer with a literal line feed in a content",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Line one.\nLine two.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Line one.\nLine two.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an answer with escapes",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"caf\\u00e9 \\ud83d\\ude00 \\\"quoted\\\" \\\\ \\n\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "café 😀 \"quoted\" \\",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "NaN and the infinities in a field that is ignored",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Kept.\"}], \"weight\": NaN, \"bounds\": [-Infinity, Infinity], \"other\": {\"x\": NaN}}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Kept.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "NaN as a content",
+   "input": {
+    "text": "{\"facts\": [{\"content\": NaN}, {\"content\": Infinity}, {\"content\": \"Real.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Real.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "NaN as a summary",
+   "input": {
+    "text": "{\"summary\": NaN, \"facts\": [{\"content\": \"Real.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Real.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a key named __proto__ in a fact",
+   "input": {
+    "text": "{\"facts\": [{\"__proto__\": {\"content\": \"Hidden.\"}, \"content\": \"Real.\"}, {\"__proto__\": {\"content\": \"Only.\"}}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Real.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a key named __proto__ in the answer",
+   "input": {
+    "text": "{\"__proto__\": {\"facts\": [{\"content\": \"Hidden.\"}]}, \"facts\": [{\"content\": \"Real.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Real.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a key named constructor in the answer",
+   "input": {
+    "text": "{\"constructor\": {\"facts\": [{\"content\": \"Hidden.\"}]}, \"facts\": [{\"content\": \"Real.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Real.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "two keys of the same name in the answer: the last wins",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"First.\"}], \"facts\": [{\"content\": \"Second.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Second.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "two keys of the same name in a fact",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"First.\", \"content\": \"Second.\", \"kind\": \"event\", \"kind\": \"promise\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Second.",
+      "kind": "promise",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an answer that stops in the middle",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Cut off.\"}], \"summary\": \"No end",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": null
+  },
+  {
+   "fn": "memory_reply",
+   "name": "an answer with a second object",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"First.\"}]} {\"facts\": [{\"content\": \"Second.\"}]}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 7
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "First.",
+      "kind": "fact",
+      "source_position": 7,
+      "source": "auto"
+     }
+    ],
+    "summary": null
+   }
+  },
+  {
+   "fn": "memory_reply",
+   "name": "a messy answer",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"  Fresh fact.  \", \"kind\": \"event\"}, {\"content\": \"Fresh fact.\", \"kind\": \"promise\"}, {\"content\": \"Old one.\", \"kind\": \"promise\"}, {\"content\": \"   \", \"kind\": \"event\"}, {\"content\": \"Odd kind.\", \"kind\": \"Event\"}, {\"content\": \"Typed.\", \"kind\": \"state\"}, \"a line, not a fact\", {\"kind\": \"event\"}, {\"content\": 12}, {\"content\": [\"a\"]}], \"updated_facts\": [{\"replaces\": \"  Old two.  \", \"content\": \"  Old two, corrected.  \"}, {\"replaces\": \"Pinned fact.\", \"content\": \"Overwritten.\"}, {\"replaces\": \"Fresh fact.\", \"content\": \"Fresh fact, corrected.\"}, {\"replaces\": \"Typed.\", \"content\": \"Typed, again.\"}, {\"replaces\": \"Never said.\", \"content\": \"Said by an update.\"}, {\"replaces\": \"Hand fact.\", \"content\": \"Hand fact, corrected.\"}, {\"content\": \"Replaces nothing.\"}, {\"replaces\": \"Old three.\", \"content\": \"   \"}, [\"not\", \"an\", \"update\"]], \"obsolete_facts\": [\"Old three.\", \"Pinned fact.\", \"Hand fact, corrected.\", \"  Fresh fact, corrected.  \", \"Said by an update.\", \"Not known.\", 3, null], \"summary\": \"  A new summary.  \"}",
+    "existing": [
+     {
+      "content": "Pinned fact.",
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "content": "Hand fact.",
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "content": "Old one.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old two.",
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "content": "Old three.",
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "top_position": 42
+   },
+   "expected": {
+    "ops": [
+     {
+      "op": "add",
+      "content": "Fresh fact.",
+      "kind": "event",
+      "source_position": 42,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Odd kind.",
+      "kind": "fact",
+      "source_position": 42,
+      "source": "auto"
+     },
+     {
+      "op": "add",
+      "content": "Typed.",
+      "kind": "state",
+      "source_position": 42,
+      "source": "auto"
+     },
+     {
+      "op": "update",
+      "target": "Old two.",
+      "content": "Old two, corrected."
+     },
+     {
+      "op": "update",
+      "target": "Fresh fact.",
+      "content": "Fresh fact, corrected."
+     },
+     {
+      "op": "update",
+      "target": "Typed.",
+      "content": "Typed, again."
+     },
+     {
+      "op": "add",
+      "content": "Said by an update.",
+      "kind": "fact",
+      "source_position": 42,
+      "source": "auto"
+     },
+     {
+      "op": "update",
+      "target": "Hand fact.",
+      "content": "Hand fact, corrected."
+     },
+     {
+      "op": "add",
+      "content": "Replaces nothing.",
+      "kind": "fact",
+      "source_position": 42,
+      "source": "auto"
+     },
+     {
+      "op": "delete",
+      "target": "Old three."
+     },
+     {
+      "op": "delete",
+      "target": "Fresh fact, corrected."
+     },
+     {
+      "op": "delete",
+      "target": "Said by an update."
+     }
+    ],
+    "summary": "A new summary."
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "a merge",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Three facts in one.\", \"kind\": \"fact\"}, {\"content\": \"A second one.\", \"kind\": \"event\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Three facts in one.",
+      "kind": "fact"
+     },
+     {
+      "content": "A second one.",
+      "kind": "event"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "30 facts are kept",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Merged 0.\", \"kind\": \"fact\"}, {\"content\": \"Merged 1.\", \"kind\": \"fact\"}, {\"content\": \"Merged 2.\", \"kind\": \"fact\"}, {\"content\": \"Merged 3.\", \"kind\": \"fact\"}, {\"content\": \"Merged 4.\", \"kind\": \"fact\"}, {\"content\": \"Merged 5.\", \"kind\": \"fact\"}, {\"content\": \"Merged 6.\", \"kind\": \"fact\"}, {\"content\": \"Merged 7.\", \"kind\": \"fact\"}, {\"content\": \"Merged 8.\", \"kind\": \"fact\"}, {\"content\": \"Merged 9.\", \"kind\": \"fact\"}, {\"content\": \"Merged 10.\", \"kind\": \"fact\"}, {\"content\": \"Merged 11.\", \"kind\": \"fact\"}, {\"content\": \"Merged 12.\", \"kind\": \"fact\"}, {\"content\": \"Merged 13.\", \"kind\": \"fact\"}, {\"content\": \"Merged 14.\", \"kind\": \"fact\"}, {\"content\": \"Merged 15.\", \"kind\": \"fact\"}, {\"content\": \"Merged 16.\", \"kind\": \"fact\"}, {\"content\": \"Merged 17.\", \"kind\": \"fact\"}, {\"content\": \"Merged 18.\", \"kind\": \"fact\"}, {\"content\": \"Merged 19.\", \"kind\": \"fact\"}, {\"content\": \"Merged 20.\", \"kind\": \"fact\"}, {\"content\": \"Merged 21.\", \"kind\": \"fact\"}, {\"content\": \"Merged 22.\", \"kind\": \"fact\"}, {\"content\": \"Merged 23.\", \"kind\": \"fact\"}, {\"content\": \"Merged 24.\", \"kind\": \"fact\"}, {\"content\": \"Merged 25.\", \"kind\": \"fact\"}, {\"content\": \"Merged 26.\", \"kind\": \"fact\"}, {\"content\": \"Merged 27.\", \"kind\": \"fact\"}, {\"content\": \"Merged 28.\", \"kind\": \"fact\"}, {\"content\": \"Merged 29.\", \"kind\": \"fact\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Merged 0.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 1.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 2.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 3.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 4.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 5.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 6.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 7.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 8.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 9.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 10.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 11.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 12.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 13.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 14.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 15.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 16.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 17.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 18.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 19.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 20.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 21.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 22.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 23.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 24.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 25.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 26.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 27.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 28.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 29.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "31 facts are cut to 30",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Merged 0.\", \"kind\": \"fact\"}, {\"content\": \"Merged 1.\", \"kind\": \"fact\"}, {\"content\": \"Merged 2.\", \"kind\": \"fact\"}, {\"content\": \"Merged 3.\", \"kind\": \"fact\"}, {\"content\": \"Merged 4.\", \"kind\": \"fact\"}, {\"content\": \"Merged 5.\", \"kind\": \"fact\"}, {\"content\": \"Merged 6.\", \"kind\": \"fact\"}, {\"content\": \"Merged 7.\", \"kind\": \"fact\"}, {\"content\": \"Merged 8.\", \"kind\": \"fact\"}, {\"content\": \"Merged 9.\", \"kind\": \"fact\"}, {\"content\": \"Merged 10.\", \"kind\": \"fact\"}, {\"content\": \"Merged 11.\", \"kind\": \"fact\"}, {\"content\": \"Merged 12.\", \"kind\": \"fact\"}, {\"content\": \"Merged 13.\", \"kind\": \"fact\"}, {\"content\": \"Merged 14.\", \"kind\": \"fact\"}, {\"content\": \"Merged 15.\", \"kind\": \"fact\"}, {\"content\": \"Merged 16.\", \"kind\": \"fact\"}, {\"content\": \"Merged 17.\", \"kind\": \"fact\"}, {\"content\": \"Merged 18.\", \"kind\": \"fact\"}, {\"content\": \"Merged 19.\", \"kind\": \"fact\"}, {\"content\": \"Merged 20.\", \"kind\": \"fact\"}, {\"content\": \"Merged 21.\", \"kind\": \"fact\"}, {\"content\": \"Merged 22.\", \"kind\": \"fact\"}, {\"content\": \"Merged 23.\", \"kind\": \"fact\"}, {\"content\": \"Merged 24.\", \"kind\": \"fact\"}, {\"content\": \"Merged 25.\", \"kind\": \"fact\"}, {\"content\": \"Merged 26.\", \"kind\": \"fact\"}, {\"content\": \"Merged 27.\", \"kind\": \"fact\"}, {\"content\": \"Merged 28.\", \"kind\": \"fact\"}, {\"content\": \"Merged 29.\", \"kind\": \"fact\"}, {\"content\": \"Merged 30.\", \"kind\": \"fact\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Merged 0.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 1.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 2.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 3.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 4.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 5.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 6.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 7.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 8.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 9.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 10.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 11.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 12.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 13.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 14.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 15.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 16.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 17.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 18.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 19.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 20.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 21.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 22.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 23.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 24.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 25.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 26.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 27.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 28.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 29.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "40 facts are cut to 30, the first ones",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Merged 0.\", \"kind\": \"fact\"}, {\"content\": \"Merged 1.\", \"kind\": \"fact\"}, {\"content\": \"Merged 2.\", \"kind\": \"fact\"}, {\"content\": \"Merged 3.\", \"kind\": \"fact\"}, {\"content\": \"Merged 4.\", \"kind\": \"fact\"}, {\"content\": \"Merged 5.\", \"kind\": \"fact\"}, {\"content\": \"Merged 6.\", \"kind\": \"fact\"}, {\"content\": \"Merged 7.\", \"kind\": \"fact\"}, {\"content\": \"Merged 8.\", \"kind\": \"fact\"}, {\"content\": \"Merged 9.\", \"kind\": \"fact\"}, {\"content\": \"Merged 10.\", \"kind\": \"fact\"}, {\"content\": \"Merged 11.\", \"kind\": \"fact\"}, {\"content\": \"Merged 12.\", \"kind\": \"fact\"}, {\"content\": \"Merged 13.\", \"kind\": \"fact\"}, {\"content\": \"Merged 14.\", \"kind\": \"fact\"}, {\"content\": \"Merged 15.\", \"kind\": \"fact\"}, {\"content\": \"Merged 16.\", \"kind\": \"fact\"}, {\"content\": \"Merged 17.\", \"kind\": \"fact\"}, {\"content\": \"Merged 18.\", \"kind\": \"fact\"}, {\"content\": \"Merged 19.\", \"kind\": \"fact\"}, {\"content\": \"Merged 20.\", \"kind\": \"fact\"}, {\"content\": \"Merged 21.\", \"kind\": \"fact\"}, {\"content\": \"Merged 22.\", \"kind\": \"fact\"}, {\"content\": \"Merged 23.\", \"kind\": \"fact\"}, {\"content\": \"Merged 24.\", \"kind\": \"fact\"}, {\"content\": \"Merged 25.\", \"kind\": \"fact\"}, {\"content\": \"Merged 26.\", \"kind\": \"fact\"}, {\"content\": \"Merged 27.\", \"kind\": \"fact\"}, {\"content\": \"Merged 28.\", \"kind\": \"fact\"}, {\"content\": \"Merged 29.\", \"kind\": \"fact\"}, {\"content\": \"Merged 30.\", \"kind\": \"fact\"}, {\"content\": \"Merged 31.\", \"kind\": \"fact\"}, {\"content\": \"Merged 32.\", \"kind\": \"fact\"}, {\"content\": \"Merged 33.\", \"kind\": \"fact\"}, {\"content\": \"Merged 34.\", \"kind\": \"fact\"}, {\"content\": \"Merged 35.\", \"kind\": \"fact\"}, {\"content\": \"Merged 36.\", \"kind\": \"fact\"}, {\"content\": \"Merged 37.\", \"kind\": \"fact\"}, {\"content\": \"Merged 38.\", \"kind\": \"fact\"}, {\"content\": \"Merged 39.\", \"kind\": \"fact\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Merged 0.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 1.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 2.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 3.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 4.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 5.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 6.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 7.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 8.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 9.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 10.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 11.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 12.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 13.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 14.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 15.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 16.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 17.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 18.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 19.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 20.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 21.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 22.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 23.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 24.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 25.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 26.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 27.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 28.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 29.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "29 facts are kept",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Merged 0.\", \"kind\": \"fact\"}, {\"content\": \"Merged 1.\", \"kind\": \"fact\"}, {\"content\": \"Merged 2.\", \"kind\": \"fact\"}, {\"content\": \"Merged 3.\", \"kind\": \"fact\"}, {\"content\": \"Merged 4.\", \"kind\": \"fact\"}, {\"content\": \"Merged 5.\", \"kind\": \"fact\"}, {\"content\": \"Merged 6.\", \"kind\": \"fact\"}, {\"content\": \"Merged 7.\", \"kind\": \"fact\"}, {\"content\": \"Merged 8.\", \"kind\": \"fact\"}, {\"content\": \"Merged 9.\", \"kind\": \"fact\"}, {\"content\": \"Merged 10.\", \"kind\": \"fact\"}, {\"content\": \"Merged 11.\", \"kind\": \"fact\"}, {\"content\": \"Merged 12.\", \"kind\": \"fact\"}, {\"content\": \"Merged 13.\", \"kind\": \"fact\"}, {\"content\": \"Merged 14.\", \"kind\": \"fact\"}, {\"content\": \"Merged 15.\", \"kind\": \"fact\"}, {\"content\": \"Merged 16.\", \"kind\": \"fact\"}, {\"content\": \"Merged 17.\", \"kind\": \"fact\"}, {\"content\": \"Merged 18.\", \"kind\": \"fact\"}, {\"content\": \"Merged 19.\", \"kind\": \"fact\"}, {\"content\": \"Merged 20.\", \"kind\": \"fact\"}, {\"content\": \"Merged 21.\", \"kind\": \"fact\"}, {\"content\": \"Merged 22.\", \"kind\": \"fact\"}, {\"content\": \"Merged 23.\", \"kind\": \"fact\"}, {\"content\": \"Merged 24.\", \"kind\": \"fact\"}, {\"content\": \"Merged 25.\", \"kind\": \"fact\"}, {\"content\": \"Merged 26.\", \"kind\": \"fact\"}, {\"content\": \"Merged 27.\", \"kind\": \"fact\"}, {\"content\": \"Merged 28.\", \"kind\": \"fact\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Merged 0.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 1.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 2.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 3.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 4.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 5.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 6.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 7.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 8.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 9.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 10.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 11.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 12.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 13.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 14.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 15.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 16.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 17.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 18.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 19.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 20.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 21.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 22.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 23.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 24.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 25.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 26.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 27.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 28.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "the cut counts only the facts that can be read",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"\"}, {\"content\": [\"a\"]}, \"line\", null, 5, {\"kind\": \"event\"}, {\"content\": \"Merged 0.\", \"kind\": \"fact\"}, {\"content\": \"Merged 1.\", \"kind\": \"fact\"}, {\"content\": \"Merged 2.\", \"kind\": \"fact\"}, {\"content\": \"Merged 3.\", \"kind\": \"fact\"}, {\"content\": \"Merged 4.\", \"kind\": \"fact\"}, {\"content\": \"Merged 5.\", \"kind\": \"fact\"}, {\"content\": \"Merged 6.\", \"kind\": \"fact\"}, {\"content\": \"Merged 7.\", \"kind\": \"fact\"}, {\"content\": \"Merged 8.\", \"kind\": \"fact\"}, {\"content\": \"Merged 9.\", \"kind\": \"fact\"}, {\"content\": \"Merged 10.\", \"kind\": \"fact\"}, {\"content\": \"Merged 11.\", \"kind\": \"fact\"}, {\"content\": \"Merged 12.\", \"kind\": \"fact\"}, {\"content\": \"Merged 13.\", \"kind\": \"fact\"}, {\"content\": \"Merged 14.\", \"kind\": \"fact\"}, {\"content\": \"Merged 15.\", \"kind\": \"fact\"}, {\"content\": \"Merged 16.\", \"kind\": \"fact\"}, {\"content\": \"Merged 17.\", \"kind\": \"fact\"}, {\"content\": \"Merged 18.\", \"kind\": \"fact\"}, {\"content\": \"Merged 19.\", \"kind\": \"fact\"}, {\"content\": \"Merged 20.\", \"kind\": \"fact\"}, {\"content\": \"Merged 21.\", \"kind\": \"fact\"}, {\"content\": \"Merged 22.\", \"kind\": \"fact\"}, {\"content\": \"Merged 23.\", \"kind\": \"fact\"}, {\"content\": \"Merged 24.\", \"kind\": \"fact\"}, {\"content\": \"Merged 25.\", \"kind\": \"fact\"}, {\"content\": \"Merged 26.\", \"kind\": \"fact\"}, {\"content\": \"Merged 27.\", \"kind\": \"fact\"}, {\"content\": \"Merged 28.\", \"kind\": \"fact\"}, {\"content\": \"Merged 29.\", \"kind\": \"fact\"}, {\"content\": \"Merged 30.\", \"kind\": \"fact\"}, {\"content\": \"Merged 31.\", \"kind\": \"fact\"}, {\"content\": \"Merged 32.\", \"kind\": \"fact\"}, {\"content\": \"Merged 33.\", \"kind\": \"fact\"}, {\"content\": \"Merged 34.\", \"kind\": \"fact\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Merged 0.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 1.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 2.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 3.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 4.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 5.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 6.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 7.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 8.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 9.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 10.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 11.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 12.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 13.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 14.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 15.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 16.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 17.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 18.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 19.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 20.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 21.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 22.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 23.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 24.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 25.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 26.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 27.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 28.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 29.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "the cut is made before the doubles go",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Same.\"}, {\"content\": \"Same.\"}, {\"content\": \"Same.\"}, {\"content\": \"Merged 0.\", \"kind\": \"fact\"}, {\"content\": \"Merged 1.\", \"kind\": \"fact\"}, {\"content\": \"Merged 2.\", \"kind\": \"fact\"}, {\"content\": \"Merged 3.\", \"kind\": \"fact\"}, {\"content\": \"Merged 4.\", \"kind\": \"fact\"}, {\"content\": \"Merged 5.\", \"kind\": \"fact\"}, {\"content\": \"Merged 6.\", \"kind\": \"fact\"}, {\"content\": \"Merged 7.\", \"kind\": \"fact\"}, {\"content\": \"Merged 8.\", \"kind\": \"fact\"}, {\"content\": \"Merged 9.\", \"kind\": \"fact\"}, {\"content\": \"Merged 10.\", \"kind\": \"fact\"}, {\"content\": \"Merged 11.\", \"kind\": \"fact\"}, {\"content\": \"Merged 12.\", \"kind\": \"fact\"}, {\"content\": \"Merged 13.\", \"kind\": \"fact\"}, {\"content\": \"Merged 14.\", \"kind\": \"fact\"}, {\"content\": \"Merged 15.\", \"kind\": \"fact\"}, {\"content\": \"Merged 16.\", \"kind\": \"fact\"}, {\"content\": \"Merged 17.\", \"kind\": \"fact\"}, {\"content\": \"Merged 18.\", \"kind\": \"fact\"}, {\"content\": \"Merged 19.\", \"kind\": \"fact\"}, {\"content\": \"Merged 20.\", \"kind\": \"fact\"}, {\"content\": \"Merged 21.\", \"kind\": \"fact\"}, {\"content\": \"Merged 22.\", \"kind\": \"fact\"}, {\"content\": \"Merged 23.\", \"kind\": \"fact\"}, {\"content\": \"Merged 24.\", \"kind\": \"fact\"}, {\"content\": \"Merged 25.\", \"kind\": \"fact\"}, {\"content\": \"Merged 26.\", \"kind\": \"fact\"}, {\"content\": \"Merged 27.\", \"kind\": \"fact\"}, {\"content\": \"Merged 28.\", \"kind\": \"fact\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Same.",
+      "kind": "fact"
+     },
+     {
+      "content": "Same.",
+      "kind": "fact"
+     },
+     {
+      "content": "Same.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 0.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 1.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 2.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 3.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 4.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 5.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 6.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 7.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 8.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 9.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 10.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 11.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 12.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 13.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 14.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 15.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 16.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 17.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 18.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 19.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 20.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 21.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 22.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 23.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 24.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 25.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 26.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "two facts that say the same are both returned",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Same.\", \"kind\": \"event\"}, {\"content\": \"  Same.  \", \"kind\": \"state\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Same.",
+      "kind": "event"
+     },
+     {
+      "content": "Same.",
+      "kind": "state"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "every allowed kind",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"A fact.\", \"kind\": \"fact\"}, {\"content\": \"A event.\", \"kind\": \"event\"}, {\"content\": \"A relationship.\", \"kind\": \"relationship\"}, {\"content\": \"A promise.\", \"kind\": \"promise\"}, {\"content\": \"A state.\", \"kind\": \"state\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "A fact.",
+      "kind": "fact"
+     },
+     {
+      "content": "A event.",
+      "kind": "event"
+     },
+     {
+      "content": "A relationship.",
+      "kind": "relationship"
+     },
+     {
+      "content": "A promise.",
+      "kind": "promise"
+     },
+     {
+      "content": "A state.",
+      "kind": "state"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "a kind that is not allowed becomes a fact",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Kind 0.\", \"kind\": \"Event\"}, {\"content\": \"Kind 1.\", \"kind\": \" event\"}, {\"content\": \"Kind 2.\", \"kind\": \"\"}, {\"content\": \"Kind 3.\", \"kind\": \"junk\"}, {\"content\": \"Kind 4.\", \"kind\": null}, {\"content\": \"Kind 5.\", \"kind\": 3}, {\"content\": \"Kind 6.\", \"kind\": [\"event\"]}, {\"content\": \"Kind 7.\", \"kind\": {\"a\": 1}}, {\"content\": \"Kind 8.\", \"kind\": true}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Kind 0.",
+      "kind": "fact"
+     },
+     {
+      "content": "Kind 1.",
+      "kind": "fact"
+     },
+     {
+      "content": "Kind 2.",
+      "kind": "fact"
+     },
+     {
+      "content": "Kind 3.",
+      "kind": "fact"
+     },
+     {
+      "content": "Kind 4.",
+      "kind": "fact"
+     },
+     {
+      "content": "Kind 5.",
+      "kind": "fact"
+     },
+     {
+      "content": "Kind 6.",
+      "kind": "fact"
+     },
+     {
+      "content": "Kind 7.",
+      "kind": "fact"
+     },
+     {
+      "content": "Kind 8.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "no kind",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"No kind.\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "No kind.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "a content is stripped",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"  Padded.\\n\"}, {\"content\": \"\u00a0Nbsp.\u00a0\"}, {\"content\": \"\u0085Nel.\u0085\"}, {\"content\": \"\ufeffBom.\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Padded.",
+      "kind": "fact"
+     },
+     {
+      "content": "Nbsp.",
+      "kind": "fact"
+     },
+     {
+      "content": "Nel.",
+      "kind": "fact"
+     },
+     {
+      "content": "\ufeffBom.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "a content that is not text is not a fact",
+   "input": {
+    "text": "{\"facts\": [{\"content\": [\"a\"]}, {\"content\": 12}, {\"content\": true}, {\"content\": null}, {\"content\": {\"a\": 1}}, {\"content\": \"Kept.\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Kept.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "only facts that are not text",
+   "input": {
+    "text": "{\"facts\": [{\"content\": [\"a\"]}, {\"content\": 12}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "only empty facts",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"\"}, {\"content\": \"   \"}, {\"kind\": \"event\"}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "facts that are not objects",
+   "input": {
+    "text": "{\"facts\": [\"a\", 5, null, [\"b\"], true]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "no facts",
+   "input": {
+    "text": "{\"facts\": []}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "no facts key",
+   "input": {
+    "text": "{\"summary\": \"No facts.\"}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "facts that are a string",
+   "input": {
+    "text": "{\"facts\": \"abc\"}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "facts that are an object",
+   "input": {
+    "text": "{\"facts\": {\"content\": \"x\"}}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "facts that are a number",
+   "input": {
+    "text": "{\"facts\": 5}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "facts that are null",
+   "input": {
+    "text": "{\"facts\": null}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "an answer that is a list",
+   "input": {
+    "text": "[{\"content\": \"x\"}]",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "an answer that cannot be read",
+   "input": {
+    "text": "I could not merge them.",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "an empty answer",
+   "input": {
+    "text": "",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "an answer in a fence",
+   "input": {
+    "text": "Merged:\n```json\n{\"facts\": [{\"content\": \"Fenced.\", \"kind\": \"promise\",},],}\n```",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Fenced.",
+      "kind": "promise"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "the oldest position of the facts replaced",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"One.\"}]}",
+    "movable": [
+     {
+      "source_position": 30
+     },
+     {
+      "source_position": 5
+     },
+     {
+      "source_position": 5
+     },
+     {
+      "source_position": 12
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "One.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 5
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "a single fact replaced",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"One.\"}]}",
+    "movable": [
+     {
+      "source_position": 7
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "One.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 7
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "no fact replaced",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"One.\"}]}",
+    "movable": []
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "One.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 0
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "a position of zero is the oldest",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"One.\"}]}",
+    "movable": [
+     {
+      "source_position": 9
+     },
+     {
+      "source_position": 0
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "One.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 0
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "movable facts with more fields than the plan reads",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"One.\"}]}",
+    "movable": [
+     {
+      "id": "x",
+      "content": "Old.",
+      "source_position": 8,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "y",
+      "content": "Older.",
+      "source_position": 2,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "One.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 2
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "NaN in a field that is ignored",
+   "input": {
+    "text": "{\"facts\": [{\"content\": \"Kept.\", \"weight\": NaN}], \"x\": -Infinity}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": {
+    "facts": [
+     {
+      "content": "Kept.",
+      "kind": "fact"
+     }
+    ],
+    "source_position": 4
+   }
+  },
+  {
+   "fn": "consolidation_reply",
+   "name": "nothing readable beside NaN",
+   "input": {
+    "text": "{\"facts\": [{\"content\": NaN}]}",
+    "movable": [
+     {
+      "source_position": 12
+     },
+     {
+      "source_position": 4
+     },
+     {
+      "source_position": 9
+     }
+    ]
+   },
+   "expected": null
+  }
+ ]
+}
