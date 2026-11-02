@@ -20,6 +20,18 @@ from starlette.types import Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
+
+class _WithoutChromeProbe(logging.Filter):
+    """While DevTools is open, Chrome asks for this address on every page in case the
+    site offers it a workspace. It does not, so the 404 is the right answer, but printed
+    in red once a page it reads like a fault in a log people read when something is wrong."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/.well-known/appspecific/com.chrome.devtools.json" not in record.getMessage()
+
+
+_without_chrome_probe = _WithoutChromeProbe()
+
 # Vite puts a hash of the content in the name of everything under /assets/, so
 # a file there never changes under its name and can be kept for good.
 IMMUTABLE = "public, max-age=31536000, immutable"
@@ -139,3 +151,4 @@ def serve_ui(app: FastAPI, directory: Path) -> None:
             await not_found(scope, receive, send)
 
     app.router.default = fallback
+    logging.getLogger("uvicorn.access").addFilter(_without_chrome_probe)

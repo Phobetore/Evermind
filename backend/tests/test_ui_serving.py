@@ -5,6 +5,7 @@ tests are mostly about what is cached and what is redirected.
 """
 
 import errno
+import logging
 import os
 import re
 from urllib.parse import urljoin
@@ -31,6 +32,18 @@ def ui_dir(tmp_path):
 async def ui_client(make_client, ui_dir):
     async with make_client(EVERMIND_UI_DIR=str(ui_dir)) as c:
         yield c
+
+
+async def test_chromes_devtools_probe_stays_out_of_the_access_log(ui_client, caplog):
+    probe = "/.well-known/appspecific/com.chrome.devtools.json"
+    assert (await ui_client.get(probe)).status_code == 404
+    line = '%s - "%s %s HTTP/%s" %d'
+    with caplog.at_level(logging.INFO, logger="uvicorn.access"):
+        access = logging.getLogger("uvicorn.access")
+        access.info(line, "127.0.0.1:1", "GET", probe, "1.1", 404)
+        access.info(line, "127.0.0.1:1", "GET", "/.well-known/other.json", "1.1", 404)
+    logged = [record.getMessage() for record in caplog.records]
+    assert logged == ['127.0.0.1:1 - "GET /.well-known/other.json HTTP/1.1" 404']
 
 
 async def test_index_is_never_cached(ui_client):
