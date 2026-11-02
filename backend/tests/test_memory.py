@@ -232,6 +232,127 @@ async def test_consolidate_skips_when_few_facts(client, fake_provider):
     assert resp.json().get("skipped") == "too_few"
 
 
+MERGED = json.dumps({"facts": [{"content": "All of it, merged.", "kind": "fact"}]})
+
+
+async def add_facts(client, convo_id, contents, *, pinned=False, by_the_model=False):
+    """Facts added by hand, which the model's own are told apart from."""
+    from app.db import _connect
+
+    for content in contents:
+        await client.post(f"/api/conversations/{convo_id}/memories",
+                          json={"content": content, "is_pinned": pinned})
+    if by_the_model:
+        db = await _connect()
+        try:
+            marks = ", ".join("?" for _ in contents)
+            await db.execute(f"UPDATE memories SET source='auto' WHERE content IN ({marks})",
+                             contents)
+            await db.commit()
+        finally:
+            await db.close()
+
+
+async def test_consolidation_prompt_holds_only_the_facts_it_may_merge(client, fake_provider):
+    convo = await setup_conversation(client)
+    movable = [f"Movable fact {i}." for i in range(8)]
+    await add_facts(client, convo["id"], movable, by_the_model=True)
+    # Pinned though the model wrote it, and unpinned though written by hand.
+    await add_facts(client, convo["id"], ["Pinned fact."], pinned=True, by_the_model=True)
+    await add_facts(client, convo["id"], ["Hand-written fact."])
+    fake_provider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
+
+    assert resp.status_code == 200, resp.text
+    content = fake_provider.captured["payload"].messages[0]["content"]
+    assert content.startswith("FACTS TO CONSOLIDATE:\n- Movable fact 0.\n")
+    assert all(f"- {fact}" in content for fact in movable)
+    assert "Pinned fact." not in content
+    assert "Hand-written fact." not in content
+    # Only what was merged is replaced: the pinned and the hand-written ones stay.
+    body = resp.json()
+    assert body["before"] == 10 and body["after"] == 3
+    assert {m["content"] for m in body["memories"]} == {
+        "Pinned fact.", "Hand-written fact.", "All of it, merged."}
+
+
+async def test_consolidation_names_the_player_as_a_chat_turn_does(client, fake_provider):
+    """The conversation has no persona of its own: the default one is the player."""
+    convo = await setup_conversation(client)
+    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
+                    by_the_model=True)
+    fake_provider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
+
+    assert resp.status_code == 200, resp.text
+    assert "between Alex and Serana" in fake_provider.captured["payload"].system
+
+
+@pytest.mark.parametrize(("movable", "merged"), [(7, False), (8, True)])
+async def test_consolidation_starts_at_eight_movable_facts(client, fake_provider, movable, merged):
+    convo = await setup_conversation(client)
+    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(movable)],
+                    by_the_model=True)
+    # Two more that it may not merge, so that counting every fact would reach eight.
+    await add_facts(client, convo["id"], ["Pinned fact."], pinned=True)
+    await add_facts(client, convo["id"], ["Hand-written fact."])
+    fake_provider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    if merged:
+        assert "skipped" not in body
+        assert "payload" in fake_provider.captured
+    else:
+        assert body["skipped"] == "too_few"
+        assert body["before"] == body["after"] == movable + 2
+        assert fake_provider.captured == {}  # the model was not asked
+
+
+async def test_extraction_prompt_holds_the_facts_the_turns_and_the_default_persona(
+        client, fake_provider):
+    convo = await setup_conversation(client)
+    await send(client, convo["id"], content="I broke the seal.")
+    await client.patch(f"/api/conversations/{convo['id']}", json={"summary": "They met in a crypt."})
+    await add_facts(client, convo["id"], ["Serana owes Alex a boot.", "The crypt is cold."])
+    fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+
+    assert resp.status_code == 200, resp.text
+    payload = fake_provider.captured["payload"]
+    content = payload.messages[0]["content"]
+    assert "CURRENT SUMMARY:\nThey met in a crypt.\n\n" in content
+    assert "- Serana owes Alex a boot." in content
+    assert "- The crypt is cold." in content
+    assert "(none yet)" not in content
+    # The conversation has no persona of its own: the default one is the player.
+    assert "Alex (turn 1): I broke the seal." in content
+    assert "Serana (turn 2): *She smiles.* Hello." in content
+    assert "between Alex (the player) and Serana" in payload.system
+
+
+async def test_extraction_asks_the_model_nothing_when_no_turn_is_new(client, fake_provider):
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+    fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                            ProviderEvent(type="done")]
+    await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+    assert "payload" in fake_provider.captured
+    fake_provider.captured.clear()
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["facts_added"] == []
+    assert fake_provider.captured == {}
+
+
 async def test_embedding_stored_and_excluded_from_output(client, fake_provider, monkeypatch):
     from app.db import _connect
     from app.prompting import embeddings

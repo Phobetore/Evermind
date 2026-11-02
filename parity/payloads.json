@@ -13663,7 +13663,35 @@
   },
   {
    "fn": "build_card_payload",
-   "name": "lore keywords: keys written as a string are read letter by letter",
+   "name": "lore keywords: keys written as a string are no keywords",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": [
+      {
+       "keys": "Kabukicho, clan Sato",
+       "content": "c"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "lore keywords: keys written as a string do not stop the entries after",
    "input": {
     "prompt": "x",
     "kind": "character",
@@ -13672,33 +13700,11 @@
       {
        "keys": "Kabu cho",
        "content": "c"
-      }
-     ]
-    }
-   },
-   "expected": {
-    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
-    "messages": [
-     {
-      "role": "user",
-      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nK, a, b, u, c, h, o\n\nReply with the JSON now."
-     }
-    ],
-    "stop": [],
-    "post_history": "",
-    "stats": {}
-   }
-  },
-  {
-   "fn": "build_card_payload",
-   "name": "lore keywords: keys written as an emoji string are read by character",
-   "input": {
-    "prompt": "x",
-    "kind": "character",
-    "existing": {
-     "lore_entries": [
+      },
       {
-       "keys": "a🔥b🇫🇷",
+       "keys": [
+        "clan"
+       ],
        "content": "c"
       }
      ]
@@ -13709,7 +13715,7 @@
     "messages": [
      {
       "role": "user",
-      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\na, 🔥, b, 🇫, 🇷\n\nReply with the JSON now."
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nclan\n\nReply with the JSON now."
      }
     ],
     "stop": [],
@@ -13719,7 +13725,7 @@
   },
   {
    "fn": "build_card_payload",
-   "name": "lore keywords: keys written as an object are its names",
+   "name": "lore keywords: keys written as an object are no keywords",
    "input": {
     "prompt": "x",
     "kind": "character",
@@ -13728,10 +13734,14 @@
       {
        "keys": {
         "clan": 1,
-        " Sato ": 2,
-        "": 3,
-        "clan ": 4
+        "Sato": 2
        },
+       "content": "c"
+      },
+      {
+       "keys": [
+        "kept"
+       ],
        "content": "c"
       }
      ]
@@ -13742,7 +13752,7 @@
     "messages": [
      {
       "role": "user",
-      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nclan, Sato\n\nReply with the JSON now."
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nkept\n\nReply with the JSON now."
      }
     ],
     "stop": [],
@@ -13752,18 +13762,24 @@
   },
   {
    "fn": "build_card_payload",
-   "name": "lore keywords: keys written as an object in the order they came",
+   "name": "lore keywords: keys written as a number are no keywords",
    "input": {
     "prompt": "x",
     "kind": "character",
     "existing": {
      "lore_entries": [
       {
-       "keys": {
-        "b": 1,
-        "a": 2,
-        "c": 3
-       },
+       "keys": 5,
+       "content": "c"
+      },
+      {
+       "keys": 1.5,
+       "content": "c"
+      },
+      {
+       "keys": [
+        "kept"
+       ],
        "content": "c"
       }
      ]
@@ -13774,7 +13790,75 @@
     "messages": [
      {
       "role": "user",
-      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nb, a, c\n\nReply with the JSON now."
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nkept\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "lore keywords: keys written as true are no keywords",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": [
+      {
+       "keys": true,
+       "content": "c"
+      },
+      {
+       "keys": [
+        "kept"
+       ],
+       "content": "c"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nkept\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "lore keywords: keys written as null are no keywords",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": [
+      {
+       "keys": null,
+       "content": "c"
+      },
+      {
+       "keys": [
+        "kept"
+       ],
+       "content": "c"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nkept\n\nReply with the JSON now."
      }
     ],
     "stop": [],
@@ -14407,6 +14491,75 @@
       ],
       "content": "c"
      }
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "lore keywords: entries written as a number are no entries",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": 5
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "lore keywords: entries written as true are no entries",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": true
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "lore keywords: entries written as a string are no entries",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": "Kabukicho"
     }
    },
    "expected": {

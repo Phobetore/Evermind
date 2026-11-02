@@ -152,3 +152,29 @@ async def test_assist_lists_only_text_and_whole_numbers_as_lore_keywords(client,
     })
     content = fake_provider.captured["payload"].messages[0]["content"]
     assert "EXISTING LOREBOOK KEYWORDS" not in content
+
+
+async def test_assist_reads_lore_entries_and_their_keys_only_when_they_are_lists(
+        client, fake_provider):
+    """A string is not a list of letters, and a number is not a list: neither
+    gives a keyword, and neither fails the request."""
+    await add_connection(client)
+    for existing in ({"lore_entries": 5}, {"lore_entries": "Kabukicho"},
+                     {"lore_entries": {"keys": ["Kabukicho"], "content": "c"}},
+                     {"lore_entries": True}):
+        resp = await client.post("/api/characters/assist", json={
+            "prompt": "yakuza", "existing": existing})
+        assert resp.status_code == 200, (existing, resp.text)
+        content = fake_provider.captured["payload"].messages[0]["content"]
+        assert "EXISTING LOREBOOK KEYWORDS" not in content, existing
+
+    resp = await client.post("/api/characters/assist", json={
+        "prompt": "yakuza",
+        "existing": {"lore_entries": [
+            {"keys": "Kabukicho"}, {"keys": 5}, {"keys": {"Shinjuku": 1}}, {"keys": None},
+            {"keys": ["clan"]},
+        ]},
+    })
+    assert resp.status_code == 200, resp.text
+    content = fake_provider.captured["payload"].messages[0]["content"]
+    assert "EXISTING LOREBOOK KEYWORDS (cover other subjects):\nclan\n" in content

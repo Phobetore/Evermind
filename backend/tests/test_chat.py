@@ -172,6 +172,26 @@ async def test_summarize(client, fake_provider):
     assert resp.json()["summary"] == "They met in a crypt."
 
 
+async def test_summarize_prompt_holds_the_turns_of_the_conversation(client, fake_provider):
+    convo = await setup_conversation(client, greeting="*She stirs.*")
+    await send(client, convo["id"])
+    fake_provider.script = [ProviderEvent(type="delta", text="They met in a crypt."),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/summarize")
+
+    assert resp.status_code == 200, resp.text
+    payload = fake_provider.captured["payload"]
+    assert "long-term memory of a roleplay conversation between Alex and Serana" in payload.system
+    assert [(m["role"], m["content"]) for m in payload.messages] == [
+        ("assistant", "*She stirs.*"),
+        ("user", "Hello there"),
+        ("assistant", "*She smiles.* Hello."),
+        ("user", "[Write the summary of the roleplay so far now.]"),
+    ]
+    assert payload.stop == []
+
+
 async def test_auto_title_strips_rp_markup(client, fake_provider):
     convo = await setup_conversation(client)
     await send(client, convo["id"], content="*I step back, torch raised.* Easy, I'm Aymeric.")
@@ -217,6 +237,32 @@ async def test_impersonate_flips_roles(client, fake_provider):
     # character turns became "user", the player's turn became "assistant"
     assert [m["role"] for m in payload.messages] == ["user", "assistant", "user"]
     assert payload.stop == ["\nSerana:"]
+
+
+async def test_impersonate_prompt_holds_the_persona_and_the_story_so_far(client, fake_provider):
+    convo = await setup_conversation(client, greeting="*She stirs.*")
+    persona = (await client.post("/api/personas", json={
+        "name": "Marin", "description": "A courier with a limp."})).json()
+    await client.patch(f"/api/conversations/{convo['id']}", json={
+        "persona_id": persona["id"], "summary": "They met in a crypt."})
+    await send(client, convo["id"])
+    fake_provider.script = [ProviderEvent(type="delta", text="*Je souris.*"),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
+
+    assert resp.status_code == 200, resp.text
+    payload = fake_provider.captured["payload"]
+    assert payload.system.startswith("You are ghost-writing the PLAYER's next message")
+    assert "The player plays Marin; their partner plays Serana." in payload.system
+    assert payload.system.endswith(
+        "ABOUT Marin: A courier with a limp.\n\nSTORY SO FAR: They met in a crypt.")
+    # The chat as the model sees it: the character's turns are the "user" ones.
+    assert [(m["role"], m["content"]) for m in payload.messages] == [
+        ("user", "*She stirs.*"),
+        ("assistant", "Hello there"),
+        ("user", "*She smiles.* Hello."),
+    ]
 
 
 async def test_narrate_and_ooc_modes(client, fake_provider):

@@ -73,7 +73,7 @@ def build_extraction_payload(character: dict, persona: dict | None, conversation
     """The prompt that reads the turns since the last pass for new facts and a new
     summary, and the position of the newest of those turns. None when there is no
     turn since."""
-    char_name = (character or {}).get("name") or "Character"
+    char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
     memory_position = conversation.get("memory_position") or 0
 
@@ -113,7 +113,7 @@ def movable_facts(memories: list[dict]) -> list[dict]:
 def build_consolidation_payload(character: dict, persona: dict | None,
                                 movable: list[dict]) -> PromptPayload:
     """The prompt that merges these facts into a shorter, denser set."""
-    char_name = (character or {}).get("name") or "Character"
+    char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
     facts_block = "\n".join(f"- {m['content']}" for m in movable)
     return PromptPayload(
@@ -154,10 +154,15 @@ def build_card_payload(prompt: str, kind: str, existing: dict | None) -> PromptP
         parts.append("EXISTING FIELDS (keep their content, fill the rest):\n"
                      + json.dumps(existing_filled, ensure_ascii=False, indent=2))
 
+    # A lorebook, or the keys of an entry, that is not a list holds nothing,
+    # whatever it is: a string is not a list of letters.
     known_keys = []
-    for raw in (existing or {}).get("lore_entries") or []:
+    entries = (existing or {}).get("lore_entries")
+    for raw in entries if isinstance(entries, list) else []:
         if isinstance(raw, dict):
-            known_keys += [text for text in map(lore_keyword, raw.get("keys") or []) if text]
+            keys = raw.get("keys")
+            known_keys += [text for text in map(lore_keyword, keys if isinstance(keys, list) else [])
+                           if text]
     if known_keys:
         parts.append("EXISTING LOREBOOK KEYWORDS (cover other subjects):\n"
                      + ", ".join(dict.fromkeys(known_keys)))

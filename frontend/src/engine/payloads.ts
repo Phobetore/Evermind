@@ -181,8 +181,10 @@ export function existingFields(existing: Record<string, unknown> | null): Record
 }
 
 /** The text of a keyword of an existing lorebook entry, "" when it is none: a
- *  string, or a whole number written out. Python counts every integer; here only
- *  those up to 2^53, since a number past it is no longer the one that was written. */
+ *  string, or a whole number written out. Two numbers are read otherwise than in
+ *  Python, since `JSON.parse` keeps neither the type nor the digits of a number:
+ *  `1.0` is a float there and no keyword, where the parsed `1` is "1" here; and an
+ *  integer past 2^53 is a keyword there, and none here. */
 export function loreKeyword(key: unknown): string {
   if (typeof key === "string") return pyStrip(key);
   if (typeof key === "number" && Number.isSafeInteger(key)) return String(key);
@@ -193,22 +195,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** What `for item in value or []` goes through in Python: the items of a list, the
- *  characters of a string, the keys of an object (JavaScript puts the integer-like
- *  ones first). Whatever else is not empty raises there (a number, true), and is
- *  nothing here. */
-function iterated(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value;
-  if (typeof value === "string") return [...value];
-  if (isRecord(value)) return Object.keys(value);
-  return [];
-}
-
+// A lorebook, or the keys of an entry, that is not a list holds nothing, whatever
+// it is: a string is not a list of letters.
 function loreKeywords(existing: Record<string, unknown> | null): string[] {
   const found: string[] = [];
-  for (const raw of iterated(existing?.lore_entries)) {
+  const entries = existing?.lore_entries;
+  for (const raw of Array.isArray(entries) ? entries : []) {
     if (!isRecord(raw)) continue;
-    for (const key of iterated(raw.keys)) {
+    for (const key of Array.isArray(raw.keys) ? raw.keys : []) {
       const text = loreKeyword(key);
       if (text) found.push(text);
     }
@@ -239,24 +233,27 @@ function pyNumber(n: number): string {
  *  cases cannot hold them: an integer-like object key (JavaScript puts it first, in
  *  ascending order), an integer past 2^53, and a lone surrogate, which JavaScript
  *  escapes and Python leaves as it is. */
-export function pyJsonDumps(value: unknown, depth = 0): string {
-  if (typeof value === "number") return pyNumber(value);
-  const inner = " ".repeat(2 * (depth + 1));
-  const outer = " ".repeat(2 * depth);
-  if (Array.isArray(value)) {
-    if (!value.length) return "[]";
-    const items = value.map((item) => inner + pyJsonDumps(item, depth + 1));
-    return `[\n${items.join(",\n")}\n${outer}]`;
-  }
-  if (isRecord(value)) {
-    const entries = Object.entries(value);
-    if (!entries.length) return "{}";
-    const members = entries.map(
-      ([key, item]) => `${inner}${JSON.stringify(key)}: ${pyJsonDumps(item, depth + 1)}`,
-    );
-    return `{\n${members.join(",\n")}\n${outer}}`;
-  }
-  return JSON.stringify(value);
+export function pyJsonDumps(value: unknown): string {
+  const write = (item: unknown, depth: number): string => {
+    if (typeof item === "number") return pyNumber(item);
+    const inner = " ".repeat(2 * (depth + 1));
+    const outer = " ".repeat(2 * depth);
+    if (Array.isArray(item)) {
+      if (!item.length) return "[]";
+      const items = item.map((each) => inner + write(each, depth + 1));
+      return `[\n${items.join(",\n")}\n${outer}]`;
+    }
+    if (isRecord(item)) {
+      const entries = Object.entries(item);
+      if (!entries.length) return "{}";
+      const members = entries.map(
+        ([key, each]) => `${inner}${JSON.stringify(key)}: ${write(each, depth + 1)}`,
+      );
+      return `{\n${members.join(",\n")}\n${outer}}`;
+    }
+    return JSON.stringify(item);
+  };
+  return write(value, 0);
 }
 
 export interface CardInput {

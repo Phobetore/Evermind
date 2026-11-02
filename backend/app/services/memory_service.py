@@ -105,6 +105,15 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
     return connection
 
 
+async def _resolve_persona(db: aiosqlite.Connection, convo: dict) -> dict | None:
+    """The persona the conversation is played as: its own, else the default one,
+    which is the one a chat turn names the player after."""
+    persona = await personas_repo.get(db, convo["persona_id"]) if convo.get("persona_id") else None
+    if persona is None:
+        persona = await personas_repo.get_default(db)
+    return persona
+
+
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Merge non-pinned facts into a shorter, denser set (pinned untouched).
     Returns {"before": n, "after": n, "memories": [...]}."""
@@ -113,7 +122,7 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
         raise NotFoundError("Conversation not found.", "conversation")
     character = await characters_repo.get_raw(db, convo["character_id"]) or {}
     connection = await _resolve_connection(db, convo)
-    persona = await personas_repo.get(db, convo["persona_id"]) if convo.get("persona_id") else None
+    persona = await _resolve_persona(db, convo)
 
     all_facts = await memories_repo.list_for_conversation(db, convo_id)
     movable = movable_facts(all_facts)
@@ -153,9 +162,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
     character = await characters_repo.get_raw(db, convo["character_id"]) or {}
-    persona = await personas_repo.get(db, convo["persona_id"]) if convo.get("persona_id") else None
-    if persona is None:
-        persona = await personas_repo.get_default(db)
+    persona = await _resolve_persona(db, convo)
 
     connection = await _resolve_connection(db, convo)
 
