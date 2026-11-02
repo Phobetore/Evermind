@@ -7,11 +7,18 @@ which is the situation where that happens constantly.
 """
 
 import asyncio
+import json
+import time
 
+import aiosqlite
 import pytest
 
+from app import db
+from app.errors import AppError
 from app.models.schemas import ChatRequest
-from app.services import turns
+from app.prompting import embeddings
+from app.providers.base import NETWORK_ERROR, ProviderEvent, failure
+from app.services import chat_service, turns
 from tests.test_chat import setup_conversation
 from tests.test_streaming_persistence import UnhurriedProvider
 
@@ -72,17 +79,174 @@ async def test_a_second_request_joins_rather_than_starting_another(client, unhur
     """A phone that reconnects and asks again must not set a second reply
     generating alongside the first."""
     convo = await setup_conversation(client)
-    # The card has a greeting, so the conversation already opens on one reply.
-    before = len([m for m in await _messages(client, convo["id"]) if m["role"] == "assistant"])
+    await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "content": "Dis quelque chose"})
+    before = await _messages(client, convo["id"])
 
-    request = ChatRequest(conversation_id=convo["id"], mode="send", content="Une fois")
+    request = ChatRequest(conversation_id=convo["id"], mode="regenerate")
     first = await turns.start(request)
     second = await turns.start(request)
     assert first is second
 
     await asyncio.wait_for(first.finished.wait(), timeout=15)
-    after = len([m for m in await _messages(client, convo["id"]) if m["role"] == "assistant"])
-    assert after - before == 1, f"one message produced {after - before} replies"
+    after = await _messages(client, convo["id"])
+    assert len(after) == len(before), "a regeneration added a reply"
+    assert len(after[-1]["variants"]) == 2, "one request produced more than one variant"
+
+
+@pytest.mark.parametrize("mode", ["send", "continue"])
+async def test_a_different_request_is_refused_rather_than_swallowed(client, unhurried, mode):
+    """Handing back a turn that has nothing to do with the request swallows it: above
+    all a message, gone from the box and saved nowhere."""
+    convo = await setup_conversation(client)
+    await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "content": "Dis quelque chose"})
+    running = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    before = await _messages(client, convo["id"])
+
+    response = await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": mode, "content": "Aussi",
+    })
+    assert response.status_code == 409
+    assert response.json()["kind"] == "turn_running"
+    assert await _messages(client, convo["id"]) == before, "something was saved of it"
+
+    await asyncio.wait_for(running.finished.wait(), timeout=15)
+
+
+async def test_a_message_is_refused_while_a_message_is_being_answered(client, unhurried):
+    convo = await setup_conversation(client)
+    running = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Un"))
+    with pytest.raises(AppError) as refused:
+        await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Un"))
+    assert refused.value.kind == "turn_running"
+    await asyncio.wait_for(running.finished.wait(), timeout=15)
+
+
+class SlowToStartProvider:
+    """Takes a long time over its first word, as a local model does on a long prompt."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        await asyncio.sleep(30)
+        yield ProviderEvent(type="done")
+
+
+async def test_stopping_ends_it_there_and_then_and_the_next_message_goes(client, monkeypatch):
+    """Not at the model's next word, which can be minutes away, with the message
+    sent straight after a stop having to wait for it."""
+    monkeypatch.setattr("app.services.chat_service.get_provider", SlowToStartProvider)
+    convo = await setup_conversation(client)
+    stopped = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Non, rien"))
+    reader = turns.follow(stopped)
+    await reader.asend(None)  # the start event
+    await reader.aclose()
+    both = await asyncio.gather(turns.stop(convo["id"]), turns.stop(convo["id"]))
+    assert both == [True, True], "stopping twice should be harmless"
+
+    next_one = await asyncio.wait_for(turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Autre chose")), timeout=5)
+    assert stopped.finished.is_set()
+    assert next_one is not stopped
+    assert await turns.stop(convo["id"]) is True
+    await asyncio.wait_for(next_one.finished.wait(), timeout=5)
+    contents = [m["content"] for m in await _messages(client, convo["id"])]
+    assert "Autre chose" in contents, "the message was swallowed"
+
+
+async def test_stopping_a_turn_that_has_not_begun_still_ends_it(client, monkeypatch):
+    monkeypatch.setattr("app.services.chat_service.get_provider", SlowToStartProvider)
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="regenerate"))
+    assert await turns.stop(convo["id"]) is True, "this was meant to catch it before it began"
+    await asyncio.wait_for(turn.finished.wait(), timeout=5)
+
+
+async def test_a_message_sent_on_seeing_the_ending_is_not_refused(client, unhurried, monkeypatch):
+    """Between saying how it ended and being done with its tidying up, a turn still
+    counts as running, and someone quick may already be asking for the next one."""
+    convo = await setup_conversation(client)
+    tidying = asyncio.Event()
+    carry_on = asyncio.Event()
+    real = turns._settle_last_question
+
+    async def slow_settle(db, turn):
+        tidying.set()
+        await carry_on.wait()
+        await real(db, turn)
+
+    monkeypatch.setattr(turns, "_settle_last_question", slow_settle)
+    first = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Un"))
+    await asyncio.wait_for(tidying.wait(), timeout=15)
+    assert turns.running_for(convo["id"]) is first, "the moment this is about has gone"
+    assert first.ending
+
+    monkeypatch.setattr(turns, "_settle_last_question", real)
+    asked = asyncio.create_task(turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Deux")))
+    await asyncio.sleep(0.05)
+    assert not asked.done(), "it did not wait for the turn on its way out"
+    carry_on.set()
+    second = await asyncio.wait_for(asked, timeout=5)
+    assert second is not first
+    await asyncio.wait_for(second.finished.wait(), timeout=15)
+
+
+async def test_a_message_deleted_during_its_reply_ends_the_reply_without_a_message(client, unhurried):
+    """Deleting it takes the reply with it, and there was nothing left to report as
+    the reply: a `done` with no message took the page down."""
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Efface-moi"))
+    reader = turns.follow(turn)
+    await reader.asend(None)
+    await reader.aclose()
+    mine = next(m for m in await _messages(client, convo["id"]) if m["content"] == "Efface-moi")
+    await client.delete(f"/api/messages/{mine['id']}?following=true")
+
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+    ending = turn.events[-1]
+    assert '"discarded"' in ending, f"ended with {ending!r}"
+    assert not any('"message": null' in event for event in turn.events)
+    contents = [m["content"] for m in await _messages(client, convo["id"])]
+    assert "Efface-moi" not in contents
+    assert not any(c.startswith("mot") for c in contents), "the reply came back on its own"
+
+
+async def test_a_failed_turn_does_not_mark_a_message_it_never_touched(client, unhurried):
+    """The reply was deleted, and a continuation is refused for lack of one. The
+    message that is now last was never waiting on that."""
+    convo = await setup_conversation(client)
+    await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "content": "Dis quelque chose"})
+    reply = (await _messages(client, convo["id"]))[-1]
+    await client.delete(f"/api/messages/{reply['id']}?following=true")
+
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="continue"))
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    last = (await _messages(client, convo["id"]))[-1]
+    assert last["role"] == "user"
+    assert "unanswered" not in last["meta"]
+
+
+async def test_a_branch_does_not_inherit_the_mark(client, monkeypatch):
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Personne ?"))
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+    asked = (await _messages(client, convo["id"]))[-1]
+    assert asked["meta"].get("unanswered") is True
+
+    branch = (await client.post(f"/api/messages/{asked['id']}/branch")).json()
+    assert "unanswered" not in branch["messages"][-1]["meta"]
+    assert (await _messages(client, convo["id"]))[-1]["meta"].get("unanswered") is True
 
 
 async def test_stopping_is_asked_for_and_takes_effect(client, unhurried):
@@ -144,3 +308,741 @@ async def test_a_regeneration_also_finishes_after_its_reader_leaves(client, unhu
     assert replaced["variants"][-1].strip().endswith("mot11"), (
         "the replacement was cut short"
     )
+
+
+async def test_a_finished_turn_does_not_take_the_next_one_with_it(client, unhurried, monkeypatch):
+    """A finished turn is forgotten a while after it ends, and the next turn of the
+    conversation takes the same place, often within that while. Forgetting by
+    conversation dropped that one in the middle of its reply: a page then saw
+    nothing running, and a second request would have started a second reply."""
+    monkeypatch.setattr(turns, "_KEEP_FINISHED_SECONDS", 0.2)
+    convo = await setup_conversation(client)
+
+    first = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Un"))
+    await asyncio.wait_for(first.finished.wait(), timeout=15)
+
+    second = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Deux"))
+    await asyncio.sleep(0.4)  # the first is forgotten, the second is at its 5th word
+    assert not second.finished.is_set(), "the reply was over before the moment this is about"
+    assert turns.running_for(convo["id"]) is second, "the next turn was forgotten with the last"
+
+    await asyncio.wait_for(second.finished.wait(), timeout=15)
+    await asyncio.sleep(0.4)
+    assert convo["id"] not in turns._running, "a finished turn was never forgotten"
+
+
+async def test_the_state_of_a_turn_says_when_one_has_just_ended(client, unhurried, monkeypatch):
+    """A page reads the conversation and asks about the turn at the same time. If
+    a turn ended between the two, what it read is out of date, and this is how it
+    knows to read again, rather than doing so on every opening."""
+    monkeypatch.setattr(turns, "_KEEP_FINISHED_SECONDS", 0.2)
+    convo = await setup_conversation(client)
+    url = f"/api/conversations/{convo['id']}/turn"
+
+    state = (await client.get(url)).json()
+    assert state == {"running": False, "mode": None, "ended_recently": False}
+
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Vas-y"))
+    state = (await client.get(url)).json()
+    assert state == {"running": True, "mode": "send", "ended_recently": False}
+
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+    state = (await client.get(url)).json()
+    assert state == {"running": False, "mode": None, "ended_recently": True}
+
+    await asyncio.sleep(0.4)
+    state = (await client.get(url)).json()
+    assert state == {"running": False, "mode": None, "ended_recently": False}
+
+
+async def test_the_ending_of_a_turn_is_still_there_to_be_read(client, unhurried, monkeypatch):
+    """A phone that wakes just after its reply ended is handed the ending, including
+    a failure, which is nowhere in the conversation to be found afterwards."""
+    monkeypatch.setattr(turns, "_KEEP_FINISHED_SECONDS", 0.2)
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Fini"))
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    url = f"/api/conversations/{convo['id']}/turn/stream"
+    ended = (await client.get(url)).text
+    assert '"delta"' in ended and '"done"' in ended, f"nothing of the turn was handed over: {ended!r}"
+
+    await asyncio.sleep(0.4)
+    assert (await client.get(url)).text == "", "a turn that has been forgotten has nothing to say"
+
+
+class RefusingProvider:
+    """Fails without a word, as a model does when it is not there."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        await asyncio.sleep(0.05)
+        yield ProviderEvent(type="error", message="Non.", meta=failure(NETWORK_ERROR, upstream="Non."))
+
+
+def _refusing(monkeypatch):
+    monkeypatch.setattr("app.services.chat_service.get_provider", RefusingProvider)
+
+
+async def test_a_message_left_without_a_reply_says_so(client, monkeypatch):
+    """So that opening the conversation later, on a page that was not there when
+    the turn failed, can tell. Absence alone cannot: a conversation can end on the
+    person's message because a reply was deleted, or because it was branched there."""
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Personne ?"))
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    last = (await _messages(client, convo["id"]))[-1]
+    assert last["role"] == "user"
+    assert last["meta"].get("unanswered") is True, "nothing says the reply never came"
+
+
+async def test_it_says_so_from_the_start_in_case_the_server_dies(client, unhurried):
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Vas-y"))
+    reader = turns.follow(turn)
+    await reader.asend(None)  # the start event: the message is saved by then
+    await reader.aclose()
+
+    messages = await _messages(client, convo["id"])
+    user = next(m for m in reversed(messages) if m["role"] == "user")
+    assert user["meta"].get("unanswered") is True
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+
+async def test_a_reply_takes_it_away(client, unhurried):
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Vas-y"))
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    user, reply = (await _messages(client, convo["id"]))[-2:]
+    assert reply["role"] == "assistant"
+    assert "unanswered" not in user["meta"], (
+        "deleting that reply later would report one that never came"
+    )
+
+
+async def test_stopping_before_any_word_is_not_a_reply_that_went_missing(client, monkeypatch):
+    """Nothing is missing: the person chose this. Saying otherwise, on every later
+    opening of the conversation, would be a false alarm."""
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Non, rien"))
+    reader = turns.follow(turn)
+    await reader.asend(None)
+    await reader.aclose()
+    assert await turns.stop(convo["id"]) is True
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    last = (await _messages(client, convo["id"]))[-1]
+    assert last["role"] == "user", "the reply was meant to stop before any word"
+    assert "unanswered" not in last["meta"]
+
+
+async def test_a_later_reply_takes_it_away_too(client, unhurried, monkeypatch):
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    failed = await turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Encore"))
+    await asyncio.wait_for(failed.finished.wait(), timeout=15)
+
+    monkeypatch.setattr("app.services.chat_service.get_provider", UnhurriedProvider)
+    answered = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    await asyncio.wait_for(answered.finished.wait(), timeout=15)
+
+    user, reply = (await _messages(client, convo["id"]))[-2:]
+    assert reply["role"] == "assistant"
+    assert "unanswered" not in user["meta"]
+
+
+class ShortProvider:
+    """A few words, quickly, and an end."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        for i in range(4):
+            yield ProviderEvent(type="delta", text=f"mot{i} ")
+            await asyncio.sleep(0.001)
+        yield ProviderEvent(type="done")
+
+
+@pytest.fixture()
+def short(monkeypatch):
+    monkeypatch.setattr("app.services.chat_service.get_provider", ShortProvider)
+    monkeypatch.setattr("app.services.memory_service.get_provider", ShortProvider)
+
+
+async def test_stopping_on_seeing_the_ending_does_not_lock_the_conversation(client, short):
+    """A stop can land while a turn that has already ended is tidying up. If that
+    leaves the turn looking as if it were running, the conversation refuses every
+    message until the server is restarted."""
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Un"))
+    async for chunk in turns.follow(turn):
+        if '"type": "done"' in chunk:
+            assert turn.ending
+            await turns.stop(convo["id"])
+            break
+    await asyncio.wait_for(turn.finished.wait(), timeout=5)
+    assert turns.running_for(convo["id"]) is None
+
+    next_one = await asyncio.wait_for(turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Deux")), timeout=5)
+    await asyncio.wait_for(next_one.finished.wait(), timeout=5)
+    assert (await _messages(client, convo["id"]))[-1]["role"] == "assistant"
+
+
+async def test_a_cancel_on_the_last_write_leaves_everything_usable(client, short, monkeypatch):
+    """Nothing here cancels a turn any more, but a server shutting down does. A write
+    cut off half way would leave a transaction open and the whole database locked."""
+    other = await setup_conversation(client)
+    convo = await setup_conversation(client)
+    real_execute = aiosqlite.core.Connection._execute
+    landed = {}
+
+    async def execute(self, fn, *args, **kwargs):
+        turn = landed.get("turn")
+        if (turn is not None and "at" not in landed and turn.ending and args
+                and isinstance(args[0], str) and args[0].startswith("UPDATE messages")):
+            landed["at"] = args[0]
+            turn.task.cancel()
+        return await real_execute(self, fn, *args, **kwargs)
+
+    monkeypatch.setattr(aiosqlite.core.Connection, "_execute", execute)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Un"))
+    landed["turn"] = turn
+    await asyncio.wait_for(turn.finished.wait(), timeout=5)
+    monkeypatch.setattr(aiosqlite.core.Connection, "_execute", real_execute)
+    assert "at" in landed, "the cancel never landed on the write it is about"
+
+    assert turns.running_for(convo["id"]) is None
+    changed = await asyncio.wait_for(client.patch(
+        f"/api/conversations/{other['id']}", json={"title": "autre"}), timeout=5)
+    assert changed.status_code == 200, "the database was left locked"
+    next_one = await asyncio.wait_for(turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Deux")), timeout=5)
+    await asyncio.wait_for(next_one.finished.wait(), timeout=5)
+    assert (await _messages(client, convo["id"]))[-1]["role"] == "assistant"
+
+
+async def test_a_cancel_at_any_moment_still_finishes_the_turn(client, unhurried):
+    """A server shutting down can catch a turn anywhere, and whoever is reading it must
+    not be left waiting. What arrived up to the last flush is kept."""
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Un"))
+    reader = turns.follow(turn)
+    for _ in range(3):
+        await reader.asend(None)
+    turn.task.cancel()
+    await asyncio.wait_for(turn.finished.wait(), timeout=5)
+    await reader.aclose()
+    assert turns.running_for(convo["id"]) is None
+    next_one = await asyncio.wait_for(turns.start(ChatRequest(
+        conversation_id=convo["id"], mode="send", content="Deux")), timeout=5)
+    await asyncio.wait_for(turns.stop(convo["id"]), timeout=5)
+    await asyncio.wait_for(next_one.finished.wait(), timeout=5)
+
+
+async def test_stop_around_the_last_word_never_leaves_a_turn_stuck(client, short):
+    """Swept across the moment a turn ends, on the server's own event loop."""
+    convo = await setup_conversation(client)
+    for attempt in range(220):
+        turn = await asyncio.wait_for(turns.start(ChatRequest(
+            conversation_id=convo["id"], mode="send", content=f"Essai {attempt}")), timeout=5)
+        # From before the last word has been dealt with, to after the ending.
+        moment = '"mot3 "' if attempt % 2 else '"type": "done"'
+        async for chunk in turns.follow(turn):
+            if moment in chunk:
+                for _ in range(attempt % 11):
+                    await asyncio.sleep(0)
+                if attempt % 3:
+                    await asyncio.sleep((attempt % 7) / 1000)
+                await turns.stop(convo["id"])
+                break
+        await asyncio.wait_for(turn.finished.wait(), timeout=5)
+        assert turns.running_for(convo["id"]) is None
+    assert (await client.patch(f"/api/conversations/{convo['id']}", json={"title": "fin"})).status_code == 200
+
+
+async def test_stopping_keeps_every_word_that_was_delivered(client, unhurried, monkeypatch):
+    """Stop the current turn, keep what arrived: that is what stopping is. Flushing
+    only now and then would lose up to the last second of what the person saw."""
+    monkeypatch.setattr("app.services.chat_service._FLUSH_SECONDS", 60)
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Vas-y"))
+    delivered = []
+    reader = turns.follow(turn)
+    while len(delivered) < 5:
+        chunk = await reader.asend(None)
+        if '"delta"' in chunk:
+            delivered.append(chunk.split('"text": "')[1].split('"')[0].strip())
+    await reader.aclose()
+    assert await turns.stop(convo["id"]) is True
+    await asyncio.wait_for(turn.finished.wait(), timeout=5)
+
+    reply = (await _messages(client, convo["id"]))[-1]
+    assert reply["role"] == "assistant"
+    for word in delivered:
+        assert word in reply["content"], f"{word} was on screen and is gone: {reply['content']!r}"
+    assert reply["meta"].get("streaming") is True, "it was stopped, not finished"
+    assert not reply["content"].strip().endswith("mot11"), "it ran to the end all the same"
+
+
+class OpenUntilClosedProvider:
+    """Says nothing, for a long time, and notes when its request is ended."""
+
+    closed_at: float | None = None
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        try:
+            await asyncio.sleep(60)
+            yield ProviderEvent(type="done")
+        finally:
+            OpenUntilClosedProvider.closed_at = time.monotonic()
+
+
+async def test_stopping_ends_the_request_to_the_model_at_once(client, monkeypatch):
+    monkeypatch.setattr("app.services.chat_service.get_provider", OpenUntilClosedProvider)
+    OpenUntilClosedProvider.closed_at = None
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Vas-y"))
+    reader = turns.follow(turn)
+    await reader.asend(None)  # the start event
+    await reader.aclose()
+    await asyncio.sleep(0.05)
+
+    stopped_at = time.monotonic()
+    await turns.stop(convo["id"])
+    await asyncio.wait_for(turn.finished.wait(), timeout=5)
+    assert OpenUntilClosedProvider.closed_at is not None, "the model is still being asked"
+    assert OpenUntilClosedProvider.closed_at - stopped_at < 1
+
+
+async def test_a_regeneration_whose_reply_was_deleted_raises_no_alarm(client, unhurried):
+    """The person deleted it. Nothing went missing."""
+    convo = await setup_conversation(client)
+    await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "content": "Dis quelque chose"})
+    reply = (await _messages(client, convo["id"]))[-1]
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    reader = turns.follow(turn)
+    for _ in range(2):
+        await reader.asend(None)
+    await reader.aclose()
+    await client.delete(f"/api/messages/{reply['id']}?following=true")
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    assert turn.discarded
+    last = (await _messages(client, convo["id"]))[-1]
+    assert last["role"] == "user"
+    assert "unanswered" not in last["meta"], "a false alarm: the person deleted that reply"
+
+
+async def test_stopping_answers_once_the_turn_has_ended(client, unhurried, monkeypatch):
+    """So that whoever stopped it can read what arrived straight away, and find it."""
+    monkeypatch.setattr("app.services.chat_service._FLUSH_SECONDS", 60)
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Vas-y"))
+    reader = turns.follow(turn)
+    for _ in range(4):
+        await reader.asend(None)
+    await reader.aclose()
+
+    response = await client.delete(f"/api/conversations/{convo['id']}/turn")
+    assert response.status_code == 204
+    assert turn.finished.is_set(), "it answered before the turn had ended"
+    last = (await _messages(client, convo["id"]))[-1]
+    assert last["role"] == "assistant" and last["content"].startswith("mot0"), "what arrived is not there yet"
+
+
+class AnsweredLaterProvider:
+    """Takes a moment over its first word."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        await asyncio.sleep(0.2)
+        yield ProviderEvent(type="delta", text="Trop tard")
+        yield ProviderEvent(type="done")
+
+
+async def test_a_reply_to_a_message_deleted_before_its_first_word_is_not_written(client, monkeypatch):
+    """Regenerating from a message left without a reply, which the person then deletes:
+    a reply written then would answer nothing."""
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    failed = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Personne ?"))
+    await asyncio.wait_for(failed.finished.wait(), timeout=15)
+    asked = (await _messages(client, convo["id"]))[-1]
+    assert asked["role"] == "user"
+
+    monkeypatch.setattr("app.services.chat_service.get_provider", AnsweredLaterProvider)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    reader = turns.follow(turn)
+    await reader.asend(None)  # the start event
+    await reader.aclose()
+    await client.delete(f"/api/messages/{asked['id']}?following=true")
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    assert '"discarded"' in turn.events[-1], f"ended with {turn.events[-1]!r}"
+    contents = [m["content"] for m in await _messages(client, convo["id"])]
+    assert "Trop tard" not in contents, "a reply was written onto nothing"
+
+
+class FailsThenLingersProvider:
+    """Fails, and notes when its request is ended."""
+
+    closed = False
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        try:
+            yield ProviderEvent(type="error", message="Non.", meta=failure(NETWORK_ERROR, upstream="Non."))
+            await asyncio.sleep(60)
+        finally:
+            FailsThenLingersProvider.closed = True
+
+
+async def test_the_request_to_the_model_ends_with_the_turn(client, monkeypatch):
+    """Whichever way the turn leaves it, here and now rather than whenever the garbage
+    collector comes round. Which it may do at once, so what it would have to come round
+    for is held on to: being closed then ends the request, and being forgotten cannot."""
+    until_stopped = chat_service._until_stopped
+    held = []
+
+    def holding_on(events, stopped):
+        held.append(until_stopped(events, stopped))
+        return held[-1]
+
+    monkeypatch.setattr("app.services.chat_service._until_stopped", holding_on)
+    monkeypatch.setattr("app.services.chat_service.get_provider", FailsThenLingersProvider)
+    FailsThenLingersProvider.closed = False
+    convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Vas-y"))
+    await asyncio.wait_for(turn.finished.wait(), timeout=5)
+    assert FailsThenLingersProvider.closed, "the request to the model outlived the turn"
+
+
+async def test_a_stop_is_heard_while_the_past_is_being_prepared(client, short, monkeypatch):
+    """Vectors are filled in one request at a time for what has left the window, which
+    can be hundreds of them, before the model is even asked."""
+    await client.put("/api/settings", json={
+        "auto_memory": False, "passage_budget": 500, "history_limit": 4})
+    convo = await setup_conversation(client)
+    for i in range(6):
+        response = await client.post("/api/chat", json={
+            "conversation_id": convo["id"], "mode": "send", "content": f"Message {i}"})
+        assert response.status_code == 200
+
+    asked = []
+    stopping = []
+
+    async def slow_embed(texts, kind):
+        if kind == "passage":
+            asked.append(texts)
+            if len(asked) == 2:
+                stopping.append(asyncio.create_task(turns.stop(convo["id"])))
+        await asyncio.sleep(0)
+        return [[1.0, 0.0] for _ in texts]
+
+    monkeypatch.setattr(embeddings, "embed", slow_embed)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    await asyncio.wait_for(turn.finished.wait(), timeout=10)
+    assert stopping, "this was meant to catch it among the vectors"
+    await asyncio.wait_for(stopping[0], timeout=10)
+    assert len(asked) == 2, f"it carried on after the stop: {len(asked)} requests"
+
+
+async def test_a_connection_that_could_not_be_set_up_is_closed(monkeypatch):
+    """Being cancelled there is the likely way, a client going away at that moment, and
+    nobody else has been handed the connection to close: the thread behind it stays."""
+
+    class HalfOpen:
+        closed = False
+
+        async def execute(self, sql):
+            raise asyncio.CancelledError
+
+        async def close(self):
+            self.closed = True
+
+    half_open = HalfOpen()
+
+    async def connect(path):
+        return half_open
+
+    monkeypatch.setattr(db.aiosqlite, "connect", connect)
+    with pytest.raises(asyncio.CancelledError):
+        await db._connect()
+    assert half_open.closed
+
+
+def _sending(convo_id, client_id="un-message", content="Vas-y"):
+    return ChatRequest(conversation_id=convo_id, mode="send", content=content, client_id=client_id)
+
+
+def _said(events):
+    return [json.loads(event.split("data: ", 1)[1]) for event in events]
+
+
+class CountingProvider:
+    """A few words and an end, counting how often it is asked."""
+
+    asked = 0
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        CountingProvider.asked += 1
+        await asyncio.sleep(0.01)
+        yield ProviderEvent(type="delta", text="Une réponse.")
+        yield ProviderEvent(type="done")
+
+
+@pytest.fixture()
+def counting(monkeypatch):
+    CountingProvider.asked = 0
+    monkeypatch.setattr("app.services.chat_service.get_provider", CountingProvider)
+    monkeypatch.setattr("app.services.memory_service.get_provider", CountingProvider)
+
+
+async def _answered(client, convo_id, client_id="un-message"):
+    turn = await turns.start(_sending(convo_id, client_id))
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+    return turn
+
+
+async def test_a_message_keeps_the_id_it_was_sent_under(client, counting):
+    convo = await setup_conversation(client)
+    await _answered(client, convo["id"])
+    question = (await _messages(client, convo["id"]))[-2]
+    assert question["role"] == "user"
+    assert question["meta"]["client_id"] == "un-message"
+
+
+async def test_sending_again_while_its_turn_is_running_joins_it(client, unhurried):
+    convo = await setup_conversation(client)
+    first = await turns.start(_sending(convo["id"]))
+    again = await turns.start(_sending(convo["id"]))
+    assert again is first, "a second reply is being written alongside the first"
+
+    # And once the message is in the conversation, which a request can find as well.
+    reader = turns.follow(first)
+    await reader.asend(None)
+    await reader.aclose()
+    assert await turns.start(_sending(convo["id"])) is first
+    await turns.stop(convo["id"])
+    said = [m["content"] for m in await _messages(client, convo["id"])]
+    assert said.count("Vas-y") == 1
+
+
+async def test_sending_again_joins_whatever_is_writing_its_reply(client, unhurried, monkeypatch):
+    """Another page may have asked for it, knowing the message was there: the id of the
+    turn is then no help, and nor is what comes after the message."""
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    await _answered(client, convo["id"])
+    monkeypatch.setattr("app.services.chat_service.get_provider", UnhurriedProvider)
+
+    writing = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    assert await turns.start(_sending(convo["id"])) is writing
+
+    await turns.stop(convo["id"])
+    assert writing.finished.is_set()
+    replacing = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    reader = turns.follow(replacing)
+    await reader.asend(None)
+    await reader.aclose()
+    assert await turns.start(_sending(convo["id"])) is replacing, "with a reply there, being replaced"
+    await turns.stop(convo["id"])
+    said = [m["content"] for m in await _messages(client, convo["id"])]
+    assert said.count("Vas-y") == 1
+
+
+async def test_sending_again_once_answered_says_so_and_adds_nothing(client, counting):
+    convo = await setup_conversation(client)
+    await _answered(client, convo["id"])
+    before = await _messages(client, convo["id"])
+
+    response = await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "content": "Vas-y", "client_id": "un-message"})
+    events = _said(response.text.replace("\n\n", "\n\n\0").split("\0")[:-1])
+
+    assert [event["type"] for event in events] == ["start", "done"]
+    assert events[0]["user_message"]["id"] == before[-2]["id"]
+    assert events[1]["message"]["id"] == before[-1]["id"]
+    assert await _messages(client, convo["id"]) == before, "something was added"
+    assert CountingProvider.asked == 1, "the model was asked again"
+
+
+async def test_sending_again_with_no_reply_gets_one_without_adding_the_message(client, counting, monkeypatch):
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    await _answered(client, convo["id"])
+    question = (await _messages(client, convo["id"]))[-1]
+    assert question["meta"]["client_id"] == "un-message" and question["meta"]["unanswered"]
+
+    monkeypatch.setattr("app.services.chat_service.get_provider", CountingProvider)
+    turn = await _answered(client, convo["id"])
+
+    start = _said(turn.events)[0]
+    assert start["mode"] == "send" and start["user_message"]["id"] == question["id"]
+    messages = await _messages(client, convo["id"])
+    assert [m["content"] for m in messages].count("Vas-y") == 1, "the message was added again"
+    assert messages[-2]["id"] == question["id"] and messages[-1]["content"] == "Une réponse."
+    assert "unanswered" not in messages[-2]["meta"]
+
+
+async def test_failing_again_says_again_that_the_message_has_no_reply(client, counting, monkeypatch):
+    """Stopped before any word it has no mark, since that was asked for. Asked for once
+    more, a failure is something else."""
+    monkeypatch.setattr("app.services.chat_service.get_provider", SlowToStartProvider)
+    convo = await setup_conversation(client)
+    turn = await turns.start(_sending(convo["id"]))
+    await asyncio.sleep(0.05)
+    await turns.stop(convo["id"])
+    assert turn.finished.is_set()
+    question = (await _messages(client, convo["id"]))[-1]
+    assert "unanswered" not in question["meta"]
+
+    _refusing(monkeypatch)
+    await _answered(client, convo["id"])
+    assert (await _messages(client, convo["id"]))[-1]["meta"]["unanswered"]
+
+
+async def test_two_requests_at_once_with_the_same_id_are_one_message_and_one_reply(client, counting):
+    convo = await setup_conversation(client)
+    before = len(await _messages(client, convo["id"]))
+    body = {"conversation_id": convo["id"], "mode": "send", "content": "Vas-y", "client_id": "un-message"}
+
+    responses = await asyncio.gather(*(client.post("/api/chat", json=body) for _ in range(4)))
+
+    assert [response.status_code for response in responses] == [200] * 4
+    messages = await _messages(client, convo["id"])
+    assert len(messages) == before + 2, [m["content"] for m in messages]
+    for response in responses:
+        events = _said(response.text.replace("\n\n", "\n\n\0").split("\0")[:-1])
+        assert events[0]["type"] == "start" and events[-1]["type"] == "done"
+        assert events[-1]["message"]["id"] == messages[-1]["id"]
+    assert CountingProvider.asked == 1
+
+
+async def test_a_turn_ending_while_the_conversation_is_read_is_not_answered_again(client, counting, monkeypatch):
+    """The read can be from before the reply was written, and the question whether a
+    turn is running asked after it has ended, which looks like a message with no reply."""
+    convo = await setup_conversation(client)
+    first = await turns.start(_sending(convo["id"]))
+    read = turns._sent_before
+
+    async def read_then_it_ends(request):
+        found = await read(request)
+        await first.finished.wait()
+        return found
+
+    monkeypatch.setattr(turns, "_sent_before", read_then_it_ends)
+    again = await turns.start(_sending(convo["id"]))
+    assert again is not first and _said(again.events)[-1]["type"] == "done"
+    assert CountingProvider.asked == 1, "the model was asked again"
+
+
+async def test_the_same_words_under_another_id_are_another_message(client, counting):
+    convo = await setup_conversation(client)
+    await _answered(client, convo["id"], "une-fois")
+    await _answered(client, convo["id"], "une-autre")
+    said = [m["content"] for m in await _messages(client, convo["id"])]
+    assert said.count("Vas-y") == 2
+
+
+async def test_no_id_is_a_new_message_every_time(client, counting):
+    convo = await setup_conversation(client)
+    for _ in range(2):
+        turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Vas-y"))
+        await asyncio.wait_for(turn.finished.wait(), timeout=15)
+    said = [m["content"] for m in await _messages(client, convo["id"])]
+    assert said.count("Vas-y") == 2
+
+
+async def test_sending_again_is_not_refused_for_a_turn_that_has_nothing_to_do_with_it(client, counting, unhurried):
+    convo = await setup_conversation(client)
+    await _answered(client, convo["id"], "answered")
+    later = await turns.start(_sending(convo["id"], "later"))
+    # Until that message is there, this cannot be told from any other.
+    with pytest.raises(AppError) as refused:
+        await turns.start(_sending(convo["id"], "another"))
+    assert refused.value.status_code == 409
+    reader = turns.follow(later)
+    await reader.asend(None)
+    await reader.aclose()
+
+    again = await turns.start(_sending(convo["id"], "answered"))
+    assert again is not later
+    assert [event["type"] for event in _said(again.events)] == ["start", "done"]
+    assert turns.running_for(convo["id"]) is later, "it took the place of the one running"
+    await turns.stop(convo["id"])
+
+
+async def test_a_message_left_behind_by_others_is_left_there(client, counting, monkeypatch):
+    """A reply now would come after messages sent since, and answer the wrong thing."""
+    _refusing(monkeypatch)
+    convo = await setup_conversation(client)
+    await _answered(client, convo["id"], "left-behind")
+    monkeypatch.setattr("app.services.chat_service.get_provider", CountingProvider)
+    await _answered(client, convo["id"], "since")
+    before = await _messages(client, convo["id"])
+
+    again = await turns.start(_sending(convo["id"], "left-behind"))
+    assert [event["type"] for event in _said(again.events)] == ["start", "discarded"]
+    assert await _messages(client, convo["id"]) == before
+    assert CountingProvider.asked == 1
+
+
+async def test_sending_again_after_a_stop_finds_what_arrived(client, unhurried):
+    convo = await setup_conversation(client)
+    first = await turns.start(_sending(convo["id"]))
+    reader = turns.follow(first)
+    for _ in range(4):
+        await reader.asend(None)
+    await reader.aclose()
+    first.stop_asked.set()
+
+    again = await turns.start(_sending(convo["id"]))
+    assert first.finished.is_set() and again is not first
+    events = _said(again.events)
+    assert [event["type"] for event in events] == ["start", "done"]
+    assert events[-1]["message"]["content"].startswith("mot0")
+
+
+async def test_a_branch_does_not_inherit_the_id(client, counting):
+    """Nothing there was sent under it, and a page holding on to it means the original."""
+    convo = await setup_conversation(client)
+    await _answered(client, convo["id"])
+    question = (await _messages(client, convo["id"]))[-2]
+    branch = (await client.post(f"/api/messages/{question['id']}/branch")).json()
+    assert "client_id" not in branch["messages"][-1]["meta"]
+
+
+async def test_an_id_cannot_be_any_length(client):
+    convo = await setup_conversation(client)
+    response = await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "content": "Vas-y", "client_id": "x" * 65})
+    assert response.status_code == 422

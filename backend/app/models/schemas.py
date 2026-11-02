@@ -162,3 +162,6 @@ class ChatRequest(BaseModel):
     # say = in-character speech/actions; narrate = the player describes the
     # world; ooc = out-of-character instruction to the model.
     message_mode: Literal["say", "narrate", "ooc"] = "say"
+    # Chosen by the page for each message it sends. A page that does not know what
+    # became of a message can send it again under the same one and not say it twice.
+    client_id: str | None = Field(default=None, min_length=1, max_length=64)

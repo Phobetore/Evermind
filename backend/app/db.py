@@ -17,9 +17,14 @@ MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 
 async def _connect() -> aiosqlite.Connection:
     conn = await aiosqlite.connect(db_path())
-    conn.row_factory = aiosqlite.Row
-    await conn.execute("PRAGMA foreign_keys = ON")
-    await conn.execute("PRAGMA journal_mode = WAL")
+    try:
+        conn.row_factory = aiosqlite.Row
+        await conn.execute("PRAGMA foreign_keys = ON")
+        await conn.execute("PRAGMA journal_mode = WAL")
+    except BaseException:
+        # Cancelled included: nobody else has been handed this connection to close.
+        await conn.close()
+        raise
     return conn
 
 

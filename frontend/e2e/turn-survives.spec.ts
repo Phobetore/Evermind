@@ -1,6 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply, stopTurn, turnRunning } from "./fixtures";
+import {
+  conversation, conversationWithReply, makeConversation, stopTurn, turnRunning,
+} from "./fixtures";
 
 /**
  * Evermind is most often used from a phone against a machine somewhere else,
@@ -73,3 +75,219 @@ test("coming back shows the reply still arriving", async ({ browser, request }) 
   await second.close();
   await stopTurn(request, convo.id);
 });
+
+/**
+ * A page opening asks two things, what the conversation says and whether a reply
+ * is being written, and the answers are not from one moment. A turn ending between
+ * them left the reply as far as it had got, with nothing saying so and nothing
+ * coming to replace it until the page was reloaded.
+ *
+ * Both kinds, because only a new reply carries a mark while it is being written.
+ * A regeneration looks finished at every word, so what was read cannot say whether
+ * it needs reading again: the server says, when asked about the turn.
+ */
+for (const turn of [
+  { mode: "send", content: "Ecris longuement.", message_mode: "say" },
+  { mode: "regenerate" },
+]) {
+  test(`a reply ending while the page opens is shown whole (${turn.mode})`, async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+
+    // Not awaited: the reply is being written while the page below opens.
+    const writing = request.post(`${API}/api/chat`, {
+      data: { conversation_id: convo.id, ...turn }, timeout: 120_000,
+    });
+
+    // Some of it has landed, so that what the page reads below is unfinished.
+    await expect.poll(async () => {
+      const last = (await conversation(request, convo.id)).messages.at(-1);
+      return last.meta.streaming === true || last.variants.length > 1;
+    }, { timeout: 10_000 }).toBe(true);
+
+    // The order this is about, forced: the conversation is read now, and whether
+    // anything is running is only answered once nothing is.
+    await page.route("**/turn", async (route) => {
+      await writing;
+      await route.continue();
+    });
+    const firstRead = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === `/api/conversations/${convo.id}`);
+    await page.goto(`/#/chat/${convo.id}`);
+    const seen = (await (await firstRead).json()).messages.at(-1);
+
+    await writing;
+    const reply = (await conversation(request, convo.id)).messages.at(-1);
+    expect(seen.content.length, "the page did not read the reply unfinished")
+      .toBeLessThan(reply.content.length);
+
+    const ending = reply.content.trim().split(" ").slice(-3).join(" ");
+    await expect(page.locator(`[data-message-id="${reply.id}"]`),
+      "the reply stayed as far as it had got when the page read it").toContainText(ending);
+    await expect(page.locator('button[title="Stop generation"]')).toBeHidden();
+  });
+}
+
+test("a reply ending before the page has its first read is shown whole", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { slowly: true });
+  const writing = request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "Ecris.", message_mode: "say" },
+    timeout: 120_000,
+  });
+  await expect.poll(async () =>
+    (await conversation(request, convo.id)).messages.at(-1).meta.streaming === true,
+  { timeout: 10_000 }).toBe(true);
+
+  // A long conversation on a slow connection: read mid-reply, and still on its way
+  // to the page when the page, attached to the turn, has already seen it end.
+  let held = false;
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (held || route.request().method() !== "GET") return route.continue();
+    held = true;
+    const response = await route.fetch();
+    await writing;
+    await route.fulfill({ response });
+  });
+  await page.goto(`/#/chat/${convo.id}`);
+
+  await writing;
+  const reply = (await conversation(request, convo.id)).messages.at(-1);
+  const ending = reply.content.trim().split(" ").slice(-3).join(" ");
+  await expect(page.locator(`[data-message-id="${reply.id}"]`),
+    "the reply stayed as far as it had got when the page read it").toContainText(ending);
+  await expect(page.locator('button[title="Stop generation"]')).toBeHidden();
+});
+
+test("opening a conversation with no recent turn reads it once", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const path = `/api/conversations/${convo.id}`;
+  let reads = 0;
+  page.on("request", (sent) => {
+    if (sent.method() === "GET" && new URL(sent.url()).pathname === path) reads += 1;
+  });
+  const asked = page.waitForResponse((response) => new URL(response.url()).pathname === `${path}/turn`);
+  await page.goto(`/#/chat/${convo.id}`);
+  await asked;
+  await page.waitForLoadState("networkidle");
+  expect(reads, "an ordinary opening paid for a second read").toBe(1);
+});
+
+/**
+ * A reply whose turn was cut off keeps a mark saying it is still being written,
+ * and while a turn is live the view hides the reply that turn is writing. Taken
+ * for that one, the reply left marked vanished for the length of every later
+ * generation — most visibly the moment you tried to continue it, which is
+ * exactly what you do with one that stopped short.
+ */
+test("a reply left mid-write stays on screen while it is continued", async ({ page, request }) => {
+  // Slowly, so the reply is still being written when it is stopped however fast
+  // this machine is.
+  const convo = await conversationWithReply(request, { slowly: true });
+  await page.goto(`/#/chat/${convo.id}`);
+
+  // A genuinely interrupted reply, made the way one happens: stopped part way
+  // through. Setting the mark through the API is not an option — the endpoint
+  // does not take it — and faking it would test the fake.
+  await page.locator("textarea").first().fill("Keep going.");
+  // The button, not Enter: on a touch screen Enter is a newline, deliberately.
+  await page.locator('button[title="Send"]').click();
+  const stop = page.locator('button[title="Stop generation"]');
+  await expect(stop).toBeVisible();
+  // Stopped once some of the reply has arrived, not after a delay: a stop before
+  // the first word leaves nothing written to be unfinished, and a stop after the
+  // last leaves a finished reply. The caret is only there while text is streaming.
+  await expect(page.locator(".stream-caret")).toBeVisible();
+  await stop.click();
+  // Over on the server's account before the page goes: a reload can overtake the
+  // stop, and a page reloaded sooner attaches to what is left of the turn.
+  await expect.poll(() => turnRunning(request, convo.id), {
+    message: "the reply kept being written after it was stopped",
+  }).toBe(false);
+
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+
+  const stranded = (await (await request.get(
+    `${API}/api/conversations/${convo.id}`)).json()).messages.at(-1);
+  expect(stranded.meta.streaming, "the stop did not leave an unfinished reply").toBe(true);
+
+  const onScreen = page.locator(`[data-message-id="${stranded.id}"]`);
+  await expect(onScreen).toBeVisible();
+
+  await page.locator('button[title="Continue the reply"]').first().click({ force: true });
+
+  // Through the generation, not just at the end of it: looked at again with each
+  // new word, however long those take to come here.
+  const writing = page.locator(".stream-caret");
+  await expect(writing).toBeVisible();
+  for (let i = 0; i < 6; i++) {
+    await expect(onScreen,
+      "the reply disappeared while its continuation was being written").toBeVisible();
+    await expect(writing).not.toHaveText((await writing.textContent()) ?? "");
+  }
+
+  // The continuation is slow and the looking is done. Stopped here, and waited
+  // for on the server's own account of the turn, so it is not still writing
+  // into the tests that come next.
+  await stop.click();
+  await expect(stop).toBeHidden();
+  await expect.poll(() => turnRunning(request, convo.id),
+    { message: "the continuation kept running after it was stopped" }).toBe(false);
+});
+
+/**
+ * Reading again must not undo what somebody did meanwhile. The read is answered by
+ * the server before the change and only reaches the page after it.
+ */
+const changes = {
+  edit: async (message: Locator) => {
+    await message.locator('button[title="Edit"]').click({ force: true });
+    await message.locator("textarea").fill("Changed by hand.");
+    await message.getByRole("button", { name: "Save" }).click();
+    await expect(message).toContainText("Changed by hand.");
+  },
+  delete: async (message: Locator) => {
+    await message.page().once("dialog", (dialog) => dialog.accept());
+    await message.locator('button[title="Delete from here"]').click({ force: true });
+    await expect(message).toHaveCount(0);
+  },
+};
+
+for (const [name, change] of Object.entries(changes)) {
+  test(`a message changed while the page reads again stays changed (${name})`, async ({ page, request }) => {
+    // A turn has just ended, so the page will read the conversation twice.
+    const convo = await conversationWithReply(request);
+    const message = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
+
+    let reads = 0;
+    let release = () => {};
+    const released = new Promise<void>((resolve) => { release = resolve; });
+    let answered = () => {};
+    const answer = new Promise<void>((resolve) => { answered = resolve; });
+    await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+      reads += route.request().method() === "GET" ? 1 : 0;
+      if (route.request().method() !== "GET" || reads !== 2) return route.continue();
+      const response = await route.fetch();
+      answered();
+      await released;
+      await route.fulfill({ response });
+    });
+
+    const secondRead = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === `/api/conversations/${convo.id}`
+        && response.request().method() === "GET" && reads === 2);
+    await page.goto(`/#/chat/${convo.id}`);
+    await answer;
+    await expect(message).toBeVisible();
+
+    await change(message);
+    const after = await page.locator("[data-message-id]").allTextContents();
+
+    release();
+    await (await secondRead).finished();
+    // Two frames, so that anything the read was going to change has been drawn.
+    await page.evaluate(() => new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    expect(await page.locator("[data-message-id]").allTextContents(),
+      "the second read undid what was done meanwhile").toEqual(after);
+  });
+}

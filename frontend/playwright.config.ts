@@ -60,6 +60,12 @@ function isolated(command: string, env: Record<string, string>) {
   };
 }
 
+// How a turn recovers is logic, not layout, and these are long tests: a reply written
+// slowly, sometimes to its end. They run on the phone, which is where all of this
+// happens, and desktop keeps the one in chat.spec.ts, to say the path works there.
+const TURN_LOGIC = ["offline-return", "regenerate-reattach", "turn-races", "turn-survives"]
+  .map((name) => `**/${name}.spec.ts`);
+
 export default defineConfig({
   testDir: "./e2e",
   // The tests share the servers below, so they take turns rather than racing
@@ -79,7 +85,7 @@ export default defineConfig({
   },
 
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    { name: "desktop", testIgnore: TURN_LOGIC, use: { ...devices["Desktop Chrome"] } },
     // The phone is not a nicety here: every layout bug this suite exists for
     // was invisible at desktop width.
     { name: "phone", use: { ...devices["Pixel 7"] } },
@@ -87,11 +93,11 @@ export default defineConfig({
 
   webServer: [
     {
-      // Slower than the default on purpose. Several tests are about what
-      // happens while a reply is being written, and at full speed the reply is
-      // finished before a second browser has opened the page — which passes on
-      // a fast laptop and fails on a CI runner.
-      ...isolated(`${python} ../scripts/mock_llm.py ${MOCK_PORT}`, { EVERMIND_MOCK_DELAY: "0.15" }),
+      // Quick, because nearly every test waits for a reply in its setup and only
+      // needs it to exist. A test about what happens while a reply is being
+      // written asks for a slow one in the conversation (`slowly` in
+      // e2e/fixtures.ts), and this does not change how slow that is.
+      ...isolated(`${python} ../scripts/mock_llm.py ${MOCK_PORT}`, { EVERMIND_MOCK_DELAY: "0.05" }),
       url: `http://127.0.0.1:${MOCK_PORT}/v1/models`,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,

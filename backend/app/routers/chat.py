@@ -18,9 +18,13 @@ _SSE_HEADERS = {
 
 @router.post("/chat")
 async def chat(request: ChatRequest):
-    """Starts a turn, or attaches to the one already running for this
-    conversation. No database dependency: the turn holds its own connection,
-    because it outlives this request on purpose."""
+    """Starts a turn, or attaches to the one already running for this conversation
+    if that is what was asked for: the same regeneration or continuation, or a message
+    sent again under its `client_id`, which adds nothing and gets the reply it has if
+    it has one. Anything else, a message above all, is refused with a 409 of kind
+    "turn_running" and nothing saved, after waiting for a turn that is on its way out.
+    No database dependency: the turn holds its own connection, because it outlives
+    this request on purpose."""
     turn = await turns.start(request)
     return StreamingResponse(turns.follow(turn), media_type="text/event-stream",
                              headers=_SSE_HEADERS)
@@ -30,17 +34,24 @@ async def chat(request: ChatRequest):
 async def turn_state(convo_id: str) -> dict:
     """Whether a reply is being written right now. A page opening asks this
     before deciding whether it is looking at a finished conversation or one
-    still in progress somewhere else."""
+    still in progress somewhere else. It reads the conversation at the same time,
+    so `ended_recently` also says when what it read may already be out of date."""
     turn = turns.running_for(convo_id)
-    return {"running": turn is not None, "mode": turn.mode if turn else None}
+    return {
+        "running": turn is not None,
+        "mode": turn.mode if turn else None,
+        "ended_recently": turns.ended_recently(convo_id),
+    }
 
 
 @router.get("/conversations/{convo_id}/turn/stream")
 async def follow_turn(convo_id: str):
     """Attach to a turn already under way: the reply so far, then the rest as it
-    arrives. Empty stream if nothing is running, rather than an error — a page
-    that opens on a finished conversation is not a mistake."""
-    turn = turns.running_for(convo_id)
+    arrives. A turn that has just ended is still handed over, ending included, for
+    a page that asked a moment too late or a phone that has just woken. Empty stream
+    if there is none, rather than an error — a page that opens on a finished
+    conversation is not a mistake."""
+    turn = turns.kept_for(convo_id)
     if not turn:
         return StreamingResponse(iter(()), media_type="text/event-stream",
                                  headers=_SSE_HEADERS)

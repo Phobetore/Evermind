@@ -1,13 +1,11 @@
 import { ModelSilent } from "@/components/chat/ModelSilent";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { clearDraft, loadDraft, saveDraft } from "@/lib/drafts";
+import { clearDraft, loadDraft, openBox, saveDraft, type MessageMode } from "@/lib/drafts";
 import { describeError } from "@/lib/errors";
 import { clsx } from "clsx";
 import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Send, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
-type MessageMode = "say" | "narrate" | "ooc";
 
 /** A pointing device that hovers, which in practice means a real keyboard is
  *  attached too. Read at the moment of the keypress rather than remembered. */
@@ -52,7 +50,7 @@ export function ChatInput({
   characterName,
 }: {
   conversationId: string;
-  onSend: (content: string, messageMode: MessageMode) => void;
+  onSend: (content: string, messageMode: MessageMode) => Promise<void>;
   onStop: () => void;
   busy: boolean;
   characterName: string;
@@ -76,6 +74,27 @@ export function ChatInput({
   // and the change event is not something every browser reliably fires.
   const [enterSends, setEnterSends] = useState(true);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const held = useRef({ value, mode });
+  // What the draft says as far as this input knows, and so what needs no writing.
+  const saved = useRef(value);
+
+  useEffect(() => {
+    held.current = { value, mode };
+  }, [value, mode]);
+
+  useEffect(
+    () => openBox(conversationId, {
+      read: () => held.current.value,
+      write(text, nextMode = held.current.mode) {
+        held.current = { value: text, mode: nextMode };
+        saved.current = text; // whoever writes here has written the draft too
+        setValue(text);
+        setMode(nextMode);
+        setRestored(text.trim() !== "");
+      },
+    }),
+    [conversationId],
+  );
 
   useEffect(() => {
     const el = ref.current;
@@ -100,8 +119,14 @@ export function ChatInput({
   }, [restored]);
 
   // Persist on a short delay: typing costs one write per pause, not one per key.
+  // Only what has changed: an input that has only just appeared has nothing to say,
+  // and what it read a moment ago may no longer be what the draft says.
   useEffect(() => {
-    const timer = setTimeout(() => saveDraft(conversationId, value), 400);
+    if (value === saved.current) return;
+    const timer = setTimeout(() => {
+      saved.current = value;
+      saveDraft(conversationId, value);
+    }, 400);
     return () => clearTimeout(timer);
   }, [conversationId, value]);
 
@@ -114,8 +139,10 @@ export function ChatInput({
     setSilent(false);
     setValue("");
     clearDraft(conversationId);
-    onSend(content, mode);
+    saved.current = "";
     setMode("say"); // narration and OOC are one-shot by nature
+    held.current = { value: "", mode: "say" }; // before anything is given back to it
+    void onSend(content, mode);
   }
 
   async function ghostwrite() {

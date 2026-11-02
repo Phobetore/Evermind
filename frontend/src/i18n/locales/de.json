@@ -211,6 +211,7 @@
     },
     "errors": {
       "connectionFailed": "Fehler bei der Serververbindung.",
+      "noReply": "Die Antwort ist nicht angekommen.",
       "retryButton": "Erneut versuchen"
     },
     "input": {
@@ -482,6 +483,7 @@
     "modelError": "Das Modell hat einen Fehler gemeldet: {message}",
     "modelUnreachable": "Evermind erreicht den Server des Modells unter {url} nicht. Prüfe, ob er läuft und ob die Adresse in der Verbindung stimmt.",
     "modelUnreachableNoAddress": "Der Server des Modells antwortet nicht. Prüfe, ob er läuft und ob die Adresse in der Verbindung stimmt.",
+    "turnRunning": "Es wird bereits eine Antwort geschrieben, deshalb wurde das nicht gesendet.",
     "modelEmpty": "Das Modell hat eine leere Antwort geliefert. Versuch es noch einmal oder wechsle das Modell.",
     "modelEmptyRetried": "Das Modell hat zweimal nichts geliefert, auch nachdem die Eröffnungszeile aus dem Verlauf genommen wurde. Das Chat-Template des Modells eignet sich hier wahrscheinlich nicht für Rollenspiele; probiere ein anderes Modell.",
     "modelUnreadable": "Die Antwort des Modells ließ sich nicht lesen. Versuch es noch einmal.",

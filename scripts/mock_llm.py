@@ -10,15 +10,27 @@ context, so you can validate the whole pipeline (streaming, swipes, summary).
 import json
 import os
 import random
+import re
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 5599
-# Seconds between words. The end-to-end suite raises it: several of its tests
-# are about what happens *during* a reply, and at the default pace the reply is
-# over before a second browser has finished opening the page.
+# Seconds between words. The end-to-end suite sets its own, a little over the
+# default: nearly all of its tests only need a reply to exist, and wait for it
+# in their setup.
 WORD_DELAY = float(os.environ.get("EVERMIND_MOCK_DELAY", "0.045"))
+# Seconds between words in a conversation that says SLOWLY. A fixed pace, not a
+# multiple of the one above: how slow is slow enough depends on how long a browser
+# takes to close one page and open another, and that has nothing to do with how
+# quickly the other replies are wanted.
+SLOW_WORD_DELAY = 0.6
+# Seconds a conversation that says MOCK_FAILS waits before the model refuses, which
+# gives a test a turn it can watch before it fails.
+FAIL_AFTER = 2.0
+# Seconds a conversation that says MOCK_QUIET waits before its first word, as a local
+# model does on a long prompt.
+QUIET_FOR = 8.0
 
 REPLIES = [
     "*{char} watches you for a moment, weighing something.* Now that is an interesting "
@@ -49,6 +61,11 @@ class Handler(BaseHTTPRequestHandler):
         payload = json.loads(self.rfile.read(length) or b"{}")
         if not self.path.rstrip("/").endswith("/chat/completions"):
             self._json(json.dumps({"error": {"message": "unknown endpoint"}}), status=404)
+            return
+
+        if "MOCK_FAILS" in json.dumps(payload):
+            time.sleep(FAIL_AFTER)
+            self._json(json.dumps({"error": {"message": "The mock was told to fail."}}), status=500)
             return
 
         system = next((m["content"] for m in payload.get("messages", [])
@@ -99,15 +116,24 @@ class Handler(BaseHTTPRequestHandler):
         else:
             reply = random.choice(REPLIES).replace("{char}", char)
 
+        # A conversation that says MOCK_SAYS_word gets a reply of its own, which
+        # can be told apart from another's, and which has a definite end.
+        says = re.search(r"MOCK_SAYS_(\w+)", json.dumps(payload))
+        if says:
+            word = says.group(1)
+            reply = f"{word} one two three four five six seven eight nine ten end{word}"
+
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
+        if "MOCK_QUIET" in json.dumps(payload):
+            time.sleep(QUIET_FOR)
         # A test that is about what happens *during* a reply needs the
         # reply to still be going when it looks. Rather than tune sleeps
         # against whatever machine is running, it says so in the
         # conversation and this slows right down.
-        delay = WORD_DELAY * 4 if "SLOWLY" in json.dumps(payload) else WORD_DELAY
+        delay = SLOW_WORD_DELAY if "SLOWLY" in json.dumps(payload) else WORD_DELAY
         for word in reply.split(" "):
             chunk = {"choices": [{"delta": {"content": word + " "}}]}
             self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())

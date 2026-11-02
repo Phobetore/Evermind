@@ -163,11 +163,23 @@ export interface Memory {
   created_at: string;
 }
 
+/** What the server says of a conversation's turn. */
+export interface TurnState {
+  running: boolean;
+  mode: "send" | "regenerate" | "continue" | null;
+  /** One ended a moment ago, so what was read of the conversation just before
+   *  may be out of date. */
+  ended_recently: boolean;
+}
+
 export type ChatEvent =
   | { type: "start"; conversation_id: string; user_message: Message | null;
+      mode?: TurnState["mode"];
       /** The reply this turn replaces or extends, if any. */
       target_message_id?: string | null }
   | { type: "delta"; text: string }
+  /** What it was writing into has been deleted, so nothing came of it. */
+  | { type: "discarded" }
   | { type: "done"; message: Message; context?: ContextStats; perf?: TurnPerf }
   | {
       type: "error"; message: string; kind?: string | null; resource?: string;

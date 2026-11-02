@@ -162,6 +162,17 @@ async def update_message(db: aiosqlite.Connection, message_id: str,
     return await get_message(db, message_id)
 
 
+def _meta_for_branch(raw: str | None) -> str:
+    """A message's mark as still waiting for a reply says something about the turn
+    that was asked for in the conversation it comes from, not about a branch, where
+    ending on that message is what the person has just chosen. So does the id it was
+    sent under: nothing was sent to the branch."""
+    meta = loads(raw, {})
+    meta.pop("unanswered", None)
+    meta.pop("client_id", None)
+    return dumps(meta)
+
+
 async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict | None:
     """New conversation replaying the story up to (and including) a message.
     Memories and summary follow only if they were established by then."""
@@ -213,7 +224,7 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
             "INSERT INTO messages (id, conversation_id, role, variants, active_index,"
             " position, meta, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (new_id(), branch_id, row["role"], row["variants"], row["active_index"],
-             row["position"], row["meta"], row["created_at"], row["embedding"]),
+             row["position"], _meta_for_branch(row["meta"]), row["created_at"], row["embedding"]),
         )
 
     mem_rows = await (await db.execute(

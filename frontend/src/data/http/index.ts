@@ -1,6 +1,6 @@
 import type {
   Character, Connection, Conversation, LibraryItem, LoreEntry, Memory, Message, Persona,
-  Settings, UpdateStatus,
+  Settings, TurnState, UpdateStatus,
 } from "@/types";
 import type {
   BenchmarkResult, ConnectionTestResult, ConsolidateResult, DataSource, ExtractResult,
@@ -158,7 +158,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
         ),
       stop: (conversationId) => del(`api/conversations/${seg(conversationId)}/turn`),
       state: (conversationId) =>
-        get<{ running: boolean }>(`api/conversations/${seg(conversationId)}/turn`),
+        get<TurnState>(`api/conversations/${seg(conversationId)}/turn`),
       impersonate: (conversationId) =>
         post<{ text: string }>(`api/conversations/${seg(conversationId)}/impersonate`),
     },
