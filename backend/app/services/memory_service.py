@@ -20,9 +20,13 @@ from ..errors import (
     model_failure,
 )
 from ..prompting import embeddings
-from ..prompting.defaults import MEMORY_CONSOLIDATION_PROMPT, MEMORY_EXTRACTION_PROMPT
-from ..prompting.engine import PromptPayload, active_content
-from ..prompting.macros import substitute
+from ..prompting.engine import active_content
+from ..prompting.payloads import (
+    MIN_FACTS_TO_CONSOLIDATE,
+    build_consolidation_payload,
+    build_extraction_payload,
+    movable_facts,
+)
 from ..providers import get_provider
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
@@ -35,7 +39,6 @@ from .llm_json import parse_llm_json
 logger = logging.getLogger(__name__)
 
 MAINTENANCE_EVERY = 6  # assistant replies between maintenance runs
-_MAX_TURNS_PER_RUN = 40  # safety cap on turns fed to one extraction call
 
 _running: set[str] = set()
 
@@ -110,22 +113,15 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
         raise NotFoundError("Conversation not found.", "conversation")
     character = await characters_repo.get_raw(db, convo["character_id"]) or {}
     connection = await _resolve_connection(db, convo)
-    char_name = character.get("name") or "Character"
     persona = await personas_repo.get(db, convo["persona_id"]) if convo.get("persona_id") else None
-    user_name = (persona or {}).get("name") or "User"
 
     all_facts = await memories_repo.list_for_conversation(db, convo_id)
-    movable = [m for m in all_facts if not m["is_pinned"] and m["source"] == "auto"]
-    if len(movable) < 8:
+    movable = movable_facts(all_facts)
+    if len(movable) < MIN_FACTS_TO_CONSOLIDATE:
         return {"before": len(all_facts), "after": len(all_facts),
                 "memories": all_facts, "skipped": "too_few"}
 
-    facts_block = "\n".join(f"- {m['content']}" for m in movable)
-    payload = PromptPayload(
-        system=substitute(MEMORY_CONSOLIDATION_PROMPT, char_name=char_name, user_name=user_name),
-        messages=[{"role": "user", "content": f"FACTS TO CONSOLIDATE:\n{facts_block}\n\nReply with the JSON now."}],
-        stop=[],
-    )
+    payload = build_consolidation_payload(character, persona, movable)
     chunks: list[str] = []
     async for event in get_provider(connection).stream_chat(payload):
         if event.type == "delta":
@@ -163,37 +159,12 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
 
     connection = await _resolve_connection(db, convo)
 
-    char_name = character.get("name") or "Character"
-    user_name = (persona or {}).get("name") or "User"
-    memory_position = convo.get("memory_position") or 0
-
     messages = await convo_repo.list_messages(db, convo_id)
-    new_turns = [m for m in messages if m["position"] > memory_position][-_MAX_TURNS_PER_RUN:]
-    if not new_turns:
-        return {"facts_added": [], "summary": convo.get("summary") or ""}
-    top_position = max(m["position"] for m in new_turns)
-
     existing = await memories_repo.list_for_conversation(db, convo_id)
-    facts_block = "\n".join(f"- {m['content']}" for m in existing) or "(none yet)"
-    turns_block = "\n\n".join(
-        f"{user_name if m['role'] == 'user' else char_name} (turn {m['position']}): "
-        + substitute(active_content(m), char_name=char_name, user_name=user_name)
-        for m in new_turns
-    )
-
-    payload = PromptPayload(
-        system=substitute(MEMORY_EXTRACTION_PROMPT, char_name=char_name, user_name=user_name),
-        messages=[{
-            "role": "user",
-            "content": (
-                f"CURRENT SUMMARY:\n{convo.get('summary') or '(empty)'}\n\n"
-                f"FACTS ALREADY RECORDED:\n{facts_block}\n\n"
-                f"NEWEST TURNS:\n{turns_block}\n\n"
-                "Reply with the JSON now."
-            ),
-        }],
-        stop=[],
-    )
+    built = build_extraction_payload(character, persona, convo, messages, existing)
+    if built is None:
+        return {"facts_added": [], "summary": convo.get("summary") or ""}
+    payload, top_position = built
 
     chunks: list[str] = []
     async for event in get_provider(connection).stream_chat(payload):

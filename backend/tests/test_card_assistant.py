@@ -131,3 +131,24 @@ async def test_assist_avoids_duplicating_existing_lore(client, fake_provider):
     content = fake_provider.captured["payload"].messages[0]["content"]
     assert "EXISTING LOREBOOK KEYWORDS" in content
     assert "Kabukicho" in content
+
+
+async def test_assist_lists_only_text_and_whole_numbers_as_lore_keywords(client, fake_provider):
+    """A keyword that is not text is not one: it must not reach the model as the
+    subject "None" or "True" to steer clear of."""
+    await add_connection(client)
+    await client.post("/api/characters/assist", json={
+        "prompt": "yakuza",
+        "existing": {"lore_entries": [
+            {"keys": ["Kabukicho", None, 1984, True, False, 1.5, ["x"], {"a": 1}, "  clan  ", "1984"]},
+        ]},
+    })
+    content = fake_provider.captured["payload"].messages[0]["content"]
+    assert "EXISTING LOREBOOK KEYWORDS (cover other subjects):\nKabukicho, 1984, clan\n" in content
+
+    await client.post("/api/characters/assist", json={
+        "prompt": "yakuza",
+        "existing": {"lore_entries": [{"keys": [None, True, 2.5]}]},
+    })
+    content = fake_provider.captured["payload"].messages[0]["content"]
+    assert "EXISTING LOREBOOK KEYWORDS" not in content

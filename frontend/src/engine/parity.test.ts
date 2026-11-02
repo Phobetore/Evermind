@@ -14,6 +14,21 @@ import {
 } from "./chat";
 import * as defaults from "./defaults";
 import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
+import {
+  MAX_TURNS_PER_RUN,
+  MIN_FACTS_TO_CONSOLIDATE,
+  buildCardPayload,
+  buildConsolidationPayload,
+  buildExtractionPayload,
+  buildImpersonatePayload,
+  buildSummaryPayload,
+  movableFacts,
+  type CardInput,
+  type ConsolidationInput,
+  type ExtractionInput,
+  type ImpersonateInput,
+  type SummaryInput,
+} from "./payloads";
 import { cosineScores, selectPassages, type RankedCandidate } from "./retrieval";
 import { pyLstrip, pyRstrip, pyStrip } from "./text";
 import { estimateTokens } from "./tokens";
@@ -96,6 +111,18 @@ const FUNCTIONS: Record<string, (input: unknown) => unknown> = {
   cosine_scores: adapt<{ query_vec: number[]; rows: number[][] }>((i) =>
     cosineScores(i.query_vec, i.rows),
   ),
+  build_impersonate_payload: adapt<ImpersonateInput>(buildImpersonatePayload),
+  build_summary_payload: adapt<SummaryInput>(buildSummaryPayload),
+  build_extraction_payload: adapt<ExtractionInput>(buildExtractionPayload),
+  movable_facts: adapt<{ memories: { is_pinned: boolean; source: string }[] }>((i) =>
+    movableFacts(i.memories),
+  ),
+  build_consolidation_payload: adapt<ConsolidationInput>(buildConsolidationPayload),
+  build_card_payload: adapt<CardInput>(buildCardPayload),
+  payload_limits: () => ({
+    max_turns_per_run: MAX_TURNS_PER_RUN,
+    min_facts_to_consolidate: MIN_FACTS_TO_CONSOLIDATE,
+  }),
 };
 
 const dir = fileURLToPath(new URL("../../../parity/", import.meta.url));

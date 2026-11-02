@@ -15,7 +15,7 @@ from typing import Any
 
 import numpy
 
-from app.prompting import defaults, retrieval, turn
+from app.prompting import defaults, payloads, retrieval, turn
 from app.prompting.engine import active_content, build_chat_payload, match_lore, select_facts
 from app.prompting.macros import has_original_macro, substitute, substitute_original
 from app.prompting.tokens import estimate_tokens
@@ -58,6 +58,28 @@ def cosine_scores(query_vec: list[float], rows: list[list[float]]) -> list[float
     return retrieval._cosine_scores(query_vec, numpy.array(rows, dtype=numpy.float32))
 
 
+def build_extraction_payload(
+    character: dict,
+    persona: dict | None,
+    conversation: dict,
+    messages: list[dict],
+    memories: list[dict],
+) -> dict[str, Any] | None:
+    """A tuple is not JSON: the payload and the position come back as an object."""
+    built = payloads.build_extraction_payload(character, persona, conversation, messages, memories)
+    if built is None:
+        return None
+    payload, top_position = built
+    return {"payload": payload, "top_position": top_position}
+
+
+def payload_limits() -> dict[str, int]:
+    return {
+        "max_turns_per_run": payloads.MAX_TURNS_PER_RUN,
+        "min_facts_to_consolidate": payloads.MIN_FACTS_TO_CONSOLIDATE,
+    }
+
+
 def default_prompts() -> dict[str, str]:
     return {
         name: value
@@ -89,6 +111,13 @@ FUNCTIONS: dict[str, Callable[..., Any]] = {
     "passage_infos": turn.passage_infos,
     "select_passages": select_passages,
     "cosine_scores": cosine_scores,
+    "build_impersonate_payload": payloads.build_impersonate_payload,
+    "build_summary_payload": payloads.build_summary_payload,
+    "build_extraction_payload": build_extraction_payload,
+    "movable_facts": payloads.movable_facts,
+    "build_consolidation_payload": payloads.build_consolidation_payload,
+    "build_card_payload": payloads.build_card_payload,
+    "payload_limits": payload_limits,
 }
 
 

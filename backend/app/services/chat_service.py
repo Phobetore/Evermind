@@ -40,9 +40,8 @@ from ..errors import (
 )
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval
-from ..prompting.defaults import IMPERSONATE_PROMPT, SUMMARIZE_PROMPT
 from ..prompting.engine import PromptPayload, active_content, build_chat_payload
-from ..prompting.macros import substitute
+from ..prompting.payloads import build_impersonate_payload, build_summary_payload
 from ..prompting.tokens import estimate_tokens
 from ..prompting.turn import (
     continue_history,
@@ -539,24 +538,7 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
         raise AppError("Nothing to write: the conversation is empty.", kind="conversation_empty")
 
     memories = await memories_repo.list_for_conversation(db, convo_id)
-    base = build_chat_payload(character=character, persona=persona, conversation=convo,
-                              messages=messages, connection=connection, memories=memories)
-
-    context_bits = []
-    if (persona or {}).get("description"):
-        context_bits.append(f"ABOUT {user_name}: {persona['description']}")
-    if convo.get("summary"):
-        context_bits.append(f"STORY SO FAR: {convo['summary']}")
-    system = substitute(IMPERSONATE_PROMPT, char_name=char_name, user_name=user_name)
-    if context_bits:
-        system += "\n\n" + "\n\n".join(context_bits)
-
-    # Flip roles: the character's turns become "user", the player's become
-    # "assistant", so the model naturally continues as the player.
-    flipped = [{"role": "user" if m["role"] == "assistant" else "assistant",
-                "content": m["content"]} for m in base.messages]
-
-    payload = PromptPayload(system=system, messages=flipped, stop=[f"\n{char_name}:"])
+    payload = build_impersonate_payload(character, persona, convo, messages, connection, memories)
     chunks: list[str] = []
     async for event in get_provider(connection).stream_chat(payload):
         if event.type == "delta":
@@ -575,20 +557,11 @@ async def summarize(db: aiosqlite.Connection, convo_id: str) -> dict:
     except _TurnError as exc:
         raise exc.as_app_error() from None
 
-    char_name = character.get("name") or "Character"
-    user_name = (persona or {}).get("name") or "User"
     messages = await convo_repo.list_messages(db, convo_id)
     if not messages:
         raise AppError("Nothing to summarize: the conversation is empty.", kind="conversation_empty")
 
-    base = build_chat_payload(character=character, persona=persona, conversation=convo,
-                              messages=messages, connection=connection)
-    payload = PromptPayload(
-        system=substitute(SUMMARIZE_PROMPT, char_name=char_name, user_name=user_name),
-        messages=[*base.messages,
-                  {"role": "user", "content": "[Write the summary of the roleplay so far now.]"}],
-        stop=[],
-    )
+    payload = build_summary_payload(character, persona, convo, messages, connection)
 
     chunks: list[str] = []
     async for event in get_provider(connection).stream_chat(payload):

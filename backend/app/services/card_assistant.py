@@ -4,8 +4,6 @@ The draft is returned to the editor for the creator to adjust — nothing is
 persisted here. Uses the requested connection, else the default one.
 """
 
-import json
-
 import aiosqlite
 
 from ..errors import (
@@ -15,16 +13,12 @@ from ..errors import (
     AppError,
     model_failure,
 )
-from ..prompting.defaults import CARD_ASSISTANT_PROMPT
-from ..prompting.engine import PromptPayload
+from ..prompting.payloads import LIST_FIELDS, TEXT_FIELDS, build_card_payload, existing_fields
 from ..providers import get_provider
 from ..repositories import connections as connections_repo
 from ..repositories import settings as settings_repo
 from .llm_json import parse_llm_json
 
-_TEXT_FIELDS = ("name", "tagline", "description", "personality", "scenario",
-                "greeting", "example_dialogues")
-_LIST_FIELDS = ("alternate_greetings", "tags")
 _MAX_LORE_ENTRIES = 8
 
 
@@ -48,11 +42,11 @@ async def _resolve_connection(db: aiosqlite.Connection, connection_id: str | Non
 def _clean(draft: dict) -> dict:
     """Whitelist and normalize what the model returned."""
     out: dict = {}
-    for field in _TEXT_FIELDS:
+    for field in TEXT_FIELDS:
         value = draft.get(field)
         if isinstance(value, str) and value.strip():
             out[field] = value.strip()
-    for field in _LIST_FIELDS:
+    for field in LIST_FIELDS:
         value = draft.get(field)
         if isinstance(value, list):
             items = [str(v).strip() for v in value if str(v).strip()]
@@ -85,33 +79,7 @@ async def generate_card(db: aiosqlite.Connection, prompt: str, kind: str,
     connection = dict(connection,
                       max_tokens=max(2048, int(connection.get("max_tokens") or 1024)))
 
-    kind_line = (
-        "The card is a SCENARIO (the AI narrates the world and plays every character except the player)."
-        if kind == "scenario"
-        else "The card is a CHARACTER (the AI embodies one person the player talks to)."
-    )
-    existing_filled = {k: v for k, v in (existing or {}).items()
-                      if isinstance(v, (str, list)) and v and k in _TEXT_FIELDS + _LIST_FIELDS}
-    parts = [f"{kind_line}\n\nCREATOR'S BRIEF:\n{prompt.strip()}"]
-    if existing_filled:
-        parts.append("EXISTING FIELDS (keep their content, fill the rest):\n"
-                     + json.dumps(existing_filled, ensure_ascii=False, indent=2))
-
-    known_keys = []
-    for raw in (existing or {}).get("lore_entries") or []:
-        if isinstance(raw, dict):
-            known_keys += [str(k).strip() for k in raw.get("keys") or [] if str(k).strip()]
-    if known_keys:
-        parts.append("EXISTING LOREBOOK KEYWORDS (cover other subjects):\n"
-                     + ", ".join(dict.fromkeys(known_keys)))
-
-    parts.append("Reply with the JSON now.")
-
-    payload = PromptPayload(
-        system=CARD_ASSISTANT_PROMPT,
-        messages=[{"role": "user", "content": "\n\n".join(parts)}],
-        stop=[],
-    )
+    payload = build_card_payload(prompt, kind, existing)
 
     chunks: list[str] = []
     async for event in get_provider(connection).stream_chat(payload):
@@ -128,6 +96,6 @@ async def generate_card(db: aiosqlite.Connection, prompt: str, kind: str,
     if not draft:
         raise AppError("The model returned an empty card. Try again.", 502, kind=MODEL_EMPTY)
     # never overwrite what the creator already wrote
-    for key, value in existing_filled.items():
+    for key, value in existing_fields(existing).items():
         draft[key] = value
     return draft
