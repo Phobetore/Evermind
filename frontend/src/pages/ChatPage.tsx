@@ -969,7 +969,7 @@ function ChatView({ id }: { id: string }) {
 
             {silent && (
               <div className="mx-1 my-3">
-                <ModelSilent onRetry={() => runTurn("regenerate")} />
+                <ModelSilent onRetry={retry} />
               </div>
             )}
 

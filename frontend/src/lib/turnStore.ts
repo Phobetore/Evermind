@@ -249,7 +249,13 @@ export const turnStore = {
   stop(conversationId: string) {
     const turn = turns.get(conversationId);
     if (!turn) return Promise.resolve(false);
-    turns.set(conversationId, { ...turn, stopping: true });
+    if (turn.busy) {
+      turns.set(conversationId, { ...turn, stopping: true });
+    } else {
+      // Cut off already, with no reader to end it and take the mark away with it.
+      turns.delete(conversationId);
+      publish(conversationId);
+    }
     turn.controller.abort();
     return sayStop(conversationId);
   },

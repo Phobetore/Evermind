@@ -826,6 +826,32 @@ test.describe("Retry on what was asked for by hand", () => {
   test("a Continue that failed is continued, rather than replaced", async ({ page, request }) => {
     expect(await failedThenRetried(page, request, "Continue the reply")).toEqual(["continue", "continue"]);
   });
+
+  test("the same if the model did not answer at all, which has a button of its own", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    const reply = convo.messages.at(-1);
+    const off = await (await request.post(`${API}/api/connections`, {
+      data: {
+        name: "off", provider: "openai-compatible",
+        base_url: "http://127.0.0.1:5999/v1", api_key: "x", model: "absent",
+      },
+    })).json();
+    await request.patch(`${API}/api/conversations/${convo.id}`, { data: { connection_id: off.id } });
+    const asked: string[] = [];
+    page.on("request", (r) => {
+      if (r.url().endsWith("/api/chat")) asked.push(r.postDataJSON().mode);
+    });
+    await page.goto(`/#/chat/${convo.id}`);
+    await page.locator('button[title="Continue the reply"]').first().click({ force: true });
+    await expect(page.getByText(/no answer from the model/i)).toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole("button", { name: "Try again" }).click();
+
+    await expect.poll(() => asked, { timeout: 15_000 }).toEqual(["continue", "continue"]);
+    await expect(page.getByText(/no answer from the model/i)).toBeVisible({ timeout: 20_000 });
+    const { messages } = await conversation(request, convo.id);
+    expect(messages.at(-1).variants.length, "replaced rather than continued").toBe(reply.variants.length);
+  });
 });
 
 test.describe("a message that does not go", () => {
@@ -1023,6 +1049,30 @@ test.describe("a message that does not go", () => {
     release("abort");
     await expect(box(page), "the message was lost").toHaveValue("Premier message.");
     await expect(sendButton(page)).toBeVisible();
+  });
+
+  test("Stop while it asks leaves nothing stuck: the message is back, and goes when sent", async ({ page, request }) => {
+    const { convo, release } = await cutOffWithTheQuestionHeld(page, request);
+    await send(page, "Premier message.");
+    await expect(stopButton(page)).toBeVisible();
+    await stopButton(page).click();
+    release("go");
+
+    await expect(box(page), "the message was lost").toHaveValue("Premier message.");
+    await expect(sendButton(page)).toBeVisible();
+    await expect.poll(() => turnRunning(request, convo.id)).toBe(false);
+
+    const posts = countingPosts(page);
+    await sendButton(page).click();
+
+    await expect.poll(() => said(request, convo.id, "Premier message."), {
+      timeout: 15_000, message: "handed straight back, and nothing sent",
+    }).toBe(1);
+    await expect.poll(async () => (await conversation(request, convo.id)).messages.at(-1).role,
+      { timeout: 30_000 }).toBe("assistant");
+    await expect(box(page)).toHaveValue("");
+    await expect(report(page), "still reported, with the network fine").toHaveCount(0);
+    expect(posts()).toBe(1);
   });
 
   test("once it has its answer the message goes, once", async ({ page, request }) => {

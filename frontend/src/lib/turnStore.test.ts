@@ -184,6 +184,16 @@ describe("stopping", () => {
     expect(turnStore.isStopping(id)).toBe(true);
   });
 
+  test("a turn already cut off is not left looking as if it were stopping", async () => {
+    const { id, reader } = reading();
+    turnStore.lose(id, reader, new Error("gone"));
+    await expect(turnStore.stop(id)).resolves.toBe(true);
+    expect(stop).toHaveBeenCalledWith(id);
+    expect(turnStore.isStopping(id), "nothing would ever clear it").toBe(false);
+    expect(turnStore.read(id)).toBeNull();
+    expect(turnStore.readerOf(id)).toBeNull();
+  });
+
   test("says whether the server heard, once it has", async () => {
     const { id } = reading();
     await expect(turnStore.stop(id)).resolves.toBe(true);
