@@ -768,7 +768,7 @@ async def test_a_stop_is_heard_while_the_past_is_being_prepared(client, short, m
     turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
     await asyncio.wait_for(turn.finished.wait(), timeout=10)
     assert stopping, "this was meant to catch it among the vectors"
-    await stopping[0]
+    await asyncio.wait_for(stopping[0], timeout=10)
     assert len(asked) == 2, f"it carried on after the stop: {len(asked)} requests"
 
 

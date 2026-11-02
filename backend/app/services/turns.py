@@ -153,6 +153,7 @@ async def _whatever_happens(work) -> None:
         try:
             await asyncio.shield(task)
         except asyncio.CancelledError:
+            # Whoever was waiting has gone. The loop is what carries on without them.
             pass
 
 
@@ -236,6 +237,7 @@ async def start(request: ChatRequest) -> Turn:
         try:
             await asyncio.wait_for(existing.finished.wait(), _WAIT_FOR_ENDING_SECONDS)
         except TimeoutError:
+            # Not over yet, so what follows finds it still running and answers for that.
             pass
     async with _lock:
         # Read under the lock, briefly, since two of these at once must come to one turn.
@@ -281,6 +283,7 @@ async def stop(conversation_id: str) -> bool:
     try:
         await asyncio.wait_for(turn.finished.wait(), _WAIT_FOR_ENDING_SECONDS)
     except TimeoutError:
+        # It has been told. It simply has not ended yet, and whoever asked need not wait.
         pass
     return True
 
