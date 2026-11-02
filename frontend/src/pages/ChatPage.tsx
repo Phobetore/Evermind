@@ -29,8 +29,8 @@ const QUESTION_TIMEOUT_MS = 10_000;
 
 /** What asking the server about a turn came to. */
 type TurnCheck =
-  /** Something happened meanwhile that makes the answer out of date: the person
-   *  stopped the turn, or asked for another. */
+  /** "superseded": something happened meanwhile that makes the answer out of date,
+   *  the person having stopped the turn or asked for another. */
   | { result: "unreachable" | "running" | "superseded" }
   /** The server has what is below, and that is how things stand. "not sent": it
    *  never reached the server. "no reply": it did, and no reply came of it. */
@@ -249,15 +249,22 @@ function ChatView({ id }: { id: string }) {
           return { result: "running" };
         }
         if (state.ended_recently) {
-          // Nothing more can come of this one, so nothing further to ask.
-          handedOver = new AbortController();
-          turnStore.handOver(id, handedOver);
+          // Nothing more can come of this one, so nothing further to ask, and no
+          // reason for it to take long: nothing else can be asked in the meantime.
+          const reader = new AbortController();
+          handedOver = reader;
+          turnStore.handOver(id, reader);
           turnStore.fail(id, null);
-          const { failed, broken } = await readTurn(handedOver, false);
+          const tooLong = setTimeout(() => turnStore.lose(id, reader, streamEndedEarly()), QUESTION_TIMEOUT_MS);
+          const { failed, broken } = await readTurn(reader, false);
+          clearTimeout(tooLong);
           if (broken !== undefined) {
-            turnStore.lose(id, handedOver, broken);
+            turnStore.lose(id, reader, broken);
             return { result: "unreachable" };
           }
+          // Lost to the timer above, or replaced by a turn asked for meanwhile.
+          if (turnStore.readerOf(id) !== reader) return { result: "superseded" };
+          if (!turnStore.isRunning(id)) return { result: "unreachable" };
           if (failed) {
             // The failure is what the person is told. Nothing came of the turn, so
             // somebody asking again really is asking for something new.
@@ -325,6 +332,18 @@ function ChatView({ id }: { id: string }) {
     return { checkOnTurn, pickTurnBackUp, readToTheEnd };
   }, [id, readTurn, finishReading, readAgain]);
 
+  /** A turn is worth asking about if it was cut off, or if it has gone quiet. If the
+   *  server is out of reach, one cut off stays as it is, and one that had gone quiet
+   *  now says so. */
+  const askIfWorthIt = useCallback(() => {
+    const here = turnStore.read(id);
+    if (!here || (here.busy && turnStore.quietFor(id) < QUIET_BEFORE_ASKING_MS)) return;
+    const reader = turnStore.readerOf(id);
+    void checkOnTurn().then(({ result }) => {
+      if (result === "unreachable" && reader) turnStore.lose(id, reader, streamEndedEarly());
+    });
+  }, [id, checkOnTurn]);
+
   /** Fetch the conversation again, after the first read if that is still on its way:
    *  coming back to a reply just as it ends, what that read says is out of date. */
   const reload = useCallback(
@@ -340,21 +359,14 @@ function ChatView({ id }: { id: string }) {
   // A phone coming back. Sleeping is when a connection goes, sometimes with an
   // error that came too soon to do anything about, and sometimes without one: a
   // stream can simply stop. Each event is worth one question, and only if there is
-  // something to ask: a reply cut off, or one that has gone quiet. If the server is
-  // still out of reach, a reply cut off stays as it is until the next event, and one
-  // that had gone quiet now says so.
+  // something to ask.
   useEffect(() => {
     let waiting: ReturnType<typeof setTimeout> | undefined;
     const ask = () => {
       void turnStore.sayStopAgain(id).then((said) => {
         if (said) void reload();
       });
-      const here = turnStore.read(id);
-      if (!here || (here.busy && turnStore.quietFor(id) < QUIET_BEFORE_ASKING_MS)) return;
-      const reader = turnStore.readerOf(id);
-      void checkOnTurn().then(({ result }) => {
-        if (result === "unreachable" && reader) turnStore.lose(id, reader, streamEndedEarly());
-      });
+      askIfWorthIt();
     };
     const comingBack = () => {
       if (document.visibilityState !== "visible") return;
@@ -368,7 +380,7 @@ function ChatView({ id }: { id: string }) {
       window.removeEventListener("online", comingBack);
       document.removeEventListener("visibilitychange", comingBack);
     };
-  }, [id, checkOnTurn, reload]);
+  }, [id, askIfWorthIt, reload]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -406,7 +418,12 @@ function ChatView({ id }: { id: string }) {
 
     void (async () => {
       void turnStore.sayStopAgain(id);
-      if (turnStore.isRunning(id)) return; // this page is already the one running it
+      if (turnStore.isRunning(id)) {
+        // This page is already the one running it, if its reader is still alive after
+        // whatever happened while the person was elsewhere.
+        askIfWorthIt();
+        return;
+      }
       // Left from a reply cut off before the person went elsewhere. They are back
       // at the start, and it will be read like everything else.
       turnStore.drop(id, turnStore.readerOf(id));
@@ -440,7 +457,7 @@ function ChatView({ id }: { id: string }) {
     });
 
     return () => controller.abort();
-  }, [id, readToTheEnd, readAgain, checkOnTurn]);
+  }, [id, readToTheEnd, readAgain, checkOnTurn, askIfWorthIt]);
 
   // What was already on screen when this page started the current turn. The
   // filter below hides a reply marked as still being written, so that a page
@@ -604,6 +621,11 @@ function ChatView({ id }: { id: string }) {
   /** Trying again after a connection was lost asks first: the reply may be being
    *  written, or be there already, and asking for it again would make another. */
   async function retry() {
+    // What was reported is a stop that could not be said, and that is what to retry.
+    if (turnStore.hasStopToSay(id)) {
+      if (await turnStore.sayStopAgain(id)) await reload();
+      return;
+    }
     if (!cutOff && failure !== "no reply") {
       await runTurn("regenerate");
       return;

@@ -29,6 +29,32 @@ export function clearDraft(conversationId: string): void {
   }
 }
 
+/** The box open for a conversation, if one is. */
+interface Box {
+  read(): string;
+  write(text: string): void;
+}
+const boxes = new Map<string, Box>();
+
+/** Says that this box is open. Returns the function that says it has closed. */
+export function openBox(conversationId: string, box: Box): () => void {
+  boxes.set(conversationId, box);
+  return () => {
+    if (boxes.get(conversationId) === box) boxes.delete(conversationId);
+  };
+}
+
+/** A message that was refused goes back where it came from. The person may have left
+ *  by then, and come back or not, so it goes to the draft in any case, and to whichever
+ *  box is open. Whatever has been typed there since stays too, under it. */
+export function giveBack(conversationId: string, message: string): void {
+  const box = boxes.get(conversationId);
+  const typed = box ? box.read() : loadDraft(conversationId);
+  const kept = typed.trim() ? `${message}\n${typed}` : message;
+  saveDraft(conversationId, kept);
+  box?.write(kept);
+}
+
 /** Ids that currently hold a draft, restricted to conversations that still
     exist; drafts of deleted conversations are removed along the way. */
 export function pruneDrafts(existingIds: string[]): Set<string> {

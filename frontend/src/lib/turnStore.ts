@@ -146,7 +146,7 @@ export const turnStore = {
     replaced.abort();
   },
 
-  /** This reader is at the first word again, which is where a reader starts. */
+  /** This reader is at the first word again, which is where every reader starts. */
   restart(conversationId: string, controller: AbortController) {
     const turn = held(conversationId, controller);
     if (turn) turns.set(conversationId, { ...turn, replay: "" });
@@ -235,6 +235,11 @@ export const turnStore = {
   /** Whether the person has asked for this conversation's turn to stop. */
   isStopping(conversationId: string) {
     return turns.get(conversationId)?.stopping ?? false;
+  },
+
+  /** Whether a stop is still to be said. */
+  hasStopToSay(conversationId: string) {
+    return stopsToSay.has(conversationId);
   },
 
   /** Says a stop again if it could not be said before. Says whether one got through. */

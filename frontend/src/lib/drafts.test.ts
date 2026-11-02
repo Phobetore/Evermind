@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, test } from "vitest";
-import { clearDraft, loadDraft, pruneDrafts, saveDraft } from "./drafts";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { clearDraft, giveBack, loadDraft, openBox, pruneDrafts, saveDraft } from "./drafts";
 
 /** Kept items are own properties, the methods are not, so `Object.keys` lists
  *  what is stored, as it does for the browser's own storage. */
@@ -78,5 +78,47 @@ describe("drafts", () => {
     expect(pruneDrafts(["kept", "other"])).toEqual(new Set(["kept"]));
     expect(loadDraft("gone")).toBe("");
     expect(storage.getItem("evermind:locale")).toBe("fr");
+  });
+});
+
+describe("a message given back", () => {
+  beforeEach(() => useStorage(new MemoryStorage()));
+
+  test("goes to the draft when no box is open", () => {
+    giveBack("v1", "Refused.");
+    expect(loadDraft("v1")).toBe("Refused.");
+  });
+
+  test("keeps a draft that was there, under it", () => {
+    saveDraft("v1", "Started since.");
+    giveBack("v1", "Refused.");
+    expect(loadDraft("v1")).toBe("Refused.\nStarted since.");
+  });
+
+  test("goes to the box that is open, with what has been typed there", () => {
+    let shown = "Typing.";
+    const close = openBox("v1", { read: () => shown, write: (text) => { shown = text; } });
+    giveBack("v1", "Refused.");
+    expect(shown).toBe("Refused.\nTyping.");
+    expect(loadDraft("v1"), "and to the draft, in case the page goes").toBe("Refused.\nTyping.");
+    close();
+  });
+
+  test("not to a box that has closed", () => {
+    let shown = "";
+    openBox("v1", { read: () => shown, write: (text) => { shown = text; } })();
+    giveBack("v1", "Refused.");
+    expect(shown).toBe("");
+    expect(loadDraft("v1")).toBe("Refused.");
+  });
+
+  test("a box that has closed does not close the one that replaced it", () => {
+    const old = openBox("v1", { read: () => "", write: () => {} });
+    let shown = "";
+    const current = openBox("v1", { read: () => shown, write: (text) => { shown = text; } });
+    old();
+    giveBack("v1", "Refused.");
+    expect(shown).toBe("Refused.");
+    current();
   });
 });

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
 import {
-  connectionBack, connectionDiesDuring, countingStreams, countingTurnQuestions, endingOf,
+  connectionBack, connectionDiesDuring, countingPosts, countingStreams, countingTurnQuestions, endingOf,
   expectPickedUp, goWithinThePage, looseWords, phoneComesBack, report, retryButton, stopButton,
   writing,
 } from "./connection";
@@ -149,6 +149,44 @@ test.describe("Stop", () => {
     await expect(report(page), "the report stayed once it worked").toHaveCount(0);
   });
 
+  test("stopping keeps every word that had arrived", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    await page.goto(`/#/chat/${convo.id}`);
+    await send(page, "Vas-y.");
+    await expect.poll(async () => ((await writing(page).textContent()) ?? "").length,
+      { timeout: 15_000 }).toBeGreaterThan(15);
+
+    const seen = ((await writing(page).textContent()) ?? "").replaceAll("*", "").trim();
+    await stopButton(page).click();
+    await expect(stopButton(page)).toBeHidden();
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 10_000 }).toBe(false);
+
+    const reply = (await conversation(request, convo.id)).messages.at(-1);
+    expect(reply.content.replaceAll("*", ""), "what was on screen is gone").toContain(seen);
+    await expect(page.locator(`[data-message-id="${reply.id}"]`)).toBeVisible();
+  });
+
+  test("retrying after a stop that could not be said says it, and asks for nothing", async ({ page, context, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    await page.goto(`/#/chat/${convo.id}`);
+    await send(page, "Vas-y.");
+    await expect(writing(page)).toBeVisible();
+
+    await context.setOffline(true);
+    await stopButton(page).click();
+    await expect(report(page).first()).toContainText("Evermind is not answering");
+    await context.setOffline(false);
+
+    const posts = countingPosts(page);
+    await retryButton(page).click();
+    await expect.poll(() => turnRunning(request, convo.id), {
+      timeout: 10_000, message: "the stop was not said again",
+    }).toBe(false);
+    await expect(report(page), "the report stayed once it worked").toHaveCount(0);
+    expect(posts(), "retrying a stop asked for another reply").toBe(0);
+    expect((await conversation(request, convo.id)).messages.at(-1).variants.length).toBe(1);
+  });
+
   test("stopping and sending straight away sends", async ({ page, request }) => {
     const convo = await conversationWithReply(request, { quiet: true });
     await page.goto(`/#/chat/${convo.id}`);
@@ -230,6 +268,64 @@ test.describe("sending while a reply is being written", () => {
     await expect(page.locator("textarea").first(), "the message was lost").toHaveValue("Et ceci ?");
     await expect(looseWords(page), "what had arrived went with it").toHaveText(words ?? "");
     await expect(report(page).first()).toContainText("Evermind is not answering");
+    await stopTurn(request, convo.id);
+  });
+
+  /** Refused, once `release` is called. Another device's reply is being written. */
+  async function refusalOnItsWay(page: Page, request: Parameters<typeof turnRunning>[0], id: string) {
+    await page.goto(`/#/chat/${id}`);
+    await expect(page.locator("textarea").first()).toBeVisible();
+    void elsewhere(request, id, { mode: "send", content: "Depuis ailleurs." });
+    await expect.poll(() => turnRunning(request, id)).toBe(true);
+
+    let release = () => {};
+    const released = new Promise<void>((resolve) => { release = resolve; });
+    await page.route("**/api/chat", async (route) => {
+      await released;
+      await route.continue();
+    });
+    const refused = page.waitForResponse((r) => r.url().endsWith("/api/chat") && r.status() === 409);
+    await send(page, "Et ceci ?");
+    await expect(page.locator("textarea").first()).toHaveValue("");
+    return async () => {
+      release();
+      await refused;
+      await settled(page);
+    };
+  }
+
+  test("a message refused after the page was left is there on coming back", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    const refusal = await refusalOnItsWay(page, request, convo.id);
+    await goWithinThePage(page, "/chat");
+    await expect(page.locator("textarea")).toHaveCount(0);
+    await refusal();
+
+    await goWithinThePage(page, `/chat/${convo.id}`);
+    await expect(page.locator("textarea").first(), "the message was lost").toHaveValue("Et ceci ?");
+    await stopTurn(request, convo.id);
+  });
+
+  test("the same if the person is back before the refusal arrives", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    const refusal = await refusalOnItsWay(page, request, convo.id);
+    await goWithinThePage(page, "/chat");
+    await expect(page.locator("textarea")).toHaveCount(0);
+    await goWithinThePage(page, `/chat/${convo.id}`);
+    await expect(page.locator("textarea").first()).toHaveValue("");
+    await refusal();
+
+    await expect(page.locator("textarea").first(), "the message was lost").toHaveValue("Et ceci ?");
+    await stopTurn(request, convo.id);
+  });
+
+  test("what was typed while waiting for the refusal is kept as well", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    const refusal = await refusalOnItsWay(page, request, convo.id);
+    await page.locator("textarea").first().fill("Et puis ceci.");
+    await refusal();
+
+    await expect(page.locator("textarea").first()).toHaveValue("Et ceci ?\nEt puis ceci.");
     await stopTurn(request, convo.id);
   });
 
@@ -323,6 +419,27 @@ test.describe("leaving and coming back", () => {
 
     await goWithinThePage(page, `/chat/${convo.id}`);
     await expect(report(page).first(), "the reason was lost").toContainText("500");
+  });
+
+  test("a reader that went quiet while away is noticed on coming back", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    await connectionDiesDuring(page, "api/chat", { chunks: 3, hangs: true });
+    const streams = countingStreams(page);
+    await page.goto(`/#/chat/${convo.id}`);
+    await send(page, "Dors.");
+    await expect(writing(page)).toBeVisible();
+
+    // Coming back is all that can notice, once no word has arrived for a while.
+    await expect.poll(async () => {
+      await goWithinThePage(page, "/chat");
+      await expect(page.locator("textarea")).toHaveCount(0);
+      await goWithinThePage(page, `/chat/${convo.id}`);
+      await expect(page.locator("textarea").first()).toBeVisible();
+      await settled(page);
+      return streams();
+    }, { timeout: 30_000, message: "a stream that had stopped was not asked about" }).toBeGreaterThan(0);
+    await expectPickedUp(page, Promise.resolve());
+    await stopTurn(request, convo.id);
   });
 
   test("a reply ending while the page come back to has its first read is shown whole", async ({ page, request }) => {
@@ -485,6 +602,32 @@ test.describe("what is asked of a connection that does not answer", () => {
 
     await expect(stopButton(page), "a stop button that does nothing").toBeHidden({ timeout: 10_000 });
     await expect(report(page).first()).toContainText("Evermind is not answering");
+  });
+
+  test("the ending of a turn that never comes does not stop anything else being asked", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await connectionDiesDuring(page, "api/chat", { chunks: 3 });
+    // The turn is over by the time the page is told, and reading it then hangs.
+    let hang = true;
+    await page.route("**/turn/stream", async (route) => {
+      if (!hang) await route.continue();
+    });
+    await page.route("**/turn", async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+      await route.continue();
+    });
+    await page.goto(`/#/chat/${convo.id}`);
+    await send(page, "Coupe.");
+
+    await expect(report(page).first(), "still waiting").toContainText("Evermind is not answering", { timeout: 25_000 });
+    await expect(stopButton(page), "a stop button with nothing behind it").toBeHidden();
+
+    hang = false;
+    await phoneComesBack(page);
+    await expect(report(page), "the report stayed once it worked").toHaveCount(0);
+    const reply = (await conversation(request, convo.id)).messages.at(-1);
+    await expect(page.locator(`[data-message-id="${reply.id}"]`)).toContainText(endingOf(reply.content));
   });
 
   test("a question that hangs does not stop the next one being asked", async ({ page, request }) => {

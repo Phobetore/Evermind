@@ -190,6 +190,7 @@ describe("stopping", () => {
     stop.mockRejectedValueOnce(down);
     turnStore.stop(id);
     await vi.waitFor(() => expect(turnStore.failureOf(id)).toEqual({ error: down }));
+    expect(turnStore.hasStopToSay(id)).toBe(true);
 
     stop.mockRejectedValueOnce(down);
     await expect(turnStore.sayStopAgain(id)).resolves.toBe(false);
@@ -197,6 +198,7 @@ describe("stopping", () => {
 
     await expect(turnStore.sayStopAgain(id)).resolves.toBe(true);
     expect(turnStore.failureOf(id)).toBeNull();
+    expect(turnStore.hasStopToSay(id)).toBe(false);
     stop.mockClear();
     await expect(turnStore.sayStopAgain(id), "said, so nothing left to say").resolves.toBe(false);
     expect(stop).not.toHaveBeenCalled();

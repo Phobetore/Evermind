@@ -1,7 +1,7 @@
 import { ModelSilent } from "@/components/chat/ModelSilent";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { clearDraft, loadDraft, saveDraft } from "@/lib/drafts";
+import { clearDraft, giveBack, loadDraft, openBox, saveDraft } from "@/lib/drafts";
 import { describeError } from "@/lib/errors";
 import { clsx } from "clsx";
 import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Send, Square } from "lucide-react";
@@ -77,6 +77,16 @@ export function ChatInput({
   // and the change event is not something every browser reliably fires.
   const [enterSends, setEnterSends] = useState(true);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const typed = useRef(value);
+
+  useEffect(() => {
+    typed.current = value;
+  }, [value]);
+
+  useEffect(
+    () => openBox(conversationId, { read: () => typed.current, write: setValue }),
+    [conversationId],
+  );
 
   useEffect(() => {
     const el = ref.current;
@@ -119,8 +129,7 @@ export function ChatInput({
     setMode("say"); // narration and OOC are one-shot by nature
     void onSend(content, sentAs).then((refused) => {
       if (!refused) return;
-      // Unless something else has been started in the box in the meantime.
-      setValue((typed) => typed || content);
+      giveBack(conversationId, content);
       setMode(sentAs);
     });
   }
