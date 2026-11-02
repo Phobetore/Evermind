@@ -8,6 +8,7 @@ frontend/src/engine/ is held to the same files.
 
 import dataclasses
 import json
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -77,10 +78,46 @@ def read_cases(path: Path) -> list[dict[str, Any]]:
     return json.loads(path.read_text(encoding="utf-8"))["cases"]
 
 
+# What a file must not hold raw, because it cannot be seen there, looks like
+# something else, or is taken for a line end by an editor that offers to tidy
+# it, input and expected alike: DEL, the C1 controls and the no-break space
+# (U+007F-U+00A0), the soft hyphen, the Arabic letter mark, the Ogham and
+# Mongolian spaces, the spaces, zero-width and direction marks of
+# U+2000-U+200F, the line and paragraph separators with the bidirectional
+# controls and the narrow no-break space (U+2028-U+202F), the medium
+# mathematical space to the last format control of that block (U+205F-U+206F),
+# the ideographic space, and the byte order mark; and the combining marks
+# (U+0300-U+036F) and variation selectors (U+FE00-U+FE0F), which an editor that
+# normalises text would fold into the letter before them. The C0 controls are
+# already escaped by json.dumps, and the one line feed left is the layout's own.
+INVISIBLE = re.compile(
+    "["
+    + "".join(
+        f"{chr(low)}-{chr(high)}"
+        for low, high in [
+            (0x7F, 0xA0),
+            (0xAD, 0xAD),
+            (0x300, 0x36F),
+            (0x61C, 0x61C),
+            (0x1680, 0x1680),
+            (0x180E, 0x180E),
+            (0x2000, 0x200F),
+            (0x2028, 0x202F),
+            (0x205F, 0x206F),
+            (0x3000, 0x3000),
+            (0xFE00, 0xFE0F),
+            (0xFEFF, 0xFEFF),
+        ]
+    )
+    + "]"
+)
+
+
 def write_cases(path: Path, cases: list[dict[str, Any]]) -> None:
-    text = json.dumps({"cases": cases}, ensure_ascii=False, indent=1, allow_nan=False) + "\n"
+    text = json.dumps({"cases": cases}, ensure_ascii=False, indent=1, allow_nan=False)
+    text = INVISIBLE.sub(lambda match: f"\\u{ord(match.group()):04x}", text)
     # Bytes, so that Windows does not turn the line ends into CR LF.
-    path.write_bytes(text.encode("utf-8"))
+    path.write_bytes((text + "\n").encode("utf-8"))
 
 
 def regenerate() -> None:

@@ -64,7 +64,7 @@
    "fn": "substitute",
    "name": "a no-break space inside the braces",
    "input": {
-    "text": "{{ char }} and {{ user }}",
+    "text": "{{\u00a0char\u00a0}} and {{ user\u00a0}}",
     "char_name": "Serana",
     "user_name": "Alex"
    },
@@ -94,7 +94,7 @@
    "fn": "substitute",
    "name": "a next line character inside the braces",
    "input": {
-    "text": "{{char}}",
+    "text": "{{\u0085char}}",
     "char_name": "Serana",
     "user_name": "Alex"
    },
@@ -104,7 +104,7 @@
    "fn": "substitute",
    "name": "an em space and an ideographic space inside",
    "input": {
-    "text": "{{ user　}}",
+    "text": "{{\u2003user\u3000}}",
     "char_name": "Serana",
     "user_name": "Alex"
    },
@@ -124,21 +124,21 @@
    "fn": "substitute",
    "name": "a byte order mark inside is not a space",
    "input": {
-    "text": "{{﻿char}} {{user﻿}}",
+    "text": "{{\ufeffchar}} {{user\ufeff}}",
     "char_name": "Serana",
     "user_name": "Alex"
    },
-   "expected": "{{﻿char}} {{user﻿}}"
+   "expected": "{{\ufeffchar}} {{user\ufeff}}"
   },
   {
    "fn": "substitute",
    "name": "a zero width space inside is not a space",
    "input": {
-    "text": "{{​char}} {{user​}}",
+    "text": "{{\u200bchar}} {{user\u200b}}",
     "char_name": "Serana",
     "user_name": "Alex"
    },
-   "expected": "{{​char}} {{user​}}"
+   "expected": "{{\u200bchar}} {{user\u200b}}"
   },
   {
    "fn": "substitute",
@@ -305,10 +305,10 @@
    "name": "names outside the basic plane",
    "input": {
     "text": "{{char}} and {{user}}",
-    "char_name": "🧙‍♂️ Merlin",
+    "char_name": "🧙\u200d♂\ufe0f Merlin",
     "user_name": "😀"
    },
-   "expected": "🧙‍♂️ Merlin and 😀"
+   "expected": "🧙\u200d♂\ufe0f Merlin and 😀"
   },
   {
    "fn": "substitute",
@@ -416,16 +416,16 @@
    "fn": "substitute_original",
    "name": "original with a decomposed dotted i",
    "input": {
-    "text": "{{ori̇ginal}}",
+    "text": "{{ori\u0307ginal}}",
     "original": "The default rules."
    },
-   "expected": "{{ori̇ginal}}"
+   "expected": "{{ori\u0307ginal}}"
   },
   {
    "fn": "substitute_original",
    "name": "original with a no-break space inside",
    "input": {
-    "text": "{{ original }}",
+    "text": "{{\u00a0original\u00a0}}",
     "original": "The default rules."
    },
    "expected": "The default rules."
@@ -443,19 +443,19 @@
    "fn": "substitute_original",
    "name": "original with a byte order mark inside",
    "input": {
-    "text": "{{﻿original}}",
+    "text": "{{\ufefforiginal}}",
     "original": "The default rules."
    },
-   "expected": "{{﻿original}}"
+   "expected": "{{\ufefforiginal}}"
   },
   {
    "fn": "substitute_original",
    "name": "original with a zero width space inside",
    "input": {
-    "text": "{{original​}}",
+    "text": "{{original\u200b}}",
     "original": "The default rules."
    },
-   "expected": "{{original​}}"
+   "expected": "{{original\u200b}}"
   },
   {
    "fn": "substitute_original",
@@ -555,7 +555,7 @@
    "fn": "has_original_macro",
    "name": "original with a no-break space",
    "input": {
-    "text": "{{ original}}"
+    "text": "{{\u00a0original}}"
    },
    "expected": true
   },
@@ -571,7 +571,7 @@
    "fn": "has_original_macro",
    "name": "original with a byte order mark",
    "input": {
-    "text": "{{original﻿}}"
+    "text": "{{original\ufeff}}"
    },
    "expected": false
   },
@@ -579,7 +579,7 @@
    "fn": "has_original_macro",
    "name": "original with a zero width space",
    "input": {
-    "text": "{{​original}}"
+    "text": "{{\u200boriginal}}"
    },
    "expected": false
   },

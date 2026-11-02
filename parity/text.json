@@ -28,7 +28,7 @@
    "fn": "py_strip",
    "name": "next line at the left",
    "input": {
-    "text": "ab"
+    "text": "\u0085ab"
    },
    "expected": "ab"
   },
@@ -36,7 +36,7 @@
    "fn": "py_strip",
    "name": "next line at the right",
    "input": {
-    "text": "ab"
+    "text": "ab\u0085"
    },
    "expected": "ab"
   },
@@ -44,15 +44,15 @@
    "fn": "py_strip",
    "name": "next line in the middle",
    "input": {
-    "text": "ab"
+    "text": "a\u0085b"
    },
-   "expected": "ab"
+   "expected": "a\u0085b"
   },
   {
    "fn": "py_strip",
    "name": "no-break space at the left",
    "input": {
-    "text": " ab"
+    "text": "\u00a0ab"
    },
    "expected": "ab"
   },
@@ -60,7 +60,7 @@
    "fn": "py_strip",
    "name": "no-break space at the right",
    "input": {
-    "text": "ab "
+    "text": "ab\u00a0"
    },
    "expected": "ab"
   },
@@ -68,15 +68,15 @@
    "fn": "py_strip",
    "name": "no-break space in the middle",
    "input": {
-    "text": "a b"
+    "text": "a\u00a0b"
    },
-   "expected": "a b"
+   "expected": "a\u00a0b"
   },
   {
    "fn": "py_strip",
    "name": "em space at the left",
    "input": {
-    "text": " ab"
+    "text": "\u2003ab"
    },
    "expected": "ab"
   },
@@ -84,7 +84,7 @@
    "fn": "py_strip",
    "name": "em space at the right",
    "input": {
-    "text": "ab "
+    "text": "ab\u2003"
    },
    "expected": "ab"
   },
@@ -92,15 +92,15 @@
    "fn": "py_strip",
    "name": "em space in the middle",
    "input": {
-    "text": "a b"
+    "text": "a\u2003b"
    },
-   "expected": "a b"
+   "expected": "a\u2003b"
   },
   {
    "fn": "py_strip",
    "name": "ideographic space at the left",
    "input": {
-    "text": "　ab"
+    "text": "\u3000ab"
    },
    "expected": "ab"
   },
@@ -108,7 +108,7 @@
    "fn": "py_strip",
    "name": "ideographic space at the right",
    "input": {
-    "text": "ab　"
+    "text": "ab\u3000"
    },
    "expected": "ab"
   },
@@ -116,57 +116,57 @@
    "fn": "py_strip",
    "name": "ideographic space in the middle",
    "input": {
-    "text": "a　b"
+    "text": "a\u3000b"
    },
-   "expected": "a　b"
+   "expected": "a\u3000b"
   },
   {
    "fn": "py_strip",
    "name": "byte order mark at the left",
    "input": {
-    "text": "﻿ab"
+    "text": "\ufeffab"
    },
-   "expected": "﻿ab"
+   "expected": "\ufeffab"
   },
   {
    "fn": "py_strip",
    "name": "byte order mark at the right",
    "input": {
-    "text": "ab﻿"
+    "text": "ab\ufeff"
    },
-   "expected": "ab﻿"
+   "expected": "ab\ufeff"
   },
   {
    "fn": "py_strip",
    "name": "byte order mark in the middle",
    "input": {
-    "text": "a﻿b"
+    "text": "a\ufeffb"
    },
-   "expected": "a﻿b"
+   "expected": "a\ufeffb"
   },
   {
    "fn": "py_strip",
    "name": "zero width space at the left",
    "input": {
-    "text": "​ab"
+    "text": "\u200bab"
    },
-   "expected": "​ab"
+   "expected": "\u200bab"
   },
   {
    "fn": "py_strip",
    "name": "zero width space at the right",
    "input": {
-    "text": "ab​"
+    "text": "ab\u200b"
    },
-   "expected": "ab​"
+   "expected": "ab\u200b"
   },
   {
    "fn": "py_strip",
    "name": "zero width space in the middle",
    "input": {
-    "text": "a​b"
+    "text": "a\u200bb"
    },
-   "expected": "a​b"
+   "expected": "a\u200bb"
   },
   {
    "fn": "py_strip",
@@ -196,7 +196,7 @@
    "fn": "py_strip",
    "name": "only whitespace",
    "input": {
-    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
    },
    "expected": ""
   },
@@ -204,7 +204,7 @@
    "fn": "py_strip",
    "name": "every whitespace around a letter",
    "input": {
-    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　x\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000x\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
    },
    "expected": "x"
   },
@@ -212,23 +212,23 @@
    "fn": "py_strip",
    "name": "what is not whitespace stays",
    "input": {
-    "text": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+    "text": "\ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b x \ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b"
    },
-   "expected": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+   "expected": "\ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b x \ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b"
   },
   {
    "fn": "py_strip",
    "name": "a byte order mark hides the spaces behind it",
    "input": {
-    "text": "﻿  x  ﻿"
+    "text": "\ufeff  x  \ufeff"
    },
-   "expected": "﻿  x  ﻿"
+   "expected": "\ufeff  x  \ufeff"
   },
   {
    "fn": "py_strip",
    "name": "line breaks and separators",
    "input": {
-    "text": "\r\n x   "
+    "text": "\r\n x \u2028\u2029"
    },
    "expected": "x"
   },
@@ -268,7 +268,7 @@
    "fn": "py_lstrip",
    "name": "next line at the left",
    "input": {
-    "text": "ab"
+    "text": "\u0085ab"
    },
    "expected": "ab"
   },
@@ -276,23 +276,23 @@
    "fn": "py_lstrip",
    "name": "next line at the right",
    "input": {
-    "text": "ab"
+    "text": "ab\u0085"
    },
-   "expected": "ab"
+   "expected": "ab\u0085"
   },
   {
    "fn": "py_lstrip",
    "name": "next line in the middle",
    "input": {
-    "text": "ab"
+    "text": "a\u0085b"
    },
-   "expected": "ab"
+   "expected": "a\u0085b"
   },
   {
    "fn": "py_lstrip",
    "name": "no-break space at the left",
    "input": {
-    "text": " ab"
+    "text": "\u00a0ab"
    },
    "expected": "ab"
   },
@@ -300,23 +300,23 @@
    "fn": "py_lstrip",
    "name": "no-break space at the right",
    "input": {
-    "text": "ab "
+    "text": "ab\u00a0"
    },
-   "expected": "ab "
+   "expected": "ab\u00a0"
   },
   {
    "fn": "py_lstrip",
    "name": "no-break space in the middle",
    "input": {
-    "text": "a b"
+    "text": "a\u00a0b"
    },
-   "expected": "a b"
+   "expected": "a\u00a0b"
   },
   {
    "fn": "py_lstrip",
    "name": "em space at the left",
    "input": {
-    "text": " ab"
+    "text": "\u2003ab"
    },
    "expected": "ab"
   },
@@ -324,23 +324,23 @@
    "fn": "py_lstrip",
    "name": "em space at the right",
    "input": {
-    "text": "ab "
+    "text": "ab\u2003"
    },
-   "expected": "ab "
+   "expected": "ab\u2003"
   },
   {
    "fn": "py_lstrip",
    "name": "em space in the middle",
    "input": {
-    "text": "a b"
+    "text": "a\u2003b"
    },
-   "expected": "a b"
+   "expected": "a\u2003b"
   },
   {
    "fn": "py_lstrip",
    "name": "ideographic space at the left",
    "input": {
-    "text": "　ab"
+    "text": "\u3000ab"
    },
    "expected": "ab"
   },
@@ -348,65 +348,65 @@
    "fn": "py_lstrip",
    "name": "ideographic space at the right",
    "input": {
-    "text": "ab　"
+    "text": "ab\u3000"
    },
-   "expected": "ab　"
+   "expected": "ab\u3000"
   },
   {
    "fn": "py_lstrip",
    "name": "ideographic space in the middle",
    "input": {
-    "text": "a　b"
+    "text": "a\u3000b"
    },
-   "expected": "a　b"
+   "expected": "a\u3000b"
   },
   {
    "fn": "py_lstrip",
    "name": "byte order mark at the left",
    "input": {
-    "text": "﻿ab"
+    "text": "\ufeffab"
    },
-   "expected": "﻿ab"
+   "expected": "\ufeffab"
   },
   {
    "fn": "py_lstrip",
    "name": "byte order mark at the right",
    "input": {
-    "text": "ab﻿"
+    "text": "ab\ufeff"
    },
-   "expected": "ab﻿"
+   "expected": "ab\ufeff"
   },
   {
    "fn": "py_lstrip",
    "name": "byte order mark in the middle",
    "input": {
-    "text": "a﻿b"
+    "text": "a\ufeffb"
    },
-   "expected": "a﻿b"
+   "expected": "a\ufeffb"
   },
   {
    "fn": "py_lstrip",
    "name": "zero width space at the left",
    "input": {
-    "text": "​ab"
+    "text": "\u200bab"
    },
-   "expected": "​ab"
+   "expected": "\u200bab"
   },
   {
    "fn": "py_lstrip",
    "name": "zero width space at the right",
    "input": {
-    "text": "ab​"
+    "text": "ab\u200b"
    },
-   "expected": "ab​"
+   "expected": "ab\u200b"
   },
   {
    "fn": "py_lstrip",
    "name": "zero width space in the middle",
    "input": {
-    "text": "a​b"
+    "text": "a\u200bb"
    },
-   "expected": "a​b"
+   "expected": "a\u200bb"
   },
   {
    "fn": "py_lstrip",
@@ -436,7 +436,7 @@
    "fn": "py_lstrip",
    "name": "only whitespace",
    "input": {
-    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
    },
    "expected": ""
   },
@@ -444,33 +444,33 @@
    "fn": "py_lstrip",
    "name": "every whitespace around a letter",
    "input": {
-    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　x\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000x\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
    },
-   "expected": "x\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+   "expected": "x\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
   },
   {
    "fn": "py_lstrip",
    "name": "what is not whitespace stays",
    "input": {
-    "text": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+    "text": "\ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b x \ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b"
    },
-   "expected": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+   "expected": "\ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b x \ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b"
   },
   {
    "fn": "py_lstrip",
    "name": "a byte order mark hides the spaces behind it",
    "input": {
-    "text": "﻿  x  ﻿"
+    "text": "\ufeff  x  \ufeff"
    },
-   "expected": "﻿  x  ﻿"
+   "expected": "\ufeff  x  \ufeff"
   },
   {
    "fn": "py_lstrip",
    "name": "line breaks and separators",
    "input": {
-    "text": "\r\n x   "
+    "text": "\r\n x \u2028\u2029"
    },
-   "expected": "x   "
+   "expected": "x \u2028\u2029"
   },
   {
    "fn": "py_lstrip",
@@ -508,15 +508,15 @@
    "fn": "py_rstrip",
    "name": "next line at the left",
    "input": {
-    "text": "ab"
+    "text": "\u0085ab"
    },
-   "expected": "ab"
+   "expected": "\u0085ab"
   },
   {
    "fn": "py_rstrip",
    "name": "next line at the right",
    "input": {
-    "text": "ab"
+    "text": "ab\u0085"
    },
    "expected": "ab"
   },
@@ -524,23 +524,23 @@
    "fn": "py_rstrip",
    "name": "next line in the middle",
    "input": {
-    "text": "ab"
+    "text": "a\u0085b"
    },
-   "expected": "ab"
+   "expected": "a\u0085b"
   },
   {
    "fn": "py_rstrip",
    "name": "no-break space at the left",
    "input": {
-    "text": " ab"
+    "text": "\u00a0ab"
    },
-   "expected": " ab"
+   "expected": "\u00a0ab"
   },
   {
    "fn": "py_rstrip",
    "name": "no-break space at the right",
    "input": {
-    "text": "ab "
+    "text": "ab\u00a0"
    },
    "expected": "ab"
   },
@@ -548,23 +548,23 @@
    "fn": "py_rstrip",
    "name": "no-break space in the middle",
    "input": {
-    "text": "a b"
+    "text": "a\u00a0b"
    },
-   "expected": "a b"
+   "expected": "a\u00a0b"
   },
   {
    "fn": "py_rstrip",
    "name": "em space at the left",
    "input": {
-    "text": " ab"
+    "text": "\u2003ab"
    },
-   "expected": " ab"
+   "expected": "\u2003ab"
   },
   {
    "fn": "py_rstrip",
    "name": "em space at the right",
    "input": {
-    "text": "ab "
+    "text": "ab\u2003"
    },
    "expected": "ab"
   },
@@ -572,23 +572,23 @@
    "fn": "py_rstrip",
    "name": "em space in the middle",
    "input": {
-    "text": "a b"
+    "text": "a\u2003b"
    },
-   "expected": "a b"
+   "expected": "a\u2003b"
   },
   {
    "fn": "py_rstrip",
    "name": "ideographic space at the left",
    "input": {
-    "text": "　ab"
+    "text": "\u3000ab"
    },
-   "expected": "　ab"
+   "expected": "\u3000ab"
   },
   {
    "fn": "py_rstrip",
    "name": "ideographic space at the right",
    "input": {
-    "text": "ab　"
+    "text": "ab\u3000"
    },
    "expected": "ab"
   },
@@ -596,57 +596,57 @@
    "fn": "py_rstrip",
    "name": "ideographic space in the middle",
    "input": {
-    "text": "a　b"
+    "text": "a\u3000b"
    },
-   "expected": "a　b"
+   "expected": "a\u3000b"
   },
   {
    "fn": "py_rstrip",
    "name": "byte order mark at the left",
    "input": {
-    "text": "﻿ab"
+    "text": "\ufeffab"
    },
-   "expected": "﻿ab"
+   "expected": "\ufeffab"
   },
   {
    "fn": "py_rstrip",
    "name": "byte order mark at the right",
    "input": {
-    "text": "ab﻿"
+    "text": "ab\ufeff"
    },
-   "expected": "ab﻿"
+   "expected": "ab\ufeff"
   },
   {
    "fn": "py_rstrip",
    "name": "byte order mark in the middle",
    "input": {
-    "text": "a﻿b"
+    "text": "a\ufeffb"
    },
-   "expected": "a﻿b"
+   "expected": "a\ufeffb"
   },
   {
    "fn": "py_rstrip",
    "name": "zero width space at the left",
    "input": {
-    "text": "​ab"
+    "text": "\u200bab"
    },
-   "expected": "​ab"
+   "expected": "\u200bab"
   },
   {
    "fn": "py_rstrip",
    "name": "zero width space at the right",
    "input": {
-    "text": "ab​"
+    "text": "ab\u200b"
    },
-   "expected": "ab​"
+   "expected": "ab\u200b"
   },
   {
    "fn": "py_rstrip",
    "name": "zero width space in the middle",
    "input": {
-    "text": "a​b"
+    "text": "a\u200bb"
    },
-   "expected": "a​b"
+   "expected": "a\u200bb"
   },
   {
    "fn": "py_rstrip",
@@ -676,7 +676,7 @@
    "fn": "py_rstrip",
    "name": "only whitespace",
    "input": {
-    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
    },
    "expected": ""
   },
@@ -684,31 +684,31 @@
    "fn": "py_rstrip",
    "name": "every whitespace around a letter",
    "input": {
-    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　x\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　"
+    "text": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000x\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
    },
-   "expected": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f                  　x"
+   "expected": "\t\n\u000b\f\r\u001c\u001d\u001e\u001f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000x"
   },
   {
    "fn": "py_rstrip",
    "name": "what is not whitespace stays",
    "input": {
-    "text": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+    "text": "\ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b x \ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b"
    },
-   "expected": "﻿​‌‍⁠᠎\u0000\u001b x ﻿​‌‍⁠᠎\u0000\u001b"
+   "expected": "\ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b x \ufeff\u200b\u200c\u200d\u2060\u180e\u0000\u001b"
   },
   {
    "fn": "py_rstrip",
    "name": "a byte order mark hides the spaces behind it",
    "input": {
-    "text": "﻿  x  ﻿"
+    "text": "\ufeff  x  \ufeff"
    },
-   "expected": "﻿  x  ﻿"
+   "expected": "\ufeff  x  \ufeff"
   },
   {
    "fn": "py_rstrip",
    "name": "line breaks and separators",
    "input": {
-    "text": "\r\n x   "
+    "text": "\r\n x \u2028\u2029"
    },
    "expected": "\r\n x"
   },

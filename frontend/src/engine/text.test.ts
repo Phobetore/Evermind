@@ -7,10 +7,10 @@ import { codePoints, sliceCodePoints } from "./text";
 test.each([
   ["", 0],
   ["abc", 3],
-  ["é", 1],
+  ["\u00e9", 1],
   ["\u{1F600}", 1],
   ["\u{1F1EB}\u{1F1F7}", 2],
-  ["\u{1F468}‍\u{1F469}‍\u{1F467}", 5],
+  ["\u{1F468}\u200d\u{1F469}\u200d\u{1F467}", 5],
   ["a\u{1F600}b", 3],
   ["\ud83d", 1],
   ["\ude00", 1],

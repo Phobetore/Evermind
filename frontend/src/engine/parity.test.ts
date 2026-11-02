@@ -54,6 +54,12 @@ describe("the shared cases", () => {
     expect(files.length).toBeGreaterThanOrEqual(4);
     expect(loaded.reduce((n, file) => n + file.cases.length, 0)).toBeGreaterThanOrEqual(20);
   });
+
+  it("name exactly the registered functions", () => {
+    // Both ways: a case with no function, and a function that no case calls.
+    const named = new Set(loaded.flatMap((file) => file.cases.map((c) => c.fn)));
+    expect([...named].sort()).toEqual(Object.keys(FUNCTIONS).sort());
+  });
 });
 
 for (const { name, cases } of loaded) {
