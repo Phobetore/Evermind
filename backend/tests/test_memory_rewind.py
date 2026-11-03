@@ -534,7 +534,7 @@ async def test_a_branch_reads_the_memory_up_to_its_message(
     assert [c[0] for c in await checkpoints_of(branch["id"])] == ([before] if summary_kept else [])
 
 
-# ---------- a cut during a pass ----------
+# ---------- a cut while a pass writes, or after ----------
 
 async def test_a_cut_while_the_pass_writes_leaves_none_of_what_it_wrote(
         client, fake_provider, monkeypatch):
@@ -551,7 +551,6 @@ async def test_a_cut_while_the_pass_writes_leaves_none_of_what_it_wrote(
     async def embed(texts, kind):
         in_the_writes.set()
         await go_on.wait()
-        return None
 
     monkeypatch.setattr(embeddings, "embed", embed)
     FakeProvider.script = [ProviderEvent(type="delta", text=json.dumps({
