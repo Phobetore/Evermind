@@ -627,6 +627,6 @@ async def summarize(db: aiosqlite.Connection, convo_id: str) -> dict:
     await convo_repo.update(db, convo_id, {"summary": summary})
     # It describes the story up to the last message it was given, and the facts were not
     # read from those turns, so the memory is checkpointed with the position it had.
-    await convo_repo.checkpoint(db, convo_id, messages[-1])
+    await convo_repo.checkpoint(db, convo_id, messages[-1]["position"], summary)
     await db.commit()
     return await convo_repo.get(db, convo_id, with_messages=False)

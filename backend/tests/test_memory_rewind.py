@@ -3,16 +3,16 @@ point on, or a branch made at one.
 
 Memory is tied to the story by positions: a fact says the newest turn that the pass
 which drew it had read (``source_position``), the conversation says how far the memory
-has read (``memory_position``), and each pass leaves a checkpoint, the summary as it
-stood once the turns up to a position were read. Positions are reused once the messages
-that held them are gone, so a memory that does not follow the story back is wrong in
-three ways: facts born of turns that no longer exist stay canon, the passes that should
-come next wait for new turns to pass an old mark, and the summary describes a story that
-was never told.
+has read (``memory_position``), and each pass leaves a checkpoint, what the memory held
+once the turns up to a position were read: the summary and a copy of the model's facts.
+Positions are reused once the messages that held them are gone, so a memory that does not
+follow the story back is wrong in three ways: facts born of turns that no longer exist
+stay canon, the passes that should come next wait for new turns to pass an old mark, and
+the summary describes a story that was never told.
 
-Cutting the story back goes to the newest checkpoint at or before the cut: the summary
-is that one's, the memory has read what it had read then, and the next pass reads the
-range between, at the usual cost.
+Cutting the story back goes to the newest checkpoint at or before the cut: the summary and
+the model's facts are that one's, the memory has read what it had read then, and the next
+pass reads the range between, at the usual cost.
 """
 
 import asyncio
@@ -22,6 +22,7 @@ import pytest
 
 from app.db import _connect
 from app.providers.base import ProviderEvent
+from app.repositories import conversations as convo_repo
 from app.repositories import memories as memories_repo
 from app.services import memory_service
 
@@ -92,9 +93,7 @@ async def read_up_to(convo_id, position, summary):
     try:
         await db.execute("UPDATE conversations SET memory_position = ?, summary = ?"
                          " WHERE id = ?", (position, summary, convo_id))
-        await db.execute("INSERT OR REPLACE INTO memory_checkpoints"
-                         " (conversation_id, position, summary, memory_position)"
-                         " VALUES (?, ?, ?, ?)", (convo_id, position, summary, position))
+        await convo_repo.checkpoint(db, convo_id, position, summary)
         await db.commit()
     finally:
         await db.close()
@@ -515,21 +514,25 @@ async def test_a_pass_that_was_reading_is_kept_when_only_later_turns_were_added(
 
 async def test_a_branch_keeps_the_facts_of_turns_up_to_its_message_and_what_a_person_made_theirs(
         client, fake_provider):
+    """What a person pinned from after the fork stays with the conversation it came from,
+    which keeps it: the branch is a story in which that never happened."""
     convo = await setup_conversation(client)
     await talk(client, convo["id"], 4)
     await put_fact(convo["id"], "From before any turn.", at=0)
     await put_fact(convo["id"], "From the fork.", at=4)
     await put_fact(convo["id"], "From after the fork.", at=5)
+    await put_fact(convo["id"], "Pinned, from the fork.", at=4, pinned=True)
     await put_fact(convo["id"], "Pinned, from after the fork.", at=8, pinned=True)
     await put_fact(convo["id"], "Written by hand.", at=0, source="user")
     await read_up_to(convo["id"], 8, "Everything so far.")
     fork = await at_position(client, convo["id"], 4)
+    source = await stored_facts(client, convo["id"])
 
     branch = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
 
     assert await names(client, branch["id"]) == {
-        "From before any turn.", "From the fork.", "Written by hand.",
-        "Pinned, from after the fork."}
+        "From before any turn.", "From the fork.", "Written by hand.", "Pinned, from the fork."}
+    assert await stored_facts(client, convo["id"]) == source
 
 
 @pytest.mark.parametrize(("before", "fork", "after", "summary_kept"), [
@@ -615,3 +618,429 @@ async def test_a_cut_after_the_pass_wrote_goes_back_through_what_it_left(client,
     assert (read["memory_position"], read["summary"]) == (0, "")
     assert await names(client, convo_id) == set()
     assert await checkpoints_of(convo_id) == []
+
+
+# ---------- what a checkpoint keeps of the facts ----------
+
+async def copy_at(convo_id, position):
+    """The copy of the facts that the checkpoint at ``position`` holds, by text."""
+    db = await _connect()
+    try:
+        rows = await (await db.execute(
+            "SELECT content FROM memory_checkpoint_facts WHERE conversation_id = ?"
+            " AND position = ?", (convo_id, position))).fetchall()
+        return {r["content"] for r in rows}
+    finally:
+        await db.close()
+
+
+async def fact_named(client, convo_id, content):
+    facts = (await client.get(f"/api/conversations/{convo_id}/memories")).json()
+    return next(f for f in facts if f["content"] == content)
+
+
+async def told_then_corrected(client, convo_id):
+    """Talk to 8, a pass adds a fact; talk to 16, a pass corrects it."""
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [{"content": "Alice is alive.", "kind": "state"}],
+                                     "summary": "To 8."})
+    await talk(client, convo_id, 4, first=5)
+    await extract(client, convo_id, {
+        "updated_facts": [{"replaces": "Alice is alive.", "content": "Alice died on the bridge."}],
+        "summary": "To 16."})
+
+
+async def test_a_fact_a_later_pass_corrected_is_back_as_it_was(client, fake_provider):
+    convo = await setup_conversation(client)
+    await told_then_corrected(client, convo["id"])
+    corrected = await fact_named(client, convo["id"], "Alice died on the bridge.")
+
+    await remove_from(client, convo["id"], 11)
+
+    assert await stored_facts(client, convo["id"]) == [("Alice is alive.", "state", 8, False, "auto")]
+    # The same fact, so that what a person does to it reaches the copies that name it.
+    assert (await fact_named(client, convo["id"], "Alice is alive."))["id"] == corrected["id"]
+    read = await conversation(client, convo["id"])
+    assert (read["memory_position"], read["summary"]) == (8, "To 8.")
+
+
+async def test_a_fact_a_later_pass_dropped_is_back(client, fake_provider):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [{"content": "Alice is alive.", "kind": "state"}]})
+    dropped = await fact_named(client, convo_id, "Alice is alive.")
+    await talk(client, convo_id, 4, first=5)
+    await extract(client, convo_id, {"obsolete_facts": ["Alice is alive."]})
+    assert await names(client, convo_id) == set()
+
+    await remove_from(client, convo_id, 11)
+
+    assert await stored_facts(client, convo_id) == [("Alice is alive.", "state", 8, False, "auto")]
+    assert (await fact_named(client, convo_id, "Alice is alive."))["id"] == dropped["id"]
+
+
+async def test_a_movable_fact_the_copy_does_not_hold_goes(client, fake_provider):
+    convo = await setup_conversation(client)
+    await told_then_corrected(client, convo["id"])
+    # Its position says nothing against it: only the copy says what memory held then.
+    await put_fact(convo["id"], "Written since, at an old position.", at=2)
+
+    await remove_from(client, convo["id"], 11)
+
+    assert await names(client, convo["id"]) == {"Alice is alive."}
+
+
+async def test_nothing_is_restored_when_the_memory_had_not_read_past_the_cut(client, fake_provider):
+    """What a consolidation merged was merged from what is still read: a cut after it takes
+    nothing the facts were drawn from, so it undoes nothing."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [{"content": "One.", "kind": "fact"}]})
+    await talk(client, convo_id, 2, first=5)
+    await put_fact(convo_id, "Merged since.", at=8)
+    one = await fact_named(client, convo_id, "One.")
+    await client.delete(f"/api/memories/{one['id']}")
+
+    await remove_from(client, convo_id, 11)
+
+    assert await names(client, convo_id) == {"Merged since."}
+    assert (await conversation(client, convo_id))["memory_position"] == 8
+
+
+async def test_a_consolidation_is_undone_only_by_a_cut_before_it(client, fake_provider):
+    """It leaves the copies as they are, and the next pass copies what it merged."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [{"content": f"Fact {n}.", "kind": "fact"}
+                                               for n in range(8)]})
+    before = await copy_at(convo_id, 8)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(
+        {"facts": [{"content": "All merged."}]})), ProviderEvent(type="done")]
+    assert (await client.post(f"/api/conversations/{convo_id}/memories/consolidate")).status_code == 200
+    assert await copy_at(convo_id, 8) == before
+    await talk(client, convo_id, 4, first=5)
+    await extract(client, convo_id, {"facts": [{"content": "Later.", "kind": "fact"}]})
+    assert await copy_at(convo_id, 16) == {"All merged.", "Later."}
+
+    await remove_from(client, convo_id, 11)
+
+    assert await names(client, convo_id) == before
+
+
+async def test_a_restored_fact_never_has_the_vector_of_another_text(
+        client, fake_provider, monkeypatch):
+    from app.prompting import embeddings
+
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+
+    async def embed(texts, kind):
+        return [[float(len(text)), 1.0] for text in texts]
+
+    monkeypatch.setattr(embeddings, "embed", embed)
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [{"content": "Stays as it is.", "kind": "fact"},
+                                               {"content": "To be corrected.", "kind": "fact"},
+                                               {"content": "To be dropped.", "kind": "fact"}]})
+    await talk(client, convo_id, 4, first=5)
+    await extract(client, convo_id, {
+        "updated_facts": [{"replaces": "To be corrected.", "content": "Corrected, much longer."}],
+        "obsolete_facts": ["To be dropped."]})
+
+    await remove_from(client, convo_id, 11)
+
+    async def vectors():
+        db = await _connect()
+        try:
+            rows = await (await db.execute("SELECT content, embedding FROM memories")).fetchall()
+            return {r["content"]: r["embedding"] for r in rows}
+        finally:
+            await db.close()
+
+    held = await vectors()
+    assert set(held) == {"Stays as it is.", "To be corrected.", "To be dropped."}
+    assert held["Stays as it is."] == embeddings.pack([float(len("Stays as it is.")), 1.0])
+    assert held["To be corrected."] is None
+    assert held["To be dropped."] is None
+    # The backfill fills what has none, with the vector of the text it holds.
+    db = await _connect()
+    try:
+        assert await memory_service.backfill_embeddings(db) == 2
+    finally:
+        await db.close()
+    assert (await vectors())["To be corrected."] == embeddings.pack(
+        [float(len("To be corrected.")), 1.0])
+
+
+async def test_a_fact_pinned_since_is_not_touched_and_not_restored_a_second_time(
+        client, fake_provider):
+    convo = await setup_conversation(client)
+    await told_then_corrected(client, convo["id"])
+    fact = await fact_named(client, convo["id"], "Alice died on the bridge.")
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": True})
+
+    await remove_from(client, convo["id"], 11)
+
+    assert await stored_facts(client, convo["id"]) == [
+        ("Alice died on the bridge.", "state", 8, True, "auto")]
+
+
+async def test_a_copy_that_says_what_a_person_wrote_is_not_restored_beside_it(
+        client, fake_provider):
+    convo = await setup_conversation(client)
+    await told_then_corrected(client, convo["id"])
+    await client.post(f"/api/conversations/{convo['id']}/memories",
+                      json={"content": "Alice is alive."})
+
+    await remove_from(client, convo["id"], 11)
+
+    assert await stored_facts(client, convo["id"]) == [("Alice is alive.", "fact", 0, False, "user")]
+
+
+async def test_a_fact_pinned_when_the_pass_ran_and_unpinned_since_is_not_lost(client, fake_provider):
+    """It is the model's again, it comes from a turn that stays, and the next pass reads
+    from after that turn: the copy is what still has it."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [{"content": "From a turn that stays.", "kind": "fact"}]})
+    fact = await fact_named(client, convo_id, "From a turn that stays.")
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": True})
+    await talk(client, convo_id, 1, first=5)
+    await extract(client, convo_id, {"facts": []})  # a checkpoint at 10, the fact pinned
+    await talk(client, convo_id, 4, first=6)
+    await extract(client, convo_id, {"facts": []})  # and at 18
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": False})
+
+    await remove_from(client, convo_id, 13)
+
+    assert await stored_facts(client, convo_id) == [("From a turn that stays.", "fact", 8, False, "auto")]
+
+
+async def test_a_fact_forgotten_does_not_come_back_with_a_rewind(client, fake_provider):
+    convo = await setup_conversation(client)
+    await told_then_corrected(client, convo["id"])
+    fact = await fact_named(client, convo["id"], "Alice died on the bridge.")
+
+    resp = await client.delete(f"/api/memories/{fact['id']}")
+
+    assert resp.status_code == 204
+    assert await copy_at(convo["id"], 8) == set() and await copy_at(convo["id"], 16) == set()
+    await remove_from(client, convo["id"], 11)
+    assert await names(client, convo["id"]) == set()
+
+
+async def test_a_fact_forgotten_after_a_rewind_is_gone_from_the_older_copies_too(
+        client, fake_provider):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 2)
+    await extract(client, convo_id, {"facts": [{"content": "Early.", "kind": "fact"}]})
+    await talk(client, convo_id, 2, first=3)
+    await extract(client, convo_id, {"facts": []})
+    await talk(client, convo_id, 2, first=5)
+    await extract(client, convo_id, {"obsolete_facts": ["Early."]})
+    await remove_from(client, convo_id, 11)  # back to the checkpoint at 8: it is there again
+    fact = await fact_named(client, convo_id, "Early.")
+
+    await client.delete(f"/api/memories/{fact['id']}")
+
+    assert await copy_at(convo_id, 4) == set()
+    await remove_from(client, convo_id, 7)
+    assert await names(client, convo_id) == set()
+
+
+async def test_a_persons_edit_reaches_the_copies(client, fake_provider):
+    convo = await setup_conversation(client)
+    await told_then_corrected(client, convo["id"])
+    fact = await fact_named(client, convo["id"], "Alice died on the bridge.")
+
+    await client.patch(f"/api/memories/{fact['id']}", json={"content": "Alice is my sister."})
+
+    assert await copy_at(convo["id"], 8) == {"Alice is my sister."}
+    assert await copy_at(convo["id"], 16) == {"Alice is my sister."}
+    await remove_from(client, convo["id"], 11)
+    assert await stored_facts(client, convo["id"]) == [("Alice is my sister.", "state", 8, False, "auto")]
+
+
+async def test_pinning_does_not_touch_the_copies(client, fake_provider):
+    convo = await setup_conversation(client)
+    await told_then_corrected(client, convo["id"])
+    fact = await fact_named(client, convo["id"], "Alice died on the bridge.")
+    before = (await copy_at(convo["id"], 8), await copy_at(convo["id"], 16))
+
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": True})
+
+    assert (await copy_at(convo["id"], 8), await copy_at(convo["id"], 16)) == before
+
+
+async def test_only_the_newest_checkpoints_are_kept_and_an_older_cut_falls_back(
+        client, fake_provider):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 1)
+    db = await _connect()
+    try:
+        await db.executemany(
+            "INSERT INTO messages (id, conversation_id, role, variants, active_index,"
+            " position, meta, created_at) VALUES (?, ?, 'user', '[\"x\"]', 0, ?, '{}', 'then')",
+            [(f"m{n}", convo_id, n) for n in range(3, 40)])
+        await db.commit()
+    finally:
+        await db.close()
+    await put_fact(convo_id, "From the start.", at=3)
+    for position in range(3, 33):
+        await read_up_to(convo_id, position, f"To {position}.")
+    assert [c[0] for c in await checkpoints_of(convo_id)] == list(range(3, 33))
+
+    await read_up_to(convo_id, 33, "To 33.")
+
+    assert [c[0] for c in await checkpoints_of(convo_id)] == list(range(4, 34))
+    assert await copy_at(convo_id, 3) == set()
+    assert await copy_at(convo_id, 4) == {"From the start."}
+
+    await remove_from(client, convo_id, 4)  # the cut is at 3, a checkpoint that went
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (3, "")
+    assert await names(client, convo_id) == {"From the start."}
+
+
+async def test_a_pinned_fact_drawn_from_removed_turns_stays_at_the_end_of_the_story(
+        client, fake_provider):
+    """It is the only copy, and only the person may take it away. Its position comes back
+    with the story, so that the prompt does not place it at a turn that no longer exists."""
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 4)
+    await extract(client, convo["id"], {"facts": [{"content": "Late, and pinned.", "kind": "fact"}]})
+    fact = await fact_named(client, convo["id"], "Late, and pinned.")
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": True})
+
+    await remove_from(client, convo["id"], 5)
+
+    assert await stored_facts(client, convo["id"]) == [("Late, and pinned.", "fact", 4, True, "auto")]
+
+    await remove_from(client, convo["id"], 0)
+
+    assert await stored_facts(client, convo["id"]) == [("Late, and pinned.", "fact", 0, True, "auto")]
+
+
+# ---------- a branch holds its own copies ----------
+
+async def test_a_branch_gets_the_facts_as_they_were_at_its_message_with_new_ids(
+        client, fake_provider):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await told_then_corrected(client, convo_id)
+    source_fact = await fact_named(client, convo_id, "Alice died on the bridge.")
+    fork = await at_position(client, convo_id, 10)
+
+    branch = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
+
+    assert await stored_facts(client, branch["id"]) == [("Alice is alive.", "state", 8, False, "auto")]
+    assert (branch["memory_position"], branch["summary"]) == (8, "To 8.")
+    carried = await fact_named(client, branch["id"], "Alice is alive.")
+    assert carried["id"] != source_fact["id"]
+    assert await copy_at(branch["id"], 8) == {"Alice is alive."}
+    # And the source is as it was.
+    assert await names(client, convo_id) == {"Alice died on the bridge."}
+    assert await copy_at(convo_id, 8) == {"Alice is alive."}
+
+
+async def test_what_a_person_does_in_a_branch_stays_in_it(client, fake_provider):
+    """The copies of a branch name its own facts, so forgetting one there reaches them,
+    and not those of the conversation it came from."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await told_then_corrected(client, convo_id)
+    fork = await at_position(client, convo_id, 10)
+    branch = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
+    carried = await fact_named(client, branch["id"], "Alice is alive.")
+
+    await client.delete(f"/api/memories/{carried['id']}")
+
+    assert await copy_at(branch["id"], 8) == set()
+    assert await copy_at(convo_id, 8) == {"Alice is alive."}
+
+    # And the same in the other direction, through a branch of the branch.
+    fork = await at_position(client, convo_id, 10)
+    second = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
+    fork = await at_position(client, second["id"], 9)
+    third = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
+    source_fact = await fact_named(client, convo_id, "Alice died on the bridge.")
+    await client.delete(f"/api/memories/{source_fact['id']}")
+    assert await copy_at(convo_id, 8) == set()
+    assert await copy_at(second["id"], 8) == {"Alice is alive."}
+    assert await copy_at(third["id"], 8) == {"Alice is alive."}
+    assert await names(client, third["id"]) == {"Alice is alive."}
+
+
+async def test_a_branch_copies_the_checkpoints_at_or_before_its_message_with_their_copies(
+        client, fake_provider):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 2)
+    await extract(client, convo_id, {"facts": [{"content": "At four.", "kind": "fact"}],
+                                     "summary": "To 4."})
+    await talk(client, convo_id, 2, first=3)
+    await extract(client, convo_id, {"facts": [{"content": "At eight.", "kind": "fact"}],
+                                     "summary": "To 8."})
+    await talk(client, convo_id, 2, first=5)
+    await extract(client, convo_id, {"facts": [{"content": "At twelve.", "kind": "fact"}],
+                                     "summary": "To 12."})
+    fork = await at_position(client, convo_id, 9)
+
+    branch = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
+
+    assert await checkpoints_of(branch["id"]) == [(4, "To 4.", 4), (8, "To 8.", 8)]
+    assert await copy_at(branch["id"], 4) == {"At four."}
+    assert await copy_at(branch["id"], 8) == {"At four.", "At eight."}
+    db = await _connect()
+    try:
+        ids = await (await db.execute(
+            "SELECT DISTINCT fact_id FROM memory_checkpoint_facts WHERE conversation_id = ?",
+            (branch["id"],))).fetchall()
+    finally:
+        await db.close()
+    held = {f["id"] for f in (await client.get(f"/api/conversations/{branch['id']}/memories")).json()}
+    assert {r["fact_id"] for r in ids} == held
+
+    # A cut in the branch goes back through what it copied.
+    await remove_from(client, branch["id"], 7)
+    assert await names(client, branch["id"]) == {"At four."}
+    read = await conversation(client, branch["id"])
+    assert (read["memory_position"], read["summary"]) == (4, "To 4.")
+
+
+async def test_a_branch_keeps_a_vector_only_beside_the_text_it_was_worked_out_from(
+        client, fake_provider, monkeypatch):
+    from app.prompting import embeddings
+
+    async def embed(texts, kind):
+        return [[float(len(text)), 1.0] for text in texts]
+
+    monkeypatch.setattr(embeddings, "embed", embed)
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [{"content": "Stays as it is.", "kind": "fact"},
+                                               {"content": "To be corrected.", "kind": "fact"}]})
+    await talk(client, convo_id, 4, first=5)
+    await extract(client, convo_id, {
+        "updated_facts": [{"replaces": "To be corrected.", "content": "Corrected, much longer."}]})
+    fork = await at_position(client, convo_id, 10)
+
+    branch = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
+
+    db = await _connect()
+    try:
+        rows = await (await db.execute("SELECT content, embedding FROM memories"
+                                       " WHERE conversation_id = ?", (branch["id"],))).fetchall()
+    finally:
+        await db.close()
+    held = {r["content"]: r["embedding"] for r in rows}
+    assert held["Stays as it is."] == embeddings.pack([float(len("Stays as it is.")), 1.0])
+    assert held["To be corrected."] is None

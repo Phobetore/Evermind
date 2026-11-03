@@ -1,6 +1,9 @@
+from collections import defaultdict
+
 import aiosqlite
 
-from ..prompting.memory_changes import plan_cut
+from ..db import write_transaction
+from ..prompting.memory_changes import MAX_CHECKPOINTS, plan_cut
 from . import characters as characters_repo
 from .base import dumps, loads, new_id, now_iso
 
@@ -185,105 +188,145 @@ def _meta_for_branch(raw: str | None) -> str:
 async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict | None:
     """New conversation replaying the story up to (and including) a message.
     Memories and summary follow only if they were established by then."""
-    fork_point = await get_message(db, message_id)
-    if not fork_point:
-        return None
-    source = await get(db, fork_point["conversation_id"], with_messages=False)
-    if not source:
-        return None
-    position = fork_point["position"]
+    async with write_transaction(db):
+        fork_point = await get_message(db, message_id)
+        if not fork_point:
+            return None
+        source = await get(db, fork_point["conversation_id"], with_messages=False)
+        if not source:
+            return None
+        position = fork_point["position"]
 
-    branch_id = new_id()
-    now = now_iso()
-    title = (source.get("title") or "Sans titre")[:52] + " (branche)"
-    # What the memory holds of a story that ends at the fork: the summary may describe
-    # events past it, and the facts may be drawn from them.
-    mem_rows = await (await db.execute(
-        "SELECT * FROM memories WHERE conversation_id = ?", (source["id"],))).fetchall()
-    checkpoints = await list_checkpoints(db, source["id"])
-    remembered = plan_cut(source.get("memory_position") or 0, source.get("summary") or "",
-                          checkpoints, [dict(row) for row in mem_rows], position)
-    memory_position = remembered["memory_position"]
-    summary = remembered["summary"]
-    kept_facts = set(remembered["facts"])
-    # Read raw rather than off `source`, which has already turned the stored
-    # filename into a URL for the client.
-    backdrop = await (await db.execute(
-        "SELECT wallpaper_path, wallpaper_opacity FROM conversations WHERE id = ?",
-        (source["id"],))).fetchone()
+        branch_id = new_id()
+        now = now_iso()
+        title = (source.get("title") or "Sans titre")[:52] + " (branche)"
+        # What the memory holds of a story that ends at the fork: the summary may describe
+        # events past it, and the facts may be drawn from them.
+        rows = {row["id"]: row for row in await (await db.execute(
+            "SELECT * FROM memories WHERE conversation_id = ?", (source["id"],))).fetchall()}
+        checkpoints = await list_checkpoints(db, source["id"])
+        remembered = plan_cut(source.get("memory_position") or 0, source.get("summary") or "",
+                              checkpoints, [dict(row) for row in rows.values()], position)
+        # Read raw rather than off `source`, which has already turned the stored
+        # filename into a URL for the client.
+        backdrop = await (await db.execute(
+            "SELECT wallpaper_path, wallpaper_opacity FROM conversations WHERE id = ?",
+            (source["id"],))).fetchone()
 
-    # The backdrop follows, like the persona and the connection: a branch is the
-    # same scene carried on differently, and losing the picture behind it would
-    # read as something having gone wrong rather than as a fresh start. The
-    # file is shared, not copied, which is why removing one never deletes it.
-    await db.execute(
-        "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
-        " summary, author_note, memory_position, forked_from, forked_at_position,"
-        " wallpaper_path, wallpaper_opacity, created_at, updated_at)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (branch_id, source["character_id"], source.get("persona_id"),
-         source.get("connection_id"), title, summary,
-         # The scene directive is the strongest lever there is on a reply, and
-         # it was the one piece of the setup a branch dropped.
-         source.get("author_note") or "", memory_position,
-         source["id"], position, backdrop["wallpaper_path"],
-         backdrop["wallpaper_opacity"], now, now),
-    )
-
-    rows = await (await db.execute(
-        "SELECT * FROM messages WHERE conversation_id = ? AND position <= ?"
-        " ORDER BY position ASC", (source["id"], position))).fetchall()
-    for row in rows:
+        # The backdrop follows, like the persona and the connection: a branch is the
+        # same scene carried on differently, and losing the picture behind it would
+        # read as something having gone wrong rather than as a fresh start. The
+        # file is shared, not copied, which is why removing one never deletes it.
         await db.execute(
-            "INSERT INTO messages (id, conversation_id, role, variants, active_index,"
-            " position, meta, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (new_id(), branch_id, row["role"], row["variants"], row["active_index"],
-             row["position"], _meta_for_branch(row["meta"]), row["created_at"], row["embedding"]),
+            "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
+            " summary, author_note, memory_position, forked_from, forked_at_position,"
+            " wallpaper_path, wallpaper_opacity, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (branch_id, source["character_id"], source.get("persona_id"),
+             source.get("connection_id"), title, remembered["summary"],
+             # The scene directive is the strongest lever there is on a reply, and
+             # it was the one piece of the setup a branch dropped.
+             source.get("author_note") or "", remembered["memory_position"],
+             source["id"], position, backdrop["wallpaper_path"],
+             backdrop["wallpaper_opacity"], now, now),
         )
 
-    for row in mem_rows:
-        if row["id"] not in kept_facts:
-            continue
-        await db.execute(
-            "INSERT INTO memories (id, conversation_id, kind, content, source_position,"
-            " is_pinned, source, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (new_id(), branch_id, row["kind"], row["content"], row["source_position"],
-             row["is_pinned"], row["source"], row["created_at"], row["embedding"]),
-        )
-    for checkpoint in checkpoints:
-        if checkpoint["position"] in remembered["checkpoints"]:
+        messages = await (await db.execute(
+            "SELECT * FROM messages WHERE conversation_id = ? AND position <= ?"
+            " ORDER BY position ASC", (source["id"], position))).fetchall()
+        for row in messages:
+            await db.execute(
+                "INSERT INTO messages (id, conversation_id, role, variants, active_index,"
+                " position, meta, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (new_id(), branch_id, row["role"], row["variants"], row["active_index"],
+                 row["position"], _meta_for_branch(row["meta"]), row["created_at"],
+                 row["embedding"]),
+            )
+
+        # A fact has one new name in the branch, in its list and in every copy that holds
+        # it, so that what a person does to it there reaches them all and nothing else.
+        renamed = defaultdict(new_id)
+        for fact in remembered["facts"]:
+            was = rows.get(fact["id"])
+            await db.execute(
+                "INSERT INTO memories (id, conversation_id, kind, content, source_position,"
+                " is_pinned, source, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (renamed[fact["id"]], branch_id, fact["kind"], fact["content"],
+                 fact["source_position"], int(fact["is_pinned"]), fact["source"],
+                 was["created_at"] if was else now,
+                 was["embedding"] if was and was["content"] == fact["content"] else None),
+            )
+        for checkpoint_ in checkpoints:
+            if checkpoint_["position"] not in remembered["checkpoints"]:
+                continue
             await db.execute(
                 "INSERT INTO memory_checkpoints (conversation_id, position, summary,"
                 " memory_position) VALUES (?, ?, ?, ?)",
-                (branch_id, checkpoint["position"], checkpoint["summary"],
-                 checkpoint["memory_position"]))
+                (branch_id, checkpoint_["position"], checkpoint_["summary"],
+                 checkpoint_["memory_position"]))
+            await db.executemany(
+                "INSERT INTO memory_checkpoint_facts (conversation_id, position, fact_id, kind,"
+                " content, source_position) VALUES (?, ?, ?, ?, ?, ?)",
+                [(branch_id, checkpoint_["position"], renamed[f["id"]], f["kind"], f["content"],
+                  f["source_position"]) for f in checkpoint_["facts"]])
 
-    await db.commit()
     return await get(db, branch_id)
 
 
 async def list_checkpoints(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
-    """What the passes left, oldest first: the summary as it stood once the turns up to
-    ``position`` were read, and how far the facts had been read then."""
+    """What the memory held each time a summary was written, oldest first: the summary as
+    it stood once the turns up to ``position`` were read, how far the facts had been read
+    then, and a copy of the facts the model had written."""
     rows = await (await db.execute(
         "SELECT position, summary, memory_position FROM memory_checkpoints"
         " WHERE conversation_id = ? ORDER BY position ASC", (convo_id,))).fetchall()
-    return [dict(row) for row in rows]
+    copies = await (await db.execute(
+        "SELECT position, fact_id, kind, content, source_position FROM memory_checkpoint_facts"
+        " WHERE conversation_id = ? ORDER BY position ASC, rowid ASC", (convo_id,))).fetchall()
+    facts = defaultdict(list)
+    for copy in copies:
+        facts[copy["position"]].append(
+            {"id": copy["fact_id"], "kind": copy["kind"], "content": copy["content"],
+             "source_position": copy["source_position"]})
+    return [{**dict(row), "facts": facts[row["position"]]} for row in rows]
 
 
-async def checkpoint(db: aiosqlite.Connection, convo_id: str, message: dict) -> None:
-    """Record the summary that the conversation holds now as the one for the story up to
-    ``message``, with how far the facts have been read. A pass calls it once it has
-    written its summary and position; a summary asked for, once it has written its own,
-    which has read turns without drawing facts from them. Written only while the message
-    is there: a checkpoint for a turn that was removed meanwhile would outlive the story
-    it describes. Does not commit."""
+async def checkpoint(db: aiosqlite.Connection, convo_id: str, position: int,
+                     summary: str | None) -> None:
+    """Record what the memory holds now as what it held for the story up to ``position``,
+    with how far the conversation says the facts have been read. A pass calls it once it
+    has written its position; a summary asked for, which has read turns without drawing
+    facts from them, once it has written its summary.
+
+    ``summary`` is what was written. None, a pass that wrote none, gives the one the
+    last checkpoint has, and not the one the conversation holds, which a person may have
+    typed: it would then look like the model's, and a cut would take it away.
+
+    Every fact the model wrote is copied, pinned or not: one that is pinned now may not be
+    at the cut, and the next pass will not read it again. Only the newest checkpoints stay.
+
+    Does not commit: it belongs to what it records."""
+    if summary is None:
+        last = await (await db.execute(
+            "SELECT summary FROM memory_checkpoints WHERE conversation_id = ?"
+            " ORDER BY position DESC LIMIT 1", (convo_id,))).fetchone()
+        summary = last["summary"] if last else ""
+    await db.execute("DELETE FROM memory_checkpoints WHERE conversation_id = ? AND position = ?",
+                     (convo_id, position))
     await db.execute(
-        "INSERT OR REPLACE INTO memory_checkpoints"
-        " (conversation_id, position, summary, memory_position)"
-        " SELECT id, ?, summary, memory_position FROM conversations"
-        " WHERE id = ? AND EXISTS (SELECT 1 FROM messages WHERE id = ?)",
-        (message["position"], convo_id, message["id"]))
+        "INSERT INTO memory_checkpoints (conversation_id, position, summary, memory_position)"
+        " SELECT id, ?, ?, memory_position FROM conversations WHERE id = ?",
+        (position, summary, convo_id))
+    await db.execute(
+        "INSERT INTO memory_checkpoint_facts (conversation_id, position, fact_id, kind, content,"
+        " source_position) SELECT conversation_id, ?, id, kind, content, source_position"
+        " FROM memories WHERE conversation_id = ? AND source = 'auto'",
+        (position, convo_id))
+    await db.execute(
+        "DELETE FROM memory_checkpoints WHERE conversation_id = ? AND position NOT IN ("
+        " SELECT position FROM memory_checkpoints WHERE conversation_id = ?"
+        " ORDER BY position DESC LIMIT ?)",
+        (convo_id, convo_id, MAX_CHECKPOINTS))
 
 
 async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int) -> None:
@@ -293,17 +336,21 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int) -> N
     anything, would keep as canon what was drawn from turns that no longer exist, and
     would describe them in its summary.
 
+    A fact that comes back keeps its id, which is what the copies name it by. It keeps its
+    vector only if it says what the vector was worked out from; otherwise it has none,
+    and the backfill gives it one.
+
     Does not commit: it belongs to the removal that calls it."""
     row = await (await db.execute(
         "SELECT memory_position, summary FROM conversations WHERE id = ?",
         (convo_id,))).fetchone()
-    facts = await (await db.execute(
-        "SELECT id, source_position, is_pinned, source FROM memories WHERE conversation_id = ?",
-        (convo_id,))).fetchall()
+    held = {fact["id"]: fact for fact in await (await db.execute(
+        "SELECT id, kind, content, source_position, is_pinned, source FROM memories"
+        " WHERE conversation_id = ?", (convo_id,))).fetchall()}
     checkpoints = await list_checkpoints(db, convo_id)
     read = row["memory_position"] or 0
     remembered = plan_cut(read, row["summary"] or "", checkpoints,
-                          [dict(fact) for fact in facts], cut)
+                          [dict(fact) for fact in held.values()], cut, removal=True)
     if remembered["memory_position"] != read or remembered["summary"] != row["summary"]:
         await db.execute("UPDATE conversations SET memory_position = ?, summary = ? WHERE id = ?",
                          (remembered["memory_position"], remembered["summary"], convo_id))
@@ -311,10 +358,23 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int) -> N
         "DELETE FROM memory_checkpoints WHERE conversation_id = ? AND position = ?",
         [(convo_id, c["position"]) for c in checkpoints
          if c["position"] not in remembered["checkpoints"]])
-    kept_facts = set(remembered["facts"])
-    await db.executemany(
-        "DELETE FROM memories WHERE id = ?",
-        [(fact["id"],) for fact in facts if fact["id"] not in kept_facts])
+    planned = {fact["id"]: fact for fact in remembered["facts"]}
+    await db.executemany("DELETE FROM memories WHERE id = ?",
+                         [(fact_id,) for fact_id in held if fact_id not in planned])
+    for fact_id, fact in planned.items():
+        was = held.get(fact_id)
+        if was is None:
+            await db.execute(
+                "INSERT INTO memories (id, conversation_id, kind, content, source_position,"
+                " is_pinned, source, created_at) VALUES (?, ?, ?, ?, ?, 0, 'auto', ?)",
+                (fact_id, convo_id, fact["kind"], fact["content"], fact["source_position"],
+                 now_iso()))
+        elif any(was[key] != fact[key] for key in ("kind", "content", "source_position")):
+            # The right-hand sides read the row as it was.
+            await db.execute(
+                "UPDATE memories SET embedding = CASE WHEN content = ? THEN embedding END,"
+                " kind = ?, content = ?, source_position = ? WHERE id = ?",
+                (fact["content"], fact["kind"], fact["content"], fact["source_position"], fact_id))
 
 
 async def delete_message(db: aiosqlite.Connection, message_id: str,

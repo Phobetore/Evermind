@@ -77,6 +77,9 @@ async def get(db: aiosqlite.Connection, memory_id: str) -> dict | None:
 
 async def update(db: aiosqlite.Connection, memory_id: str,
                  content: str | None = None, is_pinned: bool | None = None) -> dict | None:
+    """What a person changes in a fact. What they write reaches the copies the checkpoints
+    hold of it, so that a rewind cannot bring back the words they replaced. Pinning leaves
+    them as they are."""
     if not await get(db, memory_id):
         return None
     sets, params = [], []
@@ -95,6 +98,11 @@ async def update(db: aiosqlite.Connection, memory_id: str,
     if sets:
         params.append(memory_id)
         await db.execute(f"UPDATE memories SET {', '.join(sets)} WHERE id = ?", params)
+        if content is not None and content.strip():
+            await db.execute(
+                "UPDATE memory_checkpoint_facts SET content = ? WHERE fact_id = ? AND"
+                " conversation_id = (SELECT conversation_id FROM memories WHERE id = ?)",
+                (content.strip(), memory_id, memory_id))
         await db.commit()
     return await get(db, memory_id)
 
@@ -115,6 +123,12 @@ async def update_if_unchanged(db: aiosqlite.Connection, memory_id: str, content:
 
 
 async def delete(db: aiosqlite.Connection, memory_id: str) -> bool:
+    """A person forgets a fact: it goes from the copies the checkpoints hold of it too, so
+    that a rewind cannot bring it back."""
+    await db.execute(
+        "DELETE FROM memory_checkpoint_facts WHERE fact_id = ? AND"
+        " conversation_id = (SELECT conversation_id FROM memories WHERE id = ?)",
+        (memory_id, memory_id))
     cursor = await db.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
     await db.commit()
     return cursor.rowcount > 0

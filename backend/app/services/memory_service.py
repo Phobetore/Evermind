@@ -263,7 +263,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
         for fact in added:
             await memories_repo.delete_if_unchanged(db, fact["id"], fact["content"])
         return {"facts_added": [], "summary": None, "skipped": "changed"}
-    await convo_repo.checkpoint(db, convo_id, top)
+    await convo_repo.checkpoint(db, convo_id, top_position, changes["summary"])
     await db.commit()
 
     return {"facts_added": added, "summary": changes["summary"] or convo.get("summary") or ""}

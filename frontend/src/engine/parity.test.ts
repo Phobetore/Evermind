@@ -169,7 +169,8 @@ const FUNCTIONS: Record<string, (input: unknown) => unknown> = {
     checkpoints: Checkpoint[];
     facts: CutFact[];
     cut: number;
-  }>((i) => planCut(i.memory_position, i.summary, i.checkpoints, i.facts, i.cut)),
+    removal?: boolean;
+  }>((i) => planCut(i.memory_position, i.summary, i.checkpoints, i.facts, i.cut, i.removal)),
   clean_card_draft: adapt<{ draft: Record<string, unknown> }>((i) => cleanCardDraft(i.draft)),
 };
 

@@ -6,6 +6,7 @@ files in `migrations/`, applied in filename order and recorded in
 """
 
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import aiosqlite
@@ -51,6 +52,21 @@ async def init_db() -> None:
         await conn.commit()
     finally:
         await conn.close()
+
+
+@asynccontextmanager
+async def write_transaction(conn: aiosqlite.Connection) -> AsyncIterator[None]:
+    """All of what is written inside, or none of it, with the database held from the start,
+    so that what is read inside is still true when it is acted on. It waits for no model:
+    what takes a while comes first. Whatever raises rolls back; leaving early commits
+    what was written, which is nothing when the checks come first."""
+    await conn.execute("BEGIN IMMEDIATE")
+    try:
+        yield
+    except BaseException:
+        await conn.rollback()
+        raise
+    await conn.commit()
 
 
 async def get_db() -> AsyncIterator[aiosqlite.Connection]:

@@ -17,6 +17,7 @@ from .text import text_of
 
 ALLOWED_KINDS = {"fact", "event", "relationship", "promise", "state"}
 MAX_CONSOLIDATED_FACTS = 30  # what one consolidation may leave of the model's merge
+MAX_CHECKPOINTS = 30  # per conversation: a cut older than the oldest has none to go back to
 
 
 def _items(value: object) -> list:
@@ -27,6 +28,12 @@ def _kind(value: object) -> str:
     return value if isinstance(value, str) and value in ALLOWED_KINDS else "fact"
 
 
+def _fact(fact: dict, **changed) -> dict:
+    return {"id": fact["id"], "kind": fact["kind"], "content": fact["content"],
+            "source_position": fact["source_position"], "is_pinned": bool(fact["is_pinned"]),
+            "source": fact["source"], **changed}
+
+
 def is_movable(fact: dict) -> bool:
     """Whether the model may correct, drop or merge a fact: it wrote it and nobody pinned
     it. What a person typed or pinned is left alone."""
@@ -34,57 +41,72 @@ def is_movable(fact: dict) -> bool:
 
 
 def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
-             facts: list[dict], cut: int) -> dict:
+             facts: list[dict], cut: int, removal: bool = False) -> dict:
     """What a conversation remembers once its story ends with the turn at ``cut``: a
     removal from position p cuts at p - 1, a branch at the position of its message.
 
-    ``checkpoints`` are what the passes left: ``{"position", "summary",
-    "memory_position"}``, the running summary as it stood when the turns up to
-    ``position`` had been read, and how far the facts had been read then. ``facts`` are
-    ``{"id", "source_position", "is_pinned", "source"}``.
+    ``checkpoints`` are what the memory held each time a summary was written: ``{"position",
+    "summary", "memory_position", "facts"}``, the summary as it stood once the turns up to
+    ``position`` had been read, how far the facts had been read then, and a copy of the
+    facts the model had written, ``{"id", "kind", "content", "source_position"}``.
+    ``facts`` are what it holds now, each with ``is_pinned`` and ``source`` as well.
 
-    The facts that the model drew from turns after the cut go; a fact's position is the
-    newest turn of the pass that drew it, so it goes with them even if the turn it came
-    from stays, and the next pass draws it again. What a person typed or pinned stays,
-    whatever its position, since only they take it away.
+    The checkpoints after the cut go. When the memory had read past the cut, or when the
+    summary is one written after it (a summary asked for describes the turns up to the last
+    message without the facts having been read as far), the memory goes back to the newest
+    checkpoint at or before the cut: the summary is that one's, the next pass reads from
+    how far it had read, at the usual cost, and the model's facts become its copy. A later
+    pass may have corrected or dropped one of them, and only the copy still has it. What
+    the copy does not hold goes, whatever its position says.
 
-    The checkpoints after the cut go. The memory goes back to the newest one at or before
-    it, with its summary: the facts were read as far as it says, so the next pass reads
-    from there, at the usual cost, and the summary is true of the story as it now is.
-    That happens when the memory had read past the cut, or when the summary is the one
-    written after it (a summary asked for describes the turns up to the last message
-    without the facts having been read as far). Without a checkpoint at or before the
-    cut the memory has read nothing it can vouch for: it goes back to the newest turn
-    that a fact it keeps was drawn from, which a pinned fact does not count for, since it
-    survives cuts and can carry the position of a story that is gone, or to the start; and
-    the summary is emptied.
+    Without a checkpoint at or before the cut, the model's facts drawn from later turns go;
+    a fact's position is the newest turn of the pass that drew it, so it goes with them even
+    if the turn it came from stays. The memory goes back to the newest turn that a fact it
+    keeps was drawn from, which a pinned fact does not count for, since it survives cuts and
+    can carry the position of a story that is gone, or to the start; and the summary is
+    emptied.
 
-    A summary that is not the newest checkpoint's (after stripping) was typed by a person,
-    in a box that is theirs to edit: it stays, as a fact they wrote does.
+    What a person typed or pinned is theirs, whatever the memory goes back to: it stays as
+    it is, and a copy of it, or of what it says, is not restored beside it. If it was
+    drawn from turns past the cut, a removal keeps it at the cut, since it is the only copy
+    there is and the prompt must not place it at a turn that no longer exists, and a branch
+    leaves it with the conversation it came from.
 
-    ``{"memory_position": n, "summary": str, "checkpoints": [positions kept],
-    "facts": [ids kept]}``.
+    A summary that is not the newest checkpoint's (after stripping) is treated as typed by
+    a person, in a box that is theirs to edit: it stays, as a fact they wrote does.
+
+    ``{"memory_position": n, "summary": str, "checkpoints": [positions kept], "facts": [what
+    the conversation holds now, as ``facts`` gives them]}``.
     """
-    kept_facts = [f for f in facts if not is_movable(f) or f["source_position"] <= cut]
     ordered = sorted(checkpoints, key=lambda c: c["position"])
     kept = [c for c in ordered if c["position"] <= cut]
     chosen = kept[-1] if kept else None
     newest = ordered[-1] if ordered else None
     typed = summary.strip() != (newest["summary"].strip() if newest else "")
     summary_is_ahead = not typed and newest is not None and newest["position"] > cut
+
+    theirs = [f for f in facts if not is_movable(f)]
+    stays = [_fact(f, source_position=max(cut, 0)) if f["source_position"] > cut else _fact(f)
+             for f in theirs if removal or f["source_position"] <= cut]
+    models = [_fact(f) for f in facts if is_movable(f) and f["source_position"] <= cut]
     result = {"memory_position": memory_position, "summary": summary,
-              "checkpoints": [c["position"] for c in kept],
-              "facts": [f["id"] for f in kept_facts]}
+              "checkpoints": [c["position"] for c in kept], "facts": stays + models}
     if memory_position <= cut and not summary_is_ahead:
         return result
 
     if chosen is not None:
         reached = chosen["memory_position"]
     else:
-        reached = max((f["source_position"] for f in kept_facts if is_movable(f)), default=0)
+        reached = max((f["source_position"] for f in models), default=0)
     result["memory_position"] = min(memory_position, reached)
     if not typed:
         result["summary"] = chosen["summary"] if chosen is not None else ""
+    if chosen is not None and result["memory_position"] < memory_position:
+        their_ids = {f["id"] for f in theirs}
+        said = {f["content"] for f in stays}
+        result["facts"] = stays + [
+            _fact({**c, "is_pinned": False, "source": "auto"}) for c in chosen["facts"]
+            if c["id"] not in their_ids and c["content"] not in said]
     return result
 
 

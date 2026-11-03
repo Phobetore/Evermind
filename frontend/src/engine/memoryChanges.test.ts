@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { planMemoryChanges } from "./memoryChanges";
+import { planCut, planMemoryChanges } from "./memoryChanges";
 
 // What the cases of parity/memory_changes.json cannot say, since they only see what
 // a function returns: that it leaves the facts alone. backend/tests/test_memory_changes.py
@@ -18,6 +18,31 @@ const answer = () => ({
   ],
   obsolete_facts: ["Old one, corrected.", "Hand fact."],
   summary: " Summed up. ",
+});
+
+test("planning a cut leaves what it reads as it was", () => {
+  const read = () => ({
+    checkpoints: [
+      { position: 8, summary: "S8", memory_position: 8, facts: [
+        { id: "a", kind: "fact", content: "As it was.", source_position: 8 },
+      ] },
+      { position: 16, summary: "S16", memory_position: 16, facts: [] },
+    ],
+    facts: [
+      { id: "a", kind: "fact", content: "Changed.", source_position: 8, is_pinned: 0, source: "auto" },
+      { id: "p", kind: "fact", content: "Pinned.", source_position: 16, is_pinned: 1, source: "auto" },
+    ],
+  });
+  const given = read();
+
+  const plan = planCut(16, "S16", given.checkpoints, given.facts, 10, true);
+
+  expect(given).toEqual(read());
+  // What it did decide, so that the test is about a cut that changes things.
+  expect(plan.facts.map((f) => [f.id, f.content, f.source_position])).toEqual([
+    ["p", "Pinned.", 10],
+    ["a", "As it was.", 8],
+  ]);
 });
 
 test("planning leaves the facts as they were", () => {

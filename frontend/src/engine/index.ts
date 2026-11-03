@@ -42,6 +42,7 @@ export {
   planCut,
   planMemoryChanges,
   type Checkpoint,
+  type CheckpointFact,
   type Consolidation,
   type CutFact,
   type CutMemory,

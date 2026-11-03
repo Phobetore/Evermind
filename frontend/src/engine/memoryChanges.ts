@@ -30,18 +30,25 @@ export const isMovable = (fact: {
   source?: string | null;
 }): boolean => !fact.is_pinned && fact.source === "auto";
 
-/** What a pass left: the running summary as it stood when the turns up to `position`
- *  had been read, and how far the facts had been read then. */
+/** What a conversation held each time a summary was written: the summary as it stood
+ *  once the turns up to `position` had been read, how far the facts had been read then,
+ *  and a copy of the facts the model had written. */
 export interface Checkpoint {
   position: number;
   summary: string;
   memory_position: number;
+  facts: CheckpointFact[];
+}
+
+export interface CheckpointFact {
+  id: string;
+  kind: string;
+  content: string;
+  source_position: number;
 }
 
 /** What `planCut` reads of a fact. */
-export interface CutFact {
-  id: string;
-  source_position: number;
+export interface CutFact extends CheckpointFact {
   is_pinned?: boolean | number | null;
   source?: string | null;
 }
@@ -51,50 +58,70 @@ export interface CutMemory {
   summary: string;
   /** The positions of the checkpoints that are kept. */
   checkpoints: number[];
-  /** The ids of the facts that are kept. */
-  facts: string[];
+  /** What the conversation holds now. */
+  facts: (CheckpointFact & { is_pinned: boolean; source: string | null | undefined })[];
 }
+
+const cutFact = (fact: CutFact, sourcePosition = fact.source_position) => ({
+  id: fact.id,
+  kind: fact.kind,
+  content: fact.content,
+  source_position: sourcePosition,
+  is_pinned: Boolean(fact.is_pinned),
+  source: fact.source,
+});
 
 /** What a conversation remembers once its story ends with the turn at `cut`: a removal
  *  from position p cuts at p - 1, a branch at the position of its message.
  *
- *  The facts that the model drew from turns after the cut go; a fact's position is the
- *  newest turn of the pass that drew it, so it goes with them even if the turn it came
- *  from stays, and the next pass draws it again. What a person typed or pinned stays,
- *  whatever its position, since only they take it away.
+ *  The checkpoints after the cut go. When the memory had read past the cut, or when the
+ *  summary is one written after it (a summary asked for describes the turns up to the last
+ *  message without the facts having been read as far), the memory goes back to the newest
+ *  checkpoint at or before the cut: the summary is that one's, the next pass reads from
+ *  how far it had read, at the usual cost, and the model's facts become its copy. A later
+ *  pass may have corrected or dropped one of them, and only the copy still has it. What
+ *  the copy does not hold goes, whatever its position says.
  *
- *  The checkpoints after the cut go. The memory goes back to the newest one at or before
- *  it, with its summary: the facts were read as far as it says, so the next pass reads
- *  from there, at the usual cost, and the summary is true of the story as it now is.
- *  That happens when the memory had read past the cut, or when the summary is the one
- *  written after it (a summary asked for describes the turns up to the last message
- *  without the facts having been read as far). Without a checkpoint at or before the cut
- *  the memory has read nothing it can vouch for: it goes back to the newest turn that a
- *  fact it keeps was drawn from, which a pinned fact does not count for, since it
- *  survives cuts and can carry the position of a story that is gone, or to the start;
- *  and the summary is emptied.
+ *  Without a checkpoint at or before the cut, the model's facts drawn from later turns go;
+ *  a fact's position is the newest turn of the pass that drew it, so it goes with them even
+ *  if the turn it came from stays. The memory goes back to the newest turn that a fact it
+ *  keeps was drawn from, which a pinned fact does not count for, since it survives cuts and
+ *  can carry the position of a story that is gone, or to the start; and the summary is
+ *  emptied.
  *
- *  A summary that is not the newest checkpoint's (after stripping) was typed by a
- *  person, in a box that is theirs to edit: it stays, as a fact they wrote does. */
+ *  What a person typed or pinned is theirs, whatever the memory goes back to: it stays as
+ *  it is, and a copy of it, or of what it says, is not restored beside it. If it was
+ *  drawn from turns past the cut, a removal keeps it at the cut, since it is the only copy
+ *  there is and the prompt must not place it at a turn that no longer exists, and a branch
+ *  leaves it with the conversation it came from.
+ *
+ *  A summary that is not the newest checkpoint's (after stripping) is treated as typed by
+ *  a person, in a box that is theirs to edit: it stays, as a fact they wrote does. */
 export function planCut(
   memoryPosition: number,
   summary: string,
   checkpoints: readonly Checkpoint[],
   facts: readonly CutFact[],
   cut: number,
+  removal = false,
 ): CutMemory {
-  const keptFacts = facts.filter((f) => !isMovable(f) || f.source_position <= cut);
   const ordered = [...checkpoints].sort((a, b) => a.position - b.position);
   const kept = ordered.filter((c) => c.position <= cut);
   const chosen = kept.length ? kept[kept.length - 1] : undefined;
   const newest = ordered.length ? ordered[ordered.length - 1] : undefined;
   const typed = pyStrip(summary) !== (newest ? pyStrip(newest.summary) : "");
   const summaryIsAhead = !typed && newest !== undefined && newest.position > cut;
+
+  const theirs = facts.filter((f) => !isMovable(f));
+  const stays = theirs
+    .filter((f) => removal || f.source_position <= cut)
+    .map((f) => (f.source_position > cut ? cutFact(f, Math.max(cut, 0)) : cutFact(f)));
+  const models = facts.filter((f) => isMovable(f) && f.source_position <= cut).map((f) => cutFact(f));
   const result: CutMemory = {
     memory_position: memoryPosition,
     summary,
     checkpoints: kept.map((c) => c.position),
-    facts: keptFacts.map((f) => f.id),
+    facts: [...stays, ...models],
   };
   if (memoryPosition <= cut && !summaryIsAhead) return result;
 
@@ -102,10 +129,20 @@ export function planCut(
   if (chosen) {
     reached = chosen.memory_position;
   } else {
-    for (const f of keptFacts) if (isMovable(f)) reached = Math.max(reached, f.source_position);
+    for (const f of models) reached = Math.max(reached, f.source_position);
   }
   result.memory_position = Math.min(memoryPosition, reached);
   if (!typed) result.summary = chosen ? chosen.summary : "";
+  if (chosen && result.memory_position < memoryPosition) {
+    const theirIds = new Set(theirs.map((f) => f.id));
+    const said = new Set(stays.map((f) => f.content));
+    result.facts = [
+      ...stays,
+      ...chosen.facts
+        .filter((c) => !theirIds.has(c.id) && !said.has(c.content))
+        .map((c) => cutFact({ ...c, is_pinned: false, source: "auto" })),
+    ];
+  }
   return result;
 }
 
