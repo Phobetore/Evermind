@@ -23,6 +23,16 @@ family. Never remove a case from `fuzz.json` to make a test pass; to change what
 change the generator and run it again. The file stays under 500 KB, so the counts in the
 generator are chosen for that.
 
+Random text seldom reaches a budget, a cut or a macro, so the generator makes some cases do
+(a context too small for the history, a fact too long for its budget, `{{original}}` in a
+card prompt, a name made of `$&`), and `test_parity.py` counts that the file holds enough of
+each (`MINIMUMS` in the generator). To look further than the file does, write another seed
+beside the others, run both suites, which read every file here, and delete it:
+
+    python -m tests.parity_fuzz --seed 7 --scale 4 --out ../parity/hunt.json
+
+`parity/hunt*.json` is ignored by git.
+
 What a case file cannot hold is tested directly, on both sides, in `frontend/src/engine/llmJson.test.ts`
 and `backend/tests/test_llm_json.py`: NaN and the infinities, lone surrogates, integers past 2^53,
 and replies nested 100,000 deep.

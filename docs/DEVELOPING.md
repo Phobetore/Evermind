@@ -299,8 +299,8 @@ Three things are worth knowing before changing it:
 What is sent to a model is decided twice, and the two must agree to the letter.
 The Python one, `backend/app/prompting/` and the reading of a model's answer
 in `app/services/llm_json.py` and `card_assistant.py`, is what the server runs and
-is the reference. Its TypeScript twin, `frontend/src/engine/`, is for an edition
-that talks to a model from the browser. The twin imports neither React nor
+is the reference. Its TypeScript twin, `frontend/src/engine/`, is meant for an
+edition that talks to a model from the browser. The twin imports neither React nor
 anything of the interface, and the interface the server serves does not ship it:
 a build of that interface holds none of the prompts.
 

@@ -16,8 +16,8 @@ from tests.parity_cases import (
     serialize,
     write_cases,
 )
+from tests.parity_fuzz import MINIMUMS, coverage, generate, shortfalls
 from tests.parity_fuzz import PATH as FUZZ_PATH
-from tests.parity_fuzz import generate
 
 CASES = [
     pytest.param(case, id=f"{path.stem}::{case['fn']}::{case['name']}")
@@ -72,6 +72,18 @@ def test_the_fuzz_file_is_what_the_generator_writes(tmp_path):
     written = tmp_path / "fuzz.json"
     write_cases(written, generate())
     assert written.read_bytes() == FUZZ_PATH.read_bytes()
+
+
+def test_the_fuzz_file_reaches_what_it_exists_to_probe():
+    # Random text alone seldom gets as far as a budget or a macro: the file is made to,
+    # and a new seed or a change to the generator must not lose it without a test saying so.
+    cases = read_cases(FUZZ_PATH)
+    found = coverage(cases)
+    assert {name: found[name] for name in MINIMUMS if found[name] < MINIMUMS[name]} == {}
+
+
+def test_a_file_that_reaches_nothing_is_told_so():
+    assert len(shortfalls([])) == len(MINIMUMS)
 
 
 def test_the_fuzz_file_stays_small_enough_to_read_in_a_diff():

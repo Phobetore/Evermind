@@ -2,7 +2,8 @@
 // read from disk and parsed, so that an import is an import and not a word in a
 // comment, and a global is a use of it and not the word "window" in a sentence.
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
@@ -19,10 +20,15 @@ interface Source {
   file: ts.SourceFile;
 }
 
-const sources: Source[] = readdirSync(dir, { recursive: true })
+// Every file under the engine, whatever it is: a note or a data file would hold the
+// forbidden word as well as a module.
+const everyFile = readdirSync(dir, { recursive: true })
   .map((name) => String(name).replaceAll("\\", "/"))
+  .filter((name) => statSync(dir + name).isFile())
+  .sort();
+
+const sources: Source[] = everyFile
   .filter((name) => /\.tsx?$/.test(name))
-  .sort()
   .map((name) => {
     const text = readFileSync(dir + name, "utf8");
     return { name, isTest: /\.test\.tsx?$/.test(name), text, file: parse(name, text) };
@@ -69,6 +75,8 @@ function importsOf(file: ts.SourceFile): string[] {
 
 // The engine runs under Node as it is, so it reaches for none of what a page has.
 const BROWSER_GLOBALS = new Set([
+  "globalThis",
+  "self",
   "window",
   "document",
   "localStorage",
@@ -84,7 +92,9 @@ function browserGlobalsIn(file: ts.SourceFile): string[] {
   const visit = (node: ts.Node) => {
     if (ts.isIdentifier(node) && BROWSER_GLOBALS.has(node.text)) {
       const parent = node.parent;
-      const named = (parent as { name?: ts.Node }).name === node;
+      // `{ document }` names a property and reads the global at once.
+      const named =
+        (parent as { name?: ts.Node }).name === node && !ts.isShorthandPropertyAssignment(parent);
       const qualified = ts.isQualifiedName(parent) && parent.right === node;
       if (!named && !qualified) {
         found.push(`${node.text} (line ${file.getLineAndCharacterOfPosition(node.getStart()).line + 1})`);
@@ -96,11 +106,29 @@ function browserGlobalsIn(file: ts.SourceFile): string[] {
   return found;
 }
 
+/** Where an import of `from` leads, relative to the engine's folder: `./x` is `x`,
+ *  and `./../lib/x` is `../lib/x`, outside it. */
+const resolved = (from: string, module: string) =>
+  posix.normalize(posix.join(posix.dirname(from), module));
+const staysInside = (from: string, module: string) =>
+  module.startsWith(".") && !resolved(from, module).startsWith("..");
+
 const REACT = /^react(-dom)?(\/|$)/;
 const THE_INTERFACE = /^@\/(data|components)(\/|$)/;
 const forbidden = (module: string) => REACT.test(module) || THE_INTERFACE.test(module);
 
 describe("the scan", () => {
+  it("follows a relative import to where it leads", () => {
+    expect(staysInside("chat.ts", "./macros")).toBe(true);
+    expect(staysInside("chat.ts", "./sub/../macros")).toBe(true);
+    expect(staysInside("chat.ts", "./../lib/errors")).toBe(false);
+    expect(staysInside("chat.ts", "../lib/errors")).toBe(false);
+    expect(staysInside("chat.ts", "@/lib/errors")).toBe(false);
+    expect(staysInside("chat.ts", "react")).toBe(false);
+    expect(staysInside("sub/a.ts", "../chat")).toBe(true);
+    expect(staysInside("sub/a.ts", "../../lib/errors")).toBe(false);
+  });
+
   it("reads the engine's files", () => {
     // A wrong path would otherwise scan nothing and pass.
     expect(engine.map((source) => source.name)).toEqual(
@@ -137,11 +165,19 @@ describe("the scan", () => {
   });
 
   it("sees a use of a browser global and not a word", () => {
-    const uses = "const a = window.innerWidth; localStorage.setItem('k', 'v'); crypto.randomUUID();";
+    const uses = [
+      "const a = window.innerWidth; localStorage.setItem('k', 'v'); crypto.randomUUID();",
+      "const b = { document };",
+      "const c = globalThis.window;",
+      "self.postMessage(1);",
+    ].join("\n");
     expect(browserGlobalsIn(parse("x.ts", uses)).map((use) => use.split(" ")[0])).toEqual([
       "window",
       "localStorage",
       "crypto",
+      "document",
+      "globalThis",
+      "self",
     ]);
     const words = [
       "// the history window, and a document of rules",
@@ -158,8 +194,13 @@ describe("the engine's files", () => {
   const word = ["jail", "break"].join("");
 
   it("never use the word the rules are not allowed to hide behind", () => {
-    const found = sources.filter((source) => source.text.toLowerCase().includes(word));
-    expect(found.map((source) => source.name)).toEqual([]);
+    // Files of every kind, and the names of the files too.
+    const found = everyFile.filter(
+      (name) =>
+        name.toLowerCase().includes(word) ||
+        readFileSync(dir + name, "utf8").toLowerCase().includes(word),
+    );
+    expect(found).toEqual([]);
   });
 
   it("import neither React nor the interface", () => {
@@ -174,7 +215,7 @@ describe("the engine's files", () => {
   it("import nothing but each other", () => {
     const found = engine.flatMap((source) =>
       importsOf(source.file)
-        .filter((module) => !module.startsWith("./"))
+        .filter((module) => !staysInside(source.name, module))
         .map((module) => `${source.name}: ${module}`),
     );
     expect(found).toEqual([]);
@@ -251,7 +292,7 @@ describe("index.ts", () => {
       expect(source, `${name} is imported and is not a file of the engine`).toBeDefined();
       for (const module of importsOf((source as Source).file)) {
         expect(forbidden(module), `${name} imports ${module}`).toBe(false);
-        if (module.startsWith("./")) queue.push(`${module.slice(2)}.ts`);
+        if (staysInside(name, module)) queue.push(`${resolved(name, module)}.ts`);
       }
     }
     // That the walk went somewhere, and never into a test.
