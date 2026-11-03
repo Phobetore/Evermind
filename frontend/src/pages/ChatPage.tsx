@@ -177,6 +177,8 @@ function ChatView({ id }: { id: string }) {
       });
       if (event.context) setContextStats(event.context);
       if (event.perf) setPerf(event.perf);
+      // Otherwise Continue would seem to have done nothing at all.
+      if (event.nothing_added) turnStore.fail(id, "nothing added");
     } else if (event.type === "error") {
       // In the store, since the page that hears of it may not be the one on screen.
       turnStore.fail(id, { event });
@@ -808,12 +810,14 @@ function ChatView({ id }: { id: string }) {
       ? null
       : failure === "no reply"
         ? t("chat.errors.noReply")
-        : failure === "turn running"
-          // Only as long as that is true: there is nothing to say once it has ended.
-          ? (busy ? t("errors.turnRunning") : null)
-          : "event" in failure
-            ? describeEvent(failure.event, t)
-            : describeError(failure.error, t, t("chat.errors.connectionFailed"));
+        : failure === "nothing added"
+          ? t("chat.errors.nothingAdded")
+          : failure === "turn running"
+            // Only as long as that is true: there is nothing to say once it has ended.
+            ? (busy ? t("errors.turnRunning") : null)
+            : "event" in failure
+              ? describeEvent(failure.event, t)
+              : describeError(failure.error, t, t("chat.errors.connectionFailed"));
   // While regenerating an existing message, hide it (its replacement streams
   // below). A reply still being written is hidden the same way while its turn is
   // live: the backend saves it as it goes, so arriving mid-turn would otherwise

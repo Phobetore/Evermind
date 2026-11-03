@@ -5,6 +5,7 @@ SSE wire contract (one `data: <json>` line per event):
    "user_message":{...}|null,"target_message_id":...|null}
   {"type":"delta","text":"..."}
   {"type":"done","message":{...MessageOut},"context":{...},"perf":{...}}
+  (``nothing_added`` is true on a continuation that added nothing to the reply)
   {"type":"discarded"}
   (what the reply was being written into was deleted, so nothing came of it)
   {"type":"error","message":"...","kind":"...","resource":"..."}
@@ -566,7 +567,12 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         "tokens_per_s": round(completion_tokens / gen_seconds, 1) if gen_seconds > 0.2 else None,
         "finish_reason": finish_reason,
     }
-    yield _sse({"type": "done", "message": saved, "context": payload.stats, "perf": perf})
+    done = {"type": "done", "message": saved, "context": payload.stats, "perf": perf}
+    if continue_mode and not text:
+        # The reply is as it was, which a person looking at it cannot tell from a
+        # Continue that did nothing.
+        done["nothing_added"] = True
+    yield _sse(done)
     memory_service.schedule_if_due(convo["id"])
 
 

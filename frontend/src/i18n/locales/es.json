@@ -212,6 +212,7 @@
     "errors": {
       "connectionFailed": "Error de conexión con el servidor.",
       "noReply": "La respuesta no ha llegado.",
+      "nothingAdded": "El modelo no tenía nada que añadir a esta respuesta.",
       "retryButton": "Reintentar"
     },
     "input": {

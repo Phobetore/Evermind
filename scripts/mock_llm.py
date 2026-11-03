@@ -125,6 +125,9 @@ class Handler(BaseHTTPRequestHandler):
         if says:
             word = says.group(1)
             reply = f"{word} one two three four five six seven eight nine ten end{word}"
+        # A model with nothing to say: the stream ends without a word.
+        if "MOCK_SILENT" in json.dumps(payload):
+            reply = ""
 
         # A reply that is cut off after a few words. A plain close would read as a normal
         # end, since this sends no length for the stream; the length it promises and does
@@ -143,7 +146,7 @@ class Handler(BaseHTTPRequestHandler):
         # against whatever machine is running, it says so in the
         # conversation and this slows right down.
         delay = SLOW_WORD_DELAY if "SLOWLY" in json.dumps(payload) else WORD_DELAY
-        for number, word in enumerate(reply.split(" ")):
+        for number, word in enumerate(reply.split(" ") if reply else []):
             if midway and number == MIDWAY_AFTER:
                 self.close_connection = True
                 return

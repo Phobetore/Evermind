@@ -179,7 +179,11 @@ export type ChatEvent =
   | { type: "delta"; text: string }
   /** What it was writing into has been deleted, so nothing came of it. */
   | { type: "discarded" }
-  | { type: "done"; message: Message; context?: ContextStats; perf?: TurnPerf }
+  | {
+      type: "done"; message: Message; context?: ContextStats; perf?: TurnPerf;
+      /** A continuation that left the reply as it was. */
+      nothing_added?: boolean;
+    }
   | {
       type: "error"; message: string; kind?: string | null; resource?: string;
       /** What a model's server said, when it was the one that failed, or the

@@ -175,5 +175,30 @@ async def test_a_continuation_that_says_nothing_adds_nothing_not_even_a_space(
 
     assert events[-1]["type"] == "done"
     assert events[-1]["message"]["content"] == "She waits."
+    # And says so, so that the page can: a Continue that adds nothing looks like one that did nothing.
+    assert events[-1]["nothing_added"] is True
     messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
     assert messages[-1]["variants"] == ["She waits."]
+
+
+async def test_a_continuation_that_adds_something_does_not_say_otherwise(client, scripted):
+    scripted.scripts = [speech("She waits."), speech("Then she speaks.")]
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+
+    resp = await client.post("/api/chat", json={"conversation_id": convo["id"], "mode": "continue"})
+    events = parse_sse(resp.text)
+
+    assert events[-1]["type"] == "done"
+    assert "nothing_added" not in events[-1]
+    assert events[-1]["message"]["content"] == "She waits. Then she speaks."
+
+
+async def test_a_reply_that_is_new_or_replaced_never_says_nothing_was_added(client, scripted):
+    scripted.scripts = [speech("She waits."), speech("Another take.")]
+    convo = await setup_conversation(client)
+    sent = await send(client, convo["id"])
+    resp = await client.post("/api/chat", json={"conversation_id": convo["id"], "mode": "regenerate"})
+
+    assert "nothing_added" not in sent[-1]
+    assert "nothing_added" not in parse_sse(resp.text)[-1]

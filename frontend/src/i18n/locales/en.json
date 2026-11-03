@@ -212,6 +212,7 @@
     "errors": {
       "connectionFailed": "Server connection error.",
       "noReply": "The reply did not arrive.",
+      "nothingAdded": "The model had nothing to add to this reply.",
       "retryButton": "Retry"
     },
     "input": {

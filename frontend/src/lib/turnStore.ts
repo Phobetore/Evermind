@@ -37,7 +37,9 @@ export type TurnFailure =
   | { event: Extract<ChatEvent, { type: "error" }> }
   | { error: unknown }
   | "no reply"
-  | "turn running";
+  | "turn running"
+  /** A continuation that did not change the reply. */
+  | "nothing added";
 
 interface HeldTurn extends Turn {
   controller: AbortController;
