@@ -120,22 +120,121 @@ async def test_a_continuation_that_fails_before_any_word_changes_nothing(client,
     assert await messages_of(client, convo["id"]) == before
 
 
-async def test_the_conversation_read_after_a_failure_shows_the_reply_as_cut_short(client, provider):
-    """What the page draws once the turn is over is a read of the conversation: the
-    words are there, marked as a reply that was not finished like one that was stopped."""
+async def test_the_conversation_read_after_a_failure_says_the_reply_was_cut_short(client, provider):
+    """What the page draws once the turn is over, or after a reload, is a read of the
+    conversation. The turn knows that it failed, unlike one that was stopped, so it says
+    so at once and not when the next one starts."""
     convo = await setup_conversation(client)
     provider.script = FAILS_AFTER_TWO_WORDS
     await send(client, convo["id"], content="Knock")
 
     reply = (await messages_of(client, convo["id"]))[-1]
 
-    assert reply["meta"] == {"streaming": True}
-    # The next turn settles the mark, as it does for a stopped one.
+    assert reply["meta"] == {"interrupted": True}
+    # And the next turn leaves it so.
     provider.script = [ProviderEvent(type="delta", text="Again."), ProviderEvent(type="done")]
     await send(client, convo["id"], content="Knock again")
-    settled = (await messages_of(client, convo["id"]))[-3]
-    assert settled["content"] == "The door creaks open"
-    assert settled["meta"] == {"interrupted": True}
+    kept = (await messages_of(client, convo["id"]))[-3]
+    assert kept["content"] == "The door creaks open"
+    assert kept["meta"] == {"interrupted": True}
+
+
+async def test_a_regeneration_or_a_continuation_cut_short_by_a_failure_says_so_too(client, provider):
+    convo = await setup_conversation(client)
+    await send(client, convo["id"], content="Knock")
+    provider.script = FAILS_AFTER_TWO_WORDS
+
+    await send(client, convo["id"], content=None, mode="regenerate")
+    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") is True
+
+    await send(client, convo["id"], content="Knock", mode="send")
+    provider.script = [ProviderEvent(type="delta", text="Whole."), ProviderEvent(type="done")]
+    await send(client, convo["id"], content=None, mode="regenerate")
+    provider.script = FAILS_AFTER_TWO_WORDS
+    await send(client, convo["id"], content=None, mode="continue")
+    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") is True
+
+
+@pytest.mark.parametrize("mode", ["continue", "regenerate"])
+async def test_finishing_a_reply_that_was_cut_short_takes_the_label_away(client, provider, mode):
+    """Continuing a partial reply, or asking for another version of it, completes the
+    message; leaving "interrupted" on it would label a whole reply for good."""
+    convo = await setup_conversation(client)
+    provider.script = FAILS_AFTER_TWO_WORDS
+    await send(client, convo["id"], content="Knock")
+    assert (await messages_of(client, convo["id"]))[-1]["meta"] == {"interrupted": True}
+    provider.script = [ProviderEvent(type="delta", text="the rest."), ProviderEvent(type="done")]
+
+    events = await send(client, convo["id"], content=None, mode=mode)
+
+    assert events[-1]["type"] == "done"
+    assert events[-1]["message"]["meta"].get("interrupted") is None
+    reply = (await messages_of(client, convo["id"]))[-1]
+    assert "interrupted" not in reply["meta"]
+
+
+async def test_only_finishing_a_reply_takes_the_label_away(client, provider):
+    convo = await setup_conversation(client)
+    provider.script = FAILS_AFTER_TWO_WORDS
+    await send(client, convo["id"], content="Knock")
+    provider.script = [ProviderEvent(type="delta", text="the rest."), ProviderEvent(type="done")]
+    await send(client, convo["id"], content=None, mode="continue")
+    # Not left from a turn before, and not cleared only for one mode: asking again, and
+    # failing again, labels it again, and only finishing clears it.
+    provider.script = FAILS_AFTER_TWO_WORDS
+    await send(client, convo["id"], content=None, mode="continue")
+    assert (await messages_of(client, convo["id"]))[-1]["meta"] == {"interrupted": True}
+    provider.script = [ProviderEvent(type="delta", text=" Done."), ProviderEvent(type="done")]
+    await send(client, convo["id"], content=None, mode="continue")
+    assert "interrupted" not in (await messages_of(client, convo["id"]))[-1]["meta"]
+
+
+async def test_a_failure_that_is_not_a_model_event_keeps_what_arrived_too(client, monkeypatch):
+    """A chunk that is not what the stream was promised to hold raises instead of
+    failing as an event, from somewhere inside the provider."""
+
+    class Breaks:
+        def __init__(self, connection):
+            pass
+
+        async def stream_chat(self, payload):
+            yield ProviderEvent(type="delta", text="The door ")
+            yield ProviderEvent(type="delta", text="creaks open")
+            raise ValueError("a chunk that is not an object")
+
+    monkeypatch.setattr("app.services.chat_service.get_provider", Breaks)
+    convo = await setup_conversation(client)
+
+    events = await send(client, convo["id"], content="Knock")
+
+    assert events[-1]["type"] == "error"
+    assert events[-1]["kind"] == "internal"
+    assert "not an object" in events[-1]["message"]
+    reply = (await messages_of(client, convo["id"]))[-1]
+    assert reply["content"] == "The door creaks open"
+    assert reply["meta"] == {"interrupted": True}
+
+
+async def test_a_reply_that_cannot_be_kept_does_not_hide_the_failure_of_the_model(
+        client, provider, monkeypatch):
+    from app.repositories import conversations as convo_repo
+
+    real = convo_repo.update_message
+
+    async def refuses_the_label(db, message_id, **fields):
+        if (fields.get("meta") or {}).get("interrupted"):
+            raise RuntimeError("the database is locked")
+        return await real(db, message_id, **fields)
+
+    monkeypatch.setattr(convo_repo, "update_message", refuses_the_label)
+    convo = await setup_conversation(client)
+    provider.script = FAILS_AFTER_TWO_WORDS
+
+    events = await send(client, convo["id"], content="Knock")
+
+    assert events[-1]["type"] == "error"
+    assert events[-1]["kind"] == "model_error"
+    assert events[-1]["message"] == "The server went away."
 
 
 async def test_a_failure_after_the_message_was_deleted_ends_the_turn_without_a_reply(

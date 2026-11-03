@@ -23,6 +23,7 @@ Modes:
 
 import asyncio
 import json
+import logging
 import re
 import time
 from collections.abc import AsyncIterator
@@ -60,6 +61,8 @@ from ..repositories import memories as memories_repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
 from . import memory_service
+
+logger = logging.getLogger(__name__)
 
 # How often a reply in progress is written to the database. Often enough that a
 # server going down loses at most a second of text, rarely enough that a long reply
@@ -394,13 +397,28 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
     # person. There is nothing to write it into, and nothing further to generate.
     reply_gone = False
 
-    async def persist(*, final: bool) -> dict | None:
+    async def persist(*, final: bool, failed: bool = False) -> dict | None:
         """Write what has streamed so far. Recomputed from the original variants
-        every time, so calling it repeatedly is the same as calling it once."""
+        every time, so calling it repeatedly is the same as calling it once.
+
+        ``failed`` says the model failed: the reply is marked as cut short at once, where
+        one that was stopped is marked by the next turn, which is the one that knows it
+        will not be finished. A reply that is finished is not marked."""
         nonlocal draft_id, reply_gone
         body = trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
         if not body and not final:
             return None
+
+        # What a message that was cut short and is now continued, or answered with
+        # another version, says of itself: the reply it holds is whole when the turn is.
+        target_meta = None
+        if target_message is not None:
+            held = dict(target_message.get("meta") or {})
+            if failed:
+                target_meta = {**held, "interrupted": True}
+            elif final:
+                whole = {k: v for k, v in held.items() if k not in ("interrupted", "streaming")}
+                target_meta = whole if whole != held else None
 
         if continue_mode:
             variants = list(target_message["variants"])
@@ -409,25 +427,30 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
             joiner = "" if (not body or not existing or existing[-1].isspace() or
                             body[0].isspace()) else " "
             variants[target_message["active_index"]] = existing + joiner + body
-            saved = await convo_repo.update_message(db, target_message["id"], variants=variants)
+            saved = await convo_repo.update_message(
+                db, target_message["id"], variants=variants, meta=target_meta)
             reply_gone = saved is None
             return saved
 
         if target_message is not None:
             variants = list(target_message["variants"]) + [body]
             saved = await convo_repo.update_message(
-                db, target_message["id"], variants=variants, active_index=len(variants) - 1)
+                db, target_message["id"], variants=variants, active_index=len(variants) - 1,
+                meta=target_meta)
             reply_gone = saved is None
             return saved
 
         # A new reply. "streaming" marks it as still being written, so a client
         # arriving mid-turn can tell the difference between a short reply and one
         # that was cut off. The final write clears it; when that write never
-        # comes, the next turn settles the mark (_settle_unfinished).
+        # comes, the next turn settles the mark (_settle_unfinished), unless the
+        # turn knows it failed, and says so itself.
         # finish_reason kept for diagnosis: "length" means the reply was cut
         # mid-sentence by max_tokens, not by the model's choice.
         if final:
             meta = {"finish_reason": finish_reason} if finish_reason else {}
+        elif failed:
+            meta = {"interrupted": True}
         else:
             meta = {"streaming": True}
         if draft_id is None:
@@ -441,6 +464,14 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         reply_gone = saved is None
         return saved
 
+    async def keep_what_arrived() -> None:
+        """When the turn fails: whatever arrived is the reply as far as it goes. Never
+        raises, since what it would hide is the reason the turn failed."""
+        try:
+            await persist(final=False, failed=True)
+        except Exception:
+            logger.exception("Could not keep what had arrived of a reply that failed")
+
     # At most two passes. A model whose chat template rejects a conversation
     # opening on the assistant's turn streams nothing at all rather than
     # erroring, and Evermind opens a conversation on the character's greeting
@@ -450,33 +481,40 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
     for attempt in (0, 1):
         # Closed on the way out of here, however that happens, and the request to the
         # model with it.
-        async with aclosing(_until_stopped(_generate(connection, payload), stopped)) as events:
-            async for event in events:
-                if event.type == "delta":
-                    if first_token_at is None:
-                        first_token_at = time.monotonic()
-                    chunks.append(event.text)
-                    yield _sse({"type": "delta", "text": event.text})
-                    if time.monotonic() - flushed_at >= _FLUSH_SECONDS:
-                        flushed_at = time.monotonic()
-                        await persist(final=False)
+        try:
+            async with aclosing(_until_stopped(_generate(connection, payload), stopped)) as events:
+                async for event in events:
+                    if event.type == "delta":
+                        if first_token_at is None:
+                            first_token_at = time.monotonic()
+                        chunks.append(event.text)
+                        yield _sse({"type": "delta", "text": event.text})
+                        if time.monotonic() - flushed_at >= _FLUSH_SECONDS:
+                            flushed_at = time.monotonic()
+                            await persist(final=False)
+                            if reply_gone:
+                                yield _sse({"type": "discarded"})
+                                return
+                    elif event.type == "done":
+                        usage = event.usage
+                        finish_reason = (event.meta or {}).get("finish_reason")
+                    elif event.type == "error":
+                        # Whatever arrived is the reply as far as it goes, as it is when
+                        # the turn is stopped: flushing only now and then would lose up to
+                        # the last second of what the person watched come.
+                        await keep_what_arrived()
                         if reply_gone:
                             yield _sse({"type": "discarded"})
                             return
-                elif event.type == "done":
-                    usage = event.usage
-                    finish_reason = (event.meta or {}).get("finish_reason")
-                elif event.type == "error":
-                    # Whatever arrived is the reply as far as it goes, as it is when
-                    # the turn is stopped: flushing only now and then would lose up to
-                    # the last second of what the person watched come.
-                    await persist(final=False)
-                    if reply_gone:
-                        yield _sse({"type": "discarded"})
+                        fields = failure_fields(event.meta)
+                        yield error_event(event.message, fields.pop("kind"), **fields)
                         return
-                    fields = failure_fields(event.meta)
-                    yield error_event(event.message, fields.pop("kind"), **fields)
-                    return
+        except Exception:
+            # Not the model failing as an event: something inside the provider raised,
+            # such as a chunk that was not what the stream was promised to hold. What
+            # arrived is kept all the same, and the failure goes on as it did.
+            await keep_what_arrived()
+            raise
 
         if stopped.is_set():
             # Stop the turn and keep what arrived, every word of it, which is what

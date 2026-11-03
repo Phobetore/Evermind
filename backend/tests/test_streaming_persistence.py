@@ -74,19 +74,13 @@ async def test_a_turn_cut_short_keeps_what_had_arrived(client, unhurried):
     )
 
 
-async def test_the_next_turn_settles_a_reply_left_mid_write(client, unhurried):
-    """The mark says "a turn is writing this right now". When the reader goes
-    away there is nothing left to clear it, so it outlives the turn — and the
-    chat view hides anything carrying it while a turn is live, which made an
-    interrupted reply vanish on every generation afterwards, most visibly the
-    moment you tried to continue it. By the time another turn starts nothing is
-    writing it any more, so it is settled into what it really is."""
-    convo = await setup_conversation(client)
-
+async def strand_a_reply(client, convo_id):
+    """A turn that is cut off after a few words by a reader going away, leaving the
+    reply marked as being written."""
     db = await _connect()
     try:
         turn = chat_service.stream_turn(
-            db, ChatRequest(conversation_id=convo["id"], mode="send", content="Coupe-moi")
+            db, ChatRequest(conversation_id=convo_id, mode="send", content="Coupe-moi")
         )
         deltas = 0
         async for chunk in turn:
@@ -98,11 +92,23 @@ async def test_the_next_turn_settles_a_reply_left_mid_write(client, unhurried):
     finally:
         await db.close()
 
-    stranded = (await _messages(client, convo["id"]))[-1]
+    stranded = (await _messages(client, convo_id))[-1]
     assert stranded["meta"].get("streaming") is True
+    return stranded
+
+
+async def test_the_next_turn_settles_a_reply_left_mid_write(client, unhurried):
+    """The mark says "a turn is writing this right now". When the reader goes
+    away there is nothing left to clear it, so it outlives the turn — and the
+    chat view hides anything carrying it while a turn is live, which made an
+    interrupted reply vanish on every generation afterwards. By the time another
+    turn starts nothing is writing it any more, so it is settled into what it
+    really is."""
+    convo = await setup_conversation(client)
+    stranded = await strand_a_reply(client, convo["id"])
 
     await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "continue",
+        "conversation_id": convo["id"], "mode": "send", "content": "Et ensuite ?",
     })
 
     settled = next(m for m in await _messages(client, convo["id"]) if m["id"] == stranded["id"])
@@ -113,6 +119,22 @@ async def test_the_next_turn_settles_a_reply_left_mid_write(client, unhurried):
         "the view already knows how to label an interrupted reply; nothing was "
         "ever setting the key it reads"
     )
+
+
+async def test_continuing_a_reply_left_mid_write_settles_it_and_finishes_it(client, unhurried):
+    """The moment you tried to continue it was where it used to vanish. Continuing
+    settles the mark, and the reply is whole when the turn is, so it carries neither."""
+    convo = await setup_conversation(client)
+    stranded = await strand_a_reply(client, convo["id"])
+
+    await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "continue",
+    })
+
+    finished = next(m for m in await _messages(client, convo["id"]) if m["id"] == stranded["id"])
+    assert "streaming" not in finished["meta"]
+    assert "interrupted" not in finished["meta"], "a whole reply is labelled as cut short"
+    assert finished["content"].strip().endswith("mot11")
 
 
 async def test_the_streaming_mark_is_cleared_once_the_reply_lands(client, unhurried):
