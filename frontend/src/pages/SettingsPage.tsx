@@ -15,19 +15,38 @@ export function SettingsPage() {
   const t = useT();
   const { status: accessStatus } = useAccess();
   const [connections, setConnections] = useState<Connection[] | null>(null);
-  const [personas, setPersonas] = useState<Persona[]>([]);
+  // Null until the list has come, so that "None" is not shown for a persona that
+  // is marked but not yet known.
+  const [personas, setPersonas] = useState<Persona[] | null>(null);
+  const [savingPersona, setSavingPersona] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [editing, setEditing] = useState<Connection | "new" | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorLine = useRef<HTMLParagraphElement>(null);
+  const personasAsked = useRef(0);
+
+  // Only the newest answer is kept: a slow, older one must not put back what a
+  // change has replaced since.
+  const loadPersonas = useCallback(async () => {
+    const mine = ++personasAsked.current;
+    const list = await data.personas.list();
+    if (mine === personasAsked.current) setPersonas(list);
+  }, []);
 
   const load = useCallback(() => {
     data.connections?.list().then(setConnections);
-    data.personas.list().then(setPersonas);
+    loadPersonas();
     data.settings.get().then(setSettings);
-  }, []);
+  }, [loadPersonas]);
 
   useEffect(load, [load]);
+
+  // The page scrolls inside <main>, and the line is at the top of it.
+  useEffect(() => {
+    if (saveError) errorLine.current?.scrollIntoView({ block: "nearest" });
+  }, [saveError]);
 
   function flashSaved() {
     setSavedFlash(true);
@@ -35,32 +54,47 @@ export function SettingsPage() {
     flashTimer.current = setTimeout(() => setSavedFlash(false), 1500);
   }
 
-  async function saveSettings(patch: Partial<Settings>) {
-    const updated = await data.settings.update(patch);
-    setSettings(updated);
-    flashSaved();
+  /** The controls hold what is stored, so a save that fails and says nothing
+   *  looks like a control that will not move. */
+  async function attempt(save: () => Promise<void>) {
+    setSaveError(null);
+    try {
+      await save();
+    } catch (e) {
+      setSaveError(describeError(e, t));
+    }
+  }
+
+  function saveSettings(patch: Partial<Settings>) {
+    return attempt(async () => {
+      setSettings(await data.settings.update(patch));
+      flashSaved();
+    });
   }
 
   // The default persona is the one marked on the Personas page, so this list
   // writes that mark: choosing a persona marks it (which unmarks the rest), and
-  // "None" unmarks the one that was.
-  const defaultPersona = personas.find((p) => p.is_default);
+  // "None" unmarks the one that was. Only the mark is sent: the name and the
+  // description here may be older than the ones stored.
+  const defaultPersona = personas?.find((p) => p.is_default);
 
   async function saveDefaultPersona(id: string) {
-    const target = id ? personas.find((p) => p.id === id) : defaultPersona;
+    const target = id ? personas?.find((p) => p.id === id) : defaultPersona;
     if (!target) return;
-    try {
-      await data.personas.update(target.id, {
-        name: target.name,
-        description: target.description,
-        is_default: id !== "",
-      });
-      flashSaved();
-    } finally {
-      // Whatever came of it, show what is stored, so that this list and the tag
-      // on the Personas page cannot disagree.
-      data.personas.list().then(setPersonas);
-    }
+    // The list is disabled meanwhile, so that a second choice is made from what
+    // the first one left, not from what it was made from.
+    setSavingPersona(true);
+    await attempt(async () => {
+      try {
+        await data.personas.update(target.id, { is_default: id !== "" });
+        flashSaved();
+      } finally {
+        // Whatever came of it, show what is stored, so that this list and the
+        // tag on the Personas page cannot disagree.
+        await loadPersonas();
+      }
+    });
+    setSavingPersona(false);
   }
 
   return (
@@ -69,6 +103,16 @@ export function SettingsPage() {
         <h1 className="font-display text-3xl font-semibold">{t("nav.settings")}</h1>
         <p className="mt-1 text-mist">{t("settings.subtitle")}</p>
       </header>
+
+      {saveError && (
+        <p
+          ref={errorLine}
+          role="alert"
+          className="mb-6 rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood"
+        >
+          {saveError}
+        </p>
+      )}
 
       {/* Connections: only an edition that keeps its own models has them. */}
       {data.connections && (
@@ -120,11 +164,14 @@ export function SettingsPage() {
           <Field label={t("settings.defaultPersonaLabel")}>
             <select
               className="field"
+              disabled={personas === null || savingPersona}
               value={defaultPersona?.id ?? ""}
               onChange={(e) => saveDefaultPersona(e.target.value)}
             >
-              <option value="">{t("settings.noneOption")}</option>
-              {personas.map((p) => (
+              <option value="">
+                {personas === null ? t("common.loading") : t("settings.noneOption")}
+              </option>
+              {(personas ?? []).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>

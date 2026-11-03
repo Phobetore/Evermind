@@ -16,7 +16,8 @@ export function StartChatModal({
 }) {
   const navigate = useNavigate();
   const t = useT();
-  const [personas, setPersonas] = useState<Persona[]>([]);
+  // Null until the list has come, which is when the choice can be made.
+  const [personas, setPersonas] = useState<Persona[] | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [personaId, setPersonaId] = useState<string>("");
   const [connectionId, setConnectionId] = useState<string>("");
@@ -29,12 +30,16 @@ export function StartChatModal({
       data.personas.list(),
       data.connections ? data.connections.list() : Promise.resolve<Connection[]>([]),
       data.settings.get(),
-    ]).then(([p, c, s]) => {
-      setPersonas(p);
-      setConnections(c);
-      setPersonaId(p.find((x) => x.is_default)?.id ?? "");
-      setConnectionId(s.default_connection_id ?? c.find((x) => x.is_default)?.id ?? "");
-    });
+    ])
+      .then(([p, c, s]) => {
+        setPersonas(p);
+        setConnections(c);
+        setPersonaId(p.find((x) => x.is_default)?.id ?? "");
+        setConnectionId(s.default_connection_id ?? c.find((x) => x.is_default)?.id ?? "");
+      })
+      // Without the lists, the window can still start a conversation: it takes
+      // the persona and the connection that are the defaults.
+      .catch(() => setPersonas([]));
   }, []);
 
   const greetings = [character.greeting, ...character.alternate_greetings].filter(
@@ -64,11 +69,16 @@ export function StartChatModal({
         <Field label={t("chat.panel.youArePlaying")} hint={t("cards.startChatModal.personaHint")}>
           <select
             className="field"
+            disabled={personas === null}
             value={personaId}
             onChange={(e) => setPersonaId(e.target.value)}
           >
-            <option value="">{t("cards.startChatModal.noPersonaOption")}</option>
-            {personas.map((p) => (
+            {personas === null && <option value="">{t("common.loading")}</option>}
+            {/* With a persona marked, asking for none gets that persona all the same. */}
+            {personas && !personas.some((p) => p.is_default) && (
+              <option value="">{t("cards.startChatModal.noPersonaOption")}</option>
+            )}
+            {(personas ?? []).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>

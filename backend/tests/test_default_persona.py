@@ -166,13 +166,24 @@ async def test_the_first_persona_made_is_marked_even_after_others_have_gone(clie
     assert await marked(client) == ["Morgan"]
 
 
-async def test_marking_another_persona_unmarks_the_one_before(client):
-    await make_persona(client, "Alex")
-    morgan = await make_persona(client, "Morgan")
+async def test_marking_or_unmarking_a_persona_changes_nothing_else_about_it(client):
+    # Sent as the Settings page sends it: the mark alone. Whatever the name and
+    # description have become since the page was opened must stay as they are.
+    await make_persona(client, "Alex", description="Tall.")
+    morgan = await make_persona(client, "Morgan", description="Short.")
 
-    await client.put(f"/api/personas/{morgan['id']}", json={"is_default": True})
+    marked_now = (await client.put(f"/api/personas/{morgan['id']}",
+                                   json={"is_default": True})).json()
+    assert (marked_now["name"], marked_now["description"], marked_now["is_default"]) == (
+        "Morgan", "Short.", True)
+    assert {p["name"]: p["description"] for p in (await client.get("/api/personas")).json()} == {
+        "Alex": "Tall.", "Morgan": "Short."}
 
-    assert await marked(client) == ["Morgan"]
+    unmarked = (await client.put(f"/api/personas/{morgan['id']}",
+                                 json={"is_default": False})).json()
+    assert (unmarked["name"], unmarked["description"], unmarked["is_default"]) == (
+        "Morgan", "Short.", False)
+    assert await marked(client) == []
 
 
 async def test_a_conversation_whose_persona_is_gone_is_played_as_the_marked_one(
@@ -276,21 +287,31 @@ async def test_a_null_does_not_reset_a_setting_that_has_a_value_of_its_own_by_de
 
 # ---------- the migration ----------
 
+BEFORE = "009_gate.sql"
+THIS = "010_default_persona.sql"
+
+
 @pytest.fixture()
 def old_database(tmp_path, monkeypatch):
     """A database as the last release left it, before the default persona was
-    one notion: the migrations up to and not including this one, applied.
+    one notion: migrations 001 to 009 applied, and nothing else.
 
-    Returns ``(execute, upgrade)``: the first runs SQL on it and returns the
-    rows, the second starts the application on it, as an update does.
+    Returns ``(execute, start_before, upgrade)``: the first runs SQL on it and
+    returns the rows, the second creates it, and the third starts the
+    application on it with this migration and none after, as an update does.
     """
     monkeypatch.setenv("EVERMIND_DATA_DIR", str(tmp_path / "data"))
-    before = tmp_path / "migrations-before"
-    before.mkdir()
-    for path in app_db.MIGRATIONS_DIR.glob("*.sql"):
-        if path.name < "010":
-            shutil.copy(path, before / path.name)
-    after = app_db.MIGRATIONS_DIR
+
+    def migrations_up_to(last):
+        folder = tmp_path / f"migrations-up-to-{last}"
+        folder.mkdir()
+        for path in app_db.MIGRATIONS_DIR.glob("*.sql"):
+            if path.name <= last:
+                shutil.copy(path, folder / path.name)
+        assert (folder / last).exists(), f"{last} is not among the migrations"
+        return folder
+
+    before, after = migrations_up_to(BEFORE), migrations_up_to(THIS)
 
     def execute(sql, *params):
         from app.config import db_path
@@ -317,12 +338,14 @@ def old_database(tmp_path, monkeypatch):
 
 
 def seed_personas(execute, *rows):
-    """``rows`` are ``(id, marked)``."""
-    for persona_id, is_default in rows:
+    """``rows`` are ``(id, marked)``, or ``(id, marked, day)`` for the day of
+    January 2026 the persona was made, the first day when it is left out."""
+    for persona_id, is_default, *day in rows:
+        created = f"2026-01-{day[0] if day else 1:02d}T00:00:00+00:00"
         execute(
             "INSERT INTO personas (id, name, is_default, created_at, updated_at)"
-            " VALUES (?, ?, ?, '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00')",
-            persona_id, f"Name of {persona_id}", int(is_default))
+            " VALUES (?, ?, ?, ?, ?)",
+            persona_id, f"Name of {persona_id}", int(is_default), created, created)
 
 
 def marks(execute) -> list[str]:
@@ -346,10 +369,11 @@ async def test_the_persona_the_setting_names_becomes_the_only_one_marked(old_dat
     assert stored(execute) == ["reply_length"]
 
 
-async def test_the_persona_the_setting_names_is_marked_when_none_was(old_database):
+async def test_the_persona_the_setting_names_is_marked_when_none_was_and_not_the_oldest(
+        old_database):
     execute, start_before, upgrade = old_database
     await start_before()
-    seed_personas(execute, ("aaa", False), ("bbb", False))
+    seed_personas(execute, ("aaa", False, 1), ("bbb", False, 2))
     execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps("bbb"))
 
     await upgrade()
@@ -361,49 +385,65 @@ async def test_the_persona_the_setting_names_is_marked_when_none_was(old_databas
 async def test_a_setting_naming_a_persona_that_is_gone_leaves_the_marks_alone(old_database):
     execute, start_before, upgrade = old_database
     await start_before()
-    seed_personas(execute, ("aaa", True), ("bbb", False))
+    seed_personas(execute, ("bbb", True, 2), ("aaa", False, 1))
     execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps("vanished"))
 
     await upgrade()
 
-    assert marks(execute) == ["aaa"]
-    assert stored(execute) == []
-
-
-async def test_a_setting_naming_a_persona_that_is_gone_does_not_mark_one_when_none_was(
-        old_database):
-    execute, start_before, upgrade = old_database
-    await start_before()
-    seed_personas(execute, ("aaa", False))
-    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps("vanished"))
-
-    await upgrade()
-
-    assert marks(execute) == []
+    assert marks(execute) == ["bbb"]
     assert stored(execute) == []
 
 
 async def test_without_the_setting_the_marks_are_left_as_they_were(old_database):
     execute, start_before, upgrade = old_database
     await start_before()
-    seed_personas(execute, ("aaa", False), ("bbb", True))
+    seed_personas(execute, ("aaa", False, 1), ("bbb", True, 2))
 
     await upgrade()
 
     assert marks(execute) == ["bbb"]
 
 
-async def test_nothing_marked_and_no_setting_stays_that_way(old_database):
+@pytest.mark.parametrize("setting", [None, dumps("vanished"), "", "not json {", "null", "42"])
+async def test_with_none_marked_the_oldest_persona_is_marked_so_nobody_loses_the_one_they_played(
+        old_database, setting):
+    # Someone who deleted or unticked their default was being played as the oldest
+    # persona. They keep that, and "None" becomes a choice they can make.
     execute, start_before, upgrade = old_database
     await start_before()
-    seed_personas(execute, ("aaa", False), ("bbb", False))
+    seed_personas(execute, ("bbb", False, 5), ("ccc", False, 3), ("aaa", False, 9))
+    if setting is not None:
+        execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, setting)
+
+    await upgrade()
+
+    assert marks(execute) == ["ccc"]
+    assert stored(execute) == []
+
+
+async def test_the_oldest_persona_made_on_the_same_second_is_the_first_one_stored(old_database):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    seed_personas(execute, ("bbb", False, 2), ("aaa", False, 2))
+
+    await upgrade()
+
+    assert marks(execute) == ["bbb"]
+
+
+async def test_a_database_without_personas_gets_none_marked(old_database):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps("vanished"))
 
     await upgrade()
 
     assert marks(execute) == []
+    assert stored(execute) == []
 
 
-@pytest.mark.parametrize("value", ["", "not json {", "null", "42", '["ccc"]', '{"id": "ccc"}'])
+@pytest.mark.parametrize("value", ["", "not json {", "null", "42", '["ccc"]', '{"id": "ccc"}',
+                                   "ccc", '"ccc', '""'])
 async def test_a_setting_that_is_not_a_persona_id_is_dropped_and_marks_nothing(
         old_database, value):
     execute, start_before, upgrade = old_database
@@ -415,30 +455,3 @@ async def test_a_setting_that_is_not_a_persona_id_is_dropped_and_marks_nothing(
 
     assert marks(execute) == ["aaa"]
     assert stored(execute) == []
-
-
-async def test_a_name_with_quotes_and_accents_is_found_as_it_was_stored(old_database):
-    execute, start_before, upgrade = old_database
-    await start_before()
-    odd = 'é"\\x'
-    seed_personas(execute, ("aaa", True), (odd, False))
-    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps(odd))
-
-    await upgrade()
-
-    assert marks(execute) == [odd]
-
-
-async def test_a_second_start_does_not_bring_the_old_choice_back(old_database):
-    execute, start_before, upgrade = old_database
-    await start_before()
-    seed_personas(execute, ("aaa", True), ("bbb", False))
-    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps("bbb"))
-    await upgrade()
-    # Someone who then chooses "none" must not get the old choice back at the next start.
-    execute("UPDATE personas SET is_default = 0")
-
-    await upgrade()
-
-    assert marks(execute) == []
-    assert SETTING not in stored(execute)

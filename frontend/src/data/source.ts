@@ -28,7 +28,7 @@ export interface DataSource {
   personas: {
     list(): Promise<Persona[]>;
     create(input: PersonaInput): Promise<Persona>;
-    update(id: string, input: PersonaInput): Promise<Persona>;
+    update(id: string, input: Partial<PersonaInput>): Promise<Persona>;
     remove(id: string): Promise<void>;
     uploadAvatar(id: string, file: File): Promise<Persona>;
   };
