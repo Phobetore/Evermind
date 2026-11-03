@@ -7542,6 +7542,160 @@
   },
   {
    "fn": "build_chat_payload",
+   "name": "an older message that fits the worst-case window exactly covers its fact",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "system_prompt": "House rules."
+    },
+    "persona": {
+     "name": "Alex"
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour."
+      ],
+      "active_index": 0,
+      "position": 10
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "The latest."
+      ],
+      "active_index": 0,
+      "position": 11
+     }
+    ],
+    "connection": {
+     "context_size": 1200,
+     "max_tokens": 200
+    },
+    "memories": [
+     {
+      "id": "a",
+      "content": "Said in the first turn.",
+      "source_position": 10
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\n### ABOUT ALEX (the player's character)\n\nHouse rules.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour."
+     },
+     {
+      "role": "assistant",
+      "content": "The latest."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 766,
+     "budget": 800,
+     "context_size": 1200,
+     "messages_included": 2,
+     "messages_total": 2,
+     "lore_matched": 0,
+     "facts_injected": 0,
+     "facts_total": 1,
+     "oldest_visible": 10,
+     "fact_positions": [],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "an older message one token over the worst-case window leaves its fact in",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "system_prompt": "House rules."
+    },
+    "persona": {
+     "name": "Alex"
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour flour f."
+      ],
+      "active_index": 0,
+      "position": 10
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "The latest."
+      ],
+      "active_index": 0,
+      "position": 11
+     }
+    ],
+    "connection": {
+     "context_size": 1200,
+     "max_tokens": 200
+    },
+    "memories": [
+     {
+      "id": "a",
+      "content": "Said in the first turn.",
+      "source_position": 10
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\n### ABOUT ALEX (the player's character)\n\n### ESTABLISHED FACTS (hard canon — never contradict these, Ana never forgets them)\n- (turn 10) Said in the first turn.\n\nHouse rules.",
+    "messages": [
+     {
+      "role": "assistant",
+      "content": "The latest."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 213,
+     "budget": 800,
+     "context_size": 1200,
+     "messages_included": 1,
+     "messages_total": 2,
+     "lore_matched": 0,
+     "facts_injected": 1,
+     "facts_total": 1,
+     "oldest_visible": 11,
+     "fact_positions": [
+      10
+     ],
+     "passages_injected": 0,
+     "leading_assistant_folded": 0
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
    "name": "fold one leading assistant message",
    "input": {
     "character": {
@@ -7989,6 +8143,22 @@
      "passages_injected": 0,
      "leading_assistant_folded": 0
     }
+   }
+  },
+  {
+   "fn": "chat_limits",
+   "name": "the numbers of a chat prompt",
+   "input": {},
+   "expected": {
+    "max_pinned_restated": 8,
+    "budget_margin": 200,
+    "system_share_before_dropping_examples": 0.6,
+    "max_facts": 60,
+    "facts_token_budget": 700,
+    "max_facts_token_budget": 2000,
+    "facts_budget_share": 0.12,
+    "lore_scan_messages": 6,
+    "lore_token_budget": 800
    }
   }
  ]

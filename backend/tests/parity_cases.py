@@ -15,7 +15,7 @@ from typing import Any
 
 import numpy
 
-from app.prompting import defaults, payloads, retrieval, turn
+from app.prompting import defaults, engine, payloads, retrieval, turn
 from app.prompting.engine import active_content, build_chat_payload, match_lore, select_facts
 from app.prompting.macros import has_original_macro, substitute, substitute_original
 from app.prompting.memory_changes import plan_consolidation, plan_memory_changes
@@ -83,6 +83,22 @@ def payload_limits() -> dict[str, int]:
     }
 
 
+def chat_limits() -> dict[str, float]:
+    """The numbers of a chat prompt. A case notices one moving by one only if it happens
+    to sit right on it."""
+    return {
+        "max_pinned_restated": engine._MAX_PINNED_RESTATED,
+        "budget_margin": engine._BUDGET_MARGIN,
+        "system_share_before_dropping_examples": engine._SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES,
+        "max_facts": engine._MAX_FACTS,
+        "facts_token_budget": engine._FACTS_TOKEN_BUDGET,
+        "max_facts_token_budget": engine._MAX_FACTS_TOKEN_BUDGET,
+        "facts_budget_share": engine._FACTS_BUDGET_SHARE,
+        "lore_scan_messages": engine._LORE_SCAN_MESSAGES,
+        "lore_token_budget": engine._LORE_TOKEN_BUDGET,
+    }
+
+
 def default_prompts() -> dict[str, str]:
     return {
         name: value
@@ -134,6 +150,7 @@ FUNCTIONS: dict[str, Callable[..., Any]] = {
     "build_consolidation_payload": payloads.build_consolidation_payload,
     "build_card_payload": payloads.build_card_payload,
     "payload_limits": payload_limits,
+    "chat_limits": chat_limits,
     "parse_llm_json": parse_llm_json,
     "memory_reply": memory_reply,
     "consolidation_reply": consolidation_reply,

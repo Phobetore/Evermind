@@ -123,7 +123,7 @@ export type ChatPayload = PromptPayload & { stats: PromptStats };
 // Enough for what someone has deliberately marked, not so many that the block
 // becomes another wall of text to skim. Pinning more than this is a sign the
 // facts want consolidating rather than repeating.
-const MAX_PINNED_RESTATED = 8;
+export const MAX_PINNED_RESTATED = 8;
 
 // Re-stated at generation time because rule adherence decays with distance:
 // on a long chat the system prompt is thousands of tokens away, drowned out
@@ -137,18 +137,19 @@ const POST_HISTORY_REMINDER =
   "how they ended; vary them. Move the scene forward with something new. " +
   "Never write or decide {{user}}'s actions.]";
 
-const BUDGET_MARGIN = 200;
+export const BUDGET_MARGIN = 200;
 // If the system prompt alone eats more than this share of the budget, the
 // example-dialogue block is dropped first (card identity is never dropped).
-const SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6;
+export const SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6;
 // Established facts: pinned first, then newest; capped so a very long story
 // cannot crowd out the card and history.
-const MAX_FACTS = 60;
-const FACTS_TOKEN_BUDGET = 700; // floor, used on tiny contexts
-const MAX_FACTS_TOKEN_BUDGET = 2000; // cap, so facts never dominate the window
+export const MAX_FACTS = 60;
+export const FACTS_TOKEN_BUDGET = 700; // floor, used on tiny contexts
+export const MAX_FACTS_TOKEN_BUDGET = 2000; // cap, so facts never dominate the window
+export const FACTS_BUDGET_SHARE = 0.12; // of the budget, between the two
 // Lorebook: keyword-triggered world knowledge, scanned over the recent turns.
-const LORE_SCAN_MESSAGES = 6;
-const LORE_TOKEN_BUDGET = 800;
+export const LORE_SCAN_MESSAGES = 6;
+export const LORE_TOKEN_BUDGET = 800;
 
 /** Python's `sorted(items, key=key, reverse=reverse)`. Stable both ways: equal
  *  keys keep the order they came in, even reversed. The keys are compared with
@@ -444,7 +445,7 @@ export function buildChatPayload(input: ChatInput): ChatPayload {
   // tokens was starving long stories on a 16k context. Pinned facts bypass this.
   const factsBudget = Math.min(
     MAX_FACTS_TOKEN_BUDGET,
-    Math.max(FACTS_TOKEN_BUDGET, Math.trunc(budget * 0.12)),
+    Math.max(FACTS_TOKEN_BUDGET, Math.trunc(budget * FACTS_BUDGET_SHARE)),
   );
 
   // History cap: past this many raw turns the model is mostly imitating its own

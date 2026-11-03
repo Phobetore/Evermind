@@ -42,6 +42,7 @@ _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6
 _MAX_FACTS = 60
 _FACTS_TOKEN_BUDGET = 700       # floor, used on tiny contexts
 _MAX_FACTS_TOKEN_BUDGET = 2000  # cap, so facts never dominate the window
+_FACTS_BUDGET_SHARE = 0.12      # of the budget, between the two
 # Lorebook: keyword-triggered world knowledge, scanned over the recent turns.
 _LORE_SCAN_MESSAGES = 6
 _LORE_TOKEN_BUDGET = 800
@@ -284,7 +285,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
 
     # Established facts scale with the context window (≈12%, capped): 700 tokens
     # was starving long stories on a 16k context. Pinned facts bypass this.
-    facts_budget = min(_MAX_FACTS_TOKEN_BUDGET, max(_FACTS_TOKEN_BUDGET, int(budget * 0.12)))
+    facts_budget = min(_MAX_FACTS_TOKEN_BUDGET,
+                       max(_FACTS_TOKEN_BUDGET, int(budget * _FACTS_BUDGET_SHARE)))
 
     # History cap: past this many raw turns the model is mostly imitating its
     # own recent output (tics included) instead of listening to instructions —

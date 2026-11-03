@@ -2,6 +2,15 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  BUDGET_MARGIN,
+  FACTS_BUDGET_SHARE,
+  FACTS_TOKEN_BUDGET,
+  LORE_SCAN_MESSAGES,
+  LORE_TOKEN_BUDGET,
+  MAX_FACTS,
+  MAX_FACTS_TOKEN_BUDGET,
+  MAX_PINNED_RESTATED,
+  SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES,
   activeContent,
   buildChatPayload,
   matchLore,
@@ -126,6 +135,17 @@ const FUNCTIONS: Record<string, (input: unknown) => unknown> = {
   payload_limits: () => ({
     max_turns_per_run: MAX_TURNS_PER_RUN,
     min_facts_to_consolidate: MIN_FACTS_TO_CONSOLIDATE,
+  }),
+  chat_limits: () => ({
+    max_pinned_restated: MAX_PINNED_RESTATED,
+    budget_margin: BUDGET_MARGIN,
+    system_share_before_dropping_examples: SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES,
+    max_facts: MAX_FACTS,
+    facts_token_budget: FACTS_TOKEN_BUDGET,
+    max_facts_token_budget: MAX_FACTS_TOKEN_BUDGET,
+    facts_budget_share: FACTS_BUDGET_SHARE,
+    lore_scan_messages: LORE_SCAN_MESSAGES,
+    lore_token_budget: LORE_TOKEN_BUDGET,
   }),
   parse_llm_json: adapt<{ text: string }>((i) => parseLlmJson(i.text)),
   // The service raises on an answer that cannot be read: here it is null.
