@@ -131,3 +131,120 @@ async def test_assist_avoids_duplicating_existing_lore(client, fake_provider):
     content = fake_provider.captured["payload"].messages[0]["content"]
     assert "EXISTING LOREBOOK KEYWORDS" in content
     assert "Kabukicho" in content
+
+
+async def test_assist_lists_only_text_and_whole_numbers_as_lore_keywords(client, fake_provider):
+    """A keyword that is not text is not one: it must not reach the model as the
+    subject "None" or "True" to steer clear of."""
+    await add_connection(client)
+    await client.post("/api/characters/assist", json={
+        "prompt": "yakuza",
+        "existing": {"lore_entries": [
+            {"keys": ["Kabukicho", None, 1984, True, False, 1.5, ["x"], {"a": 1}, "  clan  ", "1984"]},
+        ]},
+    })
+    content = fake_provider.captured["payload"].messages[0]["content"]
+    assert "EXISTING LOREBOOK KEYWORDS (cover other subjects):\nKabukicho, 1984, clan\n" in content
+
+    await client.post("/api/characters/assist", json={
+        "prompt": "yakuza",
+        "existing": {"lore_entries": [{"keys": [None, True, 2.5]}]},
+    })
+    content = fake_provider.captured["payload"].messages[0]["content"]
+    assert "EXISTING LOREBOOK KEYWORDS" not in content
+
+
+async def test_assist_reads_lore_entries_and_their_keys_only_when_they_are_lists(
+        client, fake_provider):
+    """A string is not a list of letters, and a number is not a list: neither
+    gives a keyword, and neither fails the request."""
+    await add_connection(client)
+    for existing in ({"lore_entries": 5}, {"lore_entries": "Kabukicho"},
+                     {"lore_entries": {"keys": ["Kabukicho"], "content": "c"}},
+                     {"lore_entries": True}):
+        resp = await client.post("/api/characters/assist", json={
+            "prompt": "yakuza", "existing": existing})
+        assert resp.status_code == 200, (existing, resp.text)
+        content = fake_provider.captured["payload"].messages[0]["content"]
+        assert "EXISTING LOREBOOK KEYWORDS" not in content, existing
+
+    resp = await client.post("/api/characters/assist", json={
+        "prompt": "yakuza",
+        "existing": {"lore_entries": [
+            {"keys": "Kabukicho"}, {"keys": 5}, {"keys": {"Shinjuku": 1}}, {"keys": None},
+            {"keys": ["clan"]},
+        ]},
+    })
+    assert resp.status_code == 200, resp.text
+    content = fake_provider.captured["payload"].messages[0]["content"]
+    assert "EXISTING LOREBOOK KEYWORDS (cover other subjects):\nclan\n" in content
+
+
+async def assist_with(client, fake_provider, reply):
+    await add_connection(client)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(reply)),
+                            ProviderEvent(type="done")]
+    resp = await client.post("/api/characters/assist", json={"prompt": "yakuza"})
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+async def test_assist_keeps_only_text_and_whole_numbers_in_a_list(client, fake_provider):
+    """``str()`` of a ``None`` or a ``True`` is "None" or "True", and is no tag."""
+    draft = await assist_with(client, fake_provider, {
+        "name": "Kenji",
+        "tags": ["a", None, True, 1984, 1.5, ["x"], {"b": 1}, "  Clan  "],
+        "alternate_greetings": [None, "*Rain.*", False, 7],
+    })
+    assert draft["tags"] == ["a", "1984", "clan"]
+    assert draft["alternate_greetings"] == ["*Rain.*", "7"]
+
+    draft = await assist_with(client, fake_provider, {"name": "Kenji", "tags": [None, True, 2.5]})
+    assert "tags" not in draft
+
+
+async def test_assist_reads_a_bare_string_as_one_keyword(client, fake_provider):
+    """``"keys": "yakuza"`` is one keyword, as ``"tags": "yakuza"`` is one tag, and
+    not the five letters that would each be found in nearly every message."""
+    draft = await assist_with(client, fake_provider, {
+        "lore_entries": [
+            {"keys": "  yakuza ", "content": "A crime syndicate."},
+            {"keys": "   ", "content": "No keyword once stripped."},
+            {"keys": 1984, "content": "A number is no list."},
+            {"keys": {"clan": 1}, "content": "An object is no list."},
+            {"keys": None, "content": "Nor is null."},
+            {"keys": ["a", None, 1984, True], "content": "Text and whole numbers."},
+        ],
+    })
+    assert draft["lore_entries"] == [
+        {"keys": ["yakuza"], "content": "A crime syndicate."},
+        {"keys": ["a", "1984"], "content": "Text and whole numbers."},
+    ]
+
+
+async def test_assist_reads_only_lists_of_entries_and_text_in_them(client, fake_provider):
+    # Not a list: no entries, and no failure (a number could not be sliced).
+    for lore in (5, True, "Kabukicho", {"keys": ["a"], "content": "c"}):
+        draft = await assist_with(client, fake_provider, {"name": "Kenji", "lore_entries": lore})
+        assert "lore_entries" not in draft, lore
+
+    draft = await assist_with(client, fake_provider, {"lore_entries": [
+        {"keys": ["a"], "content": ["not text"]},
+        {"keys": ["b"], "content": 12},
+        {"keys": ["c"], "content": "  Padded.  "},
+    ]})
+    assert draft["lore_entries"] == [{"keys": ["c"], "content": "Padded."}]
+
+
+async def test_assist_leaves_out_a_text_that_cannot_be_sent_back(client, fake_provider):
+    """A lone surrogate, which an escape of one in the answer gives, cannot be written to
+    the response: it ended the request in an error."""
+    lone = chr(0xD800)
+    draft = await assist_with(client, fake_provider, {
+        "name": "Kenji", "tagline": lone, "tags": ["a", lone, "b" + lone],
+        "alternate_greetings": lone,
+        "lore_entries": [{"keys": [lone], "content": "No keyword left."},
+                         {"keys": ["k"], "content": lone},
+                         {"keys": ["k", lone], "content": "Kept."}]})
+    assert draft == {"name": "Kenji", "tags": ["a"],
+                     "lore_entries": [{"keys": ["k"], "content": "Kept."}]}

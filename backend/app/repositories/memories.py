@@ -1,9 +1,8 @@
 import aiosqlite
 
 from ..prompting import embeddings
+from ..prompting.memory_changes import ALLOWED_KINDS
 from .base import new_id, now_iso
-
-_ALLOWED_KINDS = {"fact", "event", "relationship", "promise", "state"}
 
 
 def to_out(row) -> dict:
@@ -27,7 +26,7 @@ async def add(db: aiosqlite.Connection, convo_id: str, content: str,
     content = (content or "").strip()
     if not content:
         return None
-    if kind not in _ALLOWED_KINDS:
+    if kind not in ALLOWED_KINDS:
         kind = "fact"
     # exact-content dedup within the conversation
     existing = await (await db.execute(
@@ -48,10 +47,24 @@ async def add(db: aiosqlite.Connection, convo_id: str, content: str,
     return await get(db, memory_id)
 
 
+# A person can edit a fact into what another already says, so that a text may name
+# several facts. The one a lookup by content gives is the first in this order:
+# the pinned ones, then the oldest. It is the order in which idx_memories_conversation
+# is walked, so the lookup always gave that one; it is written out so that
+# plan_memory_changes, which is given the facts in this order, chooses the same.
+async def list_in_lookup_order(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
+    rows = await (await db.execute(
+        "SELECT * FROM memories WHERE conversation_id = ?"
+        " ORDER BY is_pinned DESC, created_at ASC, rowid ASC",
+        (convo_id,))).fetchall()
+    return [to_out(r) for r in rows]
+
+
 async def find_by_content(db: aiosqlite.Connection, convo_id: str,
                           content: str) -> dict | None:
     row = await (await db.execute(
-        "SELECT * FROM memories WHERE conversation_id = ? AND content = ?",
+        "SELECT * FROM memories WHERE conversation_id = ? AND content = ?"
+        " ORDER BY is_pinned DESC, created_at ASC, rowid ASC LIMIT 1",
         (convo_id, (content or "").strip()))).fetchone()
     return to_out(row) if row else None
 
@@ -86,8 +99,34 @@ async def update(db: aiosqlite.Connection, memory_id: str,
     return await get(db, memory_id)
 
 
+async def update_if_unchanged(db: aiosqlite.Connection, memory_id: str, content: str,
+                              new_content: str) -> bool:
+    """Rewrite a fact only if it still says ``content`` and nobody has pinned it since
+    it was read. The vector of the new text comes first, since that is what takes time,
+    and a change made while it is worked out is the one that stays."""
+    new_content = new_content.strip()
+    vectors = await embeddings.embed([new_content], kind="passage")
+    cursor = await db.execute(
+        "UPDATE memories SET content = ?, embedding = ?"
+        " WHERE id = ? AND content = ? AND is_pinned = 0",
+        (new_content, embeddings.pack(vectors[0]) if vectors else None, memory_id, content))
+    await db.commit()
+    return cursor.rowcount > 0
+
+
 async def delete(db: aiosqlite.Connection, memory_id: str) -> bool:
     cursor = await db.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+    await db.commit()
+    return cursor.rowcount > 0
+
+
+async def delete_if_unchanged(db: aiosqlite.Connection, memory_id: str, content: str) -> bool:
+    """Delete a fact only if it still says ``content`` and nobody has pinned it since
+    it was read, so that a change made meanwhile is not undone by what was decided
+    on the fact as it was."""
+    cursor = await db.execute(
+        "DELETE FROM memories WHERE id = ? AND content = ? AND is_pinned = 0",
+        (memory_id, content))
     await db.commit()
     return cursor.rowcount > 0
 

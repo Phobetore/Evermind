@@ -1,0 +1,619 @@
+{
+ "cases": [
+  {
+   "fn": "substitute",
+   "name": "char and user",
+   "input": {
+    "text": "{{char}} greets {{user}}.",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana greets Alex."
+  },
+  {
+   "fn": "substitute",
+   "name": "char in capitals with spaces",
+   "input": {
+    "text": "{{ CHAR }} waits.",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana waits."
+  },
+  {
+   "fn": "substitute",
+   "name": "user with a capital",
+   "input": {
+    "text": "{{User}} sits down.",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Alex sits down."
+  },
+  {
+   "fn": "substitute",
+   "name": "char in mixed case",
+   "input": {
+    "text": "{{ChAr}} smiles.",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana smiles."
+  },
+  {
+   "fn": "substitute",
+   "name": "macros repeated",
+   "input": {
+    "text": "{{char}}{{user}}{{char}}{{user}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "SeranaAlexSeranaAlex"
+  },
+  {
+   "fn": "substitute",
+   "name": "macros across lines",
+   "input": {
+    "text": "{{char}}:\n{{user}}:\r\n{{char}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana:\nAlex:\r\nSerana"
+  },
+  {
+   "fn": "substitute",
+   "name": "a no-break space inside the braces",
+   "input": {
+    "text": "{{\u00a0char\u00a0}} and {{ user\u00a0}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana and Alex"
+  },
+  {
+   "fn": "substitute",
+   "name": "a file separator inside the braces",
+   "input": {
+    "text": "{{\u001cuser\u001c}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Alex"
+  },
+  {
+   "fn": "substitute",
+   "name": "the last of the information separators inside",
+   "input": {
+    "text": "{{\u001fchar}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana"
+  },
+  {
+   "fn": "substitute",
+   "name": "a next line character inside the braces",
+   "input": {
+    "text": "{{\u0085char}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana"
+  },
+  {
+   "fn": "substitute",
+   "name": "an em space and an ideographic space inside",
+   "input": {
+    "text": "{{\u2003user\u3000}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Alex"
+  },
+  {
+   "fn": "substitute",
+   "name": "line breaks and tabs inside the braces",
+   "input": {
+    "text": "{{\n\tchar \r}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana"
+  },
+  {
+   "fn": "substitute",
+   "name": "a byte order mark inside is not a space",
+   "input": {
+    "text": "{{\ufeffchar}} {{user\ufeff}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "{{\ufeffchar}} {{user\ufeff}}"
+  },
+  {
+   "fn": "substitute",
+   "name": "a zero width space inside is not a space",
+   "input": {
+    "text": "{{\u200bchar}} {{user\u200b}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "{{\u200bchar}} {{user\u200b}}"
+  },
+  {
+   "fn": "substitute",
+   "name": "a long s is an s",
+   "input": {
+    "text": "{{uſer}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Alex"
+  },
+  {
+   "fn": "substitute",
+   "name": "a long s tacked onto char",
+   "input": {
+    "text": "{{charſ}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "{{charſ}}"
+  },
+  {
+   "fn": "substitute",
+   "name": "a space inside a word",
+   "input": {
+    "text": "{{ch ar}} {{us er}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "{{ch ar}} {{us er}}"
+  },
+  {
+   "fn": "substitute",
+   "name": "a space between the braces",
+   "input": {
+    "text": "{ {char}} {{user} }",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "{ {char}} {{user} }"
+  },
+  {
+   "fn": "substitute",
+   "name": "a longer word",
+   "input": {
+    "text": "{{chars}} {{users}} {{charr}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "{{chars}} {{users}} {{charr}}"
+  },
+  {
+   "fn": "substitute",
+   "name": "braces not closed",
+   "input": {
+    "text": "{{char} {{user",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "{{char} {{user"
+  },
+  {
+   "fn": "substitute",
+   "name": "a name that is the other macro",
+   "input": {
+    "text": "{{char}} and {{user}}",
+    "char_name": "{{user}}",
+    "user_name": "Alex"
+   },
+   "expected": "Alex and Alex"
+  },
+  {
+   "fn": "substitute",
+   "name": "a user name that is the first macro",
+   "input": {
+    "text": "{{user}} {{char}}",
+    "char_name": "Serana",
+    "user_name": "{{char}}"
+   },
+   "expected": "{{char}} Serana"
+  },
+  {
+   "fn": "substitute",
+   "name": "a name with a backslash and a letter",
+   "input": {
+    "text": "{{char}}!",
+    "char_name": "Ana\\d",
+    "user_name": "Alex"
+   },
+   "expected": "Ana\\d!"
+  },
+  {
+   "fn": "substitute",
+   "name": "a user name with a backslash and a letter",
+   "input": {
+    "text": "{{user}}!",
+    "char_name": "Serana",
+    "user_name": "Ana\\d"
+   },
+   "expected": "Ana\\d!"
+  },
+  {
+   "fn": "substitute",
+   "name": "a name that is a path",
+   "input": {
+    "text": "{{char}} {{user}}",
+    "char_name": "C:\\new",
+    "user_name": "D:\\tmp\\x"
+   },
+   "expected": "C:\\new D:\\tmp\\x"
+  },
+  {
+   "fn": "substitute",
+   "name": "a name that is a group reference",
+   "input": {
+    "text": "{{char}} {{user}}",
+    "char_name": "\\1",
+    "user_name": "\\g<0>"
+   },
+   "expected": "\\1 \\g<0>"
+  },
+  {
+   "fn": "substitute",
+   "name": "a name that is a dollar and an ampersand",
+   "input": {
+    "text": "{{char}} {{user}}",
+    "char_name": "$&",
+    "user_name": "Alex"
+   },
+   "expected": "$& Alex"
+  },
+  {
+   "fn": "substitute",
+   "name": "a name that is a dollar and a digit",
+   "input": {
+    "text": "{{char}} {{user}}",
+    "char_name": "Serana",
+    "user_name": "$1"
+   },
+   "expected": "Serana $1"
+  },
+  {
+   "fn": "substitute",
+   "name": "a name made of dollars and quotes",
+   "input": {
+    "text": "{{char}} {{user}}",
+    "char_name": "$$",
+    "user_name": "$'$`"
+   },
+   "expected": "$$ $'$`"
+  },
+  {
+   "fn": "substitute",
+   "name": "a name with two backslashes",
+   "input": {
+    "text": "{{char}} {{user}}",
+    "char_name": "\\\\",
+    "user_name": "\\"
+   },
+   "expected": "\\\\ \\"
+  },
+  {
+   "fn": "substitute",
+   "name": "names outside the basic plane",
+   "input": {
+    "text": "{{char}} and {{user}}",
+    "char_name": "🧙\u200d♂\ufe0f Merlin",
+    "user_name": "😀"
+   },
+   "expected": "🧙\u200d♂\ufe0f Merlin and 😀"
+  },
+  {
+   "fn": "substitute",
+   "name": "names left empty",
+   "input": {
+    "text": "[{{char}}] [{{user}}]",
+    "char_name": "",
+    "user_name": ""
+   },
+   "expected": "[] []"
+  },
+  {
+   "fn": "substitute",
+   "name": "text without a macro",
+   "input": {
+    "text": "Nothing to replace here.",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Nothing to replace here."
+  },
+  {
+   "fn": "substitute",
+   "name": "an empty text",
+   "input": {
+    "text": "",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original on its own",
+   "input": {
+    "text": "{{original}}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original followed by more rules",
+   "input": {
+    "text": "{{original}}\nAlso: be brief.",
+    "original": "The default rules."
+   },
+   "expected": "The default rules.\nAlso: be brief."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original in capitals with spaces",
+   "input": {
+    "text": "{{ ORIGINAL }}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original in mixed case",
+   "input": {
+    "text": "{{Original}}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original twice",
+   "input": {
+    "text": "{{original}} / {{original}}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules. / The default rules."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with a dotted capital I",
+   "input": {
+    "text": "{{ORİGİNAL}}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with a dotless i",
+   "input": {
+    "text": "{{orıgınal}}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with both dots and none",
+   "input": {
+    "text": "{{ORıGİNAL}}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with a decomposed dotted i",
+   "input": {
+    "text": "{{ori\u0307ginal}}",
+    "original": "The default rules."
+   },
+   "expected": "{{ori\u0307ginal}}"
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with a no-break space inside",
+   "input": {
+    "text": "{{\u00a0original\u00a0}}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with a file separator inside",
+   "input": {
+    "text": "{{\u001coriginal\u001c}}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with a byte order mark inside",
+   "input": {
+    "text": "{{\ufefforiginal}}",
+    "original": "The default rules."
+   },
+   "expected": "{{\ufefforiginal}}"
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with a zero width space inside",
+   "input": {
+    "text": "{{original\u200b}}",
+    "original": "The default rules."
+   },
+   "expected": "{{original\u200b}}"
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original that is another macro",
+   "input": {
+    "text": "{{original}} {{char}}",
+    "original": "{{char}}"
+   },
+   "expected": "{{char}} {{char}}"
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original that is the macro itself",
+   "input": {
+    "text": "{{original}} then",
+    "original": "{{original}} x"
+   },
+   "expected": "{{original}} x then"
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with replacement escapes",
+   "input": {
+    "text": "[{{original}}]",
+    "original": "\\1 costs $& and \\d $1 \\g<0>"
+   },
+   "expected": "[\\1 costs $& and \\d $1 \\g<0>]"
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original left empty",
+   "input": {
+    "text": "[{{original}}]",
+    "original": ""
+   },
+   "expected": "[]"
+  },
+  {
+   "fn": "substitute_original",
+   "name": "an empty text",
+   "input": {
+    "text": "",
+    "original": "x"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "substitute_original",
+   "name": "text without the macro",
+   "input": {
+    "text": "No such macro.",
+    "original": "The default rules."
+   },
+   "expected": "No such macro."
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "original alone",
+   "input": {
+    "text": "{{original}}"
+   },
+   "expected": true
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "original inside a text",
+   "input": {
+    "text": "Before {{original}} after."
+   },
+   "expected": true
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "original in capitals with spaces",
+   "input": {
+    "text": "{{ ORIGINAL }}"
+   },
+   "expected": true
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "original with a dotted capital I",
+   "input": {
+    "text": "{{ORİGİNAL}}"
+   },
+   "expected": true
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "original with a dotless i",
+   "input": {
+    "text": "{{orıgınal}}"
+   },
+   "expected": true
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "original with a no-break space",
+   "input": {
+    "text": "{{\u00a0original}}"
+   },
+   "expected": true
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "original with a file separator",
+   "input": {
+    "text": "{{original\u001c}}"
+   },
+   "expected": true
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "original with a byte order mark",
+   "input": {
+    "text": "{{original\ufeff}}"
+   },
+   "expected": false
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "original with a zero width space",
+   "input": {
+    "text": "{{\u200boriginal}}"
+   },
+   "expected": false
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "braces not closed",
+   "input": {
+    "text": "{{original}"
+   },
+   "expected": false
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "another macro",
+   "input": {
+    "text": "{{char}} {{user}}"
+   },
+   "expected": false
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "a longer word",
+   "input": {
+    "text": "{{originals}}"
+   },
+   "expected": false
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "an empty text",
+   "input": {
+    "text": ""
+   },
+   "expected": false
+  }
+ ]
+}

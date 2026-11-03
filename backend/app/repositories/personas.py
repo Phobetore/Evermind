@@ -49,6 +49,13 @@ async def get_default(db: aiosqlite.Connection) -> dict | None:
     return to_out(row) if row else None
 
 
+async def for_conversation(db: aiosqlite.Connection, convo: dict) -> dict | None:
+    """The persona the conversation is played as: its own, else the default one,
+    which is the one a chat turn names the player after."""
+    persona = await get(db, convo["persona_id"]) if convo.get("persona_id") else None
+    return persona if persona is not None else await get_default(db)
+
+
 async def update(db: aiosqlite.Connection, persona_id: str, fields: dict) -> dict | None:
     if not await get(db, persona_id):
         return None

@@ -1,0 +1,1736 @@
+{
+ "cases": [
+  {
+   "fn": "match_lore",
+   "name": "no entries",
+   "input": {
+    "entries": [],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": []
+  },
+  {
+   "fn": "match_lore",
+   "name": "no messages",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": []
+   },
+   "expected": []
+  },
+  {
+   "fn": "match_lore",
+   "name": "keys found in the recent messages",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "knight"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "castle",
+       "moat"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "The dragon circles."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Over the moat."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "dragon"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "castle",
+      "moat"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "disabled entries are skipped",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore.",
+      "enabled": false
+     },
+     {
+      "id": "b",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore.",
+      "enabled": true
+     },
+     {
+      "id": "d",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore.",
+      "enabled": null
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "b",
+     "keys": [
+      "dragon"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "dragon"
+     ],
+     "content": "Lore.",
+     "enabled": true
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "case sensitive or not",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "DRAGON"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "Dragon"
+      ],
+      "content": "Lore.",
+      "case_sensitive": true
+     },
+     {
+      "id": "c",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore.",
+      "case_sensitive": true
+     },
+     {
+      "id": "d",
+      "keys": [
+       "Dragon"
+      ],
+      "content": "Lore.",
+      "case_sensitive": false
+     },
+     {
+      "id": "e",
+      "keys": [
+       "DRAGON"
+      ],
+      "content": "Lore.",
+      "case_sensitive": null
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "a dragon sleeps"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "DRAGON"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "dragon"
+     ],
+     "content": "Lore.",
+     "case_sensitive": true
+    },
+    {
+     "id": "d",
+     "keys": [
+      "Dragon"
+     ],
+     "content": "Lore.",
+     "case_sensitive": false
+    },
+    {
+     "id": "e",
+     "keys": [
+      "DRAGON"
+     ],
+     "content": "Lore.",
+     "case_sensitive": null
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "priority first, equal priorities in order",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "x"
+      ],
+      "content": "Lore.",
+      "priority": 1
+     },
+     {
+      "id": "b",
+      "keys": [
+       "x"
+      ],
+      "content": "Lore.",
+      "priority": 5
+     },
+     {
+      "id": "c",
+      "keys": [
+       "x"
+      ],
+      "content": "Lore.",
+      "priority": 5
+     },
+     {
+      "id": "d",
+      "keys": [
+       "x"
+      ],
+      "content": "Lore.",
+      "priority": 0
+     },
+     {
+      "id": "e",
+      "keys": [
+       "x"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "f",
+      "keys": [
+       "x"
+      ],
+      "content": "Lore.",
+      "priority": -1
+     },
+     {
+      "id": "g",
+      "keys": [
+       "x"
+      ],
+      "content": "Lore.",
+      "priority": 5
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "b",
+     "keys": [
+      "x"
+     ],
+     "content": "Lore.",
+     "priority": 5
+    },
+    {
+     "id": "c",
+     "keys": [
+      "x"
+     ],
+     "content": "Lore.",
+     "priority": 5
+    },
+    {
+     "id": "g",
+     "keys": [
+      "x"
+     ],
+     "content": "Lore.",
+     "priority": 5
+    },
+    {
+     "id": "a",
+     "keys": [
+      "x"
+     ],
+     "content": "Lore.",
+     "priority": 1
+    },
+    {
+     "id": "d",
+     "keys": [
+      "x"
+     ],
+     "content": "Lore.",
+     "priority": 0
+    },
+    {
+     "id": "e",
+     "keys": [
+      "x"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "f",
+     "keys": [
+      "x"
+     ],
+     "content": "Lore.",
+     "priority": -1
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an entry too long for the budget is skipped and a later one still fits",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta al",
+      "priority": 9
+     },
+     {
+      "id": "b",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta",
+      "priority": 8
+     },
+     {
+      "id": "c",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta",
+      "priority": 7
+     },
+     {
+      "id": "d",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma d",
+      "priority": 6
+     },
+     {
+      "id": "e",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha be",
+      "priority": 5
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "b",
+     "keys": [
+      "x"
+     ],
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta",
+     "priority": 8
+    },
+    {
+     "id": "c",
+     "keys": [
+      "x"
+     ],
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta",
+     "priority": 7
+    },
+    {
+     "id": "e",
+     "keys": [
+      "x"
+     ],
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha be",
+     "priority": 5
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "entries that use the budget exactly, then one more token",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma d",
+      "priority": 9
+     },
+     {
+      "id": "b",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma d",
+      "priority": 8
+     },
+     {
+      "id": "c",
+      "keys": [
+       "x"
+      ],
+      "content": "x",
+      "priority": 7
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "x"
+     ],
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma d",
+     "priority": 9
+    },
+    {
+     "id": "b",
+     "keys": [
+      "x"
+     ],
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma d",
+     "priority": 8
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "a missing or null content costs nothing",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "x"
+      ]
+     },
+     {
+      "id": "b",
+      "keys": [
+       "x"
+      ],
+      "content": null
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "x"
+     ]
+    },
+    {
+     "id": "b",
+     "keys": [
+      "x"
+     ],
+     "content": null
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an empty keyword never matches",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       ""
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "",
+       "nope"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "",
+       "here"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [],
+      "content": "Lore."
+     },
+     {
+      "id": "e",
+      "keys": null,
+      "content": "Lore."
+     },
+     {
+      "id": "f",
+      "content": "No keys."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Something is here."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "c",
+     "keys": [
+      "",
+      "here"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "a key is found anywhere in a word",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "ear"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "hear "
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "ear\nnext"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I hear"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "next time"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "ear"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "ear\nnext"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "a key only beyond the last six messages",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "start"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "alpha"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "beta"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "gamma"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "start"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "alpha"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "beta"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "gamma"
+      ],
+      "active_index": 0,
+      "position": 7
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "c",
+     "keys": [
+      "beta"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "gamma"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "messages out of order are read by position",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "start"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "alpha"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "beta"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "gamma"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "gamma"
+      ],
+      "active_index": 0,
+      "position": 7
+     },
+     {
+      "role": "user",
+      "variants": [
+       "start"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "alpha"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "user",
+      "variants": [
+       "beta"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 4
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "c",
+     "keys": [
+      "beta"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "gamma"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "more than six messages at one position are read in the order they came in",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "start"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "alpha"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "beta"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "gamma"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "start"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "alpha"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "beta"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "gamma"
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "c",
+     "keys": [
+      "beta"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "gamma"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "more than six messages in groups of equal positions",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "start"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "alpha"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "beta"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "gamma"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "start"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "alpha"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "beta"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "gamma"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "c",
+     "keys": [
+      "beta"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "gamma"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "fewer than six messages are all read",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "start"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "gamma"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "start"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "alpha"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "beta"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "gamma"
+      ],
+      "active_index": 0,
+      "position": 3
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "start"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "b",
+     "keys": [
+      "gamma"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "the active variant is the text read",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "first"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "second"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "first",
+       "second"
+      ],
+      "active_index": 1,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "b",
+     "keys": [
+      "second"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "dotted capital i in the text and in the key",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "İstanbul"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "istanbul"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "ISTANBUL"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "İSTANBUL"
+      ],
+      "content": "Lore.",
+      "case_sensitive": true
+     },
+     {
+      "id": "e",
+      "keys": [
+       "stanbul"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Welcome to İSTANBUL."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "İstanbul"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "İSTANBUL"
+     ],
+     "content": "Lore.",
+     "case_sensitive": true
+    },
+    {
+     "id": "e",
+     "keys": [
+      "stanbul"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "dotted capital i in a key and plain letters in the text",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "İstanbul"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "i\u0307stanbul"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "istanbul and i\u0307stanbul"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "İstanbul"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "b",
+     "keys": [
+      "i\u0307stanbul"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "sharp s in the text and in the key",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "STRASSE"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "Straße"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "STRAẞE"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "Straße"
+      ],
+      "content": "Lore.",
+      "case_sensitive": true
+     },
+     {
+      "id": "e",
+      "keys": [
+       "STRAßE"
+      ],
+      "content": "Lore.",
+      "case_sensitive": true
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Straße"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "b",
+     "keys": [
+      "Straße"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "STRAẞE"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "Straße"
+     ],
+     "content": "Lore.",
+     "case_sensitive": true
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "capital sharp s in the text",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "straße"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "strasse"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "STRAẞE"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "straße"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "final sigma in the text and in the key",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "ΣΑΣ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "σας"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "σασ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "ΟΔΥΣΣΕΑΣ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "e",
+      "keys": [
+       "οδυσσεασ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "f",
+      "keys": [
+       "ΣΑΣΙΝ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "g",
+      "keys": [
+       "ΣΑΣ"
+      ],
+      "content": "Lore.",
+      "case_sensitive": true
+     },
+     {
+      "id": "h",
+      "keys": [
+       "σασιν"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "ΣΑΣ ΟΔΥΣΣΕΑΣ ΣΑΣΙΝ"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "ΣΑΣ"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "b",
+     "keys": [
+      "σας"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "σασ"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "ΟΔΥΣΣΕΑΣ"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "f",
+     "keys": [
+      "ΣΑΣΙΝ"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "g",
+     "keys": [
+      "ΣΑΣ"
+     ],
+     "content": "Lore.",
+     "case_sensitive": true
+    },
+    {
+     "id": "h",
+     "keys": [
+      "σασιν"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "final sigma alone and after punctuation",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "σ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "ς"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "ας."
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "ασ."
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Σ and ΑΣ. and ΑΣ\nΑ"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "σ"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "b",
+     "keys": [
+      "ς"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "ας."
+     ],
+     "content": "Lore."
+    }
+   ]
+  }
+ ]
+}

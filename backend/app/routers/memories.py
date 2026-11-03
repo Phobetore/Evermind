@@ -35,11 +35,7 @@ async def extract_now(convo_id: str, db: aiosqlite.Connection = Depends(get_db))
     if not await convo_repo.get(db, convo_id, with_messages=False):
         raise NotFoundError("Conversation not found.", "conversation")
     result = await memory_service.run_maintenance(db, convo_id)
-    return {
-        "facts_added": result.get("facts_added", []),
-        "summary": result.get("summary"),
-        "memories": await repo.list_for_conversation(db, convo_id),
-    }
+    return {**result, "memories": await repo.list_for_conversation(db, convo_id)}
 
 
 @router.post("/conversations/{convo_id}/memories/consolidate")

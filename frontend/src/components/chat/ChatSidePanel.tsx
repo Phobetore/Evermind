@@ -2,6 +2,7 @@ import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
 import { describeError } from "@/lib/errors";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
@@ -135,11 +136,7 @@ export function ChatSidePanel({
         setSummary(result.summary);
         onConversationChange({ summary: result.summary });
       }
-      setMemoryNote(
-        result.facts_added.length > 0
-          ? t("chat.panel.facts.addedCount", { count: result.facts_added.length })
-          : t("chat.panel.facts.noneNew"),
-      );
+      setMemoryNote(describeExtraction(result, t));
     } catch (e) {
       setMemoryNote(describeError(e, t, t("chat.panel.facts.extractError")));
     }
@@ -153,11 +150,7 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.consolidate(conversation.id);
       setMemories(result.memories);
-      setMemoryNote(
-        result.skipped
-          ? t("chat.panel.facts.tooFewToConsolidate")
-          : t("chat.panel.facts.consolidated", { before: result.before, after: result.after }),
-      );
+      setMemoryNote(describeConsolidation(result, t));
     } catch (e) {
       setMemoryNote(describeError(e, t, t("chat.panel.facts.consolidateError")));
     }

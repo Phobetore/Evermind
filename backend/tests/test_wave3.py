@@ -154,7 +154,12 @@ async def test_memory_updates_and_obsoletes_respect_pins(client, fake_provider):
         "content": "Sacred pinned fact.", "is_pinned": True})
     await client.post(f"/api/conversations/{convo['id']}/memories", json={
         "content": "Serana distrusts Aymeric."})
-    # unpin the second (added as user+pinned=False by default) — it's not pinned already
+    # Written by the model, not by hand: a correction leaves a person's own facts alone.
+    from app.db import _connect
+    db = await _connect()
+    await db.execute("UPDATE memories SET source = 'auto' WHERE content = 'Serana distrusts Aymeric.'")
+    await db.commit()
+    await db.close()
     maintenance = json.dumps({
         "facts": [],
         "updated_facts": [

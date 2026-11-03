@@ -15,14 +15,14 @@ from .defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
 from .macros import has_original_macro, substitute, substitute_original
 from .tokens import estimate_tokens
 
-# Re-stated at generation time because rule adherence decays with distance:
-# on a long chat the system prompt is thousands of tokens away, drowned out
-# by the model's own recent output.
 # Enough for what someone has deliberately marked, not so many that the block
 # becomes another wall of text to skim. Pinning more than this is a sign the
 # facts want consolidating rather than repeating.
 _MAX_PINNED_RESTATED = 8
 
+# Re-stated at generation time because rule adherence decays with distance:
+# on a long chat the system prompt is thousands of tokens away, drowned out
+# by the model's own recent output.
 _POST_HISTORY_REMINDER = (
     "[Stay in character as {{char}}. Write only {{char}}'s next turn. Every line "
     "of dialogue and every action must be a COMPLETE sentence — never leave "
@@ -42,6 +42,7 @@ _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6
 _MAX_FACTS = 60
 _FACTS_TOKEN_BUDGET = 700       # floor, used on tiny contexts
 _MAX_FACTS_TOKEN_BUDGET = 2000  # cap, so facts never dominate the window
+_FACTS_BUDGET_SHARE = 0.12      # of the budget, between the two
 # Lorebook: keyword-triggered world knowledge, scanned over the recent turns.
 _LORE_SCAN_MESSAGES = 6
 _LORE_TOKEN_BUDGET = 800
@@ -83,7 +84,7 @@ def select_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
         if len(kept) >= _MAX_FACTS:
             break
         cost = estimate_tokens(memory.get("content") or "")
-        if memory not in pinned and cost > budget:
+        if not memory.get("is_pinned") and cost > budget:
             continue
         budget -= cost
         kept.append(memory)
@@ -98,7 +99,7 @@ def _format_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
     for memory in select_facts(memories, token_budget, relevance_scores):
         position = memory.get("source_position") or 0
         prefix = f"(turn {position}) " if position else ""
-        lines.append(f"- {prefix}{memory.get('content', '').strip()}")
+        lines.append(f"- {prefix}{(memory.get('content') or '').strip()}")
     return "\n".join(lines)
 
 
@@ -175,7 +176,7 @@ def _build_system(character: dict, persona: dict | None, summary: str,
         sections.append(f"### STORY SO FAR\n{summary}")
 
     if lore:
-        lore_block = "\n\n".join(entry.get("content", "").strip() for entry in lore)
+        lore_block = "\n\n".join((entry.get("content") or "").strip() for entry in lore)
         sections.append(f"### WORLD KNOWLEDGE (relevant to the current scene)\n{lore_block}")
 
     if memories:
@@ -257,8 +258,9 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
 
     # Post-history block: what the model reads LAST, right before generating,
     # so it carries the most weight when the system prompt is far away up top.
-    # Order: card's own jailbreak, then the player's live scene directive, then
-    # a compact reminder of the guardrails models most often drift on.
+    # Order: the card's own note, the pinned facts, then the player's live scene
+    # directive, then a compact reminder of the guardrails models most often
+    # drift on.
     post_bits = []
     card_note = (character.get("post_history_instructions") or "").strip()
     if card_note:
@@ -283,7 +285,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
 
     # Established facts scale with the context window (≈12%, capped): 700 tokens
     # was starving long stories on a 16k context. Pinned facts bypass this.
-    facts_budget = min(_MAX_FACTS_TOKEN_BUDGET, max(_FACTS_TOKEN_BUDGET, int(budget * 0.12)))
+    facts_budget = min(_MAX_FACTS_TOKEN_BUDGET,
+                       max(_FACTS_TOKEN_BUDGET, int(budget * _FACTS_BUDGET_SHARE)))
 
     # History cap: past this many raw turns the model is mostly imitating its
     # own recent output (tics included) instead of listening to instructions —

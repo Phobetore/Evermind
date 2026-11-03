@@ -299,6 +299,8 @@
         "noneNew": "Nichts Neues zu merken.",
         "extractError": "Gedächtnis-Extraktion fehlgeschlagen",
         "tooFewToConsolidate": "Zu wenige Fakten zum Verdichten.",
+        "changedWhileConsolidating": "Die Fakten haben sich geändert, während das Modell sie zusammenführte. Nichts wurde verändert; versuche es noch einmal.",
+        "memoryTaskRunning": "Eine andere Gedächtnisaufgabe läuft gerade. Nichts wurde verändert; versuche es gleich noch einmal.",
         "consolidated": "Gedächtnis verdichtet: {before} → {after} Fakten.",
         "consolidateError": "Verdichtung fehlgeschlagen",
         "addError": "Fakt konnte nicht hinzugefügt werden"
