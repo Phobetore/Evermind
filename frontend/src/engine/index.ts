@@ -38,11 +38,13 @@ export {
 export { parseLlmJson } from "./llmJson";
 export { substitute } from "./macros";
 export {
-  memoryAfterCut,
   planConsolidation,
+  planCut,
   planMemoryChanges,
-  survivesCut,
+  type Checkpoint,
   type Consolidation,
+  type CutFact,
+  type CutMemory,
   type KnownFact,
   type MemoryChanges,
   type MemoryOp,

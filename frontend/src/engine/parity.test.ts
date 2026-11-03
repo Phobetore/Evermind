@@ -26,10 +26,11 @@ import * as defaults from "./defaults";
 import { parseLlmJson } from "./llmJson";
 import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
 import {
-  memoryAfterCut,
   planConsolidation,
+  planCut,
   planMemoryChanges,
-  survivesCut,
+  type Checkpoint,
+  type CutFact,
   type KnownFact,
 } from "./memoryChanges";
 import {
@@ -162,14 +163,13 @@ const FUNCTIONS: Record<string, (input: unknown) => unknown> = {
   consolidation_reply: adapt<{ text: string; movable: { source_position: number }[] }>((i) =>
     planConsolidation(parseLlmJson(i.text), i.movable),
   ),
-  survives_cut: adapt<{
-    fact: { source_position: number; is_pinned?: boolean | number | null; source?: string | null };
+  plan_cut: adapt<{
+    memory_position: number;
+    summary: string;
+    checkpoints: Checkpoint[];
+    facts: CutFact[];
     cut: number;
-    removal?: boolean;
-  }>((i) => survivesCut(i.fact, i.cut, i.removal)),
-  memory_after_cut: adapt<{ memory_position: number; cut: number }>((i) =>
-    memoryAfterCut(i.memory_position, i.cut),
-  ),
+  }>((i) => planCut(i.memory_position, i.summary, i.checkpoints, i.facts, i.cut)),
   clean_card_draft: adapt<{ draft: Record<string, unknown> }>((i) => cleanCardDraft(i.draft)),
 };
 

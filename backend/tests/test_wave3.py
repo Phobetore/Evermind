@@ -128,7 +128,8 @@ async def test_branch_copies_up_to_message_and_filters_memories(client, fake_pro
     # simulate a later auto fact
     from app.db import _connect
     db = await _connect()
-    await db.execute("UPDATE memories SET source_position = 4 WHERE content = 'Avant le fork.'")
+    await db.execute("UPDATE memories SET source_position = 4, source = 'auto'"
+                     " WHERE content = 'Avant le fork.'")
     await db.commit()
     await db.close()
 

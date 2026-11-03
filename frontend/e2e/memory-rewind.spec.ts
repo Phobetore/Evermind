@@ -8,8 +8,7 @@ import { makeConversation } from "./fixtures";
  * Taking the story back from a message takes what was remembered of it back too:
  * the facts drawn from the turns that went, and the summary that described them.
  * The panel beside the conversation showed what it had read when it opened, so the
- * summary of a story that no longer existed stayed on screen, and saving it, or
- * just leaving its box, wrote it back.
+ * summary of a story that no longer existed stayed on screen, and saving it wrote it back.
  */
 
 const panelText = JSON.parse(
@@ -57,6 +56,50 @@ test("cutting the story back empties the summary and the facts of what went", as
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(read.messages).toHaveLength(3);
   expect(read.summary).toBe("");
+  // The pass was the first, so there is no earlier checkpoint to go back to.
+  expect(read.memory_position).toBe(0);
+});
+
+test("cutting the story back puts the summary it had back", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const say = (content: string) =>
+    request.post(`${API}/api/chat`, {
+      data: { conversation_id: convo.id, mode: "send", content, message_mode: "say" },
+      timeout: 60_000,
+    });
+  await say("First question.");
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await say("Second question.");
+  // Asked for, the summary of the story so far is another one than the pass wrote.
+  const asked = await (await request.post(`${API}/api/conversations/${convo.id}/summarize`, {
+    timeout: 60_000,
+  })).json();
+  await say("Third question.");
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  const before = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(before.summary).not.toBe(asked.summary);
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  const covers = await opener.isVisible();
+  if (covers) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await expect(summary).toHaveValue(before.summary);
+
+  // greeting, then three questions and their replies: the third question is the sixth message.
+  if (covers) await panel.getByLabel(panelText.closeAriaLabel).click();
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByTitle("Delete from here").nth(5).click();
+  if (covers) await opener.click();
+
+  await expect(summary).toHaveValue(asked.summary);
+  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(read.summary).toBe(asked.summary);
+  // What was asked for read the turns without drawing facts from them: the pass that
+  // wrote the first summary had read to the reply of the first question.
   expect(read.memory_position).toBe(2);
 });
 

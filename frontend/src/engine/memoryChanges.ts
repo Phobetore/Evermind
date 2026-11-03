@@ -7,7 +7,7 @@
 // would be read letter by letter. A string that cannot be written (a lone surrogate)
 // is absent too: it would fail in the database, after the changes before it were saved.
 
-import { textOf } from "./text";
+import { pyStrip, textOf } from "./text";
 import { isRecord } from "./values";
 
 const ALLOWED_KINDS: ReadonlySet<string> = new Set([
@@ -30,37 +30,83 @@ export const isMovable = (fact: {
   source?: string | null;
 }): boolean => !fact.is_pinned && fact.source === "auto";
 
-/** Whether a fact still holds in a story that now ends with the turn at `cut`: it was
- *  drawn from turns up to there. A fact's position is the newest turn that its pass
- *  read, so one from a later pass goes even if the turn it was drawn from stays. A
- *  position of 0 is older than every turn, and stays while there is a turn left, but a
- *  cut at -1 leaves none.
- *
- *  A branch is a copy: it carries what the turns up to its message established, and
- *  nothing else, a pinned fact included. A `removal` takes turns out of the one
- *  conversation, where only the model's facts go with them: what a person typed or
- *  pinned is theirs to take away. */
-export function survivesCut(
-  fact: { source_position: number; is_pinned?: boolean | number | null; source?: string | null },
-  cut: number,
-  removal = false,
-): boolean {
-  if (removal && !isMovable(fact)) return true;
-  return fact.source_position <= cut;
+/** What a pass left: the running summary as it stood when the turns up to `position`
+ *  had been read, and how far the facts had been read then. */
+export interface Checkpoint {
+  position: number;
+  summary: string;
+  memory_position: number;
 }
 
-/** Where the memory has read to once the story ends with the turn at `cut`, and
- *  whether the summary still describes it: it does if the memory had not read past
- *  `cut`. Otherwise the memory has read turns that are gone, and the summary may
- *  describe them. Making a new one is for the next pass, which has the turns to read.
- *  The position is never negative: a cut at -1 takes the whole story, and the memory
- *  has read none of it. */
-export function memoryAfterCut(
+/** What `planCut` reads of a fact. */
+export interface CutFact {
+  id: string;
+  source_position: number;
+  is_pinned?: boolean | number | null;
+  source?: string | null;
+}
+
+export interface CutMemory {
+  memory_position: number;
+  summary: string;
+  /** The positions of the checkpoints that are kept. */
+  checkpoints: number[];
+  /** The ids of the facts that are kept. */
+  facts: string[];
+}
+
+/** What a conversation remembers once its story ends with the turn at `cut`: a removal
+ *  from position p cuts at p - 1, a branch at the position of its message.
+ *
+ *  The facts that the model drew from turns after the cut go; a fact's position is the
+ *  newest turn of the pass that drew it, so it goes with them even if the turn it came
+ *  from stays, and the next pass draws it again. What a person typed or pinned stays,
+ *  whatever its position, since only they take it away.
+ *
+ *  The checkpoints after the cut go. The memory goes back to the newest one at or before
+ *  it, with its summary: the facts were read as far as it says, so the next pass reads
+ *  from there, at the usual cost, and the summary is true of the story as it now is.
+ *  That happens when the memory had read past the cut, or when the summary is the one
+ *  written after it (a summary asked for describes the turns up to the last message
+ *  without the facts having been read as far). Without a checkpoint at or before the cut
+ *  the memory has read nothing it can vouch for: it goes back to the newest turn that a
+ *  fact it keeps was drawn from, which a pinned fact does not count for, since it
+ *  survives cuts and can carry the position of a story that is gone, or to the start;
+ *  and the summary is emptied.
+ *
+ *  A summary that is not the newest checkpoint's (after stripping) was typed by a
+ *  person, in a box that is theirs to edit: it stays, as a fact they wrote does. */
+export function planCut(
   memoryPosition: number,
+  summary: string,
+  checkpoints: readonly Checkpoint[],
+  facts: readonly CutFact[],
   cut: number,
-): { memory_position: number; summary_holds: boolean } {
-  if (memoryPosition <= cut) return { memory_position: memoryPosition, summary_holds: true };
-  return { memory_position: Math.max(cut, 0), summary_holds: false };
+): CutMemory {
+  const keptFacts = facts.filter((f) => !isMovable(f) || f.source_position <= cut);
+  const ordered = [...checkpoints].sort((a, b) => a.position - b.position);
+  const kept = ordered.filter((c) => c.position <= cut);
+  const chosen = kept.length ? kept[kept.length - 1] : undefined;
+  const newest = ordered.length ? ordered[ordered.length - 1] : undefined;
+  const typed = pyStrip(summary) !== (newest ? pyStrip(newest.summary) : "");
+  const summaryIsAhead = !typed && newest !== undefined && newest.position > cut;
+  const result: CutMemory = {
+    memory_position: memoryPosition,
+    summary,
+    checkpoints: kept.map((c) => c.position),
+    facts: keptFacts.map((f) => f.id),
+  };
+  if (memoryPosition <= cut && !summaryIsAhead) return result;
+
+  let reached = 0;
+  if (chosen) {
+    reached = chosen.memory_position;
+  } else {
+    for (const f of keptFacts) if (isMovable(f)) reached = Math.max(reached, f.source_position);
+  }
+  result.memory_position = Math.min(memoryPosition, reached);
+  if (!typed) result.summary = chosen ? chosen.summary : "";
+  return result;
 }
 
 /** What `planMemoryChanges` reads of a fact the conversation remembers. */

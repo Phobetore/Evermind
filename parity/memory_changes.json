@@ -7768,372 +7768,1017 @@
    }
   },
   {
-   "fn": "survives_cut",
-   "name": "a fact from before the cut stays",
+   "fn": "plan_cut",
+   "name": "a memory that had read no further than the cut has nothing to undo",
    "input": {
-    "fact": {
-     "source_position": 2,
-     "is_pinned": false,
-     "source": "auto"
-    },
+    "memory_position": 4,
+    "summary": "S4",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "S4",
+      "memory_position": 4
+     }
+    ],
+    "facts": [
+     {
+      "id": "a",
+      "source_position": 2,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "b",
+      "source_position": 4,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
     "cut": 4
    },
-   "expected": true
+   "expected": {
+    "memory_position": 4,
+    "summary": "S4",
+    "checkpoints": [
+     4
+    ],
+    "facts": [
+     "a",
+     "b"
+    ]
+   }
   },
   {
-   "fn": "survives_cut",
-   "name": "a fact from the turn of the cut stays",
-   "input": {
-    "fact": {
-     "source_position": 4,
-     "is_pinned": false,
-     "source": "auto"
-    },
-    "cut": 4
-   },
-   "expected": true
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a fact from after the cut goes",
-   "input": {
-    "fact": {
-     "source_position": 5,
-     "is_pinned": false,
-     "source": "auto"
-    },
-    "cut": 4
-   },
-   "expected": false
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a fact from after the cut goes from a removal too",
-   "input": {
-    "fact": {
-     "source_position": 5,
-     "is_pinned": false,
-     "source": "auto"
-    },
-    "cut": 4,
-    "removal": true
-   },
-   "expected": false
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a fact from a removal stays when it is before",
-   "input": {
-    "fact": {
-     "source_position": 2,
-     "is_pinned": false,
-     "source": "auto"
-    },
-    "cut": 4,
-    "removal": true
-   },
-   "expected": true
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a fact from the turn of a removal's cut stays",
-   "input": {
-    "fact": {
-     "source_position": 4,
-     "is_pinned": false,
-     "source": "auto"
-    },
-    "cut": 4,
-    "removal": true
-   },
-   "expected": true
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a fact from before any turn stays while a turn is left",
-   "input": {
-    "fact": {
-     "source_position": 0,
-     "is_pinned": false,
-     "source": "auto"
-    },
-    "cut": 0
-   },
-   "expected": true
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a fact from before any turn stays with later turns",
-   "input": {
-    "fact": {
-     "source_position": 0,
-     "is_pinned": false,
-     "source": "auto"
-    },
-    "cut": 6,
-    "removal": true
-   },
-   "expected": true
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a fact from before any turn goes when no turn is left",
-   "input": {
-    "fact": {
-     "source_position": 0,
-     "is_pinned": false,
-     "source": "auto"
-    },
-    "cut": -1
-   },
-   "expected": false
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a fact from before any turn goes from a removal of every turn",
-   "input": {
-    "fact": {
-     "source_position": 0,
-     "is_pinned": false,
-     "source": "auto"
-    },
-    "cut": -1,
-    "removal": true
-   },
-   "expected": false
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a pinned fact from after the cut does not go into a copy",
-   "input": {
-    "fact": {
-     "source_position": 8,
-     "is_pinned": true,
-     "source": "auto"
-    },
-    "cut": 4,
-    "removal": false
-   },
-   "expected": false
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a pinned fact from after the cut stays through a removal",
-   "input": {
-    "fact": {
-     "source_position": 8,
-     "is_pinned": true,
-     "source": "auto"
-    },
-    "cut": 4,
-    "removal": true
-   },
-   "expected": true
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a fact by hand from after the cut does not go into a copy",
-   "input": {
-    "fact": {
-     "source_position": 8,
-     "is_pinned": false,
-     "source": "user"
-    },
-    "cut": 4,
-    "removal": false
-   },
-   "expected": false
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a fact by hand from after the cut stays through a removal",
-   "input": {
-    "fact": {
-     "source_position": 8,
-     "is_pinned": false,
-     "source": "user"
-    },
-    "cut": 4,
-    "removal": true
-   },
-   "expected": true
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a pinned fact by hand stays through a removal of every turn",
-   "input": {
-    "fact": {
-     "source_position": 0,
-     "is_pinned": true,
-     "source": "user"
-    },
-    "cut": -1,
-    "removal": true
-   },
-   "expected": true
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a pinned fact from before the cut stays in a copy",
-   "input": {
-    "fact": {
-     "source_position": 3,
-     "is_pinned": true,
-     "source": "auto"
-    },
-    "cut": 4,
-    "removal": false
-   },
-   "expected": true
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a flag read from the database as a number",
-   "input": {
-    "fact": {
-     "source_position": 9,
-     "is_pinned": 1,
-     "source": "auto"
-    },
-    "cut": 4,
-    "removal": true
-   },
-   "expected": true
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a flag read from the database as zero",
-   "input": {
-    "fact": {
-     "source_position": 9,
-     "is_pinned": 0,
-     "source": "auto"
-    },
-    "cut": 4,
-    "removal": true
-   },
-   "expected": false
-  },
-  {
-   "fn": "survives_cut",
-   "name": "a flag left null",
-   "input": {
-    "fact": {
-     "source_position": 9,
-     "is_pinned": null,
-     "source": "auto"
-    },
-    "cut": 4,
-    "removal": true
-   },
-   "expected": false
-  },
-  {
-   "fn": "memory_after_cut",
-   "name": "a memory that had read past the cut goes back to it",
+   "fn": "plan_cut",
+   "name": "a memory that had read past the cut goes back to the newest checkpoint before it",
    "input": {
     "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "S4",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [
+     {
+      "id": "a",
+      "source_position": 4,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "b",
+      "source_position": 8,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "cut": 6
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "S4",
+    "checkpoints": [
+     4
+    ],
+    "facts": [
+     "a"
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a checkpoint at the cut is the one",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "S4",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [
+     {
+      "id": "a",
+      "source_position": 4,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "b",
+      "source_position": 8,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
     "cut": 4
    },
    "expected": {
     "memory_position": 4,
-    "summary_holds": false
+    "summary": "S4",
+    "checkpoints": [
+     4
+    ],
+    "facts": [
+     "a"
+    ]
    }
   },
   {
-   "fn": "memory_after_cut",
-   "name": "a memory that had read the turn after the cut goes back to it",
+   "fn": "plan_cut",
+   "name": "the newest of several checkpoints before the cut",
    "input": {
+    "memory_position": 12,
+    "summary": "S12",
+    "checkpoints": [
+     {
+      "position": 2,
+      "summary": "S2",
+      "memory_position": 2
+     },
+     {
+      "position": 4,
+      "summary": "S4",
+      "memory_position": 4
+     },
+     {
+      "position": 12,
+      "summary": "S12",
+      "memory_position": 12
+     }
+    ],
+    "facts": [],
+    "cut": 5
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "S4",
+    "checkpoints": [
+     2,
+     4
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "checkpoints given out of order",
+   "input": {
+    "memory_position": 12,
+    "summary": "S12",
+    "checkpoints": [
+     {
+      "position": 12,
+      "summary": "S12",
+      "memory_position": 12
+     },
+     {
+      "position": 2,
+      "summary": "S2",
+      "memory_position": 2
+     },
+     {
+      "position": 4,
+      "summary": "S4",
+      "memory_position": 4
+     }
+    ],
+    "facts": [],
+    "cut": 5
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "S4",
+    "checkpoints": [
+     2,
+     4
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "without a checkpoint before the cut the memory goes to the newest turn a fact it keeps came from",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [
+     {
+      "id": "a",
+      "source_position": 2,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "b",
+      "source_position": 5,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "c",
+      "source_position": 8,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "cut": 6
+   },
+   "expected": {
     "memory_position": 5,
-    "cut": 4
-   },
-   "expected": {
-    "memory_position": 4,
-    "summary_holds": false
+    "summary": "",
+    "checkpoints": [],
+    "facts": [
+     "a",
+     "b"
+    ]
    }
   },
   {
-   "fn": "memory_after_cut",
-   "name": "a memory that had read up to the cut stays",
+   "fn": "plan_cut",
+   "name": "without a checkpoint or a fact the memory goes to the start",
    "input": {
-    "memory_position": 4,
-    "cut": 4
-   },
-   "expected": {
-    "memory_position": 4,
-    "summary_holds": true
-   }
-  },
-  {
-   "fn": "memory_after_cut",
-   "name": "a memory that had read less stays",
-   "input": {
-    "memory_position": 2,
-    "cut": 4
-   },
-   "expected": {
-    "memory_position": 2,
-    "summary_holds": true
-   }
-  },
-  {
-   "fn": "memory_after_cut",
-   "name": "a memory that had read nothing stays",
-   "input": {
-    "memory_position": 0,
-    "cut": 4
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [],
+    "cut": 6
    },
    "expected": {
     "memory_position": 0,
-    "summary_holds": true
+    "summary": "",
+    "checkpoints": [],
+    "facts": []
    }
   },
   {
-   "fn": "memory_after_cut",
-   "name": "a memory is never taken back past the first turn",
+   "fn": "plan_cut",
+   "name": "a pinned fact does not say how far the memory had read",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [
+     {
+      "id": "pin",
+      "source_position": 7,
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "id": "a",
+      "source_position": 3,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "cut": 6
+   },
+   "expected": {
+    "memory_position": 3,
+    "summary": "",
+    "checkpoints": [],
+    "facts": [
+     "pin",
+     "a"
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a fact by hand stays whatever its position",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [
+     {
+      "id": "hand",
+      "source_position": 9,
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "id": "a",
+      "source_position": 9,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "cut": 4
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": [
+     "hand"
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a fact by hand does not say how far the memory had read",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [
+     {
+      "id": "hand",
+      "source_position": 5,
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "id": "a",
+      "source_position": 3,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "cut": 6
+   },
+   "expected": {
+    "memory_position": 3,
+    "summary": "",
+    "checkpoints": [],
+    "facts": [
+     "hand",
+     "a"
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a pinned fact of the model past the cut stays",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "S4",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [
+     {
+      "id": "pin",
+      "source_position": 8,
+      "is_pinned": true,
+      "source": "auto"
+     }
+    ],
+    "cut": 5
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "S4",
+    "checkpoints": [
+     4
+    ],
+    "facts": [
+     "pin"
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a fact of the model at the cut stays and one after it goes",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "S4",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [
+     {
+      "id": "at",
+      "source_position": 6,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "after",
+      "source_position": 7,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "cut": 6
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "S4",
+    "checkpoints": [
+     4
+    ],
+    "facts": [
+     "at"
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "flags read from the database as numbers",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [
+     {
+      "id": "a",
+      "source_position": 9,
+      "is_pinned": 1,
+      "source": "auto"
+     },
+     {
+      "id": "b",
+      "source_position": 9,
+      "is_pinned": 0,
+      "source": "auto"
+     },
+     {
+      "id": "c",
+      "source_position": 9,
+      "is_pinned": null,
+      "source": "auto"
+     }
+    ],
+    "cut": 4
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": [
+     "a"
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a summary that is not the newest checkpoint's was typed and stays",
+   "input": {
+    "memory_position": 8,
+    "summary": "In my own words.",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "S4",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [],
+    "cut": 6
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "In my own words.",
+    "checkpoints": [
+     4
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a typed summary stays with no checkpoint to go back to",
+   "input": {
+    "memory_position": 8,
+    "summary": "In my own words.",
+    "checkpoints": [
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [],
+    "cut": 3
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "In my own words.",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a summary that only differs by its edges is not typed",
+   "input": {
+    "memory_position": 8,
+    "summary": "  S8\n",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "S4",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [],
+    "cut": 6
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "S4",
+    "checkpoints": [
+     4
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "whitespace that Python strips and a browser's trim does not",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8\u0085",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "S4",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [],
+    "cut": 6
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "S4",
+    "checkpoints": [
+     4
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a summary with no checkpoint at all was typed",
+   "input": {
+    "memory_position": 0,
+    "summary": "In my own words.",
+    "checkpoints": [],
+    "facts": [],
+    "cut": 3
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "In my own words.",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a typed summary stays when every turn is cut",
+   "input": {
+    "memory_position": 0,
+    "summary": "In my own words.",
+    "checkpoints": [],
+    "facts": [],
+    "cut": -1
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "In my own words.",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a memory that read nothing and a story that is cut",
+   "input": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": [
+     {
+      "id": "a",
+      "source_position": 0,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "cut": 2
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": [
+     "a"
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a cut that takes the whole story",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [
+     {
+      "id": "a",
+      "source_position": 0,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "b",
+      "source_position": 3,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "pin",
+      "source_position": 3,
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "id": "hand",
+      "source_position": 0,
+      "is_pinned": false,
+      "source": "user"
+     }
+    ],
+    "cut": -1
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": [
+     "pin",
+     "hand"
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a cut after the first turn keeps what was drawn before any",
    "input": {
     "memory_position": 3,
+    "summary": "S3",
+    "checkpoints": [
+     {
+      "position": 3,
+      "summary": "S3",
+      "memory_position": 3
+     }
+    ],
+    "facts": [
+     {
+      "id": "a",
+      "source_position": 0,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "b",
+      "source_position": 2,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
     "cut": 0
    },
    "expected": {
     "memory_position": 0,
-    "summary_holds": false
+    "summary": "",
+    "checkpoints": [],
+    "facts": [
+     "a"
+    ]
    }
   },
   {
-   "fn": "memory_after_cut",
-   "name": "a memory that had read nothing of a story cut after its first turn",
+   "fn": "plan_cut",
+   "name": "a summary asked for covers turns the facts were not read from",
+   "input": {
+    "memory_position": 4,
+    "summary": "Asked for",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "Pass",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "Asked for",
+      "memory_position": 4
+     }
+    ],
+    "facts": [],
+    "cut": 6
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "Pass",
+    "checkpoints": [
+     4
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a cut after a summary asked for and a pass goes back to the one asked for",
+   "input": {
+    "memory_position": 12,
+    "summary": "Pass 2",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "Pass",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "Asked for",
+      "memory_position": 4
+     },
+     {
+      "position": 12,
+      "summary": "Pass 2",
+      "memory_position": 12
+     }
+    ],
+    "facts": [],
+    "cut": 10
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "Asked for",
+    "checkpoints": [
+     4,
+     8
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a summary asked for stays when the cut leaves everything it covers",
+   "input": {
+    "memory_position": 4,
+    "summary": "Asked for",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "Pass",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "Asked for",
+      "memory_position": 4
+     }
+    ],
+    "facts": [],
+    "cut": 9
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "Asked for",
+    "checkpoints": [
+     4,
+     8
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a summary typed over one asked for stays, and the checkpoints after the cut go",
+   "input": {
+    "memory_position": 4,
+    "summary": "Mine",
+    "checkpoints": [
+     {
+      "position": 4,
+      "summary": "Pass",
+      "memory_position": 4
+     },
+     {
+      "position": 8,
+      "summary": "Asked for",
+      "memory_position": 4
+     }
+    ],
+    "facts": [],
+    "cut": 6
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary": "Mine",
+    "checkpoints": [
+     4
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a summary asked for with no pass before it",
    "input": {
     "memory_position": 0,
+    "summary": "Asked for",
+    "checkpoints": [
+     {
+      "position": 8,
+      "summary": "Asked for",
+      "memory_position": 0
+     }
+    ],
+    "facts": [],
+    "cut": 5
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a memory that had read past the cut, to a checkpoint that had read less",
+   "input": {
+    "memory_position": 8,
+    "summary": "S8",
+    "checkpoints": [
+     {
+      "position": 6,
+      "summary": "Asked for",
+      "memory_position": 2
+     },
+     {
+      "position": 8,
+      "summary": "S8",
+      "memory_position": 8
+     }
+    ],
+    "facts": [],
+    "cut": 7
+   },
+   "expected": {
+    "memory_position": 2,
+    "summary": "Asked for",
+    "checkpoints": [
+     6
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a fact of the model past the cut goes though the memory had not read so far",
+   "input": {
+    "memory_position": 2,
+    "summary": "S2",
+    "checkpoints": [
+     {
+      "position": 2,
+      "summary": "S2",
+      "memory_position": 2
+     }
+    ],
+    "facts": [
+     {
+      "id": "a",
+      "source_position": 9,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "b",
+      "source_position": 1,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "cut": 5
+   },
+   "expected": {
+    "memory_position": 2,
+    "summary": "S2",
+    "checkpoints": [
+     2
+    ],
+    "facts": [
+     "b"
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "nothing at all",
+   "input": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": [],
     "cut": 0
    },
    "expected": {
     "memory_position": 0,
-    "summary_holds": true
-   }
-  },
-  {
-   "fn": "memory_after_cut",
-   "name": "a cut that takes the whole story leaves a memory at the start",
-   "input": {
-    "memory_position": 6,
-    "cut": -1
-   },
-   "expected": {
-    "memory_position": 0,
-    "summary_holds": false
-   }
-  },
-  {
-   "fn": "memory_after_cut",
-   "name": "a memory at the start stays there, but its summary does not hold",
-   "input": {
-    "memory_position": 0,
-    "cut": -1
-   },
-   "expected": {
-    "memory_position": 0,
-    "summary_holds": false
+    "summary": "",
+    "checkpoints": [],
+    "facts": []
    }
   }
  ]

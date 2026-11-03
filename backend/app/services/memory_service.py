@@ -215,7 +215,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
     if built is None:
         return {"facts_added": [], "summary": convo.get("summary") or ""}
     payload, top_position = built
-    read = [m["id"] for m in messages if m["position"] <= top_position]
+    read = [m["id"] for m in messages]  # the newest of them is the one at top_position
 
     chunks: list[str] = []
     async for event in get_provider(connection).stream_chat(payload):
@@ -248,6 +248,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
     await convo_repo.update(db, convo_id, updates)
     await db.execute("UPDATE conversations SET memory_position = ? WHERE id = ?",
                      (top_position, convo_id))
+    await convo_repo.checkpoint(db, convo_id, messages[-1])
     await db.commit()
 
     return {"facts_added": added, "summary": updates.get("summary", convo.get("summary") or "")}
