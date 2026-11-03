@@ -237,22 +237,71 @@ async def test_removing_from_the_first_message_removes_every_fact_it_can(client,
     assert (read["memory_position"], read["summary"]) == (0, "")
 
 
-async def test_removing_one_message_leaves_the_memory_alone(client, fake_provider):
-    """Only a cut touches the memory. A hole in the story is not a cut, and nothing
-    says what the fact drawn from it was."""
+async def test_removing_one_message_goes_through_the_same_cut(client, fake_provider):
+    """The memory read the turns after it with it in the story, and nothing says what they
+    drew from it. It goes back to before it, and the next pass reads again the ones that
+    stay. The interface does not do this, but the API lets anyone."""
     convo = await setup_conversation(client)
-    await talk(client, convo["id"], 3)
-    await put_fact(convo["id"], "From a late turn.", at=6)
-    await read_up_to(convo["id"], 6, "Everything so far.")
-    message = await at_position(client, convo["id"], 3)
+    convo_id = convo["id"]
+    await told_then_corrected(client, convo_id)
+    message = await at_position(client, convo_id, 11)
 
     resp = await client.delete(f"/api/messages/{message['id']}")
 
     assert resp.status_code == 204
-    read = await conversation(client, convo["id"])
-    assert (read["memory_position"], read["summary"]) == (6, "Everything so far.")
-    assert await names(client, convo["id"]) == {"From a late turn."}
-    assert await checkpoints_of(convo["id"]) == [(6, "Everything so far.", 6)]
+    assert [m["position"] for m in await messages_of(client, convo_id)] == [
+        n for n in range(17) if n != 11]
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (8, "To 8.")
+    assert await stored_facts(client, convo_id) == [("Alice is alive.", "state", 8, False, "auto")]
+    assert await checkpoints_of(convo_id) == [(8, "To 8.", 8)]
+
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [], "summary": "Again."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "(turn 9)" in shown and "(turn 10)" in shown and "(turn 12)" in shown and "(turn 16)" in shown
+    assert "(turn 11)" not in shown and "(turn 8)" not in shown
+    assert (await conversation(client, convo_id))["memory_position"] == 16
+
+
+async def test_removing_the_last_message_alone_is_a_cut_before_it(client, fake_provider):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 2)
+    await extract(client, convo_id, {"facts": [{"content": "Learned.", "kind": "fact"}],
+                                     "summary": "To 4."})
+    message = await at_position(client, convo_id, 4)
+
+    assert (await client.delete(f"/api/messages/{message['id']}")).status_code == 204
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, "")
+    assert await names(client, convo_id) == set()
+
+
+async def test_a_pass_that_was_reading_when_one_message_went_keeps_nothing(
+        client, fake_provider, monkeypatch):
+    """The newest turn it read is still there: it is what it read that changed."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 3)
+    started, release, _ = waiting_provider(monkeypatch)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps({
+        "facts": [{"content": "Learned from a turn that went.", "kind": "event"}],
+        "summary": "With it."})), ProviderEvent(type="done")]
+    message = await at_position(client, convo_id, 3)
+
+    reading = asyncio.create_task(client.post(f"/api/conversations/{convo_id}/memories/extract"))
+    try:
+        await within(5, started.wait())
+        await client.delete(f"/api/messages/{message['id']}")
+    finally:
+        release.set()
+    answered = await within(5, reading)
+
+    assert answered.json()["skipped"] == "changed"
+    assert await names(client, convo_id) == set()
+    assert (await conversation(client, convo_id))["memory_position"] == 0
 
 
 async def test_the_next_pass_reads_the_turns_that_came_after_a_removal(client, fake_provider):
