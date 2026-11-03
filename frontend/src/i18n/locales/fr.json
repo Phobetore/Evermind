@@ -479,6 +479,7 @@
     "alreadyInstalled": "Cette fiche est déjà installée.",
     "loreEntryIncomplete": "Une entrée du lorebook a besoin d'au moins un mot-clé et d'un contenu.",
     "factExists": "Ce fait existe déjà.",
+    "factEmpty": "Un fait doit contenir du texte.",
     "fileTooLarge": "Ce fichier est trop volumineux (15 Mo au maximum).",
     "unsupportedImage": "Ce format d'image n'est pas pris en charge. Utilisez PNG, JPEG ou WebP.",
     "conversationEmpty": "Cette conversation ne contient pas encore de message.",

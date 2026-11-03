@@ -20,6 +20,7 @@ describe("an error the server named", () => {
     ["already_installed", "errors.alreadyInstalled"],
     ["lore_entry_incomplete", "errors.loreEntryIncomplete"],
     ["fact_exists", "errors.factExists"],
+    ["fact_empty", "errors.factEmpty"],
     ["file_too_large", "errors.fileTooLarge"],
     ["unsupported_image", "errors.unsupportedImage"],
     ["conversation_empty", "errors.conversationEmpty"],
@@ -290,7 +291,7 @@ describe("the sentences exist", () => {
   const kinds = [
     "locked", "wrong_password", "rate_limited", "cross_origin", "unknown_host",
     "png_without_card", "unrecognized_card_file", "variant_out_of_range", "already_installed",
-    "lore_entry_incomplete", "fact_exists", "file_too_large", "unsupported_image",
+    "lore_entry_incomplete", "fact_exists", "fact_empty", "file_too_large", "unsupported_image",
     "conversation_empty", "no_connection", "unreachable", "model_error", "model_empty",
     "model_empty_retried", "model_unreadable", "empty_message", "nothing_to_regenerate",
     "nothing_to_continue", "internal", "http_error", "network", "not_found",

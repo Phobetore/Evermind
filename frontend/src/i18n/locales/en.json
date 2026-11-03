@@ -479,6 +479,7 @@
     "alreadyInstalled": "This card is already installed.",
     "loreEntryIncomplete": "A lorebook entry needs at least one keyword and some content.",
     "factExists": "This fact already exists.",
+    "factEmpty": "A fact needs some text.",
     "fileTooLarge": "This file is too large (15 MB at most).",
     "unsupportedImage": "This image format is not supported. Use PNG, JPEG or WebP.",
     "conversationEmpty": "This conversation has no messages yet.",

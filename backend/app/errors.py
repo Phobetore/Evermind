@@ -18,6 +18,8 @@ NO_CONNECTION = "no_connection"
 NOT_FOUND = "not_found"
 # A turn was asked for while a different one was being written.
 TURN_RUNNING = "turn_running"
+# A fact was given with no text in it, to add or to be rewritten as.
+FACT_EMPTY = "fact_empty"
 
 # What a model's server said when it answered with an error, and with which
 # status, and the address that could not be reached. The words are its own,

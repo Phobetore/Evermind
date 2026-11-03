@@ -28,6 +28,7 @@ const KIND_KEYS: Record<string, string> = {
   already_installed: "errors.alreadyInstalled",
   lore_entry_incomplete: "errors.loreEntryIncomplete",
   fact_exists: "errors.factExists",
+  fact_empty: "errors.factEmpty",
   file_too_large: "errors.fileTooLarge",
   unsupported_image: "errors.unsupportedImage",
   conversation_empty: "errors.conversationEmpty",

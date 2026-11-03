@@ -479,6 +479,7 @@
     "alreadyInstalled": "Diese Karte ist bereits installiert.",
     "loreEntryIncomplete": "Ein Lorebook-Eintrag braucht mindestens ein Stichwort und einen Inhalt.",
     "factExists": "Diesen Fakt gibt es schon.",
+    "factEmpty": "Ein Fakt braucht etwas Text.",
     "fileTooLarge": "Diese Datei ist zu groß (höchstens 15 MB).",
     "unsupportedImage": "Dieses Bildformat wird nicht unterstützt. Nimm PNG, JPEG oder WebP.",
     "conversationEmpty": "Diese Unterhaltung enthält noch keine Nachrichten.",
