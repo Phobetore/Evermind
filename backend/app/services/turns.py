@@ -207,8 +207,12 @@ async def _sent_before(request: ChatRequest) -> _SentBefore | None:
                        last_question=not any(m["role"] == "user" for m in since))
 
 
+def _is_on_its_way_out(turn: Turn | None) -> bool:
+    return turn is not None and (turn.stopped or turn.ending)
+
+
 def _is_what_was_asked(existing: Turn, request: ChatRequest, sent: _SentBefore | None) -> bool:
-    if existing.stopped or existing.ending:
+    if _is_on_its_way_out(existing):
         return False
     if request.mode != "send":
         return request.mode == existing.mode
@@ -231,37 +235,45 @@ async def start(request: ChatRequest) -> Turn:
     and saved nowhere. So one that is on its way out is waited for, and otherwise the
     answer is that one is still being written.
     """
-    existing = running_for(request.conversation_id)
-    if existing and (existing.stopped or existing.ending):
-        # Not under the lock, which other conversations need.
-        try:
-            await asyncio.wait_for(existing.finished.wait(), _WAIT_FOR_ENDING_SECONDS)
-        except TimeoutError:
-            # Not over yet, so what follows finds it still running and answers for that.
-            pass
-    async with _lock:
-        # Read under the lock, briefly, since two of these at once must come to one turn.
+    waited: Turn | None = None
+    while True:
         existing = running_for(request.conversation_id)
-        sent = await _sent_before(request)
-        if existing and existing.finished.is_set():
-            # It ended during that read, which may be from before its reply was written.
-            existing = None
+        if _is_on_its_way_out(existing) and existing is not waited:
+            # Not under the lock, which other conversations need.
+            waited = existing
+            try:
+                await asyncio.wait_for(existing.finished.wait(), _WAIT_FOR_ENDING_SECONDS)
+            except TimeoutError:
+                # Not over yet, so what follows finds it still running and answers for that.
+                pass
+        async with _lock:
+            # Read under the lock, briefly, since two of these at once must come to one turn.
+            existing = running_for(request.conversation_id)
             sent = await _sent_before(request)
-        if sent and sent.following and not (existing and sent.last_question):
-            turn = Turn(conversation_id=request.conversation_id, client_id=request.client_id,
-                        events=chat_service.said_already(
-                            request.conversation_id, sent.message, sent.following))
-            turn.finished.set()
+            if existing and existing.finished.is_set():
+                # It ended during that read, which may be from before its reply was written.
+                existing = None
+                sent = await _sent_before(request)
+            if _is_on_its_way_out(existing) and existing is not waited:
+                # It began to end after the look above, while this queued for the lock or
+                # read. Someone who has seen the last word asks at just that moment, and
+                # the answer is not that one is being written. Back to wait, once for a turn.
+                continue
+            if sent and sent.following and not (existing and sent.last_question):
+                turn = Turn(conversation_id=request.conversation_id, client_id=request.client_id,
+                            events=chat_service.said_already(
+                                request.conversation_id, sent.message, sent.following))
+                turn.finished.set()
+                return turn
+            if existing:
+                if not _is_what_was_asked(existing, request, sent):
+                    raise AppError("A reply is still being written.", 409, kind=TURN_RUNNING)
+                return existing
+            turn = Turn(conversation_id=request.conversation_id, mode=request.mode,
+                        client_id=request.client_id)
+            _running[request.conversation_id] = turn
+            turn.task = asyncio.create_task(_run(turn, request))
             return turn
-        if existing:
-            if not _is_what_was_asked(existing, request, sent):
-                raise AppError("A reply is still being written.", 409, kind=TURN_RUNNING)
-            return existing
-        turn = Turn(conversation_id=request.conversation_id, mode=request.mode,
-                    client_id=request.client_id)
-        _running[request.conversation_id] = turn
-        turn.task = asyncio.create_task(_run(turn, request))
-        return turn
 
 
 async def stop(conversation_id: str) -> bool:

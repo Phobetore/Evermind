@@ -32,6 +32,8 @@ def unhurried(monkeypatch):
 @pytest.fixture(autouse=True)
 def empty_registry(monkeypatch):
     monkeypatch.setattr(turns, "_running", {})
+    # A lock that was queued for belongs to that test's event loop.
+    monkeypatch.setattr(turns, "_lock", asyncio.Lock())
 
 
 async def _messages(client, convo_id):
@@ -948,6 +950,140 @@ async def test_two_requests_at_once_with_the_same_id_are_one_message_and_one_rep
         assert events[0]["type"] == "start" and events[-1]["type"] == "done"
         assert events[-1]["message"]["id"] == messages[-1]["id"]
     assert CountingProvider.asked == 1
+
+
+def _held_while_tidying_up(monkeypatch):
+    """A turn that stays where it has said how it ended and has not finished, until
+    let go, and says when it got there."""
+    tidying, let_go = asyncio.Event(), asyncio.Event()
+    settle = turns._settle_last_question
+
+    async def held(db, turn):
+        tidying.set()
+        await let_go.wait()
+        await settle(db, turn)
+
+    monkeypatch.setattr(turns, "_settle_last_question", held)
+    return tidying, let_go
+
+
+async def test_a_turn_that_begins_to_end_while_it_is_sent_again_is_not_a_refusal(client, counting, monkeypatch):
+    """Sent again while the reply was being written, and read while it was ending: the
+    message is there with its reply on the way, so "one is being written" would be wrong."""
+    tidying, let_go = _held_while_tidying_up(monkeypatch)
+    convo = await setup_conversation(client)
+    first = await turns.start(_sending(convo["id"]))
+    read = turns._sent_before
+
+    async def read_as_it_ends(request):
+        await tidying.wait()
+        found = await read(request)
+        let_go.set()
+        return found
+
+    monkeypatch.setattr(turns, "_sent_before", read_as_it_ends)
+    again = await asyncio.wait_for(turns.start(_sending(convo["id"])), timeout=15)
+
+    assert again is not first
+    assert first.finished.is_set()
+    said = _said(again.events)
+    assert said[0]["type"] == "start" and said[-1]["type"] == "done"
+    assert said[-1]["message"]["content"] == "Une réponse."
+    assert CountingProvider.asked == 1, "the model was asked again"
+
+
+async def test_going_back_to_wait_leaves_the_lock_to_the_other_conversations(client, counting, monkeypatch):
+    tidying, let_go = _held_while_tidying_up(monkeypatch)
+    convo = await setup_conversation(client)
+    other = await setup_conversation(client)
+    first = await turns.start(_sending(convo["id"]))
+    read = turns._sent_before
+    was_read = asyncio.Event()
+
+    async def read_as_it_ends(request):
+        if request.conversation_id != convo["id"]:
+            return await read(request)
+        await tidying.wait()
+        found = await read(request)
+        was_read.set()
+        return found
+
+    monkeypatch.setattr(turns, "_sent_before", read_as_it_ends)
+    again = asyncio.create_task(turns.start(_sending(convo["id"])))
+    await asyncio.wait_for(was_read.wait(), timeout=15)
+    await asyncio.sleep(0.05)
+    assert not again.done(), "it did not wait for the turn on its way out"
+
+    elsewhere = await asyncio.wait_for(turns.start(_sending(other["id"])), timeout=5)
+
+    let_go.set()
+    assert await asyncio.wait_for(again, timeout=15) is not first
+    await asyncio.wait_for(elsewhere.finished.wait(), timeout=15)
+
+
+@pytest.mark.parametrize("asked", [
+    pytest.param({"mode": "send", "content": "Deux"}, id="another message"),
+    pytest.param({"mode": "regenerate"}, id="a regeneration"),
+    pytest.param({"mode": "continue"}, id="a continuation"),
+])
+async def test_what_is_asked_as_a_turn_begins_to_end_waits_for_it(client, counting, monkeypatch, asked):
+    """Past the first look at the turn, when it was still writing, and in the queue for
+    the lock: where someone is who asks just as the last word arrives."""
+    tidying, let_go = _held_while_tidying_up(monkeypatch)
+    convo = await setup_conversation(client)
+    first = await turns.start(_sending(convo["id"]))
+
+    async with turns._lock:
+        request = asyncio.create_task(turns.start(ChatRequest(conversation_id=convo["id"], **asked)))
+        await asyncio.sleep(0)
+        await asyncio.wait_for(tidying.wait(), timeout=15)
+    await asyncio.sleep(0.05)
+    assert not request.done(), "it did not wait for the turn on its way out"
+
+    let_go.set()
+    second = await asyncio.wait_for(request, timeout=15)
+    assert second is not first and first.finished.is_set()
+    await asyncio.wait_for(second.finished.wait(), timeout=15)
+
+
+async def test_a_message_sent_as_the_turn_is_stopped_waits_for_it(client, monkeypatch):
+    monkeypatch.setattr("app.services.chat_service.get_provider", SlowToStartProvider)
+    convo = await setup_conversation(client)
+    first = await turns.start(_sending(convo["id"]))
+    await asyncio.sleep(0.05)
+
+    async with turns._lock:
+        request = asyncio.create_task(turns.start(ChatRequest(
+            conversation_id=convo["id"], mode="send", content="Deux")))
+        await asyncio.sleep(0)
+        first.stop_asked.set()
+
+    second = await asyncio.wait_for(request, timeout=15)
+    assert second is not first and first.finished.is_set()
+    await turns.stop(convo["id"])
+    await asyncio.wait_for(second.finished.wait(), timeout=15)
+
+
+async def test_a_turn_that_does_not_end_in_time_still_gets_the_refusal(client, counting, monkeypatch):
+    """Going back to wait happens once for a turn, or a stuck one would keep this waiting
+    for as long as it takes, and "one is still being written" is the answer to that."""
+    tidying, let_go = _held_while_tidying_up(monkeypatch)
+    monkeypatch.setattr(turns, "_WAIT_FOR_ENDING_SECONDS", 0.05)
+    convo = await setup_conversation(client)
+    first = await turns.start(_sending(convo["id"]))
+
+    async with turns._lock:
+        request = asyncio.create_task(turns.start(ChatRequest(
+            conversation_id=convo["id"], mode="send", content="Deux")))
+        await asyncio.sleep(0)
+        await asyncio.wait_for(tidying.wait(), timeout=15)
+
+    with pytest.raises(AppError) as refused:
+        await asyncio.wait_for(request, timeout=5)
+    assert refused.value.status_code == 409
+    assert refused.value.kind == "turn_running"
+    let_go.set()
+    await asyncio.wait_for(first.finished.wait(), timeout=15)
 
 
 async def test_a_turn_ending_while_the_conversation_is_read_is_not_answered_again(client, counting, monkeypatch):
