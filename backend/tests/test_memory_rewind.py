@@ -199,6 +199,25 @@ async def test_a_cut_goes_back_to_the_newest_checkpoint_at_or_before_it(
     assert [c[0] for c in await checkpoints_of(convo["id"])] == kept
 
 
+@pytest.mark.parametrize("automatic", [False, True])
+async def test_the_summary_is_back_at_once_whether_or_not_automatic_passes_are_on(
+        client, fake_provider, automatic):
+    """Nothing waits for a pass: the checkpoint is there to be gone back to, and the
+    story's summary is true as soon as the story is cut."""
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 4)
+    await read_up_to(convo["id"], 4, "The story to 4.")
+    await read_up_to(convo["id"], 8, "The story to 8.")
+    await client.put("/api/settings", json={"auto_memory": automatic})
+    fake_provider.captured.clear()
+
+    await remove_from(client, convo["id"], 7)
+
+    read = await conversation(client, convo["id"])
+    assert (read["memory_position"], read["summary"]) == (4, "The story to 4.")
+    assert fake_provider.captured == {}, "a model was asked, where the summary was just read back"
+
+
 async def test_removing_from_the_first_message_removes_every_fact_it_can(client, fake_provider):
     """A fact drawn from "before any turn" is older than every turn only while some turn
     is left. With none, nothing it was drawn from remains."""
