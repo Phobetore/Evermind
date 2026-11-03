@@ -160,3 +160,20 @@ async def test_the_retry_reply_is_the_one_that_gets_stored(client, scripted):
 
     assert [m["role"] for m in messages] == ["assistant", "user", "assistant"]
     assert messages[-1]["content"] == "Saved from the second pass."
+
+
+@pytest.mark.parametrize("silence", [SILENCE, speech("  \n ")])
+async def test_a_continuation_that_says_nothing_adds_nothing_not_even_a_space(
+        client, scripted, silence):
+    """It is not an error to have nothing to add, but the reply must stay as it was."""
+    scripted.scripts = [speech("She waits."), silence]
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+
+    resp = await client.post("/api/chat", json={"conversation_id": convo["id"], "mode": "continue"})
+    events = parse_sse(resp.text)
+
+    assert events[-1]["type"] == "done"
+    assert events[-1]["message"]["content"] == "She waits."
+    messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
+    assert messages[-1]["variants"] == ["She waits."]

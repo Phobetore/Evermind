@@ -404,8 +404,9 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         if continue_mode:
             variants = list(target_message["variants"])
             existing = target_message["variants"][target_message["active_index"]]
-            joiner = "" if (not existing or existing[-1].isspace() or
-                            (body and body[0].isspace())) else " "
+            # Nothing to add adds nothing: not the space that would have joined it.
+            joiner = "" if (not body or not existing or existing[-1].isspace() or
+                            body[0].isspace()) else " "
             variants[target_message["active_index"]] = existing + joiner + body
             saved = await convo_repo.update_message(db, target_message["id"], variants=variants)
             reply_gone = saved is None
