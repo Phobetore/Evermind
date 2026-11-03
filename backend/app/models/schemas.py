@@ -128,8 +128,8 @@ class SettingsIn(BaseModel):
 
 
 class LoreEntryIn(BaseModel):
-    keys: list[str] = Field(min_length=1)
-    content: str = Field(min_length=1, max_length=4000)
+    keys: list[str]
+    content: str = Field(max_length=4000)
     enabled: bool = True
     case_sensitive: bool = False
     priority: int = 0
@@ -137,7 +137,7 @@ class LoreEntryIn(BaseModel):
 
 class LoreEntryPatch(BaseModel):
     keys: list[str] | None = None
-    content: str | None = Field(default=None, min_length=1, max_length=4000)
+    content: str | None = Field(default=None, max_length=4000)
     enabled: bool | None = None
     case_sensitive: bool | None = None
     priority: int | None = None

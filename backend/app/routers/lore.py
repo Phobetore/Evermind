@@ -10,6 +10,11 @@ from ..repositories import lore as repo
 router = APIRouter(prefix="/api", tags=["lore"])
 
 
+def _incomplete() -> AppError:
+    return AppError("An entry needs at least one keyword and some content.",
+                    kind="lore_entry_incomplete")
+
+
 @router.get("/characters/{char_id}/lore")
 async def list_lore(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await characters_repo.get(db, char_id):
@@ -26,15 +31,17 @@ async def add_lore(char_id: str, payload: LoreEntryIn,
                            enabled=payload.enabled, case_sensitive=payload.case_sensitive,
                            priority=payload.priority)
     if not saved:
-        raise AppError("An entry needs at least one keyword and some content.",
-                       kind="lore_entry_incomplete")
+        raise _incomplete()
     return saved
 
 
 @router.patch("/lore/{entry_id}")
 async def patch_lore(entry_id: str, payload: LoreEntryPatch,
                      db: aiosqlite.Connection = Depends(get_db)):
-    updated = await repo.update(db, entry_id, payload.model_dump(exclude_unset=True))
+    fields = payload.model_dump(exclude_unset=True)
+    if repo.leaves_incomplete(fields):
+        raise _incomplete()
+    updated = await repo.update(db, entry_id, fields)
     if not updated:
         raise NotFoundError("Entry not found.", "lore_entry")
     return updated

@@ -18,11 +18,23 @@ async def list_for_character(db: aiosqlite.Connection, char_id: str) -> list[dic
     return [to_out(r) for r in rows]
 
 
+def clean_keys(keys: list[str] | None) -> list[str]:
+    return [str(k).strip() for k in keys or [] if str(k).strip()]
+
+
+def leaves_incomplete(fields: dict) -> bool:
+    """Whether an update would leave an entry with no keyword or no content. A field
+    that is not given, or given as null, is left as it is."""
+    if fields.get("keys") is not None and not clean_keys(fields["keys"]):
+        return True
+    return fields.get("content") is not None and not fields["content"].strip()
+
+
 async def add(db: aiosqlite.Connection, char_id: str, keys: list[str], content: str,
               enabled: bool = True, case_sensitive: bool = False,
               priority: int = 0) -> dict | None:
     content = (content or "").strip()
-    keys = [str(k).strip() for k in keys or [] if str(k).strip()]
+    keys = clean_keys(keys)
     if not content or not keys:
         return None
     entry_id = new_id()
@@ -50,7 +62,7 @@ async def update(db: aiosqlite.Connection, entry_id: str, fields: dict) -> dict 
     sets, params = [], []
     if fields.get("keys") is not None:
         sets.append("keys = ?")
-        params.append(dumps([str(k).strip() for k in fields["keys"] if str(k).strip()]))
+        params.append(dumps(clean_keys(fields["keys"])))
     if fields.get("content") is not None:
         sets.append("content = ?")
         params.append(fields["content"].strip())
