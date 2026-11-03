@@ -5,6 +5,7 @@
 .git
 docs
 data
+parity
 **/.venv
 **/__pycache__
 **/*.pyc
