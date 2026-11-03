@@ -381,7 +381,9 @@ async def test_a_memory_pass_without_a_connection(client, provider, route):
     char = (await client.post("/api/characters", json={"name": "X", "greeting": "Hi"})).json()
     convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
     resp = await client.post(f"/api/conversations/{convo['id']}/memories/{route}")
-    assert resp.status_code == 502
+    # The same status as everywhere else that finds no connection: it is for the person
+    # to add one, which is no fault of a model's server.
+    assert resp.status_code == 400
     assert resp.json()["kind"] == "no_connection"
 
 

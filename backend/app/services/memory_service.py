@@ -105,7 +105,7 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
     if connection is None:
         connection = await connections_repo.get_default_raw(db)
     if connection is None:
-        raise AppError("No LLM connection configured.", 502, kind=NO_CONNECTION)
+        raise AppError("No LLM connection configured.", kind=NO_CONNECTION)
     return connection
 
 
