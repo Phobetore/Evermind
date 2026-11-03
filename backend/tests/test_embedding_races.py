@@ -230,3 +230,85 @@ async def test_a_message_that_is_gone_gets_nothing(client, provider, no_model):
             db, reply["id"], "Reply.", embeddings.pack([1.0, 2.0])) is False
     finally:
         await db.close()
+
+
+class ChangedBeforeTheWrite:
+    """A connection on which something else changes a message after it was read and
+    before the vector is written: the moment that no check of what was read can close,
+    and that only the write itself can."""
+
+    def __init__(self, db, meanwhile):
+        self._db = db
+        self._meanwhile = meanwhile
+
+    async def execute(self, sql, params=()):
+        if sql.lstrip().startswith("UPDATE messages SET embedding"):
+            await self._meanwhile()
+        return await self._db.execute(sql, params)
+
+    async def commit(self):
+        await self._db.commit()
+
+
+@pytest.mark.parametrize(("column", "value"), [
+    ("variants", '["Changed meanwhile.", "Second take."]'),
+    ("active_index", "1"),
+])
+async def test_a_message_changed_between_its_read_and_the_write_gets_no_vector(
+        client, provider, no_model, column, value):
+    convo, reply = await a_reply_with_two_variants(client, provider)
+
+    async def change():
+        other = await _connect()
+        try:
+            await other.execute(f"UPDATE messages SET {column} = ? WHERE id = ?",
+                                (value, reply["id"]))
+            await other.commit()
+        finally:
+            await other.close()
+
+    db = await _connect()
+    try:
+        stored = await convo_repo.set_message_embedding(
+            ChangedBeforeTheWrite(db, change), reply["id"], "Reply.", embeddings.pack([1.0, 2.0]))
+
+        assert stored is False
+        assert reply["id"] not in await message_vectors(db, convo["id"])
+    finally:
+        await db.close()
+
+
+async def test_a_past_message_whose_vector_was_not_stored_is_not_recalled_by_it(
+        client, provider, monkeypatch):
+    """A passage out of the window is ranked by the vectors it has. One that changed
+    while its vector was worked out has none stored, and the vector must not be used
+    for this turn either: it describes the text that is gone."""
+
+    async def embed(texts, kind):
+        return [[1.0, 0.0] if "crypt" in t.lower() else [0.0, 1.0] for t in texts]
+
+    async def changed_meanwhile(db, message_id, content, blob):
+        return False
+
+    monkeypatch.setattr(embeddings, "embed", embed)
+    await client.put("/api/settings", json={"auto_memory": False, "history_limit": 6,
+                                            "passage_budget": 1500})
+    convo = await setup_conversation(client)
+    await send(client, convo["id"], content="We sealed the crypt that night.")
+    for _ in range(8):
+        await send(client, convo["id"], content="we talk about the weather")
+    # The control: stored, the old message is recalled.
+    await send(client, convo["id"], content="Tell me about the crypt again.")
+    assert "crypt that night" in provider.captured["payload"].system
+
+    monkeypatch.setattr(convo_repo, "set_message_embedding", changed_meanwhile)
+    db = await _connect()
+    try:
+        await db.execute("UPDATE messages SET embedding = NULL WHERE conversation_id = ?",
+                         (convo["id"],))
+        await db.commit()
+    finally:
+        await db.close()
+    await send(client, convo["id"], content="And the crypt, once more?")
+
+    assert "crypt that night" not in provider.captured["payload"].system
