@@ -8,7 +8,7 @@ own SQLite connection; a per-conversation guard prevents overlapping runs.
 
 import asyncio
 import logging
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 
 import aiosqlite
 
@@ -36,7 +36,6 @@ from ..repositories import conversations as convo_repo
 from ..repositories import memories as memories_repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
-from ..repositories.base import now_iso
 from .llm_json import parse_llm_json
 
 logger = logging.getLogger(__name__)
@@ -82,19 +81,30 @@ def schedule_if_due(convo_id: str) -> None:
     asyncio.get_running_loop().create_task(_task())
 
 
-async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
-    """One extraction+summary pass. Returns {"facts_added": [...], "summary": str}, with
-    "skipped" set to "busy" and nothing looked at when another pass, an extraction or a
-    consolidation, was running, and to "changed" and nothing kept when the turns it read
-    were not the story's any more when it came to write what it learned, or a person had
-    edited or forgotten a fact it was sent."""
+async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
+                        busy: Callable[[], Awaitable[dict]]) -> dict:
+    """Run ``work``, or answer ``busy`` when another memory task is running for this
+    conversation. A pass, a consolidation and a summary asked for each read the memory,
+    wait for a model, and write what it said, so that any two of them would cross."""
     if convo_id in _running:
-        return {"facts_added": [], "summary": None, "skipped": "busy"}
+        return await busy()
     _running.add(convo_id)
     try:
-        return await _run(db, convo_id)
+        return await work()
     finally:
         _running.discard(convo_id)
+
+
+async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
+    """One extraction+summary pass. Returns {"facts_added": [...], "summary": str}, with
+    "skipped" set to "busy" and nothing looked at when another memory task was running,
+    and to "changed" and nothing kept when the turns it read
+    were not the story's any more when it came to write what it learned, or a person had
+    edited or forgotten a fact it was sent."""
+    async def busy() -> dict:
+        return {"facts_added": [], "summary": None, "skipped": "busy"}
+
+    return await one_at_a_time(convo_id, lambda: _run(db, convo_id), busy)
 
 
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
@@ -116,16 +126,13 @@ async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Merge non-pinned facts into a shorter, denser set (pinned untouched).
     Returns {"before": n, "after": n, "memories": [...]}, with "skipped" set and nothing
     changed when there were too few facts, or when one of those sent to the model was
-    changed, pinned or deleted while it answered ("changed"), or another pass, an
-    extraction or a consolidation, was running ("busy")."""
-    if convo_id in _running:
+    changed, pinned or deleted while it answered ("changed"), or another memory task was
+    running ("busy")."""
+    async def busy() -> dict:
         facts = await memories_repo.list_for_conversation(db, convo_id)
         return {"before": len(facts), "after": len(facts), "memories": facts, "skipped": "busy"}
-    _running.add(convo_id)
-    try:
-        return await _consolidate(db, convo_id)
-    finally:
-        _running.discard(convo_id)
+
+    return await one_at_a_time(convo_id, lambda: _consolidate(db, convo_id), busy)
 
 
 async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
@@ -264,11 +271,8 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
                 or not sent <= {(m["id"], m["content"]) for m in now}):
             return {"facts_added": [], "summary": None, "skipped": "changed"}
         added = await _apply(db, convo_id, changes["ops"], vectors)
-        await db.execute(
-            "UPDATE conversations SET memory_position = ?, summary = COALESCE(?, summary),"
-            " updated_at = ? WHERE id = ?",
-            (top_position, changes["summary"], now_iso(), convo_id))
-        await convo_repo.checkpoint(db, convo_id, top_position, changes["summary"])
+        await convo_repo.remember(db, convo_id, top_position, changes["summary"],
+                                  memory_position=top_position)
 
     return {"facts_added": added, "summary": changes["summary"] or convo.get("summary") or ""}
 

@@ -1,4 +1,4 @@
-import type { ConsolidateResult, ExtractResult } from "@/data/source";
+import type { ConsolidateResult, ExtractResult, SummaryResult } from "@/data/source";
 import type { Translate } from "@/i18n/I18nProvider";
 
 /** What a consolidation did, as a sentence. When it was skipped nothing was
@@ -10,6 +10,14 @@ export function describeConsolidation(result: ConsolidateResult, t: Translate): 
   if (result.skipped === "changed") return t("chat.panel.facts.changedWhileConsolidating");
   if (result.skipped === "busy") return t("chat.panel.facts.memoryTaskRunning");
   return t("chat.panel.facts.consolidated", { before: result.before, after: result.after });
+}
+
+/** What asking for a summary did, as a sentence. Nothing was written when another memory
+ *  task was running, or when turns it read were removed while the model answered. */
+export function describeSummary(result: SummaryResult, t: Translate): string {
+  if (result.skipped === "busy") return t("chat.panel.facts.memoryTaskRunning");
+  if (result.skipped === "changed") return t("chat.panel.facts.conversationChangedWhileReading");
+  return t("chat.panel.summary.generated");
 }
 
 /** What "memorize now" did, as a sentence. Finding nothing new is not the same as not

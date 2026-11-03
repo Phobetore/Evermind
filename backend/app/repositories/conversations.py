@@ -291,12 +291,23 @@ async def list_checkpoints(db: aiosqlite.Connection, convo_id: str) -> list[dict
     return [{**dict(row), "facts": facts[row["position"]]} for row in rows]
 
 
+async def remember(db: aiosqlite.Connection, convo_id: str, position: int, summary: str | None,
+                   memory_position: int | None = None) -> None:
+    """What the memory wrote of the story up to ``position``: the conversation says so, and
+    a checkpoint keeps it. ``memory_position`` is how far a pass read the facts; a summary
+    asked for reads turns without drawing facts from them, so it leaves the position as it
+    is. Does not commit: it belongs to what it records."""
+    await db.execute(
+        "UPDATE conversations SET memory_position = COALESCE(?, memory_position),"
+        " summary = COALESCE(?, summary), updated_at = ? WHERE id = ?",
+        (memory_position, summary, now_iso(), convo_id))
+    await checkpoint(db, convo_id, position, summary)
+
+
 async def checkpoint(db: aiosqlite.Connection, convo_id: str, position: int,
                      summary: str | None) -> None:
     """Record what the memory holds now as what it held for the story up to ``position``,
-    with how far the conversation says the facts have been read. A pass calls it once it
-    has written its position; a summary asked for, which has read turns without drawing
-    facts from them, once it has written its summary.
+    with how far the conversation says the facts have been read.
 
     ``summary`` is what was written. None, a pass that wrote none, gives the one the
     last checkpoint has, and not the one the conversation holds, which a person may have

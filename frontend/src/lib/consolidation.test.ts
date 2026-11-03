@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import en from "@/i18n/locales/en.json";
-import type { Memory } from "@/types";
-import { describeConsolidation, describeExtraction } from "./consolidation";
+import type { Conversation, Memory } from "@/types";
+import { describeConsolidation, describeExtraction, describeSummary } from "./consolidation";
 
 /** A translator that shows which key and which values it was asked for, so that a
  *  test says what the person would be told without depending on the wording. */
@@ -21,6 +21,26 @@ const fact: Memory = {
   source: "auto",
   created_at: "2026-01-01T00:00:00Z",
 };
+
+describe("what a summary asked for says it did", () => {
+  const conversation = {} as Conversation;
+
+  test("that it was written", () => {
+    expect(describeSummary(conversation, t)).toBe("chat.panel.summary.generated");
+  });
+
+  test("that another memory task is running, and nothing was altered", () => {
+    expect(describeSummary({ ...conversation, skipped: "busy" }, t)).toBe(
+      "chat.panel.facts.memoryTaskRunning",
+    );
+  });
+
+  test("that the turns it read went meanwhile, and nothing was kept", () => {
+    expect(describeSummary({ ...conversation, skipped: "changed" }, t)).toBe(
+      "chat.panel.facts.conversationChangedWhileReading",
+    );
+  });
+});
 
 describe("what a consolidation says it did", () => {
   test("how many facts it left, when it merged", () => {

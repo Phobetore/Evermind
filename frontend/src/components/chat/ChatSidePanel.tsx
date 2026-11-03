@@ -2,7 +2,7 @@ import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
+import { describeConsolidation, describeExtraction, describeSummary } from "@/lib/consolidation";
 import { describeError } from "@/lib/errors";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
@@ -226,9 +226,12 @@ export function ChatSidePanel({
     setNote(null);
     try {
       const updated = await data.conversations.summarize(conversation.id);
-      setSummary(updated.summary);
-      onConversationChange({ summary: updated.summary });
-      setNote(t("chat.panel.summary.generated"));
+      // Refused, it wrote nothing, and the box may hold what is being typed in it.
+      if (!updated.skipped) {
+        setSummary(updated.summary);
+        onConversationChange({ summary: updated.summary });
+      }
+      setNote(describeSummary(updated, t));
     } catch (e) {
       setNote(describeError(e, t, t("chat.panel.summary.generateError")));
     }

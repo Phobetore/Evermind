@@ -32,6 +32,7 @@ from contextlib import aclosing
 
 import aiosqlite
 
+from ..db import write_transaction
 from ..errors import (
     MODEL_EMPTY,
     NO_CONNECTION,
@@ -604,11 +605,25 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
 
 
 async def summarize(db: aiosqlite.Connection, convo_id: str) -> dict:
+    """The summary of the story so far, written by the model. The conversation as it stands,
+    with "skipped" set and nothing written when another memory task was running ("busy"),
+    or when the turns it read were not the story's any more when the model answered
+    ("changed")."""
     try:
         convo, character, persona, connection, _ = await _resolve(db, convo_id)
     except _TurnError as exc:
         raise exc.as_app_error() from None
 
+    async def busy() -> dict:
+        return {**convo, "skipped": "busy"}
+
+    return await memory_service.one_at_a_time(
+        convo_id, lambda: _summarize(db, convo, character, persona, connection), busy)
+
+
+async def _summarize(db: aiosqlite.Connection, convo: dict, character: dict, persona: dict | None,
+                     connection: dict) -> dict:
+    convo_id = convo["id"]
     messages = await convo_repo.list_messages(db, convo_id)
     if not messages:
         raise AppError("Nothing to summarize: the conversation is empty.", kind="conversation_empty")
@@ -624,9 +639,14 @@ async def summarize(db: aiosqlite.Connection, convo_id: str) -> dict:
     summary = "".join(chunks).strip()
     if not summary:
         raise AppError("The model returned an empty summary.", 502, kind=MODEL_EMPTY)
-    await convo_repo.update(db, convo_id, {"summary": summary})
     # It describes the story up to the last message it was given, and the facts were not
-    # read from those turns, so the memory is checkpointed with the position it had.
-    await convo_repo.checkpoint(db, convo_id, messages[-1]["position"], summary)
-    await db.commit()
+    # read from those turns, so the memory is checkpointed with the position it had. The
+    # story may have been cut back while the model answered, and it would then describe
+    # turns that are gone.
+    last = messages[-1]["position"]
+    async with write_transaction(db):
+        if await convo_repo.message_ids_through(db, convo_id, last) != [m["id"] for m in messages]:
+            current = await convo_repo.get(db, convo_id, with_messages=False)
+            return {**current, "skipped": "changed"}
+        await convo_repo.remember(db, convo_id, last, summary)
     return await convo_repo.get(db, convo_id, with_messages=False)
