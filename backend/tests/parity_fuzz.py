@@ -85,7 +85,8 @@ class Draws:
             items[i], items[j] = items[j], items[i]
 
 
-# How many cases of each kind. The file stays under 500 KB: lower these if it does not.
+# How many cases of each kind. The file stays under 500 KB, and these leave it about a
+# tenth of that to grow into, since a prompt that grows makes every case that holds it grow.
 CHAT_KINDS = [
     ("random turn", 10),
     ("small context", 10),
@@ -95,10 +96,10 @@ CHAT_KINDS = [
     ("card prompt with a macro", 8),
     ("names a substitution reads", 8),
 ]
-JSON_CASES = 60
+JSON_CASES = 52
 MEMORY_CASES = 40
 CONSOLIDATION_CASES = 14
-CARD_CASES = 40
+CARD_CASES = 24
 
 # A piece is one draw. Each is a unit that a text is made of, so that `$&` and
 # `{{ USER }}` come whole.
