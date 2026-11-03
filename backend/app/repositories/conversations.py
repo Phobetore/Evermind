@@ -1,5 +1,6 @@
 import aiosqlite
 
+from ..prompting.memory_changes import memory_after_cut, survives_cut
 from . import characters as characters_repo
 from .base import dumps, loads, new_id, now_iso
 
@@ -107,6 +108,14 @@ async def list_messages(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
     return [message_to_out(r) for r in rows]
 
 
+async def message_ids_through(db: aiosqlite.Connection, convo_id: str, position: int) -> list[str]:
+    """The messages of the story up to a position, in order, by id."""
+    rows = await (await db.execute(
+        "SELECT id FROM messages WHERE conversation_id = ? AND position <= ?"
+        " ORDER BY position ASC", (convo_id, position))).fetchall()
+    return [r["id"] for r in rows]
+
+
 async def next_position(db: aiosqlite.Connection, convo_id: str) -> int:
     row = await (await db.execute(
         "SELECT COALESCE(MAX(position), -1) AS p FROM messages WHERE conversation_id = ?",
@@ -187,11 +196,10 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
     branch_id = new_id()
     now = now_iso()
     title = (source.get("title") or "Sans titre")[:52] + " (branche)"
-    summary = source.get("summary") or ""
-    memory_position = min(source.get("memory_position") or 0, position)
-    if memory_position < (source.get("memory_position") or 0):
-        # the summary may describe events past the fork; drop it rather than lie
-        summary = ""
+    # The summary may describe events past the fork; drop it rather than lie.
+    rewound = memory_after_cut(source.get("memory_position") or 0, position)
+    memory_position = rewound["memory_position"]
+    summary = (source.get("summary") or "") if rewound["summary_holds"] else ""
     # Read raw rather than off `source`, which has already turned the stored
     # filename into a URL for the client.
     backdrop = await (await db.execute(
@@ -228,9 +236,10 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
         )
 
     mem_rows = await (await db.execute(
-        "SELECT * FROM memories WHERE conversation_id = ? AND source_position <= ?",
-        (source["id"], position))).fetchall()
+        "SELECT * FROM memories WHERE conversation_id = ?", (source["id"],))).fetchall()
     for row in mem_rows:
+        if not survives_cut(row, position):
+            continue
         await db.execute(
             "INSERT INTO memories (id, conversation_id, kind, content, source_position,"
             " is_pinned, source, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -242,8 +251,35 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
     return await get(db, branch_id)
 
 
+async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int) -> None:
+    """Take what a conversation remembers back to a story that now ends with the turn
+    at ``cut``. Positions are reused by the messages that come next, so a memory left
+    as it was would wait for them to pass the old mark before reading anything, and
+    would keep as canon what was drawn from turns that no longer exist.
+
+    Does not commit: it belongs to the removal that calls it."""
+    row = await (await db.execute(
+        "SELECT memory_position FROM conversations WHERE id = ?", (convo_id,))).fetchone()
+    read = row["memory_position"] or 0
+    rewound = memory_after_cut(read, cut)
+    if rewound["memory_position"] != read:
+        await db.execute("UPDATE conversations SET memory_position = ? WHERE id = ?",
+                         (rewound["memory_position"], convo_id))
+    if not rewound["summary_holds"]:
+        await db.execute("UPDATE conversations SET summary = '' WHERE id = ?", (convo_id,))
+    facts = await (await db.execute(
+        "SELECT id, source_position, is_pinned, source FROM memories WHERE conversation_id = ?",
+        (convo_id,))).fetchall()
+    await db.executemany(
+        "DELETE FROM memories WHERE id = ?",
+        [(fact["id"],) for fact in facts if not survives_cut(fact, cut, removal=True)])
+
+
 async def delete_message(db: aiosqlite.Connection, message_id: str,
                          following: bool = False) -> bool:
+    """Remove a message, or with ``following`` the story from it on, which takes the
+    memory back with it. One message alone leaves a hole and no cut: nothing says
+    which fact it gave rise to."""
     message = await get_message(db, message_id)
     if not message:
         return False
@@ -252,6 +288,7 @@ async def delete_message(db: aiosqlite.Connection, message_id: str,
             "DELETE FROM messages WHERE conversation_id = ? AND position >= ?",
             (message["conversation_id"], message["position"]),
         )
+        await _rewind_memory(db, message["conversation_id"], message["position"] - 1)
     else:
         await db.execute("DELETE FROM messages WHERE id = ?", (message_id,))
     await db.commit()

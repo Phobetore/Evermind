@@ -106,6 +106,8 @@ function ChatView({ id }: { id: string }) {
   // The error itself, described when drawn, so that a change of language
   // reaches the sentence too.
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
+  // Counts the times the story was cut back, for the side panel to read the facts again.
+  const [storyCuts, setStoryCuts] = useState(0);
   const [contextStats, setContextStats] = useState<ContextStats | null>(null);
   const [perf, setPerf] = useState<TurnPerf | null>(null);
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
@@ -759,6 +761,17 @@ function ChatView({ id }: { id: string }) {
     await data.messages.removeFrom(message.id);
     changesByHand.current += 1;
     setMessages((prev) => prev.filter((m) => m.position < message.position));
+    // The server takes the memory back with the story: the facts drawn from the turns
+    // that went, and a summary that described them. What the side panel shows is from
+    // before, and saving the summary it shows would put the old one back. With no
+    // summary on screen there is nothing to be wrong about.
+    setStoryCuts((n) => n + 1);
+    if (conversation?.summary) {
+      data.conversations
+        .get(id)
+        .then(({ summary }) => setConversation((c) => (c ? { ...c, summary } : c)))
+        .catch(() => {});
+    }
     // Whatever was being reported was about what has just gone.
     turnStore.fail(id, null);
     if (cutOff) {
@@ -1001,6 +1014,7 @@ function ChatView({ id }: { id: string }) {
         <ChatSidePanel
           conversation={conversation}
           persona={persona}
+          storyCuts={storyCuts}
           onClose={() => setPanelOpen(false)}
           onConversationChange={(patch) =>
             setConversation((c) => (c ? { ...c, ...patch } : c))
@@ -1020,6 +1034,7 @@ function ChatView({ id }: { id: string }) {
           <ChatSidePanel
             conversation={conversation}
             persona={persona}
+            storyCuts={storyCuts}
             onClose={() => setMobilePanelOpen(false)}
             onConversationChange={(patch) =>
               setConversation((c) => (c ? { ...c, ...patch } : c))

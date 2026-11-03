@@ -7766,6 +7766,375 @@
     ],
     "source_position": 4
    }
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact from before the cut stays",
+   "input": {
+    "fact": {
+     "source_position": 2,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    "cut": 4
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact from the turn of the cut stays",
+   "input": {
+    "fact": {
+     "source_position": 4,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    "cut": 4
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact from after the cut goes",
+   "input": {
+    "fact": {
+     "source_position": 5,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    "cut": 4
+   },
+   "expected": false
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact from after the cut goes from a removal too",
+   "input": {
+    "fact": {
+     "source_position": 5,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    "cut": 4,
+    "removal": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact from a removal stays when it is before",
+   "input": {
+    "fact": {
+     "source_position": 2,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    "cut": 4,
+    "removal": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact from the turn of a removal's cut stays",
+   "input": {
+    "fact": {
+     "source_position": 4,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    "cut": 4,
+    "removal": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact from before any turn stays while a turn is left",
+   "input": {
+    "fact": {
+     "source_position": 0,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    "cut": 0
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact from before any turn stays with later turns",
+   "input": {
+    "fact": {
+     "source_position": 0,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    "cut": 6,
+    "removal": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact from before any turn goes when no turn is left",
+   "input": {
+    "fact": {
+     "source_position": 0,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    "cut": -1
+   },
+   "expected": false
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact from before any turn goes from a removal of every turn",
+   "input": {
+    "fact": {
+     "source_position": 0,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    "cut": -1,
+    "removal": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a pinned fact from after the cut does not go into a copy",
+   "input": {
+    "fact": {
+     "source_position": 8,
+     "is_pinned": true,
+     "source": "auto"
+    },
+    "cut": 4,
+    "removal": false
+   },
+   "expected": false
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a pinned fact from after the cut stays through a removal",
+   "input": {
+    "fact": {
+     "source_position": 8,
+     "is_pinned": true,
+     "source": "auto"
+    },
+    "cut": 4,
+    "removal": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact by hand from after the cut does not go into a copy",
+   "input": {
+    "fact": {
+     "source_position": 8,
+     "is_pinned": false,
+     "source": "user"
+    },
+    "cut": 4,
+    "removal": false
+   },
+   "expected": false
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a fact by hand from after the cut stays through a removal",
+   "input": {
+    "fact": {
+     "source_position": 8,
+     "is_pinned": false,
+     "source": "user"
+    },
+    "cut": 4,
+    "removal": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a pinned fact by hand stays through a removal of every turn",
+   "input": {
+    "fact": {
+     "source_position": 0,
+     "is_pinned": true,
+     "source": "user"
+    },
+    "cut": -1,
+    "removal": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a pinned fact from before the cut stays in a copy",
+   "input": {
+    "fact": {
+     "source_position": 3,
+     "is_pinned": true,
+     "source": "auto"
+    },
+    "cut": 4,
+    "removal": false
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a flag read from the database as a number",
+   "input": {
+    "fact": {
+     "source_position": 9,
+     "is_pinned": 1,
+     "source": "auto"
+    },
+    "cut": 4,
+    "removal": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a flag read from the database as zero",
+   "input": {
+    "fact": {
+     "source_position": 9,
+     "is_pinned": 0,
+     "source": "auto"
+    },
+    "cut": 4,
+    "removal": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "survives_cut",
+   "name": "a flag left null",
+   "input": {
+    "fact": {
+     "source_position": 9,
+     "is_pinned": null,
+     "source": "auto"
+    },
+    "cut": 4,
+    "removal": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "memory_after_cut",
+   "name": "a memory that had read past the cut goes back to it",
+   "input": {
+    "memory_position": 8,
+    "cut": 4
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary_holds": false
+   }
+  },
+  {
+   "fn": "memory_after_cut",
+   "name": "a memory that had read the turn after the cut goes back to it",
+   "input": {
+    "memory_position": 5,
+    "cut": 4
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary_holds": false
+   }
+  },
+  {
+   "fn": "memory_after_cut",
+   "name": "a memory that had read up to the cut stays",
+   "input": {
+    "memory_position": 4,
+    "cut": 4
+   },
+   "expected": {
+    "memory_position": 4,
+    "summary_holds": true
+   }
+  },
+  {
+   "fn": "memory_after_cut",
+   "name": "a memory that had read less stays",
+   "input": {
+    "memory_position": 2,
+    "cut": 4
+   },
+   "expected": {
+    "memory_position": 2,
+    "summary_holds": true
+   }
+  },
+  {
+   "fn": "memory_after_cut",
+   "name": "a memory that had read nothing stays",
+   "input": {
+    "memory_position": 0,
+    "cut": 4
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary_holds": true
+   }
+  },
+  {
+   "fn": "memory_after_cut",
+   "name": "a memory is never taken back past the first turn",
+   "input": {
+    "memory_position": 3,
+    "cut": 0
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary_holds": false
+   }
+  },
+  {
+   "fn": "memory_after_cut",
+   "name": "a memory that had read nothing of a story cut after its first turn",
+   "input": {
+    "memory_position": 0,
+    "cut": 0
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary_holds": true
+   }
+  },
+  {
+   "fn": "memory_after_cut",
+   "name": "a cut that takes the whole story leaves a memory at the start",
+   "input": {
+    "memory_position": 6,
+    "cut": -1
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary_holds": false
+   }
+  },
+  {
+   "fn": "memory_after_cut",
+   "name": "a memory at the start stays there, but its summary does not hold",
+   "input": {
+    "memory_position": 0,
+    "cut": -1
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary_holds": false
+   }
   }
  ]
 }

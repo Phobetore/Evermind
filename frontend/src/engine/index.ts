@@ -38,8 +38,10 @@ export {
 export { parseLlmJson } from "./llmJson";
 export { substitute } from "./macros";
 export {
+  memoryAfterCut,
   planConsolidation,
   planMemoryChanges,
+  survivesCut,
   type Consolidation,
   type KnownFact,
   type MemoryChanges,

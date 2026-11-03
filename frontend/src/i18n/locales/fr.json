@@ -301,6 +301,7 @@
         "tooFewToConsolidate": "Trop peu de faits pour consolider.",
         "changedWhileConsolidating": "Les faits ont changé pendant que le modèle les fusionnait. Rien n'a été modifié ; réessayez.",
         "memoryTaskRunning": "Une autre tâche de mémoire est en cours. Rien n'a été modifié ; réessayez dans un instant.",
+        "conversationChangedWhileReading": "La conversation a changé pendant que le modèle la lisait. Rien n'a été conservé ; réessayez.",
         "consolidated": "Mémoire condensée : {before} → {after} faits.",
         "consolidateError": "Échec de la consolidation",
         "addError": "Ajout impossible"

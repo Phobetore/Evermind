@@ -137,12 +137,13 @@ export interface ConversationPatch {
 /** What "memorize now" found: the facts it added, a new summary if the
  *  conversation earned one, and the whole list as it stands afterwards. `skipped`
  *  is set, and nothing was looked at, when another memory pass, an extraction or a
- *  consolidation, was running (`busy`). */
+ *  consolidation, was running (`busy`); and nothing was kept when the turns it read
+ *  were removed or replaced while the model answered (`changed`). */
 export interface ExtractResult {
   facts_added: Memory[];
   summary: string | null;
   memories: Memory[];
-  skipped?: "busy";
+  skipped?: "busy" | "changed";
 }
 
 /** `skipped` is set, and nothing changed, when there were too few facts to be

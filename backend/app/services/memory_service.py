@@ -83,7 +83,8 @@ def schedule_if_due(convo_id: str) -> None:
 async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
     """One extraction+summary pass. Returns {"facts_added": [...], "summary": str}, with
     "skipped" set to "busy" and nothing looked at when another pass, an extraction or a
-    consolidation, was running."""
+    consolidation, was running, and to "changed" and nothing kept when the turns it read
+    were not the story's any more when the model answered."""
     if convo_id in _running:
         return {"facts_added": [], "summary": None, "skipped": "busy"}
     _running.add(convo_id)
@@ -214,6 +215,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
     if built is None:
         return {"facts_added": [], "summary": convo.get("summary") or ""}
     payload, top_position = built
+    read = [m["id"] for m in messages if m["position"] <= top_position]
 
     chunks: list[str] = []
     async for event in get_provider(connection).stream_chat(payload):
@@ -226,6 +228,13 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
     if parsed is None:
         raise AppError("Unreadable memory response (JSON expected).", 502,
                        kind=MODEL_UNREADABLE)
+
+    # The story as it is now. The model can take a while, and a person can cut the story
+    # back meanwhile: what it learned is then from turns that are gone, and a memory read
+    # up to a position the story no longer reaches would take the turns that come next
+    # for ones it has read. So nothing is kept, and the next pass starts again.
+    if await convo_repo.message_ids_through(db, convo_id, top_position) != read:
+        return {"facts_added": [], "summary": None, "skipped": "changed"}
 
     # What the memory holds now rather than before the model was asked: a fact
     # pinned in the meantime is no longer one to correct or drop.

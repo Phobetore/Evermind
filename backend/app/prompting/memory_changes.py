@@ -32,6 +32,35 @@ def is_movable(fact: dict) -> bool:
     return not fact["is_pinned"] and fact["source"] == "auto"
 
 
+def survives_cut(fact: dict, cut: int, *, removal: bool = False) -> bool:
+    """Whether a fact still holds in a story that now ends with the turn at ``cut``: it
+    was drawn from turns up to there. A fact's position is the newest turn that its pass
+    read, so one from a later pass goes even if the turn it was drawn from stays. A
+    position of 0 is older than every turn, and stays while there is a turn left, but a
+    cut at -1 leaves none.
+
+    A branch is a copy: it carries what the turns up to its message established, and
+    nothing else, a pinned fact included. A ``removal`` takes turns out of the one
+    conversation, where only the model's facts go with them: what a person typed or
+    pinned is theirs to take away."""
+    if removal and not is_movable(fact):
+        return True
+    return fact["source_position"] <= cut
+
+
+def memory_after_cut(memory_position: int, cut: int) -> dict:
+    """Where the memory has read to once the story ends with the turn at ``cut``, and
+    whether the summary still describes it: it does if the memory had not read past
+    ``cut``. Otherwise the memory has read turns that are gone, and the summary may
+    describe them. Making a new one is for the next pass, which has the turns to read.
+
+    ``{"memory_position": n, "summary_holds": bool}``, with a position that is never
+    negative: a cut at -1 takes the whole story, and the memory has read none of it."""
+    if memory_position <= cut:
+        return {"memory_position": memory_position, "summary_holds": True}
+    return {"memory_position": max(cut, 0), "summary_holds": False}
+
+
 def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -> dict:
     """The changes that an extraction's answer makes, in the order they are applied:
     the facts it adds, then those it corrects, then those it drops.

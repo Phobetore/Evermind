@@ -35,6 +35,7 @@ function computeDormant(memories: Memory[], contextSize: number, maxTokens: numb
 export function ChatSidePanel({
   conversation,
   persona,
+  storyCuts = 0,
   onClose,
   onConversationChange,
   onWallpaperOpacity,
@@ -43,6 +44,8 @@ export function ChatSidePanel({
 }: {
   conversation: Conversation;
   persona: Persona | null;
+  /** Changes when the story is cut back, which takes facts with it. */
+  storyCuts?: number;
   onClose: () => void;
   onConversationChange: (patch: Partial<Conversation>) => void;
   onWallpaperOpacity: (value: number) => void;
@@ -92,15 +95,17 @@ export function ChatSidePanel({
     setWallpaperBusy(false);
   }
 
+  // Caught: offline, these reject, and an unhandled rejection is noise in a
+  // console that a real fault has to be found in.
   useEffect(() => {
-    // Caught: offline, these reject, and an unhandled rejection is noise in a
-    // console that a real fault has to be found in.
     data.connections?.list().then(setConnections).catch(() => {});
+  }, [conversation.id]);
+  useEffect(() => {
     data.memories
       .list(conversation.id)
       .then(setMemories)
       .catch(() => {});
-  }, [conversation.id]);
+  }, [conversation.id, storyCuts]);
 
   // Both fields are editable, and both have to follow the conversation when it
   // changes from elsewhere: summarising rewrites the summary, and switching

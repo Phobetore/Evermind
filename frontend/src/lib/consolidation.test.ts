@@ -76,7 +76,17 @@ describe("what an extraction says it did", () => {
     ).toBe("chat.panel.facts.memoryTaskRunning");
   });
 
-  test.each(["chat.panel.facts.addedCount", "chat.panel.facts.noneNew"])(
+  test("that the conversation changed, and nothing was kept, when the turns it read were removed", () => {
+    expect(
+      describeExtraction({ facts_added: [], summary: null, memories: [], skipped: "changed" }, t),
+    ).toBe("chat.panel.facts.conversationChangedWhileReading");
+  });
+
+  test.each([
+    "chat.panel.facts.addedCount",
+    "chat.panel.facts.noneNew",
+    "chat.panel.facts.conversationChangedWhileReading",
+  ])(
     "%s is a sentence of the interface",
     (key) => {
       expect(typeof lookup(key)).toBe("string");

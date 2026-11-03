@@ -18,7 +18,12 @@ import numpy
 from app.prompting import defaults, engine, payloads, retrieval, turn
 from app.prompting.engine import active_content, build_chat_payload, match_lore, select_facts
 from app.prompting.macros import has_original_macro, substitute, substitute_original
-from app.prompting.memory_changes import plan_consolidation, plan_memory_changes
+from app.prompting.memory_changes import (
+    memory_after_cut,
+    plan_consolidation,
+    plan_memory_changes,
+    survives_cut,
+)
 from app.prompting.tokens import estimate_tokens
 from app.services.card_assistant import clean_card_draft
 from app.services.llm_json import parse_llm_json
@@ -154,6 +159,8 @@ FUNCTIONS: dict[str, Callable[..., Any]] = {
     "parse_llm_json": parse_llm_json,
     "memory_reply": memory_reply,
     "consolidation_reply": consolidation_reply,
+    "survives_cut": survives_cut,
+    "memory_after_cut": memory_after_cut,
     "clean_card_draft": clean_card_draft,
 }
 

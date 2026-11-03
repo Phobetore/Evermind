@@ -301,6 +301,7 @@
         "tooFewToConsolidate": "Zu wenige Fakten zum Verdichten.",
         "changedWhileConsolidating": "Die Fakten haben sich geändert, während das Modell sie zusammenführte. Nichts wurde verändert; versuche es noch einmal.",
         "memoryTaskRunning": "Eine andere Gedächtnisaufgabe läuft gerade. Nichts wurde verändert; versuche es gleich noch einmal.",
+        "conversationChangedWhileReading": "Die Unterhaltung hat sich geändert, während das Modell sie las. Nichts wurde übernommen; versuche es noch einmal.",
         "consolidated": "Gedächtnis verdichtet: {before} → {after} Fakten.",
         "consolidateError": "Verdichtung fehlgeschlagen",
         "addError": "Fakt konnte nicht hinzugefügt werden"

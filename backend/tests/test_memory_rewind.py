@@ -1,0 +1,324 @@
+"""What a conversation remembers when its story is cut back: messages removed from a
+point on, or a branch made at one.
+
+Memory is tied to the story by positions: a fact says which turn it was drawn from
+(``source_position``) and the conversation says how far the memory has read
+(``memory_position``). Positions are reused once the messages that held them are gone,
+so a memory that does not follow the story back is wrong in two ways: facts born of
+turns that no longer exist stay canon, and the passes that should come next wait for
+new turns to pass an old mark.
+"""
+
+import asyncio
+import json
+
+import pytest
+
+from app.db import _connect
+from app.providers.base import ProviderEvent
+from app.repositories import memories as memories_repo
+from app.services import memory_service
+
+from .test_chat import FakeProvider, send, setup_conversation
+from .test_memory import extract, stored_facts, waiting_provider, within
+
+
+class Replies:
+    """The model that plays the story: a short reply to anything. The memory passes
+    talk to the scripted one, so that what each is told is not mixed up."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        yield ProviderEvent(type="delta", text="Reply.")
+        yield ProviderEvent(type="done")
+
+
+@pytest.fixture()
+def fake_provider(monkeypatch):
+    FakeProvider.script = []
+    FakeProvider.captured = {}
+    monkeypatch.setattr("app.services.chat_service.get_provider", Replies)
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    return FakeProvider
+
+
+async def talk(client, convo_id, exchanges, label="exchange", first=1):
+    """Send messages, each answered, with the automatic passes off so that the test
+    decides when memory is read."""
+    await client.put("/api/settings", json={"auto_memory": False})
+    for i in range(exchanges):
+        await send(client, convo_id, content=f"{label} {first + i}")
+
+
+async def messages_of(client, convo_id):
+    return (await client.get(f"/api/conversations/{convo_id}")).json()["messages"]
+
+
+async def at_position(client, convo_id, position):
+    return next(m for m in await messages_of(client, convo_id) if m["position"] == position)
+
+
+async def conversation(client, convo_id):
+    return (await client.get(f"/api/conversations/{convo_id}")).json()
+
+
+async def put_fact(convo_id, content, *, at=0, source="auto", pinned=False):
+    db = await _connect()
+    try:
+        return await memories_repo.add(db, convo_id, content, source_position=at,
+                                       is_pinned=pinned, source=source)
+    finally:
+        await db.close()
+
+
+async def read_up_to(convo_id, position, summary):
+    """As if a pass had read the story up to ``position`` and written ``summary``."""
+    db = await _connect()
+    try:
+        await db.execute("UPDATE conversations SET memory_position = ?, summary = ?"
+                         " WHERE id = ?", (position, summary, convo_id))
+        await db.commit()
+    finally:
+        await db.close()
+
+
+async def remove_from(client, convo_id, position):
+    message = await at_position(client, convo_id, position)
+    resp = await client.delete(f"/api/messages/{message['id']}?following=true")
+    assert resp.status_code == 204, resp.text
+
+
+async def names(client, convo_id):
+    return {m["content"] for m in
+            (await client.get(f"/api/conversations/{convo_id}/memories")).json()}
+
+
+# ---------- removing messages from a point on ----------
+
+async def test_facts_born_of_removed_turns_go_with_them(client, fake_provider):
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 4)  # positions 0 (greeting) to 8
+    await put_fact(convo["id"], "From an early turn.", at=2)
+    await put_fact(convo["id"], "From before any turn.", at=0)
+    await put_fact(convo["id"], "From the last turn read.", at=8)
+    await put_fact(convo["id"], "From a removed turn, pinned.", at=8, pinned=True)
+    await put_fact(convo["id"], "Written by hand.", at=8, source="user")
+    await read_up_to(convo["id"], 8, "Everything so far.")
+
+    await remove_from(client, convo["id"], 5)
+
+    assert await names(client, convo["id"]) == {
+        "From an early turn.", "From before any turn.",
+        "From a removed turn, pinned.", "Written by hand.",
+    }
+
+
+# memory_position before, first position removed, memory_position after, summary kept
+REWINDS = [
+    (8, 5, 4, False),  # the memory had read turns that are gone
+    (5, 5, 4, False),  # and the very first of them
+    (4, 5, 4, True),   # it had read up to the turn before, which stays: nothing to undo
+    (0, 5, 0, True),   # and it had not read any
+    (3, 1, 0, False),  # never a negative position
+    (0, 1, 0, True),
+    (6, 0, 0, False),  # the whole story is gone
+    (0, 0, 0, False),  # and what describes it cannot hold, whatever had been read
+]
+
+
+@pytest.mark.parametrize(("before", "removed_from", "after", "summary_kept"), REWINDS)
+async def test_the_memory_goes_back_no_further_than_the_story_does(
+        client, fake_provider, before, removed_from, after, summary_kept):
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 4)
+    await read_up_to(convo["id"], before, "Everything so far.")
+
+    await remove_from(client, convo["id"], removed_from)
+
+    read = await conversation(client, convo["id"])
+    assert read["memory_position"] == after
+    assert read["summary"] == ("Everything so far." if summary_kept else "")
+
+
+async def test_removing_from_the_first_message_removes_every_fact_it_can(client, fake_provider):
+    """A fact drawn from "before any turn" is older than every turn only while some turn
+    is left. With none, nothing it was drawn from remains."""
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 2)
+    await put_fact(convo["id"], "From before any turn.", at=0)
+    await put_fact(convo["id"], "From the first turn.", at=1)
+    await put_fact(convo["id"], "Pinned.", at=0, pinned=True)
+    await put_fact(convo["id"], "Written by hand.", at=0, source="user")
+
+    await remove_from(client, convo["id"], 0)
+
+    assert await messages_of(client, convo["id"]) == []
+    assert await names(client, convo["id"]) == {"Pinned.", "Written by hand."}
+
+
+async def test_removing_one_message_leaves_the_memory_alone(client, fake_provider):
+    """Only a cut touches the memory. A hole in the story is not a cut, and nothing
+    says what the fact drawn from it was."""
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 3)
+    await put_fact(convo["id"], "From a late turn.", at=6)
+    await read_up_to(convo["id"], 6, "Everything so far.")
+    message = await at_position(client, convo["id"], 3)
+
+    resp = await client.delete(f"/api/messages/{message['id']}")
+
+    assert resp.status_code == 204
+    read = await conversation(client, convo["id"])
+    assert (read["memory_position"], read["summary"]) == (6, "Everything so far.")
+    assert await names(client, convo["id"]) == {"From a late turn."}
+
+
+async def test_the_next_pass_reads_the_turns_that_came_after_a_removal(client, fake_provider):
+    """Eight replies, the memory read, the story taken back, new replies: the next pass
+    is due when it should be, reads the turns that are new and no others, and the facts
+    of the turns that were removed are not among those it is shown or those that remain."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 4, label="old exchange")  # positions 0 to 8
+    await put_fact(convo_id, "Kept by hand.", source="user")
+    first = await extract(client, convo_id, {
+        "facts": [{"content": "Learned early.", "kind": "event"}],
+        "summary": "The first four exchanges."})
+    assert [f["source_position"] for f in first["facts_added"]] == [8]
+    await talk(client, convo_id, 4, label="old exchange", first=5)  # positions 9 to 16
+    await extract(client, convo_id, {
+        "facts": [{"content": "Learned in removed turns.", "kind": "event"}],
+        "summary": "Eight exchanges."})
+    assert (await conversation(client, convo_id))["memory_position"] == 16
+
+    await remove_from(client, convo_id, 11)
+
+    rewound = await conversation(client, convo_id)
+    assert (rewound["memory_position"], rewound["summary"]) == (10, "")
+    assert await names(client, convo_id) == {"Kept by hand.", "Learned early."}
+
+    await talk(client, convo_id, memory_service.MAINTENANCE_EVERY, label="new exchange")
+    await client.put("/api/settings", json={"auto_memory": True})  # positions 11 to 22
+    db = await _connect()
+    try:
+        assert await memory_service.is_due(db, convo_id)
+    finally:
+        await db.close()
+
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {
+        "facts": [{"content": "Learned afterwards.", "kind": "event"}],
+        "summary": "Then something else."})
+
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "CURRENT SUMMARY:\n(empty)" in shown
+    assert "- Learned early." in shown
+    assert "Learned in removed turns." not in shown
+    assert "(turn 11): new exchange 1" in shown
+    assert "(turn 10)" not in shown
+    assert "old exchange 6" not in shown
+    final = await stored_facts(client, convo_id)
+    assert [(f[0], f[2]) for f in final] == [
+        ("Kept by hand.", 0), ("Learned afterwards.", 22), ("Learned early.", 8)]
+    assert (await conversation(client, convo_id))["memory_position"] == 22
+
+
+async def test_a_pass_that_was_reading_when_the_story_was_cut_leaves_nothing_of_it(
+        client, fake_provider, monkeypatch):
+    """The model answers about turns that are no longer there. What it learned from
+    them is not canon, and the memory is not read up to a point the story no longer
+    reaches, where new turns would then be taken for old ones."""
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 3)  # positions 0 to 6
+    started, release, asked = waiting_provider(monkeypatch)
+    FakeProvider.script = [ProviderEvent(type="delta", text=json.dumps({
+        "facts": [{"content": "Learned from turns that went.", "kind": "event"}],
+        "summary": "A story that was cut."})), ProviderEvent(type="done")]
+
+    reading = asyncio.create_task(client.post(f"/api/conversations/{convo['id']}/memories/extract"))
+    try:
+        await within(5, started.wait())
+        await remove_from(client, convo["id"], 3)
+    finally:
+        release.set()
+    answered = await within(5, reading)
+
+    assert answered.status_code == 200, answered.text
+    assert answered.json()["skipped"] == "changed"
+    assert answered.json()["facts_added"] == []
+    assert await names(client, convo["id"]) == set()
+    read = await conversation(client, convo["id"])
+    assert (read["memory_position"], read["summary"]) == (0, "")
+
+    # The next pass starts from where the story is.
+    await send(client, convo["id"], content="After the cut")
+    asked.clear()
+    again = await extract(client, convo["id"], {
+        "facts": [{"content": "Learned after the cut.", "kind": "event"}]})
+    assert [f["source_position"] for f in again["facts_added"]] == [4]
+    assert "(turn 3): After the cut" in asked[0].messages[0]["content"]
+
+
+async def test_a_pass_that_was_reading_is_kept_when_only_later_turns_were_added(
+        client, fake_provider, monkeypatch):
+    """Turns sent while the model reads are not a change to the ones it read."""
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 2)  # positions 0 to 4
+    started, release, _ = waiting_provider(monkeypatch)
+    FakeProvider.script = [ProviderEvent(type="delta", text=json.dumps({
+        "facts": [{"content": "Learned meanwhile.", "kind": "event"}]})),
+        ProviderEvent(type="done")]
+
+    reading = asyncio.create_task(client.post(f"/api/conversations/{convo['id']}/memories/extract"))
+    try:
+        await within(5, started.wait())
+        await send(client, convo["id"], content="Sent during the pass")
+    finally:
+        release.set()
+    answered = await within(5, reading)
+
+    assert "skipped" not in answered.json()
+    assert [f["content"] for f in answered.json()["facts_added"]] == ["Learned meanwhile."]
+    assert (await conversation(client, convo["id"]))["memory_position"] == 4
+
+
+# ---------- a branch is a cut too, and keeps doing what it did ----------
+
+async def test_a_branch_keeps_the_facts_of_turns_up_to_its_message_and_no_others(
+        client, fake_provider):
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 4)
+    await put_fact(convo["id"], "From before any turn.", at=0)
+    await put_fact(convo["id"], "From the fork.", at=4)
+    await put_fact(convo["id"], "From after the fork.", at=5)
+    await put_fact(convo["id"], "Pinned, from after the fork.", at=8, pinned=True)
+    await put_fact(convo["id"], "Written by hand.", at=0, source="user")
+    fork = await at_position(client, convo["id"], 4)
+
+    branch = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
+
+    assert await names(client, branch["id"]) == {
+        "From before any turn.", "From the fork.", "Written by hand."}
+
+
+@pytest.mark.parametrize(("before", "fork", "after", "summary_kept"), [
+    (8, 4, 4, False),  # the memory had read past the fork
+    (5, 4, 4, False),
+    (4, 4, 4, True),   # it had read up to it: the summary describes the branch
+    (2, 4, 2, True),
+    (0, 4, 0, True),
+    (6, 0, 0, False),
+])
+async def test_a_branch_reads_the_memory_up_to_its_message(
+        client, fake_provider, before, fork, after, summary_kept):
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 4)
+    await read_up_to(convo["id"], before, "Everything so far.")
+    message = await at_position(client, convo["id"], fork)
+
+    branch = (await client.post(f"/api/messages/{message['id']}/branch")).json()
+
+    assert branch["memory_position"] == after
+    assert branch["summary"] == ("Everything so far." if summary_kept else "")
