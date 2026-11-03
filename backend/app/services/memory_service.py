@@ -35,6 +35,7 @@ from ..repositories import conversations as convo_repo
 from ..repositories import memories as memories_repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
+from ..repositories.base import now_iso
 from .llm_json import parse_llm_json
 
 logger = logging.getLogger(__name__)
@@ -242,16 +243,30 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
         parsed, await memories_repo.list_in_lookup_order(db, convo_id), top_position)
     added = await _apply(db, convo_id, changes["ops"])
 
-    updates: dict = {}
-    if changes["summary"]:
-        updates["summary"] = changes["summary"]
-    await convo_repo.update(db, convo_id, updates)
-    await db.execute("UPDATE conversations SET memory_position = ? WHERE id = ?",
-                     (top_position, convo_id))
-    await convo_repo.checkpoint(db, convo_id, messages[-1])
+    # The position, the summary and the checkpoint are written together, and only while
+    # the newest turn that was read is still there: any cut at or before it removes that
+    # message, and a position set past the end of the story would stall the passes to
+    # come. The story can be cut while the facts above are written (a vector takes a
+    # while), so this is asked again here, in the write itself.
+    #
+    # What is left to do then is to take back the facts this pass added, which are
+    # drawn from turns that are gone. The corrections and drops it made are not
+    # restored: they were decided on the facts as they stood, and what they say is
+    # about the facts, not the story.
+    top = messages[-1]
+    cursor = await db.execute(
+        "UPDATE conversations SET memory_position = ?, summary = COALESCE(?, summary),"
+        " updated_at = ? WHERE id = ? AND EXISTS (SELECT 1 FROM messages WHERE id = ?)",
+        (top_position, changes["summary"], now_iso(), convo_id, top["id"]))
+    if cursor.rowcount == 0:
+        await db.rollback()  # an UPDATE that matched nothing still holds the database
+        for fact in added:
+            await memories_repo.delete_if_unchanged(db, fact["id"], fact["content"])
+        return {"facts_added": [], "summary": None, "skipped": "changed"}
+    await convo_repo.checkpoint(db, convo_id, top)
     await db.commit()
 
-    return {"facts_added": added, "summary": updates.get("summary", convo.get("summary") or "")}
+    return {"facts_added": added, "summary": changes["summary"] or convo.get("summary") or ""}
 
 
 async def backfill_embeddings(db: aiosqlite.Connection) -> int:

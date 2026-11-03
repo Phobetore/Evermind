@@ -536,6 +536,53 @@ async def test_a_branch_reads_the_memory_up_to_its_message(
 
 # ---------- a cut during a pass ----------
 
+async def test_a_cut_while_the_pass_writes_leaves_none_of_what_it_wrote(
+        client, fake_provider, monkeypatch):
+    """The model has answered and the pass is writing its facts, one vector at a time,
+    when the story is cut back. The facts it added are drawn from turns that are gone, and
+    the position it was about to set is past the end of the story."""
+    from app.prompting import embeddings
+
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 3)  # positions 0 to 6
+    in_the_writes, go_on = asyncio.Event(), asyncio.Event()
+
+    async def embed(texts, kind):
+        in_the_writes.set()
+        await go_on.wait()
+        return None
+
+    monkeypatch.setattr(embeddings, "embed", embed)
+    FakeProvider.script = [ProviderEvent(type="delta", text=json.dumps({
+        "facts": [{"content": "First learned.", "kind": "event"},
+                  {"content": "Second learned.", "kind": "event"}],
+        "summary": "A story that was cut."})), ProviderEvent(type="done")]
+
+    reading = asyncio.create_task(client.post(f"/api/conversations/{convo_id}/memories/extract"))
+    try:
+        await within(5, in_the_writes.wait())
+        await remove_from(client, convo_id, 3)
+    finally:
+        go_on.set()
+    answered = await within(5, reading)
+
+    assert answered.status_code == 200, answered.text
+    assert answered.json()["skipped"] == "changed"
+    assert await names(client, convo_id) == set()
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, "")
+    assert await checkpoints_of(convo_id) == []
+    # And what comes next is read from where the story is.
+    await talk(client, convo_id, memory_service.MAINTENANCE_EVERY, label="after")
+    db = await _connect()
+    try:
+        assert await memory_service._new_assistant_count(
+            db, await conversation(client, convo_id)) >= memory_service.MAINTENANCE_EVERY
+    finally:
+        await db.close()
+
+
 async def test_a_cut_after_the_pass_wrote_goes_back_through_what_it_left(client, fake_provider):
     convo = await setup_conversation(client)
     convo_id = convo["id"]
