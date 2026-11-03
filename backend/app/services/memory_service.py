@@ -81,9 +81,11 @@ def schedule_if_due(convo_id: str) -> None:
 
 
 async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
-    """One extraction+summary pass. Returns {"facts_added": [...], "summary": str}."""
+    """One extraction+summary pass. Returns {"facts_added": [...], "summary": str}, with
+    "skipped" set to "busy" and nothing looked at when another pass, an extraction or a
+    consolidation, was running."""
     if convo_id in _running:
-        return {"facts_added": [], "summary": None, "skipped": "already_running"}
+        return {"facts_added": [], "summary": None, "skipped": "busy"}
     _running.add(convo_id)
     try:
         return await _run(db, convo_id)

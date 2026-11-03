@@ -458,7 +458,11 @@ async def test_a_second_pass_while_a_consolidation_runs_changes_nothing_and_asks
     assert second.json()["skipped"] == "busy"
     assert second.json()["before"] == second.json()["after"] == 8
     assert len(second.json()["memories"]) == 8
+    assert extraction.status_code == 200, extraction.text
+    assert extraction.json()["skipped"] == "busy"
     assert extraction.json()["facts_added"] == []
+    assert extraction.json()["summary"] is None
+    assert len(extraction.json()["memories"]) == 8
     assert len(asked) == 1
     assert merged.status_code == 200, merged.text
     assert merged.json()["before"] == 8 and merged.json()["after"] == 1
@@ -490,7 +494,34 @@ async def test_a_consolidation_while_an_extraction_runs_changes_nothing_and_asks
     assert consolidation.json()["before"] == consolidation.json()["after"] == 8
     assert len(asked) == 1
     assert len(extracted.json()["facts_added"]) == 2
+    assert "skipped" not in extracted.json()
     assert len(await stored_facts(client, convo["id"])) == 10
+
+
+async def test_an_extraction_while_one_runs_says_that_it_did_not_look(
+        client, fake_provider, monkeypatch):
+    """"Nothing new" would say that it looked and found nothing."""
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+    started, release, asked = waiting_provider(monkeypatch)
+    FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                           ProviderEvent(type="done")]
+    url = f"/api/conversations/{convo['id']}/memories"
+
+    first = asyncio.create_task(client.post(f"{url}/extract"))
+    try:
+        await within(5, started.wait())
+        second = await within(5, client.post(f"{url}/extract"))
+    finally:
+        release.set()
+    extracted = await within(5, first)
+
+    assert second.status_code == 200, second.text
+    assert second.json()["skipped"] == "busy"
+    assert second.json()["facts_added"] == []
+    assert len(asked) == 1
+    assert len(extracted.json()["facts_added"]) == 2
+    assert "skipped" not in extracted.json()
 
 
 class Raises(FakeProvider):
