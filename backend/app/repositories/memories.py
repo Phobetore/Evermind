@@ -147,6 +147,13 @@ async def list_missing_embeddings(db: aiosqlite.Connection) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-async def set_embedding(db: aiosqlite.Connection, memory_id: str, blob: bytes) -> None:
-    await db.execute("UPDATE memories SET embedding = ? WHERE id = ?", (blob, memory_id))
+async def set_embedding(db: aiosqlite.Connection, memory_id: str, content: str,
+                        blob: bytes) -> bool:
+    """Store the vector worked out for ``content``, unless the fact says something else
+    by now: working one out takes a while, and the fact can be rewritten meanwhile.
+    Whether it was stored."""
+    cursor = await db.execute(
+        "UPDATE memories SET embedding = ? WHERE id = ? AND content = ?",
+        (blob, memory_id, content))
     await db.commit()
+    return cursor.rowcount > 0

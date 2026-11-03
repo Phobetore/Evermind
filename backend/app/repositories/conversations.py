@@ -295,9 +295,23 @@ async def delete_message(db: aiosqlite.Connection, message_id: str,
     return True
 
 
-async def set_message_embedding(db: aiosqlite.Connection, message_id: str, blob: bytes) -> None:
-    await db.execute("UPDATE messages SET embedding = ? WHERE id = ?", (blob, message_id))
+async def set_message_embedding(db: aiosqlite.Connection, message_id: str, content: str,
+                                blob: bytes) -> bool:
+    """Store the vector worked out for ``content``, unless the message says something
+    else by now: working one out takes a while, and the message can be edited, or
+    another variant chosen, meanwhile. Whether it was stored.
+
+    A message's text is its active variant, so it is read as the interface reads it,
+    and the write is guarded by the columns that text was read from."""
+    row = await (await db.execute(
+        "SELECT variants, active_index FROM messages WHERE id = ?", (message_id,))).fetchone()
+    if row is None or message_to_out(row)["content"] != content:
+        return False
+    cursor = await db.execute(
+        "UPDATE messages SET embedding = ? WHERE id = ? AND variants IS ? AND active_index IS ?",
+        (blob, message_id, row["variants"], row["active_index"]))
     await db.commit()
+    return cursor.rowcount > 0
 
 
 async def list_message_embeddings(db: aiosqlite.Connection, convo_id: str) -> dict[str, bytes]:

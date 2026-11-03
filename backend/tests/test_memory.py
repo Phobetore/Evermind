@@ -1131,7 +1131,8 @@ async def test_list_missing_and_set_embedding(client, fake_provider, monkeypatch
     try:
         missing = await mem_repo.list_missing_embeddings(db)
         assert any(m["id"] == created["id"] for m in missing)
-        await mem_repo.set_embedding(db, created["id"], embeddings.pack([0.1, 0.2]))
+        await mem_repo.set_embedding(
+            db, created["id"], "Fact without a vector.", embeddings.pack([0.1, 0.2]))
         missing_after = await mem_repo.list_missing_embeddings(db)
         assert all(m["id"] != created["id"] for m in missing_after)
     finally:

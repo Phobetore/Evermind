@@ -354,11 +354,12 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
                 if stopped.is_set():
                     break
                 if m["id"] not in msg_emb:
-                    vecs = await embeddings.embed([active_content(m)], kind="passage")
+                    text = active_content(m)
+                    vecs = await embeddings.embed([text], kind="passage")
                     if vecs:
                         blob = embeddings.pack(vecs[0])
-                        await convo_repo.set_message_embedding(db, m["id"], blob)
-                        msg_emb[m["id"]] = blob
+                        if await convo_repo.set_message_embedding(db, m["id"], text, blob):
+                            msg_emb[m["id"]] = blob
             cand_map = {m["id"]: msg_emb[m["id"]] for m in candidates if m["id"] in msg_emb}
             scores = None if stopped.is_set() else await retrieval.rank(scene, cand_map)
             if scores:

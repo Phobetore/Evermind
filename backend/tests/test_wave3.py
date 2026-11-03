@@ -244,7 +244,8 @@ async def test_message_embedding_stored_and_excluded(client, fake_provider, monk
     db = await _connect()
     try:
         mid = msgs[0]["id"]
-        await convo_repo.set_message_embedding(db, mid, embeddings.pack([0.1, 0.2]))
+        await convo_repo.set_message_embedding(
+            db, mid, msgs[0]["content"], embeddings.pack([0.1, 0.2]))
         emb = await convo_repo.list_message_embeddings(db, convo["id"])
         assert mid in emb and isinstance(emb[mid], (bytes, memoryview))
     finally:
@@ -261,7 +262,8 @@ async def test_update_message_invalidates_embedding(client, fake_provider, monke
     mid = msgs[0]["id"]
     db = await _connect()
     try:
-        await convo_repo.set_message_embedding(db, mid, embeddings.pack([0.1, 0.2]))
+        await convo_repo.set_message_embedding(
+            db, mid, msgs[0]["content"], embeddings.pack([0.1, 0.2]))
         assert mid in await convo_repo.list_message_embeddings(db, convo["id"])
         # a swipe / active_index change must drop the now-stale vector
         await convo_repo.update_message(db, mid, active_index=0)
