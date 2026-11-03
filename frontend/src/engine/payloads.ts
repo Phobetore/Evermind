@@ -209,10 +209,11 @@ function loreKeywords(existing: Record<string, unknown> | null): string[] {
   return found;
 }
 
-/** How Python writes a number in `json.dumps`. A whole number below 1e21 is written
- *  as JavaScript writes it, which is how Python writes an int. From 1e21 on, what
- *  JavaScript writes (`1e+21`) is how Python writes a float, and an int there, which
- *  Python writes in full digits, is not reproduced. A float that Python wrote as `1.0`
+/** How Python writes a number in `json.dumps`. A whole number up to 2^53 is written
+ *  as JavaScript writes it, which is how Python writes an int. Past that, JavaScript
+ *  has already rounded it, and an int, which Python writes in full digits, is not
+ *  reproduced. From 1e21 on, what JavaScript writes (`1e+21`) is how Python writes a
+ *  float. A float that Python wrote as `1.0`
  *  or `1e+16` is a whole number here too, and cannot be told apart. A fraction is
  *  written the same in both but for the small ones, which Python gives an exponent
  *  from 1e-5 on, of two digits at least, where JavaScript waits for 1e-7. There is no

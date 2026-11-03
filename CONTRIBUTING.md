@@ -44,8 +44,9 @@ CodeQL reads the source weekly and Trivy scans the published image for what its
 base layers picked up since.
 
 New behaviour in the backend comes with tests. The prompt engine
-(`backend/app/prompting/`) is pure, with no I/O, precisely so that it can be tested
-exhaustively, so there is no excuse there. It also has a TypeScript twin,
+(`backend/app/prompting/`, all but the embedding model in `embeddings.py`) is pure,
+with no I/O, precisely so that it can be tested exhaustively, so there is no excuse
+there. It also has a TypeScript twin,
 `frontend/src/engine/`, held to the same cases in `parity/`, so a change to what it
 builds changes both and regenerates the `expected` of those cases:
 [Two prompt engines](docs/DEVELOPING.md#two-prompt-engines) says how. In the frontend,
