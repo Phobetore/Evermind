@@ -39,6 +39,10 @@ export function isWritable(s: string): boolean {
   return true;
 }
 
+/** What a value says once stripped, "" when it is not a string or cannot be written. */
+export const textOf = (value: unknown): string =>
+  typeof value === "string" && isWritable(value) ? pyStrip(value) : "";
+
 /** Python's `len(s)`: a character outside the basic plane, an emoji for one,
  *  counts once where `.length` counts its two UTF-16 units. */
 export function codePoints(s: string): number {

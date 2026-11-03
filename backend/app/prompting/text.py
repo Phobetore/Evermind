@@ -10,3 +10,8 @@ def is_writable(text: str) -> bool:
     except UnicodeEncodeError:
         return False
     return True
+
+
+def text_of(value: object) -> str:
+    """What a value says once stripped, "" when it is not a string or cannot be written."""
+    return value.strip() if isinstance(value, str) and is_writable(value) else ""

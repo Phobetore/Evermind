@@ -12,7 +12,7 @@ letter by letter. A string that cannot be written (a lone surrogate) is absent t
 it would fail in the database, after the changes before it were saved.
 """
 
-from .text import is_writable
+from .text import text_of
 
 ALLOWED_KINDS = {"fact", "event", "relationship", "promise", "state"}
 MAX_CONSOLIDATED_FACTS = 30  # what one consolidation may leave of the model's merge
@@ -24,11 +24,6 @@ def _items(value: object) -> list:
 
 def _kind(value: object) -> str:
     return value if isinstance(value, str) and value in ALLOWED_KINDS else "fact"
-
-
-def _text(value: object) -> str:
-    """What a value says once stripped, "" when it is not a string or cannot be written."""
-    return value.strip() if isinstance(value, str) and is_writable(value) else ""
 
 
 def is_movable(fact: dict) -> bool:
@@ -74,7 +69,7 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
 
     def find(text: object) -> dict | None:
         """What ``memories_repo.find_by_content`` finds."""
-        wanted = _text(text)
+        wanted = text_of(text)
         return next((m for m in known if m["content"] == wanted), None)
 
     def drop(fact: dict) -> None:
@@ -83,11 +78,11 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
 
     for fact in _items(parsed.get("facts")):
         if isinstance(fact, dict):
-            add(_text(fact.get("content")), _kind(fact.get("kind")))
+            add(text_of(fact.get("content")), _kind(fact.get("kind")))
 
     # Corrections and merges.
     for update in _items(parsed.get("updated_facts")):
-        new_content = _text(update.get("content")) if isinstance(update, dict) else ""
+        new_content = text_of(update.get("content")) if isinstance(update, dict) else ""
         if not new_content:
             continue
         target = find(update.get("replaces"))
@@ -105,7 +100,7 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
         if target and is_movable(target):
             drop(target)
 
-    return {"ops": ops, "summary": _text(parsed.get("summary")) or None}
+    return {"ops": ops, "summary": text_of(parsed.get("summary")) or None}
 
 
 def plan_consolidation(parsed: dict | None, movable: list[dict]) -> dict | None:
@@ -118,8 +113,8 @@ def plan_consolidation(parsed: dict | None, movable: list[dict]) -> dict | None:
     Two of them may say the same thing: adding them is what drops the second."""
     facts = []
     for item in _items((parsed or {}).get("facts")):
-        if isinstance(item, dict) and _text(item.get("content")):
-            facts.append({"content": _text(item["content"]), "kind": _kind(item.get("kind"))})
+        if isinstance(item, dict) and text_of(item.get("content")):
+            facts.append({"content": text_of(item["content"]), "kind": _kind(item.get("kind"))})
     if not facts:
         return None
     return {"facts": facts[:MAX_CONSOLIDATED_FACTS],

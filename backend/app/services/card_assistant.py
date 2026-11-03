@@ -20,7 +20,7 @@ from ..prompting.payloads import (
     existing_fields,
     lore_keyword,
 )
-from ..prompting.text import is_writable
+from ..prompting.text import is_writable, text_of
 from ..providers import get_provider
 from ..repositories import connections as connections_repo
 from ..repositories import settings as settings_repo
@@ -62,9 +62,9 @@ def clean_card_draft(draft: dict) -> dict:
     """Whitelist and normalize what the model returned."""
     out: dict = {}
     for field in TEXT_FIELDS:
-        value = draft.get(field)
-        if isinstance(value, str) and value.strip() and is_writable(value):
-            out[field] = value.strip()
+        value = text_of(draft.get(field))
+        if value:
+            out[field] = value
     for field in LIST_FIELDS:
         items = _words(draft.get(field))
         if items:
@@ -78,8 +78,7 @@ def clean_card_draft(draft: dict) -> dict:
         if not isinstance(raw, dict):
             continue
         keys = _words(raw.get("keys"))
-        content = raw.get("content")
-        content = content.strip() if isinstance(content, str) and is_writable(content) else ""
+        content = text_of(raw.get("content"))
         if keys and content:
             entries.append({"keys": keys[:6], "content": content})
     if entries:

@@ -17,7 +17,7 @@
 // Node 22 lower-cases and Python 3.13 does not know yet.
 
 import { LIST_FIELDS, TEXT_FIELDS, loreKeyword } from "./payloads";
-import { isWritable, pyStrip, sliceCodePoints } from "./text";
+import { isWritable, sliceCodePoints, textOf } from "./text";
 import { isRecord } from "./values";
 
 const MAX_LORE_ENTRIES = 8;
@@ -42,8 +42,8 @@ function words(value: unknown): string[] {
 export function cleanCardDraft(draft: Record<string, unknown>): CardDraft {
   const out: CardDraft = {};
   for (const field of TEXT_FIELDS) {
-    const value = draft[field];
-    if (typeof value === "string" && pyStrip(value) && isWritable(value)) out[field] = pyStrip(value);
+    const value = textOf(draft[field]);
+    if (value) out[field] = value;
   }
   for (const field of LIST_FIELDS) {
     const found = words(draft[field]);
@@ -60,8 +60,7 @@ export function cleanCardDraft(draft: Record<string, unknown>): CardDraft {
   for (const raw of (Array.isArray(lore) ? lore : []).slice(0, MAX_LORE_ENTRIES)) {
     if (!isRecord(raw)) continue;
     const keys = words(raw.keys);
-    const content =
-      typeof raw.content === "string" && isWritable(raw.content) ? pyStrip(raw.content) : "";
+    const content = textOf(raw.content);
     if (keys.length && content) entries.push({ keys: keys.slice(0, MAX_KEYS), content });
   }
   if (entries.length) out.lore_entries = entries;

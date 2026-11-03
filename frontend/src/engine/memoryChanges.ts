@@ -7,7 +7,7 @@
 // would be read letter by letter. A string that cannot be written (a lone surrogate)
 // is absent too: it would fail in the database, after the changes before it were saved.
 
-import { isWritable, pyStrip } from "./text";
+import { textOf } from "./text";
 import { isRecord } from "./values";
 
 const ALLOWED_KINDS: ReadonlySet<string> = new Set([
@@ -22,9 +22,6 @@ const MAX_CONSOLIDATED_FACTS = 30; // what one consolidation may leave of the mo
 const items = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 const kindOf = (value: unknown): string =>
   typeof value === "string" && ALLOWED_KINDS.has(value) ? value : "fact";
-// What a value says once stripped, "" when it is not a string or cannot be written.
-const textOf = (value: unknown): string =>
-  typeof value === "string" && isWritable(value) ? pyStrip(value) : "";
 
 /** Whether the model may correct, drop or merge a fact: it wrote it and nobody pinned
  *  it. What a person typed or pinned is left alone. */
