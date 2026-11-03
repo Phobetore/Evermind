@@ -195,6 +195,49 @@ test("a choice the server refuses is said, and the list goes back to what is sto
   expect(await marked(request)).toEqual(["Mara"]);
 });
 
+test("when the personas cannot be had, the start window says so and cannot start until it can", async ({
+  page, request,
+}) => {
+  const mara = await makePersona(request, "Mara");
+  const character = await makeCharacter(request, { name: "Greeter" });
+  let reachable = false;
+  await page.route("**/api/personas", (route) => (reachable ? route.continue() : route.abort()));
+
+  await page.goto(`/#/characters/${character.id}`);
+  await page.getByRole("button", { name: "Start a conversation" }).click();
+
+  // Not an empty list: a conversation started now would be played as Mara all the same.
+  await expect(page.getByRole("alert")).toHaveText("Evermind is not answering. Is it still running?");
+  await expect(page.getByRole("button", { name: "Enter the story" })).toBeDisabled();
+  await expect(page.getByLabel("You are playing as")).toHaveCount(0);
+
+  reachable = true;
+  await page.getByRole("button", { name: "Reload" }).click();
+  await expect(page.getByLabel("You are playing as")).toHaveValue(mara.id);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Enter the story" })).toBeEnabled();
+});
+
+test("Settings does not offer First available before it knows the connections", async ({
+  page, request,
+}) => {
+  await makeCharacter(request);
+  const chosen = (await (await request.get(`${API}/api/settings`)).json()).default_connection_id;
+  expect(chosen, "the suite has no default connection").toBeTruthy();
+  await page.route("**/api/connections", async (route) => {
+    if (route.request().method() === "GET") await new Promise((done) => setTimeout(done, 1500));
+    await route.continue();
+  });
+
+  await page.goto("/#/settings");
+  const connection = page.getByLabel("Default connection");
+  await expect(connection).toBeDisabled();
+  await expect(shownAs(connection)).toHaveText("Loading…");
+
+  await expect(connection).toBeEnabled();
+  await expect(connection).toHaveValue(chosen);
+});
+
 test("Default connection can be put back to First available, and stays there after a reload", async ({
   page, request,
 }) => {

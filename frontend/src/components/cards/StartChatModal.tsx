@@ -24,6 +24,8 @@ export function StartChatModal({
   const [greetingIndex, setGreetingIndex] = useState(0);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -37,10 +39,15 @@ export function StartChatModal({
         setPersonaId(p.find((x) => x.is_default)?.id ?? "");
         setConnectionId(s.default_connection_id ?? c.find((x) => x.is_default)?.id ?? "");
       })
-      // Without the lists, the window can still start a conversation: it takes
-      // the persona and the connection that are the defaults.
-      .catch(() => setPersonas([]));
-  }, []);
+      // An empty list would say there is no persona to play, when there may be one
+      // that a conversation started now would be played as.
+      .catch((error) => setLoadFailure({ error }));
+  }, [attempt]);
+
+  function tryAgain() {
+    setLoadFailure(null);
+    setAttempt((n) => n + 1);
+  }
 
   const greetings = [character.greeting, ...character.alternate_greetings].filter(
     (g) => g && g.trim(),
@@ -66,68 +73,84 @@ export function StartChatModal({
   return (
     <Modal title={t("cards.startChatModal.title", { name: character.name })} onClose={onClose}>
       <div className="flex flex-col gap-4">
-        <Field label={t("chat.panel.youArePlaying")} hint={t("cards.startChatModal.personaHint")}>
-          <select
-            className="field"
-            disabled={personas === null}
-            value={personaId}
-            onChange={(e) => setPersonaId(e.target.value)}
-          >
-            {personas === null && <option value="">{t("common.loading")}</option>}
-            {/* With a persona marked, asking for none gets that persona all the same. */}
-            {personas && !personas.some((p) => p.is_default) && (
-              <option value="">{t("cards.startChatModal.noPersonaOption")}</option>
+        {loadFailure ? (
+          <>
+            <p
+              role="alert"
+              className="rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood"
+            >
+              {describeError(loadFailure.error, t)}
+            </p>
+            <button type="button" className="btn btn-ghost" onClick={tryAgain}>
+              {t("common.reload")}
+            </button>
+          </>
+        ) : (
+          <>
+            <Field label={t("chat.panel.youArePlaying")} hint={t("cards.startChatModal.personaHint")}>
+              <select
+                className="field"
+                disabled={personas === null}
+                value={personaId}
+                onChange={(e) => setPersonaId(e.target.value)}
+              >
+                {personas === null && <option value="">{t("common.loading")}</option>}
+                {/* With a persona marked, asking for none gets that persona all the same. */}
+                {personas && !personas.some((p) => p.is_default) && (
+                  <option value="">{t("cards.startChatModal.noPersonaOption")}</option>
+                )}
+                {(personas ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {data.connections && (
+              <Field label={t("connections.modelLabel")}>
+                <select
+                  className="field"
+                  value={connectionId}
+                  onChange={(e) => setConnectionId(e.target.value)}
+                >
+                  {connections.length === 0 && (
+                    <option value="">{t("cards.startChatModal.noConnectionOption")}</option>
+                  )}
+                  {connections.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.model ? `· ${c.model}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
             )}
-            {(personas ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </Field>
 
-        {data.connections && (
-          <Field label={t("connections.modelLabel")}>
-            <select
-              className="field"
-              value={connectionId}
-              onChange={(e) => setConnectionId(e.target.value)}
-            >
-              {connections.length === 0 && (
-                <option value="">{t("cards.startChatModal.noConnectionOption")}</option>
-              )}
-              {connections.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} {c.model ? `· ${c.model}` : ""}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
+            {greetings.length > 1 && (
+              <Field label={t("characters.detail.openingHeading")}>
+                <select
+                  className="field"
+                  value={greetingIndex}
+                  onChange={(e) => setGreetingIndex(Number(e.target.value))}
+                >
+                  {greetings.map((g, i) => (
+                    <option key={i} value={i}>
+                      {i === 0
+                        ? t("cards.startChatModal.mainGreetingOption")
+                        : t("cards.startChatModal.alternateGreetingOption", { index: i })}{" "}
+                      : {g.slice(0, 60)}…
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
 
-        {greetings.length > 1 && (
-          <Field label={t("characters.detail.openingHeading")}>
-            <select
-              className="field"
-              value={greetingIndex}
-              onChange={(e) => setGreetingIndex(Number(e.target.value))}
-            >
-              {greetings.map((g, i) => (
-                <option key={i} value={i}>
-                  {i === 0
-                    ? t("cards.startChatModal.mainGreetingOption")
-                    : t("cards.startChatModal.alternateGreetingOption", { index: i })}{" "}
-                  : {g.slice(0, 60)}…
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-
-        {data.connections && connections.length === 0 && (
-          <p className="rounded-lg border border-ember-600/40 bg-ember-glow px-4 py-2.5 text-sm text-ember-300">
-            {t("cards.startChatModal.noConnectionWarning")}
-          </p>
+            {data.connections && connections.length === 0 && (
+              <p className="rounded-lg border border-ember-600/40 bg-ember-glow px-4 py-2.5 text-sm text-ember-300">
+                {t("cards.startChatModal.noConnectionWarning")}
+              </p>
+            )}
+          </>
         )}
         {error && (
           <p className="rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood">
@@ -135,7 +158,11 @@ export function StartChatModal({
           </p>
         )}
 
-        <button className="btn btn-primary w-full" onClick={start} disabled={starting}>
+        <button
+          className="btn btn-primary w-full"
+          onClick={start}
+          disabled={starting || personas === null}
+        >
           {starting ? t("chat.openingScene") : t("cards.startChatModal.enterButton")}
         </button>
       </div>

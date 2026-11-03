@@ -182,10 +182,13 @@ export function SettingsPage() {
             <Field label={t("settings.defaultConnectionLabel")}>
               <select
                 className="field"
-                value={settings.default_connection_id ?? ""}
+                disabled={connections === null}
+                value={connections === null ? "" : (settings.default_connection_id ?? "")}
                 onChange={(e) => saveSettings({ default_connection_id: e.target.value || null })}
               >
-                <option value="">{t("settings.firstAvailableOption")}</option>
+                <option value="">
+                  {connections === null ? t("common.loading") : t("settings.firstAvailableOption")}
+                </option>
                 {(connections ?? []).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
