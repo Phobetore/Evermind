@@ -4297,7 +4297,7 @@
      "messages": [
       {
        "role": "user",
-       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 0): *The lamp turns.* Welcome, Alex.\n\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
       }
      ],
      "stop": [],
@@ -4400,7 +4400,7 @@
      "messages": [
       {
        "role": "user",
-       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 0): *The lamp turns.* Welcome, Alex.\n\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
       }
      ],
      "stop": [],
@@ -4412,7 +4412,7 @@
   },
   {
    "fn": "build_extraction_payload",
-   "name": "a memory position of zero leaves turn zero out",
+   "name": "a memory position of zero reads a first turn that is no greeting",
    "input": {
     "character": {
      "kind": "character",
@@ -4503,7 +4503,756 @@
      "messages": [
       {
        "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 0): *The lamp turns.* Welcome, Alex.\n\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "top_position": 5
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "a story of a greeting alone has nothing to read",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0,
+      "meta": {
+       "greeting": true
+      }
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "a story of one turn at position zero is read, with zero as the top",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\", \"kind\": \"event|state|relationship|promise|fact\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 0): *The lamp turns.* Welcome, Alex.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "top_position": 0
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "a memory position of zero leaves a greeting out",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0,
+      "meta": {
+       "greeting": true
+      }
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\", \"kind\": \"event|state|relationship|promise|fact\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
        "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "top_position": 5
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "no memory position leaves a greeting out",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": null
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0,
+      "meta": {
+       "greeting": true
+      }
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\", \"kind\": \"event|state|relationship|promise|fact\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "top_position": 5
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "a first turn with other marks is read",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0,
+      "meta": {
+       "interrupted": [
+        0
+       ]
+      }
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\", \"kind\": \"event|state|relationship|promise|fact\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 0): *The lamp turns.* Welcome, Alex.\n\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "top_position": 5
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "a first turn with a mark that says it is no greeting is read",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0,
+      "meta": {
+       "greeting": false
+      }
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\", \"kind\": \"event|state|relationship|promise|fact\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 0): *The lamp turns.* Welcome, Alex.\n\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "top_position": 5
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "a first turn with no marks is read",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0,
+      "meta": {}
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\", \"kind\": \"event|state|relationship|promise|fact\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 0): *The lamp turns.* Welcome, Alex.\n\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "top_position": 5
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "a memory read past the first turn does not read it again",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 1
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0,
+      "meta": {}
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\", \"kind\": \"event|state|relationship|promise|fact\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
       }
      ],
      "stop": [],

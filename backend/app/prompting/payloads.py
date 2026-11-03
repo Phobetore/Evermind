@@ -73,12 +73,21 @@ def build_extraction_payload(character: dict, persona: dict | None, conversation
                              memories: list[dict]) -> tuple[PromptPayload, int] | None:
     """The prompt that reads the turns since the last pass for new facts and a new
     summary, and the position of the newest of those turns. None when there is no
-    turn since."""
+    turn since.
+
+    A memory position of 0 means nothing was read, so the first turn is one to read, unless
+    it is the greeting, which is the card's and not the story's."""
     char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
     memory_position = conversation.get("memory_position") or 0
 
-    new_turns = [m for m in messages if m["position"] > memory_position][-MAX_TURNS_PER_RUN:]
+    def unread(message: dict) -> bool:
+        if message["position"] > memory_position:
+            return True
+        return (memory_position == 0 and message["position"] == 0
+                and not (message.get("meta") or {}).get("greeting"))
+
+    new_turns = [m for m in messages if unread(m)][-MAX_TURNS_PER_RUN:]
     if not new_turns:
         return None
     top_position = max(m["position"] for m in new_turns)

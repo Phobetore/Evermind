@@ -304,6 +304,78 @@ async def test_a_pass_that_was_reading_when_one_message_went_keeps_nothing(
     assert (await conversation(client, convo_id))["memory_position"] == 0
 
 
+# ---------- the first message of a story ----------
+
+async def test_a_first_message_that_is_no_greeting_is_read(client, fake_provider):
+    """With no greeting, the story starts at position 0, and what it says is the story."""
+    convo = await setup_conversation(client, greeting="")
+    convo_id = convo["id"]
+    await talk(client, convo_id, 1, label="first words")  # positions 0 and 1
+    fake_provider.captured.clear()
+
+    await extract(client, convo_id, {"facts": [{"content": "Learned.", "kind": "fact"}]})
+
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "(turn 0): first words 1" in shown
+    assert "(turn 1)" in shown
+
+
+async def test_a_greeting_is_not_read(client, fake_provider):
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 1)
+    fake_provider.captured.clear()
+
+    await extract(client, convo["id"], {"facts": []})
+
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "(turn 0)" not in shown
+    assert "(turn 1)" in shown
+
+
+async def test_the_first_message_of_a_story_cut_from_the_start_is_read(client, fake_provider):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 2)
+    await remove_from(client, convo_id, 0)
+    await talk(client, convo_id, 1, label="a new start")
+    fake_provider.captured.clear()
+
+    await extract(client, convo_id, {"facts": []})
+
+    assert "(turn 0): a new start 1" in fake_provider.captured["payload"].messages[0]["content"]
+
+
+async def test_a_pass_that_read_only_the_first_message_has_read_nothing_as_far_as_a_position_says(
+        client, fake_provider, monkeypatch):
+    """Position 0 still means nothing was read, so the next pass reads it again, and what
+    it says again is not recorded twice."""
+    class Stops:
+        def __init__(self, connection):
+            pass
+
+        async def stream_chat(self, payload):
+            yield ProviderEvent(type="error", message="Down.", meta={"kind": "model_error"})
+
+    monkeypatch.setattr("app.services.chat_service.get_provider", Stops)
+    convo = await setup_conversation(client, greeting="")
+    convo_id = convo["id"]
+    await send(client, convo_id, content="Only this.")
+    assert [m["position"] for m in await messages_of(client, convo_id)] == [0]
+
+    first = await extract(client, convo_id, {"facts": [{"content": "Learned.", "kind": "fact"}],
+                                             "summary": "Just this."})
+    assert [f["source_position"] for f in first["facts_added"]] == [0]
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, "Just this.")
+    assert await checkpoints_of(convo_id) == [(0, "Just this.", 0)]
+
+    fake_provider.captured.clear()
+    again = await extract(client, convo_id, {"facts": [{"content": "Learned.", "kind": "fact"}]})
+    assert "(turn 0): Only this." in fake_provider.captured["payload"].messages[0]["content"]
+    assert again["facts_added"] == []
+    assert await names(client, convo_id) == {"Learned."}
+
+
 async def test_the_next_pass_reads_the_turns_that_came_after_a_removal(client, fake_provider):
     """Eight replies, the memory read twice, the story taken back, new replies. The memory
     goes back to what it had read at the first pass, with that summary, at once and

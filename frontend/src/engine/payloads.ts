@@ -93,6 +93,7 @@ export function buildSummaryPayload(input: SummaryInput): PromptPayload {
 }
 
 export interface ExtractionMessage extends ActiveMessage {
+  meta?: { greeting?: unknown } | null;
   role: string;
   position: number;
 }
@@ -116,7 +117,12 @@ export function buildExtractionPayload(
   const userName = persona?.name || "User";
   const memoryPosition = conversation.memory_position || 0;
 
-  const newTurns = messages.filter((m) => m.position > memoryPosition).slice(-MAX_TURNS_PER_RUN);
+  // A memory position of 0 means nothing was read, so the first turn is one to read, unless
+  // it is the greeting, which is the card's and not the story's.
+  const unread = (m: (typeof messages)[number]) =>
+    m.position > memoryPosition ||
+    (memoryPosition === 0 && m.position === 0 && !m.meta?.greeting);
+  const newTurns = messages.filter(unread).slice(-MAX_TURNS_PER_RUN);
   if (!newTurns.length) return null;
   const topPosition = Math.max(...newTurns.map((m) => m.position));
 
