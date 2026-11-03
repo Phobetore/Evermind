@@ -954,6 +954,27 @@ async def test_a_fact_forgotten_does_not_come_back_with_a_rewind(client, fake_pr
     assert await names(client, convo["id"]) == set()
 
 
+async def test_a_fact_forgotten_does_not_come_back_under_the_id_it_had_before(
+        client, fake_provider):
+    """Dropped by one pass and said again by another, it is another row that says the same.
+    What a person forgot is what it says."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 2)
+    await extract(client, convo_id, {"facts": [{"content": "Said twice.", "kind": "fact"}]})
+    await talk(client, convo_id, 2, first=3)
+    await extract(client, convo_id, {"obsolete_facts": ["Said twice."]})
+    await talk(client, convo_id, 2, first=5)
+    await extract(client, convo_id, {"facts": [{"content": "Said twice.", "kind": "fact"}]})
+    fact = await fact_named(client, convo_id, "Said twice.")
+
+    await client.delete(f"/api/memories/{fact['id']}")
+
+    assert await copy_at(convo_id, 4) == set()
+    await remove_from(client, convo_id, 7)
+    assert await names(client, convo_id) == set()
+
+
 async def test_a_fact_forgotten_after_a_rewind_is_gone_from_the_older_copies_too(
         client, fake_provider):
     convo = await setup_conversation(client)

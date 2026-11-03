@@ -132,12 +132,14 @@ async def remove(db: aiosqlite.Connection, memory_id: str) -> None:
 
 
 async def delete(db: aiosqlite.Connection, memory_id: str) -> bool:
-    """A person forgets a fact: it goes from the copies the checkpoints hold of it too, so
-    that a rewind cannot bring it back."""
+    """A person forgets a fact: it goes from the copies the checkpoints hold of it too, as it
+    read at any time, and so does any copy that says what it says now, which a pass may have
+    dropped and written again under another id. A rewind cannot bring it back."""
     await db.execute(
-        "DELETE FROM memory_checkpoint_facts WHERE fact_id = ? AND"
-        " conversation_id = (SELECT conversation_id FROM memories WHERE id = ?)",
-        (memory_id, memory_id))
+        "DELETE FROM memory_checkpoint_facts"
+        " WHERE conversation_id = (SELECT conversation_id FROM memories WHERE id = :id)"
+        " AND (fact_id = :id OR content = (SELECT content FROM memories WHERE id = :id))",
+        {"id": memory_id})
     cursor = await db.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
     await db.commit()
     return cursor.rowcount > 0
