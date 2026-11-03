@@ -99,6 +99,21 @@ async def update(db: aiosqlite.Connection, memory_id: str,
     return await get(db, memory_id)
 
 
+async def update_if_unchanged(db: aiosqlite.Connection, memory_id: str, content: str,
+                              new_content: str) -> bool:
+    """Rewrite a fact only if it still says ``content`` and nobody has pinned it since
+    it was read. The vector of the new text comes first, since that is what takes time,
+    and a change made while it is worked out is the one that stays."""
+    new_content = new_content.strip()
+    vectors = await embeddings.embed([new_content], kind="passage")
+    cursor = await db.execute(
+        "UPDATE memories SET content = ?, embedding = ?"
+        " WHERE id = ? AND content = ? AND is_pinned = 0",
+        (new_content, embeddings.pack(vectors[0]) if vectors else None, memory_id, content))
+    await db.commit()
+    return cursor.rowcount > 0
+
+
 async def delete(db: aiosqlite.Connection, memory_id: str) -> bool:
     cursor = await db.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
     await db.commit()

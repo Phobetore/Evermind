@@ -21,7 +21,7 @@ from ..errors import (
 )
 from ..prompting import embeddings
 from ..prompting.engine import active_content
-from ..prompting.memory_changes import plan_consolidation, plan_memory_changes
+from ..prompting.memory_changes import is_movable, plan_consolidation, plan_memory_changes
 from ..prompting.payloads import (
     MIN_FACTS_TO_CONSOLIDATE,
     build_consolidation_payload,
@@ -174,7 +174,10 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
 
 async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict]) -> list[dict]:
     """Make the changes of ``plan_memory_changes`` one after the other, and return the
-    facts that were added. A fact that cannot be found any more is left alone."""
+    facts that were added. The plan was made from the facts as they were read, and a
+    person can act on them while it is written: a fact that cannot be found any more,
+    or that is no longer the model's to move, is left alone, and the write itself asks
+    again, since working out a vector can take a while."""
     added = []
     for op in ops:
         if op["op"] == "add":
@@ -185,12 +188,12 @@ async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict]) -> li
                 added.append(saved)
             continue
         target = await memories_repo.find_by_content(db, convo_id, op["target"])
-        if target is None:
+        if target is None or not is_movable(target):
             continue
         if op["op"] == "update":
-            await memories_repo.update(db, target["id"], content=op["content"])
+            await memories_repo.update_if_unchanged(db, target["id"], op["target"], op["content"])
         else:
-            await memories_repo.delete(db, target["id"])
+            await memories_repo.delete_if_unchanged(db, target["id"], op["target"])
     return added
 
 

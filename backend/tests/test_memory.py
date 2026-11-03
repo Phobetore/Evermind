@@ -695,6 +695,77 @@ async def stored_facts(client, convo_id):
                   for m in rows)
 
 
+async def test_a_fact_pinned_while_an_extraction_is_applied_is_not_rewritten_or_deleted(
+        client, fake_provider, monkeypatch):
+    """The plan was made from the facts as they were read, and writing the first of its
+    changes can take a while with the semantic model: each change asks again."""
+    from app.prompting import embeddings
+
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+    await add_facts(client, convo["id"], ["To correct.", "To drop.", "Corrected anyway.",
+                                          "Dropped anyway."], by_the_model=True)
+    facts = {f["content"]: f["id"] for f in
+             (await client.get(f"/api/conversations/{convo['id']}/memories")).json()}
+    done = []
+
+    async def embed_and_meanwhile(texts, kind="passage"):
+        if not done:
+            done.append(True)
+            await client.patch(f"/api/memories/{facts['To correct.']}", json={"is_pinned": True})
+            await client.patch(f"/api/memories/{facts['To drop.']}", json={"is_pinned": True})
+
+    monkeypatch.setattr(embeddings, "embed", embed_and_meanwhile)
+    answer = {
+        "facts": [{"content": "A new fact."}],
+        "updated_facts": [{"replaces": "To correct.", "content": "Corrected."},
+                          {"replaces": "Corrected anyway.", "content": "Corrected, as asked."}],
+        "obsolete_facts": ["To drop.", "Dropped anyway."],
+    }
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(answer)),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+
+    assert resp.status_code == 200, resp.text
+    assert [(f[0], f[3]) for f in await stored_facts(client, convo["id"])] == [
+        ("A new fact.", False), ("Corrected, as asked.", False), ("To correct.", True),
+        ("To drop.", True)]
+
+
+@pytest.mark.parametrize("change, left", [
+    ({"is_pinned": True}, ("To correct.", True)),
+    ({"content": "Edited by hand."}, ("Edited by hand.", False)),
+], ids=["pinned", "edited"])
+async def test_a_fact_changed_while_its_correction_is_worked_out_keeps_what_was_done_to_it(
+        client, fake_provider, monkeypatch, change, left):
+    """Working out the vector of the new text is the slow part of a correction, and it
+    comes after the fact was looked up."""
+    from app.prompting import embeddings
+
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+    await add_facts(client, convo["id"], ["To correct."], by_the_model=True)
+    fact = (await client.get(f"/api/conversations/{convo['id']}/memories")).json()[0]
+    done = []
+
+    async def embed_and_meanwhile(texts, kind="passage"):
+        if texts == ["Corrected."] and not done:
+            done.append(True)
+            await client.patch(f"/api/memories/{fact['id']}", json=change)
+
+    monkeypatch.setattr(embeddings, "embed", embed_and_meanwhile)
+    answer = {"updated_facts": [{"replaces": "To correct.", "content": "Corrected."}]}
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(answer)),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+
+    assert resp.status_code == 200, resp.text
+    assert done
+    assert [(f[0], f[3]) for f in await stored_facts(client, convo["id"])] == [left]
+
+
 async def test_a_messy_extraction_reply_leaves_the_facts_a_person_would_expect(
         client, fake_provider):
     """Spaces to strip, doubles, an unknown kind, a fact the reply itself adds and
@@ -878,7 +949,7 @@ async def test_a_change_to_a_fact_that_is_gone_is_left_alone(client, fake_provid
     from app.db import _connect
 
     convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], ["Here."])
+    await add_facts(client, convo["id"], ["Here."], by_the_model=True)
     db = await _connect()
     try:
         added = await memory_service._apply(db, convo["id"], [
