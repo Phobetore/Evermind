@@ -98,9 +98,9 @@ async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
 async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
     """One extraction+summary pass. Returns {"facts_added": [...], "summary": str}, with
     "skipped" set to "busy" and nothing looked at when another memory task was running,
-    and to "changed" and nothing kept when the turns it read
-    were not the story's any more when it came to write what it learned, or a person had
-    edited or forgotten a fact it was sent."""
+    and to "changed" and nothing kept when the turns it read were not the story's any more
+    when it came to write what it learned, or a person had edited or forgotten a fact it
+    was sent."""
     async def busy() -> dict:
         return {"facts_added": [], "summary": None, "skipped": "busy"}
 

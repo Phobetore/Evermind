@@ -1441,6 +1441,25 @@ async def test_a_cut_while_the_model_writes_a_summary_leaves_no_summary_of_remov
     assert await checkpoints_of(convo_id) == [(4, "To 4.", 4)]
 
 
+async def test_a_conversation_deleted_while_the_model_writes_a_summary_writes_nothing(
+        client, fake_provider, slow_summary):
+    asked, go_on = slow_summary
+    convo = await setup_conversation(client)
+    await talk(client, convo["id"], 1)
+
+    writing = asyncio.create_task(client.post(f"/api/conversations/{convo['id']}/summarize"))
+    try:
+        await within(5, asked.wait())
+        assert (await client.delete(f"/api/conversations/{convo['id']}")).status_code == 204
+    finally:
+        go_on.set()
+    answered = await within(5, writing)
+
+    assert answered.status_code == 200, answered.text
+    assert answered.json()["skipped"] == "changed"
+    assert await checkpoints_of(convo["id"]) == []
+
+
 async def test_a_turn_sent_while_the_model_writes_a_summary_does_not_stop_it(
         client, fake_provider, slow_summary):
     """It is true of the turns it was given, and is checkpointed at the last of them."""

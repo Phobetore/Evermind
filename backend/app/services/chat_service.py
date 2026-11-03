@@ -659,7 +659,8 @@ async def _summarize(db: aiosqlite.Connection, convo: dict, character: dict, per
     last = messages[-1]["position"]
     async with write_transaction(db):
         if await convo_repo.message_ids_through(db, convo_id, last) != [m["id"] for m in messages]:
+            # It may have been deleted, in which case it is answered as it was read.
             current = await convo_repo.get(db, convo_id, with_messages=False)
-            return {**current, "skipped": "changed"}
+            return {**(current or convo), "skipped": "changed"}
         await convo_repo.remember(db, convo_id, last, summary)
     return await convo_repo.get(db, convo_id, with_messages=False)
