@@ -20,30 +20,41 @@ async def list_for_conversation(db: aiosqlite.Connection, convo_id: str) -> list
     return [to_out(r) for r in rows]
 
 
+async def _says(db: aiosqlite.Connection, convo_id: str, content: str) -> bool:
+    """Exact-content dedup within the conversation."""
+    return await (await db.execute(
+        "SELECT id FROM memories WHERE conversation_id = ? AND content = ?",
+        (convo_id, content))).fetchone() is not None
+
+
 async def add(db: aiosqlite.Connection, convo_id: str, content: str,
               kind: str = "fact", source_position: int = 0,
               is_pinned: bool = False, source: str = "auto") -> dict | None:
     content = (content or "").strip()
-    if not content:
-        return None
-    if kind not in ALLOWED_KINDS:
-        kind = "fact"
-    # exact-content dedup within the conversation
-    existing = await (await db.execute(
-        "SELECT id FROM memories WHERE conversation_id = ? AND content = ?",
-        (convo_id, content))).fetchone()
-    if existing:
+    if not content or await _says(db, convo_id, content):
         return None
     vectors = await embeddings.embed([content], kind="passage")
-    blob = embeddings.pack(vectors[0]) if vectors else None
+    saved = await add_with_vector(db, convo_id, content, kind, source_position,
+                                  embeddings.pack(vectors[0]) if vectors else None,
+                                  is_pinned=is_pinned, source=source)
+    await db.commit()
+    return saved
+
+
+async def add_with_vector(db: aiosqlite.Connection, convo_id: str, content: str, kind: str,
+                          source_position: int, blob: bytes | None, *,
+                          is_pinned: bool = False, source: str = "auto") -> dict | None:
+    """``add`` for what is written with other things: the vector was worked out before, and
+    the caller commits. None for a text that is said already."""
+    if await _says(db, convo_id, content):
+        return None
     memory_id = new_id()
     await db.execute(
         "INSERT INTO memories (id, conversation_id, kind, content, source_position,"
         " is_pinned, source, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (memory_id, convo_id, kind, content, source_position,
-         int(is_pinned), source, now_iso(), blob),
+        (memory_id, convo_id, kind if kind in ALLOWED_KINDS else "fact", content,
+         source_position, int(is_pinned), source, now_iso(), blob),
     )
-    await db.commit()
     return await get(db, memory_id)
 
 
@@ -107,19 +118,17 @@ async def update(db: aiosqlite.Connection, memory_id: str,
     return await get(db, memory_id)
 
 
-async def update_if_unchanged(db: aiosqlite.Connection, memory_id: str, content: str,
-                              new_content: str) -> bool:
-    """Rewrite a fact only if it still says ``content`` and nobody has pinned it since
-    it was read. The vector of the new text comes first, since that is what takes time,
-    and a change made while it is worked out is the one that stays."""
-    new_content = new_content.strip()
-    vectors = await embeddings.embed([new_content], kind="passage")
-    cursor = await db.execute(
-        "UPDATE memories SET content = ?, embedding = ?"
-        " WHERE id = ? AND content = ? AND is_pinned = 0",
-        (new_content, embeddings.pack(vectors[0]) if vectors else None, memory_id, content))
-    await db.commit()
-    return cursor.rowcount > 0
+async def rewrite(db: aiosqlite.Connection, memory_id: str, content: str,
+                  blob: bytes | None) -> None:
+    """The model corrects a fact: the copies keep what it said, which is what a cut back
+    before the correction restores. The caller commits."""
+    await db.execute("UPDATE memories SET content = ?, embedding = ? WHERE id = ?",
+                     (content, blob, memory_id))
+
+
+async def remove(db: aiosqlite.Connection, memory_id: str) -> None:
+    """The model drops or merges a fact, and the copies keep it. The caller commits."""
+    await db.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
 
 
 async def delete(db: aiosqlite.Connection, memory_id: str) -> bool:
@@ -130,17 +139,6 @@ async def delete(db: aiosqlite.Connection, memory_id: str) -> bool:
         " conversation_id = (SELECT conversation_id FROM memories WHERE id = ?)",
         (memory_id, memory_id))
     cursor = await db.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
-    await db.commit()
-    return cursor.rowcount > 0
-
-
-async def delete_if_unchanged(db: aiosqlite.Connection, memory_id: str, content: str) -> bool:
-    """Delete a fact only if it still says ``content`` and nobody has pinned it since
-    it was read, so that a change made meanwhile is not undone by what was decided
-    on the fact as it was."""
-    cursor = await db.execute(
-        "DELETE FROM memories WHERE id = ? AND content = ? AND is_pinned = 0",
-        (memory_id, content))
     await db.commit()
     return cursor.rowcount > 0
 

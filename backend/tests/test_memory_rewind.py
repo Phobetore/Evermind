@@ -556,22 +556,22 @@ async def test_a_branch_reads_the_memory_up_to_its_message(
     assert [c[0] for c in await checkpoints_of(branch["id"])] == ([before] if summary_kept else [])
 
 
-# ---------- a cut while a pass writes, or after ----------
+# ---------- a cut while a pass works out its vectors, or after it wrote ----------
 
-async def test_a_cut_while_the_pass_writes_leaves_none_of_what_it_wrote(
+async def test_a_cut_while_the_pass_works_out_its_vectors_leaves_none_of_what_it_learned(
         client, fake_provider, monkeypatch):
-    """The model has answered and the pass is writing its facts, one vector at a time,
-    when the story is cut back. The facts it added are drawn from turns that are gone, and
-    the position it was about to set is past the end of the story."""
+    """The model has answered and the vectors of what it learned take a while, when the
+    story is cut back. The facts are drawn from turns that are gone, and the position the
+    pass was about to set is past the end of the story."""
     from app.prompting import embeddings
 
     convo = await setup_conversation(client)
     convo_id = convo["id"]
     await talk(client, convo_id, 3)  # positions 0 to 6
-    in_the_writes, go_on = asyncio.Event(), asyncio.Event()
+    in_the_vectors, go_on = asyncio.Event(), asyncio.Event()
 
     async def embed(texts, kind):
-        in_the_writes.set()
+        in_the_vectors.set()
         await go_on.wait()
 
     monkeypatch.setattr(embeddings, "embed", embed)
@@ -582,7 +582,7 @@ async def test_a_cut_while_the_pass_writes_leaves_none_of_what_it_wrote(
 
     reading = asyncio.create_task(client.post(f"/api/conversations/{convo_id}/memories/extract"))
     try:
-        await within(5, in_the_writes.wait())
+        await within(5, in_the_vectors.wait())
         await remove_from(client, convo_id, 3)
     finally:
         go_on.set()
@@ -1044,3 +1044,230 @@ async def test_a_branch_keeps_a_vector_only_beside_the_text_it_was_worked_out_fr
     held = {r["content"]: r["embedding"] for r in rows}
     assert held["Stays as it is."] == embeddings.pack([float(len("Stays as it is.")), 1.0])
     assert held["To be corrected."] is None
+
+
+# ---------- a pass is written whole, or not at all ----------
+
+async def a_memory_to_change(client, convo_id):
+    """Facts for an answer to correct and to drop, and turns for it to read."""
+    await talk(client, convo_id, 2)
+    await extract(client, convo_id, {"facts": [{"content": "To correct.", "kind": "fact"},
+                                               {"content": "To drop.", "kind": "fact"}],
+                                     "summary": "Before."})
+    await talk(client, convo_id, 2, first=3)
+
+
+AN_ANSWER = {"facts": [{"content": "New.", "kind": "fact"}],
+             "updated_facts": [{"replaces": "To correct.", "content": "Corrected."}],
+             "obsolete_facts": ["To drop."],
+             "summary": "After."}
+
+
+@pytest.mark.parametrize("trigger", [
+    "BEFORE INSERT ON memories WHEN new.content = 'New.'",
+    "BEFORE UPDATE OF content ON memories",
+    "BEFORE DELETE ON memories",
+    "BEFORE UPDATE OF memory_position ON conversations",
+    "BEFORE INSERT ON memory_checkpoints",
+    "BEFORE INSERT ON memory_checkpoint_facts",
+], ids=["add", "correct", "drop", "position", "checkpoint", "copy"])
+async def test_a_pass_that_breaks_at_any_step_leaves_nothing_of_it(client, fake_provider, trigger):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await a_memory_to_change(client, convo_id)
+    before = (await stored_facts(client, convo_id), await checkpoints_of(convo_id),
+              await copy_at(convo_id, 4))
+    db = await _connect()
+    try:
+        await db.execute(f"CREATE TRIGGER refuse {trigger} BEGIN SELECT RAISE(ABORT, 'refused'); END")
+        await db.commit()
+    finally:
+        await db.close()
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(AN_ANSWER)),
+                            ProviderEvent(type="done")]
+
+    with pytest.raises(Exception, match="refused"):
+        await client.post(f"/api/conversations/{convo_id}/memories/extract")
+
+    assert (await stored_facts(client, convo_id), await checkpoints_of(convo_id),
+            await copy_at(convo_id, 4)) == before
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (4, "Before.")
+    # And the database is not left held by what failed.
+    db = await _connect()
+    try:
+        await db.execute("DROP TRIGGER refuse")
+        await db.commit()
+    finally:
+        await db.close()
+    answered = await extract(client, convo_id, AN_ANSWER)
+    assert [f["content"] for f in answered["facts_added"]] == ["New."]
+
+
+@pytest.mark.parametrize("change", ["forgotten", "edited"])
+async def test_a_pass_is_refused_when_a_person_changed_a_fact_it_was_sent(
+        client, fake_provider, monkeypatch, change):
+    """What it decided was decided on the fact as it was. A correction of a fact that a
+    person has just forgotten would bring it back in other words."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await a_memory_to_change(client, convo_id)
+    fact = await fact_named(client, convo_id, "To correct.")
+
+    class ChangesWhileAnswering(FakeProvider):
+        async def stream_chat(self, payload):
+            if change == "forgotten":
+                await client.delete(f"/api/memories/{fact['id']}")
+            else:
+                await client.patch(f"/api/memories/{fact['id']}", json={"content": "By hand."})
+            async for event in super().stream_chat(payload):
+                yield event
+
+    monkeypatch.setattr("app.services.memory_service.get_provider", ChangesWhileAnswering)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(AN_ANSWER)),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo_id}/memories/extract")
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["skipped"] == "changed"
+    left = {"To drop."} | ({"By hand."} if change == "edited" else set())
+    assert await names(client, convo_id) == left
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (4, "Before.")
+    assert [c[0] for c in await checkpoints_of(convo_id)] == [4]
+
+
+async def test_a_fact_added_by_hand_while_the_model_answers_does_not_stop_the_pass(
+        client, fake_provider, monkeypatch):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await a_memory_to_change(client, convo_id)
+
+    class AddsWhileAnswering(FakeProvider):
+        async def stream_chat(self, payload):
+            await client.post(f"/api/conversations/{convo_id}/memories", json={"content": "By hand."})
+            async for event in super().stream_chat(payload):
+                yield event
+
+    monkeypatch.setattr("app.services.memory_service.get_provider", AddsWhileAnswering)
+    answered = await extract(client, convo_id, AN_ANSWER)
+
+    assert "skipped" not in answered
+    assert await names(client, convo_id) == {"By hand.", "New.", "Corrected."}
+
+
+async def test_a_cut_that_comes_while_a_pass_commits_waits_for_it(client, fake_provider, monkeypatch):
+    """The two cannot cross: the cut starts once the pass has written all it had to, and
+    goes back through what it wrote."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await a_memory_to_change(client, convo_id)
+    cutting = []
+    real = convo_repo.checkpoint
+
+    async def checkpoint_and_meanwhile(*args):
+        cutting.append(asyncio.create_task(remove_from(client, convo_id, 7)))
+        await asyncio.sleep(0.2)  # long enough for it to reach the database, if it could
+        assert not cutting[0].done()
+        await real(*args)
+
+    monkeypatch.setattr(convo_repo, "checkpoint", checkpoint_and_meanwhile)
+    answered = await extract(client, convo_id, AN_ANSWER)
+    monkeypatch.setattr(convo_repo, "checkpoint", real)
+    await within(10, cutting[0])
+
+    assert "skipped" not in answered
+    assert await names(client, convo_id) == {"To correct.", "To drop."}
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (4, "Before.")
+    assert await checkpoints_of(convo_id) == [(4, "Before.", 4)]
+
+
+# ---------- a consolidation too ----------
+
+MERGED_FACTS = {"facts": [{"content": "All of it, merged."}]}
+
+
+async def facts_to_merge(client, convo_id):
+    await talk(client, convo_id, 2)
+    await extract(client, convo_id, {"facts": [{"content": f"Early {n}.", "kind": "fact"}
+                                               for n in range(4)], "summary": "To 4."})
+    await talk(client, convo_id, 2, first=3)
+    await extract(client, convo_id, {"facts": [{"content": f"Late {n}.", "kind": "fact"}
+                                               for n in range(4)], "summary": "To 8."})
+
+
+async def test_a_cut_while_the_model_merges_leaves_no_merged_fact(
+        client, fake_provider, monkeypatch):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await facts_to_merge(client, convo_id)
+    started, release, _ = waiting_provider(monkeypatch)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(MERGED_FACTS)),
+                            ProviderEvent(type="done")]
+
+    merging = asyncio.create_task(client.post(f"/api/conversations/{convo_id}/memories/consolidate"))
+    try:
+        await within(5, started.wait())
+        await remove_from(client, convo_id, 5)
+    finally:
+        release.set()
+    answered = await within(5, merging)
+
+    assert answered.json()["skipped"] == "changed"
+    assert await names(client, convo_id) == {f"Early {n}." for n in range(4)}
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (4, "To 4.")
+
+
+async def test_a_cut_while_the_vectors_of_a_merge_are_worked_out_leaves_no_merged_fact(
+        client, fake_provider, monkeypatch):
+    from app.prompting import embeddings
+
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await facts_to_merge(client, convo_id)
+    in_the_vectors, go_on = asyncio.Event(), asyncio.Event()
+
+    async def embed(texts, kind):
+        in_the_vectors.set()
+        await go_on.wait()
+
+    monkeypatch.setattr(embeddings, "embed", embed)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(MERGED_FACTS)),
+                            ProviderEvent(type="done")]
+
+    merging = asyncio.create_task(client.post(f"/api/conversations/{convo_id}/memories/consolidate"))
+    try:
+        await within(5, in_the_vectors.wait())
+        await remove_from(client, convo_id, 5)
+    finally:
+        go_on.set()
+    answered = await within(5, merging)
+
+    assert answered.json()["skipped"] == "changed"
+    assert await names(client, convo_id) == {f"Early {n}." for n in range(4)}
+
+
+async def test_a_cut_that_leaves_every_fact_sent_leaves_the_merge(client, fake_provider, monkeypatch):
+    """The turns it took are not ones the facts were drawn from, and the merged fact takes
+    the oldest position of those it replaces: it cannot be past the end."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await facts_to_merge(client, convo_id)
+    await talk(client, convo_id, 2, first=5)
+    started, release, _ = waiting_provider(monkeypatch)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(MERGED_FACTS)),
+                            ProviderEvent(type="done")]
+
+    merging = asyncio.create_task(client.post(f"/api/conversations/{convo_id}/memories/consolidate"))
+    try:
+        await within(5, started.wait())
+        await remove_from(client, convo_id, 9)
+    finally:
+        release.set()
+    answered = await within(5, merging)
+
+    assert "skipped" not in answered.json()
+    assert await stored_facts(client, convo_id) == [("All of it, merged.", "fact", 4, False, "auto")]

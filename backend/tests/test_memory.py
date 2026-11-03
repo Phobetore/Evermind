@@ -571,9 +571,7 @@ async def break_sqlite_when(sql_trigger: str):
         await db.close()
 
 
-async def test_a_merge_that_breaks_while_deleting_loses_no_fact(client, fake_provider):
-    """The merged facts are written first: stopped half way through the deletes, the
-    memory holds the merge and the facts not deleted yet, never less than before."""
+async def test_a_merge_that_breaks_while_deleting_changes_nothing(client, fake_provider):
     convo = await setup_conversation(client)
     await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
                     by_the_model=True)
@@ -586,10 +584,10 @@ async def test_a_merge_that_breaks_while_deleting_loses_no_fact(client, fake_pro
         await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
 
     assert [f[0] for f in await stored_facts(client, convo["id"])] == [
-        "All of it, merged.", "Movable fact 5.", "Movable fact 6.", "Movable fact 7."]
+        f"Movable fact {i}." for i in range(8)]
 
 
-async def test_a_merge_that_breaks_while_writing_loses_no_fact(client, fake_provider):
+async def test_a_merge_that_breaks_while_writing_changes_nothing(client, fake_provider):
     convo = await setup_conversation(client)
     await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
                     by_the_model=True)
@@ -603,14 +601,14 @@ async def test_a_merge_that_breaks_while_writing_loses_no_fact(client, fake_prov
     with pytest.raises(Exception, match="refused"):
         await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
 
-    assert [f[0] for f in await stored_facts(client, convo["id"])] == sorted(
-        [f"Movable fact {i}." for i in range(8)] + ["First merged."])
+    assert [f[0] for f in await stored_facts(client, convo["id"])] == [
+        f"Movable fact {i}." for i in range(8)]
 
 
-async def test_a_fact_pinned_or_edited_while_the_merge_is_written_is_not_deleted(
+async def test_a_fact_pinned_or_edited_while_the_vectors_of_a_merge_are_worked_out_stops_it(
         client, fake_provider, monkeypatch):
-    """The check that nothing changed is made before the merged facts are written, and
-    a person can still act on a fact while they are: the delete asks again."""
+    """The vectors take a while and come first, and a person can act on a fact meanwhile:
+    the merge was written from what the fact said."""
     from app.prompting import embeddings
 
     convo = await setup_conversation(client)
@@ -633,9 +631,12 @@ async def test_a_fact_pinned_or_edited_while_the_merge_is_written_is_not_deleted
     resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
 
     assert resp.status_code == 200, resp.text
-    assert [(f[0], f[3]) for f in await stored_facts(client, convo["id"])] == [
-        ("All of it, merged.", False), ("Movable fact 2.", True),
-        ("Movable fact 4, edited.", False)]
+    assert resp.json()["skipped"] == "changed"
+    held = {f[0]: f[3] for f in await stored_facts(client, convo["id"])}
+    assert "All of it, merged." not in held
+    assert held["Movable fact 2."] is True
+    assert "Movable fact 4, edited." in held
+    assert len(held) == 8
 
 
 async def test_a_merged_fact_that_repeats_a_fact_sent_leaves_that_fact_in_place(
@@ -728,8 +729,8 @@ async def stored_facts(client, convo_id):
 
 async def test_a_fact_pinned_while_an_extraction_is_applied_is_not_rewritten_or_deleted(
         client, fake_provider, monkeypatch):
-    """The plan was made from the facts as they were read, and writing the first of its
-    changes can take a while with the semantic model: each change asks again."""
+    """The plan was made from the facts as they were read, and working out the vectors of
+    its changes can take a while with the semantic model: each change asks again."""
     from app.prompting import embeddings
 
     convo = await setup_conversation(client)
@@ -987,7 +988,8 @@ async def test_a_change_to_a_fact_that_is_gone_is_left_alone(client, fake_provid
             {"op": "update", "target": "Gone.", "content": "Back."},
             {"op": "delete", "target": "Gone."},
             {"op": "update", "target": "Here.", "content": "Here, corrected."},
-        ])
+        ], {})
+        await db.commit()
     finally:
         await db.close()
 

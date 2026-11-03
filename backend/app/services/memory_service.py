@@ -8,10 +8,11 @@ own SQLite connection; a per-conversation guard prevents overlapping runs.
 
 import asyncio
 import logging
+from collections.abc import Iterable
 
 import aiosqlite
 
-from ..db import _connect
+from ..db import _connect, write_transaction
 from ..errors import (
     MODEL_UNREADABLE,
     NO_CONNECTION,
@@ -85,7 +86,8 @@ async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
     """One extraction+summary pass. Returns {"facts_added": [...], "summary": str}, with
     "skipped" set to "busy" and nothing looked at when another pass, an extraction or a
     consolidation, was running, and to "changed" and nothing kept when the turns it read
-    were not the story's any more when the model answered."""
+    were not the story's any more when it came to write what it learned, or a person had
+    edited or forgotten a fact it was sent."""
     if convo_id in _running:
         return {"facts_added": [], "summary": None, "skipped": "busy"}
     _running.add(convo_id)
@@ -152,42 +154,54 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     if merged is None:
         raise AppError("Unreadable consolidation — try again.", 502, kind=MODEL_UNREADABLE)
 
+    vectors = await _vectors_of(f["content"] for f in merged["facts"])
+
     # The memory as it is now rather than before the model was asked. The merge was
     # written from all the facts that were sent: if one of them was edited, pinned or
-    # deleted since, its old text may be inside a merged fact, and removing only the
-    # others would keep both.
-    now = await memories_repo.list_for_conversation(db, convo_id)
-    still = {(m["id"], m["content"]) for m in movable_facts(now)}
-    if any((m["id"], m["content"]) not in still for m in movable):
-        return {"before": len(now), "after": len(now), "memories": now, "skipped": "changed"}
+    # deleted since, by a person or by a cut in the story, its old text may be inside a
+    # merged fact, and removing only the others would keep both. A merged fact takes the
+    # oldest position of those it replaces, so with them all still there it is not past
+    # the end of the story.
+    async with write_transaction(db):
+        now = await memories_repo.list_for_conversation(db, convo_id)
+        still = {(m["id"], m["content"], m["source_position"]) for m in movable_facts(now)}
+        if any((m["id"], m["content"], m["source_position"]) not in still for m in movable):
+            return {"before": len(now), "after": len(now), "memories": now, "skipped": "changed"}
 
-    # The merged facts first, then the ones they replace: an error or a stop in between
-    # leaves a fact twice, never a fact lost. A fact that the merge repeats stays as it
-    # is, since adding it again is refused as a double. And a delete asks again whether
-    # the fact is still the one that was sent: a person may pin or edit it just now.
-    for f in merged["facts"]:
-        await memories_repo.add(db, convo_id, content=f["content"], kind=f["kind"],
-                                source_position=merged["source_position"], source="auto")
-    kept = {f["content"] for f in merged["facts"]}
-    for m in movable:
-        if m["content"] not in kept:
-            await memories_repo.delete_if_unchanged(db, m["id"], m["content"])
-    remaining = await memories_repo.list_for_conversation(db, convo_id)
+        # A fact that the merge repeats stays as it is, since adding it again is refused
+        # as a double.
+        for f in merged["facts"]:
+            await memories_repo.add_with_vector(db, convo_id, f["content"], f["kind"],
+                                                merged["source_position"], vectors.get(f["content"]))
+        kept = {f["content"] for f in merged["facts"]}
+        for m in movable:
+            if m["content"] not in kept:
+                await memories_repo.remove(db, m["id"])
+        remaining = await memories_repo.list_for_conversation(db, convo_id)
     return {"before": len(now), "after": len(remaining), "memories": remaining}
 
 
-async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict]) -> list[dict]:
+async def _vectors_of(texts: Iterable[str]) -> dict[str, bytes]:
+    """The vectors of these texts, for those that have one: nothing without the semantic
+    model, and the backfill gives them one later. Working them out takes a while, so it
+    comes before the database is held."""
+    unique = list(dict.fromkeys(texts))
+    vectors = await embeddings.embed(unique, kind="passage")
+    return {text: embeddings.pack(vector) for text, vector in zip(unique, vectors or [], strict=False)}
+
+
+async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict],
+                 vectors: dict[str, bytes]) -> list[dict]:
     """Make the changes of ``plan_memory_changes`` one after the other, and return the
     facts that were added. The plan was made from the facts as they were read, and a
-    person can act on them while it is written: a fact that cannot be found any more,
-    or that is no longer the model's to move, is left alone, and the write itself asks
-    again, since working out a vector can take a while."""
+    person can pin one while the vectors are worked out: one that is no longer the model's
+    to move is left alone, as one that cannot be found any more is. The caller commits."""
     added = []
     for op in ops:
         if op["op"] == "add":
-            saved = await memories_repo.add(
-                db, convo_id, content=op["content"], kind=op["kind"],
-                source_position=op["source_position"], source=op["source"])
+            saved = await memories_repo.add_with_vector(
+                db, convo_id, op["content"], op["kind"], op["source_position"],
+                vectors.get(op["content"]), source=op["source"])
             if saved:
                 added.append(saved)
             continue
@@ -195,9 +209,9 @@ async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict]) -> li
         if target is None or not is_movable(target):
             continue
         if op["op"] == "update":
-            await memories_repo.update_if_unchanged(db, target["id"], op["target"], op["content"])
+            await memories_repo.rewrite(db, target["id"], op["content"], vectors.get(op["content"]))
         else:
-            await memories_repo.delete_if_unchanged(db, target["id"], op["target"])
+            await memories_repo.remove(db, target["id"])
     return added
 
 
@@ -217,6 +231,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
         return {"facts_added": [], "summary": convo.get("summary") or ""}
     payload, top_position = built
     read = [m["id"] for m in messages]  # the newest of them is the one at top_position
+    sent = {(m["id"], m["content"]) for m in existing}
 
     chunks: list[str] = []
     async for event in get_provider(connection).stream_chat(payload):
@@ -230,41 +245,30 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
         raise AppError("Unreadable memory response (JSON expected).", 502,
                        kind=MODEL_UNREADABLE)
 
-    # The story as it is now. The model can take a while, and a person can cut the story
-    # back meanwhile: what it learned is then from turns that are gone, and a memory read
-    # up to a position the story no longer reaches would take the turns that come next
-    # for ones it has read. So nothing is kept, and the next pass starts again.
-    if await convo_repo.message_ids_through(db, convo_id, top_position) != read:
-        return {"facts_added": [], "summary": None, "skipped": "changed"}
-
     # What the memory holds now rather than before the model was asked: a fact
     # pinned in the meantime is no longer one to correct or drop.
     changes = plan_memory_changes(
         parsed, await memories_repo.list_in_lookup_order(db, convo_id), top_position)
-    added = await _apply(db, convo_id, changes["ops"])
+    vectors = await _vectors_of(op["content"] for op in changes["ops"] if op["op"] != "delete")
 
-    # The position, the summary and the checkpoint are written together, and only while
-    # the newest turn that was read is still there: any cut at or before it removes that
-    # message, and a position set past the end of the story would stall the passes to
-    # come. The story can be cut while the facts above are written (a vector takes a
-    # while), so this is asked again here, in the write itself.
-    #
-    # What is left to do then is to take back the facts this pass added, which are
-    # drawn from turns that are gone. The corrections and drops it made are not
-    # restored: they were decided on the facts as they stood, and what they say is
-    # about the facts, not the story.
-    top = messages[-1]
-    cursor = await db.execute(
-        "UPDATE conversations SET memory_position = ?, summary = COALESCE(?, summary),"
-        " updated_at = ? WHERE id = ? AND EXISTS (SELECT 1 FROM messages WHERE id = ?)",
-        (top_position, changes["summary"], now_iso(), convo_id, top["id"]))
-    if cursor.rowcount == 0:
-        await db.rollback()  # an UPDATE that matched nothing still holds the database
-        for fact in added:
-            await memories_repo.delete_if_unchanged(db, fact["id"], fact["content"])
-        return {"facts_added": [], "summary": None, "skipped": "changed"}
-    await convo_repo.checkpoint(db, convo_id, top_position, changes["summary"])
-    await db.commit()
+    # All of what it learned, or none of it. The model and the vectors can take a while. A
+    # person can cut the story back meanwhile: what it learned is then from turns that are
+    # gone, and a memory read up to a position the story no longer reaches would take the
+    # turns that come next for ones it has read. A person can also edit or forget a fact it
+    # was sent: what it decided was decided on the fact as it was, and a correction of a
+    # fact just forgotten would bring it back in other words. Nothing is kept then, and the
+    # next pass starts again. A pin stops only what would have moved that fact.
+    async with write_transaction(db):
+        now = await memories_repo.list_for_conversation(db, convo_id)
+        if (await convo_repo.message_ids_through(db, convo_id, top_position) != read
+                or not sent <= {(m["id"], m["content"]) for m in now}):
+            return {"facts_added": [], "summary": None, "skipped": "changed"}
+        added = await _apply(db, convo_id, changes["ops"], vectors)
+        await db.execute(
+            "UPDATE conversations SET memory_position = ?, summary = COALESCE(?, summary),"
+            " updated_at = ? WHERE id = ?",
+            (top_position, changes["summary"], now_iso(), convo_id))
+        await convo_repo.checkpoint(db, convo_id, top_position, changes["summary"])
 
     return {"facts_added": added, "summary": changes["summary"] or convo.get("summary") or ""}
 
