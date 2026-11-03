@@ -227,6 +227,15 @@ async def _until_stopped(events: AsyncIterator, stopped: asyncio.Event) -> Async
         await asyncio.wait({reading})
 
 
+def _cut_short(message: dict) -> list[int]:
+    """Which versions of a reply were cut short, by their index. An older reply says only
+    that it was, of the whole message: that reads as the version active."""
+    marks = (message.get("meta") or {}).get("interrupted")
+    if marks is True:
+        return [message["active_index"]]
+    return marks if isinstance(marks, list) else []
+
+
 async def _settle_unfinished(db: aiosqlite.Connection, messages: list[dict]) -> list[dict]:
     """Turn a stale "still writing" mark into what it actually means.
 
@@ -244,7 +253,7 @@ async def _settle_unfinished(db: aiosqlite.Connection, messages: list[dict]) -> 
             settled.append(message)
             continue
         meta = {key: value for key, value in meta.items() if key != "streaming"}
-        meta["interrupted"] = True
+        meta["interrupted"] = [message["active_index"]]
         settled.append(await convo_repo.update_message(db, message["id"], meta=meta) or message)
     return settled
 
@@ -403,24 +412,28 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         """Write what has streamed so far. Recomputed from the original variants
         every time, so calling it repeatedly is the same as calling it once.
 
-        ``failed`` says the model failed: the reply is marked as cut short at once, where
-        one that was stopped is marked by the next turn, which is the one that knows it
-        will not be finished. A reply that is finished is not marked."""
+        ``failed`` says the model failed: the version is marked as cut short at once, where
+        a reply that was stopped is marked by the next turn, which is the one that knows it
+        will not be finished. A continuation that adds to a version finishes it, and takes
+        the mark away; one that adds nothing leaves it as cut short as it was."""
         nonlocal draft_id, reply_gone
         body = trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
         if not body and not final:
             return None
 
-        # What a message that was cut short and is now continued, or answered with
-        # another version, says of itself: the reply it holds is whole when the turn is.
         target_meta = None
         if target_message is not None:
-            held = dict(target_message.get("meta") or {})
+            # The version being written, which is a new one for a regeneration.
+            index = (target_message["active_index"] if continue_mode
+                     else len(target_message["variants"]))
+            marks = set(_cut_short(target_message))
             if failed:
-                target_meta = {**held, "interrupted": True}
-            elif final:
-                whole = {k: v for k, v in held.items() if k not in ("interrupted", "streaming")}
-                target_meta = whole if whole != held else None
+                marks.add(index)
+            elif continue_mode and final and body:
+                marks.discard(index)
+            target_meta = {k: v for k, v in target_message["meta"].items() if k != "interrupted"}
+            if marks:
+                target_meta["interrupted"] = sorted(marks)
 
         if continue_mode:
             variants = list(target_message["variants"])
@@ -452,7 +465,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         if final:
             meta = {"finish_reason": finish_reason} if finish_reason else {}
         elif failed:
-            meta = {"interrupted": True}
+            meta = {"interrupted": [0]}
         else:
             meta = {"streaming": True}
         if draft_id is None:

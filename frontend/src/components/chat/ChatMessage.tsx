@@ -1,6 +1,7 @@
 import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { useT } from "@/i18n/useT";
+import { isCutShort } from "@/lib/cutShort";
 import { copyText } from "@/lib/utils";
 import type { Character, Message, Persona } from "@/types";
 import { clsx } from "clsx";
@@ -45,7 +46,7 @@ export function ChatMessage({
   const avatarSrc = isUser ? persona?.avatar_url : character.avatar_url;
   const variants = message.variants;
   const canSwipe = !isUser && variants.length > 1;
-  const interrupted = Boolean(message.meta?.interrupted);
+  const interrupted = isCutShort(message);
   const messageMode = message.meta?.mode as "narrate" | "ooc" | undefined;
 
   function copy() {

@@ -115,7 +115,7 @@ async def test_the_next_turn_settles_a_reply_left_mid_write(client, unhurried):
     assert "streaming" not in settled["meta"], (
         "a stale mark keeps the reply hidden through every later turn"
     )
-    assert settled["meta"].get("interrupted") is True, (
+    assert settled["meta"].get("interrupted") == [0], (
         "the view already knows how to label an interrupted reply; nothing was "
         "ever setting the key it reads"
     )

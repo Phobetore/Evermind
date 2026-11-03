@@ -54,10 +54,10 @@ test("after a reload the words and the label are there, and the label is what sa
   // ending: the sentence about the failure is for the page that watched it.
   await expect(failure(page)).toHaveCount(0);
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
-  expect(read.messages.at(-1).meta).toEqual({ interrupted: true });
+  expect(read.messages.at(-1).meta).toEqual({ interrupted: [0] });
 });
 
-test("Retry adds a whole reply, and the label goes", async ({ page, request }) => {
+test("Retry adds a whole reply, without the label that stays on the one cut short", async ({ page, request }) => {
   const convo = await failedMidway(page, request);
   await mendModel(request, convo.id);
 
@@ -72,7 +72,38 @@ test("Retry adds a whole reply, and the label goes", async ({ page, request }) =
   expect(last.variants).toHaveLength(2);
   expect(last.variants[0]).toBe(WORDS);
   expect(last.variants[1]).toContain(WHOLE);
-  expect(last.meta.interrupted).toBeUndefined();
+  expect(last.meta.interrupted).toEqual([0]);
+
+  await page.getByRole("button", { name: "Previous variant" }).click();
+  await expect(reply(page)).toContainText("interrupted");
+  await page.getByRole("button", { name: "Next variant or regenerate" }).click();
+  await expect(message).toBeVisible();
+  await expect(message).not.toContainText("interrupted");
+});
+
+test("a regeneration cut short labels its own version, not the whole one", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { says: "alpha" });
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "Go on.", message_mode: "say" },
+    timeout: 60_000,
+  });
+  await request.patch(`${API}/api/conversations/${convo.id}`, {
+    data: { author_note: "MOCK_SAYS_alpha MOCK_FAILS_MIDWAY" },
+  });
+  await page.goto(`/#/chat/${convo.id}`);
+  const last = page.locator("[data-message-id]").last();
+  await expect(last).toContainText(WHOLE);
+
+  await last.getByRole("button", { name: "Regenerate" }).click();
+  await expect(failure(page)).toBeVisible();
+  await expect(last).toContainText("interrupted");
+
+  await last.getByRole("button", { name: "Previous variant" }).click();
+
+  await expect(last).toContainText(WHOLE);
+  await expect(last).not.toContainText("interrupted");
+  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(read.messages.at(-1).meta).toEqual({ interrupted: [1] });
 });
 
 test("a reload after the server has forgotten the turn finds the same", async ({
