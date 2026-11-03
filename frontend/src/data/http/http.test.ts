@@ -235,6 +235,12 @@ describe("routes", () => {
     ["library.install", () => http.library.install("vane.json"), "POST", "api/library/vane.json/install"],
     ["settings.get", () => http.settings.get(), "GET", "api/settings"],
     ["settings.update", () => http.settings.update({ reply_length: "long" }), "PUT", "api/settings", { reply_length: "long" }],
+    // A null is a choice taken back, so it must reach the server rather than being dropped.
+    [
+      "settings.update clearing a choice",
+      () => http.settings.update({ default_connection_id: null }),
+      "PUT", "api/settings", { default_connection_id: null },
+    ],
     ["connections.list", () => http.connections.list(), "GET", "api/connections"],
     ["connections.create", () => http.connections.create({ ...connection, api_key: "k" }), "POST", "api/connections", { ...connection, api_key: "k" }],
     ["connections.update", () => http.connections.update("k1", connection), "PUT", "api/connections/k1", connection],

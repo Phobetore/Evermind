@@ -29,16 +29,15 @@ async def create_conversation(payload: ConversationIn,
         raise NotFoundError("Character not found.", "character")
 
     fields = payload.model_dump()
-    settings = await settings_repo.get_all(db)
-    if not fields.get("persona_id"):
-        fields["persona_id"] = settings.get("default_persona_id")
+    # The persona asked for may be gone (a stale listing in the interface); the
+    # conversation is then played as it would be had none been asked for.
+    persona = await personas_repo.for_conversation(db, fields)
+    fields["persona_id"] = persona["id"] if persona else None
     if not fields.get("connection_id"):
-        fields["connection_id"] = settings.get("default_connection_id")
+        fields["connection_id"] = (await settings_repo.get_all(db)).get("default_connection_id")
 
-    # Either id may point at a row that no longer exists (stale settings, stale
-    # UI listing). Drop it rather than let the insert fail on the foreign key.
-    if fields.get("persona_id") and not await personas_repo.get(db, fields["persona_id"]):
-        fields["persona_id"] = None
+    # The connection may point at a row that no longer exists (stale settings,
+    # stale UI listing). Drop it rather than let the insert fail on the foreign key.
     if fields.get("connection_id") and not await connections_repo.get(db, fields["connection_id"]):
         fields["connection_id"] = None
 
@@ -47,7 +46,6 @@ async def create_conversation(payload: ConversationIn,
     greetings = [g for g in [character.get("greeting"), *character.get("alternate_greetings", [])]
                  if g and g.strip()]
     if greetings:
-        persona = await personas_repo.get(db, fields["persona_id"]) if fields.get("persona_id") else None
         user_name = (persona or {}).get("name") or "User"
         variants = [substitute(g, char_name=character["name"], user_name=user_name)
                     for g in greetings]

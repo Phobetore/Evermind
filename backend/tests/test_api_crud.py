@@ -373,12 +373,13 @@ async def test_deleting_default_connection_does_not_break_conversations(client):
 
 async def test_deleting_default_persona_does_not_break_conversations(client):
     persona = (await client.post("/api/personas", json={"name": "Jetable"})).json()
-    await client.put("/api/settings", json={"default_persona_id": persona["id"]})
+    assert persona["is_default"] is True
     deleted = await client.delete(f"/api/personas/{persona['id']}")
     assert deleted.status_code == 204
 
-    assert (await client.get("/api/settings")).json()["default_persona_id"] is None
+    assert (await client.get("/api/personas")).json() == []
 
     char = await create_character(client)
     resp = await client.post("/api/conversations", json={"character_id": char["id"]})
     assert resp.status_code == 201, resp.text
+    assert resp.json()["persona_id"] is None

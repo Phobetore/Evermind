@@ -4,7 +4,6 @@ from .base import dumps, loads
 
 DEFAULTS = {
     "default_connection_id": None,
-    "default_persona_id": None,
     "global_instructions": "",
     "auto_memory": True,
     "reply_length": "medium",
@@ -38,8 +37,15 @@ async def forget(db: aiosqlite.Connection, key: str, value: str) -> None:
 
 
 async def put(db: aiosqlite.Connection, values: dict) -> dict:
+    """Store the given settings. A `None` clears a setting whose default is
+    nothing, so that a choice can be taken back; for any other setting it says
+    nothing and is ignored."""
     for key, value in values.items():
-        if key not in DEFAULTS or value is None:
+        if key not in DEFAULTS:
+            continue
+        if value is None:
+            if DEFAULTS[key] is None:
+                await db.execute("DELETE FROM settings WHERE key = ?", (key,))
             continue
         await db.execute(
             "INSERT INTO settings (key, value) VALUES (?, ?)"

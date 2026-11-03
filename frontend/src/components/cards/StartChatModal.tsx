@@ -32,7 +32,7 @@ export function StartChatModal({
     ]).then(([p, c, s]) => {
       setPersonas(p);
       setConnections(c);
-      setPersonaId(s.default_persona_id ?? p.find((x) => x.is_default)?.id ?? "");
+      setPersonaId(p.find((x) => x.is_default)?.id ?? "");
       setConnectionId(s.default_connection_id ?? c.find((x) => x.is_default)?.id ?? "");
     });
   }, []);

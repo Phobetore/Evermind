@@ -1,0 +1,444 @@
+"""The persona a conversation is played as when it names none.
+
+There is one notion of it: the persona marked on the Personas page. It used to
+be two (that mark, and a setting of its own), so a greeting could call the
+player "User" while the turns that followed called them by a name; and nothing
+the person chose could be undone, since a setting could not be cleared.
+"""
+
+import shutil
+import sqlite3
+
+import pytest
+
+from app import db as app_db
+from app.providers.base import ProviderEvent
+from app.repositories.base import dumps
+
+from .test_chat import FakeProvider, send
+
+SETTING = "default_persona_id"
+
+
+@pytest.fixture()
+def fake_provider(monkeypatch):
+    FakeProvider.script = [
+        ProviderEvent(type="delta", text="*She smiles.* Hello."),
+        ProviderEvent(type="done"),
+    ]
+    FakeProvider.captured = {}
+    monkeypatch.setattr("app.services.chat_service.get_provider", FakeProvider)
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    return FakeProvider
+
+
+async def make_persona(client, name, **fields):
+    resp = await client.post("/api/personas", json={"name": name, **fields})
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+async def marked(client) -> list[str]:
+    return [p["name"] for p in (await client.get("/api/personas")).json() if p["is_default"]]
+
+
+async def connect(client):
+    resp = await client.post("/api/connections", json={
+        "name": "Local", "provider": "openai-compatible",
+        "base_url": "http://localhost:1234/v1", "model": "test",
+    })
+    assert resp.status_code == 201, resp.text
+
+
+async def start(client, **fields):
+    """A conversation with a character whose greeting names the player."""
+    char = (await client.post("/api/characters", json={
+        "name": "Serana", "greeting": "Hello {{user}}."})).json()
+    resp = await client.post("/api/conversations", json={"character_id": char["id"], **fields})
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+def greeting(convo) -> str:
+    return convo["messages"][0]["content"]
+
+
+# ---------- who the player is ----------
+
+async def test_the_greeting_and_the_turns_name_the_marked_persona(client, fake_provider):
+    alex = await make_persona(client, "Alex")
+    await connect(client)
+
+    convo = await start(client)
+
+    assert greeting(convo) == "Hello Alex."
+    assert convo["persona_id"] == alex["id"]
+    await send(client, convo["id"])
+    assert "\nAlex:" in fake_provider.captured["payload"].stop
+
+
+async def test_a_persona_asked_for_wins_over_the_marked_one(client, fake_provider):
+    await make_persona(client, "Alex")
+    morgan = await make_persona(client, "Morgan", is_default=False)
+    await connect(client)
+
+    convo = await start(client, persona_id=morgan["id"])
+
+    assert greeting(convo) == "Hello Morgan."
+    await send(client, convo["id"])
+    assert "\nMorgan:" in fake_provider.captured["payload"].stop
+
+
+async def test_a_persona_gone_by_the_time_the_conversation_starts_is_the_marked_one(client):
+    await make_persona(client, "Alex")
+
+    convo = await start(client, persona_id="no-longer-there")
+
+    assert greeting(convo) == "Hello Alex."
+
+
+async def test_with_none_marked_the_player_is_user_in_the_greeting_and_in_every_prompt(
+        client, fake_provider):
+    alex = await make_persona(client, "Alex")
+    await make_persona(client, "Morgan")
+    await connect(client)
+    await client.put(f"/api/personas/{alex['id']}", json={"is_default": False})
+    assert await marked(client) == []
+
+    convo = await start(client)
+
+    assert greeting(convo) == "Hello User."
+    assert convo["persona_id"] is None
+
+    await send(client, convo["id"])
+    assert "\nUser:" in fake_provider.captured["payload"].stop
+
+    extraction = '{"facts": [], "summary": "They met."}'
+    fake_provider.script = [ProviderEvent(type="delta", text=extraction), ProviderEvent(type="done")]
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+    assert resp.status_code == 200, resp.text
+    payload = fake_provider.captured["payload"]
+    assert "User (turn 1): Hello there" in payload.messages[0]["content"]
+    assert "between User (the player) and Serana" in payload.system
+
+    for i in range(8):
+        await client.post(f"/api/conversations/{convo['id']}/memories",
+                          json={"content": f"Fact number {i}."})
+    await mark_facts_as_the_models()
+    merged = '{"facts": [{"content": "All of it, merged.", "kind": "fact"}]}'
+    fake_provider.script = [ProviderEvent(type="delta", text=merged), ProviderEvent(type="done")]
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
+    assert resp.status_code == 200, resp.text
+    assert "between User and Serana" in fake_provider.captured["payload"].system
+
+
+async def mark_facts_as_the_models():
+    """Marks every fact as the model's own, which are the ones consolidation may merge."""
+    db = await app_db.connect()
+    try:
+        await db.execute("UPDATE memories SET source = 'auto'")
+        await db.commit()
+    finally:
+        await db.close()
+
+
+async def test_nothing_is_marked_after_the_marked_persona_is_deleted(client, fake_provider):
+    first = await make_persona(client, "Alex")
+    await make_persona(client, "Morgan")
+    await connect(client)
+
+    assert (await client.delete(f"/api/personas/{first['id']}")).status_code == 204
+
+    # Not the oldest one left: "none" means none.
+    assert await marked(client) == []
+    convo = await start(client)
+    assert greeting(convo) == "Hello User."
+    await send(client, convo["id"])
+    assert "\nUser:" in fake_provider.captured["payload"].stop
+
+
+async def test_the_first_persona_made_is_marked_even_after_others_have_gone(client):
+    first = await make_persona(client, "Alex")
+    await client.delete(f"/api/personas/{first['id']}")
+
+    await make_persona(client, "Morgan")
+
+    assert await marked(client) == ["Morgan"]
+
+
+async def test_marking_another_persona_unmarks_the_one_before(client):
+    await make_persona(client, "Alex")
+    morgan = await make_persona(client, "Morgan")
+
+    await client.put(f"/api/personas/{morgan['id']}", json={"is_default": True})
+
+    assert await marked(client) == ["Morgan"]
+
+
+async def test_a_conversation_whose_persona_is_gone_is_played_as_the_marked_one(
+        client, fake_provider):
+    await make_persona(client, "Alex")
+    morgan = await make_persona(client, "Morgan")
+    await connect(client)
+    convo = await start(client, persona_id=morgan["id"])
+    assert greeting(convo) == "Hello Morgan."
+
+    await client.delete(f"/api/personas/{morgan['id']}")
+
+    assert (await client.get(f"/api/conversations/{convo['id']}")).json()["persona_id"] is None
+    await send(client, convo["id"])
+    assert "\nAlex:" in fake_provider.captured["payload"].stop
+
+
+# ---------- the setting is gone ----------
+
+async def test_the_settings_no_longer_have_a_default_persona(client):
+    settings = (await client.get("/api/settings")).json()
+    assert SETTING not in settings
+
+    resp = await client.put("/api/settings", json={SETTING: "anything"})
+
+    assert resp.status_code == 200
+    assert SETTING not in resp.json()
+    assert SETTING not in (await client.get("/api/settings")).json()
+
+
+async def test_a_stored_default_persona_does_not_come_back(client):
+    # What an older copy of the application left in the database.
+    db = await app_db.connect()
+    try:
+        await db.execute("INSERT INTO settings (key, value) VALUES (?, ?)",
+                         (SETTING, dumps("abc")))
+        await db.commit()
+    finally:
+        await db.close()
+
+    assert SETTING not in (await client.get("/api/settings")).json()
+    assert SETTING not in (await client.put("/api/settings", json={"auto_memory": False})).json()
+
+
+# ---------- a setting can be cleared ----------
+
+async def test_a_setting_whose_default_is_nothing_can_be_cleared(client):
+    resp = await client.post("/api/connections", json={
+        "name": "Local", "provider": "openai-compatible",
+        "base_url": "http://localhost:1234/v1", "model": "test",
+    })
+    conn = resp.json()
+    await client.put("/api/settings", json={"default_connection_id": conn["id"]})
+    assert (await client.get("/api/settings")).json()["default_connection_id"] == conn["id"]
+
+    cleared = await client.put("/api/settings", json={"default_connection_id": None})
+
+    assert cleared.status_code == 200
+    assert cleared.json()["default_connection_id"] is None
+    assert (await client.get("/api/settings")).json()["default_connection_id"] is None
+
+
+async def test_clearing_a_setting_touches_no_other_and_leaving_it_out_keeps_it(client):
+    conn = (await client.post("/api/connections", json={
+        "name": "Local", "provider": "openai-compatible",
+        "base_url": "http://localhost:1234/v1", "model": "test",
+    })).json()
+    await client.put("/api/settings", json={
+        "default_connection_id": conn["id"], "global_instructions": "In English.",
+        "reply_length": "long"})
+
+    # Not mentioned: kept.
+    kept = (await client.put("/api/settings", json={"auto_memory": False})).json()
+    assert kept["default_connection_id"] == conn["id"]
+
+    cleared = (await client.put("/api/settings", json={"default_connection_id": None,
+                                                       "history_limit": 10})).json()
+    assert cleared["default_connection_id"] is None
+    assert cleared["history_limit"] == 10
+    assert cleared["global_instructions"] == "In English."
+    assert cleared["reply_length"] == "long"
+    assert cleared["auto_memory"] is False
+
+
+async def test_a_null_does_not_reset_a_setting_that_has_a_value_of_its_own_by_default(client):
+    await client.put("/api/settings", json={
+        "global_instructions": "In English.", "reply_length": "long", "auto_memory": False,
+        "history_limit": 10, "passage_budget": 0, "update_check": False})
+
+    kept = (await client.put("/api/settings", json={
+        "global_instructions": None, "reply_length": None, "auto_memory": None,
+        "history_limit": None, "passage_budget": None, "update_check": None})).json()
+
+    assert kept["global_instructions"] == "In English."
+    assert kept["reply_length"] == "long"
+    assert kept["auto_memory"] is False
+    assert kept["history_limit"] == 10
+    assert kept["passage_budget"] == 0
+    assert kept["update_check"] is False
+
+
+# ---------- the migration ----------
+
+@pytest.fixture()
+def old_database(tmp_path, monkeypatch):
+    """A database as the last release left it, before the default persona was
+    one notion: the migrations up to and not including this one, applied.
+
+    Returns ``(execute, upgrade)``: the first runs SQL on it and returns the
+    rows, the second starts the application on it, as an update does.
+    """
+    monkeypatch.setenv("EVERMIND_DATA_DIR", str(tmp_path / "data"))
+    before = tmp_path / "migrations-before"
+    before.mkdir()
+    for path in app_db.MIGRATIONS_DIR.glob("*.sql"):
+        if path.name < "010":
+            shutil.copy(path, before / path.name)
+    after = app_db.MIGRATIONS_DIR
+
+    def execute(sql, *params):
+        from app.config import db_path
+
+        conn = sqlite3.connect(db_path())
+        try:
+            rows = conn.execute(sql, params).fetchall()
+            conn.commit()
+            return rows
+        finally:
+            conn.close()
+
+    async def run(directory):
+        monkeypatch.setattr(app_db, "MIGRATIONS_DIR", directory)
+        await app_db.init_db()
+
+    async def start_before():
+        await run(before)
+
+    async def upgrade():
+        await run(after)
+
+    return execute, start_before, upgrade
+
+
+def seed_personas(execute, *rows):
+    """``rows`` are ``(id, marked)``."""
+    for persona_id, is_default in rows:
+        execute(
+            "INSERT INTO personas (id, name, is_default, created_at, updated_at)"
+            " VALUES (?, ?, ?, '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00')",
+            persona_id, f"Name of {persona_id}", int(is_default))
+
+
+def marks(execute) -> list[str]:
+    return [r[0] for r in execute("SELECT id FROM personas WHERE is_default = 1 ORDER BY id")]
+
+
+def stored(execute) -> list[str]:
+    return [r[0] for r in execute("SELECT key FROM settings ORDER BY key")]
+
+
+async def test_the_persona_the_setting_names_becomes_the_only_one_marked(old_database):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    seed_personas(execute, ("aaa", True), ("bbb", False), ("ccc", False))
+    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps("ccc"))
+    execute("INSERT INTO settings (key, value) VALUES (?, ?)", "reply_length", dumps("long"))
+
+    await upgrade()
+
+    assert marks(execute) == ["ccc"]
+    assert stored(execute) == ["reply_length"]
+
+
+async def test_the_persona_the_setting_names_is_marked_when_none_was(old_database):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    seed_personas(execute, ("aaa", False), ("bbb", False))
+    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps("bbb"))
+
+    await upgrade()
+
+    assert marks(execute) == ["bbb"]
+    assert stored(execute) == []
+
+
+async def test_a_setting_naming_a_persona_that_is_gone_leaves_the_marks_alone(old_database):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    seed_personas(execute, ("aaa", True), ("bbb", False))
+    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps("vanished"))
+
+    await upgrade()
+
+    assert marks(execute) == ["aaa"]
+    assert stored(execute) == []
+
+
+async def test_a_setting_naming_a_persona_that_is_gone_does_not_mark_one_when_none_was(
+        old_database):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    seed_personas(execute, ("aaa", False))
+    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps("vanished"))
+
+    await upgrade()
+
+    assert marks(execute) == []
+    assert stored(execute) == []
+
+
+async def test_without_the_setting_the_marks_are_left_as_they_were(old_database):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    seed_personas(execute, ("aaa", False), ("bbb", True))
+
+    await upgrade()
+
+    assert marks(execute) == ["bbb"]
+
+
+async def test_nothing_marked_and_no_setting_stays_that_way(old_database):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    seed_personas(execute, ("aaa", False), ("bbb", False))
+
+    await upgrade()
+
+    assert marks(execute) == []
+
+
+@pytest.mark.parametrize("value", ["", "not json {", "null", "42", '["ccc"]', '{"id": "ccc"}'])
+async def test_a_setting_that_is_not_a_persona_id_is_dropped_and_marks_nothing(
+        old_database, value):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    seed_personas(execute, ("aaa", True), ("ccc", False))
+    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, value)
+
+    await upgrade()
+
+    assert marks(execute) == ["aaa"]
+    assert stored(execute) == []
+
+
+async def test_a_name_with_quotes_and_accents_is_found_as_it_was_stored(old_database):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    odd = 'é"\\x'
+    seed_personas(execute, ("aaa", True), (odd, False))
+    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps(odd))
+
+    await upgrade()
+
+    assert marks(execute) == [odd]
+
+
+async def test_a_second_start_does_not_bring_the_old_choice_back(old_database):
+    execute, start_before, upgrade = old_database
+    await start_before()
+    seed_personas(execute, ("aaa", True), ("bbb", False))
+    execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps("bbb"))
+    await upgrade()
+    # Someone who then chooses "none" must not get the old choice back at the next start.
+    execute("UPDATE personas SET is_default = 0")
+
+    await upgrade()
+
+    assert marks(execute) == []
+    assert SETTING not in stored(execute)

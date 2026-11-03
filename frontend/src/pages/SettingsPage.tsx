@@ -29,12 +29,38 @@ export function SettingsPage() {
 
   useEffect(load, [load]);
 
-  async function saveSettings(patch: Partial<Settings>) {
-    const updated = await data.settings.update(patch);
-    setSettings(updated);
+  function flashSaved() {
     setSavedFlash(true);
     if (flashTimer.current) clearTimeout(flashTimer.current);
     flashTimer.current = setTimeout(() => setSavedFlash(false), 1500);
+  }
+
+  async function saveSettings(patch: Partial<Settings>) {
+    const updated = await data.settings.update(patch);
+    setSettings(updated);
+    flashSaved();
+  }
+
+  // The default persona is the one marked on the Personas page, so this list
+  // writes that mark: choosing a persona marks it (which unmarks the rest), and
+  // "None" unmarks the one that was.
+  const defaultPersona = personas.find((p) => p.is_default);
+
+  async function saveDefaultPersona(id: string) {
+    const target = id ? personas.find((p) => p.id === id) : defaultPersona;
+    if (!target) return;
+    try {
+      await data.personas.update(target.id, {
+        name: target.name,
+        description: target.description,
+        is_default: id !== "",
+      });
+      flashSaved();
+    } finally {
+      // Whatever came of it, show what is stored, so that this list and the tag
+      // on the Personas page cannot disagree.
+      data.personas.list().then(setPersonas);
+    }
   }
 
   return (
@@ -94,8 +120,8 @@ export function SettingsPage() {
           <Field label={t("settings.defaultPersonaLabel")}>
             <select
               className="field"
-              value={settings.default_persona_id ?? ""}
-              onChange={(e) => saveSettings({ default_persona_id: e.target.value || null })}
+              value={defaultPersona?.id ?? ""}
+              onChange={(e) => saveDefaultPersona(e.target.value)}
             >
               <option value="">{t("settings.noneOption")}</option>
               {personas.map((p) => (

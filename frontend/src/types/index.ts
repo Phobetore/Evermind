@@ -132,7 +132,6 @@ export interface LibraryItem {
 
 export interface Settings {
   default_connection_id: string | null;
-  default_persona_id: string | null;
   global_instructions: string;
   auto_memory: boolean;
   reply_length: "short" | "medium" | "long";
