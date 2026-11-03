@@ -50,9 +50,11 @@ export async function makeConversation(request: APIRequestContext, fields: Recor
  *  running is how a suite comes to pass here and fail on a CI runner. */
 export async function conversationWithReply(
   request: APIRequestContext,
-  { slowly = false, failing = false, quiet = false, says }: {
+  { slowly = false, failing = false, failsMidway = false, quiet = false, says }: {
     slowly?: boolean;
     failing?: boolean;
+    /** The model writes four words and the connection to it breaks. */
+    failsMidway?: boolean;
     /** The model takes eight seconds over its first word. */
     quiet?: boolean;
     /** The reply is this word, then numbers, then "end" and this word. */
@@ -69,6 +71,7 @@ export async function conversationWithReply(
   const markers = [
     slowly && "SLOWLY",
     failing && "MOCK_FAILS", // a model that refuses a couple of seconds into a turn
+    failsMidway && "MOCK_FAILS_MIDWAY",
     quiet && "MOCK_QUIET",
     says && `MOCK_SAYS_${says}`,
   ].filter(Boolean);
