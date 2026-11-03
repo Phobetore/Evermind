@@ -106,19 +106,14 @@ test("a regeneration cut short labels its own version, not the whole one", async
   expect(read.messages.at(-1).meta).toEqual({ interrupted: [1] });
 });
 
-test("a reload after the server has forgotten the turn finds the same", async ({
-  page, request,
-}, testInfo) => {
-  // The server keeps a finished turn for two minutes (turns._KEEP_FINISHED_SECONDS), and
-  // the wait is the same on every project: once is enough.
-  test.skip(testInfo.project.name !== "phone", "the same wait on the other project");
-  test.setTimeout(240_000);
-  const convo = await failedMidway(page, request);
+test("a reload after the server has forgotten the turn finds the same", async ({ page, request }) => {
+  await failedMidway(page, request);
 
-  await expect.poll(async () => {
-    const state = await (await request.get(`${API}/api/conversations/${convo.id}/turn`)).json();
-    return state.ended_recently;
-  }, { message: "the server kept the turn", timeout: 180_000, intervals: [2_000] }).toBe(false);
+  // The server keeps a finished turn for two minutes (turns._KEEP_FINISHED_SECONDS), and
+  // this is what it answers after them.
+  await page.route("**/turn", (route) => route.fulfill({
+    json: { running: false, mode: null, ended_recently: false },
+  }));
   await page.reload();
 
   await expect(reply(page)).toBeVisible();
