@@ -176,14 +176,31 @@ export function ChatSidePanel({
     }
   }
 
+  // A change to a fact that the server refuses says why, in the same place as the
+  // failure to add one. The fact may be gone already, taken out by a cut in the story
+  // or by a pass of the memory, so the list is read again rather than left as it was.
+  function failedFactChange(error: unknown) {
+    setMemoryNote(describeError(error, t));
+    setTimeout(() => setMemoryNote(null), 3000);
+    data.memories.list(conversation.id).then(setMemories).catch(() => {});
+  }
+
   async function togglePin(memory: Memory) {
-    const updated = await data.memories.update(memory.id, { is_pinned: !memory.is_pinned });
-    setMemories((prev) => prev.map((m) => (m.id === memory.id ? updated : m)));
+    try {
+      const updated = await data.memories.update(memory.id, { is_pinned: !memory.is_pinned });
+      setMemories((prev) => prev.map((m) => (m.id === memory.id ? updated : m)));
+    } catch (e) {
+      failedFactChange(e);
+    }
   }
 
   async function removeFact(memory: Memory) {
-    await data.memories.remove(memory.id);
-    setMemories((prev) => prev.filter((m) => m.id !== memory.id));
+    try {
+      await data.memories.remove(memory.id);
+      setMemories((prev) => prev.filter((m) => m.id !== memory.id));
+    } catch (e) {
+      failedFactChange(e);
+    }
   }
 
   const activeConn = connections.find((c) => c.id === conversation.connection_id);

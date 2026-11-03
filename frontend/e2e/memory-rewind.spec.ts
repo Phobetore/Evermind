@@ -59,3 +59,26 @@ test("cutting the story back empties the summary and the facts of what went", as
   expect(read.summary).toBe("");
   expect(read.memory_position).toBe(2);
 });
+
+test("a fact that is gone says so when it is pinned, and leaves the list", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const made = await request.post(`${API}/api/conversations/${convo.id}/memories`, {
+    data: { content: "She keeps the key." },
+  });
+  const fact = await made.json();
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  await expect(panel).toContainText("She keeps the key.");
+
+  // Taken out behind the panel's back, as a pass of the memory or a cut in the story can.
+  await request.delete(`${API}/api/memories/${fact.id}`);
+  await panel.getByTitle("Pin (always injected)").click();
+
+  await expect(panel).toContainText("This fact no longer exists.");
+  await expect(panel).not.toContainText("She keeps the key.");
+});
