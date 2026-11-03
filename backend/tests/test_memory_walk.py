@@ -130,7 +130,7 @@ def the_models(fact):
     return not fact["is_pinned"] and fact["source"] == "auto"
 
 
-async def check(client, cid, edited, forgotten_ids, stuck, trace):
+async def check(client, cid, edited, forgotten_ids, kept, trace):
     state = await read(client, cid)
     convo = state["convo"]
     alive = set().union(*(tokens(m["content"]) for m in convo["messages"]))
@@ -139,16 +139,19 @@ async def check(client, cid, edited, forgotten_ids, stuck, trace):
     assert all(row[1] <= last for row in state["checkpoints"]), trace
     if not (convo["summary"] or "").startswith("TYPED"):
         assert tokens(convo["summary"]) <= alive, (convo["summary"], alive, trace)
-    # A person kept it past the turns it speaks of. Unpinned, that would be their doing.
-    stuck |= {f["content"] for f in state["facts"] if f["is_pinned"] and not tokens(f["content"]) <= alive}
+    # What a person kept past the turns it speaks of may be unpinned, and speak of them still.
+    kept |= set().union(*(tokens(f["content"]) - alive for f in state["facts"] if f["is_pinned"]))
     for fact in state["facts"]:
         if the_models(fact) and fact["id"] not in edited:
-            assert tokens(fact["content"]) <= alive and fact["source_position"] <= last, (fact, trace)
+            assert tokens(fact["content"]) - kept <= alive, (fact, trace)
         assert fact["id"] not in forgotten_ids, (fact, trace)
         assert fact["content"].startswith(edited.get(fact["id"], "")), (fact, "lost its edit", trace)
     assert not {row[2] for row in state["copies"]} & forgotten_ids, ("a copy kept a forgotten fact", trace)
+    # A pass reads 40 turns at most: what it skips nothing remembers, cut or no cut.
+    unread = [m for m in convo["messages"] if m["position"] > (convo["memory_position"] or -1)]
+    skipped = set().union(*(tokens(m["content"]) for m in unread[:-40]))
     held = set().union(*(tokens(f["content"]) for f in await facts_after_a_pass(client, cid)))
-    for token in alive - held - World.forgotten:
+    for token in alive - held - skipped - World.forgotten:
         assert World.dropped.get(token) in alive, (f"nothing remembers @{token}@", trace)
 
 
@@ -157,13 +160,12 @@ async def walk(client, seed):
     World.count, World.dropped, World.forgotten = 0, {}, set()
     await client.put("/api/settings", json={"auto_memory": False})
     cid = (await setup_conversation(client, greeting="Hello." if seed % 2 else ""))["id"]
-    edited, forgotten_ids, stuck, trace = {}, set(), set(), []
+    edited, forgotten_ids, kept, trace = {}, set(), set(), []
     for _ in range(STEPS):
         state = await read(client, cid)
         convo, messages, facts = state["convo"], state["convo"]["messages"], state["facts"]
         base = f"/api/conversations/{cid}"
         unread = [m for m in messages if m["position"] > convo["memory_position"]]
-        # A pass reads 40 turns at most: what it skips nothing remembers, cut or no cut.
         step = "pass" if len(unread) > 30 else rng.choice(STEP_KINDS)
         trace.append(step)
         if step == "talk":
@@ -179,8 +181,6 @@ async def walk(client, seed):
             await client.post(f"{base}/memories", json={"content": f"By hand {World.token('h').strip('@')}"})
         elif step in ("cut", "one") and messages:
             message = rng.choice(messages)
-            # Kept past a cut, it stands at a position that says nothing of what was read.
-            stuck |= {f["content"] for f in facts if f["is_pinned"] and f["source_position"] >= message["position"]}
             following = "?following=true" if step == "cut" else ""
             assert (await client.delete(f"/api/messages/{message['id']}{following}")).status_code == 204
             trace[-1] += f" {message['position']}"
@@ -202,9 +202,9 @@ async def walk(client, seed):
             elif step == "edit":
                 edited[fact["id"]] = f"{fact['content']} edited"
                 await client.patch(f"/api/memories/{fact['id']}", json={"content": edited[fact["id"]]})
-            elif fact["content"] not in stuck:
+            else:
                 await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": not fact["is_pinned"]})
-        await check(client, cid, edited, forgotten_ids, stuck, trace)
+        await check(client, cid, edited, forgotten_ids, kept, trace)
 
 
 @pytest.mark.parametrize("seed", range(SEEDS))

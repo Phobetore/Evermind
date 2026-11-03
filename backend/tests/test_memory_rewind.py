@@ -1047,8 +1047,37 @@ async def test_only_the_newest_checkpoints_are_kept_and_an_older_cut_falls_back(
     await remove_from(client, convo_id, 4)  # the cut is at 3, a checkpoint that went
 
     read = await conversation(client, convo_id)
-    assert (read["memory_position"], read["summary"]) == (3, "")
+    assert (read["memory_position"], read["summary"]) == (0, "")
     assert await names(client, convo_id) == {"From the start."}
+
+
+async def test_with_no_checkpoint_to_go_back_to_the_next_pass_reads_from_the_start(
+        client, fake_provider):
+    """No fact says how far the memory had read. This one was kept past an earlier cut and
+    unpinned since, so its position is only where that cut left it, and the pass that read
+    the turns before it is the one this cut undoes."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [{"content": "Kept past a cut.", "kind": "fact"}]})
+    fact = await fact_named(client, convo_id, "Kept past a cut.")
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": True})
+    await remove_from(client, convo_id, 5)  # it now stands at 4
+    await talk(client, convo_id, 3, label="again")  # positions 5 to 10
+    await extract(client, convo_id, {"facts": [{"content": "From the turns read.", "kind": "fact"}],
+                                     "summary": "To 10."})
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": False})
+
+    await remove_from(client, convo_id, 7)
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, "")
+    assert await stored_facts(client, convo_id) == [("Kept past a cut.", "fact", 4, False, "auto")]
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [{"content": "From the turns read.", "kind": "fact"}]})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "(turn 1): exchange 1" in shown and "(turn 6)" in shown
+    assert await names(client, convo_id) == {"Kept past a cut.", "From the turns read."}
 
 
 async def test_a_pinned_fact_drawn_from_removed_turns_stays_at_the_end_of_the_story(

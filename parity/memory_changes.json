@@ -8859,7 +8859,7 @@
   },
   {
    "fn": "plan_cut",
-   "name": "without a checkpoint before the cut the memory goes to the newest turn a fact it keeps came from",
+   "name": "without a checkpoint at or before the cut the memory goes to the start, whatever facts it keeps",
    "input": {
     "memory_position": 8,
     "summary": "S8",
@@ -8907,7 +8907,7 @@
     "cut": 6
    },
    "expected": {
-    "memory_position": 5,
+    "memory_position": 0,
     "summary": "",
     "checkpoints": [],
     "facts": [
@@ -8990,7 +8990,7 @@
     "removal": true
    },
    "expected": {
-    "memory_position": 3,
+    "memory_position": 0,
     "summary": "",
     "checkpoints": [],
     "facts": [
@@ -9048,7 +9048,7 @@
     "cut": 6
    },
    "expected": {
-    "memory_position": 3,
+    "memory_position": 0,
     "summary": "",
     "checkpoints": [],
     "facts": [
@@ -9106,7 +9106,7 @@
     "cut": 6
    },
    "expected": {
-    "memory_position": 6,
+    "memory_position": 0,
     "summary": "",
     "checkpoints": [],
     "facts": [
@@ -9164,7 +9164,7 @@
     "cut": 4
    },
    "expected": {
-    "memory_position": 2,
+    "memory_position": 0,
     "summary": "",
     "checkpoints": [],
     "facts": [
@@ -9980,7 +9980,7 @@
   },
   {
    "fn": "plan_cut",
-   "name": "a fact from further than the memory had read does not move it forward",
+   "name": "a memory that had read less than a fact it keeps goes to the start too",
    "input": {
     "memory_position": 4,
     "summary": "Asked for",
@@ -10005,7 +10005,7 @@
     "cut": 8
    },
    "expected": {
-    "memory_position": 4,
+    "memory_position": 0,
     "summary": "",
     "checkpoints": [],
     "facts": [
@@ -10118,7 +10118,7 @@
     "cut": 5
    },
    "expected": {
-    "memory_position": 5,
+    "memory_position": 0,
     "summary": "",
     "checkpoints": [],
     "facts": [
@@ -10328,6 +10328,70 @@
       "kind": "fact",
       "content": "Fact b.",
       "source_position": 1,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ]
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a fact kept past an earlier cut and unpinned since says nothing of how far the memory read",
+   "input": {
+    "memory_position": 10,
+    "summary": "S10",
+    "checkpoints": [
+     {
+      "position": 10,
+      "summary": "S10",
+      "memory_position": 10,
+      "facts": [
+       {
+        "id": "kept",
+        "kind": "fact",
+        "content": "Kept.",
+        "source_position": 4
+       },
+       {
+        "id": "read",
+        "kind": "fact",
+        "content": "Read.",
+        "source_position": 10
+       }
+      ]
+     }
+    ],
+    "facts": [
+     {
+      "id": "kept",
+      "kind": "fact",
+      "content": "Kept.",
+      "source_position": 4,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "read",
+      "kind": "fact",
+      "content": "Read.",
+      "source_position": 10,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ],
+    "cut": 6,
+    "removal": true
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": [
+     {
+      "id": "kept",
+      "kind": "fact",
+      "content": "Kept.",
+      "source_position": 4,
       "is_pinned": false,
       "source": "auto"
      }

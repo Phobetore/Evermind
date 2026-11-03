@@ -61,10 +61,10 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
 
     Without a checkpoint at or before the cut, the model's facts drawn from later turns go;
     a fact's position is the newest turn of the pass that drew it, so it goes with them even
-    if the turn it came from stays. The memory goes back to the newest turn that a fact it
-    keeps was drawn from, which a pinned fact does not count for, since it survives cuts and
-    can carry the position of a story that is gone, or to the start; and the summary is
-    emptied.
+    if the turn it came from stays. Nothing says how far the memory had read, so it goes back
+    to the start, and the next pass draws again what it can from the newest turns, at the
+    price of that one pass; and the summary is emptied. This is for a conversation from
+    before there were checkpoints, or a cut older than the oldest one kept.
 
     What a person typed or pinned is theirs, whatever the memory goes back to: it stays as
     it is, and a copy of it, or of what it says, is not restored beside it. If it was
@@ -73,7 +73,9 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
     leaves it with the conversation it came from.
 
     A summary that is not the newest checkpoint's (after stripping) is treated as typed by
-    a person, in a box that is theirs to edit: it stays, as a fact they wrote does.
+    a person, in a box that is theirs to edit: it stays, as a fact they wrote does. No
+    checkpoint keeps it: a pass rewrites from the current summary, so what was typed lives on
+    inside what the pass writes, and a cut back past that pass goes to a summary without it.
 
     ``{"memory_position": n, "summary": str, "checkpoints": [positions kept], "facts": [what
     the conversation holds now, as ``facts`` gives them]}``.
@@ -94,11 +96,8 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
     if memory_position <= cut and not summary_is_ahead:
         return result
 
-    if chosen is not None:
-        reached = chosen["memory_position"]
-    else:
-        reached = max((f["source_position"] for f in models), default=0)
-    result["memory_position"] = min(memory_position, reached)
+    result["memory_position"] = (min(memory_position, chosen["memory_position"])
+                                 if chosen is not None else 0)
     if not typed:
         result["summary"] = chosen["summary"] if chosen is not None else ""
     if chosen is not None and result["memory_position"] < memory_position:
