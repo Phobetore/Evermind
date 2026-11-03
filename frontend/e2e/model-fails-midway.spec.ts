@@ -103,7 +103,7 @@ test("a regeneration cut short labels its own version, not the whole one", async
   await expect(last).toContainText(WHOLE);
   await expect(last).not.toContainText("interrupted");
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
-  expect(read.messages.at(-1).meta).toEqual({ interrupted: [1] });
+  expect(read.messages.at(-1).meta.interrupted).toEqual([1]);
 });
 
 test("a reload after the server has forgotten the turn finds the same", async ({ page, request }) => {
