@@ -763,10 +763,11 @@ function ChatView({ id }: { id: string }) {
     await data.messages.removeFrom(message.id);
     changesByHand.current += 1;
     setMessages((prev) => prev.filter((m) => m.position < message.position));
-    // The server takes the memory back with the story: the facts drawn from the turns
-    // that went, and a summary that described them. What the side panel shows is from
-    // before, and saving the summary it shows would put the old one back. With no
-    // summary on screen there is nothing to be wrong about.
+    // The server takes the memory back with the story, to what it held at that point.
+    // What the side panel shows is from before, and saving the summary it shows would
+    // put the old one back. It is read again only when the page has one on screen: with
+    // none, a summary that a pass wrote since the page last read it, or the one this cut
+    // went back to, shows at the next read, as what a pass writes always does.
     setStoryCuts((n) => n + 1);
     if (conversation?.summary) {
       data.conversations

@@ -5,8 +5,8 @@ import { API } from "../playwright.config";
 import { makeConversation } from "./fixtures";
 
 /**
- * Taking the story back from a message takes what was remembered of it back too:
- * the facts drawn from the turns that went, and the summary that described them.
+ * Taking the story back from a message takes what was remembered of it back too, to what
+ * it was at that point: the facts as they stood, and the summary of the turns that stay.
  * The panel beside the conversation showed what it had read when it opened, so the
  * summary of a story that no longer existed stayed on screen, and saving it wrote it back.
  */
