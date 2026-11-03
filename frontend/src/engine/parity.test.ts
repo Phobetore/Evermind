@@ -43,6 +43,7 @@ import {
   trimReply,
   type PassageStats,
 } from "./turn";
+import { isRecord } from "./values";
 
 // The cases in parity/ at the root of the repository are the ones the Python
 // engine runs too (backend/tests/test_parity.py): the Python is the reference,
@@ -138,6 +139,19 @@ const FUNCTIONS: Record<string, (input: unknown) => unknown> = {
   clean_card_draft: adapt<{ draft: Record<string, unknown> }>((i) => cleanCardDraft(i.draft)),
 };
 
+// toStrictEqual tells two classes apart by comparing `.constructor`, and on an object
+// with a key of that name, as a model's answer may hold, that is a value: two equal ones
+// differ by being two objects. So that key is compared here and the rest left to it.
+expect.addEqualityTesters([
+  function keyNamedConstructor(a, b, testers) {
+    if (!isRecord(a) || !isRecord(b)) return undefined;
+    if (!Object.hasOwn(a, "constructor") || !Object.hasOwn(b, "constructor")) return undefined;
+    const { constructor: inA, ...restOfA } = a;
+    const { constructor: inB, ...restOfB } = b;
+    return this.equals(inA, inB, testers, true) && this.equals(restOfA, restOfB, testers, true);
+  },
+]);
+
 const dir = fileURLToPath(new URL("../../../parity/", import.meta.url));
 const files = readdirSync(dir)
   .filter((name) => name.endsWith(".json"))
@@ -159,6 +173,14 @@ describe("the shared cases", () => {
     const named = new Set(loaded.flatMap((file) => file.cases.map((c) => c.fn)));
     expect([...named].sort()).toEqual(Object.keys(FUNCTIONS).sort());
   });
+
+  it("are compared strictly", () => {
+    // A key left undefined is not a key left out, which is what Python does.
+    expect({ tags: undefined }).not.toStrictEqual({});
+    expect({ constructor: { a: 1 }, b: undefined }).not.toStrictEqual({ constructor: { a: 1 } });
+    expect({ constructor: { a: 1 } }).not.toStrictEqual({ constructor: { a: 2 } });
+    expect({ constructor: { a: 1 }, b: 2 }).toStrictEqual({ constructor: { a: 1 }, b: 2 });
+  });
 });
 
 for (const { name, cases } of loaded) {
@@ -167,7 +189,7 @@ for (const { name, cases } of loaded) {
       it(`${c.fn}: ${c.name}`, () => {
         const run = FUNCTIONS[c.fn];
         expect(run, `no function registered for "${c.fn}"`).toBeDefined();
-        expect(run(c.input)).toEqual(c.expected);
+        expect(run(c.input)).toStrictEqual(c.expected);
       });
     }
   });
