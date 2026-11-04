@@ -1445,6 +1445,36 @@ async def test_a_cut_while_the_vectors_of_a_merge_are_worked_out_leaves_no_merge
     assert await names(client, convo_id) == {f"Early {n}." for n in range(4)}
 
 
+async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merge(
+        client, fake_provider, monkeypatch):
+    """Pinned, kept past a cut at the end of the story, unpinned again: the same fact, with the
+    same words, standing earlier. The merged fact would take the position it was sent with,
+    past the end of the story."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 4)  # positions 0 to 8
+    await extract(client, convo_id, {"facts": [{"content": f"Fact {n}.", "kind": "fact"}
+                                               for n in range(8)]})
+    facts = (await client.get(f"/api/conversations/{convo_id}/memories")).json()
+
+    async def pin_cut_unpin():
+        for fact in facts:
+            await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": True})
+        await remove_from(client, convo_id, 5)
+        for fact in facts:
+            await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": False})
+
+    while_the_model_answers(monkeypatch, pin_cut_unpin)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(MERGED_FACTS)),
+                            ProviderEvent(type="done")]
+
+    answered = await client.post(f"/api/conversations/{convo_id}/memories/consolidate")
+
+    assert answered.json()["skipped"] == "changed"
+    assert await stored_facts(client, convo_id) == [
+        (f"Fact {n}.", "fact", 4, False, "auto") for n in range(8)]
+
+
 async def test_a_cut_that_leaves_every_fact_sent_leaves_the_merge(client, fake_provider, monkeypatch):
     """The turns it took are not ones the facts were drawn from, and the merged fact takes
     the oldest position of those it replaces: it cannot be past the end."""
