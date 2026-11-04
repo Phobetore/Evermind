@@ -234,14 +234,14 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
         messages = await (await db.execute(
             "SELECT * FROM messages WHERE conversation_id = ? AND position <= ?"
             " ORDER BY position ASC", (source["id"], position))).fetchall()
-        for row in messages:
-            await db.execute(
-                "INSERT INTO messages (id, conversation_id, role, variants, active_index,"
-                " position, meta, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (new_id(), branch_id, row["role"], row["variants"], row["active_index"],
-                 row["position"], _meta_for_branch(row["meta"]), row["created_at"],
-                 row["embedding"]),
-            )
+        # One statement: a long story, one await at a time, holds the database for seconds.
+        await db.executemany(
+            "INSERT INTO messages (id, conversation_id, role, variants, active_index,"
+            " position, meta, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(new_id(), branch_id, row["role"], row["variants"], row["active_index"],
+              row["position"], _meta_for_branch(row["meta"]), row["created_at"], row["embedding"])
+             for row in messages],
+        )
 
         # A fact has one new name in the branch, in its list and in every copy that holds
         # it, so that what a person does to it there reaches them all and nothing else.
