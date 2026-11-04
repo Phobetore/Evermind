@@ -15,8 +15,8 @@ const panelText = JSON.parse(
   readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", "en.json"), "utf8"),
 ).chat.panel as {
   closeAriaLabel: string;
-  summary: { placeholder: string; generateButton: string };
-  facts: { memoryTaskRunning: string; conversationChangedWhileReading: string };
+  summary: { placeholder: string; generateButton: string; saveButton: string };
+  facts: { memoryTaskRunning: string; conversationChangedWhileReading: string; extractButton: string };
 };
 
 test("cutting the story back empties the summary and the facts of what went", async ({ page, request }) => {
@@ -130,6 +130,39 @@ for (const [skipped, sentence] of [
 
     await expect(panel).toContainText(sentence);
     await expect(summary).toHaveValue("Being typed.");
+  });
+}
+
+// What is typed while the memory writes a summary would be replaced by what it writes.
+for (const [task, url, button] of [
+  ["a summary is written", "**/summarize", panelText.summary.generateButton],
+  ["the memory reads the story", "**/memories/extract", panelText.facts.extractButton],
+] as const) {
+  test(`the summary box cannot be typed in while ${task}`, async ({ page, request }) => {
+    const convo = await makeConversation(request);
+    let release = () => {};
+    const released = new Promise<void>((resolve) => { release = resolve; });
+    await page.route(url, async (route) => {
+      await released;
+      await route.continue();
+    });
+
+    await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(page.locator("textarea").first()).toBeVisible();
+    const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+    if (await opener.isVisible()) await opener.click();
+    const panel = page.locator("aside:visible:has(textarea)");
+    const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+    await summary.fill("Typed before.");
+    await expect(summary).toBeEnabled();
+
+    await panel.getByRole("button", { name: button, exact: true }).click();
+
+    await expect(summary).toBeDisabled();
+    await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeDisabled();
+    release();
+    await expect(summary).toBeEnabled();
   });
 }
 

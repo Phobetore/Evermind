@@ -214,6 +214,9 @@ export function ChatSidePanel({
     onConversationChange({ connection_id: connectionId });
   }
 
+  // What is typed while the memory writes a summary would be replaced by what it writes.
+  const summaryIsBeingWritten = summarizing || memorizing;
+
   async function saveSummary() {
     await data.conversations.update(conversation.id, { summary });
     onConversationChange({ summary });
@@ -476,10 +479,15 @@ export function ChatSidePanel({
           className="field min-h-32 text-sm"
           value={summary}
           onChange={(e) => setSummary(e.target.value)}
+          disabled={summaryIsBeingWritten}
           placeholder={t("chat.panel.summary.placeholder")}
         />
         {summary !== conversation.summary && (
-          <button className="btn btn-ghost mt-2 w-full !py-1.5 text-xs" onClick={saveSummary}>
+          <button
+            className="btn btn-ghost mt-2 w-full !py-1.5 text-xs"
+            onClick={saveSummary}
+            disabled={summaryIsBeingWritten}
+          >
             {t("chat.panel.summary.saveButton")}
           </button>
         )}
