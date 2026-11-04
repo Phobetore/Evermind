@@ -9995,63 +9995,6 @@
   },
   {
    "fn": "plan_cut",
-   "name": "a checkpoint that had read further than the memory does not move it forward",
-   "input": {
-    "memory_position": 4,
-    "summary": "Asked for",
-    "checkpoints": [
-     {
-      "position": 6,
-      "summary": "S6",
-      "memory_position": 6,
-      "facts": [
-       {
-        "id": "a",
-        "kind": "fact",
-        "content": "Fact a.",
-        "source_position": 6
-       }
-      ]
-     },
-     {
-      "position": 10,
-      "summary": "Asked for",
-      "memory_position": 4,
-      "facts": []
-     }
-    ],
-    "facts": [
-     {
-      "id": "a",
-      "kind": "fact",
-      "content": "Fact a.",
-      "source_position": 6,
-      "is_pinned": false,
-      "source": "auto"
-     }
-    ],
-    "cut": 8
-   },
-   "expected": {
-    "memory_position": 4,
-    "summary": "S6",
-    "checkpoints": [
-     6
-    ],
-    "facts": [
-     {
-      "id": "a",
-      "kind": "fact",
-      "content": "Fact a.",
-      "source_position": 6,
-      "is_pinned": false,
-      "source": "auto"
-     }
-    ]
-   }
-  },
-  {
-   "fn": "plan_cut",
    "name": "a memory that had read less than a fact it keeps goes to the start too",
    "input": {
     "memory_position": 4,

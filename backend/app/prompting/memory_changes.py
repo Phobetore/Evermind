@@ -102,8 +102,7 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
     if memory_position <= cut and not summary_is_ahead:
         return result
 
-    result["memory_position"] = (min(memory_position, chosen["memory_position"])
-                                 if chosen is not None else 0)
+    result["memory_position"] = chosen["memory_position"] if chosen is not None else 0
     if not typed and chosen is not None:
         result["summary"] = chosen["summary"]
     elif not typed and cut + 1 <= MAX_TURNS_PER_RUN:

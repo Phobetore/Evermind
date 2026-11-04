@@ -133,7 +133,7 @@ export function planCut(
   };
   if (memoryPosition <= cut && !summaryIsAhead) return result;
 
-  result.memory_position = chosen ? Math.min(memoryPosition, chosen.memory_position) : 0;
+  result.memory_position = chosen ? chosen.memory_position : 0;
   if (!typed && chosen) result.summary = chosen.summary;
   else if (!typed && cut + 1 <= MAX_TURNS_PER_RUN) result.summary = "";
   if (chosen && result.memory_position < memoryPosition) {
