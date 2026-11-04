@@ -36,20 +36,23 @@ CREATE TABLE IF NOT EXISTS memory_checkpoint_facts (
 );
 
 -- Messages removed from a point on used to leave the memory as it was. A conversation
--- with no message left and a memory that had read some remembers a story that is gone:
--- what the model wrote of it goes. This comes before the position is repaired, which is
--- what tells such a conversation from one that never had a memory; a summary there may be
--- someone's own.
+-- with no message left, or none but its greeting, the ordinary shape of a story deleted back
+-- to the start, and a memory that had read some, remembers a story that is gone: what the
+-- model wrote of it goes. This comes before the position is repaired, which is what tells
+-- such a conversation from one that never had a memory; a summary there may be someone's
+-- own. A greeting says so in `meta`, in the one way the application has always written it.
 UPDATE conversations SET summary = ''
 WHERE memory_position > 0
-  AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id);
+  AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id
+                  AND messages.meta NOT LIKE '%"greeting": true%');
 
 DELETE FROM memories
 WHERE source = 'auto' AND is_pinned = 0
   AND conversation_id IN (
     SELECT id FROM conversations
     WHERE memory_position > 0
-      AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id));
+      AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id
+                      AND messages.meta NOT LIKE '%"greeting": true%'));
 
 -- A conversation whose memory had read past its last message keeps its facts and its
 -- summary. They may describe turns that went, and nothing can say which, but a pass reads

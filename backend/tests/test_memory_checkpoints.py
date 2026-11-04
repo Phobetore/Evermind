@@ -15,6 +15,7 @@ import pytest
 
 from app.db import _connect
 from app.providers.base import ProviderEvent
+from app.repositories.base import dumps
 
 from .test_chat import FakeProvider, send, setup_conversation
 from .test_memory import extract
@@ -310,6 +311,12 @@ def copies(conn):
         " ORDER BY 1, 2, 3")]
 
 
+def down_to_its_greeting(conn, convo_id):
+    """Its first message is a greeting, marked as the application marks one."""
+    conn.execute("UPDATE messages SET meta = ? WHERE conversation_id = ? AND position = 0",
+                 (dumps({"greeting": True}), convo_id))
+
+
 def apply_011(conn):
     for file in sorted(MIGRATIONS.glob("011_*.sql")):
         conn.executescript(file.read_text(encoding="utf-8"))
@@ -373,6 +380,56 @@ def test_a_conversation_with_no_message_left_remembers_nothing_of_it(tmp_path):
     assert copies(conn) == []
 
 
+def test_a_story_deleted_back_to_its_greeting_remembers_nothing_of_it(tmp_path):
+    """The ordinary shape of a story that is gone. A greeting is the card's, and nothing the
+    memory held was drawn from it."""
+    conn = database_before_the_checkpoints(tmp_path / "old.db")
+    story(conn, "greeted", 0, memory_position=12, summary="Of a story no longer there.")
+    down_to_its_greeting(conn, "greeted")
+    fact(conn, "greeted", "model", 12)
+    fact(conn, "greeted", "pinned", 12, pinned=1)
+    fact(conn, "greeted", "hand", 0, source="user")
+
+    apply_011(conn)
+
+    assert state(conn, "greeted") == ((0, ""), [])
+    assert facts_of(conn, "greeted") == [("hand", 0), ("pinned", 0)]
+    assert copies(conn) == []
+
+
+def test_a_greeting_and_no_memory_leave_a_summary_that_may_be_someones_own(tmp_path):
+    conn = database_before_the_checkpoints(tmp_path / "old.db")
+    story(conn, "greeted", 0, memory_position=0, summary="Before anything was said.")
+    down_to_its_greeting(conn, "greeted")
+
+    apply_011(conn)
+
+    assert state(conn, "greeted") == ((0, "Before anything was said."), [])
+
+
+def test_a_first_message_that_is_no_greeting_is_a_story_still(tmp_path):
+    conn = database_before_the_checkpoints(tmp_path / "old.db")
+    story(conn, "first", 0, memory_position=12, summary="Up to twelve, it said.")
+    fact(conn, "first", "model", 12)
+
+    apply_011(conn)
+
+    assert state(conn, "first") == ((0, "Up to twelve, it said."), [])
+    assert facts_of(conn, "first") == [("model", 0)]
+
+
+def test_a_greeting_with_turns_after_it_is_a_story_still(tmp_path):
+    conn = database_before_the_checkpoints(tmp_path / "old.db")
+    story(conn, "greeted", 4, memory_position=2, summary="Up to two.")
+    down_to_its_greeting(conn, "greeted")
+    fact(conn, "greeted", "model", 2)
+
+    apply_011(conn)
+
+    assert state(conn, "greeted") == ((2, "Up to two."), [(2, "Up to two.", 2)])
+    assert facts_of(conn, "greeted") == [("model", 2)]
+
+
 def test_a_summary_with_no_message_and_no_memory_may_be_someones_own(tmp_path):
     conn = database_before_the_checkpoints(tmp_path / "old.db")
     story(conn, "new", 0, memory_position=0, summary="Before anything was said.")
@@ -425,6 +482,10 @@ def test_a_migration_killed_at_any_point_ends_up_the_same_when_it_runs_again(tmp
         conn.execute("DELETE FROM messages WHERE conversation_id = 'empty'")
         fact(conn, "empty", "model", 12)
         fact(conn, "empty", "pinned", 12, pinned=1)
+        story(conn, "greeted", 0, memory_position=9, summary="Of a story gone too.")
+        down_to_its_greeting(conn, "greeted")
+        fact(conn, "greeted", "gone too", 9)
+        fact(conn, "greeted", "pinned too", 9, pinned=1)
         conn.commit()
         return conn
 
