@@ -17,7 +17,6 @@ const ALLOWED_KINDS: ReadonlySet<string> = new Set([
   "promise",
   "state",
 ]);
-const MAX_CONSOLIDATED_FACTS = 30; // what one consolidation may leave of the model's merge
 export const MAX_TURNS_PER_RUN = 40; // safety cap on turns fed to one extraction call
 
 const items = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
@@ -261,5 +260,5 @@ export function planConsolidation(
   if (!facts.length) return null;
   let oldest = movable.length ? movable[0].source_position : 0;
   for (const m of movable) oldest = Math.min(oldest, m.source_position);
-  return { facts: facts.slice(0, MAX_CONSOLIDATED_FACTS), source_position: oldest };
+  return { facts, source_position: oldest };
 }

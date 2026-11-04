@@ -577,7 +577,7 @@ def memory_reply_input(rng: Draws, index: int) -> dict[str, Any]:
 
 def consolidation_reply_input(rng: Draws, index: int) -> dict[str, Any]:
     if index % 7 == 0:
-        # More facts than one consolidation may leave, and all of them readable.
+        # More facts than a person is likely to have, all of them readable, and all kept.
         facts = [{"content": f"Merged {i}.", "kind": rng.choice(KINDS)} for i in range(31)]
     else:
         facts = [
@@ -701,7 +701,7 @@ MINIMUMS = {
     "an add": 25,
     "an update": 15,
     "a delete": 15,
-    "a consolidation cut to its 30 facts": 2,
+    "a consolidation of more than 30 facts": 2,
     "a reply read as a JSON object": 30,
     "a reply that cannot be read": 3,
     "a card draft with more than 8 lore entries": 5,
@@ -771,8 +771,8 @@ def coverage(cases: list[dict[str, Any]]) -> Counter:
                     found[{"add": "an add", "update": "an update",
                            "delete": "a delete"}[op]] += 1
         elif case["fn"] == "consolidation_reply":
-            if got is not None and len(got["facts"]) == 30:
-                found["a consolidation cut to its 30 facts"] += 1
+            if got is not None and len(got["facts"]) > 30:
+                found["a consolidation of more than 30 facts"] += 1
         elif case["fn"] == "parse_llm_json":
             found["a reply read as a JSON object" if got is not None
                   else "a reply that cannot be read"] += 1

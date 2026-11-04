@@ -16,7 +16,6 @@ it would fail in the database, after the changes before it were saved.
 from .text import text_of
 
 ALLOWED_KINDS = {"fact", "event", "relationship", "promise", "state"}
-MAX_CONSOLIDATED_FACTS = 30  # what one consolidation may leave of the model's merge
 MAX_CHECKPOINTS = 30  # per conversation: a cut older than the oldest has none to go back to
 MAX_TURNS_PER_RUN = 40  # safety cap on turns fed to one extraction call
 
@@ -203,5 +202,5 @@ def plan_consolidation(parsed: dict | None, movable: list[dict]) -> dict | None:
             facts.append({"content": text_of(item["content"]), "kind": _kind(item.get("kind"))})
     if not facts:
         return None
-    return {"facts": facts[:MAX_CONSOLIDATED_FACTS],
+    return {"facts": facts,
             "source_position": min((m["source_position"] for m in movable), default=0)}

@@ -6307,7 +6307,7 @@
   },
   {
    "fn": "consolidation_reply",
-   "name": "31 facts are cut to 30",
+   "name": "31 facts are all kept",
    "input": {
     "text": "{\"facts\": [{\"content\": \"Merged 0.\", \"kind\": \"fact\"}, {\"content\": \"Merged 1.\", \"kind\": \"fact\"}, {\"content\": \"Merged 2.\", \"kind\": \"fact\"}, {\"content\": \"Merged 3.\", \"kind\": \"fact\"}, {\"content\": \"Merged 4.\", \"kind\": \"fact\"}, {\"content\": \"Merged 5.\", \"kind\": \"fact\"}, {\"content\": \"Merged 6.\", \"kind\": \"fact\"}, {\"content\": \"Merged 7.\", \"kind\": \"fact\"}, {\"content\": \"Merged 8.\", \"kind\": \"fact\"}, {\"content\": \"Merged 9.\", \"kind\": \"fact\"}, {\"content\": \"Merged 10.\", \"kind\": \"fact\"}, {\"content\": \"Merged 11.\", \"kind\": \"fact\"}, {\"content\": \"Merged 12.\", \"kind\": \"fact\"}, {\"content\": \"Merged 13.\", \"kind\": \"fact\"}, {\"content\": \"Merged 14.\", \"kind\": \"fact\"}, {\"content\": \"Merged 15.\", \"kind\": \"fact\"}, {\"content\": \"Merged 16.\", \"kind\": \"fact\"}, {\"content\": \"Merged 17.\", \"kind\": \"fact\"}, {\"content\": \"Merged 18.\", \"kind\": \"fact\"}, {\"content\": \"Merged 19.\", \"kind\": \"fact\"}, {\"content\": \"Merged 20.\", \"kind\": \"fact\"}, {\"content\": \"Merged 21.\", \"kind\": \"fact\"}, {\"content\": \"Merged 22.\", \"kind\": \"fact\"}, {\"content\": \"Merged 23.\", \"kind\": \"fact\"}, {\"content\": \"Merged 24.\", \"kind\": \"fact\"}, {\"content\": \"Merged 25.\", \"kind\": \"fact\"}, {\"content\": \"Merged 26.\", \"kind\": \"fact\"}, {\"content\": \"Merged 27.\", \"kind\": \"fact\"}, {\"content\": \"Merged 28.\", \"kind\": \"fact\"}, {\"content\": \"Merged 29.\", \"kind\": \"fact\"}, {\"content\": \"Merged 30.\", \"kind\": \"fact\"}]}",
     "movable": [
@@ -6443,6 +6443,10 @@
      {
       "content": "Merged 29.",
       "kind": "fact"
+     },
+     {
+      "content": "Merged 30.",
+      "kind": "fact"
      }
     ],
     "source_position": 4
@@ -6450,7 +6454,7 @@
   },
   {
    "fn": "consolidation_reply",
-   "name": "40 facts are cut to 30, the first ones",
+   "name": "40 facts are all kept, in the order given",
    "input": {
     "text": "{\"facts\": [{\"content\": \"Merged 0.\", \"kind\": \"fact\"}, {\"content\": \"Merged 1.\", \"kind\": \"fact\"}, {\"content\": \"Merged 2.\", \"kind\": \"fact\"}, {\"content\": \"Merged 3.\", \"kind\": \"fact\"}, {\"content\": \"Merged 4.\", \"kind\": \"fact\"}, {\"content\": \"Merged 5.\", \"kind\": \"fact\"}, {\"content\": \"Merged 6.\", \"kind\": \"fact\"}, {\"content\": \"Merged 7.\", \"kind\": \"fact\"}, {\"content\": \"Merged 8.\", \"kind\": \"fact\"}, {\"content\": \"Merged 9.\", \"kind\": \"fact\"}, {\"content\": \"Merged 10.\", \"kind\": \"fact\"}, {\"content\": \"Merged 11.\", \"kind\": \"fact\"}, {\"content\": \"Merged 12.\", \"kind\": \"fact\"}, {\"content\": \"Merged 13.\", \"kind\": \"fact\"}, {\"content\": \"Merged 14.\", \"kind\": \"fact\"}, {\"content\": \"Merged 15.\", \"kind\": \"fact\"}, {\"content\": \"Merged 16.\", \"kind\": \"fact\"}, {\"content\": \"Merged 17.\", \"kind\": \"fact\"}, {\"content\": \"Merged 18.\", \"kind\": \"fact\"}, {\"content\": \"Merged 19.\", \"kind\": \"fact\"}, {\"content\": \"Merged 20.\", \"kind\": \"fact\"}, {\"content\": \"Merged 21.\", \"kind\": \"fact\"}, {\"content\": \"Merged 22.\", \"kind\": \"fact\"}, {\"content\": \"Merged 23.\", \"kind\": \"fact\"}, {\"content\": \"Merged 24.\", \"kind\": \"fact\"}, {\"content\": \"Merged 25.\", \"kind\": \"fact\"}, {\"content\": \"Merged 26.\", \"kind\": \"fact\"}, {\"content\": \"Merged 27.\", \"kind\": \"fact\"}, {\"content\": \"Merged 28.\", \"kind\": \"fact\"}, {\"content\": \"Merged 29.\", \"kind\": \"fact\"}, {\"content\": \"Merged 30.\", \"kind\": \"fact\"}, {\"content\": \"Merged 31.\", \"kind\": \"fact\"}, {\"content\": \"Merged 32.\", \"kind\": \"fact\"}, {\"content\": \"Merged 33.\", \"kind\": \"fact\"}, {\"content\": \"Merged 34.\", \"kind\": \"fact\"}, {\"content\": \"Merged 35.\", \"kind\": \"fact\"}, {\"content\": \"Merged 36.\", \"kind\": \"fact\"}, {\"content\": \"Merged 37.\", \"kind\": \"fact\"}, {\"content\": \"Merged 38.\", \"kind\": \"fact\"}, {\"content\": \"Merged 39.\", \"kind\": \"fact\"}]}",
     "movable": [
@@ -6585,6 +6589,46 @@
      },
      {
       "content": "Merged 29.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 30.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 31.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 32.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 33.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 34.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 35.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 36.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 37.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 38.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 39.",
       "kind": "fact"
      }
     ],
@@ -6732,7 +6776,7 @@
   },
   {
    "fn": "consolidation_reply",
-   "name": "the cut counts only the facts that can be read",
+   "name": "what cannot be read is left out, and every other fact is kept",
    "input": {
     "text": "{\"facts\": [{\"content\": \"\"}, {\"content\": [\"a\"]}, \"line\", null, 5, {\"kind\": \"event\"}, {\"content\": \"Merged 0.\", \"kind\": \"fact\"}, {\"content\": \"Merged 1.\", \"kind\": \"fact\"}, {\"content\": \"Merged 2.\", \"kind\": \"fact\"}, {\"content\": \"Merged 3.\", \"kind\": \"fact\"}, {\"content\": \"Merged 4.\", \"kind\": \"fact\"}, {\"content\": \"Merged 5.\", \"kind\": \"fact\"}, {\"content\": \"Merged 6.\", \"kind\": \"fact\"}, {\"content\": \"Merged 7.\", \"kind\": \"fact\"}, {\"content\": \"Merged 8.\", \"kind\": \"fact\"}, {\"content\": \"Merged 9.\", \"kind\": \"fact\"}, {\"content\": \"Merged 10.\", \"kind\": \"fact\"}, {\"content\": \"Merged 11.\", \"kind\": \"fact\"}, {\"content\": \"Merged 12.\", \"kind\": \"fact\"}, {\"content\": \"Merged 13.\", \"kind\": \"fact\"}, {\"content\": \"Merged 14.\", \"kind\": \"fact\"}, {\"content\": \"Merged 15.\", \"kind\": \"fact\"}, {\"content\": \"Merged 16.\", \"kind\": \"fact\"}, {\"content\": \"Merged 17.\", \"kind\": \"fact\"}, {\"content\": \"Merged 18.\", \"kind\": \"fact\"}, {\"content\": \"Merged 19.\", \"kind\": \"fact\"}, {\"content\": \"Merged 20.\", \"kind\": \"fact\"}, {\"content\": \"Merged 21.\", \"kind\": \"fact\"}, {\"content\": \"Merged 22.\", \"kind\": \"fact\"}, {\"content\": \"Merged 23.\", \"kind\": \"fact\"}, {\"content\": \"Merged 24.\", \"kind\": \"fact\"}, {\"content\": \"Merged 25.\", \"kind\": \"fact\"}, {\"content\": \"Merged 26.\", \"kind\": \"fact\"}, {\"content\": \"Merged 27.\", \"kind\": \"fact\"}, {\"content\": \"Merged 28.\", \"kind\": \"fact\"}, {\"content\": \"Merged 29.\", \"kind\": \"fact\"}, {\"content\": \"Merged 30.\", \"kind\": \"fact\"}, {\"content\": \"Merged 31.\", \"kind\": \"fact\"}, {\"content\": \"Merged 32.\", \"kind\": \"fact\"}, {\"content\": \"Merged 33.\", \"kind\": \"fact\"}, {\"content\": \"Merged 34.\", \"kind\": \"fact\"}]}",
     "movable": [
@@ -6868,6 +6912,26 @@
      {
       "content": "Merged 29.",
       "kind": "fact"
+     },
+     {
+      "content": "Merged 30.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 31.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 32.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 33.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 34.",
+      "kind": "fact"
      }
     ],
     "source_position": 4
@@ -6875,7 +6939,7 @@
   },
   {
    "fn": "consolidation_reply",
-   "name": "the cut is made before the doubles go",
+   "name": "doubles among many facts are all kept, for adding them to drop the second",
    "input": {
     "text": "{\"facts\": [{\"content\": \"Same.\"}, {\"content\": \"Same.\"}, {\"content\": \"Same.\"}, {\"content\": \"Merged 0.\", \"kind\": \"fact\"}, {\"content\": \"Merged 1.\", \"kind\": \"fact\"}, {\"content\": \"Merged 2.\", \"kind\": \"fact\"}, {\"content\": \"Merged 3.\", \"kind\": \"fact\"}, {\"content\": \"Merged 4.\", \"kind\": \"fact\"}, {\"content\": \"Merged 5.\", \"kind\": \"fact\"}, {\"content\": \"Merged 6.\", \"kind\": \"fact\"}, {\"content\": \"Merged 7.\", \"kind\": \"fact\"}, {\"content\": \"Merged 8.\", \"kind\": \"fact\"}, {\"content\": \"Merged 9.\", \"kind\": \"fact\"}, {\"content\": \"Merged 10.\", \"kind\": \"fact\"}, {\"content\": \"Merged 11.\", \"kind\": \"fact\"}, {\"content\": \"Merged 12.\", \"kind\": \"fact\"}, {\"content\": \"Merged 13.\", \"kind\": \"fact\"}, {\"content\": \"Merged 14.\", \"kind\": \"fact\"}, {\"content\": \"Merged 15.\", \"kind\": \"fact\"}, {\"content\": \"Merged 16.\", \"kind\": \"fact\"}, {\"content\": \"Merged 17.\", \"kind\": \"fact\"}, {\"content\": \"Merged 18.\", \"kind\": \"fact\"}, {\"content\": \"Merged 19.\", \"kind\": \"fact\"}, {\"content\": \"Merged 20.\", \"kind\": \"fact\"}, {\"content\": \"Merged 21.\", \"kind\": \"fact\"}, {\"content\": \"Merged 22.\", \"kind\": \"fact\"}, {\"content\": \"Merged 23.\", \"kind\": \"fact\"}, {\"content\": \"Merged 24.\", \"kind\": \"fact\"}, {\"content\": \"Merged 25.\", \"kind\": \"fact\"}, {\"content\": \"Merged 26.\", \"kind\": \"fact\"}, {\"content\": \"Merged 27.\", \"kind\": \"fact\"}, {\"content\": \"Merged 28.\", \"kind\": \"fact\"}]}",
     "movable": [
@@ -7010,6 +7074,14 @@
      },
      {
       "content": "Merged 26.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 27.",
+      "kind": "fact"
+     },
+     {
+      "content": "Merged 28.",
       "kind": "fact"
      }
     ],

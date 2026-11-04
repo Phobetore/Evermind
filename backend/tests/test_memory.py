@@ -314,8 +314,8 @@ async def test_consolidation_starts_at_eight_movable_facts(client, fake_provider
         assert fake_provider.captured == {}  # the model was not asked
 
 
-async def test_consolidation_keeps_only_facts_that_are_text_and_at_most_thirty(
-        client, fake_provider):
+async def test_consolidation_keeps_every_fact_that_is_text_and_only_those(client, fake_provider):
+    """The facts it replaces are removed, so that a merged fact left out would be lost."""
     convo = await setup_conversation(client)
     await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
                     by_the_model=True)
@@ -329,11 +329,11 @@ async def test_consolidation_keeps_only_facts_that_are_text_and_at_most_thirty(
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    # Thirty of the readable ones: the padded one, stripped and made a fact, and the
-    # first 29 after it, with the kind they were given.
-    assert body["after"] == 30
+    # All of the readable ones: the padded one, stripped and made a fact, and the 40 after
+    # it, with the kind they were given.
+    assert body["after"] == 41
     kinds = {m["content"]: m["kind"] for m in body["memories"]}
-    assert kinds == {"Padded.": "fact", **{f"Merged {i}.": "promise" for i in range(29)}}
+    assert kinds == {"Padded.": "fact", **{f"Merged {i}.": "promise" for i in range(40)}}
 
 
 async def consolidate_while(client, monkeypatch, convo_id, meanwhile):
