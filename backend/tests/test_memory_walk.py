@@ -37,7 +37,7 @@ def bullets(text):
 
 class World:
     """What the models need of a walk, and what it saw that excuses a fact being missing."""
-    rng, count, looking, dropped, forgotten = None, 0, False, {}, set()
+    rng, count, looking, dropped, excused = None, 0, False, {}, set()
 
     @classmethod
     def token(cls, prefix):
@@ -138,9 +138,13 @@ async def check(client, cid, edited, forgotten_ids, kept, trace, cut):
     last = max((m["position"] for m in convo["messages"]), default=0)
     assert convo["memory_position"] <= last, trace
     assert all(row[1] <= last for row in state["checkpoints"]), trace
-    # A story too long for a pass to write its summary again keeps it, part stale.
-    if cut is not None and cut + 1 > MAX_TURNS_PER_RUN and not state["checkpoints"]:
-        kept |= tokens(convo["summary"]) - alive
+    # With no checkpoint at or before a cut, a fact stands by its position, which a correction
+    # does not move, so it can keep words of a turn that went. And a story too long for a pass
+    # to write its summary again keeps it, part stale.
+    if cut is not None and not state["checkpoints"]:
+        kept |= set().union(*(tokens(f["content"]) - alive for f in state["facts"]))
+        if cut + 1 > MAX_TURNS_PER_RUN:
+            kept |= tokens(convo["summary"]) - alive
     if not (convo["summary"] or "").startswith("TYPED"):
         assert tokens(convo["summary"]) - kept <= alive, (convo["summary"], alive, trace)
     # What a person kept past the turns it speaks of may be unpinned, and speak of them still.
@@ -151,17 +155,17 @@ async def check(client, cid, edited, forgotten_ids, kept, trace, cut):
         assert fact["id"] not in forgotten_ids, (fact, trace)
         assert fact["content"].startswith(edited.get(fact["id"], "")), (fact, "lost its edit", trace)
     assert not {row[2] for row in state["copies"]} & forgotten_ids, ("a copy kept a forgotten fact", trace)
-    # A pass reads 40 turns at most: what it skips nothing remembers, cut or no cut.
+    # A pass reads so many turns at most: what it passes over nothing remembers, for good.
     unread = [m for m in convo["messages"] if m["position"] > (convo["memory_position"] or -1)]
-    skipped = set().union(*(tokens(m["content"]) for m in unread[:-40]))
+    World.excused |= set().union(*(tokens(m["content"]) for m in unread[:-MAX_TURNS_PER_RUN]))
     held = set().union(*(tokens(f["content"]) for f in await facts_after_a_pass(client, cid)))
-    for token in alive - held - skipped - World.forgotten:
+    for token in alive - held - World.excused:
         assert World.dropped.get(token) in alive, (f"nothing remembers @{token}@", trace)
 
 
 async def walk(client, seed):
     rng = World.rng = random.Random(seed)
-    World.count, World.dropped, World.forgotten = 0, {}, set()
+    World.count, World.dropped, World.excused = 0, {}, set()
     await client.put("/api/settings", json={"auto_memory": False})
     cid = (await setup_conversation(client, greeting="Hello." if seed % 2 else ""))["id"]
     edited, forgotten_ids, kept, trace = {}, set(), set(), []
@@ -205,7 +209,7 @@ async def walk(client, seed):
             if step == "forget":
                 await client.delete(f"/api/memories/{fact['id']}")
                 forgotten_ids.add(fact["id"])
-                World.forgotten |= tokens(fact["content"])
+                World.excused |= tokens(fact["content"])
             elif step == "edit":
                 edited[fact["id"]] = f"{fact['content']} edited"
                 await client.patch(f"/api/memories/{fact['id']}", json={"content": edited[fact["id"]]})
