@@ -1,8 +1,8 @@
 """The checkpoints that passes leave, and the migration that gives them to the
 conversations that already exist.
 
-A checkpoint is the running summary as it stood when the memory had read the turns up to
-a position, how far the facts had been read then, and a copy of the facts the model had
+A checkpoint is the summary the memory had written when it had read the turns up to a
+position, how far the facts had been read then, and a copy of the facts the model had
 written. Cutting the story back goes to the newest one at or before the cut (see
 test_memory_rewind.py), so what writes them, and what does not, decides what a cut can
 restore.

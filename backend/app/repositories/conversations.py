@@ -274,9 +274,10 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
 
 
 async def list_checkpoints(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
-    """What the memory held each time a summary was written, oldest first: the summary as
-    it stood once the turns up to ``position`` were read, how far the facts had been read
-    then, and a copy of the facts the model had written."""
+    """What the memory held each time a pass ended, whether or not it wrote a summary, or a
+    summary was asked for, oldest first: the summary it had written once the turns up to
+    ``position`` were read, how far the facts had been read then, and a copy of the facts
+    the model had written."""
     rows = await (await db.execute(
         "SELECT position, summary, memory_position FROM memory_checkpoints"
         " WHERE conversation_id = ? ORDER BY position ASC", (convo_id,))).fetchall()

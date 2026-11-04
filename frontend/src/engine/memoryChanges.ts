@@ -30,9 +30,10 @@ export const isMovable = (fact: {
   source?: string | null;
 }): boolean => !fact.is_pinned && fact.source === "auto";
 
-/** What a conversation held each time a summary was written: the summary as it stood
- *  once the turns up to `position` had been read, how far the facts had been read then,
- *  and a copy of the facts the model had written. */
+/** What the memory held each time a pass ended, whether or not it wrote a summary, or a
+ *  summary was asked for: the summary it had written once the turns up to `position` had
+ *  been read, how far the facts had been read then, and a copy of the facts the model had
+ *  written. */
 export interface Checkpoint {
   position: number;
   summary: string;

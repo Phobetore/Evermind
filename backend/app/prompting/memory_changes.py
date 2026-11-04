@@ -45,10 +45,11 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
     """What a conversation remembers once its story ends with the turn at ``cut``: a
     removal from position p cuts at p - 1, a branch at the position of its message.
 
-    ``checkpoints`` are what the memory held each time a summary was written: ``{"position",
-    "summary", "memory_position", "facts"}``, the summary as it stood once the turns up to
-    ``position`` had been read, how far the facts had been read then, and a copy of the
-    facts the model had written, ``{"id", "kind", "content", "source_position"}``.
+    ``checkpoints`` are what the memory held each time a pass ended, whether or not it wrote
+    a summary, or a summary was asked for: ``{"position", "summary", "memory_position",
+    "facts"}``, the summary it had written once the turns up to ``position`` had been read,
+    how far the facts had been read then, and a copy of the facts the model had written,
+    ``{"id", "kind", "content", "source_position"}``.
     ``facts`` are what it holds now, each with ``is_pinned`` and ``source`` as well.
 
     The checkpoints after the cut go. When the memory had read past the cut, or when the

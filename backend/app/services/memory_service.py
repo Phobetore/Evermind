@@ -167,8 +167,9 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     # written from all the facts that were sent: if one of them was edited, pinned or
     # deleted since, by a person or by a cut in the story, its old text may be inside a
     # merged fact, and removing only the others would keep both. A merged fact takes the
-    # oldest position of those it replaces, so with them all still there it is not past
-    # the end of the story.
+    # oldest position of those it replaces, so with them all still where they were it is not
+    # past the end of the story. One pinned, kept past a cut and unpinned again says the same
+    # at another position.
     async with write_transaction(db):
         now = await memories_repo.list_for_conversation(db, convo_id)
         still = {(m["id"], m["content"], m["source_position"]) for m in movable_facts(now)}

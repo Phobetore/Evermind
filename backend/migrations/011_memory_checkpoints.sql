@@ -4,11 +4,12 @@
 -- read, and the facts as they stood, since a later pass may have corrected or dropped
 -- them, so that the next pass reads exactly what was lost.
 --
--- One row each time the memory writes a summary: `position` is the turn it covers up
--- to, and `memory_position` how far the facts had been read when it was written. For a
--- pass the two are the same; a summary asked for reads turns without drawing facts from
--- them, so its row has the position of the last message and the memory's own. A later
--- row at the same position replaces the earlier.
+-- One row each time a pass ends, whether or not it wrote a summary, and each time a summary
+-- is asked for: `position` is the turn it read up to, `summary` the one it wrote or else the
+-- one the row before holds, and `memory_position` how far the facts had been read then. For
+-- a pass the two positions are the same; a summary asked for reads turns without drawing
+-- facts from them, so its row has the position of the last message and the memory's own. A
+-- later row at the same position replaces the earlier.
 --
 -- Every statement can run again: this file is applied without a transaction, and a
 -- process killed partway through runs it from the top on the next start.

@@ -89,8 +89,9 @@ async def get(db: aiosqlite.Connection, memory_id: str) -> dict | None:
 async def update(db: aiosqlite.Connection, memory_id: str,
                  content: str | None = None, is_pinned: bool | None = None) -> dict | None:
     """What a person changes in a fact. What they write reaches the copies the checkpoints
-    hold of it, so that a rewind cannot bring back the words they replaced. Pinning leaves
-    them as they are."""
+    hold of this fact, under its id, so that a rewind does not bring back the words they
+    replaced. A pass may have dropped those words and written them again under another id:
+    that is another fact, and its copies keep them. Pinning leaves the copies as they are."""
     if not await get(db, memory_id):
         return None
     sets, params = [], []
