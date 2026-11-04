@@ -99,8 +99,8 @@ async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
     """One extraction+summary pass. Returns {"facts_added": [...], "summary": str}, with
     "skipped" set to "busy" and nothing looked at when another memory task was running,
     and to "changed" and nothing kept when the turns it read were not the story's any more
-    when it came to write what it learned, or a person had edited or forgotten a fact it
-    was sent."""
+    when it came to write what it learned, the memory's position had moved, or a person had
+    edited or forgotten a fact it was sent."""
     async def busy() -> dict:
         return {"facts_added": [], "summary": None, "skipped": "busy"}
 
@@ -264,17 +264,26 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
     # turns that come next for ones it has read. A person can also edit or forget a fact it
     # was sent: what it decided was decided on the fact as it was, and a correction of a
     # fact just forgotten would bring it back in other words. Nothing is kept then, and the
-    # next pass starts again. A pin stops only what would have moved that fact.
+    # next pass starts again. So too if the memory's position moved: the conversation and its
+    # messages are two reads, and a cut between them, with new turns after it, leaves a story
+    # that checks out and a position that does not, from which the turns it passed over would
+    # count as read. A pin stops only what would have moved that fact.
     async with write_transaction(db):
+        current = await convo_repo.get(db, convo_id, with_messages=False)
         now = await memories_repo.list_for_conversation(db, convo_id)
         if (await convo_repo.message_ids_through(db, convo_id, top_position) != read
-                or not sent <= {(m["id"], m["content"]) for m in now}):
+                or not sent <= {(m["id"], m["content"]) for m in now}
+                or current["memory_position"] != convo["memory_position"]):
             return {"facts_added": [], "summary": None, "skipped": "changed"}
+        # A summary a person typed meanwhile is theirs, and the model wrote from the one
+        # before it. The rest of what it learned stands, and the checkpoint holds the summary
+        # before as if this pass had written none, so that the typed one still reads as typed.
+        written = changes["summary"] if current["summary"] == convo["summary"] else None
         added = await _apply(db, convo_id, changes["ops"], vectors)
-        await convo_repo.remember(db, convo_id, top_position, changes["summary"],
+        await convo_repo.remember(db, convo_id, top_position, written,
                                   memory_position=top_position)
 
-    return {"facts_added": added, "summary": changes["summary"] or convo.get("summary") or ""}
+    return {"facts_added": added, "summary": written or current["summary"] or ""}
 
 
 async def backfill_embeddings(db: aiosqlite.Connection) -> int:

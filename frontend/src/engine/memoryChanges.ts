@@ -102,8 +102,10 @@ const cutFact = (fact: CutFact, sourcePosition = fact.source_position) => ({
  *
  *  A summary that is not the newest checkpoint's (after stripping) is treated as typed by
  *  a person, in a box that is theirs to edit: it stays, as a fact they wrote does. No
- *  checkpoint keeps it: a pass rewrites from the current summary, so what was typed lives on
- *  inside what the pass writes, and a cut back past that pass goes to a summary without it. */
+ *  checkpoint keeps it. A pass that starts after it was typed rewrites from it, so what was
+ *  typed lives on inside what that pass writes, and a cut back past that pass goes to a
+ *  summary without it. A pass that was already reading leaves it as it is, and its checkpoint
+ *  holds the summary before, so that it still reads as typed. */
 export function planCut(
   memoryPosition: number,
   summary: string,

@@ -1718,3 +1718,117 @@ async def test_a_cut_older_than_the_oldest_checkpoint_kept_still_empties_a_short
 
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (0, "")
+
+
+# ---------- what a person changed while a pass was reading ----------
+
+def while_the_model_answers(monkeypatch, action):
+    class Acting(FakeProvider):
+        async def stream_chat(self, payload):
+            await action()
+            async for event in super().stream_chat(payload):
+                yield event
+
+    monkeypatch.setattr("app.services.memory_service.get_provider", Acting)
+
+
+@pytest.mark.parametrize("typed", ["In my own words.", ""], ids=["typed", "cleared"])
+async def test_a_summary_typed_while_the_model_answers_is_kept_with_the_rest_of_the_pass(
+        client, fake_provider, monkeypatch, typed):
+    """What the model wrote, it wrote from the summary before that one, which would be lost
+    with no trace. The facts and the position have nothing to do with it. The row of the
+    pass keeps the summary before, so that what was typed still reads as typed."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await a_memory_to_change(client, convo_id)
+
+    async def types():
+        await client.patch(f"/api/conversations/{convo_id}", json={"summary": typed})
+
+    while_the_model_answers(monkeypatch, types)
+    answered = await extract(client, convo_id, AN_ANSWER)
+
+    assert "skipped" not in answered
+    assert answered["summary"] == typed
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (8, typed)
+    assert await names(client, convo_id) == {"New.", "Corrected."}
+    assert await checkpoints_of(convo_id) == [(4, "Before.", 4), (8, "Before.", 8)]
+    assert await copy_at(convo_id, 8) == {"New.", "Corrected."}
+
+    await remove_from(client, convo_id, 7)
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (4, typed)
+
+
+async def test_a_summary_typed_during_the_first_pass_reads_as_typed_too(
+        client, fake_provider, monkeypatch):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 2)
+
+    async def types():
+        await client.patch(f"/api/conversations/{convo_id}", json={"summary": "In my own words."})
+
+    while_the_model_answers(monkeypatch, types)
+    await extract(client, convo_id, AN_ANSWER)
+
+    assert await checkpoints_of(convo_id) == [(4, "", 4)]
+    await remove_from(client, convo_id, 3)
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, "In my own words.")
+
+
+async def test_a_summary_saved_as_it_was_while_the_model_answers_changes_nothing(
+        client, fake_provider, monkeypatch):
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await a_memory_to_change(client, convo_id)
+
+    async def saves():
+        await client.patch(f"/api/conversations/{convo_id}", json={"summary": "Before."})
+
+    while_the_model_answers(monkeypatch, saves)
+    answered = await extract(client, convo_id, AN_ANSWER)
+
+    assert answered["summary"] == "After."
+    assert (await conversation(client, convo_id))["summary"] == "After."
+    assert await checkpoints_of(convo_id) == [(4, "Before.", 4), (8, "After.", 8)]
+
+
+async def test_a_pass_that_read_a_position_the_story_went_back_from_is_refused(
+        client, fake_provider, monkeypatch):
+    """Reading the conversation and reading its messages are two reads. A cut between them,
+    and new turns, give the pass a story that is true and a position that no longer is: it
+    would read the newest turns only, then say that it had read those before them."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    await talk(client, convo_id, 4)  # positions 0 to 8
+    await extract(client, convo_id, {"facts": [{"content": "To 8.", "kind": "fact"}], "summary": "To 8."})
+    await talk(client, convo_id, 4, first=5)  # 9 to 16
+    await extract(client, convo_id, {"facts": [{"content": "To 16.", "kind": "fact"}], "summary": "To 16."})
+    real = memory_service._resolve_connection
+
+    async def between_the_two_reads(db, read_convo):
+        monkeypatch.setattr(memory_service, "_resolve_connection", real)
+        await remove_from(client, convo_id, 11)  # back to the checkpoint at 8
+        await talk(client, convo_id, 5, label="new")  # 11 to 20, past the 16 it read
+        return await real(db, read_convo)
+
+    monkeypatch.setattr(memory_service, "_resolve_connection", between_the_two_reads)
+    answered = await extract(client, convo_id, {"facts": [{"content": "Wrong.", "kind": "fact"}],
+                                                "summary": "Wrong."})
+
+    assert answered["skipped"] == "changed"
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (8, "To 8.")
+    assert await names(client, convo_id) == {"To 8."}
+    assert [c[0] for c in await checkpoints_of(convo_id)] == [8]
+
+    # And the next pass reads what that one would have passed over.
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [], "summary": "To 20."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "(turn 9)" in shown and "(turn 11): new 1" in shown and "(turn 20)" in shown
+    assert (await conversation(client, convo_id))["memory_position"] == 20
