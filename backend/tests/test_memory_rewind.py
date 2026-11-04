@@ -17,9 +17,12 @@ pass reads the range between, at the usual cost.
 
 import asyncio
 import json
+import sqlite3
 
+import aiosqlite
 import pytest
 
+from app.config import db_path
 from app.db import _connect
 from app.providers.base import ProviderEvent
 from app.repositories import conversations as convo_repo
@@ -1328,27 +1331,48 @@ async def test_a_fact_added_by_hand_while_the_model_answers_does_not_stop_the_pa
     assert await names(client, convo_id) == {"By hand.", "New.", "Corrected."}
 
 
-async def test_a_cut_that_comes_while_a_pass_commits_waits_for_it(client, fake_provider, monkeypatch):
-    """The two cannot cross: the cut starts once the pass has written all it had to, and
-    goes back through what it wrote."""
+async def a_write_would_have_to_wait():
+    """Asked of the database itself, by a connection that does not wait for an answer."""
+    other = await aiosqlite.connect(db_path(), timeout=0)
+    try:
+        await other.execute("BEGIN IMMEDIATE")
+    except sqlite3.OperationalError as refused:
+        assert "locked" in str(refused)
+        return True
+    else:
+        await other.rollback()
+        return False
+    finally:
+        await other.close()
+
+
+async def test_a_cut_that_comes_while_a_pass_writes_waits_for_it(client, fake_provider, monkeypatch):
+    """The database is held from before the pass looks at what it is about to change, so the
+    two cannot cross: a cut that has begun starts only once the pass has written all it had
+    to, and goes back through what it wrote."""
     convo = await setup_conversation(client)
     convo_id = convo["id"]
     await a_memory_to_change(client, convo_id)
-    cutting = []
-    real = convo_repo.checkpoint
+    began, cutting = asyncio.Event(), []
+    real_apply, real_delete = memory_service._apply, convo_repo.delete_message
 
-    async def checkpoint_and_meanwhile(*args):
+    async def delete_having_begun(*args, **kwargs):
+        began.set()
+        return await real_delete(*args, **kwargs)
+
+    async def apply_with_a_cut_on_its_way(*args):
         cutting.append(asyncio.create_task(remove_from(client, convo_id, 7)))
-        await asyncio.sleep(0.2)  # long enough for it to reach the database, if it could
-        assert not cutting[0].done()
-        await real(*args)
+        await within(5, began.wait())
+        assert await a_write_would_have_to_wait()
+        return await real_apply(*args)
 
-    monkeypatch.setattr(convo_repo, "checkpoint", checkpoint_and_meanwhile)
+    monkeypatch.setattr(convo_repo, "delete_message", delete_having_begun)
+    monkeypatch.setattr(memory_service, "_apply", apply_with_a_cut_on_its_way)
     answered = await extract(client, convo_id, AN_ANSWER)
-    monkeypatch.setattr(convo_repo, "checkpoint", real)
     await within(10, cutting[0])
 
     assert "skipped" not in answered
+    assert not await a_write_would_have_to_wait()
     assert await names(client, convo_id) == {"To correct.", "To drop."}
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (4, "Before.")
