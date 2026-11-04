@@ -18,6 +18,7 @@ from .text import text_of
 ALLOWED_KINDS = {"fact", "event", "relationship", "promise", "state"}
 MAX_CONSOLIDATED_FACTS = 30  # what one consolidation may leave of the model's merge
 MAX_CHECKPOINTS = 30  # per conversation: a cut older than the oldest has none to go back to
+MAX_TURNS_PER_RUN = 40  # safety cap on turns fed to one extraction call
 
 
 def _items(value: object) -> list:
@@ -63,8 +64,12 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
     a fact's position is the newest turn of the pass that drew it, so it goes with them even
     if the turn it came from stays. Nothing says how far the memory had read, so it goes back
     to the start, and the next pass draws again what it can from the newest turns, at the
-    price of that one pass; and the summary is emptied. This is for a conversation from
-    before there were checkpoints, or a cut older than the oldest one kept.
+    price of that one pass. This is for a conversation from before there were checkpoints, or
+    a cut older than the oldest one kept. The summary is emptied only if that pass can write
+    it again, when what is left of the story fits in what a pass reads. Otherwise it stays:
+    part stale, which a person can read and correct, is better than a long story reduced to
+    its last turns; and with no checkpoint left to compare it with, it reads as typed until
+    the next pass.
 
     What a person typed or pinned is theirs, whatever the memory goes back to: it stays as
     it is, and a copy of it, or of what it says, is not restored beside it. If it was
@@ -98,8 +103,10 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
 
     result["memory_position"] = (min(memory_position, chosen["memory_position"])
                                  if chosen is not None else 0)
-    if not typed:
-        result["summary"] = chosen["summary"] if chosen is not None else ""
+    if not typed and chosen is not None:
+        result["summary"] = chosen["summary"]
+    elif not typed and cut + 1 <= MAX_TURNS_PER_RUN:
+        result["summary"] = ""
     if chosen is not None and result["memory_position"] < memory_position:
         their_ids = {f["id"] for f in theirs}
         said = {f["content"] for f in stays}

@@ -11,6 +11,7 @@ import uuid
 import pytest
 
 from app.db import _connect
+from app.prompting.memory_changes import MAX_TURNS_PER_RUN
 from app.providers.base import ProviderEvent
 
 from .test_chat import send, setup_conversation
@@ -130,15 +131,18 @@ def the_models(fact):
     return not fact["is_pinned"] and fact["source"] == "auto"
 
 
-async def check(client, cid, edited, forgotten_ids, kept, trace):
+async def check(client, cid, edited, forgotten_ids, kept, trace, cut):
     state = await read(client, cid)
     convo = state["convo"]
     alive = set().union(*(tokens(m["content"]) for m in convo["messages"]))
     last = max((m["position"] for m in convo["messages"]), default=0)
     assert convo["memory_position"] <= last, trace
     assert all(row[1] <= last for row in state["checkpoints"]), trace
+    # A story too long for a pass to write its summary again keeps it, part stale.
+    if cut is not None and cut + 1 > MAX_TURNS_PER_RUN and not state["checkpoints"]:
+        kept |= tokens(convo["summary"]) - alive
     if not (convo["summary"] or "").startswith("TYPED"):
-        assert tokens(convo["summary"]) <= alive, (convo["summary"], alive, trace)
+        assert tokens(convo["summary"]) - kept <= alive, (convo["summary"], alive, trace)
     # What a person kept past the turns it speaks of may be unpinned, and speak of them still.
     kept |= set().union(*(tokens(f["content"]) - alive for f in state["facts"] if f["is_pinned"]))
     for fact in state["facts"]:
@@ -168,6 +172,7 @@ async def walk(client, seed):
         unread = [m for m in messages if m["position"] > convo["memory_position"]]
         step = "pass" if len(unread) > 30 else rng.choice(STEP_KINDS)
         trace.append(step)
+        cut = None
         if step == "talk":
             for _ in range(rng.randint(1, 3)):
                 await send(client, cid, content=f"say {World.token('u')}")
@@ -181,6 +186,7 @@ async def walk(client, seed):
             await client.post(f"{base}/memories", json={"content": f"By hand {World.token('h').strip('@')}"})
         elif step in ("cut", "one") and messages:
             message = rng.choice(messages)
+            cut = message["position"] - 1
             following = "?following=true" if step == "cut" else ""
             assert (await client.delete(f"/api/messages/{message['id']}{following}")).status_code == 204
             trace[-1] += f" {message['position']}"
@@ -189,10 +195,11 @@ async def walk(client, seed):
             if (convo["summary"] or "").startswith("TYPED"):
                 assert after["convo"]["summary"] == convo["summary"], trace
         elif step == "branch" and messages:
-            forked = await client.post(f"/api/messages/{rng.choice(messages)['id']}/branch")
+            message = rng.choice(messages)
+            forked = await client.post(f"/api/messages/{message['id']}/branch")
             assert await read(client, cid) == state, ("a branch changed its source", trace)
             if rng.random() < 0.7:
-                cid = forked.json()["id"]
+                cid, cut = forked.json()["id"], message["position"]
         elif step in ("forget", "edit", "pin") and facts:
             fact = rng.choice(facts)
             if step == "forget":
@@ -204,7 +211,7 @@ async def walk(client, seed):
                 await client.patch(f"/api/memories/{fact['id']}", json={"content": edited[fact["id"]]})
             else:
                 await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": not fact["is_pinned"]})
-        await check(client, cid, edited, forgotten_ids, kept, trace)
+        await check(client, cid, edited, forgotten_ids, kept, trace, cut)
 
 
 @pytest.mark.parametrize("seed", range(SEEDS))

@@ -10400,6 +10400,274 @@
   },
   {
    "fn": "plan_cut",
+   "name": "with no checkpoint a story of 40 turns loses its summary: the next pass writes it again",
+   "input": {
+    "memory_position": 492,
+    "summary": "S492",
+    "checkpoints": [
+     {
+      "position": 492,
+      "summary": "S492",
+      "memory_position": 492,
+      "facts": []
+     }
+    ],
+    "facts": [],
+    "cut": 39,
+    "removal": true
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "with no checkpoint a story of 41 turns keeps its summary: a pass reads 40",
+   "input": {
+    "memory_position": 492,
+    "summary": "S492",
+    "checkpoints": [
+     {
+      "position": 492,
+      "summary": "S492",
+      "memory_position": 492,
+      "facts": []
+     }
+    ],
+    "facts": [],
+    "cut": 40,
+    "removal": true
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "S492",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "with no checkpoint a long story keeps its summary",
+   "input": {
+    "memory_position": 492,
+    "summary": "S492",
+    "checkpoints": [
+     {
+      "position": 492,
+      "summary": "S492",
+      "memory_position": 492,
+      "facts": []
+     }
+    ],
+    "facts": [],
+    "cut": 489,
+    "removal": true
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "S492",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a branch of a story of 40 turns has no summary",
+   "input": {
+    "memory_position": 492,
+    "summary": "S492",
+    "checkpoints": [
+     {
+      "position": 492,
+      "summary": "S492",
+      "memory_position": 492,
+      "facts": []
+     }
+    ],
+    "facts": [],
+    "cut": 39
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a branch of a story of 41 turns keeps it",
+   "input": {
+    "memory_position": 492,
+    "summary": "S492",
+    "checkpoints": [
+     {
+      "position": 492,
+      "summary": "S492",
+      "memory_position": 492,
+      "facts": []
+     }
+    ],
+    "facts": [],
+    "cut": 40
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "S492",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a cut older than the oldest checkpoint kept leaves a long story its summary",
+   "input": {
+    "memory_position": 500,
+    "summary": "S500",
+    "checkpoints": [
+     {
+      "position": 210,
+      "summary": "S210",
+      "memory_position": 210,
+      "facts": []
+     },
+     {
+      "position": 500,
+      "summary": "S500",
+      "memory_position": 500,
+      "facts": []
+     }
+    ],
+    "facts": [],
+    "cut": 150,
+    "removal": true
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "S500",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a cut older than the oldest checkpoint kept empties a short story",
+   "input": {
+    "memory_position": 500,
+    "summary": "S500",
+    "checkpoints": [
+     {
+      "position": 210,
+      "summary": "S210",
+      "memory_position": 210,
+      "facts": []
+     },
+     {
+      "position": 500,
+      "summary": "S500",
+      "memory_position": 500,
+      "facts": []
+     }
+    ],
+    "facts": [],
+    "cut": 30,
+    "removal": true
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a summary asked for over a long story that the memory never read stays",
+   "input": {
+    "memory_position": 0,
+    "summary": "Asked for",
+    "checkpoints": [
+     {
+      "position": 100,
+      "summary": "Asked for",
+      "memory_position": 0,
+      "facts": []
+     }
+    ],
+    "facts": [],
+    "cut": 50,
+    "removal": true
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "Asked for",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a summary asked for over a story that a pass can read again goes",
+   "input": {
+    "memory_position": 0,
+    "summary": "Asked for",
+    "checkpoints": [
+     {
+      "position": 100,
+      "summary": "Asked for",
+      "memory_position": 0,
+      "facts": []
+     }
+    ],
+    "facts": [],
+    "cut": 39,
+    "removal": true
+   },
+   "expected": {
+    "memory_position": 0,
+    "summary": "",
+    "checkpoints": [],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
+   "name": "a checkpoint at or before the cut still says the summary of a long story",
+   "input": {
+    "memory_position": 500,
+    "summary": "S500",
+    "checkpoints": [
+     {
+      "position": 60,
+      "summary": "S60",
+      "memory_position": 60,
+      "facts": []
+     },
+     {
+      "position": 500,
+      "summary": "S500",
+      "memory_position": 500,
+      "facts": []
+     }
+    ],
+    "facts": [],
+    "cut": 100,
+    "removal": true
+   },
+   "expected": {
+    "memory_position": 60,
+    "summary": "S60",
+    "checkpoints": [
+     60
+    ],
+    "facts": []
+   }
+  },
+  {
+   "fn": "plan_cut",
    "name": "nothing at all",
    "input": {
     "memory_position": 0,

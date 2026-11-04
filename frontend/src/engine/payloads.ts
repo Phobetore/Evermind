@@ -20,11 +20,11 @@ import {
   SUMMARIZE_PROMPT,
 } from "./defaults";
 import { substitute } from "./macros";
-import { isMovable } from "./memoryChanges";
+import { isMovable, MAX_TURNS_PER_RUN } from "./memoryChanges";
 import { pyStrip } from "./text";
 import { isRecord } from "./values";
 
-export const MAX_TURNS_PER_RUN = 40; // safety cap on turns fed to one extraction call
+export { MAX_TURNS_PER_RUN };
 export const MIN_FACTS_TO_CONSOLIDATE = 8; // fewer than this and merging them is not worth a call
 
 export const TEXT_FIELDS = [

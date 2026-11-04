@@ -1622,3 +1622,99 @@ async def test_a_summary_that_fails_lets_the_next_task_run(client, fake_provider
 
     answered = await extract(client, convo["id"], {"facts": [], "summary": "To 4."})
     assert "skipped" not in answered
+
+
+# ---------- a long story keeps its summary ----------
+
+async def a_long_story_from_before_the_checkpoints(client, read=492):
+    """500 turns, as the migration leaves them: one checkpoint, at how far the memory read."""
+    convo = await setup_conversation(client)
+    convo_id = convo["id"]
+    db = await _connect()
+    try:
+        await db.executemany(
+            "INSERT INTO messages (id, conversation_id, role, variants, active_index,"
+            " position, meta, created_at) VALUES (?, ?, ?, ?, 0, ?, '{}', 'then')",
+            [(f"m{n:04d}", convo_id, "user" if n % 2 else "assistant",
+              json.dumps([f"Turn number {n}."]), n) for n in range(1, 501)])
+        await db.execute("UPDATE conversations SET memory_position = ?, summary = 'The whole story.'"
+                         " WHERE id = ?", (read, convo_id))
+        await convo_repo.checkpoint(db, convo_id, read, "The whole story.")
+        await db.commit()
+    finally:
+        await db.close()
+    return convo_id
+
+
+async def test_a_long_story_from_before_the_checkpoints_keeps_its_summary_through_a_cut(
+        client, fake_provider):
+    """A pass reads 40 turns at most, so a summary written again would hold turns 450 to 489
+    and nothing of the 450 before them. A summary part stale, which a person can read and
+    correct, is worth more than that."""
+    convo_id = await a_long_story_from_before_the_checkpoints(client)
+
+    await remove_from(client, convo_id, 490)
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, "The whole story.")
+    assert await checkpoints_of(convo_id) == []
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [], "summary": "The whole story, and more."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "CURRENT SUMMARY:\nThe whole story." in shown
+    assert "(turn 450): Turn number 450." in shown and "(turn 489): Turn number 489." in shown
+    assert "(turn 449)" not in shown
+
+
+@pytest.mark.parametrize(("removed_from", "summary"), [
+    (42, "The whole story."),
+    (41, "The whole story."),  # the story is 41 turns, 0 to 40: one more than a pass reads
+    (40, ""),                  # the story is 40 turns: the next pass writes it again
+    (39, ""),
+])
+async def test_a_summary_goes_only_if_the_next_pass_can_write_it_again(
+        client, fake_provider, removed_from, summary):
+    convo_id = await a_long_story_from_before_the_checkpoints(client)
+
+    await remove_from(client, convo_id, removed_from)
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, summary)
+
+
+@pytest.mark.parametrize(("fork", "summary"), [(40, "The whole story."), (39, "")])
+async def test_a_branch_of_a_long_story_keeps_its_summary_the_same_way(
+        client, fake_provider, fork, summary):
+    convo_id = await a_long_story_from_before_the_checkpoints(client)
+    message = await at_position(client, convo_id, fork)
+
+    branch = (await client.post(f"/api/messages/{message['id']}/branch")).json()
+
+    assert (branch["memory_position"], branch["summary"]) == (0, summary)
+    assert (await conversation(client, convo_id))["summary"] == "The whole story."
+
+
+async def test_a_cut_older_than_the_oldest_checkpoint_kept_leaves_a_long_story_its_summary(
+        client, fake_provider):
+    convo_id = await a_long_story_from_before_the_checkpoints(client, read=190)
+    for position in range(200, 501, 10):
+        await read_up_to(convo_id, position, f"To {position}.")
+    assert (await checkpoints_of(convo_id))[0][0] == 210  # 30 are kept
+
+    await remove_from(client, convo_id, 150)
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, "To 500.")
+    assert await checkpoints_of(convo_id) == []
+
+
+async def test_a_cut_older_than_the_oldest_checkpoint_kept_still_empties_a_short_story(
+        client, fake_provider):
+    convo_id = await a_long_story_from_before_the_checkpoints(client, read=190)
+    for position in range(200, 501, 10):
+        await read_up_to(convo_id, position, f"To {position}.")
+
+    await remove_from(client, convo_id, 40)
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, "")

@@ -18,6 +18,7 @@ const ALLOWED_KINDS: ReadonlySet<string> = new Set([
   "state",
 ]);
 const MAX_CONSOLIDATED_FACTS = 30; // what one consolidation may leave of the model's merge
+export const MAX_TURNS_PER_RUN = 40; // safety cap on turns fed to one extraction call
 
 const items = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 const kindOf = (value: unknown): string =>
@@ -86,8 +87,12 @@ const cutFact = (fact: CutFact, sourcePosition = fact.source_position) => ({
  *  a fact's position is the newest turn of the pass that drew it, so it goes with them even
  *  if the turn it came from stays. Nothing says how far the memory had read, so it goes back
  *  to the start, and the next pass draws again what it can from the newest turns, at the
- *  price of that one pass; and the summary is emptied. This is for a conversation from
- *  before there were checkpoints, or a cut older than the oldest one kept.
+ *  price of that one pass. This is for a conversation from before there were checkpoints, or
+ *  a cut older than the oldest one kept. The summary is emptied only if that pass can write
+ *  it again, when what is left of the story fits in what a pass reads. Otherwise it stays:
+ *  part stale, which a person can read and correct, is better than a long story reduced to
+ *  its last turns; and with no checkpoint left to compare it with, it reads as typed until
+ *  the next pass.
  *
  *  What a person typed or pinned is theirs, whatever the memory goes back to: it stays as
  *  it is, and a copy of it, or of what it says, is not restored beside it. If it was
@@ -128,7 +133,8 @@ export function planCut(
   if (memoryPosition <= cut && !summaryIsAhead) return result;
 
   result.memory_position = chosen ? Math.min(memoryPosition, chosen.memory_position) : 0;
-  if (!typed) result.summary = chosen ? chosen.summary : "";
+  if (!typed && chosen) result.summary = chosen.summary;
+  else if (!typed && cut + 1 <= MAX_TURNS_PER_RUN) result.summary = "";
   if (chosen && result.memory_position < memoryPosition) {
     const theirIds = new Set(theirs.map((f) => f.id));
     const said = new Set(stays.map((f) => f.content));

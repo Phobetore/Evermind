@@ -17,9 +17,8 @@ from .defaults import (
 )
 from .engine import PromptPayload, active_content, build_chat_payload
 from .macros import substitute
-from .memory_changes import is_movable
+from .memory_changes import MAX_TURNS_PER_RUN, is_movable
 
-MAX_TURNS_PER_RUN = 40  # safety cap on turns fed to one extraction call
 MIN_FACTS_TO_CONSOLIDATE = 8  # fewer than this and merging them is not worth a call
 
 TEXT_FIELDS = ("name", "tagline", "description", "personality", "scenario",
