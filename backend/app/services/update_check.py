@@ -72,7 +72,7 @@ def upgrade_command() -> str:
     what shell the host is likely to have, neither of which the browser can
     work out on its own."""
     if install_kind() == "docker":
-        return "docker compose pull && docker compose up -d"
+        return "docker compose up -d --pull always"
     if os.name == "nt":
         # Windows PowerShell has no && operator; it is a parse error there.
         return r"git pull; .\scripts\prod.ps1"
