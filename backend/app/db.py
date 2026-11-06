@@ -2,7 +2,8 @@
 
 One connection per request via `get_db` dependency; migrations are plain SQL
 files in `migrations/`, applied in filename order and recorded in
-`schema_migrations`.
+`schema_migrations`. Each file runs in one transaction with foreign keys off:
+it holds no BEGIN or COMMIT, and a DELETE in it cascades to nothing.
 """
 
 from collections.abc import AsyncIterator
@@ -37,6 +38,8 @@ connect = _connect
 async def init_db() -> None:
     conn = await _connect()
     try:
+        # Rebuilding a table with keys on would cascade to the rows pointing at it.
+        await conn.execute("PRAGMA foreign_keys = OFF")
         await conn.execute(
             "CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY)"
         )
@@ -47,9 +50,10 @@ async def init_db() -> None:
         for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
             if path.name in applied:
                 continue
-            await conn.executescript(path.read_text(encoding="utf-8"))
-            await conn.execute("INSERT INTO schema_migrations (name) VALUES (?)", (path.name,))
-        await conn.commit()
+            await conn.executescript(
+                f"BEGIN;\n{path.read_text(encoding='utf-8')}\n;\n"
+                f"INSERT INTO schema_migrations (name) VALUES ('{path.name}');\nCOMMIT;"
+            )
     finally:
         await conn.close()
 
