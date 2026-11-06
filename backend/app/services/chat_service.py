@@ -44,7 +44,7 @@ from ..errors import (
 )
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval
-from ..prompting.engine import PromptPayload, active_content, build_chat_payload
+from ..prompting.engine import active_content, build_chat_payload
 from ..prompting.payloads import build_impersonate_payload, build_summary_payload
 from ..prompting.tokens import estimate_tokens
 from ..prompting.turn import (
