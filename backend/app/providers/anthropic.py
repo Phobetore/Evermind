@@ -62,15 +62,12 @@ class AnthropicProvider(Provider):
             "system": payload.system,
             "messages": self._build_messages(payload),
             "stream": True,
-            "max_tokens": int(conn.get("max_tokens") or 1024),
-            "temperature": min(1.0, float(conn.get("temperature") or 0.9)),
-            "top_p": float(conn.get("top_p") or 0.95),
+            # Required here, and a model's thinking counts against it.
+            "max_tokens": conn.get("max_tokens") or 4096,
+            **{key: conn[key] for key in ("temperature", "top_p") if conn.get(key) is not None},
         }
         if payload.stop:
             body["stop_sequences"] = [s for s in payload.stop if s.strip()][:4]
-        extra = conn.get("extra_params") or {}
-        if isinstance(extra, dict):
-            body.update(extra)
         return body
 
     async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
