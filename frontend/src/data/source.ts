@@ -181,11 +181,11 @@ export interface ConnectionInput {
   api_key?: string;
   model: string;
   context_size: number;
-  max_tokens: number;
-  temperature: number;
-  top_p: number;
-  frequency_penalty: number;
-  presence_penalty: number;
+  max_tokens: number | null;
+  temperature: number | null;
+  top_p: number | null;
+  frequency_penalty: number | null;
+  presence_penalty: number | null;
   is_default: boolean;
 }
 
