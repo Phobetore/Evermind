@@ -185,6 +185,7 @@
     "topPLabel": "Top-p",
     "frequencyPenaltyLabel": "Frequenz-Strafe",
     "presencePenaltyLabel": "Präsenz-Strafe",
+    "modelDefaultPlaceholder": "Standardwert des Modells",
     "isDefaultLabel": "Standardverbindung",
     "nameUrlRequired": "Name und URL sind erforderlich.",
     "saveFailed": "Speichern fehlgeschlagen",

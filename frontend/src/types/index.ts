@@ -41,12 +41,12 @@ export interface Connection {
   base_url: string;
   model: string;
   context_size: number;
-  max_tokens: number;
-  temperature: number;
-  top_p: number;
-  frequency_penalty: number;
-  presence_penalty: number;
-  extra_params: Record<string, unknown>;
+  /** Null leaves a setting to the model: it is not sent. */
+  max_tokens: number | null;
+  temperature: number | null;
+  top_p: number | null;
+  frequency_penalty: number | null;
+  presence_penalty: number | null;
   is_default: boolean;
   api_key_set: boolean;
   api_key_hint: string;

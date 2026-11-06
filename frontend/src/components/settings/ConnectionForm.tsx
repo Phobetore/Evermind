@@ -8,11 +8,37 @@ import { clsx } from "clsx";
 import { CheckCircle2, ChevronDown, Loader2, Trash2, XCircle } from "lucide-react";
 import { useState } from "react";
 
+type Generation = Pick<
+  ConnectionInput,
+  "context_size" | "max_tokens" | "temperature" | "top_p" | "frequency_penalty" | "presence_penalty"
+>;
+
+/** What a new connection holds: roleplay on a local model. */
+const ROLEPLAY: Generation = {
+  context_size: 16384,
+  max_tokens: 1024,
+  temperature: 0.8,
+  top_p: 0.95,
+  frequency_penalty: 0.15,
+  presence_penalty: 0.15,
+};
+
+/** Empty is not sent: the newest models refuse the settings they do not let a client set. */
+const LEFT_TO_THE_MODEL: Generation = {
+  context_size: 16384,
+  max_tokens: null,
+  temperature: null,
+  top_p: null,
+  frequency_penalty: null,
+  presence_penalty: null,
+};
+
 interface Preset {
   label: string;
   provider: ProviderType;
   base_url: string;
   hintKey?: string;
+  generation?: Generation;
 }
 
 const PRESETS: Preset[] = [
@@ -21,11 +47,18 @@ const PRESETS: Preset[] = [
   { label: "llama.cpp", provider: "openai-compatible", base_url: "http://localhost:8080/v1", hintKey: "connections.presetHintLocal" },
   { label: "KoboldCpp", provider: "openai-compatible", base_url: "http://localhost:5001/v1", hintKey: "connections.presetHintLocal" },
   { label: "OpenRouter", provider: "openai-compatible", base_url: "https://openrouter.ai/api/v1", hintKey: "connections.presetHintOpenRouter" },
-  { label: "OpenAI", provider: "openai-compatible", base_url: "https://api.openai.com/v1" },
-  { label: "Anthropic", provider: "anthropic", base_url: "https://api.anthropic.com" },
+  { label: "OpenAI", provider: "openai-compatible", base_url: "https://api.openai.com/v1", generation: LEFT_TO_THE_MODEL },
+  // Its ceiling is required and counts the model's thinking: the story keeps the room it has elsewhere.
+  { label: "Anthropic", provider: "anthropic", base_url: "https://api.anthropic.com", generation: { ...LEFT_TO_THE_MODEL, max_tokens: 4096, context_size: 16384 + 4096 - 1024 } },
   { label: "Groq", provider: "openai-compatible", base_url: "https://api.groq.com/openai/v1" },
   { label: "Mistral", provider: "openai-compatible", base_url: "https://api.mistral.ai/v1" },
 ];
+
+const generationOf = ({ context_size, max_tokens, temperature, top_p, frequency_penalty, presence_penalty }: Connection): Generation =>
+  ({ context_size, max_tokens, temperature, top_p, frequency_penalty, presence_penalty });
+
+/** A box left empty is null. */
+const numberOrNull = (value: string) => (value === "" ? null : Number(value));
 
 /** The form always holds a key, empty when nothing was typed. */
 type DraftConnection = ConnectionInput & { api_key: string };
@@ -44,18 +77,14 @@ export function ConnectionForm({
   onSaved: () => void;
 }) {
   const t = useT();
+  const modelDefault = t("connections.modelDefaultPlaceholder");
   const [draft, setDraft] = useState<DraftConnection>({
     name: connection?.name ?? "",
     provider: connection?.provider ?? "openai-compatible",
     base_url: connection?.base_url ?? "",
     api_key: "",
     model: connection?.model ?? "",
-    context_size: connection?.context_size ?? 16384,
-    max_tokens: connection?.max_tokens ?? 1024,
-    temperature: connection?.temperature ?? 0.8,
-    top_p: connection?.top_p ?? 0.95,
-    frequency_penalty: connection?.frequency_penalty ?? 0.15,
-    presence_penalty: connection?.presence_penalty ?? 0.15,
+    ...(connection ? generationOf(connection) : ROLEPLAY),
     is_default: connection?.is_default ?? false,
   });
   const [advanced, setAdvanced] = useState(false);
@@ -156,6 +185,7 @@ export function ConnectionForm({
                       name: preset.label,
                       provider: preset.provider,
                       base_url: preset.base_url,
+                      ...(preset.generation ?? ROLEPLAY),
                     }))
                   }
                   className={clsx(
@@ -308,19 +338,19 @@ export function ConnectionForm({
               <input type="number" className="field" value={draft.context_size} onChange={(e) => set("context_size", Number(e.target.value))} />
             </Field>
             <Field label={t("connections.maxTokensLabel")} hint={t("connections.maxTokensHint")}>
-              <input type="number" className="field" value={draft.max_tokens} onChange={(e) => set("max_tokens", Number(e.target.value))} />
+              <input type="number" className="field" placeholder={modelDefault} value={draft.max_tokens ?? ""} onChange={(e) => set("max_tokens", numberOrNull(e.target.value))} />
             </Field>
             <Field label={t("connections.temperatureLabel")} hint={t("connections.temperatureHint")}>
-              <input type="number" step="0.05" className="field" value={draft.temperature} onChange={(e) => set("temperature", Number(e.target.value))} />
+              <input type="number" step="0.05" className="field" placeholder={modelDefault} value={draft.temperature ?? ""} onChange={(e) => set("temperature", numberOrNull(e.target.value))} />
             </Field>
             <Field label={t("connections.topPLabel")}>
-              <input type="number" step="0.01" className="field" value={draft.top_p} onChange={(e) => set("top_p", Number(e.target.value))} />
+              <input type="number" step="0.01" className="field" placeholder={modelDefault} value={draft.top_p ?? ""} onChange={(e) => set("top_p", numberOrNull(e.target.value))} />
             </Field>
             <Field label={t("connections.frequencyPenaltyLabel")}>
-              <input type="number" step="0.05" className="field" value={draft.frequency_penalty} onChange={(e) => set("frequency_penalty", Number(e.target.value))} />
+              <input type="number" step="0.05" className="field" placeholder={modelDefault} value={draft.frequency_penalty ?? ""} onChange={(e) => set("frequency_penalty", numberOrNull(e.target.value))} />
             </Field>
             <Field label={t("connections.presencePenaltyLabel")}>
-              <input type="number" step="0.05" className="field" value={draft.presence_penalty} onChange={(e) => set("presence_penalty", Number(e.target.value))} />
+              <input type="number" step="0.05" className="field" placeholder={modelDefault} value={draft.presence_penalty ?? ""} onChange={(e) => set("presence_penalty", numberOrNull(e.target.value))} />
             </Field>
           </div>
         )}

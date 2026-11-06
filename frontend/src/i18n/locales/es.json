@@ -185,6 +185,7 @@
     "topPLabel": "Top-p",
     "frequencyPenaltyLabel": "Penalización de frecuencia",
     "presencePenaltyLabel": "Penalización de presencia",
+    "modelDefaultPlaceholder": "Valor del modelo",
     "isDefaultLabel": "Conexión predeterminada",
     "nameUrlRequired": "El nombre y la URL son obligatorios.",
     "saveFailed": "Error al guardar",
