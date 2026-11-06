@@ -159,6 +159,6 @@ A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
   `EVERMIND_BACKEND_URL` is not read at all any more. If either is in your
   `.env`, you can delete the line.
 - **Your `.env` keeps working.** From the source, Evermind reads it itself now,
-  the same file in the same place, wherever it is started from; with Docker,
-  `docker compose` reads it as before. A value set in the environment still wins
-  over the file.
+  the same file in the same place, wherever it is started from; with Docker, the
+  container gets its lines as written. A value set in the environment still wins
+  over the file from the source, but not with Docker, where the file wins.
