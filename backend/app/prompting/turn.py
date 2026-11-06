@@ -2,8 +2,7 @@
 that recall is ranked against, the messages recall may draw on, and the cleanup of
 the reply.
 
-Pure, with no database and no model, so that frontend/src/engine/turn.ts can answer
-the same cases (parity/turn.json).
+Pure: no database, no model.
 """
 
 from collections.abc import Collection

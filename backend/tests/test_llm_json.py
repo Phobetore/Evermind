@@ -54,11 +54,6 @@ def test_garbage_returns_none():
     assert parse_llm_json('["liste", "pas objet"]') is None
 
 
-# What parity/llm_json.json cannot say: a case file is strict JSON, so it holds no
-# NaN, no lone surrogate, nothing as large as these. frontend/src/engine/llmJson.test.ts
-# says the same things of the TypeScript twin.
-
-
 def test_a_reply_nested_beyond_what_the_decoder_follows_is_hopeless_not_a_crash():
     # Far deeper than the decoder's recursion allows on any build: it raises
     # RecursionError, which is not a ValueError and used to end the turn.

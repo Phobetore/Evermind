@@ -2,9 +2,7 @@
 to correct and to drop, and the summary to keep, decided from the answer alone; and what
 a cut in the story leaves of that memory.
 
-Pure, with no database and no model, so that frontend/src/engine/memoryChanges.ts
-can answer the same cases (parity/memory_changes.json). The services read what
-these read, and apply what they return through the repository.
+Pure: no database, no model. The callers read what these functions read, and apply what they return.
 
 Only a string is text. A ``content``, a ``kind`` or a ``replaces`` that is a number,
 a list or ``null`` is absent, where ``str()`` of it used to be saved as a memory
