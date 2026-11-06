@@ -1,12 +1,15 @@
 """Builds the provider-agnostic chat payload for one turn.
 
-Output contract (locked in the v2 plan):
+Output contract:
 - `system`: single structured system prompt (card, persona, summary, examples, rules).
+  If it alone takes too much of the budget, the example dialogue is the first
+  thing dropped; the card identity never is.
 - `messages`: real user/assistant turns, oldest first, trimmed to the context
   budget (system is never trimmed; the latest message always survives).
 - `stop`: anti-impersonation stop sequences.
-- `post_history`: card `post_history_instructions`; each provider decides how
-  to inject it after the history.
+- `post_history`: the closing block each provider places after the history: the
+  card's `post_history_instructions`, the pinned facts, the scene directive and
+  a short reminder.
 """
 
 from dataclasses import dataclass, field
@@ -15,9 +18,7 @@ from .defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
 from .macros import has_original_macro, substitute, substitute_original
 from .tokens import estimate_tokens
 
-# Enough for what someone has deliberately marked, not so many that the block
-# becomes another wall of text to skim. Pinning more than this is a sign the
-# facts want consolidating rather than repeating.
+# Enough for what someone marked, without another wall of text.
 _MAX_PINNED_RESTATED = 8
 
 # Re-stated at generation time because rule adherence decays with distance:
@@ -37,8 +38,7 @@ _BUDGET_MARGIN = 200
 # If the system prompt alone eats more than this share of the budget, the
 # example-dialogue block is dropped first (card identity is never dropped).
 _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6
-# Established facts: pinned first, then newest; capped so a very long story
-# cannot crowd out the card and history.
+# Pinned first, then by relevance if scored, else newest; capped so a long story cannot crowd out the card.
 _MAX_FACTS = 60
 _FACTS_TOKEN_BUDGET = 700       # floor, used on tiny contexts
 _MAX_FACTS_TOKEN_BUDGET = 2000  # cap, so facts never dominate the window
