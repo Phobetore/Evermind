@@ -246,7 +246,7 @@ async def test_anthropic_merges_consecutive_same_role():
     )
     await collect(anth_provider(handler), payload)
     roles = [m["role"] for m in captured["body"]["messages"]]
-    assert roles == ["user", "assistant"]
+    assert roles == ["user", "assistant", "user"]
     assert captured["body"]["messages"][0]["content"] == "a\n\nb"
 
 
@@ -260,6 +260,16 @@ async def test_anthropic_sends_no_setting_left_empty_but_the_ceiling_it_requires
 async def test_anthropic_sends_a_setting_as_written(temperature):
     body = await body_sent(AnthropicProvider, dict(ANTH_CONN, temperature=temperature))
     assert (body["max_tokens"], body["temperature"], body["top_p"]) == (256, temperature, 0.95)
+
+
+async def test_anthropic_never_ends_on_the_models_own_turn():
+    """Write for me flips the roles: after an unanswered message the story ends on "assistant"."""
+    payload = PromptPayload(system="S", stop=[], post_history="Note.", messages=[
+        {"role": "user", "content": "*She stirs.*"},
+        {"role": "assistant", "content": "Hello?"},
+    ])
+    body = await body_sent(AnthropicProvider, ANTH_CONN, payload)
+    assert body["messages"][-1] == {"role": "user", "content": "[Continue.]\n\n[Note.]"}
 
 
 async def test_anthropic_http_error_readable():

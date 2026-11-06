@@ -3,7 +3,7 @@
 Differences handled here: system prompt is a top-level field, messages must
 strictly alternate starting with `user` (we merge consecutive same-role turns
 and insert a synthetic opener), penalties are unsupported, and
-`post_history_instructions` is suffixed to the last user message.
+`post_history` is suffixed to the last user message.
 """
 
 import json
@@ -48,6 +48,9 @@ class AnthropicProvider(Provider):
                 merged.append({"role": message["role"], "content": content})
         if not merged or merged[0]["role"] != "user":
             merged.insert(0, {"role": "user", "content": "[Begin the roleplay.]"})
+        # Ending on its own turn asks Claude to complete it, which it refuses from 4.6 on.
+        if merged[-1]["role"] == "assistant":
+            merged.append({"role": "user", "content": "[Continue.]"})
         if payload.post_history:
             for message in reversed(merged):
                 if message["role"] == "user":
