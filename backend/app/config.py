@@ -58,7 +58,8 @@ def load_env_file(path: Path) -> list[str]:
       a byte order mark; other tools may not, and the NUL bytes show the order.
       UTF-32 is understood too when it starts with its mark, as
       ``Out-File -Encoding utf32`` writes it.
-    - There are no trailing comments. ``#`` starts a comment only at the start of
+    - Values are read as written, the way Docker Compose reads ``format: raw``:
+      quotes belong to the value, and ``#`` starts a comment only at the start of
       a line, because a password is allowed to contain one.
     - A variable that is already set and not empty wins over the file, so that
       ``PORT=3001 python -m app`` does what it says. An empty one does not: the
@@ -82,8 +83,6 @@ def load_env_file(path: Path) -> list[str]:
         key, value = key.strip(), value.strip()
         if not equals or not _ENV_KEY.fullmatch(key):
             continue
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-            value = value[1:-1]
         if os.environ.get(key):
             continue
         os.environ[key] = value
