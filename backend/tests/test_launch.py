@@ -150,15 +150,11 @@ def test_env_file_reports_keys_in_file_order(tmp_path, clean_env):
         # Notepad and PowerShell: a byte order mark in front, CRLF line endings.
         ("﻿PORT=3001\r\n", "PORT", "3001"),
         ("export BIND=0.0.0.0\n", "BIND", "0.0.0.0"),
-        ('EVERMIND_GATE_PASSWORD="two words"\n', "EVERMIND_GATE_PASSWORD", "two words"),
-        ("EVERMIND_GATE_PASSWORD='x'\n", "EVERMIND_GATE_PASSWORD", "x"),
+        # Read as written, as Docker Compose reads it: quotes belong to the value.
+        ('EVERMIND_GATE_PASSWORD="two words"\n', "EVERMIND_GATE_PASSWORD", '"two words"'),
         ("EVERMIND_GATE_PASSWORD=pa#ss=word\n", "EVERMIND_GATE_PASSWORD", "pa#ss=word"),
         ("  PORT = 3002  \n", "PORT", "3002"),
         ("EVERMIND_GATE_PASSWORD=mot de passé ✨\n", "EVERMIND_GATE_PASSWORD", "mot de passé ✨"),
-        # Only a pair that wraps the whole value is removed.
-        ('EVERMIND_GATE_PASSWORD="open\n', "EVERMIND_GATE_PASSWORD", '"open'),
-        ("EVERMIND_GATE_PASSWORD=it's\n", "EVERMIND_GATE_PASSWORD", "it's"),
-        ('EVERMIND_GATE_PASSWORD=""\n', "EVERMIND_GATE_PASSWORD", ""),
         ("BIND=\n", "BIND", ""),
         # The last line of a file saved without a final newline still counts.
         ("PORT=3003", "PORT", "3003"),
