@@ -342,6 +342,10 @@ def test_gate_password(clean_env, monkeypatch):
     assert gate_password() == ""
     monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "hunter2")
     assert gate_password() == "hunter2"
+    monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "hunter2 ")
+    assert gate_password() == "hunter2"
+    monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "  ")
+    assert gate_password() == ""
 
 
 # --- where to listen ---------------------------------------------------------

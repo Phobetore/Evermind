@@ -58,8 +58,7 @@ def load_env_file(path: Path) -> list[str]:
       a byte order mark; other tools may not, and the NUL bytes show the order.
       UTF-32 is understood too when it starts with its mark, as
       ``Out-File -Encoding utf32`` writes it.
-    - Values are read as written, the way Docker Compose reads ``format: raw``:
-      quotes belong to the value, and ``#`` starts a comment only at the start of
+    - Quotes belong to the value, and ``#`` starts a comment only at the start of
       a line, because a password is allowed to contain one.
     - A variable that is already set and not empty wins over the file, so that
       ``PORT=3001 python -m app`` does what it says. An empty one does not: the
@@ -123,7 +122,7 @@ def ui_dir() -> Path:
 
 def gate_password() -> str:
     """Empty means no password, which is the default."""
-    return os.environ.get("EVERMIND_GATE_PASSWORD", "")
+    return os.environ.get("EVERMIND_GATE_PASSWORD", "").strip()
 
 
 def parse_root_path(raw: str, name: str) -> str:
