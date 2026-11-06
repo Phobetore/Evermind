@@ -160,5 +160,9 @@ A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
   `.env`, you can delete the line.
 - **Your `.env` keeps working.** From the source, Evermind reads it itself now,
   the same file in the same place, wherever it is started from; with Docker, the
-  container gets its lines as written. A value set in the environment still wins
-  over the file from the source, but not with Docker, where the file wins.
+  container gets its lines as written. From the source, a value set in the
+  environment still wins over the file. With Docker, the container gets the lines
+  of the `.env` beside `docker-compose.yml`, as written, and nothing else: a
+  password set in the shell or with `--env-file` no longer reaches it, while
+  `BIND` and `PORT` set there still apply. Keep the password in that `.env`.
+  Remove any quotes around values in `.env`: they are now part of the value.
