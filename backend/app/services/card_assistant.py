@@ -90,10 +90,9 @@ async def generate_card(db: aiosqlite.Connection, prompt: str, kind: str,
                         connection_id: str | None = None,
                         existing: dict | None = None) -> dict:
     connection = await _resolve_connection(db, connection_id)
-    # A rich card easily exceeds typical chat reply budgets; a truncated JSON
-    # is unparseable, so give this call its own generous ceiling.
-    connection = dict(connection,
-                      max_tokens=max(2048, int(connection.get("max_tokens") or 1024)))
+    # A card cut short is unreadable JSON, so a ceiling the connection sets is raised.
+    if connection.get("max_tokens"):
+        connection = dict(connection, max_tokens=max(2048, connection["max_tokens"]))
 
     payload = build_card_payload(prompt, kind, existing)
 

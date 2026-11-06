@@ -7,7 +7,10 @@ from urllib.parse import unquote
 
 import pytest
 
+from app.providers.base import ProviderEvent
+
 from .test_cards import CHAR_FIELDS, make_minimal_png
+from .test_chat import FakeProvider
 from .test_providers import SAMPLING
 
 
@@ -262,6 +265,20 @@ async def test_connection_key_masking_and_update(client):
     # explicit empty string clears it
     upd = (await client.put(f"/api/connections/{body['id']}", json={"api_key": ""})).json()
     assert upd["api_key_set"] is False
+
+
+@pytest.mark.parametrize(("ceiling", "sent"), [(512, 96), (None, None)])
+async def test_the_speed_test_caps_only_a_connection_that_has_a_ceiling(client, monkeypatch,
+                                                                       ceiling, sent):
+    monkeypatch.setattr(FakeProvider, "script", [ProviderEvent(type="delta", text="Rain."),
+                                                 ProviderEvent(type="done")], raising=False)
+    monkeypatch.setattr(FakeProvider, "captured", {})
+    monkeypatch.setattr("app.routers.connections.get_provider", FakeProvider)
+    created = (await client.post("/api/connections", json={
+        "name": "Local", "base_url": "http://localhost:1234/v1", "max_tokens": ceiling,
+    })).json()
+    assert (await client.post(f"/api/connections/{created['id']}/benchmark")).json()["ok"]
+    assert FakeProvider.captured["connection"]["max_tokens"] == sent
 
 
 async def test_connection_test_endpoint_unreachable(client):
