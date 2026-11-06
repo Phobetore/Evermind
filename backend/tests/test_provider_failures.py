@@ -6,6 +6,8 @@ own, that text as ``upstream`` (and its status as ``upstream_status``), untouche
 Evermind cannot translate what another program wrote, only frame it. The English
 sentence stays for whoever reads the API."""
 
+import json
+
 import httpx
 import pytest
 
@@ -114,6 +116,20 @@ async def test_the_anthropic_stream_error_is_the_servers_own_words():
     event = (await collect(anth_provider(handler)))[-1]
     assert event.message == "Overloaded right now"
     assert event.meta == {"kind": "model_error"}
+
+
+@pytest.mark.parametrize("error", [{"code": 429, "message": "Rate limited"}, "Rate limited"])
+@pytest.mark.parametrize("before", [[], ['{"choices":[{"delta":{"content":"Hel"}}]}']])
+async def test_an_error_in_an_openai_compatible_stream_ends_the_reply(error, before):
+    body = sse([*before, json.dumps({"error": error}), "[DONE]"])
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body)
+
+    events = await collect(oai_provider(handler))
+    assert [event.type for event in events] == ["delta"] * len(before) + ["error"]
+    assert events[-1].message == "Rate limited"
+    assert events[-1].meta == {"kind": "model_error"}
 
 
 @pytest.mark.parametrize(("name", "make"), PROVIDERS)

@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from ..errors import MODEL_ERROR
 from ..prompting.engine import PromptPayload
 from .base import (
     NETWORK_ERROR,
@@ -90,6 +91,10 @@ class OpenAICompatProvider(Provider):
                         obj = json.loads(data)
                     except json.JSONDecodeError:
                         continue
+                    if obj.get("error"):
+                        yield ProviderEvent(type="error", message=_error_text(data.encode()),
+                                            meta=failure(MODEL_ERROR))
+                        return
                     if obj.get("usage"):
                         usage = obj["usage"]
                     choices = obj.get("choices") or []
