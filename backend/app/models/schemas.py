@@ -71,12 +71,11 @@ class ConnectionIn(BaseModel):
     api_key: str = ""
     model: str = ""
     context_size: int = Field(default=16384, ge=1024, le=2_000_000)
-    max_tokens: int = Field(default=1024, ge=16, le=128_000)
-    temperature: float = Field(default=0.8, ge=0, le=2)
-    top_p: float = Field(default=0.95, gt=0, le=1)
-    frequency_penalty: float = Field(default=0.15, ge=-2, le=2)
-    presence_penalty: float = Field(default=0.15, ge=-2, le=2)
-    extra_params: dict = {}
+    max_tokens: int | None = Field(default=None, ge=16, le=128_000)
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    top_p: float | None = Field(default=None, gt=0, le=1)
+    frequency_penalty: float | None = Field(default=None, ge=-2, le=2)
+    presence_penalty: float | None = Field(default=None, ge=-2, le=2)
     is_default: bool = False
 
 
@@ -87,12 +86,12 @@ class ConnectionUpdate(BaseModel):
     api_key: str | None = None  # None = keep stored key, "" = clear it
     model: str | None = None
     context_size: int | None = Field(default=None, ge=1024, le=2_000_000)
+    # A null empties one of these; a null above changes nothing.
     max_tokens: int | None = Field(default=None, ge=16, le=128_000)
     temperature: float | None = Field(default=None, ge=0, le=2)
     top_p: float | None = Field(default=None, gt=0, le=1)
     frequency_penalty: float | None = Field(default=None, ge=-2, le=2)
     presence_penalty: float | None = Field(default=None, ge=-2, le=2)
-    extra_params: dict | None = None
     is_default: bool | None = None
 
 
