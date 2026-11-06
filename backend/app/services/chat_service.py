@@ -172,15 +172,6 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
     return convo, character, persona, connection, settings
 
 
-async def _generate(connection: dict, payload: PromptPayload):
-    provider = get_provider(connection)
-    # Closed here and now whichever way this ends, rather than whenever the garbage
-    # collector comes round, which is how long the request to the model would last.
-    async with aclosing(provider.stream_chat(payload)) as stream:
-        async for event in stream:
-            yield event
-
-
 async def _until_stopped(events: AsyncIterator, stopped: asyncio.Event) -> AsyncIterator:
     """A model's events, until someone says stop, which ends the request to it there
     and then rather than at its next word: on a local model with a long prompt, that
@@ -239,9 +230,9 @@ def _cut_short(message: dict) -> list[int]:
 async def _settle_unfinished(db: aiosqlite.Connection, messages: list[dict]) -> list[dict]:
     """Turn a stale "still writing" mark into what it actually means.
 
-    The mark says a turn is writing that message right now. A turn that ends
-    before its reply is complete, because it was stopped, the model failed or
-    the server went down, never clears it, so it outlives the turn.
+    The mark says a turn is writing that message right now. A turn that is
+    stopped, or whose server goes down, before its reply is complete never
+    clears it, so it outlives the turn. A model that fails is marked at once.
 
     By the time another turn starts, nothing is writing it any more. Settle it
     as interrupted, which the view labels as such.
@@ -412,10 +403,10 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         """Write what has streamed so far. Recomputed from the original variants
         every time, so calling it repeatedly is the same as calling it once.
 
-        ``failed`` says the model failed: the version is marked as cut short at once, where
-        a reply that was stopped is marked by the next turn, which is the one that knows it
-        will not be finished. A continuation that adds to a version finishes it, and takes
-        the mark away; one that adds nothing leaves it as cut short as it was."""
+        ``failed`` says the model failed: the version is marked as cut short at once.
+        A new reply that was stopped is marked by the next turn; stopping a regeneration
+        or a continuation adds no mark. A continuation that adds to a version finishes it,
+        and takes the mark away; one that adds nothing leaves it as cut short as it was."""
         nonlocal draft_id, reply_gone
         body = trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
         if not body and not final:
@@ -497,7 +488,7 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
         # Closed on the way out of here, however that happens, and the request to the
         # model with it.
         try:
-            async with aclosing(_until_stopped(_generate(connection, payload), stopped)) as events:
+            async with aclosing(_until_stopped(get_provider(connection).stream_chat(payload), stopped)) as events:
                 async for event in events:
                     if event.type == "delta":
                         if first_token_at is None:
