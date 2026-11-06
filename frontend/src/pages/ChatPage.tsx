@@ -167,10 +167,7 @@ function ChatView({ id }: { id: string }) {
     } else if (event.type === "delta") {
       turnStore.append(id, controller, event.text);
     } else if (event.type === "done") {
-      // Never without a message from this version of the server, but an older one
-      // sends one if the message was deleted, and this is no reason to fall over.
       const saved = event.message;
-      if (!saved) return;
       setMessages((prev) => {
         const others = prev.filter((m) => m.id !== saved.id);
         return [...others, saved].sort((a, b) => a.position - b.position);
@@ -1005,7 +1002,6 @@ function ChatView({ id }: { id: string }) {
         </div>
 
         <ChatInput
-          key={conversation.id}
           conversationId={conversation.id}
           onSend={sendMessage}
           onStop={stop}
