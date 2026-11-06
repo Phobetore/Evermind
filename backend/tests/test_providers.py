@@ -3,6 +3,7 @@
 import json
 
 import httpx
+import pytest
 
 from app.prompting.engine import PromptPayload
 from app.providers import get_provider
@@ -31,10 +32,12 @@ OAI_CONN = {
     "top_p": 0.95,
     "frequency_penalty": 0.1,
     "presence_penalty": 0.1,
-    "extra_params": {},
 }
 
 ANTH_CONN = dict(OAI_CONN, provider="anthropic", base_url="https://mock.anthropic.com", api_key="sk-ant")
+
+SAMPLING = ("max_tokens", "temperature", "top_p", "frequency_penalty", "presence_penalty")
+EMPTY = dict.fromkeys(SAMPLING)
 
 
 def sse(lines: list[str]) -> bytes:
@@ -43,6 +46,20 @@ def sse(lines: list[str]) -> bytes:
 
 async def collect(provider, payload=PAYLOAD):
     return [e async for e in provider.stream_chat(payload)]
+
+
+async def body_sent(provider_class, connection: dict, payload=PAYLOAD) -> dict:
+    """The body of the request that a provider on ``connection`` sends."""
+    sent = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.update(json.loads(request.content))
+        return httpx.Response(200, content=b"")
+
+    provider = provider_class(connection)
+    provider._client_factory = lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    await collect(provider, payload)
+    return sent
 
 
 # ---------- openai-compatible ----------
@@ -148,6 +165,30 @@ async def test_openai_post_history_does_not_mutate_payload():
     assert PAYLOAD.messages[-1]["content"] == "Hello"
 
 
+async def test_openai_sends_no_setting_left_empty():
+    body = await body_sent(OpenAICompatProvider, dict(OAI_CONN, **EMPTY))
+    assert not body.keys() & set(SAMPLING)
+
+
+async def test_openai_sends_a_setting_as_written():
+    body = await body_sent(OpenAICompatProvider,
+                           dict(OAI_CONN, temperature=0, frequency_penalty=0))
+    assert {k: body[k] for k in SAMPLING} == {
+        "max_tokens": 256, "temperature": 0, "top_p": 0.95,
+        "frequency_penalty": 0, "presence_penalty": 0.1,
+    }
+
+
+@pytest.mark.parametrize(("base_url", "stop"), [
+    ("https://api.openai.com/v1", None),
+    ("https://openrouter.ai/api/v1", ["\nAlex:"]),
+    ("http://localhost:11434/v1", ["\nAlex:"]),
+])
+async def test_openai_itself_is_sent_no_stop(base_url, stop):
+    body = await body_sent(OpenAICompatProvider, dict(OAI_CONN, base_url=base_url))
+    assert body.get("stop") == stop
+
+
 # ---------- anthropic ----------
 
 def anth_provider(handler) -> AnthropicProvider:
@@ -207,6 +248,18 @@ async def test_anthropic_merges_consecutive_same_role():
     roles = [m["role"] for m in captured["body"]["messages"]]
     assert roles == ["user", "assistant"]
     assert captured["body"]["messages"][0]["content"] == "a\n\nb"
+
+
+async def test_anthropic_sends_no_setting_left_empty_but_the_ceiling_it_requires():
+    body = await body_sent(AnthropicProvider, dict(ANTH_CONN, **EMPTY))
+    assert body["max_tokens"] == 4096
+    assert not body.keys() & {"temperature", "top_p", "frequency_penalty", "presence_penalty"}
+
+
+@pytest.mark.parametrize("temperature", [0, 1.5])
+async def test_anthropic_sends_a_setting_as_written(temperature):
+    body = await body_sent(AnthropicProvider, dict(ANTH_CONN, temperature=temperature))
+    assert (body["max_tokens"], body["temperature"], body["top_p"]) == (256, temperature, 0.95)
 
 
 async def test_anthropic_http_error_readable():
