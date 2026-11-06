@@ -18,8 +18,8 @@ const root = path.resolve(import.meta.dirname, "..", "..");
 
 // As in playwright.config.ts, which a plain script cannot import.
 const COPIES = [
-  { folder: ".e2e-data", port: 3099 },
-  { folder: ".e2e-data-gate", port: 3098 },
+  { folder: ".e2e-data", port: Number(process.env.E2E_WEB_PORT ?? 3099) },
+  { folder: ".e2e-data-gate", port: Number(process.env.E2E_GATED_PORT ?? 3098) },
 ];
 
 function isAnswering(port) {

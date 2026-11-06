@@ -10,9 +10,10 @@ import path from "node:path";
  * data directory of its own too. Tests create characters and send messages;
  * pointed at a real one they would write into somebody's conversations.
  */
-const MOCK_PORT = 5699;
-const WEB_PORT = 3099;
-const GATED_PORT = 3098;
+// E2E_*_PORT let two copies of the repository run their suites side by side.
+const MOCK_PORT = Number(process.env.E2E_MOCK_PORT ?? 5699);
+const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 3099);
+const GATED_PORT = Number(process.env.E2E_GATED_PORT ?? 3098);
 
 // One server serves the interface and the API, so the page and the calls it
 // makes share an origin, as they do for anyone running Evermind.

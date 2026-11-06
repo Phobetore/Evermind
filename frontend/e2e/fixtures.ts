@@ -1,7 +1,7 @@
 import { expect, type APIRequestContext } from "@playwright/test";
 import { API } from "../playwright.config";
 
-const MOCK = "http://127.0.0.1:5699/v1";
+const MOCK = `http://127.0.0.1:${process.env.E2E_MOCK_PORT ?? 5699}/v1`;
 
 /** Seeding goes through the API, never the interface. A test that had to click
  *  its way to a conversation would fail for reasons that have nothing to do
