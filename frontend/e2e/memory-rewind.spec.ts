@@ -264,7 +264,8 @@ test("a read sent with the directive's save does not put the old directive back"
 
 // On a phone the panel beside the conversation is there but hidden, and the one over it is
 // a second copy. Each read on both events of a wake, and a read is the whole story.
-test("a phone waking reads the conversation once, and only for the panel it shows", async ({ page, request }) => {
+test("a phone waking reads the conversation once, and only for the panel it shows", async ({ page, request, isMobile }) => {
+  test.skip(!isMobile, "a wide screen has neither a hidden panel nor one over the conversation");
   const convo = await makeConversation(request);
   const isRead = (r: Request) => r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`);
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
