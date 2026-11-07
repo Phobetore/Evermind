@@ -695,6 +695,54 @@ async def test_a_fact_a_person_writes_that_the_model_holds_becomes_theirs(client
     assert (again.status_code, again.json()["kind"]) == (400, "fact_exists")
 
 
+class APassWritesFirst:
+    """A connection on which a pass, from another, writes just before the first change made."""
+
+    def __init__(self, db, write):
+        self.db, self.write = db, write
+
+    async def execute(self, sql, params=()):
+        if self.write and sql.startswith("UPDATE"):
+            write, self.write = self.write, None
+            await write()
+        return await self.db.execute(sql, params)
+
+    def __getattr__(self, name):
+        return getattr(self.db, name)
+
+
+@pytest.mark.parametrize("change", ["corrected", "dropped"])
+async def test_a_fact_a_person_writes_as_a_pass_changes_the_models_copy_is_theirs_as_written(
+        client, fake_provider, change):
+    """Found as the model's, then corrected or dropped by a pass before it is made theirs: what
+    they typed becomes a fact of its own, not the model's new words, nor nothing."""
+    convo_id = (await setup_conversation(client))["id"]
+    held = await put_fact(convo_id, "The ring is cursed.", at=4)
+
+    async def a_pass_writes():
+        other = await _connect()
+        try:
+            if change == "corrected":
+                await memories_repo.rewrite(other, held["id"], "The ring was cursed, then broken.", None, 8)
+            else:
+                await memories_repo.remove(other, held["id"])
+            await other.commit()
+        finally:
+            await other.close()
+
+    db = await _connect()
+    try:
+        saved = await memories_repo.add(APassWritesFirst(db, a_pass_writes), convo_id,
+                                        "The ring is cursed.", is_pinned=True, source="user")
+    finally:
+        await db.close()
+
+    assert saved and (saved["content"], saved["source"], saved["is_pinned"]) == (
+        "The ring is cursed.", "user", True)
+    corrected = {"The ring was cursed, then broken."} if change == "corrected" else set()
+    assert await names(client, convo_id) == corrected | {"The ring is cursed."}
+
+
 async def test_a_fact_a_person_rewrote_is_theirs_through_any_cut(client, fake_provider):
     """What they wrote replaced the model's words: no cut takes it back to them, nor away with
     the turns the model drew it from."""

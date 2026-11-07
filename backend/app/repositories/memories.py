@@ -40,11 +40,13 @@ async def add(db: aiosqlite.Connection, convo_id: str, content: str,
     if said:
         if source != "user" or said["source"] == "user":
             return None
-        await db.execute(
-            "UPDATE memories SET source = 'user', is_pinned = MAX(is_pinned, ?),"
-            " previous_content = NULL, corrected_at = NULL WHERE id = ?", (int(is_pinned), said["id"]))
+        # Unless a pass corrected or dropped it since: theirs is then a fact of its own.
+        made_theirs = await db.execute(
+            "UPDATE memories SET source = 'user', is_pinned = MAX(is_pinned, ?), previous_content = NULL,"
+            " corrected_at = NULL WHERE id = ? AND content = ?", (int(is_pinned), said["id"], content))
         await db.commit()
-        return await get(db, said["id"])
+        if made_theirs.rowcount:
+            return await get(db, said["id"])
     vectors = await embeddings.embed([content], kind="passage")
     saved = await add_with_vector(db, convo_id, content, source_position,
                                   embeddings.pack(vectors[0]) if vectors else None,
