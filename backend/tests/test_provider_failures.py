@@ -11,6 +11,7 @@ import httpx
 import pytest
 
 from app.errors import NO_CONNECTION
+from app.providers import get_provider
 from app.providers.base import ProviderError
 
 from .test_chat import send, setup_conversation
@@ -96,6 +97,14 @@ async def test_a_server_that_cannot_be_reached_is_unreachable_at_its_address(
     provider = make(raising(error_type, "refused"))
     error = await failure_of(ask, provider)
     assert (error.kind, error.message) == ("unreachable", provider.base_url)
+
+
+@pytest.mark.parametrize("ask", ASKING)
+@pytest.mark.parametrize("name", [name for name, _ in PROVIDERS])
+@pytest.mark.parametrize("address", ["127.0.0.1:1/v1", "http://127.0.0.1:x/v1"])
+async def test_an_address_that_is_not_one_is_unreachable_at_that_address(ask, name, address):
+    error = await failure_of(ask, get_provider({"provider": name, "base_url": address}))
+    assert (error.kind, error.message) == ("unreachable", address)
 
 
 @pytest.mark.parametrize("ask", ASKING)

@@ -205,8 +205,9 @@ a reply failed, which `GET /api/conversations/{id}/turn` tells. A new `AppError`
 needs a `kind`, and a test fails without one.
 
 When a model's server is what failed (a `ProviderError`, `502`), the kind says how:
-`unreachable` (nothing answered at its address), `model_connection_lost` (the
-connection broke off or went quiet), `model_auth_refused`, `model_not_found` or
+`unreachable` (nothing answered at its address, or the address is not one),
+`model_connection_lost` (the connection broke off or went quiet),
+`model_auth_refused`, `model_not_found` or
 `model_rate_limited` (an error status 401, 404 or 429), or `model_error` (any other
 error status, or an error inside its stream). The `error` is then not a sentence of
 Evermind's but what the server said (`HTTP <status>` when it said nothing), the

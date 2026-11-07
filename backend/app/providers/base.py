@@ -83,7 +83,7 @@ class Provider:
         try:
             async with self._client_factory() as client:
                 response = await client.get(self.base_url + self.MODELS, headers=self._headers())
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, httpx.InvalidURL) as exc:
             raise self._lost(exc)
         if response.status_code >= 400:
             raise _refusal(response.status_code, response.content)
@@ -111,12 +111,13 @@ class Provider:
                         continue
                     if isinstance(event, dict):
                         yield event
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, httpx.InvalidURL) as exc:
             raise self._lost(exc)
 
-    def _lost(self, exc: httpx.HTTPError) -> ProviderError:
+    def _lost(self, exc: Exception) -> ProviderError:
         """A request that never reached the server, or that broke off on the way."""
-        if isinstance(exc, httpx.ConnectError | httpx.ConnectTimeout):
+        if isinstance(exc, httpx.ConnectError | httpx.ConnectTimeout
+                      | httpx.UnsupportedProtocol | httpx.InvalidURL):
             return ProviderError(self.base_url, UNREACHABLE)
         message = str(exc) or "The connection to the model's server was lost."
         return ProviderError(message, CONNECTION_LOST)
