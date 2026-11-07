@@ -64,3 +64,28 @@ test("the pen writes under what the box holds, and a message given back to it st
   expect((await conversation(request, convo.id)).messages.at(-2).content).toBe("Passe donc.");
   await expect(box).toHaveValue(suggestion);
 });
+
+test("a suggestion sent as it was and given back is the person's message, which the pen keeps", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const { text: suggestion } = await (await request.post(`${API}/api/conversations/${convo.id}/impersonate`)).json();
+  await page.goto(`/#/chat/${convo.id}`);
+  const box = page.locator("textarea").first();
+  const pen = page.getByTitle("Write my reply for me (editable before sending)");
+  await pen.click();
+  await expect(box).toHaveValue(suggestion);
+  await page.route("**/api/chat", (route) =>
+    route.fulfill({ status: 502, contentType: "text/html", body: "<html>Bad gateway</html>" }));
+  await page.locator('button[title="Send"]').click();
+  await expect(box, "the refused message did not come back").toHaveValue(suggestion, { timeout: 20_000 });
+  await page.unroute("**/api/chat");
+
+  await page.route("**/impersonate", (route) => route.fulfill({ json: { text: "Another line." } }));
+  await pen.click();
+  await expect(box, "the message given back was written over").toHaveValue(`${suggestion}\nAnother line.`);
+
+  await retryButton(page).click();
+  await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
+    { timeout: 30_000 }).toBe(convo.messages.length + 2);
+  expect((await conversation(request, convo.id)).messages.at(-2).content).toBe(suggestion);
+  await expect(box).toHaveValue("Another line.");
+});

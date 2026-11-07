@@ -132,6 +132,7 @@ export function ChatInput({
     setSilent(false);
     setValue("");
     clearDraft(conversationId);
+    suggested.current = ""; // sent, it is the person's message, given back or not
     setMode("say"); // narration and OOC are one-shot by nature
     held.current = { value: "", mode: "say" }; // before anything is given back to it
     void onSend(content, mode);
