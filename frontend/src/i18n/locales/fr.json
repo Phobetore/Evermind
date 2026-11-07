@@ -490,7 +490,7 @@
     "factExists": "Ce fait existe déjà.",
     "factEmpty": "Un fait doit contenir du texte.",
     "memoryBusy": "Une autre tâche de mémoire est en cours. Rien n'a été modifié ; réessayez dans un instant.",
-    "factsChanged": "Les faits ont changé pendant que le modèle les fusionnait. Rien n'a été modifié ; réessayez.",
+    "factsChanged": "Les faits ont changé pendant que le modèle travaillait dessus. Rien n'a été conservé ; réessayez.",
     "conversationChanged": "La conversation a changé pendant que le modèle la lisait. Rien n'a été conservé ; réessayez.",
     "tooFewFacts": "Trop peu de faits pour consolider.",
     "fileTooLarge": "Ce fichier est trop volumineux (15 Mo au maximum).",

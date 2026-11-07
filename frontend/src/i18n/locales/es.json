@@ -490,7 +490,7 @@
     "factExists": "Este hecho ya existe.",
     "factEmpty": "Un hecho necesita algo de texto.",
     "memoryBusy": "Hay otra tarea de memoria en curso. No se ha modificado nada; inténtalo de nuevo en un momento.",
-    "factsChanged": "Los hechos han cambiado mientras el modelo los fusionaba. No se ha modificado nada; inténtalo de nuevo.",
+    "factsChanged": "Los hechos han cambiado mientras el modelo trabajaba con ellos. No se ha conservado nada; inténtalo de nuevo.",
     "conversationChanged": "La conversación ha cambiado mientras el modelo la leía. No se ha conservado nada; inténtalo de nuevo.",
     "tooFewFacts": "Hay muy pocos hechos para condensar.",
     "fileTooLarge": "Este archivo es demasiado grande (15 MB como máximo).",

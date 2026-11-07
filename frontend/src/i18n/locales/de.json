@@ -490,7 +490,7 @@
     "factExists": "Diesen Fakt gibt es schon.",
     "factEmpty": "Ein Fakt braucht etwas Text.",
     "memoryBusy": "Eine andere Gedächtnisaufgabe läuft gerade. Nichts wurde verändert; versuche es gleich noch einmal.",
-    "factsChanged": "Die Fakten haben sich geändert, während das Modell sie zusammenführte. Nichts wurde verändert; versuche es noch einmal.",
+    "factsChanged": "Die Fakten haben sich geändert, während das Modell mit ihnen arbeitete. Nichts wurde übernommen; versuche es noch einmal.",
     "conversationChanged": "Die Unterhaltung hat sich geändert, während das Modell sie las. Nichts wurde übernommen; versuche es noch einmal.",
     "tooFewFacts": "Zu wenige Fakten zum Verdichten.",
     "fileTooLarge": "Diese Datei ist zu groß (höchstens 15 MB).",
