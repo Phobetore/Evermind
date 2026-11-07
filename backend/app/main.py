@@ -8,7 +8,7 @@ from . import __version__, config
 from .db import init_db
 from .errors import register_error_handlers
 from .gate import GateMiddleware, GateStore
-from .ui import serve_ui
+from .ui import UIFiles
 
 
 @asynccontextmanager
@@ -22,13 +22,9 @@ async def lifespan(_: FastAPI):
 
 
 def create_app() -> FastAPI:
-    # The schema maps the whole API, and /docs, /redoc and /openapi.json sit
-    # outside /api/, where the gate lets everything through. With a password
-    # set they are not served at all; without one there is nothing to protect.
-    docs = {} if not config.gate_password() else {
-        "docs_url": None, "redoc_url": None, "openapi_url": None,
-    }
-    app = FastAPI(title="Evermind", version=__version__, lifespan=lifespan, **docs)
+    # No /docs, /redoc or /openapi.json: they sit outside /api/, where the gate lets everything through.
+    app = FastAPI(title="Evermind", version=__version__, lifespan=lifespan,
+                  docs_url=None, redoc_url=None, openapi_url=None)
     # The store loads itself on the first request rather than in the lifespan,
     # which the test client never runs. There is no CORS middleware: the
     # interface is served from this same address, or proxied to it in
@@ -46,7 +42,7 @@ def create_app() -> FastAPI:
     # comes from Vite's own server.
     ui = config.ui_dir()
     if (ui / "index.html").is_file():
-        serve_ui(app, ui)
+        app.mount("/", UIFiles(directory=ui, html=True))
     return app
 
 

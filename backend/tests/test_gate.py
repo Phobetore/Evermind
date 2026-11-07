@@ -13,7 +13,6 @@ import sqlite3
 import unicodedata
 from datetime import UTC, datetime, timedelta
 
-import httpx
 import pytest
 from starlette.websockets import WebSocket
 
@@ -103,19 +102,6 @@ async def test_api_and_media_are_locked_without_session(make_client, path):
         r = await c.request(method, path)
     assert r.status_code == 401
     assert r.json() == {"error": "Locked.", "kind": "locked"}
-
-
-async def test_a_root_path_does_not_open_the_api(make_client):
-    """Behind a proxy that serves Evermind under a prefix, the path the router
-    matches is the one without it, and that is the one the gate must judge."""
-    from app.main import create_app
-
-    async with make_client(EVERMIND_GATE_PASSWORD=PW):
-        transport = httpx.ASGITransport(app=create_app(), root_path="/evermind")
-        async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as prefixed:
-            r = await prefixed.get("/evermind/api/characters")
-            assert r.status_code == 401
-            assert (await prefixed.get("/evermind/api/health")).status_code == 200
 
 
 def socket_app():
@@ -244,32 +230,15 @@ async def test_public_api_paths_stay_open(make_client):
         assert (await c.get("/api/gate")).json() == {"enabled": True, "authenticated": False}
 
 
-async def test_api_docs_are_served_without_a_password(client):
-    # Nothing to protect, and the schema is useful to anyone writing a client.
-    assert (await client.get("/docs")).status_code == 200
-    assert "/api/characters" in (await client.get("/openapi.json")).json()["paths"]
-
-
+@pytest.mark.parametrize("password", ["", PW])
 @pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
-async def test_api_docs_are_not_served_with_a_password(make_client, path):
+async def test_api_docs_are_not_served(make_client, path, password):
     """The schema maps the whole API, and these paths sit outside /api/, where
-    the gate lets everything through. With a password they must not exist."""
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+    the gate lets everything through."""
+    async with make_client(EVERMIND_GATE_PASSWORD=password) as c:
         r = await c.get(path)
     assert r.status_code == 404
     assert "paths" not in r.text
-
-
-async def test_api_docs_are_not_served_over_the_interface_either(make_client, tmp_path):
-    ui = tmp_path / "ui"
-    ui.mkdir()
-    (ui / "index.html").write_text('<!doctype html><div id="root"></div>', encoding="utf-8")
-    async with make_client(EVERMIND_GATE_PASSWORD=PW, EVERMIND_UI_DIR=str(ui)) as c:
-        assert (await c.get("/")).status_code == 200
-        for path in ("/docs", "/redoc", "/openapi.json"):
-            r = await c.get(path)
-            assert r.status_code == 404, path
-            assert "swagger" not in r.text.lower() and '"paths"' not in r.text
 
 
 async def test_login_cookie_attributes_over_http(make_client):

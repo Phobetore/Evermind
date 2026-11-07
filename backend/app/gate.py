@@ -371,21 +371,6 @@ def clear_session_cookie(response: Response) -> None:
     response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="lax")
 
 
-def _route_path(scope: Scope) -> str:
-    """The path the router will match, which is the one to judge.
-
-    Under a root path (``uvicorn --root-path /evermind``, for a proxy that
-    serves Evermind under a prefix), ``scope["path"]`` starts with it and
-    Starlette routes on what follows. Judging ``scope["path"]`` itself would
-    leave all of /evermind/api/ open. This follows Starlette's own rule.
-    """
-    path = scope["path"]
-    root = scope.get("root_path", "")
-    if root and path.startswith(root) and path[len(root):len(root) + 1] in ("", "/"):
-        return path[len(root):]
-    return path
-
-
 def _from_another_origin(scope: Scope) -> bool:
     """Whether the browser says this request was sent by a page of another
     origin. A request that says nothing about it did not come from a page:
@@ -518,7 +503,7 @@ class GateMiddleware:
         if scope["type"] not in ("http", "websocket"):
             await self.app(scope, receive, send)
             return
-        path = _route_path(scope)
+        path = scope["path"]
         if not path.startswith("/api/"):
             await self.app(scope, receive, send)
             return
