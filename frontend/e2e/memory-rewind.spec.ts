@@ -15,6 +15,7 @@ const panelText = JSON.parse(
   readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", "en.json"), "utf8"),
 ).chat.panel as {
   closeAriaLabel: string;
+  directive: { placeholder: string; applyButton: string };
   summary: { placeholder: string; saveButton: string };
   facts: { extractButton: string };
 };
@@ -179,6 +180,57 @@ test("a summary a pass wrote meanwhile shows when the person comes back to the w
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 
   await expect(summary).toHaveValue(/woke the character in a crypt/);
+});
+
+// Moving from the directive to the summary sends the directive's save (on blur) and a read
+// of the conversation (on focus) together. A read answered from before the save, arriving
+// after it, put the old directive back on screen, and the next edit started from it.
+test("a read sent with the directive's save does not put the old directive back", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
+    timeout: 60_000,
+  });
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  const directive = panel.getByPlaceholder(panelText.directive.placeholder);
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await expect(summary).toHaveValue("");
+  await page.waitForLoadState("networkidle");
+  // Something new for the read to bring, which shows when it has landed.
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+
+  // The read is answered from the database as it was before the save, and lands after it.
+  let readAnswered = () => {};
+  const answered = new Promise<void>((resolve) => { readAnswered = resolve; });
+  let saveShown = () => {};
+  const shown = new Promise<void>((resolve) => { saveShown = resolve; });
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() === "PATCH") {
+      await answered;
+      await route.continue();
+      return;
+    }
+    const before = await route.fetch();
+    readAnswered();
+    await shown;
+    await route.fulfill({ response: before });
+  });
+
+  await directive.fill("Fog, lamplight, nothing resolved tonight.");
+  await summary.click();
+  await expect(panel.getByRole("button", { name: panelText.directive.applyButton })).toBeHidden();
+  saveShown();
+
+  await expect(summary).toHaveValue(/woke the character in a crypt/);
+  await expect(directive).toHaveValue("Fog, lamplight, nothing resolved tonight.");
+  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(read.author_note).toBe("Fog, lamplight, nothing resolved tonight.");
 });
 
 test("a memory pass that fails says so in the colour of an error, and keeps saying it", async ({ page, request }) => {

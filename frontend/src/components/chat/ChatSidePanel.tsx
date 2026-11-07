@@ -96,29 +96,36 @@ export function ChatSidePanel({
   useEffect(() => {
     latest.current = { conversation, onConversationChange };
   });
-  const read = useCallback(
-    () =>
-      data.conversations
-        .get(conversation.id)
-        .then(({ summary, author_note, memory_error }) => {
-          const { conversation: shown, onConversationChange: patch } = latest.current;
-          const error = memory_error ?? null;
-          // A patch re-renders the whole story, so it is made only for a change.
-          if (
-            summary !== shown.summary ||
-            (author_note ?? null) !== (shown.author_note ?? null) ||
-            JSON.stringify(error) !== JSON.stringify(shown.memory_error ?? null)
-          )
-            patch({ summary, author_note, memory_error: error });
-        })
-        .catch(() => {}),
-    [conversation.id],
-  );
+  // A field this panel writes keeps the number of the last read sent, whose answer may be older.
+  const reads = useRef(0);
+  const written = useRef<Partial<Record<keyof Conversation, number>>>({});
+  function write(patch: Partial<Conversation>) {
+    for (const key of Object.keys(patch)) written.current[key as keyof Conversation] = reads.current;
+    onConversationChange(patch);
+  }
+  const read = useCallback(() => {
+    const sent = ++reads.current;
+    data.conversations
+      .get(conversation.id)
+      .then((answer) => {
+        if (sent !== reads.current) return; // a later read knows more
+        const shown = latest.current.conversation;
+        const patch: Partial<Conversation> = {};
+        for (const key of ["summary", "author_note", "memory_error"] as const) {
+          const value = answer[key] ?? null;
+          if ((written.current[key] ?? 0) < sent && JSON.stringify(value) !== JSON.stringify(shown[key] ?? null))
+            Object.assign(patch, { [key]: value });
+        }
+        // A patch re-renders the whole story, so it is made only for a change.
+        if (Object.keys(patch).length) latest.current.onConversationChange(patch);
+      })
+      .catch(() => {});
+  }, [conversation.id]);
   useEffect(() => {
     const visible = () => {
-      if (document.visibilityState === "visible") void read();
+      if (document.visibilityState === "visible") read();
     };
-    void read();
+    read();
     window.addEventListener("focus", read);
     document.addEventListener("visibilitychange", visible);
     return () => {
@@ -158,7 +165,7 @@ export function ChatSidePanel({
         fail("directive", describeError(e, t));
         return;
       }
-      onConversationChange({ author_note: value });
+      write({ author_note: value });
     }
     setDirectiveDraft(null);
   }
@@ -170,9 +177,9 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
-      if (!result.skipped) onConversationChange({ memory_error: null });
+      if (!result.skipped) write({ memory_error: null });
       if (result.summary) {
-        onConversationChange({ summary: result.summary });
+        write({ summary: result.summary });
         setSummaryDraft(null);
       }
       const said = describeExtraction(result, t, conversation.summary);
@@ -269,7 +276,7 @@ export function ChatSidePanel({
       fail("summary", describeError(e, t));
       return;
     }
-    onConversationChange({ summary });
+    write({ summary });
     setSummaryDraft(null);
     setNote(t("chat.panel.summary.saved"));
     setTimeout(() => setNote(null), 1500);
@@ -494,7 +501,7 @@ export function ChatSidePanel({
           className="field min-h-32 text-sm"
           value={summary}
           onChange={(e) => setSummaryDraft(e.target.value)}
-          onFocus={() => summaryDraft === null && void read()}
+          onFocus={() => summaryDraft === null && read()}
           disabled={summaryIsBeingWritten}
           placeholder={t("chat.panel.summary.placeholder")}
         />
