@@ -1317,6 +1317,41 @@ async def test_a_swipe_of_an_older_reply_the_memory_read_takes_it_back_before_th
     assert await names(client, convo_id) == {"Alex reached the gate."}
 
 
+async def test_a_swipe_while_a_pass_reads_later_turns_is_not_undone_when_the_pass_writes(
+        client, fake_provider, monkeypatch):
+    """No fact of the pass that read it, and a summary the person typed, which the rewind keeps:
+    nothing else tells the pass that the memory went back meanwhile."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 2)  # 0 to 4
+    await extract(client, convo_id, {"facts": [{"content": "Alex reached the gate."}],
+                                     "summary": "To 4."})
+    await talk(client, convo_id, 1, first=3)
+    Replies.text = "The guard surrenders."
+    await send(client, convo_id, content="I strike the guard.")  # 7 and 8
+    Replies.text = GUARD_DIES
+    await send(client, convo_id, content=None, mode="regenerate")
+    Replies.text = "Reply."
+    await extract(client, convo_id, {"facts": [], "summary": "To 8."})
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": "Typed."})
+    await talk(client, convo_id, 2, first=5)  # 9 to 12
+    reply = await at_position(client, convo_id, 8)
+
+    async def swipes():
+        await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0})
+
+    while_the_model_answers(monkeypatch, swipes)
+    await extract(client, convo_id, {"facts": [{"content": "The gate is open."}],
+                                     "summary": "Typed, then to 12."})
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (4, "Typed.")
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [], "summary": "Again."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "(turn 8): The guard surrenders." in shown and "(turn 12)" in shown
+
+
 @pytest.mark.parametrize("change", [
     "edited", "greeting swiped", "regenerated with nothing to show", "a later reply regenerated"])
 async def test_the_memory_stays_when_no_reply_it_read_shows_other_words(
