@@ -285,7 +285,7 @@ async def test_deleting_during_a_reply_ends_it_first(client, lingering, what):
     convo = await setup_conversation(client)
     turn = await turns.start(_sending(convo["id"], content="Efface-moi"))
     await turns.follow(turn).asend(None)
-    mine = (await messages_of(client, convo["id"]))[-1]
+    mine = turn.user_message
     route = {"message": f"/api/messages/{mine['id']}",
              "conversation": f"/api/conversations/{convo['id']}",
              "character": f"/api/characters/{convo['character_id']}"}[what]
