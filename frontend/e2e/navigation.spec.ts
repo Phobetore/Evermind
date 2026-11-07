@@ -78,6 +78,20 @@ test("what cannot be read is said, and read again when asked", async ({ page, re
   await expect(library.getByRole("alert")).toHaveCount(0);
 });
 
+test("a page that breaks says so in its place, and the other pages still open", async ({ page }) => {
+  // A name that is not text breaks the page as it is drawn.
+  await page.route("**/api/personas", (route) => route.fulfill({ json: [{ id: "p", name: {} }] }));
+  await page.goto("/#/personas");
+  const alert = page.locator("main").getByRole("alert");
+  await expect(alert).toContainText("Something went wrong.");
+  await expect(alert.getByRole("button", { name: "Reload" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Personas", level: 1 }), "the page is still there").toHaveCount(0);
+
+  await page.getByRole("link", { name: "Discover", exact: true }).click();
+  await expect(page.locator("main h1")).toBeVisible();
+  await expect(alert).toHaveCount(0);
+});
+
 test("the language is chosen in the sidebar, or in the settings where there is none", { tag: "@desktop" }, async ({ page, isMobile }) => {
   await page.goto("/#/settings");
   const inSettings = page.locator("main").getByLabel("Language");

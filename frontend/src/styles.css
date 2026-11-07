@@ -49,7 +49,6 @@
   --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade: fade 0.35s ease both;
   --animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
-  --animate-pending: pending 1.2s ease-in-out infinite;
 }
 
 @keyframes rise {
@@ -63,10 +62,6 @@
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
-}
-@keyframes pending {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(300%); }
 }
 
 :root {
@@ -338,8 +333,7 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 /* For whoever has asked their system for less motion: nothing here moves, and
    what rose into place, pulsed or spun is simply there. Animations are cut to
    an instant rather than removed, so that what they end on is still what is
-   drawn (the entry animations hold their last frame). A wait is still shown,
-   by something that sits still (see NavigationProgress). */
+   drawn (the entry animations hold their last frame). */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
