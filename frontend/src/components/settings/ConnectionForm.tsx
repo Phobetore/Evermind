@@ -245,15 +245,7 @@ export function ConnectionForm({
               value={draft.model}
               onChange={(e) => set("model", e.target.value)}
               placeholder="llama3, claude-sonnet-5…"
-              list="models-found"
             />
-            {testResult?.models_sample && (
-              <datalist id="models-found">
-                {testResult.models_sample.map((m) => (
-                  <option key={m} value={m} />
-                ))}
-              </datalist>
-            )}
           </Field>
         </div>
 
