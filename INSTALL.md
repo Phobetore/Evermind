@@ -384,10 +384,10 @@ One thing does go out. Each time you open Settings, your browser asks GitHub
 whether a newer release exists, so that you hear about fixes without having to go
 and look. It asks for the latest release number, with no cookie and nothing you
 wrote. GitHub sees what any website sees of a browser that asks it something: your
-internet address, the browser's name, and the address you opened Evermind at. The
-checkbox under **About** in Settings turns it off, and with it off nothing goes out
-on its own. The button beside it still asks when you press it, which is the only
-time anything is sent once the checkbox is clear.
+internet address, the browser's name and languages, and the address you opened
+Evermind at. The checkbox under **About** in Settings turns it off, and with it off
+nothing goes out on its own. The button beside it still asks when you press it,
+which is the only time anything is sent once the checkbox is clear.
 
 To back it up, copy that folder. To start fresh, delete it.
 

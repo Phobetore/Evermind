@@ -146,7 +146,7 @@
       "updateAvailable": "Evermind {version} ist da.",
       "updateHint": "Halte Evermind an, führe das hier in dem Ordner aus, in dem du es installiert hast, und starte es wieder.",
       "releaseNotes": "Was sich geändert hat",
-      "checkHint": "Bei jedem Öffnen dieser Seite bei GitHub nachfragen, ob es eine neuere Version gibt. Mehr geht nicht raus. Ohne Haken passiert von allein gar nichts, und der Knopf darunter tut es trotzdem, wenn du ihn drückst.",
+      "checkHint": "Bei jedem Öffnen dieser Seite bei GitHub nachfragen, ob es eine neuere Version gibt. Die Anfrage enthält nichts von dem, was du geschrieben hast, aber GitHub sieht, was jede Website von einem Browser sieht, auch die Adresse, unter der du Evermind geöffnet hast. Ohne Haken passiert von allein gar nichts, und der Knopf darunter tut es trotzdem, wenn du ihn drückst.",
       "checkNow": "Jetzt nachsehen",
       "upToDate": "Du hast die neueste Version.",
       "unreachable": "GitHub war nicht erreichbar."
