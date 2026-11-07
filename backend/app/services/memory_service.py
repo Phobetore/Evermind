@@ -163,7 +163,8 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     all_facts = await memories_repo.list_for_conversation(db, convo_id)
     movable = movable_facts(all_facts)
     if len(movable) < MIN_FACTS_TO_CONSOLIDATE:
-        raise AppError("Too few facts to consolidate.", 409, kind=TOO_FEW_FACTS)
+        raise AppError("Too few facts to consolidate: only the model's unpinned facts are merged.",
+                       409, kind=TOO_FEW_FACTS)
 
     payload = build_consolidation_payload(character, persona, movable)
     chunks: list[str] = []
