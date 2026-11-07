@@ -210,6 +210,14 @@ def test_there_is_no_network_address_without_a_route(monkeypatch):
     assert launch.lan_address() is None
 
 
+def test_the_help_says_what_it_starts_in_plain_words(capsys):
+    with pytest.raises(SystemExit):
+        launch.main(["--help"])
+    help_text = capsys.readouterr().out
+    assert "Start Evermind: the interface and the API on one port." in help_text
+    assert "`" not in help_text
+
+
 @pytest.mark.parametrize("raw", ["abc", "0", "70000", "-1", "3000.5"])
 def test_a_port_that_is_not_one_is_reported(clean_env, monkeypatch, capsys, raw):
     monkeypatch.setenv("PORT", raw)

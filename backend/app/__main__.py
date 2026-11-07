@@ -39,7 +39,8 @@ def fail(*lines: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m app", description=__doc__)
+    parser = argparse.ArgumentParser(
+        prog="python -m app", description="Start Evermind: the interface and the API on one port.")
     parser.add_argument("--lan", action="store_true", help="listen on the local network")
     parser.add_argument("--dev", action="store_true", help="the API alone, for the Vite server")
     parser.add_argument("--check", action="store_true", help="print the port and exit")
