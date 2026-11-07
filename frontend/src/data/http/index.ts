@@ -3,7 +3,7 @@ import type {
   Message, Persona, Settings, TurnState,
 } from "@/types";
 import type {
-  BenchmarkResult, ConnectionTestResult, ConsolidateResult, DataSource, ExtractResult,
+  Asking, BenchmarkResult, ConnectionTestResult, ConsolidateResult, DataSource, ExtractResult,
 } from "../source";
 import { readEvents } from "./events";
 import { lazyFetch, request, send } from "./request";
@@ -29,15 +29,16 @@ function queryString(params: Record<string, string | undefined>): string {
  *  under a path such as `/evermind/` as at the root of a host. `fetchImpl` is
  *  there for tests. */
 export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSource {
-  const call = <T>(path: string, init?: RequestInit) => request<T>(path, init, fetchImpl);
-  const get = <T>(path: string) => call<T>(path);
+  const call = <T>(path: string, init?: RequestInit, asking?: Asking) =>
+    request<T>(path, asking?.signal ? { ...init, signal: asking.signal } : init, fetchImpl, asking?.within);
+  const get = <T>(path: string, asking?: Asking) => call<T>(path, undefined, asking);
   const post = <T = void>(path: string, body?: unknown) =>
     call<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
   const put = <T>(path: string, body: unknown) =>
     call<T>(path, { method: "PUT", body: JSON.stringify(body) });
   const patch = <T>(path: string, body: unknown) =>
     call<T>(path, { method: "PATCH", body: JSON.stringify(body) });
-  const del = <T = void>(path: string) => call<T>(path, { method: "DELETE" });
+  const del = <T = void>(path: string, asking?: Asking) => call<T>(path, { method: "DELETE" }, asking);
   const upload = <T>(path: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
@@ -68,7 +69,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
     conversations: {
       list: (query) =>
         get<Conversation[]>(`api/conversations${queryString({ character_id: query?.character_id })}`),
-      get: (id) => get<Conversation>(`api/conversations/${seg(id)}`),
+      get: (id, asking) => get<Conversation>(`api/conversations/${seg(id)}`, asking),
       create: (input) => post<Conversation>("api/conversations", input),
       update: (id, changes) => patch<Conversation>(`api/conversations/${seg(id)}`, changes),
       remove: (id) => del(`api/conversations/${seg(id)}`),
@@ -103,9 +104,10 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
           send(`api/conversations/${seg(conversationId)}/turn/stream`, { signal }, fetchImpl),
           onEvent,
         ),
-      stop: (conversationId) => del(`api/conversations/${seg(conversationId)}/turn`),
-      state: (conversationId) =>
-        get<TurnState>(`api/conversations/${seg(conversationId)}/turn`),
+      stop: (conversationId, asking) => del(`api/conversations/${seg(conversationId)}/turn`, asking),
+      // Past the cache, where a request to the same address left hanging would hold it.
+      state: (conversationId, asking) =>
+        call<TurnState>(`api/conversations/${seg(conversationId)}/turn`, { cache: "no-store" }, asking),
       impersonate: (conversationId) =>
         post<{ text: string }>(`api/conversations/${seg(conversationId)}/impersonate`),
     },

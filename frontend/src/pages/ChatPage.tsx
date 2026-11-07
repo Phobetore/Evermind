@@ -4,11 +4,11 @@ import { ModelSilent } from "@/components/chat/ModelSilent";
 import { ChatSidePanel } from "@/components/chat/ChatSidePanel";
 import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
-import { DataError, data, type TurnRequest } from "@/data";
+import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
 import { beginSending, forgetSending, settleSending, type MessageMode } from "@/lib/drafts";
 import { describeError, describeFailure } from "@/lib/errors";
-import { inTime, useTurn, type LiveText } from "@/lib/useTurn";
+import { inTime, PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -115,9 +115,9 @@ function ChatView({ id }: { id: string }) {
   const fromBottom = useRef<number | null>(null);
 
   // The title too, which the server gives a new conversation; the side panel reads the rest itself.
-  const read = useCallback(async () => {
+  const read = useCallback(async (asking: Asking) => {
     const changes = changesByHand.current;
-    const convo = await data.conversations.get(id);
+    const convo = await data.conversations.get(id, asking);
     return () => {
       if (settleSending(id, convo.messages ?? [])) setRefused(null);
       if (changesByHand.current !== changes) return false;
@@ -192,7 +192,7 @@ function ChatView({ id }: { id: string }) {
   async function stop() {
     setRefused(null);
     try {
-      await inTime(data.turns.stop(id));
+      await data.turns.stop(id, { within: PATIENCE_MS });
       void watch();
     } catch (error) {
       noAnswer(error);

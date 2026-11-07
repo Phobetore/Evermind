@@ -74,11 +74,14 @@ export function networkFailure(error: unknown): unknown {
   return new DataError("Network error", { kind: "network", cause: error });
 }
 
-/** The response to a request, once it is known to have succeeded. */
+/** The response to a request, once it is known to have succeeded. With `within`, a request whose
+ *  answer has not begun after that many milliseconds is given up on as unanswered, which is all a
+ *  connection that died in silence ever gives; its body then takes as long as it takes. */
 export async function send(
   path: string,
   init?: RequestInit,
   fetchImpl: typeof fetch = lazyFetch,
+  within?: number,
 ): Promise<Response> {
   const headers = new Headers(init?.headers);
   // A multipart body must go out without a content type of its own: the
@@ -86,11 +89,23 @@ export async function send(
   if (typeof init?.body === "string" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
+  let signal = init?.signal;
+  let late: ReturnType<typeof setTimeout> | undefined;
+  if (within !== undefined) {
+    const giveUp = new AbortController();
+    const asker = init?.signal;
+    if (asker?.aborted) giveUp.abort(asker.reason);
+    asker?.addEventListener("abort", () => giveUp.abort(asker.reason), { once: true });
+    late = setTimeout(() => giveUp.abort(new DataError("No answer in time.", { kind: "network" })), within);
+    signal = giveUp.signal;
+  }
   let resp: Response;
   try {
-    resp = await fetchImpl(path, { ...init, headers });
+    resp = await fetchImpl(path, { ...init, headers, signal });
   } catch (error) {
-    throw networkFailure(error);
+    throw networkFailure(signal?.reason instanceof DataError ? signal.reason : error);
+  } finally {
+    clearTimeout(late);
   }
   if (!resp.ok) await raiseFor(resp);
   return resp;
@@ -100,8 +115,9 @@ export async function request<T>(
   path: string,
   init?: RequestInit,
   fetchImpl?: typeof fetch,
+  within?: number,
 ): Promise<T> {
-  const resp = await send(path, init, fetchImpl);
+  const resp = await send(path, init, fetchImpl, within);
   if (resp.status === 204) return undefined as T;
   return resp.json();
 }

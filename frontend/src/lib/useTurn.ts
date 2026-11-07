@@ -1,8 +1,8 @@
-import { data, DataError } from "@/data";
+import { data, DataError, type Asking } from "@/data";
 import type { TurnState } from "@/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const PATIENCE_MS = 10_000;
+export const PATIENCE_MS = 10_000;
 const AFTER_A_FAILURE_MS = 2_000;
 const AFTER_A_CLOSE_MS = 1_000;
 /** `online` and `visibilitychange` tend to arrive together as a phone wakes. */
@@ -44,7 +44,7 @@ const asked = new Set<string>();
 /** The reply being written: ask the server how it stands, read, follow the words until that ends
  *  for any reason, ask again. `read` fetches the conversation and hands back what shows it, which
  *  says whether it did. */
-export function useTurn(id: string, read: () => Promise<() => boolean>) {
+export function useTurn(id: string, read: (asking: Asking) => Promise<() => boolean>) {
   // The message being written, "" until the server says which.
   const [writing, setWriting] = useState<string | null>(null);
   const [lost, setLost] = useState<unknown>(null);
@@ -60,12 +60,14 @@ export function useTurn(id: string, read: () => Promise<() => boolean>) {
     const reader = new AbortController();
     watching.current = reader;
     const { signal } = reader;
+    const asking = { signal, within: PATIENCE_MS };
     while (!signal.aborted) {
+      const started = Date.now();
       try {
-        const state = await inTime(data.turns.state(id));
+        const state = await data.turns.state(id, asking);
         if (signal.aborted) return;
         if (shown.current.behind || (state.running ? state.message_id : null) !== shown.current.writing) {
-          const show = await inTime(read());
+          const show = await read(asking);
           if (signal.aborted) return;
           // Older than a change made by hand meanwhile, it is not shown, and another is sent.
           if (!show()) continue;
@@ -97,7 +99,7 @@ export function useTurn(id: string, read: () => Promise<() => boolean>) {
         if (signal.aborted) return;
         shown.current.behind = true;
         setLost(error);
-        await pause(AFTER_A_FAILURE_MS);
+        await pause(AFTER_A_FAILURE_MS - (Date.now() - started));
       }
     }
   }, [id, read, text]);

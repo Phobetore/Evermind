@@ -607,6 +607,67 @@ describe("turns", () => {
   });
 });
 
+/** A server that answers once it is let, or never, and sees a request given up on. */
+function answering() {
+  let answer = () => {};
+  const given: AbortSignal[] = [];
+  const fetchImpl = ((_input: RequestInfo | URL, init: RequestInit = {}) => {
+    given.push(init.signal!);
+    return new Promise<Response>((resolve, reject) => {
+      answer = () => resolve(json({ running: false, outcome: null, revision: 1 }));
+      init.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+    });
+  }) as typeof fetch;
+  return { source: createHttpSource(fetchImpl), given, answer: () => answer() };
+}
+
+describe("patience", () => {
+  test("a question whose answer has not begun in time is given up on, as unanswered", async () => {
+    const server = answering();
+    const failure = await server.source.turns.state("v1", { within: 20 }).catch((e) => e);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.kind).toBe("network");
+    expect(server.given[0].aborted, "it is left hanging on a connection").toBe(true);
+  });
+
+  test("is for the answer to begin, not for all of it to arrive", async () => {
+    const encoder = new TextEncoder();
+    const slow = (async () => new Response(new ReadableStream({
+      async start(controller) {
+        controller.enqueue(encoder.encode('{"id": "v1", '));
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        controller.enqueue(encoder.encode('"title": "Long"}'));
+        controller.close();
+      },
+    }), { status: 200 })) as typeof fetch;
+    await expect(createHttpSource(slow).conversations.get("v1", { within: 20 }))
+      .resolves.toEqual({ id: "v1", title: "Long" });
+  });
+
+  test("a question its asker gives up on stays given up on", async () => {
+    const server = answering();
+    const asker = new AbortController();
+    const asked = server.source.conversations.get("v1", { signal: asker.signal, within: 10_000 });
+    asker.abort();
+    await expect(asked).rejects.toHaveProperty("name", "AbortError");
+    expect(server.given[0].aborted).toBe(true);
+  });
+
+  test("an answer in time is the answer", async () => {
+    const server = answering();
+    const asked = server.source.turns.stop("v1", { within: 10_000 });
+    server.answer();
+    await expect(asked).resolves.toEqual({ running: false, outcome: null, revision: 1 });
+  });
+
+  test("the turn's state is asked past any cache, where a request left hanging would hold it", async () => {
+    reply(json({ running: false, outcome: null, revision: 1 }));
+    await http.turns.state("v1");
+    expect(calls[0].url).toBe("api/conversations/v1/turn");
+    expect(calls[0].init.cache).toBe("no-store");
+  });
+});
+
 // The interface can be served from under a path (`/evermind/`, behind a reverse
 // proxy that strips it), and the page's own address is always the root of the
 // app, since its routes live after the "#". An address with a leading slash
