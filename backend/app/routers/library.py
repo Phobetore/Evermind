@@ -13,7 +13,6 @@ from ..config import library_dir, media_dir
 from ..db import get_db
 from ..errors import AppError, NotFoundError
 from ..repositories import characters as characters_repo
-from ..repositories import lore as lore_repo
 from ..repositories.base import new_id
 
 router = APIRouter(prefix="/api/library", tags=["library"])
@@ -99,7 +98,4 @@ async def install_card(filename: str, db: aiosqlite.Connection = Depends(get_db)
         target = f"{new_id()}{image.suffix}"
         shutil.copyfile(image, media_dir() / target)
         fields["avatar_path"] = target
-    created = await characters_repo.create(db, fields)
-    for entry in card_to_lore_entries(card):
-        await lore_repo.add(db, created["id"], **entry)
-    return created
+    return await characters_repo.create(db, {**fields, "lore_entries": card_to_lore_entries(card)})

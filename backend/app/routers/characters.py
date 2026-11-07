@@ -97,10 +97,7 @@ async def import_character(file: UploadFile, db: aiosqlite.Connection = Depends(
                            kind="unrecognized_card_file")
     fields = card_to_character(card)
     fields["avatar_path"] = avatar_path
-    created = await repo.create(db, fields)
-    for entry in card_to_lore_entries(card):
-        await lore_repo.add(db, created["id"], **entry)
-    return created
+    return await repo.create(db, {**fields, "lore_entries": card_to_lore_entries(card)})
 
 
 @router.post("/assist")

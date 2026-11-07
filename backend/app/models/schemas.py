@@ -127,14 +127,6 @@ class SettingsIn(BaseModel):
     update_check: bool | None = None
 
 
-class LoreEntryPatch(BaseModel):
-    keys: list[str] | None = None
-    content: str | None = Field(default=None, max_length=4000)
-    enabled: bool | None = None
-    case_sensitive: bool | None = None
-    priority: int | None = None
-
-
 class MemoryIn(BaseModel):
     content: str = Field(max_length=2000)
     is_pinned: bool = False

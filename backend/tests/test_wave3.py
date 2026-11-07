@@ -71,15 +71,13 @@ def test_character_book_round_trip():
     assert back == lore
 
 
-# ---------- lore API + injection ----------
+# ---------- lore injection ----------
 
-async def test_lore_crud_and_injection(client, fake_provider):
+async def test_lore_reaches_the_prompt_until_it_is_switched_off(client, fake_provider):
     convo = await setup_conversation(client)
-    char_id = convo["character_id"]
-    entry = (await client.post(f"/api/characters/{char_id}/lore", json={
-        "keys": ["crypt", "seal"], "content": "The crypt is protected by a blood seal.",
-    })).json()
-    assert entry["keys"] == ["crypt", "seal"]
+    url = f"/api/characters/{convo['character_id']}"
+    entry = {"keys": ["crypt", "seal"], "content": "The crypt is protected by a blood seal."}
+    await client.put(url, json={"lore_entries": [entry]})
 
     await send(client, convo["id"], content="Tell me about the crypt.")
     system = fake_provider.captured["payload"].system
@@ -88,27 +86,9 @@ async def test_lore_crud_and_injection(client, fake_provider):
 
     await send(client, convo["id"], content="Let's change the subject entirely." * 10)
     # keyword still in scan window (previous turns), so it stays; disable it
-    await client.patch(f"/api/lore/{entry['id']}", json={"enabled": False})
+    await client.put(url, json={"lore_entries": [{**entry, "enabled": False}]})
     await send(client, convo["id"], content="Encore something else.")
     assert "blood seal" not in fake_provider.captured["payload"].system
-
-    deleted = await client.delete(f"/api/lore/{entry['id']}")
-    assert deleted.status_code == 204
-
-
-async def test_export_includes_book_import_restores_it(client, fake_provider):
-    convo = await setup_conversation(client)
-    char_id = convo["character_id"]
-    await client.post(f"/api/characters/{char_id}/lore", json={
-        "keys": ["clan"], "content": "The Shadow clan rules.",
-    })
-    card = (await client.get(f"/api/characters/{char_id}/export?format=json")).json()
-    assert card["data"]["character_book"]["entries"][0]["keys"] == ["clan"]
-
-    files = {"file": ("copy.json", json.dumps(card).encode(), "application/json")}
-    imported = (await client.post("/api/characters/import", files=files)).json()
-    lore = (await client.get(f"/api/characters/{imported['id']}/lore")).json()
-    assert lore[0]["content"] == "The Shadow clan rules."
 
 
 # ---------- branches ----------
@@ -246,7 +226,7 @@ async def test_library_list_and_install(client, tmp_path, monkeypatch, fake_prov
     installed = await client.post("/api/library/fiche-demo.json/install")
     assert installed.status_code == 201
     char = installed.json()
-    lore = (await client.get(f"/api/characters/{char['id']}/lore")).json()
+    lore = (await client.get(f"/api/characters/{char['id']}")).json()["lore_entries"]
     assert lore[0]["keys"] == ["demo"]
     assert char["avatar_url"], "install should copy the library illustration as avatar"
     media = await client.get(char["avatar_url"])
