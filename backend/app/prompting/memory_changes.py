@@ -32,24 +32,13 @@ def answer_texts(parsed: dict) -> list[str]:
 
 
 def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -> dict:
-    """The changes that an extraction's answer makes to ``existing``, the facts of the
-    conversation as they are, each with its ``id``: the facts it adds, corrects and drops.
-
-    Its changes are read in order, the new facts first, and each is decided on what the ones
-    before it leave, so that one can reach a fact that an earlier one added: that fact keeps
-    its add, which a correction rewrites and a drop takes back. Several facts can say the same
-    thing, since a person may edit one into what another says: the first of ``existing`` is
-    the one that a correction or a drop reaches.
-
-    Only a fact that the model wrote and nobody pinned is for it to correct or drop: the
-    model leaves alone what a person typed or pinned, and adds nothing in its place. A
-    correction into the text of another fact drops the corrected one instead, since what it
-    says is recorded already.
-
-    ``{"add": [{"content", "source_position"}], "update": {id: content}, "delete":
-    [id], "summary": ...}``, with ``summary`` None when the answer holds none to keep. Applied
-    in that order, deletes first, an add never repeats what a fact says.
-    """
+    """The changes an extraction's answer makes to ``existing``, the facts as they are, each with
+    its ``id``. Each change is decided on what the ones before it leave, so the answer can correct
+    or drop a fact it adds; a text reaches the first fact of ``existing`` that says it. The model
+    corrects or drops only a fact it wrote and nobody pinned, adds nothing in place of the others,
+    and drops a fact it corrects into another fact's text. ``{"add": [{"content",
+    "source_position"}], "update": {id: content}, "delete": [id], "summary": str | None}``,
+    applied deletes, then updates, then adds, so an add never repeats what a fact says."""
     known = [{"id": m["id"], "content": m["content"], "movable": is_movable(m)} for m in existing]
     adds: list[dict] = []
     updates: dict[str, str] = {}
