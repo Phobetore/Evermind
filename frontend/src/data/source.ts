@@ -122,7 +122,6 @@ export interface ConversationInput {
   character_id: string;
   persona_id: string | null;
   connection_id: string | null;
-  greeting_index: number;
 }
 
 export interface ConversationPatch {

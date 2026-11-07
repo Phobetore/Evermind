@@ -22,7 +22,6 @@ export function StartChatModal({
   const [connections, setConnections] = useState<Connection[]>([]);
   const [personaId, setPersonaId] = useState<string>("");
   const [connectionId, setConnectionId] = useState<string>("");
-  const [greetingIndex, setGreetingIndex] = useState(0);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
@@ -49,10 +48,6 @@ export function StartChatModal({
     setAttempt((n) => n + 1);
   }
 
-  const greetings = [character.greeting, ...character.alternate_greetings].filter(
-    (g) => g && g.trim(),
-  );
-
   async function start() {
     setStarting(true);
     setError(null);
@@ -61,7 +56,6 @@ export function StartChatModal({
         character_id: character.id,
         persona_id: personaId || null,
         connection_id: connectionId || null,
-        greeting_index: greetingIndex,
       });
       navigate(`/chat/${convo.id}`);
     } catch (e) {
@@ -113,25 +107,6 @@ export function StartChatModal({
                   {connections.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} {c.model ? `· ${c.model}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-
-            {greetings.length > 1 && (
-              <Field label={t("characters.detail.openingHeading")}>
-                <select
-                  className="field"
-                  value={greetingIndex}
-                  onChange={(e) => setGreetingIndex(Number(e.target.value))}
-                >
-                  {greetings.map((g, i) => (
-                    <option key={i} value={i}>
-                      {i === 0
-                        ? t("cards.startChatModal.mainGreetingOption")
-                        : t("cards.startChatModal.alternateGreetingOption", { index: i })}{" "}
-                      : {g.slice(0, 60)}…
                     </option>
                   ))}
                 </select>
