@@ -642,6 +642,26 @@ async def test_a_summary_put_right_over_a_pass_stays_with_a_branch_from_after_it
     assert (branch["memory_position"], branch["summary"]) == (8, SERANA)
 
 
+async def test_a_cut_back_to_a_summary_put_right_before_puts_the_later_one_on_its_row(
+        client, fake_provider):
+    """The newest row holds the memory's summary: a save from the panel over it finds it there, and
+    the memory stays at that pass."""
+    convo_id = (await setup_conversation(client))["id"]
+    await put_right_then_read_on(client, convo_id)
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": LATER})
+
+    await remove_from(client, convo_id, 12)
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (8, LATER)
+    assert await summaries_of(convo_id) == [(8, LATER)]
+    await client.patch(f"/api/conversations/{convo_id}",
+                       json={"summary": "Edited in the panel.", "summary_was": LATER})
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (8, "Edited in the panel.")
+    assert await summaries_of(convo_id) == [(8, "Edited in the panel.")]
+
+
 async def test_a_pass_that_gives_no_summary_keeps_a_typed_one_as_typed(client, fake_provider):
     """Its row holds what the person typed, so that a cut back to it gives that back after a
     later pass has rewritten it."""
