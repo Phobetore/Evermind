@@ -67,8 +67,9 @@ function serverEnv(port: number, dataDir: string, password: string) {
 }
 
 // The phone runs every spec. Desktop runs only what could differ with a mouse and a wide
-// screen: the one path through a chat, the widths, and hover.
-const ON_DESKTOP = ["chat", "responsive", "touch"].map((name) => `**/${name}.spec.ts`);
+// screen: the one path through a chat, the widths, hover, and the tests tagged @desktop.
+// A project's grep reads the file's name, then the test's title and tags.
+const ON_DESKTOP = [/ (chat|responsive|touch)\.spec\.ts /, /@desktop/];
 
 export default defineConfig({
   testDir: "./e2e",
@@ -89,7 +90,7 @@ export default defineConfig({
   },
 
   projects: [
-    { name: "desktop", testMatch: ON_DESKTOP, use: { ...devices["Desktop Chrome"] } },
+    { name: "desktop", grep: ON_DESKTOP, use: { ...devices["Desktop Chrome"] } },
     // The phone is not a nicety here: every layout bug this suite exists for
     // was invisible at desktop width.
     { name: "phone", use: { ...devices["Pixel 7"] } },

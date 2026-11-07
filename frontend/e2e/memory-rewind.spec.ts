@@ -182,6 +182,32 @@ test("a summary a pass wrote meanwhile shows when the person comes back to the w
   await expect(summary).toHaveValue(/woke the character in a crypt/);
 });
 
+// On a laptop the panel stays beside the conversation and the window keeps its focus, so
+// nothing else reads what a pass wrote before the person starts editing the summary.
+test("the summary box shows what a pass wrote when it is entered", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
+    timeout: 60_000,
+  });
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await expect(summary).toHaveValue("");
+  // The reads of the opening are done before the pass writes.
+  await page.waitForLoadState("networkidle");
+
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await summary.click();
+
+  await expect(summary).toHaveValue(/woke the character in a crypt/);
+});
+
 // Moving from the directive to the summary sends the directive's save (on blur) and a read
 // of the conversation (on focus) together. A read answered from before the save, arriving
 // after it, put the old directive back on screen, and the next edit started from it.
