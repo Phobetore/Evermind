@@ -177,7 +177,7 @@ A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
 - **There is one port, `PORT`.** From the source, the API used to listen on its
   own, on 8000. Anything of yours that called it there directly, a script for
   instance, now uses the same address as the interface.
-  `EVERMIND_BACKEND_PORT` is only for development now (`scripts/dev`), and
+  `EVERMIND_BACKEND_PORT` is only for development now (`python -m app --dev`), and
   `EVERMIND_BACKEND_URL` is not read at all any more. If either is in your
   `.env`, you can delete the line.
 - **Your `.env` is read as written.** From the source, Evermind reads it itself
