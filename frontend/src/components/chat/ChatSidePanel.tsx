@@ -170,8 +170,9 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
+      if (!result.skipped) onConversationChange({ memory_error: null });
       if (result.summary) {
-        onConversationChange({ summary: result.summary, memory_error: null });
+        onConversationChange({ summary: result.summary });
         setSummaryDraft(null);
       }
       const said = describeExtraction(result, t, conversation.summary);
@@ -227,6 +228,7 @@ export function ChatSidePanel({
   }
 
   async function togglePin(memory: Memory) {
+    fail("memory", null);
     try {
       const updated = await data.memories.update(memory.id, { is_pinned: !memory.is_pinned });
       setMemories((prev) => prev.map((m) => (m.id === memory.id ? updated : m)));
@@ -236,6 +238,7 @@ export function ChatSidePanel({
   }
 
   async function removeFact(memory: Memory) {
+    fail("memory", null);
     try {
       await data.memories.remove(memory.id);
       setMemories((prev) => prev.filter((m) => m.id !== memory.id));
