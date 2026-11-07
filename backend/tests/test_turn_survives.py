@@ -17,7 +17,19 @@ from app.prompting import embeddings
 from app.providers.base import NETWORK_ERROR, ProviderEvent, failure
 from app.services import turns
 from tests.test_chat import messages_of, send, setup_conversation
-from tests.test_streaming_persistence import UnhurriedProvider
+
+
+class UnhurriedProvider:
+    """Streams slowly enough that the turn can be cut in the middle of it."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        for i in range(12):
+            yield ProviderEvent(type="delta", text=f"mot{i} ")
+            await asyncio.sleep(0.08)
+        yield ProviderEvent(type="done")
 
 
 @pytest.fixture()

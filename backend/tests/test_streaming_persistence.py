@@ -12,24 +12,13 @@ import pytest
 from app.models.schemas import ChatRequest
 from app.providers.base import ProviderEvent
 from app.services import turns
-from tests.test_chat import messages_of, send, setup_conversation
+from tests.test_chat import messages_of, setup_conversation
 
 
-class UnhurriedProvider:
-    """Streams slowly enough that the turn can be cut in the middle of it."""
+class HeldBack:
+    """Five words, then nothing more until the test lets it go."""
 
-    def __init__(self, connection):
-        self.connection = connection
-
-    async def stream_chat(self, payload):
-        for i in range(12):
-            yield ProviderEvent(type="delta", text=f"mot{i} ")
-            await asyncio.sleep(0.08)
-        yield ProviderEvent(type="done")
-
-
-class FiveWordsThenNothing:
-    """Five words, then a model that says nothing more until the turn goes."""
+    let_go: asyncio.Event
 
     def __init__(self, connection):
         self.connection = connection
@@ -37,20 +26,20 @@ class FiveWordsThenNothing:
     async def stream_chat(self, payload):
         for i in range(5):
             yield ProviderEvent(type="delta", text=f"mot{i} ")
-        await asyncio.Event().wait()
-        yield ProviderEvent(type="done")  # pragma: no cover
+        await HeldBack.let_go.wait()
+        yield ProviderEvent(type="delta", text="fin")
+        yield ProviderEvent(type="done")
 
 
 @pytest.fixture()
-def unhurried(monkeypatch):
-    monkeypatch.setattr("app.services.chat_service.get_provider", UnhurriedProvider)
-    monkeypatch.setattr("app.services.memory_service.get_provider", UnhurriedProvider)
+def held_back(monkeypatch):
+    HeldBack.let_go = asyncio.Event()
+    monkeypatch.setattr("app.services.chat_service.get_provider", HeldBack)
+    monkeypatch.setattr("app.services.chat_service._FLUSH_SECONDS", 0)
 
 
 async def test_a_server_going_down_keeps_every_word_written_and_says_it_was_cut_short(
-        client, monkeypatch):
-    monkeypatch.setattr("app.services.chat_service.get_provider", FiveWordsThenNothing)
-    monkeypatch.setattr("app.services.chat_service._FLUSH_SECONDS", 0)
+        client, held_back):
     convo = await setup_conversation(client)
     turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Coupe-moi"))
 
@@ -69,27 +58,19 @@ async def test_a_server_going_down_keeps_every_word_written_and_says_it_was_cut_
     assert await turns.running_for(convo["id"]) is None
 
 
-async def test_a_reply_says_it_is_unfinished_until_it_is_whole(client, unhurried):
+async def test_a_reply_says_it_is_unfinished_until_it_is_whole(client, held_back):
     convo = await setup_conversation(client)
     turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Ecris-moi"))
 
-    async def begun():
-        while (await messages_of(client, convo["id"]))[-1]["role"] != "assistant":
-            await asyncio.sleep(0.02)
+    async def cut_short():
+        while (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") != [0]:
+            await asyncio.sleep(0.01)
 
-    await asyncio.wait_for(begun(), timeout=10)
-    assert (await messages_of(client, convo["id"]))[-1]["meta"]["interrupted"] == [0]
-    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+    await asyncio.wait_for(cut_short(), timeout=10)
+    HeldBack.let_go.set()
+    await asyncio.wait_for(turn.finished.wait(), timeout=10)
 
-    reply = (await messages_of(client, convo["id"]))[-1]
-    assert reply["content"].strip().endswith("mot11")
-    assert "interrupted" not in reply["meta"]
-
-
-async def test_the_reply_is_one_message_not_one_per_flush(client, unhurried):
-    """Every flush rewrites the same row; a fresh insert each time would stack up."""
-    convo = await setup_conversation(client)
-    await send(client, convo["id"], content="Ecris-moi")
-
-    roles = [m["role"] for m in await messages_of(client, convo["id"])]
-    assert roles == ["assistant", "user", "assistant"], roles
+    messages = await messages_of(client, convo["id"])
+    assert [m["role"] for m in messages] == ["assistant", "user", "assistant"], "a write added a message"
+    assert messages[-1]["content"] == "mot0 mot1 mot2 mot3 mot4 fin"
+    assert "interrupted" not in messages[-1]["meta"]
