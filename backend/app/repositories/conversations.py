@@ -78,8 +78,7 @@ async def update(db: aiosqlite.Connection, convo_id: str, fields: dict) -> dict 
     if fields.get("summary") is not None:
         await _type_summary(db, convo_id, fields["summary"], fields.get("summary_was"))
     sets, params = [], []
-    for key in ("title", "author_note", "persona_id", "connection_id",
-                "wallpaper_path", "wallpaper_opacity"):
+    for key in ("title", "author_note", "connection_id", "wallpaper_path", "wallpaper_opacity"):
         if key in fields and fields[key] is not None:
             sets.append(f"{key} = ?")
             params.append(fields[key])

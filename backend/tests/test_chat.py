@@ -214,11 +214,12 @@ async def test_impersonate_flips_roles(client, fake_provider):
 
 
 async def test_impersonate_prompt_holds_the_persona_and_the_story_so_far(client, fake_provider):
-    convo = await setup_conversation(client, greeting="*She stirs.*")
+    first = await setup_conversation(client, greeting="*She stirs.*")
     persona = (await client.post("/api/personas", json={
         "name": "Marin", "description": "A courier with a limp."})).json()
-    await client.patch(f"/api/conversations/{convo['id']}", json={
-        "persona_id": persona["id"], "summary": "They met in a crypt."})
+    convo = (await client.post("/api/conversations", json={
+        "character_id": first["character_id"], "persona_id": persona["id"]})).json()
+    await client.patch(f"/api/conversations/{convo['id']}", json={"summary": "They met in a crypt."})
     await send(client, convo["id"])
     fake_provider.script = [ProviderEvent(type="delta", text="*Je souris.*"),
                             ProviderEvent(type="done")]

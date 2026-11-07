@@ -367,6 +367,18 @@ async def test_conversation_list_patch_delete(client):
     assert gone.status_code == 404
 
 
+async def test_a_patch_leaves_the_persona_alone(client):
+    """No screen changes it there, and an id gone stale made the whole patch fail."""
+    char = await create_character(client)
+    convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
+
+    resp = await client.patch(f"/api/conversations/{convo['id']}",
+                              json={"persona_id": "gone", "title": "Crypt run"})
+
+    assert resp.status_code == 200, resp.text
+    assert (resp.json()["persona_id"], resp.json()["title"]) == (convo["persona_id"], "Crypt run")
+
+
 async def test_conversation_without_greeting_has_no_messages(client):
     char = await create_character(client, greeting="")
     convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
