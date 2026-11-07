@@ -48,8 +48,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
     edition: "self-hosted",
 
     characters: {
-      list: (query) =>
-        get<Character[]>(`api/characters${queryString({ kind: query?.kind, q: query?.q?.trim() })}`),
+      list: () => get<Character[]>("api/characters"),
       get: (id) => get<CharacterWithLore>(`api/characters/${seg(id)}`),
       create: (input) => post<Character>("api/characters", input),
       update: (id, input) => put<Character>(`api/characters/${seg(id)}`, input),

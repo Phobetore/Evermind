@@ -9,7 +9,7 @@ import { describeError } from "@/lib/errors";
 import type { Character, Kind } from "@/types";
 import { clsx } from "clsx";
 import { FileUp, LibraryBig, Plus, Search, Sparkles, Star } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 /** These three lose their labels on a phone, but kept 1.1rem of side padding
@@ -35,19 +35,14 @@ export function HomePage() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
-  const load = useCallback(async (kind: Kind | "all", q: string) => {
-    try {
-      setCharacters(await data.characters.list({ kind: kind === "all" ? undefined : kind, q }));
+  const load = () =>
+    data.characters.list().then((list) => {
+      setCharacters(list);
       setFailure(null);
-    } catch (error) {
-      setFailure({ error });
-    }
-  }, []);
-
+    }, (error) => setFailure({ error }));
   useEffect(() => {
-    const t = setTimeout(() => load(tab, query), query ? 250 : 0);
-    return () => clearTimeout(t);
-  }, [tab, query, load]);
+    load();
+  }, []);
 
   const replace = (updated: Character) =>
     setCharacters((prev) => (prev ? prev.map((c) => (c.id === updated.id ? updated : c)) : prev));
@@ -63,11 +58,12 @@ export function HomePage() {
     }
   }
 
-  const allTags = [...new Set((characters ?? []).flatMap((c) => c.tags))].slice(0, 12);
-  let shown = activeTag
-    ? (characters ?? []).filter((c) => c.tags.includes(activeTag))
-    : characters;
-  if (shown && favoritesOnly) shown = shown.filter((c) => c.is_favorite);
+  const words = query.trim().toLowerCase();
+  const found = (characters ?? []).filter((c) => (tab === "all" || c.kind === tab)
+    && [c.name, c.tagline, c.description].some((text) => text.toLowerCase().includes(words)));
+  const allTags = [...new Set(found.flatMap((c) => c.tags))].slice(0, 12);
+  const shown = characters && found.filter((c) =>
+    (!activeTag || c.tags.includes(activeTag)) && (!favoritesOnly || c.is_favorite));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
@@ -177,7 +173,7 @@ export function HomePage() {
 
       {/* Grid */}
       {failure ? (
-        <LoadFailure error={failure.error} onRetry={() => load(tab, query)} />
+        <LoadFailure error={failure.error} onRetry={load} />
       ) : shown === null ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -210,14 +206,14 @@ export function HomePage() {
       {showLibrary && (
         <LibraryModal
           onClose={() => setShowLibrary(false)}
-          onInstalled={() => load(tab, query)}
+          onInstalled={load}
         />
       )}
 
       {importOpen && (
         <ImportModal
           onClose={() => setImportOpen(false)}
-          onImported={() => load(tab, query)}
+          onImported={load}
         />
       )}
     </div>

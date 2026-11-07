@@ -82,20 +82,6 @@ describe("request building", () => {
     expect(exportedOnLocked).toBe(onLocked);
   });
 
-  test("character list builds its query", async () => {
-    reply(json([]));
-    await http.characters.list({ kind: "scenario", q: " vane " });
-    expect(calls[0].url).toBe("api/characters?kind=scenario&q=vane");
-  });
-
-  test("character list without a query has no question mark", async () => {
-    reply(json([]));
-    reply(json([]));
-    await http.characters.list();
-    await http.characters.list({ q: "   " });
-    expect(calls.map((c) => c.url)).toEqual(["api/characters", "api/characters"]);
-  });
-
   test("removeFrom deletes the message and what follows", async () => {
     await http.messages.removeFrom("m1");
     expect(calls[0]).toMatchObject({
@@ -168,6 +154,7 @@ describe("routes", () => {
   // nothing is sent.
   type Row = [name: string, run: () => Promise<unknown>, method: string, url: string, body?: unknown];
   const rows: Row[] = [
+    ["characters.list", () => http.characters.list(), "GET", "api/characters"],
     ["characters.get", () => http.characters.get("c1"), "GET", "api/characters/c1"],
     ["characters.create", () => http.characters.create(character), "POST", "api/characters", character],
     ["characters.update", () => http.characters.update("c1", { is_favorite: true }), "PUT", "api/characters/c1", { is_favorite: true }],

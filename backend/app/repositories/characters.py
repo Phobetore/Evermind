@@ -56,26 +56,10 @@ async def get_raw(db: aiosqlite.Connection, char_id: str) -> dict | None:
     return out
 
 
-async def list_all(db: aiosqlite.Connection, kind: str | None = None,
-                   q: str | None = None, tag: str | None = None) -> list[dict]:
-    sql = "SELECT * FROM characters"
-    clauses, params = [], []
-    if kind in ("character", "scenario"):
-        clauses.append("kind = ?")
-        params.append(kind)
-    if q:
-        clauses.append("(name LIKE ? OR tagline LIKE ? OR description LIKE ?)")
-        like = f"%{q}%"
-        params += [like, like, like]
-    if clauses:
-        sql += " WHERE " + " AND ".join(clauses)
-    sql += " ORDER BY is_favorite DESC, updated_at DESC"
-    rows = await (await db.execute(sql, params)).fetchall()
-    out = [to_out(r) for r in rows]
-    if tag:
-        needle = tag.lower()
-        out = [c for c in out if needle in [t.lower() for t in c["tags"]]]
-    return out
+async def list_all(db: aiosqlite.Connection) -> list[dict]:
+    rows = await (await db.execute(
+        "SELECT * FROM characters ORDER BY is_favorite DESC, updated_at DESC")).fetchall()
+    return [to_out(r) for r in rows]
 
 
 async def update(db: aiosqlite.Connection, char_id: str, fields: dict) -> dict | None:

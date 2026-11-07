@@ -9,7 +9,7 @@ import type {
 export interface DataSource {
   readonly edition: "self-hosted" | "anna";
   characters: {
-    list(query?: { kind?: Kind; q?: string }): Promise<Character[]>;
+    list(): Promise<Character[]>;
     get(id: string): Promise<CharacterWithLore>;
     /** `lore_entries` is the whole lorebook: an entry with no keyword or no text is left out. */
     create(input: CharacterInput & { lore_entries?: LoreEntryInput[] }): Promise<Character>;

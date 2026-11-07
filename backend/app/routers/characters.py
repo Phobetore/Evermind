@@ -13,9 +13,9 @@ router = APIRouter(prefix="/api/characters", tags=["characters"])
 
 
 @router.get("")
-async def list_characters(kind: str | None = None, q: str | None = None, tag: str | None = None,
-                          db: aiosqlite.Connection = Depends(get_db)):
-    return await repo.list_all(db, kind=kind, q=q, tag=tag)
+async def list_characters(db: aiosqlite.Connection = Depends(get_db)):
+    """All of them: the interface searches the list it has."""
+    return await repo.list_all(db)
 
 
 @router.post("", status_code=201)

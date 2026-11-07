@@ -19,21 +19,12 @@ async def create_character(client, **overrides):
 
 # ---------- characters ----------
 
-async def test_character_crud_and_filters(client):
+async def test_character_crud(client):
     a = await create_character(client, tags=["fantasy"], kind="character")
-    b = await create_character(client, name="The Drowned City", kind="scenario", tags=["mystery"])
+    await create_character(client, name="The Drowned City", kind="scenario", tags=["mystery"])
 
     listed = (await client.get("/api/characters")).json()
     assert {c["name"] for c in listed} == {"Serana", "The Drowned City"}
-
-    only_scenarios = (await client.get("/api/characters", params={"kind": "scenario"})).json()
-    assert [c["id"] for c in only_scenarios] == [b["id"]]
-
-    by_query = (await client.get("/api/characters", params={"q": "sera"})).json()
-    assert [c["id"] for c in by_query] == [a["id"]]
-
-    by_tag = (await client.get("/api/characters", params={"tag": "mystery"})).json()
-    assert [c["id"] for c in by_tag] == [b["id"]]
 
     updated = await client.put(f"/api/characters/{a['id']}", json={"tagline": "Vampire lady"})
     assert updated.status_code == 200
