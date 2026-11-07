@@ -119,8 +119,7 @@ export function useTurn(id: string, read: () => Promise<() => boolean>) {
     void watch();
   }, [watch]);
 
-  /** No answer came: what was asked for may be under way all the same, and how it ends is said
-   *  here. Until the server answers, that it could not be reached is. */
+  /** No answer came: what was asked for may be under way all the same, and how it ends is said here. */
   const noAnswer = useCallback((error: unknown) => {
     asked.add(id);
     setLost(error);
