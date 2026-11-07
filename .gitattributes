@@ -1,5 +1,5 @@
 # Shell scripts must stay LF in every checkout, or bash fails on them with "env: 'bash\r'".
 *.sh text eol=lf
 
-# The cases in parity/ must stay LF in every checkout, or the test that refuses a CR in them fails.
-parity/*.json text eol=lf linguist-generated=true
+# The recorded cases are compared byte for byte with what the test writes: LF in every checkout.
+backend/tests/cases/*.json text eol=lf
