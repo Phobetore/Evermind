@@ -330,6 +330,17 @@ test.describe("a failure, once something else is written", () => {
     await expect(retryButton(page)).toHaveCount(0);
   });
 
+  test("is not said again under a reply written elsewhere while the page slept", async ({ page, request }) => {
+    const convo = await regenerateFailed(page, request);
+    await chat(request, { conversation_id: convo.id, mode: "send", content: "Depuis ailleurs." });
+
+    await phoneComesBack(page);
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    await expect(report(page), "the failure came back under the reply").toHaveCount(0);
+    await expect(retryButton(page)).toHaveCount(0);
+  });
+
   test("is not said again under the reply to a message whose answer was lost", async ({ page, request }) => {
     const convo = await regenerateFailed(page, request);
     await answerLost(page);
