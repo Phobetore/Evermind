@@ -1,5 +1,6 @@
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { clearDraft, pruneDrafts } from "@/lib/drafts";
@@ -15,6 +16,7 @@ export function ChatListPage() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [withDraft, setWithDraft] = useState<Set<string>>(new Set());
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
   async function saveRename(convo: Conversation) {
     const title = renameDraft.trim();
@@ -31,10 +33,11 @@ export function ChatListPage() {
       .list()
       .then((list) => {
         setConversations(list);
+        setFailure(null);
         // also drops drafts left behind by conversations deleted elsewhere
         setWithDraft(pruneDrafts(list.map((c) => c.id)));
       })
-      .catch(() => {});
+      .catch((error) => setFailure({ error }));
   useEffect(() => {
     load();
   }, []);
@@ -56,7 +59,9 @@ export function ChatListPage() {
         <p className="mt-1 text-mist">{t("chatList.subtitle")}</p>
       </header>
 
-      {conversations === null ? (
+      {failure ? (
+        <LoadFailure error={failure.error} onRetry={load} />
+      ) : conversations === null ? (
         <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
       ) : conversations.length === 0 ? (
         <EmptyState icon={MessagesSquare} title={t("chatList.emptyState.title")}>

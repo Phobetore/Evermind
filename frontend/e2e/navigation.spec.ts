@@ -48,3 +48,44 @@ test("a new page starts at the top", async ({ page, request }, testInfo) => {
   expect(await main.evaluate((el) => el.scrollHeight > el.clientHeight),
     "the form is not taller than the screen, so landing at the top proves nothing").toBe(true);
 });
+
+test("what cannot be read is said, and read again when asked", async ({ page, request }) => {
+  await makeCharacter(request);
+  await page.goto("/#/");
+  await expect(page.locator("main h1")).toBeVisible();
+  // The page is there already, and then the wifi goes.
+  const unreachable = "**/api/**";
+  for (const name of ["Conversations", "Personas", "Settings"]) {
+    await page.route(unreachable, (route) => route.abort("internetdisconnected"));
+    await page.getByRole("link", { name, exact: true }).click();
+    const failure = page.locator("main").getByRole("alert");
+    await expect(failure, `on ${name}`).toContainText("Evermind is not answering");
+    await expect(page.locator("main").getByText("Loading…"), `on ${name}`).toHaveCount(0);
+    await page.unroute(unreachable);
+    await failure.getByRole("button", { name: "Reload" }).click();
+    await expect(failure, `on ${name}`).toHaveCount(0);
+  }
+
+  await page.getByRole("link", { name: "Discover", exact: true }).click();
+  await page.route("**/api/library", (route) => route.abort("internetdisconnected"));
+  await page.getByTitle("Starter library").click();
+  const library = page.getByRole("dialog");
+  await expect(library.getByRole("alert")).toContainText("Evermind is not answering");
+  await expect(library, "said to be empty").not.toContainText("The library is empty");
+  await page.unroute("**/api/library");
+  await library.getByRole("button", { name: "Reload" }).click();
+  await expect(library.locator("h3").first()).toBeVisible();
+  await expect(library.getByRole("alert")).toHaveCount(0);
+});
+
+test("the language is chosen in the sidebar, or in the settings where there is none", { tag: "@desktop" }, async ({ page, isMobile }) => {
+  await page.goto("/#/settings");
+  const inSettings = page.locator("main").getByLabel("Language");
+  const inSidebar = page.locator("aside").getByLabel("Language");
+  const [shown, other] = isMobile ? [inSettings, inSidebar] : [inSidebar, inSettings];
+  await expect(other, "two of them on one screen").toBeHidden();
+  // Not under 16px on a phone: iOS zooms into a box that is.
+  if (isMobile) expect(parseFloat(await shown.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+  await shown.selectOption({ label: "Français" });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres");
+});

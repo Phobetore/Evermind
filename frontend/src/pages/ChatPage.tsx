@@ -111,14 +111,29 @@ function ChatView({ id }: { id: string }) {
   const [contextStats, setContextStats] = useState<ContextStats | null>(null);
   const [perf, setPerf] = useState<TurnPerf | null>(null);
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
+  // Until the next thing is asked for. Not the reply's banner: its Retry asks for a reply.
+  const [writeError, setWriteError] = useState<{ error: unknown } | null>(null);
+
+  /** A change made by hand, and whether the server took it. */
+  async function write(change: () => Promise<unknown>) {
+    setWriteError(null);
+    try {
+      await change();
+      return true;
+    } catch (error) {
+      setWriteError({ error });
+      return false;
+    }
+  }
 
   async function saveTitle() {
     if (titleDraft === null || !conversation) return;
     const title = titleDraft.trim();
     setTitleDraft(null);
     if (!title || title === conversation.title) return;
-    await data.conversations.update(conversation.id, { title });
-    setConversation((c) => (c ? { ...c, title } : c));
+    if (await write(() => data.conversations.update(conversation.id, { title }))) {
+      setConversation((c) => (c ? { ...c, title } : c));
+    }
   }
 
   /** Live on every pixel of the drag, written once it settles: a range input
@@ -518,6 +533,7 @@ function ChatView({ id }: { id: string }) {
   ) {
     if (!conversation || busy) return;
     turnStore.fail(id, null);
+    setWriteError(null);
     stickToBottom.current = true;
     const controller = new AbortController();
     setBeforeTurn(new Set(known.map((m) => m.id)));
@@ -930,20 +946,20 @@ function ChatView({ id }: { id: string }) {
             </div>
           )}
           <div className="relative mx-auto max-w-3xl px-4 py-6">
-            {visibleMessages.map((message, i) => (
+            {visibleMessages.map((message) => (
               <ChatMessage
                 key={message.id}
                 message={message}
                 character={character}
                 persona={persona}
-                isLast={i === visibleMessages.length - 1 && message.role === "assistant"}
+                isLast={message.id === lastMessage?.id && (message.role === "assistant" || !cutOff)}
                 busy={busy}
-                onSwipe={(index) => swipe(message, index)}
+                onSwipe={(index) => write(() => swipe(message, index))}
                 onRegenerate={() => runTurn("regenerate")}
                 onContinue={() => runTurn("continue")}
-                onEdit={(content) => edit(message, content)}
-                onDeleteFrom={() => deleteFrom(message)}
-                onBranch={() => branchFrom(message)}
+                onEdit={(content) => write(() => edit(message, content))}
+                onDeleteFrom={() => write(() => deleteFrom(message))}
+                onBranch={() => write(() => branchFrom(message))}
               />
             ))}
 
@@ -991,6 +1007,12 @@ function ChatView({ id }: { id: string }) {
           </div>
         </div>
 
+        {/* Out of the scrolling: what failed may be far above, or in the header. */}
+        {writeError && (
+          <p role="alert" className="border-t border-ink-700 bg-ink-900 px-4 py-2 text-center text-sm text-blood">
+            {describeError(writeError.error, t)}
+          </p>
+        )}
         <ChatInput
           conversationId={conversation.id}
           onSend={sendMessage}

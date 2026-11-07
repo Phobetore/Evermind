@@ -193,6 +193,9 @@ test("a connection that stays dead is reported rather than left silent", async (
   await expect(writing(page), "still drawn as being written").toHaveCount(0);
   const [words, under] = [await looseWords(page).boundingBox(), await report.boundingBox()];
   expect(words!.y, "the report is not below the words").toBeLessThan(under!.y);
+  // Retry asks first, where Regenerate on the message would ask for a second reply.
+  await expect(page.locator("[data-message-id]", { hasText: "Personne." }).getByTitle("Regenerate"))
+    .toHaveCount(0);
 
   // The server never heard any of this, and is still writing.
   await stopTurn(request, convo.id);

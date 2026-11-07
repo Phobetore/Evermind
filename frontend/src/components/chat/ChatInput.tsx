@@ -75,8 +75,8 @@ export function ChatInput({
   const [enterSends, setEnterSends] = useState(true);
   const ref = useRef<HTMLTextAreaElement>(null);
   const held = useRef({ value, mode });
-  // What the draft says as far as this input knows, and so what needs no writing.
-  const saved = useRef(value);
+  // The pen's last suggestion, which pressing it again replaces while it is as written.
+  const suggested = useRef("");
 
   useEffect(() => {
     held.current = { value, mode };
@@ -87,7 +87,6 @@ export function ChatInput({
       read: () => held.current.value,
       write(text, nextMode = held.current.mode) {
         held.current = { value: text, mode: nextMode };
-        saved.current = text; // whoever writes here has written the draft too
         setValue(text);
         setMode(nextMode);
         setRestored(text.trim() !== "");
@@ -118,17 +117,11 @@ export function ChatInput({
     return () => clearTimeout(timer);
   }, [restored]);
 
-  // Persist on a short delay: typing costs one write per pause, not one per key.
-  // Only what has changed: an input that has only just appeared has nothing to say,
-  // and what it read a moment ago may no longer be what the draft says.
-  useEffect(() => {
-    if (value === saved.current) return;
-    const timer = setTimeout(() => {
-      saved.current = value;
-      saveDraft(conversationId, value);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [conversationId, value]);
+  /** Kept as it is typed: a phone can drop the page at any moment. */
+  function change(text: string) {
+    setValue(text);
+    saveDraft(conversationId, text);
+  }
 
   function submit() {
     const content = value.trim();
@@ -139,7 +132,7 @@ export function ChatInput({
     setSilent(false);
     setValue("");
     clearDraft(conversationId);
-    saved.current = "";
+    suggested.current = ""; // sent, it is the person's message, given back or not
     setMode("say"); // narration and OOC are one-shot by nature
     held.current = { value: "", mode: "say" }; // before anything is given back to it
     void onSend(content, mode);
@@ -152,7 +145,12 @@ export function ChatInput({
     setSilent(false);
     try {
       const result = await data.turns.impersonate(conversationId);
-      setValue(result.text);
+      const last = suggested.current;
+      suggested.current = result.text;
+      // Under what the box holds, which is where a message given back to it is looked for.
+      const box = held.current.value;
+      const kept = last && box.endsWith(last) ? box.slice(0, -last.length).trimEnd() : box;
+      change(kept.trim() ? `${kept}\n${result.text}` : result.text);
       ref.current?.focus();
     } catch (e) {
       // The model saying nothing is not the same as a mistake, and it used to
@@ -205,7 +203,7 @@ export function ChatInput({
         <textarea
           ref={ref}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => change(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && hasKeyboard()) {
               e.preventDefault();

@@ -32,7 +32,8 @@ export function ChatMessage({
   onSwipe: (index: number) => void;
   onRegenerate: () => void;
   onContinue: () => void;
-  onEdit: (content: string) => void;
+  /** Whether the server took it: if not, the rewrite stays open. */
+  onEdit: (content: string) => Promise<boolean>;
   onDeleteFrom: () => void;
   onBranch: () => void;
 }) {
@@ -94,14 +95,17 @@ export function ChatMessage({
               that concern the reply and the four that concern the message: two
               lines of two and four, not one of five and one that is alone. */}
           <div className="hover-actions ml-auto flex items-center gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:flex-wrap pointer-coarse:justify-end pointer-coarse:gap-0">
-            {!isUser && isLast && !busy && (
+            {isLast && !busy && (
               <div className="flex items-center gap-0.5 pointer-coarse:gap-0">
+                {/* On a message of the person's, the reply it is waiting for. */}
                 <IconButton title={t("chat.message.regenerateTitle")} onClick={onRegenerate}>
                   <RefreshCcw className="h-3.5 w-3.5" />
                 </IconButton>
-                <IconButton title={t("chat.message.continueTitle")} onClick={onContinue}>
-                  <StepForward className="h-3.5 w-3.5" />
-                </IconButton>
+                {!isUser && (
+                  <IconButton title={t("chat.message.continueTitle")} onClick={onContinue}>
+                    <StepForward className="h-3.5 w-3.5" />
+                  </IconButton>
+                )}
               </div>
             )}
             <div className="flex items-center gap-0.5 pointer-coarse:gap-0">
@@ -141,9 +145,8 @@ export function ChatMessage({
               <div className="flex gap-2">
                 <button
                   className="btn btn-primary !py-1.5 text-xs"
-                  onClick={() => {
-                    onEdit(draft);
-                    setEditing(false);
+                  onClick={async () => {
+                    if (await onEdit(draft)) setEditing(false);
                   }}
                 >
                   <Check className="h-3.5 w-3.5" /> {t("common.save")}
