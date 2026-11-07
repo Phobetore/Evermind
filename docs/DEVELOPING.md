@@ -335,15 +335,15 @@ carry exactly the same keys; `en` is the fallback, so it has to be complete.
 Interpolation placeholders (`{count}`, `{name}`) and card macros (`{{char}}`,
 `{{user}}`) must survive translation untouched.
 
-Key check, which CI also runs:
+The unit tests check the keys, and CI runs them:
 
 ```bash
-cd frontend && npm run check:i18n
+cd frontend && npm test
 ```
 
-It compares every locale against `en` and fails on a missing key, an unknown one,
-or a key present with an empty value. That last case is the nasty one: it renders
-as nothing at all rather than as an error.
+The check compares every locale against `en` and fails on a missing key, an
+unknown one, or a key present with an empty value. That last case is the nasty
+one: it renders as nothing at all rather than as an error.
 
 ## Docker
 
