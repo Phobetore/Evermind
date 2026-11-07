@@ -68,13 +68,6 @@ jobs:
         working-directory: frontend
         run: npm test
 
-      # A key missing from one locale renders as nothing at all, which is harder
-      # to notice than a crash and reaches whoever reads the interface in that
-      # language rather than whoever wrote it.
-      - name: Translations
-        working-directory: frontend
-        run: npm run check:i18n
-
       - name: Build
         working-directory: frontend
         run: npm run build
@@ -132,8 +125,8 @@ jobs:
 
   # The image was only ever built when cutting a release, so a broken COPY or a
   # stale base image stayed invisible behind a green CI until publishing failed.
-  # Built here and never pushed: publishing stays the job of the Docker image
-  # workflow (docker.yml).
+  # Built and started here, never pushed: publishing stays the job of the Docker
+  # image workflow (docker.yml).
   images:
     name: Image
     runs-on: ubuntu-latest
@@ -149,9 +142,20 @@ jobs:
         with:
           context: .
           file: Dockerfile
-          push: false
+          load: true
+          tags: evermind:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # A build that succeeds says nothing about a server that starts.
+      - name: Start the image
+        run: |
+          docker run -d --name ev -p 8000:8000 evermind:ci
+          curl -fsS --retry 30 --retry-delay 1 --retry-connrefused http://localhost:8000/api/health
+
+      - name: Container logs
+        if: failure()
+        run: docker logs ev
 
   # Dependabot reports a vulnerable dependency once it is already in the tree.
   # This refuses it at the door instead, on the pull request that introduces it,

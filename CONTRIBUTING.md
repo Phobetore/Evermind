@@ -32,7 +32,7 @@ The same checks CI runs, and it is faster to run them yourself:
 
 ```bash
 cd backend && ruff check app tests && pytest -q
-cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run check:i18n && npm run build
+cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
 ```
 
 CI also drives a real browser through the app (`cd frontend && npm run
@@ -77,7 +77,7 @@ speaks, and the cards themselves are not translated.
 
 The interface speaks English, French, German and Spanish, from JSON dictionaries
 in `frontend/src/i18n/locales/`. Every key must exist in all four files, which
-`npm run check:i18n` verifies.
+`npm test` verifies.
 
 Translate meaning rather than words. If a string only makes sense as an English
 idiom, write the sentence a native speaker would actually use, even when that

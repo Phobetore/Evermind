@@ -2,16 +2,17 @@
 # condition for looking again. Nothing goes in here to make a red mark green:
 # if a line cannot say why, the finding gets fixed instead.
 #
-# Both entries below come from the same place: pip vendors its own dependencies
+# The entries below come from the same place: pip vendors its own dependencies
 # and lists them in pip/_vendor/vendor.txt, which Trivy reads as if those were
 # installed packages. They are not Evermind's dependencies, the container never
 # runs pip, and there is nothing on our side to upgrade.
 
 # msgpack 1.1.2, high. Vendored inside pip, where it deserialises pip's own HTTP
 # cache. Every released pip up to 26.2.1 still vendors 1.1.2; only pip's main
-# branch has moved to the fixed 1.2.1.
-# Remove once a pip release ships msgpack >= 1.2.1.
+# branch has moved to the fixed 1.2.1, and a later advisory asks for 1.2.3.
+# Remove once a pip release ships msgpack >= 1.2.3.
 GHSA-6v7p-g79w-8964
+CVE-2026-114613
 
 # setuptools 70.3.0, high. Read from that same vendor.txt, and this one is not
 # even present: there is no pip/_vendor/setuptools directory in the image, and
