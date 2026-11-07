@@ -7,12 +7,7 @@ type Ctx = {
   status: AccessStatus | null;
   /** Asks the server again, keeps the answer, and returns it. */
   refresh(): Promise<AccessStatus>;
-  /** Whether this device has signed itself out and not been back in since. */
-  signingOut: boolean;
-  /** Signs this device out, or every device, and asks where that leaves it.
-   *  Rejects only if the sign-out itself did not go through, with the device
-   *  still signed in as far as it knows. Once it has, the device is taken as
-   *  signed out even if the status cannot be asked afterwards. */
+  /** Signs this device out, or every device. Rejects if the server did not. */
   signOut(everywhere: boolean): Promise<void>;
 };
 
@@ -28,41 +23,19 @@ const AccessContext = createContext<Ctx | null>(null);
  *  `status` is null until the server has said. */
 export function AccessProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AccessStatus | null>(data.access ? null : OPEN);
-  // Kept here, in memory, from the moment of signing out until the next time
-  // this device is let in. It is what tells the gate that the person left on
-  // purpose, and has no page to be taken back to.
-  const [signingOut, setSigningOut] = useState(false);
 
   const refresh = useCallback(async () => {
     const fresh = data.access ? await data.access.status() : OPEN;
     setStatus(fresh);
-    if (fresh.authenticated) setSigningOut(false);
     return fresh;
   }, []);
 
-  const signOut = useCallback(
-    async (everywhere: boolean) => {
-      const access = data.access;
-      if (!access) return;
-      setSigningOut(true);
-      try {
-        await (everywhere ? access.logoutEverywhere() : access.logout());
-      } catch (error) {
-        // The server was not heard to sign the device out.
-        setSigningOut(false);
-        throw error;
-      }
-      // The server has signed the device out. Asking it where that leaves the
-      // device is for the status to be exact; if it cannot be asked, the device
-      // is out all the same, and the sign-out's own answer is what is kept.
-      try {
-        await refresh();
-      } catch {
-        setStatus(LOCKED);
-      }
-    },
-    [refresh],
-  );
+  const signOut = useCallback(async (everywhere: boolean) => {
+    const access = data.access;
+    if (!access) return;
+    await (everywhere ? access.logoutEverywhere() : access.logout());
+    setStatus(LOCKED);
+  }, []);
 
   useEffect(() => {
     // A server that cannot be asked opens onto the pages, which then say for
@@ -86,10 +59,7 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const value = useMemo(
-    () => ({ status, refresh, signingOut, signOut }),
-    [status, refresh, signingOut, signOut],
-  );
+  const value = useMemo(() => ({ status, refresh, signOut }), [status, refresh, signOut]);
   return <AccessContext.Provider value={value}>{children}</AccessContext.Provider>;
 }
 
@@ -100,17 +70,14 @@ export function useAccess(): Ctx {
 }
 
 /** Shows the pages only once this device may see them, and sends it to the
- *  login otherwise, remembering where it was going, unless it has just signed
- *  out: then it was going nowhere. A session that ends while a page is open
- *  lands here too, through `onLocked` above, instead of leaving that page to
- *  show an error for every call it makes. */
+ *  login otherwise, remembering where it was going. A session that ends while
+ *  a page is open, signed out here or elsewhere, lands here too. */
 export function AccessGate({ children }: { children: React.ReactNode }) {
-  const { status, signingOut } = useAccess();
+  const { status } = useAccess();
   const { pathname, search } = useLocation();
   if (status === null) return null;
   if (status.enabled && !status.authenticated && pathname !== "/login") {
-    const back = signingOut ? "" : "?from=" + encodeURIComponent(pathname + search);
-    return <Navigate to={"/login" + back} replace />;
+    return <Navigate to={"/login?from=" + encodeURIComponent(pathname + search)} replace />;
   }
   return <>{children}</>;
 }
