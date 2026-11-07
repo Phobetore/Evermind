@@ -836,8 +836,8 @@ async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merg
 
 # ---------- a long story keeps its summary ----------
 
-async def a_long_story_from_before_this_version(client, read=492):
-    """500 turns, as the migration leaves them: one pass, at how far the memory read."""
+async def a_long_story_read_once(client, read=492):
+    """500 turns, read once by a pass: a summary the model wrote, and no pass before it."""
     convo = await setup_conversation(client)
     convo_id = convo["id"]
     db = await _connect()
@@ -854,12 +854,12 @@ async def a_long_story_from_before_this_version(client, read=492):
     return convo_id
 
 
-async def test_a_long_story_from_before_this_version_keeps_its_summary_through_a_cut(
+async def test_a_long_story_cut_before_its_only_pass_keeps_its_summary(
         client, fake_provider):
     """A pass reads 40 turns at most, so a summary written again would hold turns 450 to 489
     and nothing of the 450 before them. A summary part stale, which a person can read and
     correct, is worth more than that."""
-    convo_id = await a_long_story_from_before_this_version(client)
+    convo_id = await a_long_story_read_once(client)
 
     await remove_from(client, convo_id, 490)
 
@@ -882,7 +882,7 @@ async def test_a_long_story_from_before_this_version_keeps_its_summary_through_a
 ])
 async def test_a_summary_goes_only_if_the_next_pass_can_write_it_again(
         client, fake_provider, removed_from, summary):
-    convo_id = await a_long_story_from_before_this_version(client)
+    convo_id = await a_long_story_read_once(client)
 
     await remove_from(client, convo_id, removed_from)
 

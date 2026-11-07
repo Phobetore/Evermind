@@ -20,5 +20,6 @@ WHERE source_position > COALESCE(
 UPDATE conversations SET memory_position = MIN(memory_position,
     COALESCE((SELECT MAX(position) FROM messages WHERE messages.conversation_id = conversations.id), 0))
 WHERE memory_position > 0;
-INSERT INTO memory_summaries (conversation_id, position, summary)
-SELECT id, memory_position, summary FROM conversations WHERE memory_position > 0;
+-- Nothing tells a summary a person typed from a pass's: each stays theirs until the next pass.
+INSERT INTO memory_summaries (conversation_id, position, summary, typed)
+SELECT id, memory_position, summary, 1 FROM conversations WHERE memory_position > 0 OR summary <> '';
