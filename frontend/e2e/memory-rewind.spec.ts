@@ -196,16 +196,17 @@ test("a summary being typed stays through a Remember", async ({ page, request })
   const summary = panel.getByPlaceholder(panelText.summary.placeholder);
   await summary.fill("Typed, not saved yet.");
 
-  const remembered = page.waitForResponse((r) => r.url().endsWith("/memories/extract"));
   await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
-  await remembered;
-  await expect(summary).toBeEnabled();
+  await expect(panel).toContainText("(2)");
 
   await expect(summary).toHaveValue("Typed, not saved yet.");
+  // Typed on once Remember's summary is in: still typed over the one from before it.
+  await summary.press("End");
+  await summary.pressSequentially(" More.");
   await panel.getByRole("button", { name: panelText.summary.saveButton }).click();
   await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
-  expect(read.summary).toBe("Typed, not saved yet.");
+  expect(read.summary).toBe("Typed, not saved yet. More.");
   expect(read.memory_position).toBe(0);
 });
 
