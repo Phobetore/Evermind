@@ -133,7 +133,7 @@
     "savedFlash": "Enregistré.",
     "access": {
       "title": "Accès",
-      "hint": "Cet appareil reste connecté 30 jours après sa dernière visite.",
+      "hint": "Cet appareil reste connecté jusqu'à ce que vous le déconnectiez ou changiez le mot de passe.",
       "logout": "Se déconnecter de cet appareil",
       "logoutEverywhere": "Déconnecter tous les appareils",
       "logoutEverywhereConfirm": "Tous les appareils, celui-ci compris, devront saisir à nouveau le mot de passe."
@@ -463,8 +463,8 @@
     "locked": "Votre session est terminée. Reconnectez-vous.",
     "wrongPassword": "Accès refusé.",
     "rateLimited": "Trop de tentatives. Réessayez dans {minutes} min.",
-    "crossOrigin": "Evermind a refusé cette requête, qui semble venir d'une autre adresse. Derrière un proxy inverse, le proxy doit transmettre l'en-tête Host d'origine sans le modifier ; servir Evermind en HTTPS aide aussi.",
-    "unknownHost": "Evermind ne répond pas à cette adresse. Ajoutez son nom à EVERMIND_ALLOWED_HOSTS, ou définissez un mot de passe.",
+    "crossOrigin": "Evermind a refusé cette requête, qui semble venir d'une autre adresse. Derrière un proxy inverse, le proxy doit transmettre l'en-tête Host d'origine sans le modifier.",
+    "unknownHost": "Sans mot de passe, Evermind ne répond pas à ce nom. Ouvrez-le par son adresse (comme http://192.168.1.42:3000) ou par localhost, ou définissez un mot de passe.",
     "notFound": {
       "character": "Cette fiche n'existe plus.",
       "conversation": "Cette conversation n'existe plus.",

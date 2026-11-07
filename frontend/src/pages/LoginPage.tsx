@@ -1,8 +1,8 @@
 import { useAccess } from "@/components/layout/Access";
 import { data } from "@/data";
+import { DataError } from "@/data/errors";
 import { useT } from "@/i18n/useT";
-import { loginFailure } from "@/lib/loginFailure";
-import { safeFrom } from "@/lib/safeFrom";
+import { describeError } from "@/lib/errors";
 import { KeyRound, Loader2, VenetianMask } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
@@ -15,8 +15,9 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
-  // Only ever a page of this app: the address can be written by anyone.
-  const from = safeFrom(params.get("from"));
+  // Only a path of this app: the router throws on "//host", and a browser reads "/\host" the same.
+  const asked = params.get("from") ?? "";
+  const from = /^\/(?![\\/])/.test(asked) ? asked : "/";
 
   // Nothing to unlock: no password is set, or this device is already in.
   if (!data.access || (status && (!status.enabled || status.authenticated))) {
@@ -42,9 +43,9 @@ export function LoginPage() {
       }
       navigate(from, { replace: true });
     } catch (e) {
-      const failure = loginFailure(e, t);
-      setError(failure.message);
-      if (failure.clearPassword) setPassword("");
+      setError(describeError(e, t));
+      // A wrong password is spent; after any other failure it is kept, to be sent again.
+      if (e instanceof DataError && e.kind === "wrong_password") setPassword("");
       setChecking(false);
     }
   }

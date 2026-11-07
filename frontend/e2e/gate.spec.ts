@@ -80,7 +80,7 @@ test("the login never sends anyone off-site", async ({ page }) => {
   expect(new URL(page.url()).origin).toBe(GATED);
 });
 
-test("the session cookie outlives the browser and does not need https", async ({ page, context }) => {
+test("the session cookie does not need https, and each opening renews it", async ({ page, context }) => {
   // A phone reaches Evermind over http, by the address of the computer on the
   // network. A cookie marked Secure would be dropped there, and one without an
   // expiry would be gone each time the browser is closed.
@@ -92,11 +92,21 @@ test("the session cookie outlives the browser and does not need https", async ({
   expect(cookie, "no session cookie was set").toBeDefined();
   expect(cookie!.secure).toBe(false);
   expect(cookie!.httpOnly).toBe(true);
-  // -1 is how a session cookie, which ends with the browser, is reported.
-  expect(cookie!.expires).toBeGreaterThan(Date.now() / 1000);
+  const inAYear = Date.now() / 1000 + 365 * 86400;
+  expect(cookie!.expires).toBeGreaterThan(inAYear);
+
+  // A phone used every week is never asked again: a cookie near its end, as one
+  // last renewed long ago would be, comes back whole from opening Evermind.
+  await context.addCookies([{ ...cookie!, expires: Math.round(Date.now() / 1000) + 3600 }]);
+  const asked = page.waitForResponse((r) => r.url().endsWith("/api/gate") && r.request().method() === "GET");
+  await page.reload();
+  await asked;
+  const renewed = (await context.cookies()).find((c) => c.name === "evermind_session");
+  expect(renewed?.value).toBe(cookie!.value);
+  expect(renewed!.expires).toBeGreaterThan(inAYear);
 });
 
-test("signing out really ends the session", async ({ page, context, request }) => {
+test("signing out really ends the session, and signing back in returns to the page", async ({ page, context, request }) => {
   await page.goto("/#/settings");
   await enter(page, GATE_PASSWORD);
   await expect(page).toHaveURL(/#\/settings$/);
@@ -111,97 +121,41 @@ test("signing out really ends the session", async ({ page, context, request }) =
 
   const entries = await page.evaluate(() => history.length);
   await page.getByRole("button", { name: /sign out of this device/i }).click();
-  // A clean login address, with nothing about where the person was going, and
-  // taking the place of the settings page in the history instead of stacking
-  // on it: Back must not lead into a page that is closed.
-  await expect(page).toHaveURL(/#\/login$/);
-  expect(await page.evaluate(() => history.length)).toBe(entries);
-
-  await page.reload();
-  await expect(page).toHaveURL(/#\/login/);
-  await expect(page.getByLabel(/password/i)).toBeVisible();
-
-  // The browser's own copy is gone: a protected address opened as a bookmark
-  // would be, in a page loaded from scratch, is turned away. Through
-  // about:blank, because from one hash to another the page would only change
-  // route and go by what it already knows.
-  expect((await context.cookies()).find((c) => c.name === "evermind_session")).toBeUndefined();
-  await page.goto("about:blank");
-  await page.goto("/#/settings");
+  // The login takes the place of the closed page in the history: Back does not lead into it.
   await expect(page).toHaveURL(/#\/login\?from=%2Fsettings$/);
+  expect(await page.evaluate(() => history.length)).toBe(entries);
+  expect((await context.cookies()).find((c) => c.name === "evermind_session")).toBeUndefined();
+  expect((await request.get(`${GATED}/api/characters`, { headers: replayed })).status()).toBe(401);
 
-  const after = await request.get(`${GATED}/api/characters`, { headers: replayed });
-  expect(after.status()).toBe(401);
-});
-
-test("signing in again after signing out lands on the home page", async ({ page }) => {
-  await page.goto("/#/settings");
-  await enter(page, GATE_PASSWORD);
-  await expect(page).toHaveURL(/#\/settings$/);
-
-  await page.getByRole("button", { name: /sign out of this device/i }).click();
-  await expect(page).toHaveURL(/#\/login$/);
-
-  // The person left on purpose: there is no page to take them back to, with or
-  // without a reload in between.
   await page.reload();
-  await expect(page.getByLabel(/password/i)).toBeVisible();
   await enter(page, GATE_PASSWORD);
-  await expect(page).toHaveURL(`${GATED}/#/`);
+  await expect(page).toHaveURL(/#\/settings$/);
 });
 
-test("a session that ends after signing back in remembers where it was", async ({ page }) => {
-  await page.goto("/#/settings");
-  await enter(page, GATE_PASSWORD);
-  await page.getByRole("button", { name: /sign out of this device/i }).click();
-  await expect(page).toHaveURL(/#\/login$/);
-  await enter(page, GATE_PASSWORD);
-  await expect(page).toHaveURL(`${GATED}/#/`);
-
-  // Ended from outside, as another device signing everything out would: this
-  // is not leaving on purpose, and the way back is kept again.
-  expect((await page.request.delete(`${GATED}/api/gate/sessions`)).status()).toBe(204);
-  await page.goto("/#/personas");
-  await expect(page).toHaveURL(/#\/login\?from=%2Fpersonas$/);
-});
-
-test("signing out lands on the login even when the server cannot be asked afterwards", async ({ page }) => {
+test("signing out every device signs this one out too", async ({ page, context }) => {
   await page.goto("/#/settings");
   await enter(page, GATE_PASSWORD);
   await expect(page).toHaveURL(/#\/settings$/);
-
-  // The sign-out itself gets through, and the question that follows it, whether
-  // this device is still in, does not. The device is out all the same: the
-  // cookie is gone.
-  await page.route("**/api/gate", (route) =>
-    route.request().method() === "GET" ? route.abort("failed") : route.continue(),
-  );
-  await page.getByRole("button", { name: /sign out of this device/i }).click();
-  await expect(page).toHaveURL(/#\/login$/);
-  await expect(page.getByLabel(/password/i)).toBeVisible();
-
-  // It left on purpose, so there is still no page to go back to.
-  await page.unroute("**/api/gate");
-  await enter(page, GATE_PASSWORD);
-  await expect(page).toHaveURL(`${GATED}/#/`);
-});
-
-test("signing out of every device lands on a clean login too", async ({ page, context }) => {
-  await page.goto("/#/settings");
-  await enter(page, GATE_PASSWORD);
-  const entries = await page.evaluate(() => history.length);
 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: /sign out every device/i }).click();
-
-  await expect(page).toHaveURL(/#\/login$/);
-  expect(await page.evaluate(() => history.length)).toBe(entries);
-
-  // This browser is out as well, not only the page that was open.
-  expect((await context.cookies()).find((c) => c.name === "evermind_session")).toBeUndefined();
-  await page.goto("about:blank");
-  await page.goto("/#/settings");
   await expect(page).toHaveURL(/#\/login\?from=%2Fsettings$/);
+  expect((await context.cookies()).find((c) => c.name === "evermind_session")).toBeUndefined();
+});
+
+test("a session ended from another device leads to the login, and back", async ({ page, context, request }) => {
+  await page.goto("/#/settings");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/settings$/);
+
+  // This browser keeps its cookie, which no longer opens anything.
+  const cookie = (await context.cookies()).find((c) => c.name === "evermind_session");
+  const elsewhere = { cookie: `evermind_session=${cookie!.value}` };
+  expect((await request.delete(`${GATED}/api/gate/sessions`, { headers: elsewhere })).status()).toBe(204);
+  await page.goto("/#/personas");
+  await expect(page).toHaveURL(/#\/login\?from=%2Fpersonas$/);
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/personas$/);
 });
 
 test("the API is locked without a session", async ({ request }) => {

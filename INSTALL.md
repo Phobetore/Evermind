@@ -301,8 +301,8 @@ other device, on the same Wi-Fi. It looks like `http://192.168.1.42:3000`;
 `ipconfig` on Windows, `ipconfig getifaddr en0` on macOS or `ip addr` on Linux
 will tell you the number.
 The password page appears first, once per device. After that the device stays
-signed in for 30 days after its last visit, and **Settings** has a button to sign
-it out, or every device at once.
+signed in until it is signed out: **Settings** has a button for that device, and
+one for every device at once.
 
 Set the password. Without it, everyone on that Wi-Fi can read your
 conversations. And keep this to your home network rather than the open internet:
@@ -365,9 +365,9 @@ program that starts Evermind, which always writes in English.
 | "Port 3000 is already in use", or Docker says the port is already allocated | Something else on your computer already uses that port, and often it is Evermind itself, still running. Stop it first. Otherwise set `PORT` to a free one, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
 | "error while attempting to bind on address", with "Permission denied" or "forbidden by its access permissions" | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Set `PORT` to a number above 1024, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
 | Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you ran `docker compose up -d` again afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. Evermind prints the exact command when it starts on the network; but if Windows once asked whether to let Python accept connections and got Cancel, the rules it made to block Python win over that command: delete them in `wf.msc`, under Inbound Rules. |
-| "Evermind does not answer to this address" | You opened Evermind by a name it does not know, and no password is set. Open it by its address (`http://192.168.1.42:3000`), by `localhost` (or a name ending in `.localhost`) or by the computer's own name, also with `.local` after it (when the name has a domain, as in `nas.home.lan`, its first part works too, `nas` and `nas.local`). Or list the name in `EVERMIND_ALLOWED_HOSTS` in your `.env`, separated by commas if there are several. Setting a password works too: with one, any name is accepted. With Docker, the computer's own name has to be listed as well, because the container cannot see it. With Docker, after changing `.env`, run `docker compose up -d` again (`docker compose restart` keeps the settings the container started with); otherwise start Evermind again. |
-| "Evermind refused this request because it seems to come from another address" | Evermind turns away changes that a page from another website sends. If you reach it through a reverse proxy, the proxy has to pass the browser's original `Host` header on unchanged, which always works. Serving it over HTTPS helps too, but Safari before 16.4 sends no Fetch Metadata even then. [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an example. |
-| A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Each device is asked once, then stays signed in for 30 days after its last visit. Clear that line and start Evermind again to remove the page (with Docker, `docker compose up -d`). |
+| "Without a password, Evermind does not answer to this name" | You opened Evermind by a name, such as the computer's own or `nas.local`, and no password is set. Open it by its address (`http://192.168.1.42:3000`) or by `localhost`, or set a password: with one, any name is accepted. With Docker, after changing `.env`, run `docker compose up -d` again (`docker compose restart` keeps the settings the container started with); otherwise start Evermind again. |
+| "Evermind refused this request because it seems to come from another address" | Evermind turns away changes that a page from another website sends. If you reach it through a reverse proxy, the proxy has to pass the browser's original `Host` header on unchanged. [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an example. |
+| A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Each device is asked once, then stays signed in until it is signed out. Clear that line and start Evermind again to remove the page (with Docker, `docker compose up -d`). |
 | You changed the password and every device asks for it again | That is on purpose: changing or removing the password signs every device out. |
 
 ---

@@ -133,7 +133,7 @@
     "savedFlash": "Guardado.",
     "access": {
       "title": "Acceso",
-      "hint": "Este dispositivo mantiene la sesión iniciada durante 30 días después de su última visita.",
+      "hint": "Este dispositivo mantiene la sesión iniciada hasta que la cierres o cambies la contraseña.",
       "logout": "Cerrar sesión en este dispositivo",
       "logoutEverywhere": "Cerrar sesión en todos los dispositivos",
       "logoutEverywhereConfirm": "Todos los dispositivos, este incluido, tendrán que volver a escribir la contraseña."
@@ -463,8 +463,8 @@
     "locked": "Tu sesión ha terminado. Vuelve a iniciar sesión.",
     "wrongPassword": "Acceso denegado.",
     "rateLimited": "Demasiados intentos. Vuelve a intentarlo en {minutes} min.",
-    "crossOrigin": "Evermind ha rechazado esta petición porque parece venir de otra dirección. Detrás de un proxy inverso, el proxy debe conservar la cabecera Host original tal cual; servir Evermind por HTTPS también ayuda.",
-    "unknownHost": "Evermind no responde en esta dirección. Añade su nombre a EVERMIND_ALLOWED_HOSTS o establece una contraseña.",
+    "crossOrigin": "Evermind ha rechazado esta petición porque parece venir de otra dirección. Detrás de un proxy inverso, el proxy debe conservar la cabecera Host original tal cual.",
+    "unknownHost": "Sin contraseña, Evermind no responde a este nombre. Ábrelo por su dirección (como http://192.168.1.42:3000) o por localhost, o establece una contraseña.",
     "notFound": {
       "character": "Esta ficha ya no existe.",
       "conversation": "Esta conversación ya no existe.",

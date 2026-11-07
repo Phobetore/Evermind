@@ -11,7 +11,6 @@ import { describeError } from "@/lib/errors";
 import type { Connection, Persona, Settings, UpdateStatus } from "@/types";
 import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
 
 export function SettingsPage() {
   const t = useT();
@@ -360,7 +359,6 @@ function GlobalInstructions({
 /** Signing out, for the devices that had to give the password to get in. */
 function Access() {
   const t = useT();
-  const navigate = useNavigate();
   const { signOut: leave } = useAccess();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -370,12 +368,8 @@ function Access() {
     setBusy(true);
     setError(null);
     try {
-      // By the time this returns the device is signed out as far as the page
-      // knows, so the login finds no session to send the person back from, and
-      // the gate, told that they left on purpose, has no page to send them back
-      // to.
+      // Signed out, the device meets the gate, which takes it to the login.
       await leave(everywhere);
-      navigate("/login", { replace: true });
     } catch (e) {
       setError(describeError(e, t));
       setBusy(false);

@@ -133,7 +133,7 @@
     "savedFlash": "Saved.",
     "access": {
       "title": "Access",
-      "hint": "This device stays signed in for 30 days after its last visit.",
+      "hint": "This device stays signed in until you sign it out or change the password.",
       "logout": "Sign out of this device",
       "logoutEverywhere": "Sign out every device",
       "logoutEverywhereConfirm": "Every device, this one included, will have to enter the password again."
@@ -463,8 +463,8 @@
     "locked": "Your session has ended. Sign in again.",
     "wrongPassword": "Access denied.",
     "rateLimited": "Too many attempts. Try again in {minutes} min.",
-    "crossOrigin": "Evermind refused this request because it seems to come from another address. Behind a reverse proxy, the proxy has to pass the original Host header on unchanged; serving Evermind over HTTPS helps too.",
-    "unknownHost": "Evermind does not answer to this address. Add its name to EVERMIND_ALLOWED_HOSTS, or set a password.",
+    "crossOrigin": "Evermind refused this request because it seems to come from another address. Behind a reverse proxy, the proxy has to pass the original Host header on unchanged.",
+    "unknownHost": "Without a password, Evermind does not answer to this name. Open it by its address (such as http://192.168.1.42:3000) or by localhost, or set a password.",
     "notFound": {
       "character": "This card no longer exists.",
       "conversation": "This conversation no longer exists.",
