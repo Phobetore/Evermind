@@ -331,9 +331,11 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int,
     elif passes and passes[0]["typed"]:  # what a person wrote stays theirs, part stale
         summary = row["summary"]
         if not back or back["summary"] != summary:  # typed over a later row: of turns past this one
+            # Only removing the whole story reaches a newest row at 0: it goes back as it was.
+            typed = 2 if passes[0]["position"] else passes[0]["typed"]
             await db.execute(
                 "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"
-                " VALUES (?, ?, ?, 2)", (convo_id, position, summary))
+                " VALUES (?, ?, ?, ?)", (convo_id, position, summary, typed))
     elif back:
         summary = back["summary"]
     elif cut + 1 <= MAX_TURNS_PER_RUN:  # the next pass reads all that is left of the story

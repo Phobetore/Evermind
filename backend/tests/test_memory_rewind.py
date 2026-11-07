@@ -505,6 +505,44 @@ async def test_a_premise_typed_before_the_first_pass_goes_with_a_branch(client, 
         assert await summaries_of(branch["id"]) == [(0, PREMISE)]
 
 
+@pytest.mark.parametrize("greeting", ["Hello.", ""], ids=["with a greeting", "with none"])
+async def test_a_premise_kept_through_removing_the_whole_story_goes_with_a_branch_of_the_next(
+        client, fake_provider, greeting):
+    """No pass has read past it, and removing the story is no pass: as in 3.0.x, it goes with a
+    branch of the story played next, and so does what is typed over it."""
+    convo_id = (await setup_conversation(client, greeting=greeting))["id"]
+    await talk(client, convo_id, 1)
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": PREMISE})
+    await talk(client, convo_id, 3, first=2)
+
+    await remove_from(client, convo_id, 0)
+    await talk(client, convo_id, 3, label="again")
+
+    branch = await branch_at(client, convo_id, 5)  # the last message
+    assert (branch["memory_position"], branch["summary"]) == (0, PREMISE)
+    await client.patch(f"/api/conversations/{convo_id}",
+                       json={"summary": "Premise, again.", "summary_was": PREMISE})
+    assert (await branch_at(client, convo_id, 5))["summary"] == "Premise, again."
+
+
+async def test_a_summary_typed_at_the_start_after_a_pass_read_past_it_stays_out_of_the_next_story(
+        client, fake_provider):
+    """Typed over a summary a cut took away, it may tell turns past the start. Removing the whole
+    story leaves it as it was, and a branch of the story played next starts with none."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [], "summary": "To 8."})
+    await remove_from(client, convo_id, 7)
+    await client.patch(f"/api/conversations/{convo_id}",
+                       json={"summary": "Typed.", "summary_was": "To 8."})
+
+    await remove_from(client, convo_id, 0)
+    await talk(client, convo_id, 3, label="again")
+
+    assert (await branch_at(client, convo_id, 5))["summary"] == ""
+    assert (await conversation(client, convo_id))["summary"] == "Typed."
+
+
 async def test_a_summary_kept_by_hand_with_the_automatic_passes_off_goes_with_a_branch(
         client, fake_provider):
     """No pass has read that story, and the branch's first one reads 40 turns at most: it goes on
