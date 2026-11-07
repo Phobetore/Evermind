@@ -156,7 +156,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
-    character = await characters_repo.get_raw(db, convo["character_id"]) or {}
+    character = await characters_repo.get(db, convo["character_id"]) or {}
     connection = await _resolve_connection(db, convo)
     persona = await personas_repo.for_conversation(db, convo)
 
@@ -231,7 +231,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
-    character = await characters_repo.get_raw(db, convo["character_id"]) or {}
+    character = await characters_repo.get(db, convo["character_id"]) or {}
     persona = await personas_repo.for_conversation(db, convo)
 
     connection = await _resolve_connection(db, convo)
