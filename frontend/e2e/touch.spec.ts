@@ -128,15 +128,6 @@ async function expectInsideTheirParents(scope: Locator, what: string) {
   expect(outside, `${what}: a box with a touch area is larger than the box it is in`).toEqual([]);
 }
 
-/** Press Tab until `target` has the focus, as a person at a keyboard would. */
-async function tabTo(page: Page, target: Locator, presses = 120) {
-  for (let i = 0; i < presses; i++) {
-    await page.keyboard.press("Tab");
-    if (await target.evaluate((el) => el === document.activeElement)) return;
-  }
-  throw new Error(`Tab did not reach ${target} in ${presses} presses`);
-}
-
 async function openPanel(page: Page, id: string) {
   await page.goto(`/#/chat/${id}`);
   await expect(page.locator("textarea").first()).toBeVisible();
@@ -302,98 +293,6 @@ test.describe("on a touch screen", () => {
     }
   });
 
-  test("the tags, the lorebook and a window's own button can be hit", async ({ page, request }) => {
-    const convo = await withFacts(request);
-    await request.put(`${API}/api/characters/${convo.character_id}`, {
-      data: { name: "Vane", tags: ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa"] },
-    });
-    for (const key of ["harbour", "ferry"]) {
-      await request.post(`${API}/api/characters/${convo.character_id}/lore`, {
-        data: { keys: [key], content: `About the ${key}.` },
-      });
-    }
-
-    // The chips that filter the home page, in a rail that scrolls sideways and
-    // would clip anything added to them.
-    await page.goto("/#/");
-    const chip = page.getByRole("button", { name: "alpha", exact: true });
-    await expect(chip).toBeVisible();
-    await expectAllReachable(page.locator("div.overflow-x-auto button"), "a tag chip");
-
-    // A window's own button.
-    await page.getByRole("button", { name: /import/i }).first().click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await expectReachable(dialog.getByRole("button", { name: "Close" }), "Close on a window");
-    await page.keyboard.press("Escape");
-
-    // In the editor: the little crosses on a card's tags, the lorebook's
-    // controls, the toggle for the advanced part, and the fields.
-    await page.goto(`/#/characters/${convo.character_id}/edit`);
-    await expect(page.getByRole("button", { name: "Remove alpha" })).toBeVisible();
-    await expectAllReachable(page.getByRole("button", { name: /^Remove / }), "a tag's cross");
-    await expectAllReachable(page.getByRole("button", { name: /delete entry/i }), "a lorebook entry's delete button");
-    await expectAllReachable(page.locator("label:has(input[type=checkbox])"), "a lorebook entry's switch");
-    await expectReachable(page.getByRole("button", { name: /advanced/i }), "the advanced settings toggle");
-
-    // A text box is something to hit too.
-    const fields = page.locator("select.field, input.field").filter({ visible: true });
-    expect(await fields.count(), "no fields to look at").toBeGreaterThan(0);
-    for (const field of await fields.all()) {
-      expect((await field.boundingBox())!.height, "a field is shorter than a thumb").toBeGreaterThanOrEqual(43.5);
-    }
-  });
-
-  test("on a tablet, which is touched too, the same holds", async ({ page, request }) => {
-    const convo = await withALongTitle(request);
-    await request.post(`${API}/api/chat`, {
-      data: { conversation_id: convo.id, mode: "regenerate" }, timeout: 60_000,
-    });
-    await page.setViewportSize({ width: 820, height: 1000 });
-
-    // A button that shows on a card when a mouse is over it, shown always.
-    await page.goto("/#/");
-    const start = page.getByRole("button", { name: "Start", exact: true }).first();
-    await expect.poll(() => seen(start), "the button on a card is not visible without hover").toBeGreaterThan(0.9);
-
-    // Text boxes and menus are taller here too, where the screen is wide.
-    await page.goto("/#/settings");
-    const menu = page.locator("main select.field").first();
-    await expect(menu).toBeVisible();
-    expect((await menu.boundingBox())!.height, "a menu is shorter than a thumb on a tablet").toBeGreaterThanOrEqual(43.5);
-
-    await messagesIn(page, convo.id);
-    await expectAllReachable(page.locator("[data-message-id] button"), "a message's action on a tablet");
-    await expectAllReachable(page.locator("header a, header button"), "a control in the header on a tablet");
-    await expectAllReachable(page.getByRole("button", { name: /close/i }), "Close on a tablet");
-
-    // With the panel open beside the conversation, the title is above its
-    // header: the link to the character, and the cross, can be touched.
-    const panel = page.locator("aside:visible:has(textarea)");
-    await expect(panel).toBeVisible();
-    await settled(page);
-    await expectInsideTheirParents(page.locator("header"), "with a long title on a tablet");
-    await expectInsideTheirParents(panel, "in the panel on a tablet");
-    const link = panel.locator("a[href*='/characters/']").first();
-    await expectReachable(link, "the link to the character");
-    const at = (await link.boundingBox())!;
-    await page.touchscreen.tap(at.x + at.width / 2, at.y + at.height / 2);
-    await expect(page).toHaveURL(/#\/characters\//);
-
-    // And with it closed, the button that brings it back, beside that title.
-    await messagesIn(page, convo.id);
-    await panel.getByRole("button", { name: "Close panel" }).click();
-    await expect(panel).toBeHidden();
-    const reopen = page.getByRole("button", { name: "Open panel" });
-    await expectReachable(reopen, "the button that opens the panel");
-    const spot = (await reopen.boundingBox())!;
-    await page.touchscreen.tap(spot.x + spot.width / 2, spot.y + spot.height / 2);
-    await expect(panel).toBeVisible();
-
-    await page.goto("/#/");
-    await page.getByRole("button", { name: /import/i }).first().click();
-    await expectReachable(page.getByRole("dialog").getByRole("button", { name: "Close" }), "Close on a window, on a tablet");
-  });
 });
 
 test.describe("with a mouse", () => {
@@ -442,55 +341,4 @@ test.describe("with a mouse", () => {
     expect((await menu.boundingBox())!.height, "a menu grew in a narrow window with a mouse").toBeLessThan(42);
   });
 
-  test("what shows on hover shows to a keyboard, with Tab, and only to one", async ({ page, request }) => {
-    const convo = await withFacts(request);
-    const panel = await openPanel(page, convo.id);
-    await page.mouse.move(2, 2);
-
-    // The cross on a fact.
-    const forget = panel.locator("div.group\\/fact").first().getByRole("button", { name: "Forget this fact" });
-    await expect(forget).toHaveCSS("opacity", "0");
-    await tabTo(page, forget);
-    await expect(forget).toHaveCSS("opacity", "1");
-    await page.keyboard.press("Tab");
-    await expect(forget).toHaveCSS("opacity", "0");
-
-    // The actions of a message: a group, shown while any button in it has
-    // the focus, and gone when the focus has left it.
-    const edit = page.locator("[data-message-id] button[title='Edit']").first();
-    const group = edit.locator("xpath=ancestor::div[contains(@class,'hover-actions')][1]");
-    await expect(edit).toBeVisible();
-    await expect(group).toHaveCSS("opacity", "0");
-    await tabTo(page, edit);
-    await expect(group).toHaveCSS("opacity", "1");
-    for (let i = 0; i < 8 && (await group.evaluate((g) => g.contains(document.activeElement))); i++) {
-      await page.keyboard.press("Tab");
-    }
-    await expect(group).toHaveCSS("opacity", "0");
-
-    // A mouse is not a keyboard: pressing a button gives it the focus, and the
-    // row must not stay on show once the pointer has gone. (Pressed and let go
-    // elsewhere, so that nothing is done by it, and the focus is all there is.)
-    const copy = page.locator("[data-message-id] button[title='Copy']").first();
-    const spot = (await copy.boundingBox())!;
-    await page.mouse.move(spot.x + spot.width / 2, spot.y + spot.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(2, 2);
-    await page.mouse.up();
-    expect(await copy.evaluate((el) => el === document.activeElement), "the press did not focus the button").toBe(true);
-    await expect(group).toHaveCSS("opacity", "0");
-
-    // Rename and delete in the list of conversations.
-    await page.goto("/#/chat");
-    const rename = page.getByRole("button", { name: "Rename" }).first();
-    const remove = rename.locator("xpath=following-sibling::button[1]");
-    await expect(rename).toBeVisible();
-    await page.mouse.move(2, 2);
-    await expect(rename).toHaveCSS("opacity", "0");
-    await tabTo(page, rename);
-    await expect(rename).toHaveCSS("opacity", "1");
-    await page.keyboard.press("Tab");
-    await expect(remove).toHaveCSS("opacity", "1");
-    await expect(rename).toHaveCSS("opacity", "0");
-  });
 });

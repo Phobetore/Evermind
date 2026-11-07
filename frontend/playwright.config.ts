@@ -61,11 +61,9 @@ function isolated(command: string, env: Record<string, string>) {
   };
 }
 
-// How a turn recovers is logic, not layout, and these are long tests: a reply written
-// slowly, sometimes to its end. They run on the phone, which is where all of this
-// happens, and desktop keeps the one in chat.spec.ts, to say the path works there.
-const TURN_LOGIC = ["offline-return", "regenerate-reattach", "turn-races", "turn-survives"]
-  .map((name) => `**/${name}.spec.ts`);
+// The phone runs every spec. Desktop runs only what could differ with a mouse and a wide
+// screen: the one path through a chat, the widths, and hover.
+const ON_DESKTOP = ["chat", "responsive", "touch"].map((name) => `**/${name}.spec.ts`);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -86,7 +84,7 @@ export default defineConfig({
   },
 
   projects: [
-    { name: "desktop", testIgnore: TURN_LOGIC, use: { ...devices["Desktop Chrome"] } },
+    { name: "desktop", testMatch: ON_DESKTOP, use: { ...devices["Desktop Chrome"] } },
     // The phone is not a nicety here: every layout bug this suite exists for
     // was invisible at desktop width.
     { name: "phone", use: { ...devices["Pixel 7"] } },

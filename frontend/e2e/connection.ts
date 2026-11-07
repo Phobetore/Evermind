@@ -67,38 +67,6 @@ export async function connectionDiesDuring(page: Page, path: string, trouble: Co
   }, { path, ...options });
 }
 
-/** Every stream of a turn, sent or followed, ends cleanly after `chunks` chunks, for
- *  the first `times` of them, which `window.__closesLeft` can change meanwhile. */
-export async function streamsKeepClosing(page: Page, times: number, chunks = 3) {
-  await page.addInitScript(({ times, chunks }) => {
-    const realFetch = window.fetch;
-    const page_ = window as unknown as { __closesLeft: number };
-    page_.__closesLeft = times;
-    window.fetch = async (input, init) => {
-      const response = await realFetch(input, init);
-      const url = String(input);
-      const stream = url.endsWith("api/chat") || url.endsWith("/turn/stream");
-      if (!stream || page_.__closesLeft <= 0 || !response.body) return response;
-      page_.__closesLeft -= 1;
-      const reader = response.body.getReader();
-      let passed = 0;
-      const body = new ReadableStream({
-        async pull(controller) {
-          if (passed++ >= chunks) {
-            await reader.cancel();
-            controller.close();
-            return;
-          }
-          const next = await reader.read();
-          if (next.done) controller.close();
-          else controller.enqueue(next.value);
-        },
-      });
-      return new Response(body, { status: response.status, headers: response.headers });
-    };
-  }, { times, chunks });
-}
-
 export async function connectionBack(page: Page) {
   await page.evaluate(() => (window as unknown as Record<string, () => void>).__connectionBack());
 }
