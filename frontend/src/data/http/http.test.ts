@@ -334,6 +334,18 @@ describe("errors", () => {
     await expect(source.settings.get()).rejects.toBe(aborted);
   });
 
+  test("a call that failed while the browser knows it is offline says so", async () => {
+    vi.stubGlobal("navigator", { onLine: false });
+    try {
+      const offline = createHttpSource((() => Promise.reject(new TypeError("Failed to fetch"))) as typeof fetch);
+      const failure = await offline.settings.get().catch((e) => e);
+      expect(failure).toBeInstanceOf(DataError);
+      expect(failure.kind).toBe("offline");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   test("204 resolves to undefined", async () => {
     reply(new Response(null, { status: 204 }));
     await expect(http.characters.remove("c1")).resolves.toBeUndefined();

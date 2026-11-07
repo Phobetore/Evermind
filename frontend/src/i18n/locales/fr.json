@@ -465,6 +465,7 @@
     "pageLoad": "Cette page n'a pas pu être chargée. Evermind a peut-être été mis à jour depuis que vous l'avez ouvert, ou la connexion a été coupée.",
     "server": "Evermind a répondu par une erreur (HTTP {status}).",
     "unreachable": "Evermind ne répond pas. Est-il toujours lancé ?",
+    "offline": "Cet appareil est hors ligne.",
     "invalid": "Evermind n'a pas pu traiter cette demande : des informations manquent ou ne sont pas valides.",
     "locked": "Votre session est terminée. Reconnectez-vous.",
     "wrongPassword": "Accès refusé.",

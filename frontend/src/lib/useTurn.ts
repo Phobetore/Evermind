@@ -7,6 +7,8 @@ const AFTER_A_FAILURE_MS = 2_000;
 const AFTER_A_CLOSE_MS = 1_000;
 /** `online` and `visibilitychange` tend to arrive together as a phone wakes. */
 const WAKING_MS = 200;
+/** Failures kept quiet on waking with nothing under way, while the network comes back. */
+const QUIET_FAILURES = 2;
 
 export type Outcome = Extract<TurnState, { running: false }>["outcome"];
 
@@ -57,12 +59,13 @@ export function useTurn(
   // The same, the revision of what is on screen, and whether it may be behind the server.
   const shown = useRef({ writing: null as string | null, revision: null as number | null, behind: true });
 
-  const watch = useCallback(async () => {
+  const watch = useCallback(async (quietly = false) => {
     watching.current?.abort();
     const reader = new AbortController();
     watching.current = reader;
     const { signal } = reader;
     const asking = { signal, within: PATIENCE_MS };
+    let quiet = quietly ? QUIET_FAILURES : 0;
     while (!signal.aborted) {
       const started = Date.now();
       try {
@@ -80,6 +83,7 @@ export function useTurn(
           // Newer than the state: something began or ended in between, which it says next.
           if (!state.running && shown.current.revision !== state.revision) continue;
         }
+        quiet = 0;
         setLost(null);
         if (!state.running) {
           shown.current.writing = null;
@@ -104,7 +108,8 @@ export function useTurn(
         if (!ended) await pause(AFTER_A_CLOSE_MS);
       } catch (error) {
         if (signal.aborted) return;
-        setLost(error);
+        if (quiet > 0) quiet -= 1;
+        else setLost(error);
         await pause(AFTER_A_FAILURE_MS - (Date.now() - started));
       }
     }
@@ -139,7 +144,7 @@ export function useTurn(
     const comingBack = () => {
       if (document.visibilityState !== "visible") return;
       clearTimeout(waking);
-      waking = setTimeout(watch, WAKING_MS);
+      waking = setTimeout(() => watch(shown.current.writing === null), WAKING_MS);
     };
     window.addEventListener("online", comingBack);
     document.addEventListener("visibilitychange", comingBack);

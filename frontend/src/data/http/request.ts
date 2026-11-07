@@ -66,12 +66,13 @@ async function raiseFor(resp: Response): Promise<never> {
 
 /** What a call that got no answer at all is: the browser's own failure, whose
  *  words differ from one browser to the next, becomes a DataError of kind
- *  "network". Giving up on purpose (an abort) is the caller's doing and stays
- *  as it is. */
+ *  "network", or "offline" when the browser knows it has no network. Giving up
+ *  on purpose (an abort) is the caller's doing and stays as it is. */
 export function networkFailure(error: unknown): unknown {
   if (error instanceof DataError) return error;
   if ((error as { name?: string } | null)?.name === "AbortError") return error;
-  return new DataError("Network error", { kind: "network", cause: error });
+  const offline = globalThis.navigator?.onLine === false;
+  return new DataError("Network error", { kind: offline ? "offline" : "network", cause: error });
 }
 
 /** The response to a request, once it is known to have succeeded. With `within`, a request whose

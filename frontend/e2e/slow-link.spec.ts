@@ -87,3 +87,33 @@ test("a long conversation opens over a slow link, read once", async ({ page, req
   expect(reads, "read again before the first had all come").toHaveLength(1);
   await expect(report(page)).toHaveCount(0);
 });
+
+test("a phone waking on a quiet conversation while its network comes back raises no alarm", async ({ page, context, request }) => {
+  const convo = await conversationWithReply(request);
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { __said: string[] }).__said = seen;
+    new MutationObserver(() => {
+      for (const p of document.querySelectorAll("p.text-blood")) seen.push(p.textContent ?? "");
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+
+  await context.setOffline(true);
+  await phoneComesBack(page);
+  await page.waitForTimeout(3000);
+  await context.setOffline(false);
+  await phoneComesBack(page);
+  await page.waitForTimeout(3000);
+
+  expect(await page.evaluate(() => (window as unknown as { __said: string[] }).__said)).toEqual([]);
+
+  await context.setOffline(true);
+  await phoneComesBack(page);
+  await expect(report(page).first(), "a phone with no network is said to be one")
+    .toContainText("This device is offline", { timeout: 15_000 });
+  await context.setOffline(false);
+  await phoneComesBack(page);
+  await expect(report(page)).toHaveCount(0, { timeout: 15_000 });
+});

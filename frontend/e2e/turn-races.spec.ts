@@ -372,7 +372,7 @@ test.describe("a message that does not go", () => {
 
     await context.setOffline(true);
     await send(page, "Hors ligne.");
-    await expect(report(page).first()).toContainText("Evermind is not answering", { timeout: 20_000 });
+    await expect(report(page).first()).toContainText("This device is offline", { timeout: 20_000 });
     await expect(box(page), "the message was lost").toHaveValue("Hors ligne.");
 
     await goWithinThePage(page, "/chat");

@@ -50,6 +50,7 @@ const KIND_KEYS: Record<string, string> = {
   internal: "errors.internal",
   // No answer from Evermind itself.
   network: "errors.unreachable",
+  offline: "errors.offline",
 };
 
 /** What a "not_found" did not find. A resource this version has never heard of

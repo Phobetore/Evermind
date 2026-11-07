@@ -465,6 +465,7 @@
     "pageLoad": "This page could not be loaded. Evermind may have been updated since you opened it, or the connection dropped.",
     "server": "Evermind answered with an error (HTTP {status}).",
     "unreachable": "Evermind is not answering. Is it still running?",
+    "offline": "This device is offline.",
     "invalid": "Evermind could not accept this: something in it is missing or not valid.",
     "locked": "Your session has ended. Sign in again.",
     "wrongPassword": "Access denied.",

@@ -210,7 +210,7 @@ async function replyCutOff(page: Page, context: BrowserContext, convoId: string)
   await context.setOffline(true);
   await cutConnection(page);
   const report = page.locator("p.text-blood").first();
-  await expect(report).toContainText("Evermind is not answering", { timeout: 20_000 });
+  await expect(report).toContainText("This device is offline", { timeout: 20_000 });
   await expect(looseWords(page), "the words that had arrived vanished").not.toHaveText("");
   return { report, kept: (await looseWords(page).textContent()) ?? "" };
 }
@@ -221,7 +221,7 @@ test("a reply cut off comes back by itself with the connection", async ({ page, 
 
   // Still nothing, however often the phone says it is back: the words stay as they were.
   await phoneComesBack(page);
-  await expect(report).toContainText("Evermind is not answering");
+  await expect(report).toContainText("This device is offline");
   await expect(looseWords(page)).toHaveText(kept);
 
   const streams = countingStreams(page);
