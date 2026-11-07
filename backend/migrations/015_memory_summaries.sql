@@ -17,9 +17,9 @@ UPDATE memories SET source_position = COALESCE(
     (SELECT MAX(position) FROM messages WHERE messages.conversation_id = memories.conversation_id), 0)
 WHERE source_position > COALESCE(
     (SELECT MAX(position) FROM messages WHERE messages.conversation_id = memories.conversation_id), 0);
-UPDATE conversations SET memory_position = MIN(memory_position,
-    COALESCE((SELECT MAX(position) FROM messages WHERE messages.conversation_id = conversations.id), 0))
-WHERE memory_position > 0;
+-- A memory that read past the end reads again from the start, the turns played since the cut too.
+UPDATE conversations SET memory_position = 0 WHERE memory_position > COALESCE(
+    (SELECT MAX(position) FROM messages WHERE messages.conversation_id = conversations.id), 0);
 -- Nothing tells a summary a person typed from a pass's: each stays theirs until the next pass.
 INSERT INTO memory_summaries (conversation_id, position, summary, typed)
 SELECT id, memory_position, summary, 1 FROM conversations WHERE memory_position > 0 OR summary <> '';
