@@ -29,6 +29,8 @@ export function HomePage() {
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Said on the card whose star did not go through, until the next star.
+  const [favoriteFailure, setFavoriteFailure] = useState<{ id: string; error: unknown } | null>(null);
   const [showLibrary, setShowLibrary] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -46,13 +48,18 @@ export function HomePage() {
     return () => clearTimeout(t);
   }, [tab, query, load]);
 
+  const replace = (updated: Character) =>
+    setCharacters((prev) => (prev ? prev.map((c) => (c.id === updated.id ? updated : c)) : prev));
+
   async function toggleFavorite(character: Character) {
-    const updated = await data.characters.update(character.id, {
-      is_favorite: !character.is_favorite,
-    });
-    setCharacters((prev) =>
-      prev ? prev.map((c) => (c.id === character.id ? updated : c)) : prev,
-    );
+    setFavoriteFailure(null);
+    try {
+      replace(await data.characters.update(character.id, { is_favorite: !character.is_favorite }));
+    } catch (error) {
+      setFavoriteFailure({ id: character.id, error });
+      // It may have gone through all the same: the star shows what the server holds.
+      data.characters.get(character.id).then(replace, () => {});
+    }
   }
 
   const allTags = [...new Set((characters ?? []).flatMap((c) => c.tags))].slice(0, 12);
@@ -197,6 +204,7 @@ export function HomePage() {
               key={character.id}
               character={character}
               onToggleFavorite={toggleFavorite}
+              error={favoriteFailure?.id === character.id ? describeError(favoriteFailure.error, t) : undefined}
             />
           ))}
         </div>

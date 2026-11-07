@@ -9,9 +9,12 @@ import { useT } from "@/i18n/useT";
 export function CharacterCard({
   character,
   onToggleFavorite,
+  error,
 }: {
   character: Character;
   onToggleFavorite?: (character: Character) => void;
+  /** Why the star did not go through. */
+  error?: string;
 }) {
   const navigate = useNavigate();
   const t = useT();
@@ -52,6 +55,14 @@ export function CharacterCard({
         >
           <Star className={clsx("h-4 w-4", character.is_favorite && "fill-current")} />
         </button>
+      )}
+      {error && (
+        <p
+          role="alert"
+          className="absolute inset-x-2 top-14 z-10 rounded-lg border border-blood/40 bg-ink-950/90 px-2.5 py-1.5 text-xs leading-snug text-blood"
+        >
+          {error}
+        </p>
       )}
 
       {/* Kind badge. Opaque backdrop: the tone glows are translucent, and this
