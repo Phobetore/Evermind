@@ -823,6 +823,29 @@ async def test_the_task_of_the_start_gives_facts_and_messages_their_vectors(
         await db.close()
 
 
+async def test_a_vector_is_not_stored_on_a_fact_rewritten_or_a_message_deleted_meanwhile(
+        client, fake_provider):
+    from app.db import _connect
+    from app.prompting import embeddings
+    from app.repositories import conversations as convo_repo
+    from app.repositories import memories as mem_repo
+
+    convo = await setup_conversation(client)  # and its greeting
+    fact = (await client.post(f"/api/conversations/{convo['id']}/memories",
+                              json={"content": "She keeps the key."})).json()
+    greeting = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"][0]
+    blob = embeddings.pack([1.0, 2.0])
+    db = await _connect()
+    try:
+        await mem_repo.update(db, fact["id"], content="She lost the key.")
+        assert await mem_repo.set_embedding(db, fact["id"], "She keeps the key.", blob) is False
+        assert (await mem_repo.list_embeddings(db, convo["id"])).get(fact["id"]) != blob
+        await convo_repo.delete_message(db, greeting["id"])
+        assert await convo_repo.set_message_embedding(db, greeting["id"], blob) is False
+    finally:
+        await db.close()
+
+
 async def test_chat_service_passes_relevance_scores(client, fake_provider, monkeypatch):
     """chat_service builds the scene, loads the embedding map, ranks the facts,
     and passes relevance_scores to the prompt builder."""
