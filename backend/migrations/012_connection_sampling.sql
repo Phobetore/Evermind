@@ -27,3 +27,7 @@ ALTER TABLE connections DROP COLUMN extra_params;
 UPDATE connections SET max_tokens = CASE WHEN provider = 'anthropic' THEN max_tokens END,
     temperature = NULL, top_p = NULL, frequency_penalty = NULL, presence_penalty = NULL
 WHERE provider = 'anthropic' OR base_url LIKE '%api.openai.com%';
+
+-- Claude's thinking counts in that ceiling: the form's 4096 at least, the story keeping its room.
+UPDATE connections SET context_size = context_size + 4096 - max_tokens, max_tokens = 4096
+WHERE provider = 'anthropic' AND max_tokens < 4096;
