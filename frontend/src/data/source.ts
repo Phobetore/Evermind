@@ -1,6 +1,6 @@
 import type {
-  Character, Connection, Conversation, Installation, Kind, LibraryItem, LoreEntry,
-  LoreEntryDraft, Memory, Message, Persona, ProviderType, Settings, TurnEvent, TurnState,
+  Character, CharacterWithLore, Connection, Conversation, Installation, Kind, LibraryItem,
+  LoreEntry, Memory, Message, Persona, ProviderType, Settings, TurnEvent, TurnState,
 } from "@/types";
 
 /** Everything the interface asks of its server, and nothing about how the
@@ -10,20 +10,18 @@ export interface DataSource {
   readonly edition: "self-hosted" | "anna";
   characters: {
     list(query?: { kind?: Kind; q?: string }): Promise<Character[]>;
-    get(id: string): Promise<Character>;
-    create(input: CharacterInput): Promise<Character>;
-    update(id: string, input: Partial<CharacterInput> & { is_favorite?: boolean }): Promise<Character>;
+    get(id: string): Promise<CharacterWithLore>;
+    /** `lore_entries` is the whole lorebook: an entry with no keyword or no text is left out. */
+    create(input: CharacterInput & { lore_entries?: LoreEntryInput[] }): Promise<Character>;
+    update(
+      id: string,
+      input: Partial<CharacterInput> & { is_favorite?: boolean; lore_entries?: LoreEntryInput[] },
+    ): Promise<Character>;
     remove(id: string): Promise<void>;
     uploadAvatar(id: string, file: File): Promise<Character>;
     importCard(file: File): Promise<Character>;
     exportCard(id: string, format: "json" | "png"): Promise<{ blob: Blob; filename: string }>;
     assist(input: AssistInput): Promise<AssistResult>;
-  };
-  lore: {
-    list(characterId: string): Promise<LoreEntry[]>;
-    create(characterId: string, input: LoreEntryInput): Promise<LoreEntry>;
-    update(id: string, patch: Partial<LoreEntryInput>): Promise<LoreEntry>;
-    remove(id: string): Promise<void>;
   };
   personas: {
     list(): Promise<Persona[]>;
@@ -111,7 +109,7 @@ export type AssistResult = Partial<CharacterInput> & {
   lore_entries?: { keys: string[]; content: string }[];
 };
 
-export type LoreEntryInput = Omit<LoreEntryDraft, "id">;
+export type LoreEntryInput = Omit<LoreEntry, "id">;
 
 export interface PersonaInput {
   name: string;

@@ -1,6 +1,6 @@
 import type {
-  Character, Connection, Conversation, Installation, LibraryItem, LoreEntry, Memory, Message,
-  Persona, Settings, TurnState,
+  Character, CharacterWithLore, Connection, Conversation, Installation, LibraryItem, Memory,
+  Message, Persona, Settings, TurnState,
 } from "@/types";
 import type {
   BenchmarkResult, ConnectionTestResult, ConsolidateResult, DataSource, ExtractResult,
@@ -69,7 +69,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
     characters: {
       list: (query) =>
         get<Character[]>(`api/characters${queryString({ kind: query?.kind, q: query?.q?.trim() })}`),
-      get: (id) => get<Character>(`api/characters/${seg(id)}`),
+      get: (id) => get<CharacterWithLore>(`api/characters/${seg(id)}`),
       create: (input) => post<Character>("api/characters", input),
       update: (id, input) => put<Character>(`api/characters/${seg(id)}`, input),
       remove: (id) => del(`api/characters/${seg(id)}`),
@@ -85,14 +85,6 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
         };
       },
       assist: (input) => post("api/characters/assist", input),
-    },
-
-    lore: {
-      list: (characterId) => get<LoreEntry[]>(`api/characters/${seg(characterId)}/lore`),
-      create: (characterId, input) =>
-        post<LoreEntry>(`api/characters/${seg(characterId)}/lore`, input),
-      update: (id, changes) => patch<LoreEntry>(`api/lore/${seg(id)}`, changes),
-      remove: (id) => del(`api/lore/${seg(id)}`),
     },
 
     personas: {

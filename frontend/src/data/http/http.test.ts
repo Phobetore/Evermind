@@ -130,11 +130,9 @@ describe("request building", () => {
 
   test("every variable path segment is encoded", async () => {
     await http.characters.get("a/b?c");
-    await http.lore.list("x y");
     await http.library.install("a b.json");
     expect(calls.map((c) => c.url)).toEqual([
       "api/characters/a%2Fb%3Fc",
-      "api/characters/x%20y/lore",
       "api/library/a%20b.json/install",
     ]);
   });
@@ -158,7 +156,6 @@ describe("routes", () => {
     model: "m", context_size: 16384, max_tokens: 1024, temperature: 0.8, top_p: 0.95,
     frequency_penalty: 0.15, presence_penalty: 0.15, is_default: false,
   };
-  const lore = { keys: ["gate"], content: "It is shut.", enabled: true, case_sensitive: false, priority: 0 };
 
   // `body` is the JSON that goes out, or the File of an upload; absent when
   // nothing is sent.
@@ -176,10 +173,6 @@ describe("routes", () => {
       "POST", "api/characters/assist",
       { prompt: "a ferryman", kind: "character", existing: {}, connection_id: null },
     ],
-    ["lore.list", () => http.lore.list("c1"), "GET", "api/characters/c1/lore"],
-    ["lore.create", () => http.lore.create("c1", lore), "POST", "api/characters/c1/lore", lore],
-    ["lore.update", () => http.lore.update("l1", { enabled: false }), "PATCH", "api/lore/l1", { enabled: false }],
-    ["lore.remove", () => http.lore.remove("l1"), "DELETE", "api/lore/l1"],
     ["personas.list", () => http.personas.list(), "GET", "api/personas"],
     [
       "personas.create",
