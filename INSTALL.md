@@ -391,6 +391,39 @@ time anything is sent once the checkbox is clear.
 
 To back it up, copy that folder. To start fresh, delete it.
 
+## Updating
+
+When a new release is out, Settings says so under **About**, with the command that
+updates your installation. Read the release's notes first, behind **What changed**:
+a release can ask for a step before the command. 3.0.2 asked everyone on Docker to
+download `docker-compose.yml` again. [docs/UPGRADING.md](docs/UPGRADING.md) keeps
+those steps, release by release.
+
+With Docker, from the folder that holds your `docker-compose.yml`:
+
+```bash
+docker compose up -d --pull always
+```
+
+The command keeps the `docker-compose.yml` you have. When the notes ask for a new
+one, download
+**[docker-compose.yml](https://github.com/Phobetore/Evermind/releases/latest/download/docker-compose.yml)**
+again first and put it over the old one. Your `.env` stays as it is.
+
+From the source, stop Evermind (Ctrl+C in the window it runs in). If you cloned
+the project, one line gets the new version and starts it:
+
+```bash
+# Windows
+git pull; .\scripts\prod.ps1
+
+# macOS and Linux
+git pull && ./scripts/prod.sh
+```
+
+If you downloaded a ZIP, unzip the new one, copy the `data` folder and your `.env`
+from the old folder into it, and run the script from there.
+
 ### Going back after an update
 
 An update is applied whole or not at all. If one
