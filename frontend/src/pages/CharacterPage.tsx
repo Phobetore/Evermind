@@ -1,5 +1,6 @@
 import { StartChatModal } from "@/components/cards/StartChatModal";
 import { Avatar } from "@/components/ui/Avatar";
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
@@ -8,7 +9,7 @@ import { previewMacros, timeAgo } from "@/lib/utils";
 import type { Character, Conversation } from "@/types";
 import { MessageCircle, Pencil, Star } from "lucide-react";
 import { clsx } from "clsx";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 function CharacterDetail({ id }: { id: string }) {
@@ -21,6 +22,14 @@ function CharacterDetail({ id }: { id: string }) {
   // The error itself, described when drawn, so that a change of language
   // reaches the sentence too.
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
+  const [conversationsFailure, setConversationsFailure] = useState<{ error: unknown } | null>(null);
+
+  const readConversations = useCallback(() => {
+    data.conversations.list({ character_id: id }).then((list) => {
+      setConversations(list);
+      setConversationsFailure(null);
+    }, (error) => setConversationsFailure({ error }));
+  }, [id]);
 
   useEffect(() => {
     data.characters
@@ -30,8 +39,8 @@ function CharacterDetail({ id }: { id: string }) {
         if (search.get("start")) setShowStart(true);
       })
       .catch((error) => setFailure({ error }));
-    data.conversations.list({ character_id: id }).then(setConversations);
-  }, [id, search]);
+    readConversations();
+  }, [id, search, readConversations]);
 
   if (failure) return <p className="p-10 text-blood">{describeError(failure.error, t)}</p>;
   if (!character) return <div className="p-10 text-mist animate-pulse-soft">{t("common.loading")}</div>;
@@ -131,25 +140,29 @@ function CharacterDetail({ id }: { id: string }) {
             </section>
           )}
 
-          {conversations.length > 0 && (
+          {(conversationsFailure || conversations.length > 0) && (
             <section className="mt-8">
               <h2 className="ui-label mb-3">{t("characters.detail.yourConversationsHeading")}</h2>
-              <div className="flex flex-col gap-2">
-                {conversations.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => navigate(`/chat/${c.id}`)}
-                    className="panel flex items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:border-ember-600/40"
-                  >
-                    <span className="truncate font-display text-sm font-medium">
-                      {c.title || t("chatList.untitled")}
-                    </span>
-                    <span className="shrink-0 text-xs text-mist-dim">
-                      {t("chatList.messageCount", { count: c.message_count ?? 0 })} · {timeAgo(c.last_message_at ?? c.updated_at, t)}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              {conversationsFailure ? (
+                <LoadFailure error={conversationsFailure.error} onRetry={readConversations} />
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {conversations.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => navigate(`/chat/${c.id}`)}
+                      className="panel flex items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:border-ember-600/40"
+                    >
+                      <span className="truncate font-display text-sm font-medium">
+                        {c.title || t("chatList.untitled")}
+                      </span>
+                      <span className="shrink-0 text-xs text-mist-dim">
+                        {t("chatList.messageCount", { count: c.message_count ?? 0 })} · {timeAgo(c.last_message_at ?? c.updated_at, t)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </section>
           )}
         </div>

@@ -181,3 +181,19 @@ test("a connection that is not removed says so in its window, and stays", async 
   expect(kept).toHaveLength(1);
   await request.delete(`${API}/api/connections/${made.id}`);
 });
+
+test("a card's conversations that cannot be read are said to be so, not shown as none", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const title = `Listed ${Date.now()}`;
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { title } });
+  const theirs = (url: URL) => url.pathname === "/api/conversations" && url.searchParams.has("character_id");
+  await page.route(theirs, offline);
+  await page.goto(`/#/characters/${convo.character_id}`);
+  const failure = page.locator("main").getByRole("alert");
+  await expect(failure).toContainText("Evermind is not answering");
+
+  await page.unroute(theirs, offline);
+  await failure.getByRole("button", { name: "Reload" }).click();
+  await expect(page.getByRole("button", { name: title })).toBeVisible();
+  await expect(failure).toHaveCount(0);
+});
