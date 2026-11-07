@@ -43,7 +43,7 @@ def write(path, cases):
     # Anything an editor would hide or fold stays an escape; bytes keep LF on Windows.
     hidden = ("Cc", "Cf", "Cs", "Mn", "Zl", "Zp", "Zs")
     text = "".join(
-        f"\\u{ord(c):04x}" if c not in " \n" and unicodedata.category(c) in hidden else c
+        (json.dumps(c)[1:-1] if ord(c) > 0xFFFF else f"\\u{ord(c):04x}") if c not in " \n" and unicodedata.category(c) in hidden else c
         for c in text
     )
     path.write_bytes(text.encode("utf-8"))
@@ -68,6 +68,13 @@ def test_a_file_is_what_the_writer_writes(tmp_path):
         again = tmp_path / path.name
         write(again, read(path))
         assert again.read_bytes() == path.read_bytes()
+
+
+def test_hidden_characters_beyond_the_basic_plane_survive_a_write(tmp_path):
+    flag = "\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F"
+    path = tmp_path / "flag.json"
+    write(path, [{"input": flag}])
+    assert read(path) == [{"input": flag}]
 
 
 if __name__ == "__main__":
