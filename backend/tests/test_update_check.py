@@ -207,3 +207,10 @@ async def test_endpoint_follows_the_setting(client, monkeypatch):
     body = (await client.get("/api/update")).json()
     assert body["enabled"] is False
     assert body["update_available"] is False
+
+
+def test_docker_upgrade_command_is_one_command_every_shell_parses(monkeypatch):
+    monkeypatch.setattr(update_check, "install_kind", lambda: "docker")
+    command = update_check.upgrade_command()
+    assert command == "docker compose up -d --pull always"
+    assert "&&" not in command
