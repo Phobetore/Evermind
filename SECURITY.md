@@ -47,10 +47,10 @@ closed as working-as-intended:
 
 Each device types the password once and gets a session of its own, which lasts
 until it is ended. **Sign out of this device** and **Sign out every device**, both
-in Settings, end one session or all of them, and changing the password ends them
-all. A session never expires by itself: each opening of Evermind gives its cookie
-another 400 days, so a device that is lost stays signed in until every device is
-signed out or the password changes.
+in Settings, end one session or all of them, and changing or removing the password
+ends them all. A session never expires by itself: each opening of Evermind gives
+its cookie another 400 days, so a device that is lost stays signed in until every
+device is signed out or the password changes.
 
 The database keeps nothing of the password, and of each session only an HMAC of
 its token keyed by the password, so reading the database does not hand anyone a

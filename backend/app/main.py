@@ -4,16 +4,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from . import __version__, config
+from . import __version__, config, gate
 from .db import init_db
 from .errors import register_error_handlers
-from .gate import GateMiddleware
 from .ui import UIFiles
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db()
+    if not gate.enabled():
+        # So that the same password, set again later, lets in no device from before.
+        await gate.end_all_sessions()
     import asyncio
 
     from .services import memory_service
@@ -26,7 +28,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Evermind", version=__version__, lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
     # No CORS: the interface is never on another origin, and other origins' writes are refused here.
-    app.add_middleware(GateMiddleware)
+    app.add_middleware(gate.GateMiddleware)
     register_error_handlers(app)
 
     from .routers import register_routers

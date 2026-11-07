@@ -368,7 +368,7 @@ program that starts Evermind, which always writes in English.
 | "Without a password, Evermind does not answer to this name" | You opened Evermind by a name, such as the computer's own or `nas.local`, and no password is set. Open it by its address (`http://192.168.1.42:3000`) or by `localhost`, or set a password: with one, any name is accepted. With Docker, after changing `.env`, run `docker compose up -d` again (`docker compose restart` keeps the settings the container started with); otherwise start Evermind again. |
 | "Evermind refused this request because it seems to come from another address" | Evermind turns away changes that a page from another website sends. If you reach it through a reverse proxy, the proxy has to pass the browser's original `Host` header on unchanged. [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an example. |
 | A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Each device is asked once, then stays signed in until it is signed out. Clear that line and start Evermind again to remove the page (with Docker, `docker compose up -d`). |
-| You changed the password and every device asks for it again | That is on purpose: changing the password signs every device out. |
+| You changed the password and every device asks for it again | That is on purpose: changing or removing the password signs every device out. |
 
 ---
 

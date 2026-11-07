@@ -14,6 +14,8 @@ import pytest
 
 from app import gate
 from app.db import connect
+from app.main import lifespan
+from app.services import memory_service
 
 PW = "s3cret"
 COOKIE = gate.SESSION_COOKIE
@@ -115,6 +117,19 @@ async def test_sessions_outlive_a_restart_but_not_a_new_password(make_client):
         assert (await c.get("/api/characters", headers=device(token))).status_code == 401
         assert (await c.post("/api/gate", json={"password": PW})).status_code == 401
         await sign_in(c, "other")
+
+
+async def test_removing_the_password_ends_every_session(make_client, monkeypatch):
+    # Or setting the same one again later would let in a device from before, a lost phone too.
+    monkeypatch.setattr(memory_service, "warmup_and_backfill", lambda: asyncio.sleep(0))
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        token = await sign_in(c)
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c, lifespan(None):
+        assert (await c.get("/api/characters", headers=device(token))).status_code == 200
+    async with make_client() as c, lifespan(None):
+        assert (await c.get("/api/characters")).status_code == 200
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        assert (await c.get("/api/characters", headers=device(token))).status_code == 401
 
 
 COMPOSED = unicodedata.normalize("NFC", "crème brûlée ✨")
