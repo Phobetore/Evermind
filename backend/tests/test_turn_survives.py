@@ -136,9 +136,37 @@ async def test_the_state_holds_all_of_it_and_never_goes_back(client, unhurried):
         assert state["text"].startswith(seen), "the text went backwards"
         seen = state["text"]
         await asyncio.sleep(0.1)
-    assert state == {"running": False, "outcome": None}
+    assert (state["running"], state["outcome"]) == (False, None)
     reply = (await messages_of(client, convo["id"]))[-1]
     assert reply["content"].startswith(seen.strip())
+
+
+async def test_the_state_says_whether_the_story_changed_as_its_read_does(client, counting):
+    """A page that wakes reads the conversation only when it changed, an edit that keeps the
+    length included, and knows a read newer than the state it asked before it."""
+    convo = await setup_conversation(client)
+
+    async def revision():
+        state = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()
+        read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+        assert state["revision"] == read["revision"]
+        return state["revision"]
+
+    seen = [await revision()]
+    assert await revision() == seen[0], "asking changed it"
+    await send(client, convo["id"], content="Vas-y")
+    seen.append(await revision())
+    reply = (await messages_of(client, convo["id"]))[-1]
+    for change in (
+        lambda: client.patch(f"/api/messages/{reply['id']}", json={"content": "Une réponsE."}),
+        lambda: send(client, convo["id"], content=None, mode="regenerate"),
+        lambda: client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0}),
+        lambda: send(client, convo["id"], content=None, mode="continue"),
+        lambda: client.delete(f"/api/messages/{reply['id']}"),
+    ):
+        await change()
+        seen.append(await revision())
+    assert len(set(seen)) == len(seen), f"a change went unseen: {seen}"
 
 
 async def test_a_continuation_or_a_regeneration_is_the_whole_of_the_message_being_written(
@@ -223,8 +251,8 @@ async def test_a_stop_keeps_every_word_ends_the_request_at_once_and_the_next_mes
     reply = (await messages_of(client, convo["id"]))[-1]
     assert reply["content"] == "mot0 mot1 mot2 mot3"
     assert reply["meta"] == {"interrupted": [0]}, "a stopped reply is a reply cut short"
-    assert (await client.get(f"/api/conversations/{convo['id']}/turn")).json() == {
-        "running": False, "outcome": None}
+    state = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()
+    assert (state["running"], state["outcome"]) == (False, None)
 
     monkeypatch.setattr("app.services.chat_service.get_provider", UnhurriedProvider)
     assert await send(client, convo["id"], content="Suite") is None
