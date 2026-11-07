@@ -133,7 +133,7 @@
     "savedFlash": "Enregistré.",
     "access": {
       "title": "Accès",
-      "hint": "Cet appareil reste connecté 30 jours après sa dernière visite.",
+      "hint": "Cet appareil reste connecté jusqu'à ce que vous le déconnectiez ou changiez le mot de passe.",
       "logout": "Se déconnecter de cet appareil",
       "logoutEverywhere": "Déconnecter tous les appareils",
       "logoutEverywhereConfirm": "Tous les appareils, celui-ci compris, devront saisir à nouveau le mot de passe."

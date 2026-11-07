@@ -133,7 +133,7 @@
     "savedFlash": "Gespeichert.",
     "access": {
       "title": "Zugang",
-      "hint": "Dieses Gerät bleibt nach seinem letzten Besuch 30 Tage lang angemeldet.",
+      "hint": "Dieses Gerät bleibt angemeldet, bis du es abmeldest oder das Passwort änderst.",
       "logout": "Auf diesem Gerät abmelden",
       "logoutEverywhere": "Alle Geräte abmelden",
       "logoutEverywhereConfirm": "Jedes Gerät, dieses eingeschlossen, muss das Passwort dann noch einmal eingeben."

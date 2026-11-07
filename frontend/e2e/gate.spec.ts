@@ -80,7 +80,7 @@ test("the login never sends anyone off-site", async ({ page }) => {
   expect(new URL(page.url()).origin).toBe(GATED);
 });
 
-test("the session cookie outlives the browser and does not need https", async ({ page, context }) => {
+test("the session cookie does not need https, and each opening renews it", async ({ page, context }) => {
   // A phone reaches Evermind over http, by the address of the computer on the
   // network. A cookie marked Secure would be dropped there, and one without an
   // expiry would be gone each time the browser is closed.
@@ -92,8 +92,18 @@ test("the session cookie outlives the browser and does not need https", async ({
   expect(cookie, "no session cookie was set").toBeDefined();
   expect(cookie!.secure).toBe(false);
   expect(cookie!.httpOnly).toBe(true);
-  // -1 is how a session cookie, which ends with the browser, is reported.
-  expect(cookie!.expires).toBeGreaterThan(Date.now() / 1000);
+  const inAYear = Date.now() / 1000 + 365 * 86400;
+  expect(cookie!.expires).toBeGreaterThan(inAYear);
+
+  // A phone used every week is never asked again: a cookie near its end, as one
+  // last renewed long ago would be, comes back whole from opening Evermind.
+  await context.addCookies([{ ...cookie!, expires: Math.round(Date.now() / 1000) + 3600 }]);
+  const asked = page.waitForResponse((r) => r.url().endsWith("/api/gate") && r.request().method() === "GET");
+  await page.reload();
+  await asked;
+  const renewed = (await context.cookies()).find((c) => c.name === "evermind_session");
+  expect(renewed?.value).toBe(cookie!.value);
+  expect(renewed!.expires).toBeGreaterThan(inAYear);
 });
 
 test("signing out really ends the session", async ({ page, context, request }) => {

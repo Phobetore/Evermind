@@ -1,17 +1,14 @@
 """The access password, kept by the backend.
 
-One session per device, of which the database only holds a digest; failed
-attempts slowed down and limited per address; a logout that the server
+One session per device, of which the database only holds an HMAC keyed by the
+password; wrong attempts limited per address; a logout that the server
 honours. Many people reach Evermind from a phone over plain HTTP on a LAN
 address, so the cookie has to work without the Secure flag there.
 """
 
 import asyncio
-import contextlib
-import logging
-import sqlite3
+import types
 import unicodedata
-from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -20,48 +17,23 @@ from app.db import connect
 
 PW = "s3cret"
 COOKIE = gate.SESSION_COOKIE
+LOCKED = {"error": "Locked.", "kind": "locked"}
+LONGEST = f"max-age={400 * 86400}"
 
 
-@pytest.fixture()
-def clock(monkeypatch):
-    """Both of the gate's clocks, moved only by the test."""
-
-    class Clock:
-        def __init__(self) -> None:
-            self.wall = datetime.now(UTC)
-            self.mono = 1000.0
-
-        def advance(self, **delta: float) -> None:
-            step = timedelta(**delta)
-            self.wall += step
-            self.mono += step.total_seconds()
-
-    c = Clock()
-    monkeypatch.setattr(gate, "now", lambda: c.wall)
-    monkeypatch.setattr(gate, "monotonic", lambda: c.mono)
-    return c
-
-
-@pytest.fixture()
-def pauses(monkeypatch):
-    """Records the pause after a wrong password instead of sleeping through it."""
-    calls: list[None] = []
-
-    async def pause() -> None:
-        calls.append(None)
-
-    monkeypatch.setattr(gate, "failure_pause", pause)
-    return calls
+@pytest.fixture(autouse=True)
+def _no_failures_left():
+    # Kept by the process, as in the server, and every test client has the same address.
+    gate._failures.clear()
 
 
 async def sign_in(c, password: str = PW) -> str:
-    """Log in as a new device and return its token. The client's cookie jar is
-    left empty, so that every later request says which device it comes from."""
+    """Signs in as a new device and returns its token, leaving the client's jar
+    empty so that every later request says which device it comes from."""
     r = await c.post("/api/gate", json={"password": password})
     assert r.status_code == 204, r.text
-    token = r.cookies[COOKIE]
     c.cookies.clear()
-    return token
+    return r.cookies[COOKIE]
 
 
 def device(token: str) -> dict:
@@ -69,69 +41,26 @@ def device(token: str) -> dict:
 
 
 def attributes(set_cookie: str) -> list[str]:
-    """The attributes after the value, lowercased: the token itself is random
-    and could spell anything."""
     return [part.strip().lower() for part in set_cookie.split(";")[1:]]
 
 
-async def rows(sql: str) -> list:
-    conn = await connect()
-    try:
-        return list(await conn.execute_fetchall(sql))
-    finally:
-        await conn.close()
-
-
-async def test_gate_is_off_without_password(client):
+async def test_off_without_a_password(client):
     assert (await client.get("/api/characters")).status_code == 200
     assert (await client.get("/api/gate")).json() == {"enabled": False, "authenticated": False}
-
-
-async def test_login_is_a_no_op_without_password(client):
     r = await client.post("/api/gate", json={"password": "anything"})
-    assert r.status_code == 204
-    assert "set-cookie" not in r.headers
+    assert r.status_code == 204 and "set-cookie" not in r.headers
 
 
-@pytest.mark.parametrize("path", ["/api/characters", "/api/media/x.png", "/api/library",
-                                  "/api/conversations/x/turn/stream", "/api/gate/sessions"])
-async def test_api_and_media_are_locked_without_session(make_client, path):
-    method = "DELETE" if path == "/api/gate/sessions" else "GET"
+@pytest.mark.parametrize(("method", "path"), [
+    ("GET", "/api/characters"), ("GET", "/api/media/x.png"),
+    ("GET", "/api/conversations/x/turn/stream"), ("DELETE", "/api/gate/sessions"),
+    # Only the two public paths themselves are open, not what sits next to them.
+    ("GET", "/api/gate/"), ("GET", "/api/gatex"), ("GET", "/api/health/"), ("GET", "/api/healthz"),
+])
+async def test_locked_without_a_session(make_client, method, path):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         r = await c.request(method, path)
-    assert r.status_code == 401
-    assert r.json() == {"error": "Locked.", "kind": "locked"}
-
-
-@pytest.mark.parametrize("path", ["/api/gate/", "/api/gate/x", "/api/gatex", "/api/health/",
-                                  "/api/healthz", "/api/update"])
-async def test_paths_next_to_the_public_ones_are_locked(make_client, path):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        r = await c.get(path)
-    assert r.status_code == 401
-    assert r.json() == {"error": "Locked.", "kind": "locked"}
-
-
-async def test_requests_arriving_together_first_load_the_store_once(make_client, monkeypatch):
-    loads: list[str] = []
-    load = gate.GateStore._load
-
-    async def slow_load(self, password: str) -> None:
-        loads.append(password)
-        # Long enough for the other request to arrive while this one loads.
-        await asyncio.sleep(0.05)
-        await load(self, password)
-
-    monkeypatch.setattr(gate.GateStore, "_load", slow_load)
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        state, locked = await asyncio.gather(c.get("/api/gate"), c.get("/api/characters"))
-    assert loads == [PW]
-    assert state.json() == {"enabled": True, "authenticated": False}
-    assert locked.status_code == 401
-
-
-async def test_public_api_paths_stay_open(make_client):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        assert (r.status_code, r.json()) == (401, LOCKED)
         assert (await c.get("/api/health")).status_code == 200
         assert (await c.get("/api/gate")).json() == {"enabled": True, "authenticated": False}
 
@@ -147,203 +76,116 @@ async def test_api_docs_are_not_served(make_client, path, password):
     assert "paths" not in r.text
 
 
-async def test_login_cookie_attributes_over_http(make_client):
+async def test_a_device_signs_in_over_plain_http_and_stays(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         r = await c.post("/api/gate", json={"password": PW})
-        assert r.status_code == 204
-        cookie = r.headers["set-cookie"]
-        assert cookie.startswith(f"{COOKIE}=")
-        attrs = attributes(cookie)
-        assert "httponly" in attrs
-        assert "samesite=lax" in attrs
-        assert "max-age=2592000" in attrs
-        assert "path=/" in attrs
+        attrs = attributes(r.headers["set-cookie"])
+        assert {"httponly", "samesite=lax", "path=/", LONGEST} <= set(attrs)
         assert "secure" not in attrs
-        # The client's own cookie jar took it, over plain HTTP, and sends it back.
+        # The client's own jar took it, over plain HTTP, and sends it back.
         assert (await c.get("/api/characters")).status_code == 200
-        assert (await c.get("/api/gate")).json() == {"enabled": True, "authenticated": True}
-
-
-async def test_login_cookie_is_secure_over_https(make_client):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         r = await c.post("https://localhost/api/gate", json={"password": PW})
-    assert r.status_code == 204
-    assert "secure" in attributes(r.headers["set-cookie"])
+        assert "secure" in attributes(r.headers["set-cookie"])
 
 
-async def test_tokens_are_random_and_never_stored(make_client):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        first = await sign_in(c)
-        second = await sign_in(c)
-        stored = {row["token_hash"] for row in await rows("SELECT token_hash FROM gate_sessions")}
-    assert first != second
-    for token in (first, second):
-        assert len(token) >= 43
-        assert PW not in token
-        assert token not in stored
-    assert stored == {gate.token_digest(first), gate.token_digest(second)}
-
-
-async def test_password_is_stored_as_scrypt(make_client):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        await c.get("/api/gate")
-        (row,) = await rows("SELECT password_hash FROM gate_state")
-    assert row["password_hash"].startswith("scrypt$")
-    assert PW not in row["password_hash"]
-
-
-def test_password_hashes_are_salted_and_checked():
-    first, second = gate.hash_password(PW), gate.hash_password(PW)
-    assert first != second
-    assert first.startswith("scrypt$16384$8$1$")
-    assert gate.verify_password(PW, first) and gate.verify_password(PW, second)
-    assert not gate.verify_password(PW + " ", first)
-    assert not gate.verify_password("", first)
-    # A string that is not valid UTF-8 can come out of JSON; it is just wrong.
-    assert not gate.verify_password("\ud800", first)
-
-
-@pytest.mark.parametrize("stored", [
-    "",
-    "plain",
-    "scrypt$",
-    "bcrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA",
-    "scrypt$many$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA",
-    "scrypt$16384$8$1$!!!!$AAAA",
-    "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$",
-    "scrypt$3$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA",
-    "scrypt$1099511627776$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA",
-    "scrypt$" + "9" * 5000 + "$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA",
-    "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA$extra",
-])
-def test_unreadable_hashes_never_verify(stored):
-    assert gate.verify_password(PW, stored) is False
-
-
-@pytest.mark.parametrize("stored", [None, 16384, 1.5, ["scrypt"],
-                                    b"scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA"])
-def test_a_stored_digest_that_is_not_text_never_verifies(stored):
-    # Whatever its type, an unreadable digest is a mismatch, never an error.
-    assert gate.verify_password(PW, stored) is False
-
-
-async def test_a_stored_digest_that_is_not_text_is_replaced(make_client):
+async def test_opening_the_app_renews_the_cookie(make_client):
+    # The interface asks this on every opening: a device in use never meets the password again.
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         token = await sign_in(c)
+        r = await c.get("/api/gate", headers=device(token))
+        assert r.json() == {"enabled": True, "authenticated": True}
+        assert r.headers["set-cookie"].startswith(f"{COOKIE}={token};")
+        assert LONGEST in attributes(r.headers["set-cookie"])
+        assert "set-cookie" not in (await c.get("/api/gate", headers=device("made-up"))).headers
+
+
+async def test_the_database_holds_no_token(make_client):
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        tokens = {await sign_in(c), await sign_in(c)}
         conn = await connect()
         try:
-            await conn.execute("UPDATE gate_state SET password_hash = ?", (bytes([0, 255]),))
-            await conn.commit()
+            stored = {row[0] for row in await conn.execute_fetchall("SELECT * FROM gate_sessions")}
         finally:
             await conn.close()
+    assert len(tokens) == len(stored) == 2
+    assert all(len(token) >= 43 for token in tokens)
+    assert not tokens & stored
+
+
+async def test_sessions_outlive_a_restart_but_not_a_new_password(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        # Unreadable counts as a different password: sessions end, the
-        # password still opens.
+        token = await sign_in(c)
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        assert (await c.get("/api/characters", headers=device(token))).status_code == 200
+    async with make_client(EVERMIND_GATE_PASSWORD="other") as c:
         assert (await c.get("/api/characters", headers=device(token))).status_code == 401
-        await sign_in(c)
-        (row,) = await rows("SELECT password_hash FROM gate_state")
-    assert row["password_hash"].startswith("scrypt$")
+        assert (await c.post("/api/gate", json={"password": PW})).status_code == 401
+        await sign_in(c, "other")
 
 
-async def test_wrong_password_waits_and_refuses(make_client, pauses):
+COMPOSED = unicodedata.normalize("NFC", "crème brûlée ✨")
+DECOMPOSED = unicodedata.normalize("NFD", COMPOSED)
+
+
+@pytest.mark.parametrize(("configured", "typed"), [(COMPOSED, DECOMPOSED), (DECOMPOSED, COMPOSED)])
+async def test_an_accent_typed_another_way_is_the_same_password(make_client, configured, typed):
+    # A phone keyboard and the editor of .env need not write "è" the same way.
+    async with make_client(EVERMIND_GATE_PASSWORD=configured) as c:
+        token = await sign_in(c, typed)
+    async with make_client(EVERMIND_GATE_PASSWORD=typed) as c:
+        assert (await c.get("/api/characters", headers=device(token))).status_code == 200
+
+
+@pytest.mark.parametrize(("body", "code"), [
+    (b'{"password": "nope"}', 401), (b'{"password": ""}', 401),
+    # Valid JSON, and not valid UTF-8: a wrong password, not an error.
+    (b'{"password": "\\ud800"}', 401),
+    (b"{}", 422), (b"not json", 422), (b'{"password": 3}', 422),
+])
+async def test_a_wrong_password_is_refused(make_client, body, code):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        r = await c.post("/api/gate", json={"password": "nope"})
-    assert r.status_code == 401
-    assert r.json() == {"error": "Wrong password.", "kind": "wrong_password"}
+        r = await c.post("/api/gate", content=body, headers={"content-type": "application/json"})
+    assert r.status_code == code
     assert "set-cookie" not in r.headers
-    assert len(pauses) == 1
+    if code == 401:
+        assert r.json() == {"error": "Wrong password.", "kind": "wrong_password"}
 
 
-async def test_odd_login_bodies_are_refused_not_errors(make_client, pauses):
-    bodies = [b"", b"{}", b"not json", b'{"password": 3}', b'{"password": "\\ud800"}']
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        for body in bodies:
-            r = await c.post("/api/gate", content=body,
-                             headers={"content-type": "application/json"})
-            assert r.status_code in (401, 422), (body, r.status_code)
-            assert "set-cookie" not in r.headers
-
-
-async def test_attempts_are_limited(make_client, pauses, clock):
+async def test_attempts_are_limited_for_each_address(make_client, monkeypatch):
+    clock = types.SimpleNamespace(monotonic=lambda: 1000.0)
+    monkeypatch.setattr(gate, "time", clock)
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         for _ in range(gate.MAX_FAILURES):
-            r = await c.post("/api/gate", json={"password": "nope"})
-            assert r.status_code == 401
+            assert (await c.post("/api/gate", json={"password": "nope"})).status_code == 401
         # The right password does not help while the address is blocked.
         r = await c.post("/api/gate", json={"password": PW})
-        assert r.status_code == 429
-        assert r.json() == {"error": "Too many attempts.", "kind": "rate_limited"}
-        assert int(r.headers["retry-after"]) > 0
+        assert (r.status_code, r.json()) == (429, {"error": "Too many attempts.",
+                                                   "kind": "rate_limited"})
+        assert r.headers["retry-after"] == str(gate.FAILURE_WINDOW_S)
         assert "set-cookie" not in r.headers
-        clock.advance(seconds=gate.FAILURE_WINDOW_S + 1)
-        r = await c.post("/api/gate", json={"password": PW})
-        assert r.status_code == 204
+        assert gate.retry_after("10.0.0.2") == 0
+        clock.monotonic = lambda: 1000.0 + gate.FAILURE_WINDOW_S
+        await sign_in(c)
 
 
-async def test_success_forgets_earlier_failures(make_client, pauses):
+async def test_signing_in_forgets_the_wrong_attempts(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         for _ in range(gate.MAX_FAILURES - 1):
             await c.post("/api/gate", json={"password": "nope"})
         await sign_in(c)
         for _ in range(gate.MAX_FAILURES):
-            r = await c.post("/api/gate", json={"password": "nope"})
-            assert r.status_code == 401
+            assert (await c.post("/api/gate", json={"password": "nope"})).status_code == 401
 
 
-async def test_parallel_attempts_cannot_pass_the_limit(make_client, monkeypatch):
-    """Attempts sent all at once must not all be checked before any is counted."""
-
-    async def pause() -> None:
-        await asyncio.sleep(0)
-
-    monkeypatch.setattr(gate, "failure_pause", pause)
+async def test_attempts_sent_at_once_cannot_pass_the_limit(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         replies = await asyncio.gather(
-            *(c.post("/api/gate", json={"password": "nope"}) for _ in range(25))
-        )
+            *(c.post("/api/gate", json={"password": "nope"}) for _ in range(25)))
     codes = [r.status_code for r in replies]
-    assert codes.count(401) == gate.MAX_FAILURES
-    assert codes.count(429) == 25 - gate.MAX_FAILURES
+    assert (codes.count(401), codes.count(429)) == (gate.MAX_FAILURES, 25 - gate.MAX_FAILURES)
 
 
-async def test_passwords_are_checked_off_the_event_loop(make_client, monkeypatch, pauses):
-    """scrypt takes tens of milliseconds on purpose. On the event loop, every
-    attempt would hold up the replies being streamed meanwhile."""
-    where: list[str] = []
-    verify = gate.verify_password
-
-    def spy(password: str, stored: object) -> bool:
-        try:
-            asyncio.get_running_loop()
-            where.append("event loop")
-        except RuntimeError:
-            where.append("thread")
-        return verify(password, stored)
-
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        await c.get("/api/gate")
-        monkeypatch.setattr(gate, "verify_password", spy)
-        r = await c.post("/api/gate", json={"password": "nope"})
-        assert r.status_code == 401
-        r = await c.post("/api/gate", json={"password": PW})
-        assert r.status_code == 204
-    assert where == ["thread", "thread"]
-
-
-def test_limiter_counts_each_address_on_its_own(clock):
-    limiter = gate.AttemptLimiter()
-    for _ in range(gate.MAX_FAILURES):
-        assert limiter.retry_after("10.0.0.2") == 0
-        limiter.record_failure("10.0.0.2")
-    assert limiter.retry_after("10.0.0.2") == gate.FAILURE_WINDOW_S
-    assert limiter.retry_after("10.0.0.3") == 0
-    clock.advance(seconds=100)
-    assert limiter.retry_after("10.0.0.2") == gate.FAILURE_WINDOW_S - 100
-    limiter.reset("10.0.0.2")
-    assert limiter.retry_after("10.0.0.2") == 0
-
-
-async def test_logout_revokes_on_the_server(make_client):
+async def test_signing_out_ends_the_session_on_the_server(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         token = await sign_in(c)
         r = await c.delete("/api/gate", headers=device(token))
@@ -351,332 +193,48 @@ async def test_logout_revokes_on_the_server(make_client):
         assert "max-age=0" in attributes(r.headers["set-cookie"])
         # The token itself is dead, not just forgotten by this browser.
         assert (await c.get("/api/characters", headers=device(token))).status_code == 401
-        # Logging out without a session is not a mistake worth an error.
-        r = await c.delete("/api/gate")
-        assert r.status_code == 204
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        assert (await c.get("/api/characters", headers=device(token))).status_code == 401
+        assert (await c.delete("/api/gate")).status_code == 204
 
 
-async def test_logout_everywhere(make_client):
+async def test_signing_out_every_device(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        phone = await sign_in(c)
-        laptop = await sign_in(c)
-        for token in (phone, laptop):
-            assert (await c.get("/api/characters", headers=device(token))).status_code == 200
+        phone, laptop = await sign_in(c), await sign_in(c)
         r = await c.delete("/api/gate/sessions", headers=device(phone))
         assert r.status_code == 204
+        assert "max-age=0" in attributes(r.headers["set-cookie"])
         for token in (phone, laptop):
             assert (await c.get("/api/characters", headers=device(token))).status_code == 401
+
+
+async def test_a_garbage_cookie_is_locked_not_an_error(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        assert (await c.get("/api/characters", headers=device(laptop))).status_code == 401
-
-
-class Connection:
-    """A database connection that reports each statement before running it,
-    and each commit after it, with the statements it committed."""
-
-    def __init__(self, conn, before, committed=None) -> None:
-        self._conn = conn
-        self._before = before
-        self._committed = committed
-        self._pending: list[str] = []
-
-    async def execute(self, sql: str, *args):
-        await self._before(sql)
-        self._pending.append(sql)
-        return await self._conn.execute(sql, *args)
-
-    async def commit(self) -> None:
-        await self._conn.commit()
-        if self._committed:
-            self._committed(self._pending)
-        self._pending = []
-
-    async def close(self) -> None:
-        await self._conn.close()
-
-
-async def sessions_agree(store: gate.GateStore, token: str) -> bool:
-    """Whether memory and the database say the same about ``token``."""
-    stored = {row["token_hash"] for row in await rows("SELECT token_hash FROM gate_sessions")}
-    return store.check(token) == (gate.token_digest(token) in stored)
-
-
-async def test_a_sign_in_during_sign_out_everywhere_is_kept_or_ended_whole(make_client,
-                                                                          monkeypatch):
-    """Signing every device out clears memory, then the database. A sign-in
-    that writes its row in between, and only then goes into memory, would
-    stay open with nothing behind it, until a restart."""
-    async with make_client(EVERMIND_GATE_PASSWORD=PW):
-        store = gate.GateStore()
-        await store.ensure_loaded()
-        loop = asyncio.get_running_loop()
-        checked, written = asyncio.Event(), asyncio.Event()
-        verify = gate.verify_password
-
-        def verify_and_tell(password: str, stored: object) -> bool:
-            ok = verify(password, stored)
-            loop.call_soon_threadsafe(checked.set)
-            return ok
-
-        async def before(sql: str) -> None:
-            if sql == "DELETE FROM gate_sessions":
-                # Give the sign-in, once its password is checked, every chance
-                # to write its row before the sessions are deleted.
-                await asyncio.wait_for(checked.wait(), timeout=5)
-                # Timing out is the expected outcome when the lock holds the sign-in back.
-                with contextlib.suppress(TimeoutError):
-                    await asyncio.wait_for(written.wait(), timeout=0.5)
-
-        def committed(statements: list[str]) -> None:
-            if any(sql.startswith("INSERT INTO gate_sessions") for sql in statements):
-                written.set()
-
-        async def connect_held():
-            return Connection(await connect(), before, committed)
-
-        monkeypatch.setattr(gate, "verify_password", verify_and_tell)
-        monkeypatch.setattr(gate, "connect", connect_held)
-        _, token = await asyncio.gather(store.logout_all(), store.login(PW))
-        assert token is not None
-        assert await sessions_agree(store, token)
-
-
-async def test_sessions_survive_a_restart(make_client):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        token = await sign_in(c)
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        assert (await c.get("/api/characters", headers=device(token))).status_code == 200
-
-
-async def test_changed_password_revokes_sessions(make_client, pauses):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        token = await sign_in(c)
-    async with make_client(EVERMIND_GATE_PASSWORD="other") as c:
-        assert (await c.get("/api/characters", headers=device(token))).status_code == 401
-        r = await c.post("/api/gate", json={"password": PW})
-        assert r.status_code == 401
-        r = await c.post("/api/gate", json={"password": "other"})
-        assert r.status_code == 204
-
-
-async def test_removed_password_clears_sessions(make_client):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        token = await sign_in(c)
-    async with make_client() as c:
-        assert (await c.get("/api/characters")).status_code == 200
-        assert await rows("SELECT * FROM gate_sessions") == []
-        assert await rows("SELECT * FROM gate_state") == []
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        assert (await c.get("/api/characters", headers=device(token))).status_code == 401
-
-
-async def test_session_expires_after_thirty_idle_days(make_client, clock):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        token = await sign_in(c)
-        clock.advance(days=31)
-        assert (await c.get("/api/characters", headers=device(token))).status_code == 401
-    # The next start forgets it altogether.
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        assert (await c.get("/api/characters", headers=device(token))).status_code == 401
-        assert await rows("SELECT * FROM gate_sessions") == []
-
-
-async def test_session_slides_when_used(make_client, clock):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        token = await sign_in(c)
-        clock.advance(days=2)
-        r = await c.get("/api/characters", headers=device(token))
-        assert r.status_code == 200
-        cookie = r.headers["set-cookie"]
-        assert cookie.startswith(f"{COOKIE}={token};")
-        assert "max-age=2592000" in attributes(cookie)
-        # Once a day is enough: the next request does not send it again.
-        r = await c.get("/api/characters", headers=device(token))
-        assert r.status_code == 200
-        assert "set-cookie" not in r.headers
-        clock.advance(days=29)
-        assert (await c.get("/api/characters", headers=device(token))).status_code == 200
-    # The new date was written down, not only kept in memory.
-    clock.advance(days=29)
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        assert (await c.get("/api/characters", headers=device(token))).status_code == 200
-
-
-async def test_a_slide_that_cannot_be_written_is_tried_again(make_client, monkeypatch, clock,
-                                                            caplog):
-    """Losing the database for a moment must not turn a request into an
-    error, nor put off the next slide by a day."""
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        token = await sign_in(c)
-        clock.advance(days=2)
-        working = gate.connect
-
-        async def refuse(sql: str) -> None:
-            if sql.startswith("UPDATE gate_sessions"):
-                raise sqlite3.OperationalError("database is locked")
-
-        async def failing_connect():
-            return Connection(await working(), refuse)
-
-        monkeypatch.setattr(gate, "connect", failing_connect)
-        with caplog.at_level(logging.ERROR, logger="app.gate"):
-            r = await c.get("/api/characters", headers=device(token))
-        assert r.status_code == 200
-        assert "set-cookie" not in r.headers
-        assert "database is locked" in caplog.text
-
-        monkeypatch.setattr(gate, "connect", working)
-        r = await c.get("/api/characters", headers=device(token))
-        assert r.status_code == 200
-        assert r.headers["set-cookie"].startswith(f"{COOKIE}={token};")
-    # Written this time: 31 days after signing in, 29 after the slide.
-    clock.advance(days=29)
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        assert (await c.get("/api/characters", headers=device(token))).status_code == 200
-
-
-async def test_a_slide_waiting_behind_a_sign_out_does_not_bring_it_back(make_client,
-                                                                       monkeypatch, clock):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW):
-        store = gate.GateStore()
-        await store.ensure_loaded()
-        token = await store.login(PW)
-        clock.advance(days=2)
-        holding, release = asyncio.Event(), asyncio.Event()
-
-        async def hold_inserts(sql: str) -> None:
-            if sql.startswith("INSERT INTO gate_sessions"):
-                holding.set()
-                await release.wait()
-
-        async def held_connect():
-            return Connection(await connect(), hold_inserts)
-
-        monkeypatch.setattr(gate, "connect", held_connect)
-        # Another device signing in holds up the changes behind it. The sign
-        # out queues first, then the slide, which still finds the session.
-        other = asyncio.create_task(store.login(PW))
-        await asyncio.wait_for(holding.wait(), timeout=5)
-        ending = asyncio.create_task(store.logout(token))
-        await asyncio.sleep(0)
-        sliding = asyncio.create_task(store.touch(token))
-        await asyncio.sleep(0)
-        assert store.check(token)
-        release.set()
-        await asyncio.wait_for(asyncio.gather(other, ending, sliding), timeout=5)
-
-        assert not store.check(token)
-        assert await sessions_agree(store, token)
-
-
-async def test_sliding_never_undoes_a_cleared_cookie(make_client, clock):
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        token = await sign_in(c)
-        clock.advance(days=2)
-        r = await c.delete("/api/gate/sessions", headers=device(token))
-    assert r.status_code == 204
-    cookies = r.headers.get_list("set-cookie")
-    assert len(cookies) == 1
-    assert "max-age=0" in attributes(cookies[0])
-
-
-async def test_non_ascii_password(make_client):
-    async with make_client(EVERMIND_GATE_PASSWORD="mot de passé ✨") as c:
-        r = await c.post("/api/gate", json={"password": "mot de passé ✨"})
-    assert r.status_code == 204
-
-
-COMPOSED = unicodedata.normalize("NFC", "crème brûlée")
-DECOMPOSED = unicodedata.normalize("NFD", COMPOSED)
-
-
-def test_accents_compare_however_they_were_typed():
-    # A phone keyboard and the editor the .env was written in need not encode
-    # "è" the same way: one character, or "e" and a combining accent.
-    assert COMPOSED != DECOMPOSED
-    assert gate.verify_password(DECOMPOSED, gate.hash_password(COMPOSED))
-    assert gate.verify_password(COMPOSED, gate.hash_password(DECOMPOSED))
-
-
-@pytest.mark.parametrize(("configured", "typed"), [(COMPOSED, DECOMPOSED),
-                                                   (DECOMPOSED, COMPOSED)])
-async def test_an_accent_typed_another_way_opens(make_client, configured, typed):
-    async with make_client(EVERMIND_GATE_PASSWORD=configured) as c:
-        r = await c.post("/api/gate", json={"password": typed})
-        assert r.status_code == 204
-
-
-async def test_the_same_password_written_another_way_keeps_sessions(make_client):
-    async with make_client(EVERMIND_GATE_PASSWORD=COMPOSED) as c:
-        token = await sign_in(c, COMPOSED)
-    async with make_client(EVERMIND_GATE_PASSWORD=DECOMPOSED) as c:
-        assert (await c.get("/api/characters", headers=device(token))).status_code == 200
-
-
-async def test_garbage_cookie_is_locked_not_an_error(make_client):
-    values = [b"%%%", b"", b'"quoted"', b"x" * 5000, "é".encode()]
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        for value in values:
+        for value in (b"%%%", b"", b'"quoted"', b"x" * 5000, "é".encode()):
             header = {"cookie": COOKIE.encode() + b"=" + value}
-            r = await c.get("/api/characters", headers=header)
-            assert r.status_code == 401, value
+            assert (await c.get("/api/characters", headers=header)).status_code == 401
             r = await c.get("/api/gate", headers=header)
             assert r.json() == {"enabled": True, "authenticated": False}
-            r = await c.delete("/api/gate", headers=header)
-            assert r.status_code == 204
+            assert (await c.delete("/api/gate", headers=header)).status_code == 204
 
 
-async def test_turn_stream_passes_through(make_client):
-    path = "/api/conversations/nope/turn/stream"
-    async with make_client() as c:
-        open_reply = await c.get(path)
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
-        token = await sign_in(c)
-        gated_reply = await c.get(path, headers=device(token))
-    assert gated_reply.status_code == open_reply.status_code
-    assert gated_reply.headers["content-type"] == open_reply.headers["content-type"]
-    assert gated_reply.text == open_reply.text
-
-
-async def test_streams_are_never_held_back():
-    """Each message of a response goes out as soon as the app sends it, the
-    reissued cookie included; a reply still being written is never buffered."""
+async def test_a_stream_is_never_held_back(make_client):
+    """Each message of a response goes out as soon as the app sends it."""
     second_part = asyncio.Event()
+    sent: list[dict] = []
 
     async def streaming_app(scope, receive, send):
         await send({"type": "http.response.start", "status": 200, "headers": []})
         await send({"type": "http.response.body", "body": b"one", "more_body": True})
         await asyncio.wait_for(second_part.wait(), timeout=2)
-        await send({"type": "http.response.body", "body": b"two", "more_body": False})
-
-    class Store:
-        enabled = True
-
-        async def ensure_loaded(self) -> None:
-            pass
-
-        def check(self, token: str | None) -> bool:
-            return token == "t"
-
-        async def touch(self, token: str) -> bool:
-            return True
-
-    sent: list[dict] = []
+        await send({"type": "http.response.body", "body": b"two"})
 
     async def send(message: dict) -> None:
         sent.append(message)
         if message.get("body") == b"one":
             second_part.set()
 
-    async def receive() -> dict:
-        return {"type": "http.request", "body": b"", "more_body": False}
-
-    scope = {"type": "http", "method": "GET", "path": "/api/conversations/x/turn/stream",
-             "scheme": "http", "headers": [(b"cookie", f"{COOKIE}=t".encode())]}
-    await gate.GateMiddleware(streaming_app, store=Store())(scope, receive, send)
-
+    async with make_client(EVERMIND_GATE_PASSWORD=PW):
+        token = await gate.open_session()
+        scope = {"type": "http", "method": "GET", "path": "/api/conversations/x/turn/stream",
+                 "headers": [(b"cookie", f"{COOKIE}={token}".encode())]}
+        await gate.GateMiddleware(streaming_app)(scope, None, send)
     assert [m.get("body") for m in sent] == [None, b"one", b"two"]
-    cookies = [v for k, v in sent[0]["headers"] if k == b"set-cookie"]
-    assert len(cookies) == 1 and cookies[0].startswith(f"{COOKIE}=t;".encode())

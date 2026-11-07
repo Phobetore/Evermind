@@ -133,7 +133,7 @@
     "savedFlash": "Saved.",
     "access": {
       "title": "Access",
-      "hint": "This device stays signed in for 30 days after its last visit.",
+      "hint": "This device stays signed in until you sign it out or change the password.",
       "logout": "Sign out of this device",
       "logoutEverywhere": "Sign out every device",
       "logoutEverywhereConfirm": "Every device, this one included, will have to enter the password again."
