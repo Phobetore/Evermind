@@ -22,6 +22,20 @@ function failing(page: Page, method: string, path: string, how: (route: Route) =
 const favourite = async (request: APIRequestContext, id: string): Promise<boolean> =>
   (await (await request.get(`${API}/api/characters/${id}`)).json()).is_favorite;
 
+test("the home page that cannot read its cards says so, and reads them again when asked", async ({ page, request }) => {
+  const card = await makeCharacter(request, { name: `Read ${Date.now()}` });
+  await page.route("**/api/characters", offline);
+  await page.goto("/#/");
+  await expect(page.locator("main").getByText("Evermind is not answering")).toBeVisible();
+  await expect(page.locator("main .animate-pulse-soft"), "cards pulsing for ever").toHaveCount(0);
+
+  await page.unroute("**/api/characters", offline);
+  const failure = page.locator("main").getByRole("alert");
+  await failure.getByRole("button", { name: "Reload" }).click();
+  await expect(page.locator("main").getByRole("heading", { name: card.name })).toBeVisible();
+  await expect(failure).toHaveCount(0);
+});
+
 test("a favourite that is not saved says so on its card, whose star is what the server holds", { tag: "@desktop" }, async ({ page, request }) => {
   const card = await makeCharacter(request, { name: `Star ${Date.now()}` });
   await page.goto("/#/");

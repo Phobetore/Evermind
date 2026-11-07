@@ -2,6 +2,7 @@ import { CharacterCard } from "@/components/cards/CharacterCard";
 import { ImportModal } from "@/components/cards/ImportModal";
 import { LibraryModal } from "@/components/cards/LibraryModal";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
@@ -28,7 +29,7 @@ export function HomePage() {
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   // Said on the card whose star did not go through, until the next star.
   const [favoriteFailure, setFavoriteFailure] = useState<{ id: string; error: unknown } | null>(null);
   const [showLibrary, setShowLibrary] = useState(false);
@@ -37,11 +38,11 @@ export function HomePage() {
   const load = useCallback(async (kind: Kind | "all", q: string) => {
     try {
       setCharacters(await data.characters.list({ kind: kind === "all" ? undefined : kind, q }));
-      setError(null);
-    } catch (e) {
-      setError(describeError(e, t, t("home.loadError")));
+      setFailure(null);
+    } catch (error) {
+      setFailure({ error });
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => load(tab, query), query ? 250 : 0);
@@ -174,14 +175,10 @@ export function HomePage() {
         </div>
       )}
 
-      {error && (
-        <p className="mb-4 rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood">
-          {error}
-        </p>
-      )}
-
       {/* Grid */}
-      {shown === null ? (
+      {failure ? (
+        <LoadFailure error={failure.error} onRetry={() => load(tab, query)} />
+      ) : shown === null ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="aspect-[3/4] animate-pulse-soft rounded-2xl bg-ink-850" />
