@@ -103,9 +103,10 @@ those headers, so Evermind believes them only from the addresses listed in
 request's line in `docker compose logs`). The session cookie is then marked
 `Secure`, at sign-in and each time it is renewed, so the browser never sends it
 over plain HTTP, and wrong passwords are counted for each device rather than for
-the proxy. Whatever else reaches Evermind from that address is believed too, so
-only the proxy should. [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix)
-has an nginx example.
+the proxy. Anything else that reaches Evermind from that address is believed just
+as much, so let only the proxy reach it from there.
+[docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an nginx
+example.
 
 Turn on HSTS at the proxy as well (the `Strict-Transport-Security` header). A
 browser that has been there once then never uses plain HTTP for that name again,
