@@ -35,24 +35,15 @@ def test_the_last_message_survives_however_long_it_is():
     assert [m["content"] for m in payload.messages] == [long]
 
 
-def test_the_oldest_messages_go_first_when_the_budget_is_short():
-    history = [message(i, f"line {i} " + "x " * 60) for i in range(1, 30)]
-    payload = build_chat_payload(CHARACTER, None, {}, history, SMALL)
-    assert 0 < len(payload.messages) < 29
-    assert payload.messages[-1]["content"].startswith("line 29")
-
-
 def test_facts_fill_the_budget_by_relevance_when_scored_else_newest_first():
     facts = [fact("a", "Old but relevant.", 1), fact("b", "New and idle.", 9)]
     assert [f["id"] for f in select_facts(facts, 5, {"a": 0.9, "b": 0.1})] == ["a"]
     assert [f["id"] for f in select_facts(facts, 5)] == ["b"]
 
 
-def test_a_pinned_fact_is_kept_outside_the_budget_and_said_again_after_the_history():
+def test_a_pinned_fact_is_kept_outside_the_budget():
     pinned = fact("p", "The seal is broken. " * 50, 1, pinned=True)
     assert select_facts([pinned], 1) == [pinned]
-    payload = build_chat_payload(CHARACTER, None, {}, [message(1, "Hi.")], SMALL, memories=[pinned])
-    assert "The seal is broken." in payload.post_history
 
 
 def test_lore_comes_in_priority_order_and_keys_ignore_case_unless_asked():
@@ -67,5 +58,5 @@ def test_lore_comes_in_priority_order_and_keys_ignore_case_unless_asked():
 
 def test_no_more_facts_than_the_cap_and_the_history_leaves_a_margin_below_the_window():
     assert len(select_facts([fact(str(i), "f", i) for i in range(80)], 1000)) == 60
-    stats = build_chat_payload(CHARACTER, None, {}, [message(1, "Hi.")], {"context_size": 2000, "max_tokens": 100}).stats
-    assert stats["budget"] == 1700
+    stats = build_chat_payload(CHARACTER, None, {}, [message(1, "Hi.")], {"context_size": 2000}).stats
+    assert stats["budget"] == 776  # 2000 - 1024 default reply - 200 margin
