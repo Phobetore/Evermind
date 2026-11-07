@@ -23,6 +23,7 @@ function CharacterDetail({ id }: { id: string }) {
   // reaches the sentence too.
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   const [conversationsFailure, setConversationsFailure] = useState<{ error: unknown } | null>(null);
+  const [favoriteFailure, setFavoriteFailure] = useState<{ error: unknown } | null>(null);
 
   const readConversations = useCallback(() => {
     data.conversations.list({ character_id: id }).then((list) => {
@@ -46,6 +47,17 @@ function CharacterDetail({ id }: { id: string }) {
   if (!character) return <div className="p-10 text-mist animate-pulse-soft">{t("common.loading")}</div>;
 
   const isScenario = character.kind === "scenario";
+
+  const toggleFavorite = async () => {
+    setFavoriteFailure(null);
+    try {
+      setCharacter(await data.characters.update(character.id, { is_favorite: !character.is_favorite }));
+    } catch (error) {
+      setFavoriteFailure({ error });
+      // It may have gone through all the same: the button shows what the server holds.
+      data.characters.get(character.id).then(setCharacter, () => {});
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
@@ -95,17 +107,17 @@ function CharacterDetail({ id }: { id: string }) {
                   ? "border border-ember-500/60 bg-ember-glow text-ember-300"
                   : "btn-ghost",
               )}
-              onClick={async () => {
-                const updated = await data.characters.update(character.id, {
-                  is_favorite: !character.is_favorite,
-                });
-                setCharacter(updated);
-              }}
+              onClick={toggleFavorite}
             >
               <Star className={clsx("h-4 w-4", character.is_favorite && "fill-current")} />
               {character.is_favorite ? t("characters.favoritedLabel") : t("characters.addFavoriteTitle")}
             </button>
           </div>
+          {favoriteFailure && (
+            <p role="alert" className="mt-3 rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood">
+              {describeError(favoriteFailure.error, t)}
+            </p>
+          )}
 
           {character.description && (
             <section className="mt-7">

@@ -197,3 +197,23 @@ test("a card's conversations that cannot be read are said to be so, not shown as
   await expect(page.getByRole("button", { name: title })).toBeVisible();
   await expect(failure).toHaveCount(0);
 });
+
+test("a favourite that is not saved on a card's page says so by its button, which is what the server holds", async ({ page, request }) => {
+  const card = await makeCharacter(request, { name: `Star ${Date.now()}` });
+  await page.goto(`/#/characters/${card.id}`);
+  const said = page.locator("main").getByRole("alert");
+
+  await failing(page, "PUT", `/api/characters/${card.id}`, offline);
+  await page.getByRole("button", { name: "Add to favorites" }).click();
+  await expect(said).toContainText("Evermind is not answering");
+  await expect(said).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Add to favorites" })).toBeVisible();
+  expect(await favourite(request, card.id)).toBe(false);
+
+  await page.unrouteAll();
+  await failing(page, "PUT", `/api/characters/${card.id}`, doneButFailed);
+  await page.getByRole("button", { name: "Add to favorites" }).click();
+  await expect(page.getByRole("button", { name: "Favorited" }), "the button is not what the server holds").toBeVisible();
+  await expect(said).toContainText("HTTP 500");
+  expect(await favourite(request, card.id)).toBe(true);
+});
