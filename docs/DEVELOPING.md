@@ -369,11 +369,11 @@ match that `Host`. [UPGRADING.md](UPGRADING.md) walks people through the move.
 
 ## Cutting a release
 
-1. Bump the version in `backend/app/__init__.py`, `frontend/package.json`, the
-   two project entries in `frontend/package-lock.json`, and the placeholder in
-   `.github/ISSUE_TEMPLATE/bug_report.yml`. `/api/health` and the update check
-   read `__version__` rather than the installed distribution, whose metadata
-   keeps the number it had when `pip install -e` last ran.
+1. Bump `__version__` in `backend/app/__init__.py`, the one place that holds the
+   version: `backend/pyproject.toml` reads it from there, and the interface's
+   `package.json` stays at `0.0.0`. `/api/health` and the update check read
+   `__version__` rather than the installed distribution, whose metadata keeps
+   the number it had when `pip install -e` last ran.
 2. Push a `v*` tag. That builds the image for amd64 and arm64, pushes it to
    ghcr.io, and attaches `docker-compose.yml` and `env.example` to the release,
    creating an empty release first if the tag arrived before it.
