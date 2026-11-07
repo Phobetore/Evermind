@@ -119,6 +119,67 @@ async def test_is_due_after_threshold_and_setting(client, fake_provider):
         await db.close()
 
 
+class Said:
+    """The chat model: a reply that names the message it answers, so that what a pass was
+    sent can be told from what it was not."""
+
+    def __init__(self, connection):
+        pass
+
+    async def stream_chat(self, payload):
+        yield ProviderEvent(type="delta", text=f"Reply to {payload.messages[-1]['content']}")
+        yield ProviderEvent(type="done")
+
+
+async def an_automatic_pass(client, monkeypatch):
+    """A conversation whose replies have just made a pass due, with the pass done: the real
+    ``schedule_if_due``, and a memory model that answers with ``EXTRACTION_JSON``."""
+    monkeypatch.setattr("app.services.chat_service.get_provider", Said)
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    FakeProvider.captured = {}
+    FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                           ProviderEvent(type="done")]
+    convo = await setup_conversation(client)
+    for n in range(memory_service.MAINTENANCE_EVERY):
+        await send(client, convo["id"], content=f"exchange {n}")
+    await asyncio.gather(*[t for t in asyncio.all_tasks() if "schedule_if_due" in repr(t)])
+    return convo["id"]
+
+
+async def test_an_automatic_pass_leaves_the_newest_messages_unread(client, monkeypatch):
+    convo_id = await an_automatic_pass(client, monkeypatch)
+    last = memory_service.MAINTENANCE_EVERY - 1
+
+    asked = FakeProvider.captured["payload"].messages[0]["content"]
+    assert "exchange 0" in asked
+    assert f"exchange {last - 2}" in asked and f"exchange {last - 1}" not in asked
+    read = (await client.get(f"/api/conversations/{convo_id}")).json()
+    assert read["memory_position"] == 2 * memory_service.MAINTENANCE_EVERY - memory_service.HOLD_BACK
+    assert len((await client.get(f"/api/conversations/{convo_id}/memories")).json()) == 2
+
+    # Remember reads them all: the person asked for the story as it stands.
+    await client.post(f"/api/conversations/{convo_id}/memories/extract")
+    assert f"exchange {last}" in FakeProvider.captured["payload"].messages[0]["content"]
+    read = (await client.get(f"/api/conversations/{convo_id}")).json()
+    assert read["memory_position"] == 2 * memory_service.MAINTENANCE_EVERY
+
+
+async def test_removing_the_last_reply_after_an_automatic_pass_costs_the_memory_nothing(
+        client, monkeypatch):
+    """A reply that is thrown away and written again was not read, so nothing of it is in
+    the memory and nothing is taken back."""
+    convo_id = await an_automatic_pass(client, monkeypatch)
+    messages = (await client.get(f"/api/conversations/{convo_id}")).json()["messages"]
+
+    resp = await client.delete(f"/api/messages/{messages[-1]['id']}")
+
+    assert resp.status_code == 204
+    read = (await client.get(f"/api/conversations/{convo_id}")).json()
+    assert read["memory_position"] == 2 * memory_service.MAINTENANCE_EVERY - memory_service.HOLD_BACK
+    assert read["summary"].startswith("Aymeric woke")
+    assert len((await client.get(f"/api/conversations/{convo_id}/memories")).json()) == 2
+
+
 async def test_facts_injected_into_chat_payload(client, fake_provider):
     convo = await setup_conversation(client)
     await client.post(f"/api/conversations/{convo['id']}/memories", json={

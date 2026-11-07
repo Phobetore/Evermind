@@ -40,7 +40,8 @@ from .llm_json import parse_llm_json
 
 logger = logging.getLogger(__name__)
 
-MAINTENANCE_EVERY = 6  # assistant replies between maintenance runs
+MAINTENANCE_EVERY = 8  # assistant replies between maintenance runs
+HOLD_BACK = 4  # newest messages an automatic pass leaves unread: a reply may still be thrown away
 
 _running: set[str] = set()
 
@@ -95,8 +96,10 @@ async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
         _running.discard(convo_id)
 
 
-async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
-    """One extraction+summary pass. Returns {"facts_added": [...], "summary": str}, with
+async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
+                          hold_back: int = HOLD_BACK) -> dict:
+    """One extraction+summary pass, which leaves the ``hold_back`` newest messages for the
+    next. Returns {"facts_added": [...], "summary": str}, with
     "skipped" set to "busy" and nothing looked at when another memory task was running,
     and to "changed" and nothing kept when the turns it read were not the story's any more
     when it came to write what it learned, the memory's position had moved, or a person had
@@ -104,7 +107,7 @@ async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
     async def busy() -> dict:
         return {"facts_added": [], "summary": None, "skipped": "busy"}
 
-    return await one_at_a_time(convo_id, lambda: _run(db, convo_id), busy)
+    return await one_at_a_time(convo_id, lambda: _run(db, convo_id, hold_back), busy)
 
 
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
@@ -223,7 +226,7 @@ async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict],
     return added
 
 
-async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
+async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
@@ -233,6 +236,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
     connection = await _resolve_connection(db, convo)
 
     messages = await convo_repo.list_messages(db, convo_id)
+    messages = messages[:max(0, len(messages) - hold_back)]
     existing = await memories_repo.list_for_conversation(db, convo_id)
     built = build_extraction_payload(character, persona, convo, messages, existing)
     if built is None:

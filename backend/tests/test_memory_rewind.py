@@ -404,7 +404,7 @@ async def test_the_next_pass_reads_the_turns_that_came_after_a_removal(client, f
     assert await names(client, convo_id) == {"Kept by hand.", "Learned early."}
     assert await checkpoints_of(convo_id) == [(8, "The first four exchanges.", 8)]
 
-    await talk(client, convo_id, memory_service.MAINTENANCE_EVERY, label="new exchange")  # 11 to 22
+    await talk(client, convo_id, memory_service.MAINTENANCE_EVERY, label="new exchange")  # from 11
     db = await _connect()
     try:
         assert await memory_service._new_assistant_count(
@@ -429,11 +429,12 @@ async def test_the_next_pass_reads_the_turns_that_came_after_a_removal(client, f
     assert "(turn 8)" not in shown
     assert "old exchange 6" not in shown
     final = await stored_facts(client, convo_id)
+    end = 10 + 2 * memory_service.MAINTENANCE_EVERY
     assert [(f[0], f[2]) for f in final] == [
-        ("Kept by hand.", 0), ("Learned afterwards.", 22), ("Learned early.", 8),
-        ("Learned from turn 9.", 22)]
-    assert (await conversation(client, convo_id))["memory_position"] == 22
-    assert [c[0] for c in await checkpoints_of(convo_id)] == [8, 22]
+        ("Kept by hand.", 0), ("Learned afterwards.", end), ("Learned early.", 8),
+        ("Learned from turn 9.", end)]
+    assert (await conversation(client, convo_id))["memory_position"] == end
+    assert [c[0] for c in await checkpoints_of(convo_id)] == [8, end]
 
 
 async def test_a_long_story_cut_back_gets_its_summary_back_and_not_a_rebuilt_one(
