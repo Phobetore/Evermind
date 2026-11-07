@@ -5,8 +5,8 @@ import { API } from "../playwright.config";
 import { makeConversation } from "./fixtures";
 
 /**
- * Taking the story back from a message takes what was remembered of it back too, to what
- * it was at that point: the facts as they stood, and the summary of the turns that stay.
+ * Taking the story back from a message takes what was remembered of it back too: the facts
+ * drawn from the turns that went, and the summary, to the one of the turns that stay.
  * The panel beside the conversation showed what it had read when it opened, so the
  * summary of a story that no longer existed stayed on screen, and saving it wrote it back.
  */
@@ -61,7 +61,7 @@ test("cutting the story back empties the summary and the facts of what went", as
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(read.messages).toHaveLength(3);
   expect(read.summary).toBe("");
-  // The pass was the first, so there is no earlier checkpoint to go back to.
+  // The pass was the first, so there is no earlier summary to go back to.
   expect(read.memory_position).toBe(0);
 });
 

@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from app.prompting import defaults
-from app.prompting.memory_changes import plan_consolidation, plan_cut, plan_memory_changes
+from app.prompting.memory_changes import plan_consolidation, plan_memory_changes
 from app.services.llm_json import parse_llm_json
 
 CASES_DIR = Path(__file__).parent / "cases"
@@ -30,7 +30,7 @@ def default_prompts():
     return {n: v for n, v in vars(defaults).items() if n.isupper() and isinstance(v, str)}
 
 
-FUNCTIONS = {f.__name__: f for f in (memory_reply, consolidation_reply, plan_cut, default_prompts)}
+FUNCTIONS = {f.__name__: f for f in (memory_reply, consolidation_reply, default_prompts)}
 FILES = sorted(CASES_DIR.glob("*.json"))
 
 

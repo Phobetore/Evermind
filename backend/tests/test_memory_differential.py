@@ -88,7 +88,7 @@ async def test_the_changes_decided_from_a_list_are_the_ones_made_one_by_one(clie
 
             await by_the_rules(db, ruled["id"], reply, n)
             changes = plan_memory_changes(reply, await repo.list_for_conversation(db, planned["id"]), n)
-            await _apply(db, planned["id"], changes, {})
+            await _apply(db, planned["id"], changes, {}, n)
             await db.commit()
 
             assert await stored(db, ruled["id"]) == await stored(db, planned["id"]), (n, reply)

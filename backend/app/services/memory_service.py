@@ -228,13 +228,13 @@ async def _vectors_of(texts: Iterable[str]) -> dict[str, bytes]:
 
 
 async def _apply(db: aiosqlite.Connection, convo_id: str, changes: dict,
-                 vectors: dict[str, bytes]) -> list[dict]:
+                 vectors: dict[str, bytes], top_position: int) -> list[dict]:
     """Make the changes of ``plan_memory_changes``, and return the facts that were added.
     The caller commits."""
     for fact_id in changes["delete"]:
         await memories_repo.remove(db, fact_id)
     for fact_id, content in changes["update"].items():
-        await memories_repo.rewrite(db, fact_id, content, vectors.get(content))
+        await memories_repo.rewrite(db, fact_id, content, vectors.get(content), top_position)
     added = []
     for fact in changes["add"]:
         saved = await memories_repo.add_with_vector(
@@ -292,11 +292,9 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
                 or not sent <= {(m["id"], m["content"]) for m in now}):
             return {"facts_added": [], "summary": None, "skipped": "changed"}
         changes = plan_memory_changes(parsed, now, top_position)
-        # A summary a person typed meanwhile is theirs, and the model wrote from the one
-        # before it. The rest of what it learned stands, and the checkpoint holds the summary
-        # before as if this pass had written none, so that the typed one still reads as typed.
+        # A summary a person typed meanwhile is theirs, and the model wrote from the one before.
         written = changes["summary"] if current["summary"] == convo["summary"] else None
-        added = await _apply(db, convo_id, changes, vectors)
+        added = await _apply(db, convo_id, changes, vectors, top_position)
         await convo_repo.remember(db, convo_id, top_position, written)
 
     return {"facts_added": added, "summary": written or current["summary"] or ""}

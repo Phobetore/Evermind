@@ -66,16 +66,14 @@ async def get(db: aiosqlite.Connection, memory_id: str) -> dict | None:
 
 async def update(db: aiosqlite.Connection, memory_id: str,
                  content: str | None = None, is_pinned: bool | None = None) -> dict | None:
-    """What a person changes in a fact. What they write reaches the copies the checkpoints
-    hold of this fact, under its id, so that a rewind does not bring back the words they
-    replaced. A pass may have dropped those words and written them again under another id:
-    that is another fact, and its copies keep them. Pinning leaves the copies as they are."""
+    """What a person changes in a fact. What they write is theirs: a cut does not take it
+    back to what the model had written before."""
     if not await get(db, memory_id):
         return None
     sets, params = [], []
     if content is not None and content.strip():
         new_content = content.strip()
-        sets.append("content = ?")
+        sets += ["content = ?", "previous_content = NULL", "corrected_at = NULL"]
         params.append(new_content)
         # the stored vector describes the OLD text now; recompute it (or NULL it
         # so the startup backfill re-fills it) — never leave a stale embedding
@@ -88,37 +86,25 @@ async def update(db: aiosqlite.Connection, memory_id: str,
     if sets:
         params.append(memory_id)
         await db.execute(f"UPDATE memories SET {', '.join(sets)} WHERE id = ?", params)
-        if content is not None and content.strip():
-            await db.execute(
-                "UPDATE memory_checkpoint_facts SET content = ? WHERE fact_id = ? AND"
-                " conversation_id = (SELECT conversation_id FROM memories WHERE id = ?)",
-                (content.strip(), memory_id, memory_id))
         await db.commit()
     return await get(db, memory_id)
 
 
 async def rewrite(db: aiosqlite.Connection, memory_id: str, content: str,
-                  blob: bytes | None) -> None:
-    """The model corrects a fact: the copies keep what it said, which is what a cut back
-    before the correction restores. The caller commits."""
-    await db.execute("UPDATE memories SET content = ?, embedding = ? WHERE id = ?",
-                     (content, blob, memory_id))
+                  blob: bytes | None, at: int) -> None:
+    """The model corrects a fact, in a pass that read up to ``at``: what it said is kept, for
+    a cut back before that pass to restore. The caller commits."""
+    await db.execute(
+        "UPDATE memories SET previous_content = content, corrected_at = ?, content = ?,"
+        " embedding = ? WHERE id = ?", (at, content, blob, memory_id))
 
 
 async def remove(db: aiosqlite.Connection, memory_id: str) -> None:
-    """The model drops or merges a fact, and the copies keep it. The caller commits."""
+    """The model drops or merges a fact. The caller commits."""
     await db.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
 
 
 async def delete(db: aiosqlite.Connection, memory_id: str) -> bool:
-    """A person forgets a fact: it goes from the copies the checkpoints hold of it too, as it
-    read at any time, and so does any copy that says what it says now, which a pass may have
-    dropped and written again under another id. A rewind cannot bring it back."""
-    await db.execute(
-        "DELETE FROM memory_checkpoint_facts"
-        " WHERE conversation_id = (SELECT conversation_id FROM memories WHERE id = :id)"
-        " AND (fact_id = :id OR content = (SELECT content FROM memories WHERE id = :id))",
-        {"id": memory_id})
     cursor = await db.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
     await db.commit()
     return cursor.rowcount > 0
