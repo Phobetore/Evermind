@@ -123,9 +123,13 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
   expect(read.memory_position).toBe(2);
 });
 
-// What is typed while the memory writes a summary would be replaced by what it writes.
-test("the summary box cannot be typed in while the memory reads the story", async ({ page, request }) => {
+// A slow model can take minutes: what is typed meanwhile is typed over the summary from before.
+test("the summary box can be typed in while the memory reads the story", async ({ page, request }) => {
   const convo = await makeConversation(request);
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
+    timeout: 60_000,
+  });
   let release = () => {};
   const released = new Promise<void>((resolve) => { release = resolve; });
   await page.route("**/memories/extract", async (route) => {
@@ -140,15 +144,22 @@ test("the summary box cannot be typed in while the memory reads the story", asyn
   if (await opener.isVisible()) await opener.click();
   const panel = page.locator("aside:visible:has(textarea)");
   const summary = panel.getByPlaceholder(panelText.summary.placeholder);
-  await summary.fill("Typed before.");
-  await expect(summary).toBeEnabled();
-
+  const asked = page.waitForRequest((r) => r.url().endsWith("/memories/extract"));
   await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+  await asked;
 
-  await expect(summary).toBeDisabled();
-  await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeDisabled();
-  release();
   await expect(summary).toBeEnabled();
+  await summary.fill("Typed while it reads.");
+  release();
+  await expect(panel).toContainText("(2)");
+
+  await expect(summary).toHaveValue("Typed while it reads.");
+  await panel.getByRole("button", { name: panelText.summary.saveButton }).click();
+  await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
+  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(read.summary).toBe("Typed while it reads.");
+  // Typed over the summary from before Remember: the turns it read are read again.
+  expect(read.memory_position).toBe(0);
 });
 
 test("a summary being typed is not replaced by one a pass wrote meanwhile", async ({ page, request }) => {
