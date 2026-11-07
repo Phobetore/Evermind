@@ -48,3 +48,32 @@ test("a new page starts at the top", async ({ page, request }, testInfo) => {
   expect(await main.evaluate((el) => el.scrollHeight > el.clientHeight),
     "the form is not taller than the screen, so landing at the top proves nothing").toBe(true);
 });
+
+test("what cannot be read is said, and read again when asked", async ({ page, request }) => {
+  await makeCharacter(request);
+  await page.goto("/#/");
+  await expect(page.locator("main h1")).toBeVisible();
+  // The page is there already, and then the wifi goes.
+  const unreachable = "**/api/**";
+  for (const name of ["Conversations", "Personas", "Settings"]) {
+    await page.route(unreachable, (route) => route.abort("internetdisconnected"));
+    await page.getByRole("link", { name, exact: true }).click();
+    const failure = page.locator("main").getByRole("alert");
+    await expect(failure, `on ${name}`).toContainText("Evermind is not answering");
+    await expect(page.locator("main").getByText("Loading…"), `on ${name}`).toHaveCount(0);
+    await page.unroute(unreachable);
+    await failure.getByRole("button", { name: "Reload" }).click();
+    await expect(failure, `on ${name}`).toHaveCount(0);
+  }
+
+  await page.getByRole("link", { name: "Discover", exact: true }).click();
+  await page.route("**/api/library", (route) => route.abort("internetdisconnected"));
+  await page.getByTitle("Starter library").click();
+  const library = page.getByRole("dialog");
+  await expect(library.getByRole("alert")).toContainText("Evermind is not answering");
+  await expect(library, "said to be empty").not.toContainText("The library is empty");
+  await page.unroute("**/api/library");
+  await library.getByRole("button", { name: "Reload" }).click();
+  await expect(library.locator("h3").first()).toBeVisible();
+  await expect(library.getByRole("alert")).toHaveCount(0);
+});

@@ -1,6 +1,7 @@
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
@@ -14,8 +15,13 @@ export function PersonasPage() {
   const t = useT();
   const [personas, setPersonas] = useState<Persona[] | null>(null);
   const [editing, setEditing] = useState<Persona | "new" | null>(null);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
-  const load = () => data.personas.list().then(setPersonas);
+  const load = () =>
+    data.personas.list().then((list) => {
+      setPersonas(list);
+      setFailure(null);
+    }, (error) => setFailure({ error }));
   useEffect(() => {
     load();
   }, []);
@@ -38,7 +44,9 @@ export function PersonasPage() {
         </button>
       </header>
 
-      {personas === null ? (
+      {failure ? (
+        <LoadFailure error={failure.error} onRetry={load} />
+      ) : personas === null ? (
         <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
       ) : personas.length === 0 ? (
         <EmptyState icon={UserRound} title={t("personas.emptyState.title")}>

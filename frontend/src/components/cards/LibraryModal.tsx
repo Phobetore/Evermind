@@ -1,3 +1,4 @@
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
@@ -18,10 +19,16 @@ export function LibraryModal({
   const [items, setItems] = useState<LibraryItem[] | null>(null);
   const [installing, setInstalling] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
-  const load = () => data.library.list().then(setItems);
+  // What cannot be read is no empty library.
+  const load = () =>
+    data.library.list().then((list) => {
+      setItems(list);
+      setFailure(null);
+    }, (error) => setFailure({ error }));
   useEffect(() => {
-    load().catch(() => setItems([]));
+    load();
   }, []);
 
   async function install(item: LibraryItem) {
@@ -40,7 +47,9 @@ export function LibraryModal({
   return (
     <Modal title={t("home.libraryTitle")} onClose={onClose} wide>
       <p className="mb-4 text-sm leading-relaxed text-mist">{t("cards.libraryModal.description")}</p>
-      {items === null ? (
+      {failure ? (
+        <LoadFailure error={failure.error} onRetry={load} />
+      ) : items === null ? (
         <div className="py-8 text-center text-mist animate-pulse-soft">{t("common.loading")}</div>
       ) : items.length === 0 ? (
         <p className="py-8 text-center text-sm text-mist-dim">

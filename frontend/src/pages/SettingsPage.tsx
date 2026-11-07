@@ -2,6 +2,7 @@ import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
 import { ConnectionForm } from "@/components/settings/ConnectionForm";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Tag } from "@/components/ui/Tag";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
@@ -23,6 +24,7 @@ export function SettingsPage() {
   const [editing, setEditing] = useState<Connection | "new" | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorLine = useRef<HTMLParagraphElement>(null);
   const personasAsked = useRef(0);
@@ -36,9 +38,11 @@ export function SettingsPage() {
   }, []);
 
   const load = useCallback(() => {
-    data.connections?.list().then(setConnections);
-    loadPersonas();
-    data.settings.get().then(setSettings);
+    Promise.all([
+      data.connections?.list().then(setConnections),
+      loadPersonas(),
+      data.settings.get().then(setSettings),
+    ]).then(() => setLoadFailure(null), (error) => setLoadFailure({ error }));
   }, [loadPersonas]);
 
   useEffect(load, [load]);
@@ -114,6 +118,13 @@ export function SettingsPage() {
         </p>
       )}
 
+      {/* Not in place of the page: what needs no reading still works. */}
+      {loadFailure && (
+        <div className="mb-6">
+          <LoadFailure error={loadFailure.error} onRetry={load} />
+        </div>
+      )}
+
       {/* Connections: only an edition that keeps its own models has them. */}
       {data.connections && (
         <section className="mb-10">
@@ -125,7 +136,7 @@ export function SettingsPage() {
           </div>
 
           {connections === null ? (
-            <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
+            !loadFailure && <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
           ) : connections.length === 0 ? (
             <EmptyState icon={Cable} title={t("settings.emptyState.title")}>
               {t("settings.emptyState.body")}
