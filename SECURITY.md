@@ -99,9 +99,8 @@ A proxy that ends HTTPS passes requests on to Evermind over plain HTTP, so
 Evermind only knows that a browser came over HTTPS, and from which address, if
 the proxy says so in `X-Forwarded-Proto` and `X-Forwarded-For`. Anyone can send
 those headers, so Evermind believes them only from the addresses listed in
-`FORWARDED_ALLOW_IPS`. Set it, in `.env`, to the address the proxy connects from
-(with Docker, the address the proxy reaches the container from, which starts each
-request's line in `docker compose logs`). The session cookie is then marked
+`FORWARDED_ALLOW_IPS`. Set it, in `.env`, to the address the proxy connects from,
+as long as nothing else connects from it (see below). The session cookie is then marked
 `Secure`, at sign-in and each time it is renewed, so the browser never sends it
 over plain HTTP, and wrong passwords are counted for each device, or over IPv6
 for each network, rather than for the proxy.
@@ -109,13 +108,14 @@ for each network, rather than for the proxy.
 example.
 
 Anything else that reaches Evermind from that address is believed just as much,
-and can claim a new address for each guess. With a proxy on the same computer,
-any program running there can do it, and so can a page open in its browser when
-the browser reaches Evermind from the proxy's address: behind Docker Desktop,
-where every connection to Evermind's port arrives from one address, or when the
-address named is `127.0.0.1`, which the browser connects from. For that last
-reason the nginx example has its proxy connect from `127.0.0.2`, the address to
-name.
+and can claim a new address for each guess, so name only an address that nothing
+but the proxy connects from. On the same computer that is not `127.0.0.1`, which
+every program and browser there uses: the nginx example has its proxy connect
+from `127.0.0.2` instead. With Docker, a proxy outside the container reaches it
+from the same address as everything else on that computer. Where the proxy cannot
+have an address of its own, leave `FORWARDED_ALLOW_IPS` empty: both headers are
+then ignored, every device shares the limit on wrong passwords, and the cookie is
+not marked `Secure`, which HSTS below makes up for.
 
 Turn on HSTS at the proxy as well (the `Strict-Transport-Security` header). A
 browser that has been there once then never uses plain HTTP for that name again,

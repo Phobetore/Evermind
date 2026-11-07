@@ -243,7 +243,8 @@ location /evermind/ {
     # client sent as X-Forwarded-For is replaced, never passed along.
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header X-Forwarded-Proto $scheme;
-    # From an address of its own: a browser on this computer connects from 127.0.0.1.
+    # An address of its own, since a browser on this computer connects from
+    # 127.0.0.1. Only for a proxy_pass to this computer, as here.
     proxy_bind 127.0.0.2;
 }
 ```
@@ -263,12 +264,11 @@ this computer still can, from `127.0.0.2`. On Linux and Windows every address of
 `127.0.0.0/8` is this computer's own; macOS needs this one added first, with
 `sudo ifconfig lo0 alias 127.0.0.2`, which lasts until the Mac restarts.
 
-With Docker, set `FORWARDED_ALLOW_IPS` to the address the proxy reaches the
-container from instead, which starts each request's line in Evermind's log
-(`docker compose logs`). Behind Docker Desktop that is the address of every
-connection to Evermind's port, so keep `BIND=127.0.0.1` there and let the proxy
-be the way in from the network; even so, a page open in this computer's browser
-is believed as the proxy is.
+With Docker, a proxy outside the container reaches Evermind from the same address
+as every program and browser on that computer, Docker Desktop included. Leave
+`FORWARDED_ALLOW_IPS` empty there, unless the proxy runs in a container of its own
+on Evermind's network with a fixed address (`ipv4_address` in Compose): name that
+address, which starts each of its requests' lines in `docker compose logs`.
 
 The prefix needs nothing more. The pages, every call and every image work
 under the prefix. The one thing that does not follow it is the redirect of an old
