@@ -135,14 +135,21 @@ using. Playwright then starts the whole stack itself: a mock model and two
 and a data directory of its own. None reads `.env`, and the suite removes
 `EVERMIND_*`, `BIND`, `PORT`, `SEMANTIC` and the proxy variables from what they
 inherit, so those set in your shell do not reach them; the rest of your shell's
-environment, `PATH` for one, still does. They listen on this computer's network
-address, as for a phone (an insecure context), and Windows may ask whether
-`python.exe` can accept connections the first time: that can be ignored. It runs
-them from the virtualenv in `backend/.venv`, which the launch scripts create,
-and needs the browser once: `npx playwright install chromium`.
-`npm run test:e2e:ui` opens Playwright's runner if you want to watch one.
+environment, `PATH` for one, still does. It runs them from the virtualenv in
+`backend/.venv`, which the launch scripts create, and needs the browser once:
+`npx playwright install chromium`. `npm run test:e2e:ui` opens Playwright's
+runner if you want to watch one.
 
-It exists because typecheck and build are blind to the kind of thing that
+The servers listen on this computer's network address, as for a phone (an
+insecure context), so the first time the suite runs, Windows may ask whether to
+let Python accept connections. Answer **Allow access**. Cancel, or closing the
+prompt, makes Windows create rules that block `python.exe`, and a block rule
+beats every allow rule, the port rule Evermind prints included. The suite's
+servers run as the same `python.exe` as an Evermind started from the source, so
+a phone could no longer reach that Evermind until those rules are deleted
+(`wf.msc`, Inbound Rules).
+
+The suite exists because typecheck and build are blind to the kind of thing that
 actually broke: a button falling off the side of a phone, an API the browser
 withholds when the app is reached by address rather than on localhost, a message
 disappearing while a reply streams. Each test in `e2e/` is written against a
