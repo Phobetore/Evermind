@@ -287,7 +287,7 @@
         "consolidateButton": "Condensar",
         "extractTitle": "Leer ahora los últimos turnos: registrar los hechos nuevos y actualizar el resumen",
         "extractButton": "Recordar",
-        "description": "Canon firme reinyectado en cada turno: el personaje nunca los olvida ni los contradice. Se extraen automáticamente a medida que avanza la historia.",
+        "description": "Canon que el personaje no debe contradecir. Los hechos fijados se envían siempre al modelo; los demás solo cuando su turno ya no aparece en los últimos mensajes, y dentro de un presupuesto. Se extraen automáticamente a medida que avanza la historia.",
         "dormantWarning": "{count} hecho(s) fuera de presupuesto (atenuados abajo): cubiertos por el resumen, pero ya no se inyectan literalmente. Fija los cruciales o usa «{consolidateLabel}».",
         "dormantTitle": "Latente: fuera del presupuesto de inyección",
         "pinTitle": "Fijar (siempre inyectado)",

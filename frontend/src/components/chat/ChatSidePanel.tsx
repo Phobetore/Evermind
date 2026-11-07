@@ -8,29 +8,8 @@ import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-
-// Mirrors the backend's select_facts: which facts actually reach the model,
-// so the panel can dim the dormant ones instead of hiding the limit.
-function computeDormant(memories: Memory[], contextSize: number, maxTokens: number): Set<string> {
-  const est = (s: string) => Math.floor(s.length / 3.5) + 1;
-  const ctxBudget = Math.max(512, contextSize - maxTokens - 200);
-  let budget = Math.min(2000, Math.max(700, Math.floor(ctxBudget * 0.12)));
-  const pinned = memories.filter((m) => m.is_pinned);
-  const others = memories
-    .filter((m) => !m.is_pinned)
-    .sort((a, b) => b.source_position - a.source_position);
-  const active = new Set<string>();
-  for (const m of [...pinned, ...others]) {
-    if (active.size >= 60) break;
-    const cost = est(m.content);
-    if (!m.is_pinned && cost > budget) continue;
-    budget -= cost;
-    active.add(m.id);
-  }
-  return new Set(memories.filter((m) => !active.has(m.id)).map((m) => m.id));
-}
 
 export function ChatSidePanel({
   conversation,
@@ -201,12 +180,6 @@ export function ChatSidePanel({
       failedFactChange(e);
     }
   }
-
-  const activeConn = connections.find((c) => c.id === conversation.connection_id);
-  const dormant = useMemo(
-    () => computeDormant(memories, activeConn?.context_size ?? 16384, activeConn?.max_tokens ?? 1024),
-    [memories, activeConn?.context_size, activeConn?.max_tokens],
-  );
 
   async function changeConnection(connectionId: string) {
     await data.conversations.update(conversation.id, { connection_id: connectionId });
@@ -492,28 +465,13 @@ export function ChatSidePanel({
         <p className="mb-2 text-xs leading-relaxed text-mist-dim">
           {t("chat.panel.facts.description")}
         </p>
-        {dormant.size > 0 && (
-          <p className="mb-2 rounded-lg border border-ember-600/40 bg-ember-glow px-2.5 py-1.5 text-xs leading-relaxed text-ember-300">
-            {t("chat.panel.facts.dormantWarning", {
-              count: dormant.size,
-              consolidateLabel: t("chat.panel.facts.consolidateButton"),
-            })}
-          </p>
-        )}
         <div className="flex flex-col gap-1.5">
           {memories.map((memory) => (
             <div
               key={memory.id}
-              className={clsx(
-                // On a touch screen the row is as tall as the thumb, so that
-                // the two small controls in it, centred, have the room their
-                // reachable areas need and do not run into the next row's.
-                "group/fact flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5 pointer-coarse:min-h-11 pointer-coarse:items-center",
-                dormant.has(memory.id)
-                  ? "border-ink-800 bg-ink-950/40 opacity-45"
-                  : "border-ink-700 bg-ink-900/60",
-              )}
-              title={dormant.has(memory.id) ? t("chat.panel.facts.dormantTitle") : undefined}
+              // On a touch screen the row is as tall as the thumb, so that its two small
+              // controls, centred, have the room their reachable areas need.
+              className="group/fact flex items-start gap-1.5 rounded-lg border border-ink-700 bg-ink-900/60 px-2.5 py-1.5 pointer-coarse:min-h-11 pointer-coarse:items-center"
             >
               <button
                 onClick={() => togglePin(memory)}

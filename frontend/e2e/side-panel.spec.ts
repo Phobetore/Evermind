@@ -24,7 +24,7 @@ function messages(locale: Locale) {
   const file = path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`);
   const chat = JSON.parse(readFileSync(file, "utf8")).chat;
   return { ...chat.panel, wallpaper: chat.wallpaper } as {
-    facts: { consolidateButton: string; extractButton: string; dormantWarning: string };
+    facts: { consolidateButton: string; extractButton: string };
     summary: { saveButton: string; placeholder: string };
     directive: { applyButton: string; placeholder: string };
     wallpaper: { replace: string };
@@ -51,8 +51,7 @@ const FACTS = [
   "She does not take sugar.",
   // A pasted link has no spaces to break at.
   "Source: https://example.org/wiki/The_Long_Winter_of_the_Third_Age_and_Everything_That_Came_After_It",
-  // Enough text, unpinned, to push the last of them past what is sent to the
-  // model, which is when the panel shows its warning and quotes a button's name.
+  // Long facts, to fill the panel the way a long story does.
   sentence("Anselm", 1900),
   sentence("Brigid", 1900),
   sentence("Corvin", 1900),
@@ -115,10 +114,6 @@ async function panelFor(page: Page, request: APIRequestContext, locale: Locale) 
   const panel = page.locator("aside:visible:has(textarea)");
   await expect(panel).toBeVisible();
   await expect(panel).toContainText(`(${FACTS.length})`);
-  // The sentence about facts over budget, from after its number to before the
-  // name of the button it quotes: that is what is being checked for.
-  const warning = text.facts.dormantWarning.split("{count}")[1].split("{consolidateLabel}")[0];
-  await expect(panel.getByText(warning, { exact: false }), "the warning about facts over budget is not showing").toBeVisible();
 
   // Summary first: leaving the directive's box saves it, which would put the
   // button this is after away again.

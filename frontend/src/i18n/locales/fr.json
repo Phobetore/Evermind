@@ -287,7 +287,7 @@
         "consolidateButton": "Condenser",
         "extractTitle": "Lire maintenant les derniers tours : retenir les faits nouveaux et mettre le résumé à jour",
         "extractButton": "Mémoriser",
-        "description": "Canon dur réinjecté à chaque tour : le personnage ne les oublie ni ne les contredit jamais. Extraction automatique en cours d'histoire.",
+        "description": "Canon que le personnage ne doit pas contredire. Les faits épinglés sont toujours envoyés au modèle ; les autres seulement une fois leur tour sorti des derniers messages, et dans la limite d'un budget. Extraction automatique en cours d'histoire.",
         "dormantWarning": "{count} fait(s) hors budget (grisé(s) ci-dessous) : couvert par le résumé, mais plus injecté tel quel. Épinglez les cruciaux, ou « {consolidateLabel} ».",
         "dormantTitle": "Dormant : hors budget d'injection",
         "pinTitle": "Épingler (toujours injecté)",

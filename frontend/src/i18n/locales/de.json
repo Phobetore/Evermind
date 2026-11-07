@@ -287,7 +287,7 @@
         "consolidateButton": "Verdichten",
         "extractTitle": "Jetzt die letzten Züge lesen: neue Fakten festhalten und die Zusammenfassung aktualisieren",
         "extractButton": "Merken",
-        "description": "Unumstößlicher Kanon, der bei jedem Zug erneut eingefügt wird: Der Charakter vergisst sie nie und widerspricht ihnen nie. Wird im Verlauf der Geschichte automatisch extrahiert.",
+        "description": "Kanon, dem die Figur nicht widersprechen darf. Angeheftete Fakten gehen immer an das Modell; die übrigen erst, wenn ihr Zug nicht mehr in den letzten Nachrichten steht, und im Rahmen eines Budgets. Wird im Verlauf der Geschichte automatisch extrahiert.",
         "dormantWarning": "{count} Fakt(en) über dem Budget (unten abgeblendet): von der Zusammenfassung abgedeckt, aber nicht mehr wörtlich eingefügt. Hefte die entscheidenden an oder nutze „{consolidateLabel}“.",
         "dormantTitle": "Ruhend: über dem Einfüge-Budget",
         "pinTitle": "Anheften (immer eingefügt)",
