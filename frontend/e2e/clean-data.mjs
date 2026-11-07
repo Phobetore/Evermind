@@ -7,16 +7,19 @@
 // to have thousands of characters to draw, and tests about something else entirely
 // began to fail on it. Only these two folders are ever touched, by name.
 //
-// A copy that is already running is left alone: the suite will use it rather than
-// start its own, and its data is in use.
+// A copy that is already running is left alone, its data is in use: the suite
+// will refuse to start on a port that is taken.
 
 import { rmSync } from "node:fs";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..", "..");
 
 // As in playwright.config.ts, which a plain script cannot import.
+const HOST = Object.values(os.networkInterfaces()).flat()
+  .find((i) => i?.family === "IPv4" && !i.internal)?.address ?? "127.0.0.1";
 const COPIES = [
   { folder: ".e2e-data", port: Number(process.env.E2E_WEB_PORT ?? 3099) },
   { folder: ".e2e-data-gate", port: Number(process.env.E2E_GATED_PORT ?? 3098) },
@@ -24,7 +27,7 @@ const COPIES = [
 
 function isAnswering(port) {
   return new Promise((resolve) => {
-    const socket = net.connect({ host: "127.0.0.1", port, timeout: 1000 });
+    const socket = net.connect({ host: HOST, port, timeout: 1000 });
     const settle = (answer) => {
       socket.destroy();
       resolve(answer);

@@ -2,32 +2,16 @@ import { expect, test } from "@playwright/test";
 import { conversationWithReply } from "./fixtures";
 
 /**
- * Reached over a network by address — http://192.168.1.20:3000, the way anyone
- * running Evermind on one machine and using it from another does — the browser
- * withholds a handful of APIs that exist on localhost. Two of them were being
- * called, and both threw.
- *
- * The APIs are removed here rather than the app being served from a real
- * address: the failure is what a missing API does to the code, and a test that
- * needed a routable IP would fail on whichever machine did not have one.
+ * The suite's servers listen on this computer's address on the network, so the
+ * page is what a phone gets over plain HTTP: the browser withholds a handful of
+ * APIs that exist on localhost (crypto.randomUUID, the clipboard). Two of them
+ * were being called, and both threw.
  */
-test.describe("without the APIs a secure context provides", () => {
+test.describe("on a page that is not a secure context", () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      // On the prototype, not on the instance: deleting window.crypto.randomUUID
-      // removes nothing and leaves the API exactly where it was, which is a
-      // very quiet way for this whole file to test nothing at all.
-      delete (Crypto.prototype as unknown as Record<string, unknown>).randomUUID;
-      Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
-    });
-
-    // Cheap, and the alternative is a suite that passes because the thing it
-    // meant to take away is still there.
-    await page.addInitScript(() => {
-      if (typeof crypto.randomUUID === "function") {
-        throw new Error("crypto.randomUUID is still present: the test is not testing anything");
-      }
-    });
+    await page.goto("/");
+    // A machine with no network address has only the loopback, which is secure.
+    test.skip(await page.evaluate(() => window.isSecureContext), "no network address");
   });
 
   test("a lorebook entry can still be added to a new card", async ({ page }) => {
