@@ -927,8 +927,8 @@ def while_the_model_answers(monkeypatch, action):
 async def test_a_summary_typed_while_the_model_answers_is_kept_with_the_rest_of_the_pass(
         client, fake_provider, monkeypatch, typed):
     """What the model wrote, it wrote from the summary before that one, which would be lost
-    with no trace. The facts and the position have nothing to do with it. The row of the
-    pass keeps the summary before, so that what was typed still reads as typed."""
+    with no trace. The facts are kept; the turns the pass read are in no summary yet, so the
+    next pass reads them again, on top of what was typed."""
     convo = await setup_conversation(client)
     convo_id = convo["id"]
     await a_memory_to_change(client, convo_id)
@@ -941,14 +941,16 @@ async def test_a_summary_typed_while_the_model_answers_is_kept_with_the_rest_of_
 
     assert answered["summary"] == typed
     read = await conversation(client, convo_id)
-    assert (read["memory_position"], read["summary"]) == (8, typed)
-    assert await names(client, convo_id) == {"New.", "Corrected."}
-    assert await summaries_of(convo_id) == [(4, typed), (8, typed)]
-
-    await remove_from(client, convo_id, 7)
-
-    read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (4, typed)
+    assert await names(client, convo_id) == {"New.", "Corrected."}
+    assert await summaries_of(convo_id) == [(4, typed)]
+
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [], "summary": "Again."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert f"CURRENT SUMMARY:\n{typed or '(empty)'}\n" in shown
+    assert "(turn 5)" in shown and "(turn 8)" in shown and "(turn 4)" not in shown
 
 
 async def test_a_summary_typed_during_the_first_pass_reads_as_typed_too(
@@ -963,7 +965,8 @@ async def test_a_summary_typed_during_the_first_pass_reads_as_typed_too(
     while_the_model_answers(monkeypatch, types)
     await extract(client, convo_id, AN_ANSWER)
 
-    assert await summaries_of(convo_id) == [(0, "In my own words."), (4, "In my own words.")]
+    assert await summaries_of(convo_id) == [(0, "In my own words.")]
+    assert (await conversation(client, convo_id))["memory_position"] == 0
     await remove_from(client, convo_id, 3)
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (0, "In my own words.")
@@ -988,4 +991,4 @@ async def test_a_summary_typed_while_a_pass_reads_comes_back_past_the_next_pass(
     await remove_from(client, convo_id, 11)
 
     read = await conversation(client, convo_id)
-    assert (read["memory_position"], read["summary"]) == (8, SERANA)
+    assert (read["memory_position"], read["summary"]) == (4, SERANA)

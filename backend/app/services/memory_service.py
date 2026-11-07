@@ -273,12 +273,14 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
             raise AppError("The conversation changed while the model read it.", 409,
                            kind=CONVERSATION_CHANGED)
         changes = plan_memory_changes(parsed, now, top_position)
-        # A summary a person typed meanwhile is theirs, and the model wrote from the one before.
-        written = changes["summary"] if current["summary"] == convo["summary"] else None
         added = await _apply(db, convo_id, changes, vectors, top_position)
-        await convo_repo.remember(db, convo_id, top_position, written)
+        # A summary typed meanwhile stays, and holds none of these turns: the next pass reads them.
+        typed = current["summary"] != convo["summary"]
+        if not typed:
+            await convo_repo.remember(db, convo_id, top_position, changes["summary"])
 
-    return {"facts_added": added, "summary": written or current["summary"] or ""}
+    return {"facts_added": added,
+            "summary": current["summary"] if typed else changes["summary"] or current["summary"]}
 
 
 async def fill_vectors() -> None:
