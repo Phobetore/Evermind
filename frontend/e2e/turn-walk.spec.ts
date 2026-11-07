@@ -128,7 +128,7 @@ test("a model failing with no page open is reported with its reason", async ({ p
   const convo = await conversationWithReply(request, { failing: true });
   await chat(request, { conversation_id: convo.id, mode: "send", content: "Échoue", client_id: "x1" });
   await page.goto(`/#/chat/${convo.id}`);
-  await expect(report(page).first(), "H: the reason, not that the reply did not arrive").toContainText("500");
+  await expect(report(page).first(), "H: the reason, not that the reply did not arrive").toContainText("told to fail");
 });
 
 test("another conversation goes while a reply is written, and the first is still arriving", async ({ page, request }) => {

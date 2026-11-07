@@ -228,9 +228,8 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
           status: 502,
           contentType: "application/json",
           body: JSON.stringify({
-            error: "Cannot reach the model.",
+            error: "http://gamingpcinthelivingroomofthefamilyhomestead.example.net:5001/v1",
             kind: "unreachable",
-            upstream_url: "http://gamingpcinthelivingroomofthefamilyhomestead.example.net:5001/v1",
           }),
         })
         : route.continue();

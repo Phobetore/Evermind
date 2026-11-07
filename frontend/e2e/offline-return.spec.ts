@@ -277,7 +277,7 @@ test("a reply that failed with no page open is reported on opening with its reas
 
   const posts = countingPosts(page);
   await page.goto(`/#/chat/${convo.id}`);
-  await expect(page.locator("p.text-blood").first()).toContainText("500");
+  await expect(page.locator("p.text-blood").first()).toContainText("told to fail");
   await expect(stopButton(page)).toBeHidden();
 
   await retryButton(page).click();
