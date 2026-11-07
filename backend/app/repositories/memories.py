@@ -64,14 +64,14 @@ async def get(db: aiosqlite.Connection, memory_id: str) -> dict | None:
 
 async def update(db: aiosqlite.Connection, memory_id: str,
                  content: str | None = None, is_pinned: bool | None = None) -> dict | None:
-    """What a person changes in a fact. What they write is theirs: a cut does not take it
-    back to what the model had written before."""
+    """What a person changes in a fact. What they write is theirs: cuts and passes leave it as
+    they would a fact they wrote."""
     if not await get(db, memory_id):
         return None
     sets, params = [], []
     if content is not None and content.strip():
         new_content = content.strip()
-        sets += ["content = ?", "previous_content = NULL", "corrected_at = NULL"]
+        sets += ["content = ?", "source = 'user'", "previous_content = NULL", "corrected_at = NULL"]
         params.append(new_content)
         # the stored vector describes the OLD text now; recompute it (or NULL it
         # so that the next start fills it) — never leave a stale embedding

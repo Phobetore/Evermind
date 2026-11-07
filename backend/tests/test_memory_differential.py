@@ -62,7 +62,7 @@ async def by_the_rules(db, convo_id, reply, top):
                 (convo_id, new, target["id"]))).fetchone():
             await repo.delete(db, target["id"])
         else:
-            await repo.update(db, target["id"], content=new)
+            await repo.rewrite(db, target["id"], new, None, top)
     for text in reply["obsolete_facts"]:
         target = await first_saying(db, convo_id, text)
         if target and not target["is_pinned"] and target["source"] == "auto":

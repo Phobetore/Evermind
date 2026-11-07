@@ -641,8 +641,9 @@ async def test_a_fact_kept_by_a_pin_through_a_cut_forgets_the_correction_of_the_
     assert await stored_facts(client, convo_id) == [("Alice died on the bridge.", 8, False, "auto")]
 
 
-async def test_a_persons_edit_stays_through_a_cut(client, fake_provider):
-    """What they wrote replaced the model's correction, and is theirs."""
+async def test_a_fact_a_person_rewrote_is_theirs_through_any_cut(client, fake_provider):
+    """What they wrote replaced the model's words: no cut takes it back to them, nor away with
+    the turns the model drew it from."""
     convo = await setup_conversation(client)
     await told_then_corrected(client, convo["id"])
     fact = await fact_named(client, convo["id"], "Alice died on the bridge.")
@@ -650,7 +651,9 @@ async def test_a_persons_edit_stays_through_a_cut(client, fake_provider):
     await client.patch(f"/api/memories/{fact['id']}", json={"content": "Alice is my sister."})
     await remove_from(client, convo["id"], 11)
 
-    assert await stored_facts(client, convo["id"]) == [("Alice is my sister.", 8, False, "auto")]
+    assert await stored_facts(client, convo["id"]) == [("Alice is my sister.", 8, False, "user")]
+    await remove_from(client, convo["id"], 6)
+    assert await stored_facts(client, convo["id"]) == [("Alice is my sister.", 5, False, "user")]
 
 
 async def test_a_fact_forgotten_does_not_come_back_with_a_rewind(client, fake_provider):
