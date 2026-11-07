@@ -127,7 +127,7 @@ function ChatView({ id }: { id: string }) {
     };
   }, [id]);
 
-  const { writing, text, lost, outcome, watch, began, recheck, forget } = useTurn(id, read);
+  const { writing, text, lost, outcome, watch, began, recheck, noAnswer, forget } = useTurn(id, read);
   const busy = writing !== null;
 
   useEffect(() => {
@@ -171,8 +171,12 @@ function ChatView({ id }: { id: string }) {
       began();
       return true;
     } catch (error) {
-      setRefused(error);
-      recheck();
+      // A message stays refused until it is found; anything else that got no answer may be under way.
+      if (request.mode !== "send" && error instanceof DataError && error.kind === "network") noAnswer(error);
+      else {
+        setRefused(error);
+        recheck();
+      }
       return false;
     }
   }
@@ -189,10 +193,10 @@ function ChatView({ id }: { id: string }) {
     setRefused(null);
     try {
       await inTime(data.turns.stop(id));
+      void watch();
     } catch (error) {
-      setRefused(error);
+      noAnswer(error);
     }
-    void watch();
   }
 
   const last = messages.at(-1);

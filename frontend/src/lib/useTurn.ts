@@ -113,11 +113,19 @@ export function useTurn(id: string, read: () => Promise<() => boolean>) {
     void watch();
   }, [id, watch]);
 
-  /** Something was asked and no answer said whether the server has it. */
+  /** Something asked for did not begin, or may not have. */
   const recheck = useCallback(() => {
     shown.current.behind = true;
     void watch();
   }, [watch]);
+
+  /** No answer came: what was asked for may be under way all the same, and how it ends is said
+   *  here. Until the server answers, that it could not be reached is. */
+  const noAnswer = useCallback((error: unknown) => {
+    asked.add(id);
+    setLost(error);
+    recheck();
+  }, [id, recheck]);
 
   useEffect(() => {
     let waking = setTimeout(watch);
@@ -136,5 +144,5 @@ export function useTurn(id: string, read: () => Promise<() => boolean>) {
     };
   }, [watch]);
 
-  return { writing, text, lost, outcome, watch, began, recheck, forget: () => setOutcome(null) };
+  return { writing, text, lost, outcome, watch, began, recheck, noAnswer, forget: () => setOutcome(null) };
 }

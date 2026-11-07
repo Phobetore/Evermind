@@ -216,6 +216,20 @@ test.describe("what is asked of a connection that does not answer", () => {
     await expect(retryButton(page)).toHaveCount(0);
   });
 
+  test("a Regenerate whose answer was lost is followed, and how it ended is said", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { failing: true });
+    await answerLost(page);
+    await page.goto(`/#/chat/${convo.id}`);
+    await page.waitForLoadState("networkidle");
+
+    await page.locator('button[title="Regenerate"]').first().click({ force: true });
+
+    await expect(report(page).first(), "the reason was lost").toContainText("500", { timeout: 20_000 });
+    await expect(report(page).filter({ hasText: "Evermind is not answering" }),
+      "still said to be out of reach once it had answered").toHaveCount(0);
+    await expect(retryButton(page)).toBeVisible();
+  });
+
   test("an edit saved while the reply's ending is on its way leaves the reply on screen", async ({ page, request }) => {
     const convo = await conversationWithReply(request, { slowly: true });
     await page.goto(`/#/chat/${convo.id}`);
