@@ -155,8 +155,12 @@ export function ConnectionForm({
   async function remove() {
     if (!connection) return;
     if (!confirm(t("connections.confirmDelete", { name: connection.name }))) return;
-    await source.remove(connection.id);
-    onSaved();
+    try {
+      await source.remove(connection.id);
+      onSaved();
+    } catch (e) {
+      setError(describeError(e, t));
+    }
   }
 
   return (

@@ -66,8 +66,8 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   const [advanced, setAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Apart from `error`, which is about saving: an export that fails must not
-  // wipe out a save that did too, and its message belongs by the buttons.
+  // Apart from `error`, which is about saving or deleting: an export that fails
+  // must not wipe out a save that did too, and its message belongs by the buttons.
   const [exportError, setExportError] = useState<string | null>(null);
   const [brief, setBrief] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -179,8 +179,12 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   async function remove() {
     if (!initial) return;
     if (!confirm(t("characters.form.confirmDelete", { name: initial.name }))) return;
-    await data.characters.remove(initial.id);
-    navigate("/");
+    try {
+      await data.characters.remove(initial.id);
+      navigate("/");
+    } catch (e) {
+      setError(describeError(e, t));
+    }
   }
 
   async function exportCard(format: "json" | "png") {

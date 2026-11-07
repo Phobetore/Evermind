@@ -133,3 +133,51 @@ test("a removal that does not go through says so on its row, which goes only if 
   await expect(row, "removed by the server and still listed").toHaveCount(0);
   expect((await stored(request, id)).status()).toBe(404);
 });
+
+test("a persona that is not removed says so in its window, and stays", async ({ page, request }) => {
+  const persona = await (await request.post(`${API}/api/personas`, { data: { name: `Kept ${Date.now()}` } })).json();
+  await page.goto("/#/personas");
+  await page.getByRole("button", { name: persona.name }).click();
+  const dialog = page.getByRole("dialog");
+  await page.route(`**/api/personas/${persona.id}`, refused);
+  page.once("dialog", (confirm) => confirm.accept());
+  await dialog.getByRole("button", { name: "Delete" }).click();
+  await expect(dialog.getByText("HTTP 500")).toBeInViewport();
+
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("heading", { name: persona.name })).toBeVisible();
+  const kept = (await (await request.get(`${API}/api/personas`)).json()).filter((p: { id: string }) => p.id === persona.id);
+  expect(kept).toHaveLength(1);
+  await request.delete(`${API}/api/personas/${persona.id}`);
+});
+
+test("a card that is not removed says so on its form, and stays", async ({ page, request }) => {
+  const card = await makeCharacter(request, { name: `Kept ${Date.now()}` });
+  await page.goto(`/#/characters/${card.id}/edit`);
+  await expect(page.getByLabel("Name", { exact: true })).toHaveValue(card.name);
+  await failing(page, "DELETE", `/api/characters/${card.id}`, offline);
+  page.once("dialog", (confirm) => confirm.accept());
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByText("Evermind is not answering")).toBeInViewport();
+  await expect(page).toHaveURL(new RegExp(`#/characters/${card.id}/edit$`));
+  expect((await request.get(`${API}/api/characters/${card.id}`)).ok()).toBe(true);
+});
+
+test("a connection that is not removed says so in its window, and stays", async ({ page, request }) => {
+  const made = await (await request.post(`${API}/api/connections`, {
+    data: { name: `Kept ${Date.now()}`, base_url: "http://127.0.0.1:1/v1" },
+  })).json();
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: new RegExp(`^${made.name}`) }).click();
+  const dialog = page.getByRole("dialog");
+  await page.route(`**/api/connections/${made.id}`, refused);
+  page.once("dialog", (confirm) => confirm.accept());
+  await dialog.getByRole("button", { name: "Delete" }).click();
+  await expect(dialog.getByText("HTTP 500")).toBeInViewport();
+
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("button", { name: new RegExp(`^${made.name}`) })).toBeVisible();
+  const kept = (await (await request.get(`${API}/api/connections`)).json()).filter((c: { id: string }) => c.id === made.id);
+  expect(kept).toHaveLength(1);
+  await request.delete(`${API}/api/connections/${made.id}`);
+});

@@ -121,8 +121,12 @@ function PersonaModal({ persona, onClose }: { persona: Persona | null; onClose: 
   async function remove() {
     if (!persona) return;
     if (!confirm(t("personas.confirmDelete", { name: persona.name }))) return;
-    await data.personas.remove(persona.id);
-    onClose();
+    try {
+      await data.personas.remove(persona.id);
+      onClose();
+    } catch (e) {
+      setError(describeError(e, t));
+    }
   }
 
   return (
