@@ -51,6 +51,8 @@ const KIND_KEYS: Record<string, string> = {
   // No answer from Evermind itself.
   network: "errors.unreachable",
   offline: "errors.offline",
+  // The page's own: a message that got no answer, and that the server, answering since, does not have.
+  not_sent: "errors.notSent",
 };
 
 /** What a "not_found" did not find. A resource this version has never heard of

@@ -67,8 +67,9 @@ test("a message that never reached Evermind is reported, and stays to be sent ag
   const report = page.locator("p.text-blood").first();
   await expect(report,
     "the message never got through and nothing said so").toBeVisible({ timeout: 20_000 });
-  // In words that say what to look at, not the browser's own "Failed to fetch".
-  await expect(report).toContainText("Evermind is not answering");
+  // In words that say what to do, not the browser's own "Failed to fetch": Evermind answers,
+  // and does not have it.
+  await expect(report).toContainText("This message was not sent");
   await expect(page.locator("textarea").first()).toHaveValue("Encore une fois.");
   await expect(retryButton(page), "Send is what sends it").toHaveCount(0);
   await page.unroute("**/api/chat");

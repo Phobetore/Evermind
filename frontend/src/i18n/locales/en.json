@@ -466,6 +466,7 @@
     "server": "Evermind answered with an error (HTTP {status}).",
     "unreachable": "Evermind is not answering. Is it still running?",
     "offline": "This device is offline.",
+    "notSent": "This message was not sent. Press Send to send it again.",
     "invalid": "Evermind could not accept this: something in it is missing or not valid.",
     "locked": "Your session has ended. Sign in again.",
     "wrongPassword": "Access denied.",
