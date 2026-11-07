@@ -271,7 +271,7 @@ async def test_a_pass_that_read_only_the_first_message_has_read_nothing_as_far_a
             pass
 
         async def stream_chat(self, payload):
-            yield ProviderEvent(type="error", message="Down.", meta={"kind": "model_error"})
+            yield ProviderEvent(type="done")
 
     monkeypatch.setattr("app.services.chat_service.get_provider", Stops)
     convo = await setup_conversation(client, greeting="")

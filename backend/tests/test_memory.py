@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from app.providers.base import ProviderEvent
+from app.providers.base import ProviderError, ProviderEvent
 from app.services import memory_service
 
 from .test_chat import FakeProvider, send, setup_conversation
@@ -572,7 +572,7 @@ async def test_a_consolidation_that_fails_lets_the_next_one_run(
             await client.post(url)
     else:
         fake_provider.script = (
-            [ProviderEvent(type="error", message="Quota exceeded.")] if failure == "refused"
+            [ProviderError("Quota exceeded.")] if failure == "refused"
             else [ProviderEvent(type="delta", text="no json here"), ProviderEvent(type="done")])
         assert (await client.post(url)).status_code == 502
     assert len(await stored_facts(client, convo["id"])) == 8

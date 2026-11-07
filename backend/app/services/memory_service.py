@@ -26,7 +26,6 @@ from ..errors import (
     AppError,
     NotFoundError,
     error_body,
-    model_failure,
 )
 from ..prompting import embeddings
 from ..prompting.engine import active_content
@@ -37,7 +36,7 @@ from ..prompting.payloads import (
     build_extraction_payload,
     movable_facts,
 )
-from ..providers import get_provider
+from ..providers import complete, get_provider
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
@@ -167,14 +166,8 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
                        409, kind=TOO_FEW_FACTS)
 
     payload = build_consolidation_payload(character, persona, movable)
-    chunks: list[str] = []
-    async for event in get_provider(connection).stream_chat(payload):
-        if event.type == "delta":
-            chunks.append(event.text)
-        elif event.type == "error":
-            raise model_failure(event.message, event.meta)
-
-    merged = plan_consolidation(parse_llm_json("".join(chunks)), movable)
+    answer = await complete(get_provider(connection), payload)
+    merged = plan_consolidation(parse_llm_json(answer), movable)
     if merged is None:
         raise AppError("Unreadable consolidation — try again.", 502, kind=MODEL_UNREADABLE)
 
@@ -256,14 +249,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     told = {(m["id"], m["content"]) for m in turns}  # what the model was told they say
     sent = {(m["id"], m["content"]) for m in existing}
 
-    chunks: list[str] = []
-    async for event in get_provider(connection).stream_chat(payload):
-        if event.type == "delta":
-            chunks.append(event.text)
-        elif event.type == "error":
-            raise model_failure(event.message, event.meta)
-
-    parsed = parse_llm_json("".join(chunks))
+    parsed = parse_llm_json(await complete(get_provider(connection), payload))
     if parsed is None:
         raise AppError("Unreadable memory response (JSON expected).", 502,
                        kind=MODEL_UNREADABLE)

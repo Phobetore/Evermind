@@ -8,15 +8,14 @@ that explains why it stops.
 
 import pytest
 
-from app.errors import MODEL_ERROR
-from app.providers.base import ProviderEvent, failure
+from app.providers.base import ProviderError, ProviderEvent
 
 from .test_chat import FakeProvider, send, setup_conversation
 
 FAILS_AFTER_TWO_WORDS = [
     ProviderEvent(type="delta", text="The door "),
     ProviderEvent(type="delta", text="creaks open"),
-    ProviderEvent(type="error", message="The server went away.", meta=failure(MODEL_ERROR)),
+    ProviderError("The server went away."),
 ]
 
 
@@ -49,7 +48,7 @@ async def test_a_reply_cut_short_by_a_failure_is_kept_and_the_failure_is_said(cl
 
 async def test_a_failure_before_any_word_leaves_the_message_waiting_for_its_reply(client, provider):
     convo = await setup_conversation(client)
-    provider.script = [ProviderEvent(type="error", message="Down.", meta=failure(MODEL_ERROR))]
+    provider.script = [ProviderError("Down.")]
 
     await send(client, convo["id"], content="Knock")
 
@@ -74,7 +73,7 @@ async def test_a_regeneration_cut_short_by_a_failure_keeps_its_words_as_a_varian
 async def test_a_regeneration_for_a_message_without_a_reply_keeps_what_arrived(client, provider):
     """After a failure that left nothing, a regeneration writes the missing reply."""
     convo = await setup_conversation(client)
-    provider.script = [ProviderEvent(type="error", message="Down.", meta=failure(MODEL_ERROR))]
+    provider.script = [ProviderError("Down.")]
     await send(client, convo["id"], content="Knock")
     provider.script = FAILS_AFTER_TWO_WORDS
 
@@ -102,7 +101,7 @@ async def test_a_continuation_that_fails_before_any_word_changes_nothing(client,
     convo = await setup_conversation(client)
     await send(client, convo["id"], content="Knock")
     before = await messages_of(client, convo["id"])
-    provider.script = [ProviderEvent(type="error", message="Down.", meta=failure(MODEL_ERROR))]
+    provider.script = [ProviderError("Down.")]
 
     assert await send(client, convo["id"], content=None, mode="continue")
 

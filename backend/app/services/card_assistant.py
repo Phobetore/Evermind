@@ -6,13 +6,7 @@ persisted here. Uses the requested connection, else the default one.
 
 import aiosqlite
 
-from ..errors import (
-    MODEL_EMPTY,
-    MODEL_UNREADABLE,
-    NO_CONNECTION,
-    AppError,
-    model_failure,
-)
+from ..errors import MODEL_EMPTY, MODEL_UNREADABLE, NO_CONNECTION, AppError
 from ..prompting.payloads import (
     LIST_FIELDS,
     TEXT_FIELDS,
@@ -21,7 +15,7 @@ from ..prompting.payloads import (
     lore_keyword,
 )
 from ..prompting.text import is_writable, text_of
-from ..providers import get_provider
+from ..providers import complete, get_provider
 from ..repositories import connections as connections_repo
 from .llm_json import parse_llm_json
 
@@ -86,15 +80,7 @@ async def generate_card(db: aiosqlite.Connection, prompt: str, kind: str,
         connection = dict(connection, max_tokens=max(2048, connection["max_tokens"]))
 
     payload = build_card_payload(prompt, kind, existing)
-
-    chunks: list[str] = []
-    async for event in get_provider(connection).stream_chat(payload):
-        if event.type == "delta":
-            chunks.append(event.text)
-        elif event.type == "error":
-            raise model_failure(event.message, event.meta)
-
-    parsed = parse_llm_json("".join(chunks))
+    parsed = parse_llm_json(await complete(get_provider(connection), payload))
     if parsed is None:
         raise AppError("The model did not return a readable card. Try again.", 502,
                        kind=MODEL_UNREADABLE)

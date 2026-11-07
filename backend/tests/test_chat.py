@@ -4,12 +4,12 @@ from typing import ClassVar
 
 import pytest
 
-from app.providers.base import ProviderEvent
+from app.providers.base import ProviderError, ProviderEvent
 from app.services import turns
 
 
 class FakeProvider:
-    """Yields scripted events; records the payload it received."""
+    """Yields scripted events, and raises a scripted error; records the payload it received."""
 
     # Shared on the class on purpose: the service instantiates the provider
     # itself, so the tests have nowhere else to read the captured payload from.
@@ -22,6 +22,8 @@ class FakeProvider:
         FakeProvider.captured["payload"] = payload
         FakeProvider.captured["connection"] = self.connection
         for event in FakeProvider.script:
+            if isinstance(event, Exception):
+                raise event
             yield event
 
 
@@ -123,7 +125,7 @@ async def test_regenerate_adds_variant(client, fake_provider):
 
 async def test_regenerate_after_error_creates_assistant(client, fake_provider):
     convo = await setup_conversation(client)
-    fake_provider.script = [ProviderEvent(type="error", message="boom")]
+    fake_provider.script = [ProviderError("boom")]
     assert (await send(client, convo["id"]))["kind"] == "model_error"
     messages = await messages_of(client, convo["id"])
     assert [m["role"] for m in messages] == ["assistant", "user"]  # no empty assistant persisted
