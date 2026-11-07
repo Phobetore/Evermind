@@ -1,8 +1,7 @@
 import { data, DataError, type CharacterInput, type LoreEntryInput } from "@/data";
 import type { Character } from "@/types";
 
-/** Character Card V2 (https://github.com/malfoyslastname/character-card-spec-v2), read and
- *  written here, in the browser. Evermind's own fields travel in `extensions.evermind`. */
+// Character Card V2, and V1 and V3 when read; Evermind's own fields go in extensions.evermind.
 
 /** A card as Evermind keeps one: its fields, and its whole lorebook. */
 export type CardCharacter = CharacterInput & { lore_entries: LoreEntryInput[] };
@@ -146,8 +145,7 @@ export async function readCardFile(file: File): Promise<{ character: CardCharact
   return { character, portrait: null };
 }
 
-/** Make the card, then give it its portrait. One whose portrait does not go is taken away
- *  again, so that the next try does not make it twice. */
+/** The card, then its portrait; one whose portrait does not go is taken away, so a retry makes one. */
 export async function installCard(character: CardCharacter, portrait: File | null): Promise<Character> {
   const made = await data.characters.create(character);
   if (!portrait) return made;
@@ -209,8 +207,7 @@ async function portraitPng(avatarUrl: string | null): Promise<Uint8Array<ArrayBu
   return new Uint8Array(await png!.arrayBuffer());
 }
 
-/** The card's name as a file name: without what a file system refuses, or what would make
- *  the name read backwards; "card" if nothing is left. */
+/** The name less what a file system refuses or what turns text around; "card" if nothing is left. */
 const fileStem = (name: string) =>
   name.replace(/[\p{Cc}\u200e\u200f\u202a-\u202e\u2066-\u2069\\/:*?"<>|]/gu, "").trim() || "card";
 

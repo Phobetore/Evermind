@@ -80,8 +80,7 @@ async function installed(request: APIRequestContext): Promise<{ id: string; avat
   return all.filter((c: { name: string }) => c.name === NAME);
 }
 
-/** A library card's portrait is a JPEG, which the export once swapped for a dark square. A
- *  portrait that does not go, as the card is made, leaves no card behind. */
+/** A library card's portrait is a JPEG; a portrait that does not go leaves no card behind. */
 test("a library card exported as a PNG keeps its portrait and its lorebook, and comes back with them", { tag: "@desktop" }, async ({ page, request }) => {
   for (const card of await installed(request)) await request.delete(`${API}/api/characters/${card.id}`);
   await page.goto("/#/");

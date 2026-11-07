@@ -23,8 +23,7 @@ def clean_keys(keys: list[str] | None) -> list[str]:
 
 
 async def replace(db: aiosqlite.Connection, char_id: str, entries: list[dict]) -> None:
-    """A card's whole lorebook, in its order. An entry left with no keyword or no text is
-    dropped: emptying a box is how one is taken out. Does not commit."""
+    """The whole lorebook, in order, less entries with no keyword or no text. Does not commit."""
     now = now_iso()
     rows = []
     for entry in entries:
