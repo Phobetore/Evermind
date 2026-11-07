@@ -469,15 +469,13 @@ async def test_a_summary_typed_over_an_older_one_leaves_the_turns_read_since_to_
 @pytest.mark.parametrize(("before", "was"), [
     ("a pass, then a cut", "To 8."),  # typed over a summary the cut took away
     ("a pass", ""),                   # typed over none while a pass read on
-    ("nothing", None),                # before any pass, which releases let any branch keep
-], ids=["over one cut away", "over none, read since", "before any pass"])
+], ids=["over one cut away", "over none, read since"])
 async def test_a_summary_typed_over_one_no_pass_holds_is_no_pass_for_a_branch_to_go_back_to(
         client, fake_provider, before, was):
     """It goes to position 0 and may tell any turn the person had read, past a branch's message."""
     convo_id = (await setup_conversation(client))["id"]
     await talk(client, convo_id, 4)
-    if before != "nothing":
-        await extract(client, convo_id, {"facts": [], "summary": "To 8."})
+    await extract(client, convo_id, {"facts": [], "summary": "To 8."})
     if before.endswith("cut"):
         await remove_from(client, convo_id, 7)
 
@@ -491,6 +489,41 @@ async def test_a_summary_typed_over_one_no_pass_holds_is_no_pass_for_a_branch_to
 
 PREMISE = "Premise: a heist in Venice."
 PUT_RIGHT = "Story to 8: Marco betrays the crew at 5, the vault floods at 7."
+
+
+async def test_a_premise_typed_before_the_first_pass_goes_with_a_branch(client, fake_provider):
+    """As in 3.0.x, wherever the branch is made: no pass has read past it, and it is the person's
+    to keep or change there."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 1)
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": PREMISE})
+    await talk(client, convo_id, 5, first=2)
+
+    for fork in (12, 1):  # the last message, and one from before the premise was typed
+        branch = await branch_at(client, convo_id, fork)
+        assert (branch["memory_position"], branch["summary"]) == (0, PREMISE), fork
+        assert await summaries_of(branch["id"]) == [(0, PREMISE)]
+
+
+async def test_a_summary_kept_by_hand_with_the_automatic_passes_off_goes_with_a_branch(
+        client, fake_provider):
+    """No pass has read that story, and the branch's first one reads 40 turns at most: it goes on
+    from the person's words, not from the newest 40 turns alone."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 15)
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": "By hand, to 30."})
+    await talk(client, convo_id, 15, first=16)
+    await client.patch(f"/api/conversations/{convo_id}",
+                       json={"summary": "By hand, to 60.", "summary_was": "By hand, to 30."})
+
+    branch = await branch_at(client, convo_id, 60)
+
+    assert (branch["memory_position"], branch["summary"]) == (0, "By hand, to 60.")
+    fake_provider.captured.clear()
+    await extract(client, branch["id"], {"facts": [], "summary": "Read on."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "CURRENT SUMMARY:\nBy hand, to 60.\n" in shown
+    assert "(turn 21)" in shown and "(turn 60)" in shown and "(turn 20)" not in shown
 
 
 async def a_premise_then_a_pass(client, convo_id, origin):
