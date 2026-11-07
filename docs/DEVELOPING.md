@@ -169,8 +169,9 @@ test that passes either way is worse than none, because it reads like cover.
   and sets the session cookie; `DELETE /api/gate` signs this device out;
   `DELETE /api/gate/sessions` signs every device out
 
-A sign-in whose body is over 4096 bytes, or does not give its length in
-`Content-Length`, is refused unread: `413` with `"kind": "too_large"`.
+A sign-in whose body is over 4096 bytes, or that does not give its length as four
+digits at most in `Content-Length`, is refused unread: `413` with
+`"kind": "too_large"`.
 
 With a password set, everything under `/api/` except `/api/health` and
 `/api/gate` answers `401` with `"kind": "locked"` until the device has signed in.
