@@ -190,46 +190,26 @@ async def test_memory_updates_and_obsoletes_respect_pins(client, fake_provider):
 
 # ---------- starter library ----------
 
-async def test_library_list_and_install(client, tmp_path, monkeypatch, fake_provider):
-    card = {
-        "spec": "chara_card_v2", "spec_version": "2.0",
-        "data": {"name": "Demo card", "first_mes": "Hello {{user}}.",
-                 "tags": ["demo"],
-                 "character_book": {"entries": [{"keys": ["demo"], "content": "An entry."}]},
-                 "extensions": {"evermind": {"kind": "scenario", "tagline": "Demo."}}},
-    }
+async def test_the_library_lists_its_cards_and_serves_their_jpeg_portraits(client, tmp_path,
+                                                                            monkeypatch):
+    card = {"spec": "chara_card_v2", "spec_version": "2.0", "data": {"name": "Demo card"}}
     lib = tmp_path / "lib"
     lib.mkdir()
-    (lib / "fiche-demo.json").write_text(json.dumps(card), encoding="utf-8")
-    from .test_cards import make_minimal_png
-    (lib / "fiche-demo.png").write_bytes(make_minimal_png())
+    for name in ("demo", "other"):
+        (lib / f"{name}.json").write_text(json.dumps(card), encoding="utf-8")
+    (lib / "demo.jpg").write_bytes(b"JPEG bytes")
+    (lib / "other.png").write_bytes(b"PNG bytes")  # a portrait is a JPEG
+    (lib / "broken.json").write_text("{", encoding="utf-8")
     monkeypatch.setenv("EVERMIND_LIBRARY_DIR", str(lib))
 
-    listed = (await client.get("/api/library")).json()
-    assert listed[0]["name"] == "Demo card"
-    assert listed[0]["has_avatar"] is True
-    avatar_resp = await client.get("/api/library/fiche-demo.json/avatar")
-    assert avatar_resp.status_code == 200
-    assert listed[0]["kind"] == "scenario"
-    assert listed[0]["has_lorebook"] is True
-    assert listed[0]["installed"] is False
-
-    installed = await client.post("/api/library/fiche-demo.json/install")
-    assert installed.status_code == 201
-    char = installed.json()
-    lore = (await client.get(f"/api/characters/{char['id']}")).json()["lore_entries"]
-    assert lore[0]["keys"] == ["demo"]
-    assert char["avatar_url"], "install should copy the library illustration as avatar"
-    media = await client.get(char["avatar_url"])
-    assert media.status_code == 200
-    assert media.content.startswith(bytes([0x89]) + b"PNG")
-
-    listed = (await client.get("/api/library")).json()
-    assert listed[0]["installed"] is True
-    dupe = await client.post("/api/library/fiche-demo.json/install")
-    assert dupe.status_code == 400
-    traversal = await client.post("/api/library/..%2Fevil.json/install")
-    assert traversal.status_code in (400, 404)
+    assert (await client.get("/api/library")).json() == [
+        {"filename": "demo.json", "card": card, "has_avatar": True},
+        {"filename": "other.json", "card": card, "has_avatar": False},
+    ]
+    portrait = await client.get("/api/library/demo.json/avatar")
+    assert (portrait.status_code, portrait.headers["content-type"]) == (200, "image/jpeg")
+    assert portrait.content == b"JPEG bytes"
+    assert (await client.get("/api/library/other.json/avatar")).status_code == 404
 
 
 # ---------- message embeddings (phase 2 storage layer) ----------

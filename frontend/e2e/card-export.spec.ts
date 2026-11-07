@@ -15,9 +15,8 @@ async function withPortrait(request: APIRequestContext) {
   return card;
 }
 
-const refusePortraits = (page: Page) =>
-  page.route("**/api/media/**", (route) =>
-    route.fulfill({ status: 500, contentType: "text/html", body: "<h1>Bad gateway</h1>" }));
+const badGateway = { status: 500, contentType: "text/html", body: "<h1>Bad gateway</h1>" };
+const refusePortraits = (page: Page) => page.route("**/api/media/**", (route) => route.fulfill(badGateway));
 
 /** Exporting is a click that starts a download. When the file cannot be made, the
  *  page has to say so: a click that does nothing, and says nothing, looks like a
@@ -81,13 +80,19 @@ async function installed(request: APIRequestContext): Promise<{ id: string; avat
   return all.filter((c: { name: string }) => c.name === NAME);
 }
 
-/** A library card's portrait is a JPEG, which the export once swapped for a dark square. */
+/** A library card's portrait is a JPEG, which the export once swapped for a dark square. A
+ *  portrait that does not go, as the card is made, leaves no card behind. */
 test("a library card exported as a PNG keeps its portrait and its lorebook, and comes back with them", { tag: "@desktop" }, async ({ page, request }) => {
   for (const card of await installed(request)) await request.delete(`${API}/api/characters/${card.id}`);
   await page.goto("/#/");
   await page.getByTitle("Starter library").click();
   const library = page.getByRole("dialog");
   const row = library.locator(".rounded-xl", { has: page.getByRole("heading", { name: NAME }) });
+  await page.route("**/api/library/*/avatar", (route) => route.fulfill(badGateway));
+  await row.getByRole("button", { name: "Install" }).click();
+  await expect(library.getByText("HTTP 500")).toBeVisible();
+  expect(await installed(request)).toEqual([]);
+  await page.unroute("**/api/library/*/avatar");
   await row.getByRole("button", { name: "Install" }).click();
   await expect(row.getByText("Installed")).toBeVisible();
   const [card] = await installed(request);
@@ -107,7 +112,13 @@ test("a library card exported as a PNG keeps its portrait and its lorebook, and 
   await page.goto("/#/");
   await page.getByTitle(/^import a card/i).click();
   const importing = page.getByRole("dialog");
-  await importing.locator('input[type="file"]').setInputFiles({ name: "vigil.png", mimeType: "image/png", buffer: await readFile(file) });
+  const vigil = { name: "vigil.png", mimeType: "image/png", buffer: await readFile(file) };
+  await page.route("**/api/characters/*/avatar", (route) => route.fulfill(badGateway));
+  await importing.locator('input[type="file"]').setInputFiles(vigil);
+  await expect(importing.locator("li", { hasText: "vigil.png" })).toContainText("HTTP 500");
+  expect(await installed(request)).toHaveLength(1);
+  await page.unroute("**/api/characters/*/avatar");
+  await importing.locator('input[type="file"]').setInputFiles(vigil);
   await expect(importing.locator("li", { hasText: "vigil.png" }).locator("svg.lucide-check")).toBeVisible();
 
   const copy = (await installed(request)).find((c) => c.id !== card.id)!;

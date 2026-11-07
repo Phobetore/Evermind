@@ -113,7 +113,6 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
 
     library: {
       list: () => get<LibraryItem[]>("api/library"),
-      install: (filename) => post<Character>(`api/library/${seg(filename)}/install`),
       avatarUrl: (filename) => `api/library/${seg(filename)}/avatar`,
     },
 

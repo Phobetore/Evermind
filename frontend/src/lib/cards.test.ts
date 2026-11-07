@@ -1,3 +1,4 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { crc32 } from "node:zlib";
 import { describe, expect, test } from "vitest";
 import { cardFile, cardToCharacter, characterToCard, readCardFile, withCard } from "./cards";
@@ -61,6 +62,16 @@ describe("the card codec", () => {
       lore_entries: [{ keys: ["k"], content: "c", enabled: true }],
     });
   });
+});
+
+test("every card the library ships reads, with its JPEG portrait beside it", () => {
+  const shelf = new URL("../../../library/", import.meta.url);
+  const cards = readdirSync(shelf).filter((name) => name.endsWith(".json"));
+  expect(cards.length).toBeGreaterThan(0);
+  for (const name of cards) {
+    expect(cardToCharacter(JSON.parse(readFileSync(new URL(name, shelf), "utf8")))?.name, name).toBeTruthy();
+    expect(existsSync(new URL(name.replace(".json", ".jpg"), shelf)), name).toBe(true);
+  }
 });
 
 describe("a card file", () => {

@@ -130,10 +130,10 @@ describe("request building", () => {
 
   test("every variable path segment is encoded", async () => {
     await http.characters.get("a/b?c");
-    await http.library.install("a b.json");
+    await http.messages.branch("x y");
     expect(calls.map((c) => c.url)).toEqual([
       "api/characters/a%2Fb%3Fc",
-      "api/library/a%20b.json/install",
+      "api/messages/x%20y/branch",
     ]);
   });
 
@@ -229,7 +229,6 @@ describe("routes", () => {
     ["turns.state", () => http.turns.state("v1"), "GET", "api/conversations/v1/turn"],
     ["turns.impersonate", () => http.turns.impersonate("v1"), "POST", "api/conversations/v1/impersonate"],
     ["library.list", () => http.library.list(), "GET", "api/library"],
-    ["library.install", () => http.library.install("vane.json"), "POST", "api/library/vane.json/install"],
     ["settings.get", () => http.settings.get(), "GET", "api/settings"],
     ["settings.update", () => http.settings.update({ reply_length: "long" }), "PUT", "api/settings", { reply_length: "long" }],
     ["connections.list", () => http.connections.list(), "GET", "api/connections"],

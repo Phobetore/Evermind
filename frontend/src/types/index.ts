@@ -122,16 +122,11 @@ export interface CharacterWithLore extends Character {
   lore_entries: LoreEntry[];
 }
 
+/** A card of the starter library, as its file holds it. */
 export interface LibraryItem {
   filename: string;
-  name: string;
-  kind: Kind;
-  tagline: string;
-  tags: string[];
-  creator_notes: string;
-  has_lorebook: boolean;
+  card: unknown;
   has_avatar: boolean;
-  installed: boolean;
 }
 
 export interface Settings {

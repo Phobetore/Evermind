@@ -62,7 +62,6 @@ export interface DataSource {
   };
   library: {
     list(): Promise<LibraryItem[]>;
-    install(filename: string): Promise<Character>;
     avatarUrl(filename: string): string;
   };
   settings: { get(): Promise<Settings>; update(input: Partial<Settings>): Promise<Settings> };

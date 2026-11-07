@@ -3,7 +3,6 @@ can say it in the person's own language. The English ``error`` sentence stays
 for clients that read it."""
 
 import ast
-import json
 from pathlib import Path
 
 import pytest
@@ -80,8 +79,6 @@ NOT_FOUND = [
     ("put", "/api/personas/nope", {"name": "x"}, "Persona not found.", "persona"),
     ("delete", "/api/connections/nope", None, "Connection not found.", "connection"),
     ("patch", "/api/memories/nope", {"is_pinned": True}, "Fact not found.", "fact"),
-    ("post", "/api/library/nope.json/install", None, "Card not found in the library.",
-     "library_card"),
     ("get", "/api/library/nope.json/avatar", None, "No illustration for this card.",
      "illustration"),
     ("get", "/api/media/nope.png", None, "File not found.", "file"),
@@ -199,19 +196,6 @@ async def test_a_fact_can_still_be_pinned_or_rewritten(client, provider):
 
     assert pinned.status_code == 200 and pinned.json()["is_pinned"] is True
     assert rewritten.status_code == 200 and rewritten.json()["content"] == "She tells the truth."
-
-
-async def test_a_library_card_that_is_already_installed(client, tmp_path, monkeypatch):
-    shelf = tmp_path / "shelf"
-    shelf.mkdir()
-    (shelf / "vane.json").write_text(json.dumps({"name": "Vane", "description": "x"}),
-                                     encoding="utf-8")
-    monkeypatch.setenv("EVERMIND_LIBRARY_DIR", str(shelf))
-    resp = await client.post("/api/library/vane.json/install")
-    assert resp.status_code == 201
-    resp = await client.post("/api/library/vane.json/install")
-    assert resp.status_code == 400
-    assert resp.json() == {"error": "This card is already installed.", "kind": "already_installed"}
 
 
 async def test_no_connection_for_the_card_assistant(client, provider):

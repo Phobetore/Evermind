@@ -112,22 +112,22 @@ LIBRARY_ESCAPES = [
 
 
 @pytest.mark.parametrize("attempt", LIBRARY_ESCAPES)
-def test_library_names_outside_the_allowlist_are_refused(attempt):
-    """The library reads a file whose name comes from the URL. The allowlist is
-    what keeps that from being a way to read the rest of the disk, so it gets a
-    test rather than a comment."""
-    from app.routers.library import _image_path, _read_card
+async def test_a_library_portrait_is_one_of_a_card_the_library_lists(client, attempt):
+    """The name in the URL is looked up among the cards, and is never made into a path."""
+    resp = await client.get(f"/api/library/{urllib.parse.quote(attempt, safe='')}/avatar")
 
-    assert _read_card(attempt) is None
-    assert _image_path(attempt) is None
+    assert resp.status_code == 404
 
 
-def test_library_accepts_the_names_it_actually_ships():
+async def test_every_card_the_library_ships_is_listed_with_its_jpeg_portrait(client):
     """Rejecting everything would pass the test above and break the product."""
     from app.config import library_dir
-    from app.routers.library import _SAFE_NAME
 
     shipped = sorted(p.name for p in library_dir().glob("*.json"))
     assert shipped, "no library cards found, so this test proves nothing"
+    listed = (await client.get("/api/library")).json()
+    assert [(item["filename"], item["has_avatar"]) for item in listed] == [
+        (name, True) for name in shipped]
     for name in shipped:
-        assert _SAFE_NAME.match(name), name
+        resp = await client.get(f"/api/library/{name}/avatar")
+        assert (resp.status_code, resp.headers["content-type"]) == (200, "image/jpeg"), name
