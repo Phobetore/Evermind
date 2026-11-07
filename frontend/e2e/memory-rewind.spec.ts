@@ -17,7 +17,7 @@ const panelText = JSON.parse(
   closeAriaLabel: string;
   directive: { placeholder: string; applyButton: string };
   summary: { placeholder: string; saveButton: string };
-  facts: { extractButton: string };
+  facts: { extractButton: string; pinTitle: string; forgetAriaLabel: string };
 };
 
 test("cutting the story back empties the summary and the facts of what went", async ({ page, request }) => {
@@ -288,6 +288,78 @@ test("a phone waking reads the conversation once, and only for the panel it show
   await page.locator("header button:has(svg.lucide-sliders-horizontal)").click();
   await opened;
   expect(await wake(), "reads for the panel over the conversation").toBe(1);
+});
+
+// A pass of its own that failed is told in the panel until a pass works, Remember included,
+// even one that finds nothing to write in the summary.
+test("a Remember that works takes away the error of a pass that failed before it", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  // How the conversation reports the failed pass, until one works.
+  let failing = true;
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    const body = await response.json();
+    const failure = { error: "Cannot reach the model.", kind: "unreachable" };
+    await route.fulfill({ response, json: failing ? { ...body, memory_error: failure } : body });
+  });
+  await page.route("**/memories/extract", async (route) => {
+    failing = false;
+    await route.continue();
+  });
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  const error = panel.locator("p.text-blood");
+  await expect(error).toBeVisible();
+
+  // Nothing in the story to read yet: it works, and writes no summary.
+  await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+
+  await expect(panel.locator("p.text-moss")).toBeVisible();
+  await expect(error).toBeHidden();
+});
+
+test("pinning or forgetting a fact takes away the error a failed Remember left", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  for (const content of ["She keeps the key.", "The ferry runs on Tuesdays."]) {
+    await request.post(`${API}/api/conversations/${convo.id}/memories`, { data: { content } });
+  }
+  await page.route("**/memories/extract", (route) =>
+    route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Cannot reach the model.", kind: "unreachable" }),
+    }),
+  );
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  await expect(panel).toContainText("She keeps the key.");
+  const remember = panel.getByRole("button", { name: panelText.facts.extractButton, exact: true });
+  const error = panel.locator("p.text-blood");
+
+  await remember.click();
+  await expect(error).toBeVisible();
+  await panel.getByTitle(panelText.facts.pinTitle).first().click();
+  await expect(error).toBeHidden();
+
+  await remember.click();
+  await expect(error).toBeVisible();
+  await panel.getByLabel(panelText.facts.forgetAriaLabel).first().click();
+  await expect(error).toBeHidden();
+  await expect(panel).toContainText("(1)");
 });
 
 test("a memory pass that fails says so in the colour of an error, and keeps saying it", async ({ page, request }) => {
