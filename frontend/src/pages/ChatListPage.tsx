@@ -4,6 +4,7 @@ import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { clearDraft, pruneDrafts } from "@/lib/drafts";
+import { describeError } from "@/lib/errors";
 import { timeAgo } from "@/lib/utils";
 import type { Conversation } from "@/types";
 import { GitBranch, MessagesSquare, Pencil, PenLine, Trash2 } from "lucide-react";
@@ -17,15 +18,32 @@ export function ChatListPage() {
   const [renameDraft, setRenameDraft] = useState("");
   const [withDraft, setWithDraft] = useState<Set<string>>(new Set());
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
+  // Said on the conversation it was asked of, until the next change.
+  const [writeError, setWriteError] = useState<{ id: string; error: unknown } | null>(null);
+
+  /** A change asked of one conversation, and whether the server took it. */
+  async function write(id: string, change: () => Promise<unknown>) {
+    setWriteError(null);
+    try {
+      await change();
+      return true;
+    } catch (error) {
+      setWriteError({ id, error });
+      // It may have gone through all the same; a list that cannot be read either stays as it is.
+      data.conversations.list().then(setConversations, () => {});
+      return false;
+    }
+  }
 
   async function saveRename(convo: Conversation) {
     const title = renameDraft.trim();
     setRenamingId(null);
     if (!title || title === convo.title) return;
-    await data.conversations.update(convo.id, { title });
-    setConversations((prev) =>
-      prev ? prev.map((c) => (c.id === convo.id ? { ...c, title } : c)) : prev,
-    );
+    if (await write(convo.id, () => data.conversations.update(convo.id, { title }))) {
+      setConversations((prev) =>
+        prev ? prev.map((c) => (c.id === convo.id ? { ...c, title } : c)) : prev,
+      );
+    }
   }
 
   const load = () =>
@@ -47,9 +65,10 @@ export function ChatListPage() {
     e.stopPropagation();
     if (!confirm(t("chatList.confirmDelete", { title: convo.title || t("chatList.untitled") })))
       return;
-    await data.conversations.remove(convo.id);
-    clearDraft(convo.id);
-    load();
+    if (await write(convo.id, () => data.conversations.remove(convo.id))) {
+      clearDraft(convo.id);
+      load();
+    }
   }
 
   return (
@@ -73,7 +92,7 @@ export function ChatListPage() {
             <Link
               key={convo.id}
               to={`/chat/${convo.id}`}
-              className="group panel flex items-center gap-4 px-5 py-4 transition-all hover:-translate-y-0.5 hover:border-ember-600/40"
+              className="group panel flex flex-wrap items-center gap-4 px-5 py-4 transition-all hover:-translate-y-0.5 hover:border-ember-600/40"
             >
               <Avatar
                 name={convo.character?.name ?? "?"}
@@ -141,6 +160,14 @@ export function ChatListPage() {
               >
                 <Trash2 className="h-4 w-4" />
               </button>
+              {writeError?.id === convo.id && (
+                <p
+                  role="alert"
+                  className="basis-full rounded-lg border border-blood/40 bg-blood/10 px-3 py-2 text-sm text-blood"
+                >
+                  {describeError(writeError.error, t)}
+                </p>
+              )}
             </Link>
           ))}
         </div>
