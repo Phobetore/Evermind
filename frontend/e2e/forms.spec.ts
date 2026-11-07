@@ -32,11 +32,13 @@ test("a new persona whose portrait did not go is made once, and stays the defaul
   await request.delete(`${API}/api/personas/${made[0].id}`);
 });
 
-test("a new card whose lore did not all go is made once, with each entry once", async ({ page, request }) => {
+test("a new card whose lore did not all go is made once, with its entries as they were left", async ({ page, request }) => {
   const name = `Once ${Date.now()}`;
   await page.goto("/#/characters/new");
   await page.getByLabel("Name", { exact: true }).fill(name);
-  const lore = { harbour: "The harbour freezes in winter.", bell: "The bell rings at noon." };
+  const lore = {
+    harbour: "The harbour freezes in winter.", bell: "The bell rings at noon.", gate: "The gate shuts at dusk.",
+  };
   for (const [key, content] of Object.entries(lore)) {
     await page.getByPlaceholder("Trigger keywords, then Enter").fill(key);
     await page.getByPlaceholder("Trigger keywords, then Enter").press("Enter");
@@ -45,10 +47,15 @@ test("a new card whose lore did not all go is made once, with each entry once", 
   }
   let posted = 0;
   await page.route("**/api/characters/*/lore", (route) =>
-    ++posted === 2 ? route.fulfill(badGateway) : route.continue());
+    ++posted === 3 ? route.fulfill(badGateway) : route.continue());
   await page.getByRole("button", { name: "Create card" }).click();
   await expect(page.getByText("HTTP 500")).toBeVisible();
 
+  // Two have gone already: one is rewritten and the other taken out before saving again.
+  const entry = (key: string) => page.locator(".rounded-lg", { has: page.getByText(key, { exact: true }) });
+  await entry("harbour").locator("textarea").fill("The harbour never freezes.");
+  await entry("harbour").locator("textarea").blur();
+  await entry("bell").getByRole("button", { name: "Delete entry" }).click();
   await page.unroute("**/api/characters/*/lore");
   await page.getByRole("button", { name: "Create card" }).click();
   await expect(page).toHaveURL(/#\/characters\/(?!new$)[^/]+$/);
@@ -56,5 +63,6 @@ test("a new card whose lore did not all go is made once, with each entry once", 
     .filter((c: { name: string }) => c.name === name);
   expect(made, "the card was made twice").toHaveLength(1);
   const entries = await (await request.get(`${API}/api/characters/${made[0].id}/lore`)).json();
-  expect(entries.map((e: { content: string }) => e.content).sort()).toEqual(Object.values(lore).sort());
+  expect(entries.map((e: { content: string }) => e.content).sort())
+    .toEqual(["The gate shuts at dusk.", "The harbour never freezes."]);
 });
