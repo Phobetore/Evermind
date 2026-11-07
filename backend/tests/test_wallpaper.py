@@ -2,12 +2,8 @@
 
 import pytest
 
-from app.cards.png import make_placeholder_png
+from tests.conftest import PNG
 from tests.test_chat import setup_conversation
-
-
-def _png() -> bytes:
-    return make_placeholder_png(16, 16)
 
 
 async def test_a_conversation_starts_with_no_backdrop(client):
@@ -21,7 +17,7 @@ async def test_a_conversation_starts_with_no_backdrop(client):
 async def test_setting_and_clearing_a_backdrop(client):
     convo = await setup_conversation(client)
     resp = await client.post(f"/api/conversations/{convo['id']}/wallpaper",
-                             files={"file": ("bg.png", _png(), "image/png")})
+                             files={"file": ("bg.png", PNG, "image/png")})
     assert resp.status_code == 200
     url = resp.json()["wallpaper_url"]
     assert url and url.startswith("api/media/")
@@ -75,7 +71,7 @@ async def test_a_backdrop_belongs_to_one_conversation(client):
     second = second.json()
 
     await client.post(f"/api/conversations/{first['id']}/wallpaper",
-                      files={"file": ("bg.png", _png(), "image/png")})
+                      files={"file": ("bg.png", PNG, "image/png")})
 
     other = (await client.get(f"/api/conversations/{second['id']}")).json()
     assert other["wallpaper_url"] is None
@@ -86,7 +82,7 @@ async def test_a_branch_carries_the_backdrop_over(client):
     behind it would read as something having gone wrong."""
     convo = await setup_conversation(client)
     await client.post(f"/api/conversations/{convo['id']}/wallpaper",
-                      files={"file": ("bg.png", _png(), "image/png")})
+                      files={"file": ("bg.png", PNG, "image/png")})
     await client.patch(f"/api/conversations/{convo['id']}", json={"wallpaper_opacity": 0.4})
 
     source = (await client.get(f"/api/conversations/{convo['id']}")).json()

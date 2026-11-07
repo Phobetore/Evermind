@@ -10,7 +10,6 @@ import pytest
 import app as app_package
 from app.providers.base import ProviderEvent
 
-from .test_cards import make_minimal_png
 from .test_chat import FakeProvider, send, setup_conversation
 
 
@@ -97,37 +96,11 @@ async def test_a_missing_thing_is_not_found_and_says_which(
     assert resp.json() == {"error": message, "kind": "not_found", "resource": resource}
 
 
-async def test_other_errors_carry_no_resource(client):
-    resp = await client.post("/api/characters/import",
-                             files={"file": ("x.txt", b"not a card", "text/plain")})
-    assert resp.status_code == 400
-    assert "resource" not in resp.json()
-
-
-async def test_a_png_without_a_card(client):
-    resp = await client.post("/api/characters/import",
-                             files={"file": ("x.png", make_minimal_png(), "image/png")})
-    assert resp.status_code == 400
-    assert resp.json() == {
-        "error": 'This PNG does not contain a character card (no "chara" chunk).',
-        "kind": "png_without_card",
-    }
-
-
-async def test_a_file_that_is_no_card(client):
-    resp = await client.post("/api/characters/import",
-                             files={"file": ("x.json", b"not json", "application/json")})
-    assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Unrecognized file: provide a JSON card or a card PNG.",
-        "kind": "unrecognized_card_file",
-    }
-
-
 async def test_an_upload_over_the_limit(client, monkeypatch):
     monkeypatch.setattr("app.services.media.MAX_UPLOAD_BYTES", 10)
-    resp = await client.post("/api/characters/import",
-                             files={"file": ("x.json", b"x" * 11, "application/json")})
+    char = (await client.post("/api/characters", json={"name": "Vane"})).json()
+    resp = await client.post(f"/api/characters/{char['id']}/avatar",
+                             files={"file": ("x.png", b"x" * 11, "image/png")})
     assert resp.status_code == 413
     assert resp.json() == {"error": "File too large (15 MB max).", "kind": "file_too_large"}
 

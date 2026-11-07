@@ -4,7 +4,6 @@ import json
 
 import pytest
 
-from app.cards.codec import card_to_lore_entries, character_to_card
 from app.prompting.engine import match_lore
 from app.providers.base import ProviderEvent
 
@@ -50,17 +49,6 @@ def test_match_lore_order_and_budget():
     matched = match_lore(entries, [make_msg("the key is here", 0)])
     # The first in the lorebook has the room; one that does not fit leaves it to the next.
     assert [e["content"] for e in matched] == [big, "Small."]
-
-
-# ---------- codec character_book ----------
-
-def test_character_book_round_trip():
-    lore = [{"keys": ["crypt"], "content": "A sealed place.", "enabled": True,
-             "case_sensitive": False, "priority": 3}]
-    card = character_to_card({"name": "X", "kind": "character"}, lore_entries=lore)
-    assert card["data"]["character_book"]["entries"][0]["insertion_order"] == 3
-    back = card_to_lore_entries(card)
-    assert back == lore
 
 
 # ---------- lore injection ----------

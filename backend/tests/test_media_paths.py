@@ -9,10 +9,9 @@ import urllib.parse
 
 import pytest
 
-from app.cards.png import make_placeholder_png
 from app.config import media_dir
 
-PNG = make_placeholder_png(16, 16)
+from .conftest import PNG
 
 ESCAPES = [
     "../../../etc/passwd",

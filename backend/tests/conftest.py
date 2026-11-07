@@ -1,9 +1,14 @@
 import asyncio
+import base64
 import uuid
 from contextlib import asynccontextmanager
 
 import httpx
 import pytest
+
+# A 1x1 image, for the tests that send one.
+PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
 
 
 def _default_settings(tmp_path, monkeypatch) -> None:
