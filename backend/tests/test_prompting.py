@@ -346,6 +346,17 @@ def test_select_facts_orders_by_relevance_when_scored():
     assert kept_one == [] or kept_one[0]["id"] == "old_relevant"
 
 
+def test_select_facts_tries_a_fact_with_no_vector_before_the_ranked_ones():
+    from app.prompting.engine import select_facts
+    memories = [
+        {"id": "relevant", "content": "x", "source_position": 1, "is_pinned": 0},
+        {"id": "no_vector", "content": "y", "source_position": 2, "is_pinned": 0},
+    ]
+    # Restored by a cut, or typed before the model was loaded: it has no score yet.
+    kept = select_facts(memories, token_budget=1, relevance_scores={"relevant": 0.9})
+    assert [m["id"] for m in kept] == ["no_vector"]
+
+
 def test_select_facts_without_scores_keeps_recency():
     from app.prompting.engine import select_facts
     memories = [

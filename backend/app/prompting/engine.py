@@ -68,12 +68,12 @@ def active_content(message: dict) -> str:
 def select_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
                  relevance_scores: dict[str, float] | None = None) -> list[dict]:
     """Which facts get injected: pinned always survive, the rest fill the
-    budget by relevance when scores are given, else newest-first (recency).
-    Returned oldest-first for chronological reading."""
+    budget by relevance when scores are given, a fact with no vector yet first,
+    else newest-first (recency). Returned oldest-first for chronological reading."""
     pinned = [m for m in memories if m.get("is_pinned")]
     others = [m for m in memories if not m.get("is_pinned")]
     if relevance_scores is not None:
-        others.sort(key=lambda m: relevance_scores.get(m.get("id"), float("-inf")),
+        others.sort(key=lambda m: relevance_scores.get(m.get("id"), float("inf")),
                     reverse=True)
     else:
         others.sort(key=lambda m: m.get("source_position", 0), reverse=True)
