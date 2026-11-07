@@ -35,6 +35,7 @@ import aiosqlite
 from ..db import write_transaction
 from ..errors import (
     MODEL_EMPTY,
+    MODEL_ERROR,
     NO_CONNECTION,
     NOT_FOUND,
     AppError,
@@ -505,6 +506,11 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
                         usage = event.usage
                         finish_reason = (event.meta or {}).get("finish_reason")
                     elif event.type == "error":
+                        # Refusing the greeting may be said in the stream rather than by silence.
+                        if (event.meta.get("kind") == MODEL_ERROR and attempt == 0 and not chunks
+                                and not continue_mode and payload.messages
+                                and payload.messages[0]["role"] == "assistant"):
+                            break
                         # Whatever arrived is the reply as far as it goes, as it is when
                         # the turn is stopped: flushing only now and then would lose up to
                         # the last second of what the person watched come.

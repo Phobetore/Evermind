@@ -185,6 +185,7 @@
     "topPLabel": "Top-p",
     "frequencyPenaltyLabel": "Frequency penalty",
     "presencePenaltyLabel": "Presence penalty",
+    "modelDefaultPlaceholder": "Model default",
     "isDefaultLabel": "Default connection",
     "nameUrlRequired": "Name and URL are required.",
     "saveFailed": "Save failed",

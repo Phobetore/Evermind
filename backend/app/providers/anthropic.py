@@ -3,7 +3,7 @@
 Differences handled here: system prompt is a top-level field, messages must
 strictly alternate starting with `user` (we merge consecutive same-role turns
 and insert a synthetic opener), penalties are unsupported, and
-`post_history_instructions` is suffixed to the last user message.
+`post_history` is suffixed to the last user message.
 """
 
 import json
@@ -48,6 +48,9 @@ class AnthropicProvider(Provider):
                 merged.append({"role": message["role"], "content": content})
         if not merged or merged[0]["role"] != "user":
             merged.insert(0, {"role": "user", "content": "[Begin the roleplay.]"})
+        # Ending on its own turn asks Claude to complete it, which it refuses from 4.6 on.
+        if merged[-1]["role"] == "assistant":
+            merged.append({"role": "user", "content": "[Continue.]"})
         if payload.post_history:
             for message in reversed(merged):
                 if message["role"] == "user":
@@ -62,15 +65,12 @@ class AnthropicProvider(Provider):
             "system": payload.system,
             "messages": self._build_messages(payload),
             "stream": True,
-            "max_tokens": int(conn.get("max_tokens") or 1024),
-            "temperature": min(1.0, float(conn.get("temperature") or 0.9)),
-            "top_p": float(conn.get("top_p") or 0.95),
+            # Required here, and a model's thinking counts against it.
+            "max_tokens": conn.get("max_tokens") or 4096,
+            **{key: conn[key] for key in ("temperature", "top_p") if conn.get(key) is not None},
         }
         if payload.stop:
             body["stop_sequences"] = [s for s in payload.stop if s.strip()][:4]
-        extra = conn.get("extra_params") or {}
-        if isinstance(extra, dict):
-            body.update(extra)
         return body
 
     async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:

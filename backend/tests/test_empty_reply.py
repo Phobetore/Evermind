@@ -8,14 +8,17 @@ dies in silence, which reads as "this application is broken" rather than "this
 model is picky".
 """
 
+import json
 from typing import ClassVar
 
+import httpx
 import pytest
 
 from app.prompting.engine import build_chat_payload
 from app.providers.base import ProviderEvent
 from tests.test_chat import parse_sse, setup_conversation
 from tests.test_prompting import PERSONA, make_character, make_connection, make_message
+from tests.test_providers import oai_provider, sse
 
 
 def build(messages, **kwargs):
@@ -160,6 +163,35 @@ async def test_the_retry_reply_is_the_one_that_gets_stored(client, scripted):
 
     assert [m["role"] for m in messages] == ["assistant", "user", "assistant"]
     assert messages[-1]["content"] == "Saved from the second pass."
+
+
+@pytest.mark.parametrize(("status", "openings", "last"), [
+    (200, ["assistant", "user"], "done"),
+    (400, ["assistant"], "error"),
+])
+async def test_a_refusal_inside_the_stream_is_retried_and_an_error_status_is_not(
+        client, monkeypatch, status, openings, last):
+    """A template may refuse the greeting with an error in a stream it has already begun."""
+    refusal = json.dumps({"error": {"message": "Error rendering prompt with jinja template: "
+                                               "roles must alternate"}})
+    asked = []
+
+    def server(request: httpx.Request) -> httpx.Response:
+        asked.append(json.loads(request.content)["messages"][1]["role"])
+        if asked[-1] == "user":
+            return httpx.Response(200, content=sse([json.dumps(
+                {"choices": [{"delta": {"content": "She answers."}}]}), "[DONE]"]))
+        return httpx.Response(status, content=sse([refusal]) if status == 200 else refusal)
+
+    for module in ("chat_service", "memory_service"):
+        monkeypatch.setattr(f"app.services.{module}.get_provider",
+                            lambda connection: oai_provider(server))
+    convo = await setup_conversation(client)
+
+    events = await send(client, convo["id"])
+
+    assert asked == openings
+    assert events[-1]["type"] == last
 
 
 @pytest.mark.parametrize("silence", [SILENCE, speech("  \n ")])

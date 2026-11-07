@@ -7,7 +7,11 @@ from urllib.parse import unquote
 
 import pytest
 
+from app.providers.base import ProviderEvent
+
 from .test_cards import CHAR_FIELDS, make_minimal_png
+from .test_chat import FakeProvider
+from .test_providers import SAMPLING
 
 
 async def create_character(client, **overrides):
@@ -263,6 +267,20 @@ async def test_connection_key_masking_and_update(client):
     assert upd["api_key_set"] is False
 
 
+@pytest.mark.parametrize(("ceiling", "sent"), [(512, 96), (None, None)])
+async def test_the_speed_test_caps_only_a_connection_that_has_a_ceiling(client, monkeypatch,
+                                                                       ceiling, sent):
+    monkeypatch.setattr(FakeProvider, "script", [ProviderEvent(type="delta", text="Rain."),
+                                                 ProviderEvent(type="done")], raising=False)
+    monkeypatch.setattr(FakeProvider, "captured", {})
+    monkeypatch.setattr("app.routers.connections.get_provider", FakeProvider)
+    created = (await client.post("/api/connections", json={
+        "name": "Local", "base_url": "http://localhost:1234/v1", "max_tokens": ceiling,
+    })).json()
+    assert (await client.post(f"/api/connections/{created['id']}/benchmark")).json()["ok"]
+    assert FakeProvider.captured["connection"]["max_tokens"] == sent
+
+
 async def test_connection_test_endpoint_unreachable(client):
     created = (await client.post("/api/connections", json={
         "name": "Dead", "provider": "openai-compatible",
@@ -323,16 +341,22 @@ async def test_settings_roundtrip(client):
     assert (await client.get("/api/settings")).json()["global_instructions"] == "Always in English."
 
 
-async def test_connection_defaults_are_roleplay_tuned(client):
-    """A connection created with no generation params gets RP-friendly defaults."""
+async def test_a_generation_setting_left_empty_is_stored_empty(client):
+    """Empty is how a connection leaves a setting to the model."""
     created = (await client.post("/api/connections", json={
         "name": "Bare", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "x",
+        "base_url": "https://api.openai.com/v1", "model": "x",
     })).json()
     assert created["context_size"] == 16384
-    assert created["temperature"] == 0.8
-    assert created["max_tokens"] == 1024
-    assert created["top_p"] == 0.95
+    assert [created[k] for k in SAMPLING] == [None] * 5
+    assert "extra_params" not in created
+
+    url = f"/api/connections/{created['id']}"
+    filled = (await client.put(url, json={"temperature": 0, "max_tokens": 512})).json()
+    assert (filled["temperature"], filled["max_tokens"]) == (0, 512)
+    emptied = (await client.put(url, json={"temperature": None, "name": None})).json()
+    assert (emptied["temperature"], emptied["max_tokens"]) == (None, 512)
+    assert emptied["name"] == "Bare"
 
 
 async def test_favorites_toggle_filter_and_sort(client):

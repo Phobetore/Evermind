@@ -63,7 +63,8 @@ async def benchmark_connection(conn_id: str, db: aiosqlite.Connection = Depends(
     connection = await repo.get_raw(db, conn_id)
     if not connection:
         raise NotFoundError("Connection not found.", "connection")
-    connection = dict(connection, max_tokens=96)
+    if connection.get("max_tokens"):
+        connection = dict(connection, max_tokens=96)
     payload = PromptPayload(
         system="You are a speed test. Reply in plain prose.",
         messages=[{"role": "user", "content":
