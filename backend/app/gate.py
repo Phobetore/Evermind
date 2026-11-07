@@ -3,7 +3,8 @@ under /api/ except PUBLIC_PATHS needs a session cookie. Pages hold no data and
 stay public, so that the interface can load and ask for the password.
 
 The database keeps, per device, an HMAC of its random token keyed by the
-password: a copy of it lets nobody in, and changing the password ends them all.
+password, and of the password a salted scrypt digest: a copy of it lets nobody
+in, and a start with another password, or none, ends every session for good.
 
 Password or not, a page of another origin cannot write. Without a password, the
 API only answers to an address or localhost, which is what stops a website from
@@ -56,6 +57,12 @@ def password_matches(typed: str) -> bool:
     return hmac.compare_digest(_digest(typed), _digest(config.gate_password()))
 
 
+def _fingerprint(salt: str) -> str:
+    # Slow on purpose: a copy of the database must not make the password quick to guess.
+    digest = hashlib.scrypt(_utf8(config.gate_password()), salt=salt.encode(), n=2**14, r=8, p=1)
+    return f"{salt}${digest.hex()}"
+
+
 def retry_after(address: str) -> int:
     """Seconds until ``address`` may try again; 0 if it may now."""
     count, start = _failures.get(address, (0, 0.0))
@@ -105,6 +112,18 @@ async def end_session(token: str | None) -> None:
 
 async def end_all_sessions() -> None:
     await _run("DELETE FROM gate_sessions")
+
+
+async def end_sessions_if_the_password_changed() -> None:
+    """Once at start: unless the password is the one the sessions were opened with, they all end."""
+    kept = [row[0] for row in await _run("SELECT password_hash FROM gate_state")]
+    if enabled() and kept and _fingerprint(kept[0].partition("$")[0]) == kept[0]:
+        return
+    await end_all_sessions()
+    await _run("DELETE FROM gate_state")
+    if enabled():
+        await _run("INSERT INTO gate_state (id, password_hash) VALUES (1, ?)",
+                   _fingerprint(secrets.token_hex(16)))
 
 
 def _from_another_origin(headers: Headers) -> bool:

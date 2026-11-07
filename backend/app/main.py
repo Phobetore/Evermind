@@ -13,9 +13,8 @@ from .ui import UIFiles
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db()
-    if not gate.enabled():
-        # So that the same password, set again later, lets in no device from before.
-        await gate.end_all_sessions()
+    # So that an old password, set again later, lets in no device from before.
+    await gate.end_sessions_if_the_password_changed()
     import asyncio
 
     from .services import memory_service

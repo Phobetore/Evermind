@@ -48,18 +48,20 @@ closed as working-as-intended:
 Each device types the password once and gets a session of its own, which lasts
 until it is ended. **Sign out of this device** and **Sign out every device**, both
 in Settings, end one session or all of them, and changing or removing the password
-ends them all. A session never expires by itself: each opening of Evermind gives
-its cookie another 400 days, so a device that is lost stays signed in until every
-device is signed out or the password changes.
+ends them all, for good: an old password set again later lets none of them back in.
+A session never expires by itself: each opening of Evermind gives its cookie
+another 400 days, so a device that is lost stays signed in until every device is
+signed out or the password changes.
 
-The database keeps nothing of the password, and of each session only an HMAC of
-its token keyed by the password, so reading the database does not hand anyone a
-way in. The password is compared after Unicode normalisation, so an accent typed
-on a phone keyboard is the same password as the one in `.env` however each wrote
-it. Wrong guesses are limited to 10 per 15 minutes for each address. Behind Docker
-the requests usually all reach Evermind from Docker's own address, so that limit
-is shared by every device: ten wrong guesses from one of them keep the others
-out too, for up to 15 minutes.
+The database keeps of the password only a salted scrypt digest, slow to guess
+from on purpose, by which Evermind finds out at start that the password has
+changed; and of each session only an HMAC of its token keyed by the password. So
+reading the database does not hand anyone a way in. The password is compared
+after Unicode normalisation, so an accent typed on a phone keyboard is the same
+password as the one in `.env` however each wrote it. Wrong guesses are limited to
+10 per 15 minutes for each address. Behind Docker the requests usually all reach
+Evermind from Docker's own address, so that limit is shared by every device: ten
+wrong guesses from one of them keep the others out too, for up to 15 minutes.
 
 ## Requests from other sites
 
