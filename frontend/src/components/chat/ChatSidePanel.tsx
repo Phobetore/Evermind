@@ -227,7 +227,8 @@ export function ChatSidePanel({
     fail("memory", null);
     try {
       const saved = await data.memories.create(conversation.id, { content, is_pinned: true });
-      setMemories((prev) => [saved, ...prev]);
+      // The model's fact of the same words, if it had one, is theirs now.
+      setMemories((prev) => [saved, ...prev.filter((m) => m.id !== saved.id)]);
       setNewFact("");
     } catch (e) {
       failedMemory(e, t("chat.panel.facts.addError"));
