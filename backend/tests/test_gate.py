@@ -158,7 +158,12 @@ async def test_attempts_are_limited_for_each_address(make_client, monkeypatch):
         assert r.headers["retry-after"] == str(gate.FAILURE_WINDOW_S)
         assert "set-cookie" not in r.headers
         assert gate.retry_after("10.0.0.2") == 0
+        # Once the window has run out, the next one counts afresh and limits as the first did.
         clock.monotonic = lambda: 1000.0 + gate.FAILURE_WINDOW_S
+        for _ in range(gate.MAX_FAILURES):
+            assert (await c.post("/api/gate", json={"password": "nope"})).status_code == 401
+        assert (await c.post("/api/gate", json={"password": PW})).status_code == 429
+        clock.monotonic = lambda: 1000.0 + 2 * gate.FAILURE_WINDOW_S
         await sign_in(c)
 
 
