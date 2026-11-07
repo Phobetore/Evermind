@@ -946,13 +946,13 @@ function ChatView({ id }: { id: string }) {
             </div>
           )}
           <div className="relative mx-auto max-w-3xl px-4 py-6">
-            {visibleMessages.map((message, i) => (
+            {visibleMessages.map((message) => (
               <ChatMessage
                 key={message.id}
                 message={message}
                 character={character}
                 persona={persona}
-                isLast={i === visibleMessages.length - 1 && message.role === "assistant"}
+                isLast={message.id === lastMessage?.id}
                 busy={busy}
                 onSwipe={(index) => write(() => swipe(message, index))}
                 onRegenerate={() => runTurn("regenerate")}

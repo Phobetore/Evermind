@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply, makeConversation } from "./fixtures";
+import { conversation, conversationWithReply, makeConversation } from "./fixtures";
 
 /** What a conversation shows of its messages, and what can be done to them. */
 
@@ -54,4 +54,18 @@ test("what the server does not take of a change to a message is said, and a rewr
   await expect(editor).toHaveCount(0);
   await expect(reply).toContainText("Rewritten.");
   await expect(said).toHaveCount(0);
+});
+
+test("a message whose reply was deleted can be given another", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const [question, answer] = convo.messages.slice(-2);
+  await page.goto(`/#/chat/${convo.id}`);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator(`[data-message-id="${answer.id}"]`).getByTitle("Delete from here").click();
+  await expect(page.locator(`[data-message-id="${answer.id}"]`)).toHaveCount(0);
+
+  await page.locator(`[data-message-id="${question.id}"]`).getByTitle("Regenerate").click();
+  await expect.poll(async () => (await conversation(request, convo.id)).messages.at(-1).role,
+    { timeout: 30_000 }).toBe("assistant");
+  await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length);
 });
