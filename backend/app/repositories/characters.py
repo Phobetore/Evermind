@@ -63,8 +63,7 @@ async def list_all(db: aiosqlite.Connection) -> list[dict]:
 
 
 async def update(db: aiosqlite.Connection, char_id: str, fields: dict) -> dict | None:
-    current = await get_raw(db, char_id)
-    if not current:
+    if not await get(db, char_id):
         return None
     sets, params = [], []
     for key, value in fields.items():
