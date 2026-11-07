@@ -29,7 +29,7 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY backend/pyproject.toml backend/README.md ./
+COPY backend/pyproject.toml ./
 COPY backend/app ./app
 COPY backend/migrations ./migrations
 
