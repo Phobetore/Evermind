@@ -98,7 +98,7 @@ def schedule_if_due(convo_id: str) -> None:
             if await is_due(db, convo_id):
                 await run_maintenance(db, convo_id)
         except AppError as exc:
-            if exc.kind in (MEMORY_BUSY, CONVERSATION_CHANGED):
+            if exc.kind in (MEMORY_BUSY, CONVERSATION_CHANGED, FACTS_CHANGED):
                 return  # the next reply asks again
             logger.warning("memory maintenance failed for %s: %s", convo_id, exc.message)
             _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1, "error": error_body(exc)}
@@ -163,7 +163,8 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     all_facts = await memories_repo.list_for_conversation(db, convo_id)
     movable = movable_facts(all_facts)
     if len(movable) < MIN_FACTS_TO_CONSOLIDATE:
-        raise AppError("Too few facts to consolidate.", 409, kind=TOO_FEW_FACTS)
+        raise AppError("Too few facts to consolidate: only the model's unpinned facts are merged.",
+                       409, kind=TOO_FEW_FACTS)
 
     payload = build_consolidation_payload(character, persona, movable)
     chunks: list[str] = []
@@ -242,13 +243,17 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     connection = await _resolve_connection(db, convo)
 
     messages = await convo_repo.list_messages(db, convo_id)
-    messages = messages[:max(0, len(messages) - hold_back)]
+    # A reply still being written is read once it is finished, and what follows it with it.
+    writing = next((i for i, m in enumerate(messages) if m["meta"].get("streaming")), len(messages))
+    messages = messages[:min(writing, max(0, len(messages) - hold_back))]
     existing = await memories_repo.list_for_conversation(db, convo_id)
     built = build_extraction_payload(character, persona, convo, messages, existing)
     if built is None:
         return {"facts_added": [], "summary": convo.get("summary") or ""}
-    payload, top_position = built
-    read = [m["id"] for m in messages]  # the newest of them is the one at top_position
+    payload, turns = built
+    top_position = turns[-1]["position"]
+    read = [m["id"] for m in messages]  # the story up to the newest of the turns, at top_position
+    told = {(m["id"], m["content"]) for m in turns}  # what the model was told they say
     sent = {(m["id"], m["content"]) for m in existing}
 
     chunks: list[str] = []
@@ -264,21 +269,25 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
                        kind=MODEL_UNREADABLE)
     vectors = await _vectors_of(answer_texts(parsed))
 
-    # Nothing is kept of turns cut, or of facts edited or forgotten, while the model answered.
+    # Nothing is kept of turns cut, or rewritten among those told, or of facts changed meanwhile.
     async with write_transaction(db):
         current = await convo_repo.get(db, convo_id, with_messages=False)
         now = await memories_repo.list_for_conversation(db, convo_id)
-        if (await convo_repo.message_ids_through(db, convo_id, top_position) != read
-                or not sent <= {(m["id"], m["content"]) for m in now}):
+        story = await convo_repo.turns_through(db, convo_id, top_position)
+        if [i for i, _ in story] != read or not told <= set(story):
             raise AppError("The conversation changed while the model read it.", 409,
                            kind=CONVERSATION_CHANGED)
+        if not sent <= {(m["id"], m["content"]) for m in now}:
+            raise AppError("A fact changed while the model read the story.", 409, kind=FACTS_CHANGED)
         changes = plan_memory_changes(parsed, now, top_position)
-        # A summary a person typed meanwhile is theirs, and the model wrote from the one before.
-        written = changes["summary"] if current["summary"] == convo["summary"] else None
         added = await _apply(db, convo_id, changes, vectors, top_position)
-        await convo_repo.remember(db, convo_id, top_position, written)
+        # A summary typed meanwhile stays, and holds none of these turns: the next pass reads them.
+        typed = current["summary"] != convo["summary"]
+        if not typed:
+            await convo_repo.remember(db, convo_id, top_position, changes["summary"])
 
-    return {"facts_added": added, "summary": written or current["summary"] or ""}
+    return {"facts_added": added,
+            "summary": current["summary"] if typed else changes["summary"] or current["summary"]}
 
 
 async def fill_vectors() -> None:

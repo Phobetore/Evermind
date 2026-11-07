@@ -53,10 +53,9 @@ def build_impersonate_payload(character: dict, persona: dict | None, conversatio
 
 def build_extraction_payload(character: dict, persona: dict | None, conversation: dict,
                              messages: list[dict],
-                             memories: list[dict]) -> tuple[PromptPayload, int] | None:
+                             memories: list[dict]) -> tuple[PromptPayload, list[dict]] | None:
     """The prompt that reads the turns since the last pass for new facts and a new
-    summary, and the position of the newest of those turns. None when there is no
-    turn since.
+    summary, and those turns, the newest last. None when there is no turn since.
 
     A memory position of 0 means nothing was read, so the first turn is one to read, unless
     it is the greeting, which is the card's and not the story's."""
@@ -70,12 +69,9 @@ def build_extraction_payload(character: dict, persona: dict | None, conversation
         return (memory_position == 0 and message["position"] == 0
                 and not (message.get("meta") or {}).get("greeting"))
 
-    new_turns = [m for m in messages if unread(m)][-MAX_TURNS_PER_RUN:]
-    if not new_turns:
-        return None
-    top_position = max(m["position"] for m in new_turns)
+    turns = [m for m in messages if unread(m)][-MAX_TURNS_PER_RUN:]
     # What the player said out of character is for the next reply, not a line of the story.
-    new_turns = [m for m in new_turns if not is_out_of_character(m)]
+    new_turns = [m for m in turns if not is_out_of_character(m)]
     if not new_turns:
         return None
 
@@ -99,7 +95,7 @@ def build_extraction_payload(character: dict, persona: dict | None, conversation
         }],
         stop=[],
     )
-    return payload, top_position
+    return payload, turns
 
 
 def movable_facts(memories: list[dict]) -> list[dict]:

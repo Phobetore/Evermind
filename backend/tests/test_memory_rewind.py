@@ -112,6 +112,13 @@ async def remove_from(client, convo_id, position):
     assert resp.status_code == 204, resp.text
 
 
+async def branch_at(client, convo_id, position):
+    fork = await at_position(client, convo_id, position)
+    resp = await client.post(f"/api/messages/{fork['id']}/branch")
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
 async def names(client, convo_id):
     return {m["content"] for m in
             (await client.get(f"/api/conversations/{convo_id}/memories")).json()}
@@ -395,25 +402,111 @@ async def test_a_summary_a_person_typed_stays_when_the_story_is_cut_back(client,
     read = await conversation(client, convo["id"])
     assert (read["memory_position"], read["summary"]) == (4, "In my own words.")
     assert [p for p, _ in await summaries_of(convo["id"])] == [4]
+    # Still theirs at the point the memory went back to, through the next cut.
+    await remove_from(client, convo["id"], 3)
+    read = await conversation(client, convo["id"])
+    assert (read["memory_position"], read["summary"]) == (0, "In my own words.")
 
 
-async def test_a_pass_that_gives_no_summary_does_not_make_a_typed_one_look_like_its_own(
-        client, fake_provider):
-    """Its row keeps the summary the pass before wrote: the typed one would be the last
-    pass's, and the next cut would take away what the person wrote."""
-    convo = await setup_conversation(client)
-    convo_id = convo["id"]
-    await talk(client, convo_id, 2)
-    await extract(client, convo_id, {"facts": [], "summary": "The first two."})
-    await client.patch(f"/api/conversations/{convo_id}", json={"summary": "In my own words."})
-    await talk(client, convo_id, 1, first=3)
+SELENA = "Selena woke in the crypt."
+SERANA = "Serana (not Selena) woke in the crypt."
 
-    await extract(client, convo_id, {"facts": []})
 
-    assert await summaries_of(convo_id) == [(4, "The first two."), (6, "The first two.")]
-    await remove_from(client, convo_id, 5)
+async def put_right_then_read_on(client, convo_id):
+    """A pass at 8 gets her name wrong, the person puts it right, and a pass at 16 writes its
+    summary from theirs."""
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [], "summary": SELENA})
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": SERANA})
+    await talk(client, convo_id, 4, first=5)
+    await extract(client, convo_id, {"facts": [], "summary": f"{SERANA} They left."})
+
+
+@pytest.mark.parametrize("back", ["cut", "branch"])
+async def test_a_summary_a_person_put_right_comes_back_past_the_pass_that_rewrote_it(
+        client, fake_provider, back):
+    """What they last saw at that point, never the version they had corrected."""
+    convo_id = (await setup_conversation(client))["id"]
+    await put_right_then_read_on(client, convo_id)
+
+    if back == "cut":
+        await remove_from(client, convo_id, 11)
+        read = await conversation(client, convo_id)
+    else:
+        fork = await at_position(client, convo_id, 10)
+        read = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
+
+    assert (read["memory_position"], read["summary"]) == (8, SERANA)
+
+
+@pytest.mark.parametrize(("was", "position"), [
+    ("To 8.", 8),  # what the memory holds: nothing was read since
+    ("To 4.", 4),  # a pass wrote another since, of turns 5 to 8
+    ("", 0),       # no pass wrote what it was typed over
+])
+async def test_a_summary_typed_over_an_older_one_leaves_the_turns_read_since_to_the_next_pass(
+        client, fake_provider, was, position):
+    """It tells what the person read when they began typing, and nothing of the turns a pass
+    read meanwhile."""
+    convo_id = (await setup_conversation(client))["id"]
+    for first, read in ((1, 4), (3, 8)):
+        await talk(client, convo_id, 2, first=first)
+        await extract(client, convo_id, {"facts": [], "summary": f"To {read}."})
+
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": "Typed.", "summary_was": was})
+
     read = await conversation(client, convo_id)
-    assert (read["memory_position"], read["summary"]) == (4, "In my own words.")
+    assert (read["memory_position"], read["summary"]) == (position, "Typed.")
+    assert (await summaries_of(convo_id))[-1] == (position, "Typed.")
+    await talk(client, convo_id, 1, first=5)
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [], "summary": "Next."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "CURRENT SUMMARY:\nTyped.\n" in shown
+    assert f"(turn {position + 1})" in shown and f"(turn {position})" not in shown
+
+
+@pytest.mark.parametrize(("before", "was", "kept"), [
+    ("a pass, then a cut", "To 8.", False),  # typed over a summary the cut took away
+    ("a pass", "", False),                   # typed over none while a pass read on
+    ("nothing", None, True),                 # before any pass: theirs from the start, as in releases
+], ids=["over one cut away", "over none, read since", "before any pass"])
+async def test_a_summary_typed_over_one_no_pass_holds_is_no_pass_for_a_branch_to_go_back_to(
+        client, fake_provider, before, was, kept):
+    """It goes to position 0 and may tell any turn the person had read, past a branch's message."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 4)
+    if before != "nothing":
+        await extract(client, convo_id, {"facts": [], "summary": "To 8."})
+    if before.endswith("cut"):
+        await remove_from(client, convo_id, 7)
+
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": "Typed.", "summary_was": was})
+
+    assert (await conversation(client, convo_id))["memory_position"] == 0
+    branch = await branch_at(client, convo_id, 2)
+    assert (branch["memory_position"], branch["summary"]) == (0, "Typed." if kept else "")
+
+
+async def test_a_pass_that_gives_no_summary_keeps_a_typed_one_as_typed(client, fake_provider):
+    """Its row holds what the person typed, so that a cut back to it gives that back after a
+    later pass has rewritten it."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [], "summary": SELENA})
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": SERANA})
+    await talk(client, convo_id, 4, first=5)
+    await extract(client, convo_id, {"facts": []})
+    await talk(client, convo_id, 4, first=9)
+    await extract(client, convo_id, {"facts": [], "summary": f"{SERANA} Then the castle."})
+
+    await remove_from(client, convo_id, 19)
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (16, SERANA)
+    await remove_from(client, convo_id, 4)
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, SERANA)
 
 
 async def test_a_pass_that_was_reading_when_the_story_was_cut_leaves_nothing_of_it(
@@ -561,8 +654,98 @@ async def test_a_fact_pinned_since_is_not_touched_and_not_restored_a_second_time
         ("Alice died on the bridge.", 8, True, "auto")]
 
 
-async def test_a_persons_edit_stays_through_a_cut(client, fake_provider):
-    """What they wrote replaced the model's correction, and is theirs."""
+@pytest.mark.parametrize("back", ["cut", "branch"])
+async def test_a_fact_kept_by_a_pin_through_a_cut_forgets_the_correction_of_the_turns_that_went(
+        client, fake_provider, back):
+    """Unpinned later, the next cut would put back the text that correction replaced, even a cut
+    of turns no pass has read."""
+    convo_id = (await setup_conversation(client))["id"]
+    await told_then_corrected(client, convo_id)
+    fact = await fact_named(client, convo_id, "Alice died on the bridge.")
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": True})
+    if back == "cut":
+        await remove_from(client, convo_id, 11)
+    else:
+        fork = await at_position(client, convo_id, 10)
+        convo_id = (await client.post(f"/api/messages/{fork['id']}/branch")).json()["id"]
+        fact = await fact_named(client, convo_id, "Alice died on the bridge.")
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": False})
+    await talk(client, convo_id, 2, first=20)
+
+    await remove_from(client, convo_id, 14)
+
+    assert await stored_facts(client, convo_id) == [("Alice died on the bridge.", 8, False, "auto")]
+
+
+async def test_a_fact_a_person_writes_that_the_model_holds_becomes_theirs(client, fake_provider):
+    """Rather than refused as there already: the model's copy would go with a cut or a merge."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [{"content": "The ring is cursed."}]})
+    held = await fact_named(client, convo_id, "The ring is cursed.")
+    url = f"/api/conversations/{convo_id}/memories"
+
+    resp = await client.post(url, json={"content": "The ring is cursed.", "is_pinned": True})
+
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["id"] == held["id"]
+    await remove_from(client, convo_id, 7)
+    assert await stored_facts(client, convo_id) == [("The ring is cursed.", 6, True, "user")]
+    again = await client.post(url, json={"content": "The ring is cursed."})
+    assert (again.status_code, again.json()["kind"]) == (400, "fact_exists")
+
+
+class APassWritesFirst:
+    """A connection on which a pass, from another, writes just before the first change made."""
+
+    def __init__(self, db, write):
+        self.db, self.write = db, write
+
+    async def execute(self, sql, params=()):
+        if self.write and sql.startswith("UPDATE"):
+            write, self.write = self.write, None
+            await write()
+        return await self.db.execute(sql, params)
+
+    def __getattr__(self, name):
+        return getattr(self.db, name)
+
+
+@pytest.mark.parametrize("change", ["corrected", "dropped"])
+async def test_a_fact_a_person_writes_as_a_pass_changes_the_models_copy_is_theirs_as_written(
+        client, fake_provider, change):
+    """Found as the model's, then corrected or dropped by a pass before it is made theirs: what
+    they typed becomes a fact of its own, not the model's new words, nor nothing."""
+    convo_id = (await setup_conversation(client))["id"]
+    held = await put_fact(convo_id, "The ring is cursed.", at=4)
+
+    async def a_pass_writes():
+        other = await _connect()
+        try:
+            if change == "corrected":
+                await memories_repo.rewrite(other, held["id"], "The ring was cursed, then broken.", None, 8)
+            else:
+                await memories_repo.remove(other, held["id"])
+            await other.commit()
+        finally:
+            await other.close()
+
+    db = await _connect()
+    try:
+        saved = await memories_repo.add(APassWritesFirst(db, a_pass_writes), convo_id,
+                                        "The ring is cursed.", is_pinned=True, source="user")
+    finally:
+        await db.close()
+
+    assert saved and (saved["content"], saved["source"], saved["is_pinned"]) == (
+        "The ring is cursed.", "user", True)
+    corrected = {"The ring was cursed, then broken."} if change == "corrected" else set()
+    assert await names(client, convo_id) == corrected | {"The ring is cursed."}
+
+
+async def test_a_fact_a_person_rewrote_is_theirs_through_any_cut(client, fake_provider):
+    """What they wrote replaced the model's words: no cut takes it back to them, nor away with
+    the turns the model drew it from."""
     convo = await setup_conversation(client)
     await told_then_corrected(client, convo["id"])
     fact = await fact_named(client, convo["id"], "Alice died on the bridge.")
@@ -570,7 +753,9 @@ async def test_a_persons_edit_stays_through_a_cut(client, fake_provider):
     await client.patch(f"/api/memories/{fact['id']}", json={"content": "Alice is my sister."})
     await remove_from(client, convo["id"], 11)
 
-    assert await stored_facts(client, convo["id"]) == [("Alice is my sister.", 8, False, "auto")]
+    assert await stored_facts(client, convo["id"]) == [("Alice is my sister.", 8, False, "user")]
+    await remove_from(client, convo["id"], 6)
+    assert await stored_facts(client, convo["id"]) == [("Alice is my sister.", 5, False, "user")]
 
 
 async def test_a_fact_forgotten_does_not_come_back_with_a_rewind(client, fake_provider):
@@ -765,12 +950,112 @@ async def test_a_pass_is_refused_when_a_person_changed_a_fact_it_was_sent(
     resp = await client.post(f"/api/conversations/{convo_id}/memories/extract")
 
     assert resp.status_code == 409, resp.text
-    assert resp.json()["kind"] == "conversation_changed"
+    assert resp.json()["kind"] == "facts_changed"
     left = {"To drop."} | ({"By hand."} if change == "edited" else set())
     assert await names(client, convo_id) == left
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (4, "Before.")
     assert await summaries_of(convo_id) == [(4, "Before.")]
+
+
+async def set_message(message_id, column, value):
+    db = await _connect()
+    try:
+        await db.execute(f"UPDATE messages SET {column} = ? WHERE id = ?", (json.dumps(value), message_id))
+        await db.commit()
+    finally:
+        await db.close()
+
+
+async def test_remember_reads_no_further_than_a_reply_still_being_written(
+        client, fake_provider, monkeypatch):
+    """What has come of it is not what it will say, and no pass would read the rest. The turn is a
+    real one: how a reply says it is still being written belongs to the code that writes it."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 1)
+    finish = asyncio.Event()
+
+    class HalfWay:
+        def __init__(self, connection):
+            pass
+
+        async def stream_chat(self, payload):
+            yield ProviderEvent(type="delta", text="She opens the door.")
+            await finish.wait()
+            yield ProviderEvent(type="delta", text=" Behind it, the king lies dead.")
+            yield ProviderEvent(type="done")
+
+    async def half_written():
+        while not any(m["position"] == 4 for m in await messages_of(client, convo_id)):
+            await asyncio.sleep(0.01)
+
+    monkeypatch.setattr("app.services.chat_service.get_provider", HalfWay)
+    replying = asyncio.create_task(client.post("/api/chat", json={
+        "conversation_id": convo_id, "mode": "send", "content": "Open it."}))
+    try:
+        await within(5, half_written())
+        await extract(client, convo_id, {"facts": [], "summary": "To 3."})
+    finally:
+        finish.set()
+        await within(5, replying)
+
+    assert "(turn 4)" not in fake_provider.captured["payload"].messages[0]["content"]
+    assert (await conversation(client, convo_id))["memory_position"] == 3
+    await extract(client, convo_id, {"facts": [], "summary": "To 4."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "(turn 4): She opens the door. Behind it, the king lies dead." in shown
+
+
+@pytest.mark.parametrize("change", ["edited", "swiped"])
+async def test_a_pass_is_refused_when_a_turn_it_read_changed_while_the_model_answered(
+        client, fake_provider, monkeypatch, change):
+    """The turn says something else now, as after a cut: what was drawn from it may not hold."""
+    convo_id = (await setup_conversation(client))["id"]
+    await a_memory_to_change(client, convo_id)
+    reply = await at_position(client, convo_id, 8)
+    await set_message(reply["id"], "variants", ["Reply.", "The guard lives."])
+
+    async def changes():
+        if change == "edited":
+            await client.patch(f"/api/messages/{reply['id']}", json={"content": "The guard lives."})
+        else:
+            await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 1})
+
+    while_the_model_answers(monkeypatch, changes)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(AN_ANSWER)),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo_id}/memories/extract")
+
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["kind"] == "conversation_changed"
+    assert await names(client, convo_id) == {"To correct.", "To drop."}
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (4, "Before.")
+
+
+@pytest.mark.parametrize(("edited", "kept"), [
+    (5, True),    # read by the pass before
+    (15, True),   # not read yet, but before the 40 turns a pass reads
+    (21, False),  # the first of those the model was sent
+])
+async def test_a_typo_put_right_while_the_model_answers_refuses_the_pass_only_in_a_turn_it_was_sent(
+        client, fake_provider, monkeypatch, edited, kept):
+    """What the model was told of the other turns is nothing, and a cut changes their ids."""
+    convo_id = await a_story_read_once(client, last=60, read=10)
+    message = await at_position(client, convo_id, edited)
+
+    async def puts_right():
+        await client.patch(f"/api/messages/{message['id']}", json={"content": "Put right."})
+
+    while_the_model_answers(monkeypatch, puts_right)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps({"facts": [], "summary": "To 60."})),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo_id}/memories/extract")
+
+    assert resp.status_code == (200 if kept else 409), resp.text
+    assert (await conversation(client, convo_id))["memory_position"] == (60 if kept else 10)
 
 
 async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merge(
@@ -806,8 +1091,8 @@ async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merg
 
 # ---------- a long story keeps its summary ----------
 
-async def a_long_story_from_before_this_version(client, read=492):
-    """500 turns, as the migration leaves them: one pass, at how far the memory read."""
+async def a_story_read_once(client, last=500, read=492):
+    """Turns 1 to ``last``, read once by a pass: a summary the model wrote, and no pass before it."""
     convo = await setup_conversation(client)
     convo_id = convo["id"]
     db = await _connect()
@@ -816,7 +1101,7 @@ async def a_long_story_from_before_this_version(client, read=492):
             "INSERT INTO messages (id, conversation_id, role, variants, active_index,"
             " position, meta, created_at) VALUES (?, ?, ?, ?, 0, ?, '{}', 'then')",
             [(f"m{n:04d}", convo_id, "user" if n % 2 else "assistant",
-              json.dumps([f"Turn number {n}."]), n) for n in range(1, 501)])
+              json.dumps([f"Turn number {n}."]), n) for n in range(1, last + 1)])
         await convo_repo.remember(db, convo_id, read, "The whole story.")
         await db.commit()
     finally:
@@ -824,12 +1109,12 @@ async def a_long_story_from_before_this_version(client, read=492):
     return convo_id
 
 
-async def test_a_long_story_from_before_this_version_keeps_its_summary_through_a_cut(
+async def test_a_long_story_cut_before_its_only_pass_keeps_its_summary(
         client, fake_provider):
     """A pass reads 40 turns at most, so a summary written again would hold turns 450 to 489
     and nothing of the 450 before them. A summary part stale, which a person can read and
     correct, is worth more than that."""
-    convo_id = await a_long_story_from_before_this_version(client)
+    convo_id = await a_story_read_once(client)
 
     await remove_from(client, convo_id, 490)
 
@@ -844,6 +1129,55 @@ async def test_a_long_story_from_before_this_version_keeps_its_summary_through_a
     assert "(turn 449)" not in shown
 
 
+@pytest.mark.parametrize("typed", [False, True], ids=["by a pass", "typed"])
+async def test_a_branch_from_before_any_pass_it_has_starts_with_no_summary(
+        client, fake_provider, typed):
+    """As releases did: that summary tells what comes after the message, in a story the branch
+    is not. Its next pass writes one from the turns before it."""
+    convo_id = await a_story_read_once(client)
+    if typed:
+        await client.patch(f"/api/conversations/{convo_id}", json={"summary": "My words."})
+    fork = await at_position(client, convo_id, 200)
+
+    branch = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
+
+    assert (branch["memory_position"], branch["summary"]) == (0, "")
+    assert await summaries_of(branch["id"]) == []
+    fake_provider.captured.clear()
+    await extract(client, branch["id"], {"facts": [], "summary": "From 161 to 200."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "CURRENT SUMMARY:\n(empty)" in shown
+    assert "(turn 161)" in shown and "(turn 200)" in shown and "(turn 160)" not in shown
+
+
+@pytest.mark.parametrize(("last", "removed_from", "fork", "typed"), [
+    (500, 300, 200, False),  # kept because a pass would write it again from 40 turns only
+    (500, 300, 200, True),   # kept because it is the person's
+    (20, 10, 5, True),
+], ids=["long, by a pass", "long, typed", "short, typed"])
+async def test_a_branch_from_a_story_cut_before_its_only_pass_starts_with_no_summary(
+        client, fake_provider, last, removed_from, fork, typed):
+    """The cut keeps the summary at position 0, where it still tells turns past the message: a
+    branch starts with none, as one made before the cut did, put right or read on since. A pass
+    of the turns up to its message is one to go back to."""
+    convo_id = await a_story_read_once(client, last=last, read=last - 2)
+    if typed:
+        await client.patch(f"/api/conversations/{convo_id}", json={"summary": "My words."})
+    await remove_from(client, convo_id, removed_from)
+    kept = await conversation(client, convo_id)
+    assert (kept["memory_position"], kept["summary"]) == (0, "My words." if typed else "The whole story.")
+
+    for then in ("cut", "put right", "read on"):
+        if then == "put right":
+            await client.patch(f"/api/conversations/{convo_id}", json={"summary": "Put right."})
+        elif then == "read on":
+            await extract(client, convo_id, {"facts": [], "summary": "Read on."})
+        branch = await branch_at(client, convo_id, fork)
+        assert (branch["memory_position"], branch["summary"]) == (0, ""), then
+    branch = await branch_at(client, convo_id, removed_from - 1)
+    assert (branch["memory_position"], branch["summary"]) == (removed_from - 1, "Read on.")
+
+
 @pytest.mark.parametrize(("removed_from", "summary"), [
     (42, "The whole story."),
     (41, "The whole story."),  # the story is 41 turns, 0 to 40: one more than a pass reads
@@ -852,7 +1186,7 @@ async def test_a_long_story_from_before_this_version_keeps_its_summary_through_a
 ])
 async def test_a_summary_goes_only_if_the_next_pass_can_write_it_again(
         client, fake_provider, removed_from, summary):
-    convo_id = await a_long_story_from_before_this_version(client)
+    convo_id = await a_story_read_once(client)
 
     await remove_from(client, convo_id, removed_from)
 
@@ -876,8 +1210,8 @@ def while_the_model_answers(monkeypatch, action):
 async def test_a_summary_typed_while_the_model_answers_is_kept_with_the_rest_of_the_pass(
         client, fake_provider, monkeypatch, typed):
     """What the model wrote, it wrote from the summary before that one, which would be lost
-    with no trace. The facts and the position have nothing to do with it. The row of the
-    pass keeps the summary before, so that what was typed still reads as typed."""
+    with no trace. The facts are kept; the turns the pass read are in no summary yet, so the
+    next pass reads them again, on top of what was typed."""
     convo = await setup_conversation(client)
     convo_id = convo["id"]
     await a_memory_to_change(client, convo_id)
@@ -890,14 +1224,16 @@ async def test_a_summary_typed_while_the_model_answers_is_kept_with_the_rest_of_
 
     assert answered["summary"] == typed
     read = await conversation(client, convo_id)
-    assert (read["memory_position"], read["summary"]) == (8, typed)
-    assert await names(client, convo_id) == {"New.", "Corrected."}
-    assert await summaries_of(convo_id) == [(4, "Before."), (8, "Before.")]
-
-    await remove_from(client, convo_id, 7)
-
-    read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (4, typed)
+    assert await names(client, convo_id) == {"New.", "Corrected."}
+    assert await summaries_of(convo_id) == [(4, typed)]
+
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [], "summary": "Again."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert f"CURRENT SUMMARY:\n{typed or '(empty)'}\n" in shown
+    assert "(turn 5)" in shown and "(turn 8)" in shown and "(turn 4)" not in shown
 
 
 async def test_a_summary_typed_during_the_first_pass_reads_as_typed_too(
@@ -912,7 +1248,30 @@ async def test_a_summary_typed_during_the_first_pass_reads_as_typed_too(
     while_the_model_answers(monkeypatch, types)
     await extract(client, convo_id, AN_ANSWER)
 
-    assert await summaries_of(convo_id) == [(4, "")]
+    assert await summaries_of(convo_id) == [(0, "In my own words.")]
+    assert (await conversation(client, convo_id))["memory_position"] == 0
     await remove_from(client, convo_id, 3)
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (0, "In my own words.")
+
+
+async def test_a_summary_typed_while_a_pass_reads_comes_back_past_the_next_pass(
+        client, fake_provider, monkeypatch):
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 2)
+    await extract(client, convo_id, {"facts": [], "summary": SELENA})
+    await talk(client, convo_id, 2, first=3)
+
+    async def types():
+        await client.patch(f"/api/conversations/{convo_id}", json={"summary": SERANA})
+
+    while_the_model_answers(monkeypatch, types)
+    await extract(client, convo_id, {"facts": [], "summary": f"{SELENA} To 8."})
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    await talk(client, convo_id, 4, first=5)
+    await extract(client, convo_id, {"facts": [], "summary": f"{SERANA} To 16."})
+
+    await remove_from(client, convo_id, 11)
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (4, SERANA)

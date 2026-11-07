@@ -244,19 +244,25 @@ async def test_a_failed_automatic_pass_waits_for_more_replies_and_says_why(
     assert read["memory_position"] > 0
 
 
-async def test_an_automatic_pass_that_a_cut_overtook_is_no_failure(client, monkeypatch):
-    """The story changed while it read: the next reply asks again, and nothing went wrong."""
+@pytest.mark.parametrize("change", ["cut", "forgotten"])
+async def test_an_automatic_pass_that_a_change_overtook_is_no_failure(client, monkeypatch, change):
+    """The story or a fact changed while it read: the next reply asks again, and nothing went wrong."""
     monkeypatch.setattr("app.services.chat_service.get_provider", Said)
     started, release, _ = waiting_provider(monkeypatch)
     FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
                            ProviderEvent(type="done")]
     convo = await setup_conversation(client)
+    fact = (await client.post(f"/api/conversations/{convo['id']}/memories",
+                              json={"content": "Written by hand."})).json()
     for n in range(memory_service.MAINTENANCE_EVERY):
         await send(client, convo["id"], content=f"exchange {n}")
     try:
         await within(5, started.wait())
-        messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
-        assert (await client.delete(f"/api/messages/{messages[3]['id']}")).status_code == 204
+        if change == "cut":
+            messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
+            assert (await client.delete(f"/api/messages/{messages[3]['id']}")).status_code == 204
+        else:
+            assert (await client.delete(f"/api/memories/{fact['id']}")).status_code == 204
     finally:
         release.set()
     await asyncio.gather(*[t for t in asyncio.all_tasks() if "schedule_if_due" in repr(t)])
@@ -490,7 +496,7 @@ async def test_nothing_is_written_when_a_fact_sent_to_the_model_changed_meanwhil
         if content != "Movable fact 3.":
             return row
         return {"pinned": (content, position, True, source),
-                "edited": ("Movable fact 3, edited.", position, pinned, source),
+                "edited": ("Movable fact 3, edited.", position, pinned, "user"),
                 "deleted": None, "replaced": row}[change]
 
     assert await stored_facts(client, convo["id"]) == sorted(
@@ -711,7 +717,7 @@ async def say_the_same(client, convo_id, other, same, positions):
 async def test_a_drop_never_reaches_a_hand_written_fact_that_an_edit_repeated(
         client, fake_provider):
     """The drop reaches the first fact that says the text, in the order of the list: here
-    the model's, as it comes first by position."""
+    the one the person edited, which their edit made theirs too."""
     convo = await setup_conversation(client)
     await send(client, convo["id"])
     await add_facts(client, convo["id"], ["Same."])
@@ -720,7 +726,8 @@ async def test_a_drop_never_reaches_a_hand_written_fact_that_an_edit_repeated(
 
     await extract(client, convo["id"], {"obsolete_facts": ["Same."]})
 
-    assert await stored_facts(client, convo["id"]) == [("Same.", 9, False, "user")]
+    assert await stored_facts(client, convo["id"]) == [
+        ("Same.", 1, False, "user"), ("Same.", 9, False, "user")]
 
 
 async def test_a_correction_never_rewrites_a_fact_that_a_person_wrote_or_pinned(

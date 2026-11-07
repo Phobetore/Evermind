@@ -29,9 +29,24 @@ async def _says(db: aiosqlite.Connection, convo_id: str, content: str) -> bool:
 async def add(db: aiosqlite.Connection, convo_id: str, content: str,
               source_position: int = 0, is_pinned: bool = False,
               source: str = "auto") -> dict | None:
+    """A new fact, or None for a text said already. What a person writes that only the model has
+    said makes the model's fact theirs."""
     content = (content or "").strip()
-    if not content or await _says(db, convo_id, content):
+    if not content:
         return None
+    said = await (await db.execute(
+        "SELECT id, source FROM memories WHERE conversation_id = ? AND content = ?"
+        " ORDER BY source = 'user' DESC LIMIT 1", (convo_id, content))).fetchone()
+    if said:
+        if source != "user" or said["source"] == "user":
+            return None
+        # Unless a pass corrected or dropped it since: theirs is then a fact of its own.
+        made_theirs = await db.execute(
+            "UPDATE memories SET source = 'user', is_pinned = MAX(is_pinned, ?), previous_content = NULL,"
+            " corrected_at = NULL WHERE id = ? AND content = ?", (int(is_pinned), said["id"], content))
+        await db.commit()
+        if made_theirs.rowcount:
+            return await get(db, said["id"])
     vectors = await embeddings.embed([content], kind="passage")
     saved = await add_with_vector(db, convo_id, content, source_position,
                                   embeddings.pack(vectors[0]) if vectors else None,
@@ -64,14 +79,14 @@ async def get(db: aiosqlite.Connection, memory_id: str) -> dict | None:
 
 async def update(db: aiosqlite.Connection, memory_id: str,
                  content: str | None = None, is_pinned: bool | None = None) -> dict | None:
-    """What a person changes in a fact. What they write is theirs: a cut does not take it
-    back to what the model had written before."""
+    """What a person changes in a fact. What they write is theirs: cuts and passes leave it as
+    they would a fact they wrote."""
     if not await get(db, memory_id):
         return None
     sets, params = [], []
     if content is not None and content.strip():
         new_content = content.strip()
-        sets += ["content = ?", "previous_content = NULL", "corrected_at = NULL"]
+        sets += ["content = ?", "source = 'user'", "previous_content = NULL", "corrected_at = NULL"]
         params.append(new_content)
         # the stored vector describes the OLD text now; recompute it (or NULL it
         # so that the next start fills it) — never leave a stale embedding

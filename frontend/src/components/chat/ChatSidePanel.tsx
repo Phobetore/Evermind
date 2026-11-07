@@ -36,8 +36,8 @@ export function ChatSidePanel({
   const t = useT();
   const character = conversation.character!;
   const [connections, setConnections] = useState<Connection[]>([]);
-  // null unless typing: the box shows what the conversation holds.
-  const [summaryDraft, setSummaryDraft] = useState<string | null>(null);
+  // null unless typing: the box shows what the conversation holds. `over` is what it was typed over.
+  const [summaryDraft, setSummaryDraft] = useState<{ text: string; over: string } | null>(null);
   const [directiveDraft, setDirectiveDraft] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Where, string>>>({});
@@ -59,7 +59,7 @@ export function ChatSidePanel({
   const [memorizing, setMemorizing] = useState(false);
   const [memoryNote, setMemoryNote] = useState<string | null>(null);
   const [consolidating, setConsolidating] = useState(false);
-  const summary = summaryDraft ?? conversation.summary;
+  const summary = summaryDraft?.text ?? conversation.summary;
   const directive = directiveDraft ?? conversation.author_note ?? "";
   const wallpaperInput = useRef<HTMLInputElement>(null);
   const [wallpaperBusy, setWallpaperBusy] = useState(false);
@@ -196,10 +196,8 @@ export function ChatSidePanel({
       const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
       write({ memory_error: null });
-      if (result.summary) {
-        write({ summary: result.summary });
-        setSummaryDraft(null);
-      }
+      // What is being typed stays in the box, still typed over the summary from before.
+      if (result.summary) write({ summary: result.summary });
       setMemoryNote(describeExtraction(result, t, conversation.summary));
       setTimeout(() => setMemoryNote(null), 4000);
     } catch (e) {
@@ -229,7 +227,8 @@ export function ChatSidePanel({
     fail("memory", null);
     try {
       const saved = await data.memories.create(conversation.id, { content, is_pinned: true });
-      setMemories((prev) => [saved, ...prev]);
+      // The model's fact of the same words, if it had one, is theirs now.
+      setMemories((prev) => [saved, ...prev.filter((m) => m.id !== saved.id)]);
       setNewFact("");
     } catch (e) {
       failedMemory(e, t("chat.panel.facts.addError"));
@@ -273,13 +272,10 @@ export function ChatSidePanel({
     onConversationChange({ connection_id: connectionId });
   }
 
-  // What is typed while the memory writes a summary would be replaced by what it writes.
-  const summaryIsBeingWritten = memorizing;
-
   async function saveSummary() {
     fail("summary", null);
     try {
-      await data.conversations.update(conversation.id, { summary });
+      await data.conversations.update(conversation.id, { summary, summary_was: summaryDraft?.over });
     } catch (e) {
       fail("summary", describeError(e, t));
       return;
@@ -509,17 +505,15 @@ export function ChatSidePanel({
         <textarea
           className="field min-h-32 text-sm"
           value={summary}
-          onChange={(e) => setSummaryDraft(e.target.value)}
+          onChange={(e) => {
+            const text = e.target.value;
+            setSummaryDraft((draft) => ({ text, over: draft?.over ?? conversation.summary }));
+          }}
           onFocus={() => summaryDraft === null && read()}
-          disabled={summaryIsBeingWritten}
           placeholder={t("chat.panel.summary.placeholder")}
         />
         {summary !== conversation.summary && (
-          <button
-            className="btn btn-ghost mt-2 w-full !py-1.5 text-xs"
-            onClick={saveSummary}
-            disabled={summaryIsBeingWritten}
-          >
+          <button className="btn btn-ghost mt-2 w-full !py-1.5 text-xs" onClick={saveSummary}>
             {t("chat.panel.summary.saveButton")}
           </button>
         )}

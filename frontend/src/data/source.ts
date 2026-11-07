@@ -128,6 +128,8 @@ export interface ConversationInput {
 export interface ConversationPatch {
   title?: string;
   summary?: string;
+  /** The summary the new one was typed over. */
+  summary_was?: string;
   author_note?: string;
   connection_id?: string;
   wallpaper_opacity?: number;

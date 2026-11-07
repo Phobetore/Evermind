@@ -6,6 +6,7 @@ CREATE TABLE memory_summaries (
     conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     position INTEGER NOT NULL,
     summary TEXT NOT NULL,
+    typed INTEGER NOT NULL DEFAULT 0,  -- 1: a person's, which a cut keeps; 2: of turns past it too
     PRIMARY KEY (conversation_id, position)
 );
 ALTER TABLE memories ADD COLUMN previous_content TEXT;
@@ -16,7 +17,11 @@ UPDATE memories SET source_position = COALESCE(
     (SELECT MAX(position) FROM messages WHERE messages.conversation_id = memories.conversation_id), 0)
 WHERE source_position > COALESCE(
     (SELECT MAX(position) FROM messages WHERE messages.conversation_id = memories.conversation_id), 0);
-UPDATE conversations SET memory_position = MIN(memory_position,
-    COALESCE((SELECT MAX(position) FROM messages WHERE messages.conversation_id = conversations.id), 0))
-WHERE memory_position > 0;
-INSERT INTO memory_summaries SELECT id, memory_position, summary FROM conversations WHERE memory_position > 0;
+-- Nothing tells a summary a person typed from a pass's: each stays theirs until the next pass.
+INSERT INTO memory_summaries (conversation_id, position, summary, typed)
+SELECT id, memory_position, summary, 1 FROM conversations WHERE memory_position > 0 OR summary <> '';
+-- A memory that read past the end reads again from the start, the turns played since the cut too.
+UPDATE memory_summaries SET position = 0, typed = 2 WHERE position > COALESCE(
+    (SELECT MAX(position) FROM messages WHERE messages.conversation_id = memory_summaries.conversation_id), 0);
+UPDATE conversations SET memory_position = 0 WHERE memory_position > COALESCE(
+    (SELECT MAX(position) FROM messages WHERE messages.conversation_id = conversations.id), 0);
