@@ -209,7 +209,8 @@ the green **Code** button, then **Download ZIP**, and unzip it somewhere sensibl
 You also need two free tools installed: **Python 3.11 or newer**
 ([python.org](https://www.python.org/downloads/)) and **Node.js 22.12 or newer**
 ([nodejs.org](https://nodejs.org)). Node is only used to build the interface;
-Evermind itself runs on Python alone.
+Evermind itself runs on Python alone. That Python must use SQLite 3.35 or newer
+(the python.org ones do; a few older Linux systems ship 3.34).
 
 > **On Debian or Ubuntu**, Python's virtual-environment module is a separate
 > package: `sudo apt install python3-venv` (or the package for your Python
@@ -359,7 +360,7 @@ program that starts Evermind, which always writes in English.
 | The character forgets things, or repeats itself | Your **Context (tokens)** is probably set higher than your AI really offers. Match it to the real value. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
 | Replies are very slow | Normal for a large model on a modest machine. Try a smaller one, or an online service. |
 | "The model returned nothing, twice" | That model's chat template will not work for roleplay here, whatever you write. Nothing you can configure fixes it; pick another model. |
-| `docker compose` complains about `env_file`, a variable that "contains whitespaces", or "invalid utf8" | Write that line of `.env` as `NAME=value`, with no `export` and no spaces around `=`, and save the file as UTF-8. Otherwise your Docker is older than November 2024: update it; on Debian or Ubuntu, install Docker from Docker's own packages rather than the distribution's. |
+| `docker compose` complains about `env_file`, a variable that "contains whitespaces", "invalid utf8", "Invalid template" or "unexpected character" | Write that line of `.env` as `NAME=value`, with no `export` and no spaces around `=`, and save the file as UTF-8 (Windows PowerShell 5.1 writes UTF-16 with `>`). A value holding `${` with no `}` after it cannot be used with Docker: pick another. Otherwise your Docker is older than November 2024: update it; on Debian or Ubuntu, install Docker from Docker's own packages rather than the distribution's. |
 | "Port 3000 is already in use", or Docker says the port is already allocated | Something else on your computer already uses that port, and often it is Evermind itself, still running. Stop it first. Otherwise set `PORT` to a free one, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
 | "Port 80 needs administrator rights" | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Set `PORT` to a number above 1024, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
 | Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you ran `docker compose up -d` again afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. The launch script tells you the exact command if the rule is missing. |
@@ -388,23 +389,30 @@ once the checkbox is clear.
 
 To back it up, copy that folder. To start fresh, delete it.
 
-**Going back after an update.** When an update changes the database, Evermind
-first copies it beside the original as `evermind.before-` followed by the first
-database change it applies, such as `evermind.before-012_connection_sampling.db`.
-After several updates there are several copies: use the most recent by date, not
-the highest number. To return to the earlier state: stop Evermind, install the
-previous version again, copy that file over `evermind.db` in the data folder,
-delete `evermind.db-wal` and `evermind.db-shm` there if they exist, and start
-Evermind again. With Docker the data is in a volume: put the version you came
-from in your `.env` (such as `EVERMIND_VERSION=3.0.1`), stop Evermind with
-`docker compose down`, list the copies, newest first:
+**Going back after an update.** An update is applied whole or not at all. If one
+fails to start, it has changed nothing in your database: put back the version you
+had.
+
+If it started, `evermind.before-<version>.db` holds the database as it was before
+that version, `evermind.before-3.0.2.db` for 3.0.2. It exists only if that update
+changed the database; if there is none, just put back the version you had. In this
+order: stop Evermind; replace `evermind.db` in the data folder with the copy, and
+delete `evermind.db-wal` and `evermind.db-shm` there if they exist; put back the
+version you had; start Evermind. With Docker the data is in a volume: stop
+Evermind with `docker compose down`, put the version you had in your `.env` (such
+as `EVERMIND_VERSION=3.0.1`), and list the copies:
 
 ```bash
 docker compose run --rm --no-deps --entrypoint ls evermind -lt /data
 ```
 
-then run this, with `NAME` the file name you chose, and start Evermind with `docker compose up -d`:
+then run this, with `NAME` the file name you chose:
 
 ```bash
 docker compose run --rm --no-deps --entrypoint sh evermind -c 'cd /data && cp NAME evermind.db && rm -f evermind.db-wal evermind.db-shm'
 ```
+
+Then start Evermind with `docker compose up -d`.
+
+Everything written since the update is lost. Once the new version works, delete
+the copy: it holds your stories and API keys as they were.
