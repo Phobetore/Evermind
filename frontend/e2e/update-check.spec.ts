@@ -57,3 +57,19 @@ test("with the check off nothing is asked until the button is, which says what c
     await request.put(`${API}/api/settings`, { data: { update_check: true } });
   }
 });
+
+test("switching the check off when that is not saved says so, and the box stays as stored", async ({ page }) => {
+  await github(page, null);
+  await page.route("**/api/settings", (route) => route.request().method() === "PUT"
+    ? route.fulfill({ status: 500, contentType: "text/html", body: "<h1>Bad gateway</h1>" })
+    : route.continue());
+  await page.goto("/#/settings");
+  const box = page.getByRole("checkbox", { name: /ask GitHub/i });
+  await expect(box).toBeChecked();
+
+  // The label takes the tap, as it does for a finger.
+  await page.locator("main label", { has: box }).click();
+
+  await expect(page.locator("main").getByRole("alert")).toHaveText("Evermind answered with an error (HTTP 500).");
+  await expect(box).toBeChecked();
+});
