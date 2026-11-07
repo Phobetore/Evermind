@@ -111,12 +111,13 @@ async def list_messages(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
     return [message_to_out(r) for r in rows]
 
 
-async def message_ids_through(db: aiosqlite.Connection, convo_id: str, position: int) -> list[str]:
-    """The messages of the story up to a position, in order, by id."""
+async def turns_through(db: aiosqlite.Connection, convo_id: str,
+                        position: int) -> list[tuple[str, str]]:
+    """The story up to a position, in order: each message's id and what it says."""
     rows = await (await db.execute(
-        "SELECT id FROM messages WHERE conversation_id = ? AND position <= ?"
+        "SELECT id, variants, active_index FROM messages WHERE conversation_id = ? AND position <= ?"
         " ORDER BY position ASC", (convo_id, position))).fetchall()
-    return [r["id"] for r in rows]
+    return [(m["id"], m["content"]) for m in map(message_to_out, rows)]
 
 
 async def next_position(db: aiosqlite.Connection, convo_id: str) -> int:

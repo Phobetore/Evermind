@@ -250,7 +250,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     if built is None:
         return {"facts_added": [], "summary": convo.get("summary") or ""}
     payload, top_position = built
-    read = [m["id"] for m in messages]  # the newest of them is the one at top_position
+    read = [(m["id"], m["content"]) for m in messages]  # the newest of them is at top_position
     sent = {(m["id"], m["content"]) for m in existing}
 
     chunks: list[str] = []
@@ -266,11 +266,11 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
                        kind=MODEL_UNREADABLE)
     vectors = await _vectors_of(answer_texts(parsed))
 
-    # Nothing is kept of turns cut, or of facts edited or forgotten, while the model answered.
+    # Nothing is kept of turns cut or rewritten, or of facts edited or forgotten, while the model answered.
     async with write_transaction(db):
         current = await convo_repo.get(db, convo_id, with_messages=False)
         now = await memories_repo.list_for_conversation(db, convo_id)
-        if (await convo_repo.message_ids_through(db, convo_id, top_position) != read
+        if (await convo_repo.turns_through(db, convo_id, top_position) != read
                 or not sent <= {(m["id"], m["content"]) for m in now}):
             raise AppError("The conversation changed while the model read it.", 409,
                            kind=CONVERSATION_CHANGED)

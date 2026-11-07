@@ -855,6 +855,34 @@ async def test_remember_reads_no_further_than_a_reply_still_being_written(client
     assert "(turn 4): Reply." in fake_provider.captured["payload"].messages[0]["content"]
 
 
+@pytest.mark.parametrize("change", ["edited", "swiped"])
+async def test_a_pass_is_refused_when_a_turn_it_read_changed_while_the_model_answered(
+        client, fake_provider, monkeypatch, change):
+    """The turn says something else now, as after a cut: what was drawn from it may not hold."""
+    convo_id = (await setup_conversation(client))["id"]
+    await a_memory_to_change(client, convo_id)
+    reply = await at_position(client, convo_id, 8)
+    await set_message(reply["id"], "variants", ["Reply.", "The guard lives."])
+
+    async def changes():
+        if change == "edited":
+            await client.patch(f"/api/messages/{reply['id']}", json={"content": "The guard lives."})
+        else:
+            await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 1})
+
+    while_the_model_answers(monkeypatch, changes)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(AN_ANSWER)),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo_id}/memories/extract")
+
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["kind"] == "conversation_changed"
+    assert await names(client, convo_id) == {"To correct.", "To drop."}
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (4, "Before.")
+
+
 async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merge(
         client, fake_provider, monkeypatch):
     """Pinned, kept past a cut at the end of the story, unpinned again: the same fact, with the
