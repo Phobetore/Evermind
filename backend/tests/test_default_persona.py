@@ -181,72 +181,39 @@ async def test_a_conversation_whose_persona_is_gone_is_played_as_the_marked_one(
     assert "\nAlex:" in fake_provider.captured["payload"].stop
 
 
-# ---------- the setting is gone ----------
+# ---------- the settings are gone ----------
 
-async def test_the_settings_no_longer_have_a_default_persona(client):
+GONE = pytest.mark.parametrize("setting", [SETTING, "default_connection_id"])
+
+
+@GONE
+async def test_the_settings_no_longer_have_a_default_persona_or_connection(client, setting):
     settings = (await client.get("/api/settings")).json()
-    assert SETTING not in settings
+    assert setting not in settings
 
-    resp = await client.put("/api/settings", json={SETTING: "anything"})
+    resp = await client.put("/api/settings", json={setting: "anything"})
 
     assert resp.status_code == 200
-    assert SETTING not in resp.json()
-    assert SETTING not in (await client.get("/api/settings")).json()
+    assert setting not in resp.json()
+    assert setting not in (await client.get("/api/settings")).json()
 
 
-async def test_a_stored_default_persona_does_not_come_back(client):
+@GONE
+async def test_a_stored_default_persona_or_connection_does_not_come_back(client, setting):
     # What an older copy of the application left in the database.
     db = await app_db.connect()
     try:
         await db.execute("INSERT INTO settings (key, value) VALUES (?, ?)",
-                         (SETTING, dumps("abc")))
+                         (setting, dumps("abc")))
         await db.commit()
     finally:
         await db.close()
 
-    assert SETTING not in (await client.get("/api/settings")).json()
-    assert SETTING not in (await client.put("/api/settings", json={"auto_memory": False})).json()
+    assert setting not in (await client.get("/api/settings")).json()
+    assert setting not in (await client.put("/api/settings", json={"auto_memory": False})).json()
 
 
-# ---------- a setting can be cleared ----------
-
-async def test_a_setting_whose_default_is_nothing_can_be_cleared(client):
-    resp = await client.post("/api/connections", json={
-        "name": "Local", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test",
-    })
-    conn = resp.json()
-    await client.put("/api/settings", json={"default_connection_id": conn["id"]})
-    assert (await client.get("/api/settings")).json()["default_connection_id"] == conn["id"]
-
-    cleared = await client.put("/api/settings", json={"default_connection_id": None})
-
-    assert cleared.status_code == 200
-    assert cleared.json()["default_connection_id"] is None
-    assert (await client.get("/api/settings")).json()["default_connection_id"] is None
-
-
-async def test_clearing_a_setting_touches_no_other_and_leaving_it_out_keeps_it(client):
-    conn = (await client.post("/api/connections", json={
-        "name": "Local", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test",
-    })).json()
-    await client.put("/api/settings", json={
-        "default_connection_id": conn["id"], "global_instructions": "In English.",
-        "reply_length": "long"})
-
-    # Not mentioned: kept.
-    kept = (await client.put("/api/settings", json={"auto_memory": False})).json()
-    assert kept["default_connection_id"] == conn["id"]
-
-    cleared = (await client.put("/api/settings", json={"default_connection_id": None,
-                                                       "history_limit": 10})).json()
-    assert cleared["default_connection_id"] is None
-    assert cleared["history_limit"] == 10
-    assert cleared["global_instructions"] == "In English."
-    assert cleared["reply_length"] == "long"
-    assert cleared["auto_memory"] is False
-
+# ---------- a null changes no setting ----------
 
 async def test_a_null_does_not_reset_a_setting_that_has_a_value_of_its_own_by_default(client):
     await client.put("/api/settings", json={

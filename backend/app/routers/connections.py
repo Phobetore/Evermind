@@ -7,7 +7,6 @@ from ..models.schemas import ConnectionIn, ConnectionUpdate
 from ..providers import ProviderError, get_provider
 from ..providers.base import NO_TEXT
 from ..repositories import connections as repo
-from ..repositories import settings as settings_repo
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 
@@ -35,7 +34,6 @@ async def update_connection(conn_id: str, payload: ConnectionUpdate,
 async def delete_connection(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await repo.delete(db, conn_id):
         raise NotFoundError("Connection not found.", "connection")
-    await settings_repo.forget(db, "default_connection_id", conn_id)
 
 
 @router.post("/test")

@@ -281,6 +281,47 @@ async def test_the_speed_test_keeps_the_connections_own_ceiling(client, monkeypa
     assert FakeProvider.captured["connection"]["max_tokens"] == ceiling
 
 
+async def make_connection(client, name):
+    resp = await client.post("/api/connections", json={
+        "name": name, "base_url": "http://localhost:1234/v1", "model": "m"})
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+async def tagged_and_used(client, monkeypatch, **conversation) -> tuple[list[str], str]:
+    """The connections the list tags as the default, and the one a new conversation talks to."""
+    monkeypatch.setattr(FakeProvider, "script", [ProviderEvent(type="delta", text="Hi."),
+                                                 ProviderEvent(type="done")], raising=False)
+    monkeypatch.setattr(FakeProvider, "captured", {})
+    monkeypatch.setattr("app.services.chat_service.get_provider", FakeProvider)
+    tagged = [c["name"] for c in (await client.get("/api/connections")).json() if c["is_default"]]
+    char = await create_character(client)
+    convo = (await client.post("/api/conversations",
+                               json={"character_id": char["id"], **conversation})).json()
+    await client.post("/api/chat", json={"conversation_id": convo["id"], "content": "Hello"})
+    return tagged, FakeProvider.captured["connection"]["name"]
+
+
+async def test_the_connection_tagged_default_is_the_one_used(client, monkeypatch):
+    first = await make_connection(client, "First")
+    second = await make_connection(client, "Second")
+    # What the list in Settings wrote, which a conversation followed while the tag said otherwise.
+    await client.put("/api/settings", json={"default_connection_id": first["id"]})
+    await client.put(f"/api/connections/{second['id']}", json={**second, "is_default": True})
+
+    assert await tagged_and_used(client, monkeypatch) == (["Second"], "Second")
+    assert await tagged_and_used(client, monkeypatch, connection_id=first["id"]) == (
+        ["Second"], "First")
+
+
+async def test_with_none_marked_the_oldest_connection_is_tagged_and_used(client, monkeypatch):
+    first = await make_connection(client, "First")
+    await make_connection(client, "Second")
+    await client.put(f"/api/connections/{first['id']}", json={**first, "is_default": False})
+
+    assert await tagged_and_used(client, monkeypatch) == (["First"], "First")
+
+
 async def test_connection_test_endpoint_unreachable(client):
     created = (await client.post("/api/connections", json={
         "name": "Dead", "provider": "openai-compatible",
@@ -376,21 +417,15 @@ async def test_favorites_toggle_filter_and_sort(client):
     assert {c["id"] for c in everyone} == {fav["id"], plain["id"]}
 
 
-async def test_deleting_default_connection_does_not_break_conversations(client):
-    """Regression: a deleted connection left a dangling default in settings,
-    then every new conversation failed on the foreign key."""
-    conn = (await client.post("/api/connections", json={
-        "name": "Jetable", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "x",
-    })).json()
-    await client.put("/api/settings", json={"default_connection_id": conn["id"]})
+async def test_a_conversation_asked_for_on_a_deleted_connection_starts_without_one(client):
+    """A listing older than the deletion must not fail the start on the foreign key."""
+    conn = await make_connection(client, "Jetable")
     deleted = await client.delete(f"/api/connections/{conn['id']}")
     assert deleted.status_code == 204
 
-    assert (await client.get("/api/settings")).json()["default_connection_id"] is None
-
     char = await create_character(client)
-    resp = await client.post("/api/conversations", json={"character_id": char["id"]})
+    resp = await client.post("/api/conversations",
+                             json={"character_id": char["id"], "connection_id": conn["id"]})
     assert resp.status_code == 201, resp.text
     assert resp.json()["connection_id"] is None
 

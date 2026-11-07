@@ -10,14 +10,18 @@ const MOCK = `http://127.0.0.1:${process.env.E2E_MOCK_PORT ?? 5699}/v1`;
 async function defaultConnection(request: APIRequestContext): Promise<string> {
   const existing = await (await request.get(`${API}/api/connections`)).json();
   const found = existing.find((c: { name: string }) => c.name === "e2e");
-  const id = found?.id ?? (await (await request.post(`${API}/api/connections`, {
-    data: {
-      name: "e2e", provider: "openai-compatible", base_url: MOCK,
-      api_key: "none", model: "evermind-demo",
-    },
-  })).json()).id;
-  await request.put(`${API}/api/settings`, { data: { default_connection_id: id } });
-  return id;
+  if (!found) {
+    return (await (await request.post(`${API}/api/connections`, {
+      data: {
+        name: "e2e", provider: "openai-compatible", base_url: MOCK,
+        api_key: "none", model: "evermind-demo", is_default: true,
+      },
+    })).json()).id;
+  }
+  if (!found.is_default) {
+    await request.put(`${API}/api/connections/${found.id}`, { data: { ...found, is_default: true } });
+  }
+  return found.id;
 }
 
 export async function makeCharacter(request: APIRequestContext, fields: Record<string, unknown> = {}) {

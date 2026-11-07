@@ -117,7 +117,6 @@ class MessagePatch(BaseModel):
 
 
 class SettingsIn(BaseModel):
-    default_connection_id: str | None = None
     global_instructions: str | None = None
     auto_memory: bool | None = None
     reply_length: Literal["short", "medium", "long"] | None = None

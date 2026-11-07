@@ -31,13 +31,12 @@ export function StartChatModal({
     Promise.all([
       data.personas.list(),
       data.connections ? data.connections.list() : Promise.resolve<Connection[]>([]),
-      data.settings.get(),
     ])
-      .then(([p, c, s]) => {
+      .then(([p, c]) => {
         setPersonas(p);
         setConnections(c);
         setPersonaId(p.find((x) => x.is_default)?.id ?? "");
-        setConnectionId(s.default_connection_id ?? c.find((x) => x.is_default)?.id ?? "");
+        setConnectionId(c.find((x) => x.is_default)?.id ?? "");
       })
       // An empty list would say there is no persona to play, when there may be one
       // that a conversation started now would be played as.
