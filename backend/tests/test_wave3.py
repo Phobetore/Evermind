@@ -158,6 +158,28 @@ async def test_a_branch_keeps_the_title_of_its_story(client, title):
     assert branch["title"] == title
 
 
+async def test_a_new_branch_comes_first_in_the_list(client):
+    """Its messages keep the dates they were written on, but the branch itself is new."""
+    story = await setup_conversation(client)
+    later = (await client.post("/api/conversations",
+                               json={"character_id": story["character_id"]})).json()
+    from app.db import _connect
+    db = await _connect()
+    for convo_id, day in ((story["id"], "2026-01-01"), (later["id"], "2026-01-02")):
+        await db.execute("UPDATE messages SET created_at = ? WHERE conversation_id = ?",
+                         (day, convo_id))
+        await db.execute("UPDATE conversations SET created_at = ?, updated_at = ? WHERE id = ?",
+                         (day, day, convo_id))
+    await db.commit()
+    await db.close()
+    greeting = (await client.get(f"/api/conversations/{story['id']}")).json()["messages"][0]
+
+    branch = (await client.post(f"/api/messages/{greeting['id']}/branch")).json()
+
+    listed = [c["id"] for c in (await client.get("/api/conversations")).json()]
+    assert listed == [branch["id"], later["id"], story["id"]]
+
+
 # ---------- memory maintenance v2 ----------
 
 async def test_memory_updates_and_obsoletes_respect_pins(client, fake_provider):

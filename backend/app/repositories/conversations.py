@@ -60,7 +60,8 @@ async def list_all(db: aiosqlite.Connection, character_id: str | None = None) ->
     if character_id:
         sql += " WHERE c.character_id = ?"
         params.append(character_id)
-    sql += " GROUP BY c.id ORDER BY COALESCE(MAX(m.created_at), c.updated_at) DESC"
+    sql += (" GROUP BY c.id"
+            " ORDER BY MAX(COALESCE(MAX(m.created_at), c.updated_at), c.created_at) DESC")
     rows = await (await db.execute(sql, params)).fetchall()
     out = []
     for row in rows:
