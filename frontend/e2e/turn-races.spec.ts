@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
 import {
   connectionBack, connectionDiesDuring, countingPosts, countingStreams, expectPickedUp, goWithinThePage,
-  report, retryButton, stopButton, writing,
+  phoneComesBack, report, retryButton, stopButton, writing,
 } from "./connection";
 import { conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
 
@@ -34,6 +34,24 @@ const settled = (page: Page) => page.evaluate(async () => {
   await fetch("api/health");
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 });
+
+/** The server gets what the page asks for a turn, and the answer is lost on its way back. */
+const answerLost = (page: Page) => page.route("**/api/chat", async (route) => {
+  await route.fetch();
+  await route.abort("connectionreset");
+});
+
+/** A Regenerate that failed, reported, with the model working again. */
+async function regenerateFailed(page: Page, request: Parameters<typeof turnRunning>[0], next = "") {
+  const convo = await conversationWithReply(request, { failing: true });
+  await page.goto(`/#/chat/${convo.id}`);
+  // Once the page has settled: a name arriving moves the button from under a click.
+  await page.waitForLoadState("networkidle");
+  await page.locator('button[title="Regenerate"]').first().click({ force: true });
+  await expect(report(page).first()).toContainText("500", { timeout: 20_000 });
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: next } });
+  return convo;
+}
 
 test.describe("Stop", () => {
   test("stopping keeps every word that had arrived", async ({ page, request }) => {
@@ -199,28 +217,44 @@ test.describe("what is asked of a connection that does not answer", () => {
   });
 });
 
+test.describe("a failure, once something else is written", () => {
+  test("is not said again under a reply asked for elsewhere", async ({ page, request }) => {
+    const convo = await regenerateFailed(page, request, "SLOWLY");
+    void elsewhere(request, convo.id, { mode: "send", content: "Depuis ailleurs." });
+    await expect.poll(() => turnRunning(request, convo.id)).toBe(true);
+    await phoneComesBack(page);
+    await expect(writing(page), "the page did not follow it").toBeVisible();
+    await stopTurn(request, convo.id);
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    await expect(report(page), "the failure came back under the reply").toHaveCount(0);
+    await expect(retryButton(page)).toHaveCount(0);
+  });
+
+  test("is not said again under the reply to a message whose answer was lost", async ({ page, request }) => {
+    const convo = await regenerateFailed(page, request);
+    await answerLost(page);
+
+    await send(page, "Arrivé.");
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2, { timeout: 30_000 });
+    await expect(page.locator("textarea").first()).toHaveValue("");
+    await expect(report(page), "the failure came back under the reply").toHaveCount(0);
+    await expect(retryButton(page)).toHaveCount(0);
+  });
+});
+
 test.describe("Retry on what was asked for by hand", () => {
-  /** What the failure leaves behind, with the model working again, and what is asked of it next. */
-  async function failedThenRetried(page: Page, request: Parameters<typeof turnRunning>[0], button: string) {
-    const convo = await conversationWithReply(request, { failing: true });
+  test("a Regenerate that failed is regenerated", async ({ page, request }) => {
     const asked: string[] = [];
     page.on("request", (r) => {
       if (r.url().endsWith("/api/chat")) asked.push(r.postDataJSON().mode);
     });
-    await page.goto(`/#/chat/${convo.id}`);
-    // Once the page has settled: a name arriving moves the button from under a click.
-    await page.waitForLoadState("networkidle");
-    await page.locator(`button[title="${button}"]`).first().click({ force: true });
-    await expect(report(page).first()).toBeVisible({ timeout: 20_000 });
-    await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
+    const convo = await regenerateFailed(page, request);
     await retryButton(page).click();
     await expect(report(page)).toHaveCount(0, { timeout: 15_000 });
     await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
-    return asked;
-  }
-
-  test("a Regenerate that failed is regenerated", async ({ page, request }) => {
-    expect(await failedThenRetried(page, request, "Regenerate")).toEqual(["regenerate", "regenerate"]);
+    expect(asked).toEqual(["regenerate", "regenerate"]);
   });
 });
 

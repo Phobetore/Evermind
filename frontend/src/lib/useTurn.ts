@@ -74,9 +74,11 @@ export function useTurn(id: string, read: () => Promise<() => void>) {
           shown.current.writing = null;
           setWriting(null);
           text.set("");
-          if (asked.delete(id)) setOutcome(state.outcome);
+          // How the turn this page asked for ended, while the server keeps it: a newer turn ends that.
+          if (asked.delete(id) || !state.outcome) setOutcome(state.outcome);
           return;
         }
+        setOutcome(null);
         text.set(state.text);
         shown.current.writing = state.message_id;
         setWriting(state.message_id);

@@ -160,6 +160,7 @@ function ChatView({ id }: { id: string }) {
   async function ask(request: Omit<TurnRequest, "conversation_id">) {
     setRefused(null);
     setWriteError(null);
+    forget();
     stickToBottom.current = true;
     try {
       const { user_message: sent } = await inTime(data.turns.start({ conversation_id: id, ...request }));
