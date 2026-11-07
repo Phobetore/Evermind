@@ -53,8 +53,7 @@ const sending = new Map<string, Promise<void>>();
 /** A message sent from a page left since, while it is on its way. */
 export const onItsWay = (id: string) => sending.get(id);
 
-/** Asks for a turn. Its answer, however late, goes to the page showing the conversation then;
- *  this settles once it has, or once patience has run out and that has been said instead. */
+/** Its answer, however late, goes to the page showing the conversation then; settles at it or at patience's end. */
 function askFor(id: string, request: TurnRequest): Promise<void> {
   waiting.set(id, (waiting.get(id) ?? 0) + 1);
   let answered = false;

@@ -160,8 +160,7 @@ export interface TurnFailure {
 }
 
 /** What the server says of a conversation's turn: the message being written, as far as it has
- *  got, or how the last one ended when it failed or added nothing ("nothing_added"); and the
- *  revision of the messages, read before that. */
+ *  got, or how the last one ended when it failed or added nothing; first, its messages' revision. */
 export type TurnState = { revision: number | null } & (
   | { running: true; message_id: string; text: string }
   | { running: false; outcome: (TurnFailure & { mode: "send" | "regenerate" | "continue" }) | null });

@@ -161,8 +161,7 @@ function ChatView({ id }: { id: string }) {
     stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   }, []);
 
-  /** Settles once the server has it, or once it is too long in coming. Whatever happened, the page
-   *  then finds out how things stand. */
+  /** Settles at the server's answer or at patience's end; either way the page then finds out how things stand. */
   function ask(request: Omit<TurnRequest, "conversation_id">) {
     setWriteError(null);
     stickToBottom.current = true;

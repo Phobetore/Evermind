@@ -105,8 +105,7 @@ export function openBox(conversationId: string, box: Box): () => void {
   };
 }
 
-/** The server has this message: it leaves the head of the box open for its conversation now, or
- *  of the draft, and what was typed under it stays. Says whether it was still on its way. */
+/** The server has it: it leaves the head of the box open for its conversation now, or of the draft, once. */
 export function arrived(conversationId: string, clientId: string): boolean {
   const message = loadSending(conversationId);
   if (message?.clientId !== clientId) return false;

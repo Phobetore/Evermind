@@ -75,9 +75,7 @@ export function networkFailure(error: unknown): unknown {
   return new DataError("Network error", { kind: offline ? "offline" : "network", cause: error });
 }
 
-/** The response to a request, once it is known to have succeeded. With `within`, a request whose
- *  answer has not begun after that many milliseconds is given up on as unanswered, which is all a
- *  connection that died in silence ever gives; its body then takes as long as it takes. */
+/** The response to a request, once it is known to have succeeded; one not begun within `within` ms is unanswered. */
 export async function send(
   path: string,
   init?: RequestInit,

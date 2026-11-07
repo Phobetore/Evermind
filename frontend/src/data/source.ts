@@ -86,8 +86,7 @@ export interface DataSource {
   };
 }
 
-/** How a question is asked: given up on with `signal`, and given up on as unanswered when its
- *  answer has not begun to come back `within` that many milliseconds. */
+/** Given up on with `signal`, or as unanswered when no answer has begun within `within` ms. */
 export interface Asking {
   signal?: AbortSignal;
   within?: number;

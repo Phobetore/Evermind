@@ -50,8 +50,7 @@ export function ChatInput({
   characterName,
 }: {
   conversationId: string;
-  /** Settles once the server has the message, which then leaves whichever box is open for it, or
-   *  once it is too long in coming. */
+  /** Settles at the server's answer, which takes the message out of whichever box shows it, or at patience's end. */
   onSend: (content: string, messageMode: MessageMode) => Promise<unknown>;
   onStop: () => void;
   busy: boolean;

@@ -28,8 +28,7 @@ async def chat(request: ChatRequest) -> dict:
 
 @router.get("/conversations/{convo_id}/turn")
 async def turn_state(convo_id: str, db: aiosqlite.Connection = Depends(get_db)) -> dict:
-    """The message being written and all of it so far, or how the last turn ended if it failed; and,
-    read first, the revision of the messages: a read of the conversation showing another is newer."""
+    """The message being written and all of it so far, or how the last turn failed; first, the revision."""
     row = await (await db.execute(
         "SELECT revision FROM conversations WHERE id = ?", (convo_id,))).fetchone()
     revision = row["revision"] if row else None
