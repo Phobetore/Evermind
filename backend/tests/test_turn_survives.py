@@ -15,6 +15,7 @@ from app import db
 from app.models.schemas import ChatRequest
 from app.prompting import embeddings
 from app.providers.base import CONNECTION_LOST, ProviderError, ProviderEvent
+from app.repositories import characters as characters_repo
 from app.repositories import conversations as convo_repo
 from app.services import turns
 from tests.test_chat import messages_of, send, setup_conversation
@@ -195,6 +196,26 @@ async def test_a_message_landing_as_the_state_is_asked_makes_the_read_after_it_n
 
     assert not state["running"]
     assert state["revision"] != read["revision"], "the read looks no newer than the state"
+
+
+async def test_a_read_carries_the_revision_of_the_messages_it_holds(client, monkeypatch):
+    """A message saved in the middle of a read is in both, or in neither."""
+    convo = await setup_conversation(client)
+    before = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()["revision"]
+    character = characters_repo.get
+
+    async def a_message_lands_meanwhile(conn, character_id):
+        monkeypatch.setattr(characters_repo, "get", character)
+        await _another_device_sends(convo["id"])
+        return await character(conn, character_id)
+
+    monkeypatch.setattr(characters_repo, "get", a_message_lands_meanwhile)
+    read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+    after = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()["revision"]
+
+    assert after != before, "nothing landed"
+    landed = any(m["content"] == "Depuis le PC." for m in read["messages"])
+    assert read["revision"] == (after if landed else before), f"landed: {landed}"
 
 
 async def test_a_continuation_or_a_regeneration_is_the_whole_of_the_message_being_written(
