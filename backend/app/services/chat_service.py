@@ -17,15 +17,7 @@ from contextlib import aclosing
 
 import aiosqlite
 
-from ..errors import (
-    MODEL_EMPTY,
-    MODEL_ERROR,
-    NO_CONNECTION,
-    AppError,
-    NotFoundError,
-    failure_fields,
-    model_failure,
-)
+from ..errors import MODEL_EMPTY, MODEL_ERROR, NO_CONNECTION, AppError, NotFoundError
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval
 from ..prompting.engine import active_content, build_chat_payload
@@ -38,7 +30,7 @@ from ..prompting.turn import (
     scene_of,
     trim_reply,
 )
-from ..providers import get_provider
+from ..providers import ProviderError, complete, get_provider
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
@@ -222,34 +214,25 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 
     chunks: list[str] = []
     usage = None
-    finish_reason = None
     first_token_at = None
     started_at = time.monotonic()
-    failure: dict | None = None
-    refused_greeting = False
     index = (target["active_index"] if continue_mode else len(target["variants"])) if target else 0
     others = set(_cut_short(target)) - {index} if target else set()
     written = False
 
     async def read_model() -> None:
         """Touches no database, so that a stop, which cancels it, cannot land in a write."""
-        nonlocal usage, finish_reason, first_token_at, failure, refused_greeting
+        nonlocal usage, first_token_at
         async with aclosing(get_provider(connection).stream_chat(payload)) as stream:
             async for event in stream:
-                if event.type == "delta":
-                    first_token_at = first_token_at or time.monotonic()
-                    if not chunks and existing[-1:].strip() and event.text[:1].strip():
-                        turn.add(" ")  # as the version is saved
-                    chunks.append(event.text)
-                    turn.add(event.text)
-                elif event.type == "done":
+                if event.type == "done":
                     usage = event.usage
-                    finish_reason = (event.meta or {}).get("finish_reason")
-                elif event.type == "error":
-                    failure = {"message": event.message, **failure_fields(event.meta)}
-                    # Refusing the greeting may be said in the stream rather than by silence.
-                    refused_greeting = event.meta.get("kind") == MODEL_ERROR
-                    return
+                    continue
+                first_token_at = first_token_at or time.monotonic()
+                if not chunks and existing[-1:].strip() and event.text[:1].strip():
+                    turn.add(" ")  # as the version is saved
+                chunks.append(event.text)
+                turn.add(event.text)
 
     async def save(ending: dict | None = None) -> None:
         """What has arrived, cut short unless ``ending`` says how a whole version ended."""
@@ -287,7 +270,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     # when it has one, so the first message of a first conversation would die.
     # Rather than hand that to someone as "try another model", fold the greeting
     # into the system prompt and ask once more.
-    retried = False
+    error = None
     for attempt in (0, 1):
         if turn.stopped:
             break
@@ -296,18 +279,20 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             await asyncio.wait({turn.reading}, timeout=_FLUSH_SECONDS)
             if not turn.reading.done():
                 await save()
-        if not turn.reading.cancelled() and turn.reading.exception():
-            # Not the model failing as an event: something inside the provider raised.
-            failure = {"message": str(turn.reading.exception()), "kind": "internal"}
+        error = None if turn.reading.cancelled() else turn.reading.exception()
+        # Refusing the greeting may be said in the stream rather than by silence.
+        refused = isinstance(error, ProviderError) and error.kind == MODEL_ERROR and not error.status
         if not (attempt == 0 and not chunks and not continue_mode and not turn.stopped
-                and (failure is None or refused_greeting)
+                and (error is None or refused)
                 and payload.messages and payload.messages[0]["role"] == "assistant"):
             break
-        failure = None
-        retried = True
         payload = _build(passages, fold_leading_assistant=True)
 
     text = trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
+    if error is not None and not isinstance(error, ProviderError):
+        await save()  # what arrived is kept before whatever broke is told
+        raise error
+    failure = {"kind": error.kind, "message": error.message} if error else None
     if turn.stopped or failure is not None:
         # What arrived is the reply as far as it goes, every word of it.
         await save()
@@ -317,14 +302,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     if not text:
         if continue_mode:
             return {"kind": "nothing_added", "message": "The model had nothing to add."}
-        if retried:
-            failure = {"kind": "model_empty_retried",
-                       "message": "The model returned nothing, twice, including once with the "
-                                  "opening line moved out of its way. Its chat template is "
-                                  "probably not usable for roleplay here; try another model."}
-        else:
-            failure = {"kind": MODEL_EMPTY,
-                       "message": "The model returned an empty reply. Try again or switch models."}
+        failure = {"kind": MODEL_EMPTY,
+                   "message": "The model returned an empty reply. Try again or switch models."}
         if answering is not None:
             await say_unanswered(failure)
         return failure
@@ -340,7 +319,6 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         "gen_seconds": round(now - started_at, 2),
         "first_token_seconds": round((first_token_at or now) - started_at, 2),
         "tokens_per_s": round(completion_tokens / gen_seconds, 1) if gen_seconds > 0.2 else None,
-        "finish_reason": finish_reason,
     }
     await save({"perf": perf, "context": {key: payload.stats[key] for key in _CONTEXT_SHOWN}})
     await convo_repo.touch(db, convo["id"])
@@ -359,13 +337,8 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
 
     memories = await memories_repo.list_for_conversation(db, convo_id)
     payload = build_impersonate_payload(character, persona, convo, messages, connection, memories)
-    chunks: list[str] = []
-    async for event in get_provider(connection).stream_chat(payload):
-        if event.type == "delta":
-            chunks.append(event.text)
-        elif event.type == "error":
-            raise model_failure(event.message, event.meta)
-    text = trim_reply("".join(chunks), char_name=user_name, user_name=char_name)
+    text = trim_reply(await complete(get_provider(connection), payload),
+                      char_name=user_name, user_name=char_name)
     if not text:
         raise AppError("The model did not suggest anything. Try again.", 502, kind=MODEL_EMPTY)
     return {"text": text}

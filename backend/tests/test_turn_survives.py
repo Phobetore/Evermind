@@ -14,7 +14,7 @@ import pytest
 from app import db
 from app.models.schemas import ChatRequest
 from app.prompting import embeddings
-from app.providers.base import NETWORK_ERROR, ProviderEvent, failure
+from app.providers.base import CONNECTION_LOST, ProviderError, ProviderEvent
 from app.services import turns
 from tests.test_chat import messages_of, send, setup_conversation
 
@@ -306,7 +306,8 @@ class RefusingProvider:
 
     async def stream_chat(self, payload):
         await asyncio.sleep(0.05)
-        yield ProviderEvent(type="error", message="Non.", meta=failure(NETWORK_ERROR, upstream="Non."))
+        raise ProviderError("Non.", CONNECTION_LOST)
+        yield  # pragma: no cover
 
 
 def _refusing(monkeypatch):
@@ -320,7 +321,7 @@ async def test_how_a_reply_failed_is_there_however_long_after(client, monkeypatc
     convo = await setup_conversation(client)
     outcome = await send(client, convo["id"], content="Personne ?")
 
-    why = {"kind": NETWORK_ERROR, "message": "Non.", "upstream": "Non."}
+    why = {"kind": CONNECTION_LOST, "message": "Non."}
     assert outcome == {**why, "mode": "send"}
     assert (await messages_of(client, convo["id"]))[-1]["meta"]["unanswered"] == why
 
@@ -340,31 +341,6 @@ async def test_a_branch_does_not_inherit_the_mark_or_the_id(client, monkeypatch)
 
     assert branch["messages"][-1]["meta"] == {}
     assert (await messages_of(client, convo["id"]))[-1]["meta"] == asked["meta"]
-
-
-class FailsThenLingersProvider:
-    """Fails, and notes when its request is ended."""
-
-    closed = False
-
-    def __init__(self, connection):
-        self.connection = connection
-
-    async def stream_chat(self, payload):
-        try:
-            yield ProviderEvent(type="error", message="Non.", meta=failure(NETWORK_ERROR, upstream="Non."))
-            await asyncio.sleep(60)
-        finally:
-            FailsThenLingersProvider.closed = True
-
-
-async def test_the_request_to_the_model_ends_with_the_turn(client, monkeypatch):
-    """Here and now rather than whenever the garbage collector comes round."""
-    monkeypatch.setattr("app.services.chat_service.get_provider", FailsThenLingersProvider)
-    FailsThenLingersProvider.closed = False
-    convo = await setup_conversation(client)
-    await _ended(await turns.start(_sending(convo["id"])))
-    assert FailsThenLingersProvider.closed, "the request to the model outlived the turn"
 
 
 async def test_a_connection_that_could_not_be_set_up_is_closed(monkeypatch):

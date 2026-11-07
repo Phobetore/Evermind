@@ -2,7 +2,7 @@ import { Field } from "@/components/editor/Field";
 import { Modal } from "@/components/ui/Modal";
 import type { BenchmarkResult, ConnectionInput, ConnectionTestResult, DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
-import { describeError, describeResult } from "@/lib/errors";
+import { describeError } from "@/lib/errors";
 import type { Connection, ProviderType } from "@/types";
 import { clsx } from "clsx";
 import { CheckCircle2, ChevronDown, Loader2, Trash2, XCircle } from "lucide-react";
@@ -251,7 +251,7 @@ export function ConnectionForm({
 
         {/* Test row */}
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn btn-ghost" onClick={test} disabled={testing}>
+          <button type="button" className="btn btn-ghost" onClick={test} disabled={testing || !draft.base_url.trim()}>
             {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : t("connections.testButton")}
           </button>
           {connection && (
@@ -259,7 +259,7 @@ export function ConnectionForm({
               type="button"
               className="btn btn-ghost"
               onClick={benchmark}
-              disabled={benchmarking}
+              disabled={benchmarking || !draft.base_url.trim()}
               title={t("connections.benchmarkHint")}
             >
               {benchmarking ? <Loader2 className="h-4 w-4 animate-spin" /> : t("connections.benchmarkButton")}
@@ -272,7 +272,7 @@ export function ConnectionForm({
                     tokensPerSecond: benchResult.tokens_per_s ?? 0,
                     firstTokenSeconds: benchResult.first_token_seconds ?? 0,
                   })
-                : describeResult(benchResult, t)}
+                : benchResult.detail}
             </span>
           )}
           {testResult && (
@@ -285,7 +285,7 @@ export function ConnectionForm({
               {testResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
               {testResult.ok && testResult.model_count !== undefined
                 ? t("connections.modelsFound", { count: testResult.model_count })
-                : describeResult(testResult, t)}
+                : testResult.detail}
             </span>
           )}
         </div>

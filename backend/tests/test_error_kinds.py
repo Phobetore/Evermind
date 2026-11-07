@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 import app as app_package
-from app.providers.base import ProviderEvent
+from app.providers.base import ProviderError, ProviderEvent
 
 from .test_cards import make_minimal_png
 from .test_chat import FakeProvider, send, setup_conversation
@@ -35,38 +35,26 @@ async def add_connection(client):
 APP_DIR = Path(app_package.__file__).parent
 
 
-def _raised_errors():
-    """Every ``raise AppError(...)`` and ``raise NotFoundError(...)`` in the
-    application, as (file, line, class name, call)."""
+def test_every_raised_error_names_itself():
+    """Every ``raise AppError(...)`` has a kind, and every ``raise NotFoundError(...)`` says what
+    it did not find (its second argument)."""
+    raised, unnamed = 0, []
     for path in sorted(APP_DIR.rglob("*.py")):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if not (isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call)):
                 continue
             func = node.exc.func
             name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
-            if name in ("AppError", "NotFoundError"):
-                yield path.name, node.lineno, name, node.exc
-
-
-def test_the_application_raises_errors():
-    # Otherwise the check below would pass by looking at nothing.
-    assert len(list(_raised_errors())) >= 30
-
-
-@pytest.mark.parametrize(
-    ("file", "line", "name", "call"),
-    list(_raised_errors()),
-    ids=lambda value: value if isinstance(value, str | int) else "",
-)
-def test_every_raised_error_names_itself(file, line, name, call):
-    keywords = {keyword.arg for keyword in call.keywords}
-    if name == "NotFoundError":
-        # The second argument is what was not found.
-        assert len(call.args) >= 2 or "resource" in keywords, (
-            f"{file}:{line} NotFoundError without a resource"
-        )
-    else:
-        assert "kind" in keywords or len(call.args) >= 3, f"{file}:{line} AppError without a kind"
+            keywords = {keyword.arg for keyword in node.exc.keywords}
+            named = {"AppError": "kind" in keywords or len(node.exc.args) >= 3,
+                     "NotFoundError": "resource" in keywords or len(node.exc.args) >= 2}
+            if name in named:
+                raised += 1
+                if not named[name]:
+                    unnamed.append(f"{path.name}:{node.lineno}")
+    # Otherwise the check would pass by looking at nothing.
+    assert raised >= 30
+    assert unnamed == []
 
 
 NOT_FOUND = [
@@ -315,7 +303,7 @@ async def test_an_empty_conversation_for_the_story_tools(client, provider):
 
 async def test_a_model_that_reports_an_error(client, provider):
     convo = await setup_conversation(client)
-    FakeProvider.script = [ProviderEvent(type="error", message="Rate limit reached (429).")]
+    FakeProvider.script = [ProviderError("Rate limit reached (429).")]
     resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 502
     assert resp.json() == {"error": "Rate limit reached (429).", "kind": "model_error"}
@@ -323,12 +311,10 @@ async def test_a_model_that_reports_an_error(client, provider):
 
 async def test_a_model_that_cannot_be_reached_keeps_its_own_kind(client, provider):
     convo = await setup_conversation(client)
-    FakeProvider.script = [
-        ProviderEvent(type="error", message="Cannot reach it.", meta={"kind": "unreachable"}),
-    ]
+    FakeProvider.script = [ProviderError("http://localhost:1234/v1", "unreachable")]
     resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 502
-    assert resp.json() == {"error": "Cannot reach it.", "kind": "unreachable"}
+    assert resp.json() == {"error": "http://localhost:1234/v1", "kind": "unreachable"}
 
 
 async def test_a_model_that_says_nothing(client, provider):
@@ -364,7 +350,7 @@ async def test_a_card_the_model_left_empty(client, provider):
 
 async def test_a_model_error_while_writing_a_card(client, provider):
     await add_connection(client)
-    provider.script = [ProviderEvent(type="error", message="Overloaded.")]
+    provider.script = [ProviderError("Overloaded.")]
     resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
     assert resp.status_code == 502
     assert resp.json() == {"error": "Overloaded.", "kind": "model_error"}
@@ -411,7 +397,7 @@ async def test_a_memory_pass_the_model_answers_badly(client, provider, route):
 @pytest.mark.parametrize("route", ["extract", "consolidate"])
 async def test_a_memory_pass_the_model_refuses(client, provider, route):
     convo = await _conversation_with_facts_to_merge(client)
-    FakeProvider.script = [ProviderEvent(type="error", message="Quota exceeded.")]
+    FakeProvider.script = [ProviderError("Quota exceeded.")]
     resp = await client.post(f"/api/conversations/{convo['id']}/memories/{route}")
     assert resp.status_code == 502
     assert resp.json() == {"error": "Quota exceeded.", "kind": "model_error"}
@@ -442,17 +428,11 @@ async def test_a_turn_with_nothing_to_do_is_refused_by_name(client, provider, as
     assert (resp.status_code, resp.json()["kind"]) == (400, kind)
 
 
-async def test_the_stream_gives_a_failing_model_a_kind(client, provider):
+async def test_a_reply_says_how_the_model_failed(client, provider):
     convo = await setup_conversation(client)
-    FakeProvider.script = [ProviderEvent(type="error", message="boom")]
+    FakeProvider.script = [ProviderError("boom")]
     assert await send(client, convo["id"]) == {"message": "boom", "kind": "model_error", "mode": "send"}
-
-
-async def test_the_stream_keeps_a_kind_the_model_gave(client, provider):
-    convo = await setup_conversation(client)
-    FakeProvider.script = [
-        ProviderEvent(type="error", message="Cannot reach it.", meta={"kind": "unreachable"}),
-    ]
+    FakeProvider.script = [ProviderError("http://localhost:1234/v1", "unreachable")]
     assert (await send(client, convo["id"]))["kind"] == "unreachable"
 
 
@@ -460,16 +440,6 @@ async def test_the_stream_names_a_reply_that_stays_empty(client, provider):
     convo = await setup_conversation(client, greeting="")
     FakeProvider.script = [ProviderEvent(type="done")]
     assert (await send(client, convo["id"]))["kind"] == "model_empty"
-
-
-async def test_the_stream_names_a_reply_that_stayed_empty_after_a_second_try(
-    client, provider,
-):
-    """With the greeting as the first message, the turn is tried again with it
-    moved out of the way, and the sentence says so."""
-    convo = await setup_conversation(client)
-    FakeProvider.script = [ProviderEvent(type="done")]
-    assert (await send(client, convo["id"]))["kind"] == "model_empty_retried"
 
 
 @pytest.mark.parametrize("saved", [False, True], ids=["before the message is saved", "after"])

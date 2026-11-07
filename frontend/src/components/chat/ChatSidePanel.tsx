@@ -3,7 +3,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
-import { describeError, describeResult } from "@/lib/errors";
+import { describeError, describeFailure } from "@/lib/errors";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
@@ -155,19 +155,7 @@ export function ChatSidePanel({
   // A pass of its own that failed is told here until one succeeds.
   const failed = conversation.memory_error;
   const memoryError =
-    errors.memory ??
-    (failed
-      ? describeResult(
-          {
-            detail: failed.error,
-            kind: failed.kind,
-            upstream: failed.upstream,
-            upstream_status: failed.upstream_status,
-            upstream_url: failed.upstream_url,
-          },
-          t,
-        )
-      : null);
+    errors.memory ?? (failed ? describeFailure({ kind: failed.kind, message: failed.error }, t) : null);
 
   const fail = (where: Where, text: string | null) =>
     setErrors((prev) => ({ ...prev, [where]: text ?? undefined }));

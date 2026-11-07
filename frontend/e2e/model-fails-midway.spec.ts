@@ -17,7 +17,8 @@ const WORDS = "alpha one two three";
 const WHOLE = "endalpha";
 
 const reply = (page: Page) => page.locator("[data-message-id]", { hasText: WORDS });
-const failure = (page: Page) => page.getByText("The connection to the model's server failed.");
+const failure = (page: Page) =>
+  page.getByText("The model took too long to answer, or the connection to its server broke.");
 
 /** The conversation, with the model told to break, and a message sent from the box. */
 async function failedMidway(page: Page, request: APIRequestContext) {

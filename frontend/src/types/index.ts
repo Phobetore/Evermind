@@ -75,13 +75,7 @@ export interface Conversation {
   summary: string;
   author_note?: string;
   /** Why the last automatic pass of the memory failed, until one succeeds. */
-  memory_error?: {
-    error: string;
-    kind?: string;
-    upstream?: string;
-    upstream_status?: number;
-    upstream_url?: string;
-  } | null;
+  memory_error?: { error: string; kind?: string } | null;
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
   forked_from?: string | null;
@@ -164,15 +158,12 @@ export interface Memory {
   created_at: string;
 }
 
-/** Why a reply did not come, or came cut short: what a model's server said, when it was the one
- *  that failed, or the address that could not be reached. */
+/** Why a reply did not come, or came cut short: when a model's server failed, the message is what
+ *  it said, or the address it could not be reached at. */
 export interface TurnFailure {
   kind: string;
   message: string;
   resource?: string;
-  upstream?: string;
-  upstream_status?: number;
-  upstream_url?: string;
 }
 
 /** What the server says of a conversation's turn: the message being written, as far as it has

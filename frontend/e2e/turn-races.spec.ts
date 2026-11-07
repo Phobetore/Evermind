@@ -48,7 +48,7 @@ async function regenerateFailed(page: Page, request: Parameters<typeof turnRunni
   // Once the page has settled: a name arriving moves the button from under a click.
   await page.waitForLoadState("networkidle");
   await page.locator('button[title="Regenerate"]').first().click({ force: true });
-  await expect(report(page).first()).toContainText("500", { timeout: 20_000 });
+  await expect(report(page).first()).toContainText("told to fail", { timeout: 20_000 });
   await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: next } });
   return convo;
 }
@@ -206,7 +206,7 @@ test.describe("leaving and coming back", () => {
     await expect.poll(() => turnRunning(request, convo.id), { timeout: 15_000 }).toBe(false);
 
     await goWithinThePage(page, `/chat/${convo.id}`);
-    await expect(report(page).first(), "the reason was lost").toContainText("500");
+    await expect(report(page).first(), "the reason was lost").toContainText("told to fail");
   });
 });
 
@@ -243,7 +243,7 @@ test.describe("what is asked of a connection that does not answer", () => {
 
     await page.locator('button[title="Regenerate"]').first().click({ force: true });
 
-    await expect(report(page).first(), "the reason was lost").toContainText("500", { timeout: 20_000 });
+    await expect(report(page).first(), "the reason was lost").toContainText("told to fail", { timeout: 20_000 });
     await expect(report(page).filter({ hasText: "Evermind is not answering" }),
       "still said to be out of reach once it had answered").toHaveCount(0);
     await expect(retryButton(page)).toBeVisible();
@@ -447,7 +447,7 @@ test.describe("a message that does not go", () => {
     await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
     await connectionBack(page);
     await expect(box(page)).toHaveValue("", { timeout: 15_000 });
-    await expect(report(page).first(), "the reason was lost").toContainText("500");
+    await expect(report(page).first(), "the reason was lost").toContainText("told to fail");
     await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
 
     await retryButton(page).click();

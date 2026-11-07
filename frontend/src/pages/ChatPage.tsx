@@ -7,7 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { DataError, data, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
 import { beginSending, forgetSending, settleSending, type MessageMode } from "@/lib/drafts";
-import { describeError, describeEvent } from "@/lib/errors";
+import { describeError, describeFailure } from "@/lib/errors";
 import { inTime, useTurn, type LiveText } from "@/lib/useTurn";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
@@ -273,7 +273,7 @@ function ChatView({ id }: { id: string }) {
     : failure?.kind === "nothing_added"
       ? t("chat.errors.nothingAdded")
       : failure && !silent
-        ? describeEvent(failure, t)
+        ? describeFailure(failure, t)
         : unanswered === true
           ? t("chat.errors.noReply")
           : null;

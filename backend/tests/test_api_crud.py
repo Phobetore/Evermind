@@ -329,8 +329,7 @@ async def test_connection_test_endpoint_unreachable(client):
         "base_url": "http://127.0.0.1:1", "model": "x",
     })).json()
     resp = await client.post("/api/connections/test", json=created)
-    assert resp.status_code == 200
-    assert resp.json()["ok"] is False
+    assert (resp.status_code, resp.json()["kind"]) == (502, "unreachable")
 
 
 # ---------- conversations ----------

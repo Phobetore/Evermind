@@ -102,6 +102,27 @@ test("testing a saved connection saves nothing of what was changed", async ({ pa
   await forgetMine(request);
 });
 
+test("without an address there is nothing to test, and one typed without http:// is quoted back", async ({
+  page, request,
+}) => {
+  await forgetMine(request);
+  await request.post(`${API}/api/connections`, { data: { name: "Tuned", base_url: "http://127.0.0.1:1/v1" } });
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: /^Tuned/ }).click();
+  const form = page.getByRole("dialog");
+  const address = form.getByLabel("Base URL");
+  const testIt = form.getByRole("button", { name: "Test connection" });
+  await address.fill("");
+  await expect(testIt).toBeDisabled();
+  await expect(form.getByRole("button", { name: "Measure speed" })).toBeDisabled();
+
+  await address.fill("127.0.0.1:1/v1");
+  await testIt.click();
+  await expect(form.getByText("cannot reach the model's server at 127.0.0.1:1/v1")).toBeVisible();
+  await form.getByRole("button", { name: "Close" }).click();
+  await forgetMine(request);
+});
+
 test("measuring the speed of a saved connection measures what the form holds, and saves nothing", async ({
   page, request,
 }) => {

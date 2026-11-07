@@ -133,16 +133,14 @@ async def test_a_model_that_answers_is_only_asked_once(client, scripted):
     assert len(scripted.payloads) == 1, "a working model must not pay for the retry"
 
 
-async def test_silence_twice_says_what_was_actually_tried(client, scripted):
+async def test_silence_twice_is_an_empty_reply(client, scripted):
     scripted.scripts = [SILENCE, SILENCE]
     convo = await setup_conversation(client)
 
     outcome = await send(client, convo["id"])
 
     assert len(scripted.payloads) == 2
-    assert outcome["kind"] == "model_empty_retried"
-    assert "twice" in outcome["message"]
-    assert "chat template" in outcome["message"], "the message has to name the likely cause"
+    assert outcome["kind"] == "model_empty"
 
 
 async def test_the_retry_reply_is_the_one_that_gets_stored(client, scripted):

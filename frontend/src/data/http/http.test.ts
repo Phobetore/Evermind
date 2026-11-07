@@ -333,31 +333,6 @@ describe("errors", () => {
     expect(failure.resource).toBe("character");
   });
 
-  test("what a model's server said is carried along, in its own words", async () => {
-    reply(json({
-      error: "LLM server error (503). Overloaded", kind: "model_http_error",
-      upstream: "Overloaded", upstream_status: 503,
-    }, 502));
-    const failure = await http.turns.impersonate("v1").catch((e) => e);
-    expect(failure.kind).toBe("model_http_error");
-    expect(failure.status).toBe(502);
-    expect(failure.upstream).toBe("Overloaded");
-    expect(failure.upstreamStatus).toBe(503);
-  });
-
-  test("the address that could not be reached is carried along", async () => {
-    reply(json({ error: "Cannot reach http://x/v1.", kind: "unreachable", upstream_url: "http://x/v1" }, 502));
-    const failure = await http.turns.impersonate("v1").catch((e) => e);
-    expect(failure.upstreamUrl).toBe("http://x/v1");
-  });
-
-  test("an upstream that is not text, or a status that is not a number, is left out", async () => {
-    reply(json({ error: "Words", kind: "model_http_error", upstream: { a: 1 }, upstream_status: "503" }, 502));
-    const failure = await http.turns.impersonate("v1").catch((e) => e);
-    expect(failure.upstream).toBeUndefined();
-    expect(failure.upstreamStatus).toBeUndefined();
-  });
-
   test("a call that never got an answer is a network error", async () => {
     const dropped = new TypeError("Failed to fetch");
     const offline = createHttpSource((() => Promise.reject(dropped)) as typeof fetch);

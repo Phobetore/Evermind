@@ -1,5 +1,6 @@
 """Provider tests over httpx.MockTransport — no network."""
 
+import asyncio
 import json
 
 import httpx
@@ -8,7 +9,6 @@ import pytest
 from app.prompting.engine import PromptPayload
 from app.providers import get_provider
 from app.providers.anthropic import AnthropicProvider
-from app.providers.base import Provider
 from app.providers.openai_compat import OpenAICompatProvider
 
 PAYLOAD = PromptPayload(
@@ -103,22 +103,28 @@ async def test_openai_stream_deltas_and_done():
     assert body["stop"] == ["\nAlex:"]
 
 
-async def test_openai_401_yields_readable_error():
-    def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(401, json={"error": {"message": "bad key"}})
+class Endless(httpx.AsyncByteStream):
+    """A word, then nothing until it is closed, which it notes."""
 
-    events = await collect(oai_provider(handler))
-    assert events[-1].type == "error"
-    assert "401" in events[-1].message or "cl" in events[-1].message.lower()
+    closed = False
+
+    async def __aiter__(self):
+        yield sse([json.dumps({"choices": [{"delta": {"content": "Hel"}}]})])
+        await asyncio.Event().wait()
+
+    async def aclose(self):
+        Endless.closed = True
 
 
-async def test_openai_connect_error_readable():
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("refused", request=request)
+async def test_closing_a_reply_closes_the_request_to_the_model_at_once():
+    """As a stop does: here and now, not whenever the garbage collector comes round."""
+    Endless.closed = False
+    stream = oai_provider(lambda _: httpx.Response(200, stream=Endless())).stream_chat(PAYLOAD)
+    assert (await anext(stream)).text == "Hel"
 
-    events = await collect(oai_provider(handler))
-    assert events[-1].type == "error"
-    assert "http://mock/v1" in events[-1].message
+    await stream.aclose()
+
+    assert Endless.closed
 
 
 async def test_openai_list_models():
@@ -272,20 +278,10 @@ async def test_anthropic_never_ends_on_the_models_own_turn():
     assert body["messages"][-1] == {"role": "user", "content": "[Continue.]\n\n[Note.]"}
 
 
-async def test_anthropic_http_error_readable():
-    def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(529, json={"error": {"type": "overloaded_error", "message": "Overloaded"}})
-
-    events = await collect(anth_provider(handler))
-    assert events[-1].type == "error"
-    assert "Overloaded" in events[-1].message or "529" in events[-1].message
-
-
 # ---------- factory ----------
 
 def test_get_provider_dispatch():
     assert isinstance(get_provider(OAI_CONN), OpenAICompatProvider)
     assert isinstance(get_provider(ANTH_CONN), AnthropicProvider)
-    # A type nobody knows still gets a provider, one that fails every use of it
-    # the way a model's server failing does (test_provider_failures.py).
-    assert isinstance(get_provider({"provider": "nope"}), Provider)
+    # A type nobody knows, which only a database edited by hand holds, is spoken to as most are.
+    assert isinstance(get_provider({"provider": "nope"}), OpenAICompatProvider)

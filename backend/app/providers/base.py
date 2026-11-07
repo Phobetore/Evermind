@@ -1,14 +1,14 @@
-"""Common provider contract: normalized streaming events."""
+"""What every provider shares: the request to a model's server, its stream, and how it fails."""
 
-import html
-import re
+import json
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
+from contextlib import aclosing
+from dataclasses import dataclass
 from typing import Literal
 
 import httpx
 
-from ..errors import failure_fields
+from ..errors import MODEL_ERROR, MODEL_UNREADABLE, AppError
 from ..prompting.engine import PromptPayload
 
 # Local generation can be slow: generous read timeout, snappy connect timeout.
@@ -16,99 +16,53 @@ from ..prompting.engine import PromptPayload
 # CPU-offloaded models (70B hybrid) can take many minutes — hence 900s.
 DEFAULT_TIMEOUT = httpx.Timeout(connect=10.0, read=900.0, write=30.0, pool=30.0)
 
-
-@dataclass
-class ProviderEvent:
-    type: Literal["delta", "done", "error"]
-    text: str = ""
-    message: str = ""
-    usage: dict | None = None
-    meta: dict = field(default_factory=dict)
-
-
-# The kinds of failure between Evermind and a model's server. The sentences stay
-# English here, for whoever reads the API; the interface says each in the
-# person's own language.
+# How a model's server failed, besides MODEL_ERROR, which is its own complaint.
 UNREACHABLE = "unreachable"
+CONNECTION_LOST = "model_connection_lost"
 AUTH_REFUSED = "model_auth_refused"
 MODEL_NOT_FOUND = "model_not_found"
 RATE_LIMITED = "model_rate_limited"
-HTTP_ERROR = "model_http_error"
-TIMEOUT = "model_timeout"
-NETWORK_ERROR = "model_network_error"
-UNEXPECTED_RESPONSE = "model_unexpected_response"
-UNKNOWN_TYPE = "model_unknown_type"
 NO_TEXT = "model_no_text"
 
 
-# What reads as markup: an XML prolog, a comment, a script or a style with its
-# content, or a tag. A "<" followed by a space or a digit is a comparison, not a tag.
-# A script or a style with no end in the part that is looked at (\Z) goes to the end
-# of it: what is left of a block that was cut off is code, not words. So the name has
-# to end where a tag's name ends (whitespace, "/", ">" or the end of what is looked
-# at): <style-guide> is a tag like any other, and taken for a block that never closes
-# it would take the rest of the page with it.
-_PROLOG = re.compile(r"<\?.*?\?>", re.DOTALL)
-_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
-_SCRIPT_OR_STYLE = re.compile(
-    r"<(script|style)(?=[\s>/]|\Z).*?(?:</\1\s*>|\Z)", re.DOTALL | re.IGNORECASE
-)
-_TAG = re.compile(r"</?[A-Za-z!][^>]*>")
-# How much of an answer is looked at. The words of an error page are at its
-# start, and this runs on the event loop that live replies are streamed on, so
-# the work is bounded by this and not by what the server sent.
-_EXCERPT_SCAN = 4000
+@dataclass
+class ProviderEvent:
+    type: Literal["delta", "done"]
+    text: str = ""
+    usage: dict | None = None
 
 
-def excerpt(text: str, limit: int = 300) -> str:
-    """The start of what a server answered, as words on one line: if it is a
-    page, the page without its markup, since "502 Bad Gateway" is what the person
-    needs and "<html><body><h1>" is noise."""
-    text = text[:_EXCERPT_SCAN]
-    for markup in (_PROLOG, _COMMENT, _SCRIPT_OR_STYLE, _TAG):
-        text = markup.sub(" ", text)
-    return " ".join(html.unescape(text).split())[:limit]
+class ProviderError(AppError):
+    """A model's server that failed: ``message`` is what it said, or the address it could not be
+    reached at, and ``status`` the error status it answered with, if it did."""
+
+    def __init__(self, message: str, kind: str = MODEL_ERROR, status: int | None = None):
+        super().__init__(message, 502, kind=kind)
+        self.status = status
 
 
-_USERINFO = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*://)[^/?#]*@")
+def words_of(said: object) -> str:
+    """What a model's server said of an error, from the JSON it sent: its message, if it gave one."""
+    if isinstance(said, dict):
+        said = said.get("error", said)
+    if isinstance(said, dict):
+        said = said.get("message") or said
+    return str(said)[:300] if said else ""
 
 
-def without_userinfo(url: str) -> str:
-    """The address without a ``user:password@`` part. That is a secret, and an
-    error that names the address must not carry it out of the server."""
-    return _USERINFO.sub(r"\1", url)
-
-
-def failure(kind: str, **details) -> dict:
-    """The ``meta`` of a failed event, or the keyword arguments of a
-    ``ProviderError``: a kind, and what the model's server said (``upstream``,
-    ``upstream_status``) or the address that could not be reached
-    (``upstream_url``), if there is one. Empty details are left out."""
-    return {"kind": kind, **{k: v for k, v in details.items() if v not in (None, "")}}
-
-
-def status_failure(status: int, detail: str) -> dict:
-    """The failure for a model's server that answered with an error status."""
-    kind = {401: AUTH_REFUSED, 404: MODEL_NOT_FOUND, 429: RATE_LIMITED}.get(status, HTTP_ERROR)
-    return failure(kind, upstream_status=status, upstream=detail)
-
-
-class ProviderError(Exception):
-    def __init__(self, message: str, kind: str | None = None, **details):
-        super().__init__(message)
-        self.message = message
-        self.kind = kind
-        self.details = details
-
-    @property
-    def meta(self) -> dict:
-        """What a failed event would carry, with the kind a model gets when it
-        gives none."""
-        return failure_fields({"kind": self.kind, **self.details})
+def _refusal(status: int, body: bytes) -> ProviderError:
+    try:
+        words = words_of(json.loads(body))
+    except ValueError:
+        words = ""
+    kind = {401: AUTH_REFUSED, 404: MODEL_NOT_FOUND, 429: RATE_LIMITED}.get(status, MODEL_ERROR)
+    return ProviderError(words or f"HTTP {status}", kind, status)
 
 
 class Provider:
     """Built from a connection's settings for each use of it."""
+
+    MODELS = "/models"  # where the server lists its models, after base_url
 
     def __init__(self, connection: dict):
         self.connection = connection
@@ -117,28 +71,60 @@ class Provider:
         self.model = connection.get("model") or ""
         self._client_factory = lambda: httpx.AsyncClient(timeout=DEFAULT_TIMEOUT)
 
+    def _headers(self) -> dict:
+        raise NotImplementedError
+
     async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
+        """The reply as it arrives, then its end. A failure raises a ProviderError."""
         raise NotImplementedError
         yield  # pragma: no cover
 
     async def list_models(self) -> list[str]:
-        raise NotImplementedError
-
-    async def test(self) -> dict:
-        """Cheap reachability/auth check used by the connections UI."""
         try:
-            models = await self.list_models()
-            return {"ok": True, "detail": f"{len(models)} models available",
-                    "model_count": len(models), "models_sample": models[:8]}
-        except ProviderError as exc:
-            return {"ok": False, "detail": exc.message, **exc.meta}
+            async with self._client_factory() as client:
+                response = await client.get(self.base_url + self.MODELS, headers=self._headers())
+        except (httpx.HTTPError, httpx.InvalidURL) as exc:
+            raise self._lost(exc)
+        if response.status_code >= 400:
+            raise _refusal(response.status_code, response.content)
+        try:
+            models = response.json().get("data") or []
+            return [m["id"] for m in models if isinstance(m, dict) and m.get("id")]
+        except (ValueError, AttributeError, TypeError):
+            raise ProviderError("The list of models could not be read.", MODEL_UNREADABLE)
 
-    def _connect_error_message(self) -> str:
-        return (
-            f"Cannot reach {without_userinfo(self.base_url) or 'the server'}. "
-            "Check that the server is running and the URL is correct."
-        )
+    async def _sse(self, path: str, body: dict) -> AsyncIterator[dict]:
+        """The objects of the server's event stream, until it says [DONE] or ends."""
+        try:
+            async with self._client_factory() as client, client.stream(
+                "POST", self.base_url + path, headers=self._headers(), json=body,
+            ) as response:
+                if response.status_code >= 400:
+                    raise _refusal(response.status_code, await response.aread())
+                async for line in response.aiter_lines():
+                    data = line[5:].strip() if line.startswith("data:") else ""
+                    if data == "[DONE]":
+                        return
+                    try:
+                        event = json.loads(data)
+                    except ValueError:
+                        continue
+                    if isinstance(event, dict):
+                        yield event
+        except (httpx.HTTPError, httpx.InvalidURL) as exc:
+            raise self._lost(exc)
 
-    def _unreachable(self) -> dict:
-        """The failure of a server that cannot be reached, with where it was tried."""
-        return failure(UNREACHABLE, upstream_url=without_userinfo(self.base_url))
+    def _lost(self, exc: Exception) -> ProviderError:
+        """A request that never reached the server, or that broke off on the way."""
+        if isinstance(exc, httpx.ConnectError | httpx.ConnectTimeout
+                      | httpx.UnsupportedProtocol | httpx.InvalidURL):
+            return ProviderError(self.base_url, UNREACHABLE)
+        message = str(exc) or (
+            "The model took too long to answer, or the connection to its server broke.")
+        return ProviderError(message, CONNECTION_LOST)
+
+
+async def complete(provider: Provider, payload: PromptPayload) -> str:
+    """A model's whole answer, for a caller that has no use for it as it arrives."""
+    async with aclosing(provider.stream_chat(payload)) as stream:
+        return "".join([event.text async for event in stream])
