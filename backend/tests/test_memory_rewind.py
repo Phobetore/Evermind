@@ -488,6 +488,67 @@ async def test_a_summary_typed_over_one_no_pass_holds_is_no_pass_for_a_branch_to
     assert (branch["memory_position"], branch["summary"]) == (0, "Typed." if kept else "")
 
 
+PREMISE = "Premise: a heist in Venice."
+PUT_RIGHT = "Story to 8: Marco betrays the crew at 5, the vault floods at 7."
+
+
+async def a_premise_then_a_pass(client, convo_id, origin):
+    """The story to 2 with a summary that a person typed while the memory had read nothing, then a
+    pass to 8."""
+    if origin == "typed again after a cut emptied it":
+        await talk(client, convo_id, 2)
+        await extract(client, convo_id, {"facts": [], "summary": "To 4."})
+        await remove_from(client, convo_id, 3)
+    else:
+        await talk(client, convo_id, 1)
+    assert (await conversation(client, convo_id))["summary"] == ""
+    if origin == "carried over from 3.0":  # as 015 leaves a story with a summary and nothing read
+        db = await _connect()
+        try:
+            await db.execute("UPDATE conversations SET summary = ? WHERE id = ?",
+                             (PREMISE, convo_id))
+            await db.execute("INSERT INTO memory_summaries (conversation_id, position, summary,"
+                             " typed) VALUES (?, 0, ?, 1)", (convo_id, PREMISE))
+            await db.commit()
+        finally:
+            await db.close()
+    else:
+        await client.patch(f"/api/conversations/{convo_id}", json={"summary": PREMISE})
+    await talk(client, convo_id, 3, first=2)
+    await extract(client, convo_id, {"facts": [], "summary": "Story to 8."})
+
+
+@pytest.mark.parametrize("cut", [False, True], ids=["branched", "cut back, then branched"])
+@pytest.mark.parametrize(("origin", "put_right_over"), [
+    ("typed before the first pass", None),
+    ("typed before the first pass", "Story to 8."),
+    ("typed before the first pass", PREMISE),  # begun before the pass, saved after it
+    ("typed again after a cut emptied it", "Story to 8."),
+    ("carried over from 3.0", "Story to 8."),
+], ids=["typed before the first pass", "put right over the pass",
+        "put right over it after the pass", "typed again after a cut emptied it, put right",
+        "carried over from 3.0, put right"])
+async def test_a_summary_typed_at_the_start_is_no_pass_for_a_branch_once_a_pass_read_past_it(
+        client, fake_provider, origin, put_right_over, cut):
+    """Nothing says how far it tells: any turn the person had read, past the branch's message for
+    all anyone knows, and so may what they typed over it or a later pass. The story keeps both."""
+    convo_id = (await setup_conversation(client))["id"]
+    await a_premise_then_a_pass(client, convo_id, origin)
+    if put_right_over:
+        await client.patch(f"/api/conversations/{convo_id}",
+                           json={"summary": PUT_RIGHT, "summary_was": put_right_over})
+    if cut:
+        await remove_from(client, convo_id, 5)
+        read = await conversation(client, convo_id)
+        kept = PUT_RIGHT if put_right_over else PREMISE  # what a person wrote stays with the story
+        assert (read["memory_position"], read["summary"]) == (0, kept)
+
+    branch = await branch_at(client, convo_id, 1)
+
+    assert (branch["memory_position"], branch["summary"]) == (0, "")
+    assert await summaries_of(branch["id"]) == []
+
+
 async def test_a_pass_that_gives_no_summary_keeps_a_typed_one_as_typed(client, fake_provider):
     """Its row holds what the person typed, so that a cut back to it gives that back after a
     later pass has rewritten it."""

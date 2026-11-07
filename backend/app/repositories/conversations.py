@@ -283,6 +283,9 @@ async def remember(db: aiosqlite.Connection, convo_id: str, position: int,
     newest = await (await db.execute(
         "SELECT typed FROM memory_summaries WHERE conversation_id = ? ORDER BY position DESC LIMIT 1",
         (convo_id,))).fetchone()
+    # A summary typed at 0 may tell any turn: once a pass reads past it, it is of turns past it too.
+    await db.execute("UPDATE memory_summaries SET typed = 2"
+                     " WHERE conversation_id = ? AND position = 0 AND typed = 1", (convo_id,))
     await db.execute(
         "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"
         " SELECT id, ?, COALESCE(?, summary), ? FROM conversations WHERE id = ?",
