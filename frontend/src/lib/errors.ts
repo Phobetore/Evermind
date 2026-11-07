@@ -20,6 +20,7 @@ export interface Failure {
 const KIND_KEYS: Record<string, string> = {
   locked: "errors.locked",
   wrong_password: "errors.wrongPassword",
+  too_large: "errors.tooLarge",
   cross_origin: "errors.crossOrigin",
   unknown_host: "errors.unknownHost",
   png_without_card: "errors.pngWithoutCard",
