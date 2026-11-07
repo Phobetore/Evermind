@@ -320,7 +320,7 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int,
     # A branch takes no summary typed at 0 or of turns past its row: it may tell later turns.
     back = next((p for p in passes if p["position"] <= cut and not (
         branch and (p["typed"] == 2 or (p["typed"] and p["position"] == 0)))), None)
-    if row["memory_position"] <= cut and (back or not branch):
+    if not branch and row["memory_position"] <= cut:  # a branch may go back past the newest row
         return
     position = back["position"] if back else 0
     await db.execute("DELETE FROM memory_summaries WHERE conversation_id = ? AND position > ?",

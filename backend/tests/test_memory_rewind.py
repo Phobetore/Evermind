@@ -606,6 +606,25 @@ async def test_a_summary_put_right_then_cut_back_before_its_pass_goes_with_no_br
     assert await summaries_of(branch["id"]) == []
 
 
+async def test_a_branch_from_past_a_summary_a_cut_moved_back_goes_back_to_the_pass_before_it(
+        client, fake_provider):
+    """The person's words sit on the row of the pass at 8, still telling the turns to 16; the pass
+    at 4 tells none past the branch's message."""
+    convo_id = (await setup_conversation(client))["id"]
+    for first, exchanges, read in ((1, 2, 4), (3, 2, 8), (5, 4, 16)):
+        await talk(client, convo_id, exchanges, first=first)
+        await extract(client, convo_id, {"facts": [], "summary": f"To {read}."})
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": LATER})
+    await remove_from(client, convo_id, 12)
+
+    branch = await branch_at(client, convo_id, 10)
+
+    assert (branch["memory_position"], branch["summary"]) == (4, "To 4.")
+    assert await summaries_of(branch["id"]) == [(4, "To 4.")]
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (8, LATER)
+
+
 async def test_a_summary_put_right_over_a_pass_stays_with_a_branch_from_after_it_through_a_cut(
         client, fake_provider):
     """A later pass that wrote none carries it on. A cut back to the pass it was put right over
