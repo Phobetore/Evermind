@@ -170,9 +170,7 @@ A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
   too. Pass `Host` on unchanged, which always works
   ([DEVELOPING.md](DEVELOPING.md#serving-under-a-path-prefix) shows how).
   Serving it over HTTPS is the second safety net, but Safari before 16.4 sends
-  no Fetch Metadata even over HTTPS. If the proxy serves Evermind under a path
-  such as `/evermind/`, also set `EVERMIND_ROOT_PATH=/evermind`, so that an old
-  bookmark such as `/chat/<id>` lands on the right page.
+  no Fetch Metadata even over HTTPS.
 - **Bookmarks still work.** The address is the same, and the old links such as
   `/chat/<id>` or `/settings` redirect to their new form (`/#/chat/<id>`), so
   the ones on your phone keep opening the right place.
