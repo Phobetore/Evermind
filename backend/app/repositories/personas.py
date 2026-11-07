@@ -6,7 +6,7 @@ from .base import new_id, now_iso
 def to_out(row) -> dict:
     out = dict(row)
     avatar = out.pop("avatar_path", None)
-    out["avatar_url"] = f"/api/media/{avatar}" if avatar else None
+    out["avatar_url"] = f"api/media/{avatar}" if avatar else None
     out["is_default"] = bool(out["is_default"])
     return out
 

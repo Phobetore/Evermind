@@ -15,7 +15,7 @@ def to_out(row) -> dict:
     for f in _JSON_FIELDS:
         out[f] = loads(out.get(f), [])
     avatar = out.pop("avatar_path", None)
-    out["avatar_url"] = f"/api/media/{avatar}" if avatar else None
+    out["avatar_url"] = f"api/media/{avatar}" if avatar else None
     out["is_favorite"] = bool(out.get("is_favorite"))
     return out
 

@@ -261,9 +261,8 @@ of them is addressed from the root of the host:
   the app;
 - every request in `frontend/src/data/http/` is for `api/...`, without a leading
   slash, and is resolved against that address;
-- the addresses of images the API returns (`/api/media/<file>`) are made relative
-  the same way, in `frontend/src/data/http/media.ts`, where the objects come back,
-  so that no component has to know.
+- the server writes the addresses of images the same way, `api/media/<file>`, so
+  that no component has to know.
 
 So new code that calls the API goes through the data layer, and an address written
 there never starts with a slash (a test resolves the calls under a prefix). The
