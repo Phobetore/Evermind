@@ -583,6 +583,25 @@ async def test_a_summary_typed_at_the_start_is_no_pass_for_a_branch_once_a_pass_
     assert await summaries_of(branch["id"]) == []
 
 
+@pytest.mark.parametrize(("greeting", "read", "fork", "kept"), [
+    ("", 0, 1, True),          # Remember while the first reply is written: nothing read past it
+    ("Hello.", 8, 5, False),   # a pass past it, which wrote no summary of its own
+], ids=["a pass of message 0 alone", "a pass past it"])
+async def test_a_pass_that_writes_no_summary_over_a_premise_carries_it_on(
+        client, fake_provider, greeting, read, fork, kept):
+    """It stays the summary, on the pass's row. A branch made before a pass that read past it starts
+    with none, as after a pass that wrote one."""
+    convo_id = (await setup_conversation(client, greeting=greeting))["id"]
+    await talk(client, convo_id, 1)
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": PREMISE})
+    await talk(client, convo_id, 3, first=2)
+
+    await read_up_to(convo_id, read, None)
+
+    assert (await branch_at(client, convo_id, read))["summary"] == PREMISE
+    assert (await branch_at(client, convo_id, fork))["summary"] == (PREMISE if kept else "")
+
+
 LATER = "Put right: Marco betrays the crew, then the vault floods."
 
 
