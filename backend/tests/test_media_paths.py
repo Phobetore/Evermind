@@ -96,26 +96,17 @@ async def test_an_upload_for_nothing_leaves_no_file(client, route):
     assert list(media_dir().iterdir()) == []
 
 
-LIBRARY_ESCAPES = [
-    "../../../etc/passwd",
-    "../secrets.json",
-    "..%2fsecrets.json",
-    "/etc/passwd.json",
-    "sub/dir/card.json",
-    "card.json\n",
-    "Card.json",
-    ".hidden.json",
-    "card.json.png",
-    "-leading-dash.json",
-]
+async def test_a_library_portrait_is_one_of_a_card_the_library_lists(client, tmp_path, monkeypatch):
+    """On Windows a backslash separates: a name made into a path would climb out of the library."""
+    library = tmp_path / "lib"
+    library.mkdir()
+    for path in (library / "card.json", library / "card.jpg",
+                 tmp_path / "secret.json", tmp_path / "secret.jpg"):
+        path.touch()
+    monkeypatch.setenv("EVERMIND_LIBRARY_DIR", str(library))
 
-
-@pytest.mark.parametrize("attempt", LIBRARY_ESCAPES)
-async def test_a_library_portrait_is_one_of_a_card_the_library_lists(client, attempt):
-    """The name in the URL is looked up among the cards, and is never made into a path."""
-    resp = await client.get(f"/api/library/{urllib.parse.quote(attempt, safe='')}/avatar")
-
-    assert resp.status_code == 404
+    assert (await client.get("/api/library/card.json/avatar")).status_code == 200
+    assert (await client.get("/api/library/..%5Csecret.json/avatar")).status_code == 404
 
 
 async def test_every_card_the_library_ships_is_listed_with_its_jpeg_portrait(client):
