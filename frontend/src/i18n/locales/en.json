@@ -198,6 +198,7 @@
   },
   "chat": {
     "openingScene": "Opening the scene…",
+    "showEarlier": "Show earlier messages",
     "header": {
       "backAriaLabel": "Back to conversations",
       "renameTitle": "Rename conversation",

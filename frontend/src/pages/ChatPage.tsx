@@ -11,8 +11,11 @@ import { describeError, describeEvent } from "@/lib/errors";
 import { inTime, useTurn, type LiveText } from "@/lib/useTurn";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+
+/** How many messages are drawn at first, and more each time more are asked for. */
+const DRAWN = 100;
 
 /** Keyed by the id, so that a branch, which opens at an address of its own,
  *  starts from its own messages rather than from the ones it was cut from. */
@@ -70,6 +73,7 @@ function ChatView({ id }: { id: string }) {
   const [writeError, setWriteError] = useState<{ error: unknown } | null>(null);
   // What the server said no to, or could not be reached for, when a turn was last asked for.
   const [refused, setRefused] = useState<unknown>(null);
+  const [drawn, setDrawn] = useState(DRAWN);
   // Counts what the person has done to the messages, so that a read sent before one of those
   // does not undo it.
   const changesByHand = useRef(0);
@@ -108,6 +112,7 @@ function ChatView({ id }: { id: string }) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+  const fromBottom = useRef<number | null>(null);
 
   // The title too, which the server gives a new conversation; the side panel reads the rest itself.
   const read = useCallback(async () => {
@@ -137,6 +142,13 @@ function ChatView({ id }: { id: string }) {
     if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
   }, []);
   useEffect(followBottom, [messages, writing, followBottom]);
+
+  // Earlier messages come in above: the place being read stays where it was.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el && fromBottom.current !== null) el.scrollTop = el.scrollHeight - fromBottom.current;
+    fromBottom.current = null;
+  }, [drawn]);
 
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -224,6 +236,12 @@ function ChatView({ id }: { id: string }) {
     navigate(`/chat/${branch.id}`);
   }
 
+  function showEarlier() {
+    const el = scrollRef.current;
+    fromBottom.current = el ? el.scrollHeight - el.scrollTop : null;
+    setDrawn((n) => n + DRAWN);
+  }
+
   if (lost && !conversation) {
     return (
       <div className="p-10">
@@ -258,6 +276,7 @@ function ChatView({ id }: { id: string }) {
   const perf = latest?.perf as TurnPerf | undefined;
   // The message being written is drawn from its words as they arrive.
   const visibleMessages = messages.filter((m) => m.id !== writing);
+  const drawnMessages = visibleMessages.slice(-drawn);
 
   return (
     <div className="flex h-full">
@@ -370,7 +389,12 @@ function ChatView({ id }: { id: string }) {
             </div>
           )}
           <div className="relative mx-auto max-w-3xl px-4 py-6">
-            {visibleMessages.map((message) => (
+            {drawnMessages.length < visibleMessages.length && (
+              <button className="btn btn-ghost mx-auto mb-2 block text-xs" onClick={showEarlier}>
+                {t("chat.showEarlier")}
+              </button>
+            )}
+            {drawnMessages.map((message) => (
               <ChatMessage
                 key={message.id}
                 message={message}
