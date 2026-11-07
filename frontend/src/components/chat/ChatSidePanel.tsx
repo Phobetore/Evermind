@@ -8,7 +8,7 @@ import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 import { Link } from "react-router";
 
 type Where = "connection" | "directive" | "summary" | "memory";
@@ -41,7 +41,20 @@ export function ChatSidePanel({
   const [directiveDraft, setDirectiveDraft] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Where, string>>>({});
-  const [memories, setMemories] = useState<Memory[]>([]);
+  const [memories, setFacts] = useState<Memory[]>([]);
+  // Each read of the facts, and each change made here, outdates the reads sent before it.
+  const listed = useRef(0);
+  const setMemories = (change: SetStateAction<Memory[]>) => {
+    listed.current++;
+    setFacts(change);
+  };
+  const readFacts = useCallback(() => {
+    const sent = ++listed.current;
+    data.memories
+      .list(conversation.id)
+      .then((facts) => sent === listed.current && setFacts(facts))
+      .catch(() => {});
+  }, [conversation.id]);
   const [newFact, setNewFact] = useState("");
   const [memorizing, setMemorizing] = useState(false);
   const [memoryNote, setMemoryNote] = useState<string | null>(null);
@@ -85,11 +98,8 @@ export function ChatSidePanel({
     data.connections?.list().then(setConnections).catch(() => {});
   }, [conversation.id]);
   useEffect(() => {
-    data.memories
-      .list(conversation.id)
-      .then(setMemories)
-      .catch(() => {});
-  }, [conversation.id, storyCuts]);
+    readFacts();
+  }, [readFacts, storyCuts]);
 
   // Read again on opening, after a cut and on return: a pass writes the summary on its own.
   const latest = useRef({ conversation, onConversationChange });
@@ -229,7 +239,7 @@ export function ChatSidePanel({
   // A pass, a merge or a cut in the story may have changed the facts meanwhile.
   function failedMemory(error: unknown, fallback?: string) {
     fail("memory", describeError(error, t, fallback));
-    data.memories.list(conversation.id).then(setMemories).catch(() => {});
+    readFacts();
   }
 
   async function togglePin(memory: Memory) {

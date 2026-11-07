@@ -18,7 +18,10 @@ const panelText = en.chat.panel as {
   closeAriaLabel: string;
   directive: { placeholder: string; applyButton: string };
   summary: { placeholder: string; saveButton: string };
-  facts: { extractButton: string; consolidateButton: string; pinTitle: string; forgetAriaLabel: string };
+  facts: {
+    extractButton: string; consolidateButton: string; pinTitle: string; unpinTitle: string;
+    forgetAriaLabel: string;
+  };
 };
 
 test("cutting the story back empties the summary and the facts of what went", async ({ page, request }) => {
@@ -440,6 +443,49 @@ test("a memory pass that fails says so in the colour of an error, and keeps sayi
   await expect(error).toBeVisible();
   await page.waitForTimeout(4500);
   await expect(error).toBeVisible();
+});
+
+test("a read of the facts that a pin overtook does not unpin it", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/conversations/${convo.id}/memories`, { data: { content: "She keeps the key." } });
+  await page.route("**/memories/extract", (route) =>
+    route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Cannot reach the model.", kind: "unreachable" }),
+    }),
+  );
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  await expect(panel).toContainText("She keeps the key.");
+
+  // The read that follows the failed Remember is answered as the facts were, and delivered after the pin.
+  let fetched = () => {};
+  const answered = new Promise<void>((resolve) => { fetched = resolve; });
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(`**/api/conversations/${convo.id}/memories`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const old = await route.fetch();
+    fetched();
+    await released;
+    await route.fulfill({ response: old });
+  });
+  await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+  await answered;
+  await panel.getByTitle(panelText.facts.pinTitle).click();
+  await expect(panel.getByTitle(panelText.facts.unpinTitle)).toBeVisible();
+
+  const late = page.waitForResponse((r) => r.url().endsWith(`/api/conversations/${convo.id}/memories`));
+  release();
+  await (await late).finished();
+  await page.waitForTimeout(500);
+  await expect(panel.getByTitle(panelText.facts.unpinTitle)).toBeVisible();
 });
 
 test("a merge with too few facts says why, in the colour of an error", async ({ page, request }) => {
