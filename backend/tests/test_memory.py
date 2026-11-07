@@ -180,6 +180,53 @@ async def test_removing_the_last_reply_after_an_automatic_pass_costs_the_memory_
     assert len((await client.get(f"/api/conversations/{convo_id}/memories")).json()) == 2
 
 
+async def test_a_pass_asks_for_room_to_answer_whatever_the_connection_allows(client, fake_provider):
+    """A reply cut at a few hundred tokens leaves JSON that cannot be read, and every pass
+    after it fails the same way."""
+    convo = await setup_conversation(client)
+    connection = (await client.get("/api/connections")).json()[0]
+    await client.put(f"/api/connections/{connection['id']}", json={"max_tokens": 300})
+    await send(client, convo["id"])
+    fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                            ProviderEvent(type="done")]
+
+    await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+
+    assert fake_provider.captured["connection"]["max_tokens"] == 2048
+
+
+async def test_a_failed_automatic_pass_waits_for_more_replies_and_says_why(client, monkeypatch):
+    monkeypatch.setattr("app.services.chat_service.get_provider", Said)
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    FakeProvider.captured = {}
+    FakeProvider.script = [ProviderEvent(type="delta", text="not json"), ProviderEvent(type="done")]
+    convo = await setup_conversation(client)
+    every = memory_service.MAINTENANCE_EVERY
+
+    async def reply(n):
+        await send(client, convo["id"], content=f"exchange {n}")
+        await asyncio.gather(*[t for t in asyncio.all_tasks() if "schedule_if_due" in repr(t)])
+
+    for n in range(every):
+        await reply(n)
+    asked = FakeProvider.captured["payload"]
+    assert (await client.get(f"/api/conversations/{convo['id']}")).json()["memory_error"]["kind"]         == "model_unreadable"
+
+    # Not again until `every - 1` more replies have come, however many are due.
+    FakeProvider.captured = {}
+    for n in range(every, 2 * every - 2):
+        await reply(n)
+    assert FakeProvider.captured == {}
+    FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                           ProviderEvent(type="done")]
+    await reply(2 * every - 2)
+    assert FakeProvider.captured["payload"] is not asked
+
+    read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+    assert read["memory_error"] is None
+    assert read["memory_position"] > 0
+
+
 async def test_facts_injected_into_chat_payload(client, fake_provider):
     convo = await setup_conversation(client)
     await client.post(f"/api/conversations/{convo['id']}/memories", json={

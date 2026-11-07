@@ -43,7 +43,17 @@ logger = logging.getLogger(__name__)
 MAINTENANCE_EVERY = 8  # assistant replies between maintenance runs
 HOLD_BACK = 4  # newest messages an automatic pass leaves unread: a reply may still be thrown away
 
+MIN_ANSWER_TOKENS = 2048  # a pass's JSON is cut, and unreadable, in less than this
+
 _running: set[str] = set()
+# Conversations whose last automatic pass failed: the error body, and how many replies to wait.
+_failed: dict[str, dict] = {}
+
+
+def failure_of(convo_id: str) -> dict | None:
+    """Why the last automatic pass failed, shaped as an error response, until one succeeds."""
+    failed = _failed.get(convo_id)
+    return failed["error"] if failed else None
 
 
 async def _new_assistant_count(db: aiosqlite.Connection, convo: dict) -> int:
@@ -68,18 +78,33 @@ def schedule_if_due(convo_id: str) -> None:
     """Fire-and-forget: check + run with a dedicated DB connection."""
     if convo_id in _running:
         return
+    failed = _failed.get(convo_id)
+    if failed:
+        failed["left"] -= 1
+        if failed["left"] > 0:
+            return
 
     async def _task():
         db = await _connect()
         try:
             if await is_due(db, convo_id):
                 await run_maintenance(db, convo_id)
-        except Exception:
+        except Exception as exc:
             logger.exception("memory maintenance failed for %s", convo_id)
+            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1, "error": _error_body(exc)}
         finally:
             await db.close()
 
     asyncio.get_running_loop().create_task(_task())
+
+
+def _error_body(exc: Exception) -> dict:
+    if not isinstance(exc, AppError):
+        return {"error": "The memory pass failed.", "kind": "internal"}
+    body = {"error": exc.message, **exc.details}
+    if exc.kind:
+        body["kind"] = exc.kind
+    return body
 
 
 async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
@@ -107,7 +132,13 @@ async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
     async def busy() -> dict:
         return {"facts_added": [], "summary": None, "skipped": "busy"}
 
-    return await one_at_a_time(convo_id, lambda: _run(db, convo_id, hold_back), busy)
+    async def work() -> dict:
+        result = await _run(db, convo_id, hold_back)
+        if "skipped" not in result:
+            _failed.pop(convo_id, None)
+        return result
+
+    return await one_at_a_time(convo_id, work, busy)
 
 
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
@@ -122,7 +153,7 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
         connection = await connections_repo.get_default_raw(db)
     if connection is None:
         raise AppError("No LLM connection configured.", kind=NO_CONNECTION)
-    return connection
+    return {**connection, "max_tokens": max(connection.get("max_tokens") or 0, MIN_ANSWER_TOKENS)}
 
 
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
