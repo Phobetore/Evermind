@@ -96,6 +96,7 @@ export function ChatSidePanel({
   useEffect(() => {
     latest.current = { conversation, onConversationChange };
   });
+  const aside = useRef<HTMLElement>(null);
   // A field this panel writes keeps the number of the last read sent, whose answer may be older.
   const reads = useRef(0);
   const written = useRef<Partial<Record<keyof Conversation, number>>>({});
@@ -104,6 +105,7 @@ export function ChatSidePanel({
     onConversationChange(patch);
   }
   const read = useCallback(() => {
+    if (!aside.current?.offsetParent) return; // hidden, as the inline panel is on a phone
     const sent = ++reads.current;
     data.conversations
       .get(conversation.id)
@@ -122,15 +124,20 @@ export function ChatSidePanel({
       .catch(() => {});
   }, [conversation.id]);
   useEffect(() => {
-    const visible = () => {
-      if (document.visibilityState === "visible") read();
+    // A phone waking fires both events, and they make one read.
+    let waking: ReturnType<typeof setTimeout> | undefined;
+    const wake = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(waking);
+      waking = setTimeout(read, 100);
     };
     read();
-    window.addEventListener("focus", read);
-    document.addEventListener("visibilitychange", visible);
+    window.addEventListener("focus", wake);
+    document.addEventListener("visibilitychange", wake);
     return () => {
-      window.removeEventListener("focus", read);
-      document.removeEventListener("visibilitychange", visible);
+      clearTimeout(waking);
+      window.removeEventListener("focus", wake);
+      document.removeEventListener("visibilitychange", wake);
     };
   }, [read, storyCuts]);
 
@@ -284,6 +291,7 @@ export function ChatSidePanel({
 
   return (
     <aside
+      ref={aside}
       className={clsx(
         // No translucency here: as a mobile overlay this sits on top of the
         // conversation, and blur support is unreliable on phones.

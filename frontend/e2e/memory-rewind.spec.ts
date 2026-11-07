@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Request } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
@@ -231,6 +231,37 @@ test("a read sent with the directive's save does not put the old directive back"
   await expect(directive).toHaveValue("Fog, lamplight, nothing resolved tonight.");
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(read.author_note).toBe("Fog, lamplight, nothing resolved tonight.");
+});
+
+// On a phone the panel beside the conversation is there but hidden, and the one over it is
+// a second copy. Each read on both events of a wake, and a read is the whole story.
+test("a phone waking reads the conversation once, and only for the panel it shows", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const isRead = (r: Request) => r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`);
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  const reads: string[] = [];
+  page.on("request", (r) => {
+    if (isRead(r)) reads.push(r.url());
+  });
+  const wake = async () => {
+    reads.length = 0;
+    await page.evaluate(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("focus"));
+    });
+    await page.waitForTimeout(1500);
+    return reads.length;
+  };
+
+  expect(await wake(), "reads for a panel nobody sees").toBe(0);
+
+  const opened = page.waitForResponse((r) => isRead(r.request()));
+  await page.locator("header button:has(svg.lucide-sliders-horizontal)").click();
+  await opened;
+  expect(await wake(), "reads for the panel over the conversation").toBe(1);
 });
 
 test("a memory pass that fails says so in the colour of an error, and keeps saying it", async ({ page, request }) => {
