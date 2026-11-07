@@ -267,9 +267,9 @@ async def test_connection_key_masking_and_update(client):
     assert upd["api_key_set"] is False
 
 
-@pytest.mark.parametrize(("ceiling", "sent"), [(512, 96), (None, None)])
-async def test_the_speed_test_caps_only_a_connection_that_has_a_ceiling(client, monkeypatch,
-                                                                       ceiling, sent):
+# A model that thinks first spends a small ceiling before it writes a word.
+@pytest.mark.parametrize("ceiling", [4096, None])
+async def test_the_speed_test_keeps_the_connections_own_ceiling(client, monkeypatch, ceiling):
     monkeypatch.setattr(FakeProvider, "script", [ProviderEvent(type="delta", text="Rain."),
                                                  ProviderEvent(type="done")], raising=False)
     monkeypatch.setattr(FakeProvider, "captured", {})
@@ -278,7 +278,7 @@ async def test_the_speed_test_caps_only_a_connection_that_has_a_ceiling(client, 
         "name": "Local", "base_url": "http://localhost:1234/v1", "max_tokens": ceiling,
     })).json()
     assert (await client.post(f"/api/connections/{created['id']}/benchmark")).json()["ok"]
-    assert FakeProvider.captured["connection"]["max_tokens"] == sent
+    assert FakeProvider.captured["connection"]["max_tokens"] == ceiling
 
 
 async def test_connection_test_endpoint_unreachable(client):
