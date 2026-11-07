@@ -24,7 +24,7 @@ def message_to_out(row) -> dict:
 def convo_to_out(row) -> dict:
     out = dict(row)
     wallpaper = out.pop("wallpaper_path", None)
-    out["wallpaper_url"] = f"/api/media/{wallpaper}" if wallpaper else None
+    out["wallpaper_url"] = f"api/media/{wallpaper}" if wallpaper else None
     return out
 
 

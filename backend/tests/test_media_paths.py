@@ -76,6 +76,18 @@ async def test_an_image_is_kept_by_the_browser_alone(client):
     assert resp.headers["cache-control"] == "private, max-age=31536000, immutable"
 
 
+@pytest.mark.parametrize("owner", ["characters", "personas"])
+async def test_a_portrait_is_addressed_from_the_page(client, owner):
+    """No leading slash, so that behind a proxy's path prefix the image is asked under it."""
+    made = (await client.post(f"/api/{owner}", json={"name": "Vane"})).json()
+    resp = await client.post(f"/api/{owner}/{made['id']}/avatar",
+                             files={"file": ("a.png", PNG, "image/png")})
+
+    url = resp.json()["avatar_url"]
+    assert url.startswith("api/media/")
+    assert (await client.get(url)).status_code == 200
+
+
 @pytest.mark.parametrize("route", ["characters/nope/avatar", "personas/nope/avatar",
                                    "conversations/nope/wallpaper"])
 async def test_an_upload_for_nothing_leaves_no_file(client, route):

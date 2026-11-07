@@ -24,7 +24,7 @@ async def test_setting_and_clearing_a_backdrop(client):
                              files={"file": ("bg.png", _png(), "image/png")})
     assert resp.status_code == 200
     url = resp.json()["wallpaper_url"]
-    assert url and url.startswith("/api/media/")
+    assert url and url.startswith("api/media/")
 
     assert (await client.get(url)).status_code == 200, "the image must be servable"
 

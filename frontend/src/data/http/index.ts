@@ -6,7 +6,6 @@ import type {
   BenchmarkResult, ConnectionTestResult, ConsolidateResult, DataSource, ExtractResult,
 } from "../source";
 import { readEvents } from "./events";
-import { characterOf, conversationOf, personaOf } from "./media";
 import { lazyFetch, request, send } from "./request";
 
 /** Path segments are whatever the caller passed in, so each one is encoded:
@@ -46,8 +45,7 @@ function downloadName(disposition: string | null): string | undefined {
  *  every call is a request to `api/...`. That is written without a leading
  *  slash on purpose: it resolves against the page, whose address is always the
  *  root of the app (its routes live after the "#"), so Evermind works as well
- *  under a path such as `/evermind/` as at the root of a host. The addresses of
- *  images that the server writes are made relative here too. `fetchImpl` is
+ *  under a path such as `/evermind/` as at the root of a host. `fetchImpl` is
  *  there for tests. */
 export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSource {
   const call = <T>(path: string, init?: RequestInit) => request<T>(path, init, fetchImpl);
@@ -70,16 +68,13 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
 
     characters: {
       list: (query) =>
-        get<Character[]>(`api/characters${queryString({ kind: query?.kind, q: query?.q?.trim() })}`)
-          .then((list) => list.map(characterOf)),
-      get: (id) => get<Character>(`api/characters/${seg(id)}`).then(characterOf),
-      create: (input) => post<Character>("api/characters", input).then(characterOf),
-      update: (id, input) =>
-        put<Character>(`api/characters/${seg(id)}`, input).then(characterOf),
+        get<Character[]>(`api/characters${queryString({ kind: query?.kind, q: query?.q?.trim() })}`),
+      get: (id) => get<Character>(`api/characters/${seg(id)}`),
+      create: (input) => post<Character>("api/characters", input),
+      update: (id, input) => put<Character>(`api/characters/${seg(id)}`, input),
       remove: (id) => del(`api/characters/${seg(id)}`),
-      uploadAvatar: (id, file) =>
-        upload<Character>(`api/characters/${seg(id)}/avatar`, file).then(characterOf),
-      importCard: (file) => upload<Character>("api/characters/import", file).then(characterOf),
+      uploadAvatar: (id, file) => upload<Character>(`api/characters/${seg(id)}/avatar`, file),
+      importCard: (file) => upload<Character>("api/characters/import", file),
       async exportCard(id, format) {
         const resp = await send(
           `api/characters/${seg(id)}/export${queryString({ format })}`, undefined, fetchImpl,
@@ -101,32 +96,28 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
     },
 
     personas: {
-      list: () => get<Persona[]>("api/personas").then((list) => list.map(personaOf)),
-      create: (input) => post<Persona>("api/personas", input).then(personaOf),
-      update: (id, input) => put<Persona>(`api/personas/${seg(id)}`, input).then(personaOf),
+      list: () => get<Persona[]>("api/personas"),
+      create: (input) => post<Persona>("api/personas", input),
+      update: (id, input) => put<Persona>(`api/personas/${seg(id)}`, input),
       remove: (id) => del(`api/personas/${seg(id)}`),
-      uploadAvatar: (id, file) =>
-        upload<Persona>(`api/personas/${seg(id)}/avatar`, file).then(personaOf),
+      uploadAvatar: (id, file) => upload<Persona>(`api/personas/${seg(id)}/avatar`, file),
     },
 
     conversations: {
       list: (query) =>
-        get<Conversation[]>(`api/conversations${queryString({ character_id: query?.character_id })}`)
-          .then((list) => list.map(conversationOf)),
-      get: (id) => get<Conversation>(`api/conversations/${seg(id)}`).then(conversationOf),
-      create: (input) => post<Conversation>("api/conversations", input).then(conversationOf),
-      update: (id, changes) =>
-        patch<Conversation>(`api/conversations/${seg(id)}`, changes).then(conversationOf),
+        get<Conversation[]>(`api/conversations${queryString({ character_id: query?.character_id })}`),
+      get: (id) => get<Conversation>(`api/conversations/${seg(id)}`),
+      create: (input) => post<Conversation>("api/conversations", input),
+      update: (id, changes) => patch<Conversation>(`api/conversations/${seg(id)}`, changes),
       remove: (id) => del(`api/conversations/${seg(id)}`),
       setWallpaper: (id, file) =>
-        upload<Conversation>(`api/conversations/${seg(id)}/wallpaper`, file).then(conversationOf),
-      clearWallpaper: (id) =>
-        del<Conversation>(`api/conversations/${seg(id)}/wallpaper`).then(conversationOf),
+        upload<Conversation>(`api/conversations/${seg(id)}/wallpaper`, file),
+      clearWallpaper: (id) => del<Conversation>(`api/conversations/${seg(id)}/wallpaper`),
     },
 
     messages: {
       update: (id, changes) => patch<Message>(`api/messages/${seg(id)}`, changes),
-      branch: (id) => post<Conversation>(`api/messages/${seg(id)}/branch`).then(conversationOf),
+      branch: (id) => post<Conversation>(`api/messages/${seg(id)}/branch`),
       removeFrom: (id) => del(`api/messages/${seg(id)}`),
     },
 
@@ -163,8 +154,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
 
     library: {
       list: () => get<LibraryItem[]>("api/library"),
-      install: (filename) =>
-        post<Character>(`api/library/${seg(filename)}/install`).then(characterOf),
+      install: (filename) => post<Character>(`api/library/${seg(filename)}/install`),
       avatarUrl: (filename) => `api/library/${seg(filename)}/avatar`,
     },
 
