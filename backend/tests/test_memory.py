@@ -790,29 +790,35 @@ async def test_embedding_stored_and_excluded_from_output(client, fake_provider, 
         await db.close()
 
 
-async def test_backfill_embeddings_fills_missing(client, fake_provider, monkeypatch):
+async def test_the_task_of_the_start_gives_facts_and_messages_their_vectors(
+        client, fake_provider, monkeypatch):
     from app.db import _connect
     from app.prompting import embeddings
+    from app.repositories import conversations as convo_repo
     from app.repositories import memories as mem_repo
-    from app.services import memory_service
 
     async def no_embed(texts, kind):
         return None  # created as NULL
 
     monkeypatch.setattr(embeddings, "embed", no_embed)
-    convo = await setup_conversation(client)
+    convo = await setup_conversation(client)  # and its greeting
     await client.post(f"/api/conversations/{convo['id']}/memories", json={"content": "A."})
     await client.post(f"/api/conversations/{convo['id']}/memories", json={"content": "B."})
 
     async def now_embed(texts, kind):
         return [[0.3, 0.4] for _ in texts]
 
+    async def loaded():
+        return True
+
     monkeypatch.setattr(embeddings, "embed", now_embed)
+    monkeypatch.setattr(embeddings, "warmup", loaded)
+    await memory_service.fill_vectors()
+
     db = await _connect()
     try:
-        filled = await memory_service.backfill_embeddings(db)
-        assert filled == 2
         assert await mem_repo.list_missing_embeddings(db) == []
+        assert await convo_repo.list_messages_missing_embeddings(db) == []
     finally:
         await db.close()
 
@@ -913,26 +919,6 @@ async def test_fork_copies_fact_embedding(client, fake_provider, monkeypatch):
     try:
         emb = await mem_repo.list_embeddings(db, branch["id"])
         assert len(emb) == 1  # copied fact carries its vector (not NULL)
-    finally:
-        await db.close()
-
-
-async def test_backfill_message_embeddings_fills_missing(client, fake_provider, monkeypatch):
-    from app.db import _connect
-    from app.prompting import embeddings
-    from app.repositories import conversations as convo_repo
-    from app.services import memory_service
-
-    async def now_embed(texts, kind):
-        return [[0.3, 0.4] for _ in texts]
-
-    monkeypatch.setattr(embeddings, "embed", now_embed)
-    await setup_conversation(client)  # seeds a greeting message
-    db = await _connect()
-    try:
-        filled = await memory_service.backfill_message_embeddings(db)
-        assert filled >= 1
-        assert await convo_repo.list_messages_missing_embeddings(db) == []
     finally:
         await db.close()
 

@@ -520,12 +520,12 @@ async def test_a_restored_fact_never_has_the_vector_of_another_text(
     held = await vectors()
     assert held["Stays as it is."] == embeddings.pack([float(len("Stays as it is.")), 1.0])
     assert held["To be corrected."] is None
-    # The backfill fills what has none, with the vector of the text it holds.
-    db = await _connect()
-    try:
-        assert await memory_service.backfill_embeddings(db) == 1
-    finally:
-        await db.close()
+    # The next start gives it the vector of the text it holds.
+    async def loaded():
+        return True
+
+    monkeypatch.setattr(embeddings, "warmup", loaded)
+    await memory_service.fill_vectors()
     assert (await vectors())["To be corrected."] == embeddings.pack(
         [float(len("To be corrected.")), 1.0])
 

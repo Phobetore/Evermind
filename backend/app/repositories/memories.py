@@ -74,7 +74,7 @@ async def update(db: aiosqlite.Connection, memory_id: str,
         sets += ["content = ?", "previous_content = NULL", "corrected_at = NULL"]
         params.append(new_content)
         # the stored vector describes the OLD text now; recompute it (or NULL it
-        # so the startup backfill re-fills it) — never leave a stale embedding
+        # so that the next start fills it) — never leave a stale embedding
         vectors = await embeddings.embed([new_content], kind="passage")
         sets.append("embedding = ?")
         params.append(embeddings.pack(vectors[0]) if vectors else None)
@@ -118,7 +118,7 @@ async def list_embeddings(db: aiosqlite.Connection, convo_id: str) -> dict[str, 
 
 
 async def list_missing_embeddings(db: aiosqlite.Connection) -> list[dict]:
-    """Facts with no vector yet, across all conversations (for backfill)."""
+    """Facts with no vector yet, across all conversations (for fill_vectors)."""
     rows = await (await db.execute(
         "SELECT id, content FROM memories WHERE embedding IS NULL")).fetchall()
     return [dict(r) for r in rows]

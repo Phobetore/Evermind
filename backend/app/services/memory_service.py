@@ -208,7 +208,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
 
 async def _vectors_of(texts: Iterable[str]) -> dict[str, bytes]:
     """The vectors of these texts, for those that have one: nothing without the semantic
-    model, and the backfill gives them one later. Working them out takes a while, so it
+    model, and the next start gives them one. Working them out takes a while, so it
     comes before the database is held."""
     unique = list(dict.fromkeys(texts))
     vectors = await embeddings.embed(unique, kind="passage")
@@ -281,48 +281,23 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     return {"facts_added": added, "summary": written or current["summary"] or ""}
 
 
-async def backfill_embeddings(db: aiosqlite.Connection) -> int:
-    """Encode facts still missing a vector. Best-effort: returns how many were
-    filled (0 if the model is unavailable). A fact rewritten while its vector was
-    worked out is not filled with it: the next pass does it again. Never raises."""
-    missing = await memories_repo.list_missing_embeddings(db)
-    filled = 0
-    for fact in missing:
-        vectors = await embeddings.embed([fact["content"]], kind="passage")
-        if vectors and await memories_repo.set_embedding(
-                db, fact["id"], fact["content"], embeddings.pack(vectors[0])):
-            filled += 1
-    if filled:
-        logger.info("semantic memory: backfilled %d fact embeddings", filled)
-    return filled
-
-
-async def backfill_message_embeddings(db: aiosqlite.Connection) -> int:
-    """Encode messages still missing a vector (their ACTIVE variant). Best-effort:
-    returns how many were filled (0 if the model is unavailable). Never raises."""
-    missing = await convo_repo.list_messages_missing_embeddings(db)
-    filled = 0
-    for msg in missing:
-        content = active_content(msg)
-        vectors = await embeddings.embed([content], kind="passage")
-        if vectors and await convo_repo.set_message_embedding(
-                db, msg["id"], embeddings.pack(vectors[0])):
-            filled += 1
-    if filled:
-        logger.info("semantic memory: backfilled %d message embeddings", filled)
-    return filled
-
-
-async def warmup_and_backfill() -> None:
-    """Startup task: load the model (the only place a download can happen),
-    then backfill existing facts and messages. Own DB connection. Never blocks."""
+async def fill_vectors() -> None:
+    """Startup task: load the model, the only place a download can happen, then give every
+    fact and message that has no vector its own. Own connection; never raises."""
     if not await embeddings.warmup():
         return
     db = await _connect()
     try:
-        await backfill_embeddings(db)
-        await backfill_message_embeddings(db)
+        for fact in await memories_repo.list_missing_embeddings(db):
+            vectors = await embeddings.embed([fact["content"]], kind="passage")
+            if vectors:
+                await memories_repo.set_embedding(db, fact["id"], fact["content"],
+                                                  embeddings.pack(vectors[0]))
+        for message in await convo_repo.list_messages_missing_embeddings(db):
+            vectors = await embeddings.embed([active_content(message)], kind="passage")
+            if vectors:
+                await convo_repo.set_message_embedding(db, message["id"], embeddings.pack(vectors[0]))
     except Exception:
-        logger.exception("semantic memory backfill failed")
+        logger.exception("semantic memory: filling the missing vectors failed")
     finally:
         await db.close()

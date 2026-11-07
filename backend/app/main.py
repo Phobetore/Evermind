@@ -18,7 +18,7 @@ async def lifespan(_: FastAPI):
     import asyncio
 
     from .services import memory_service
-    asyncio.create_task(memory_service.warmup_and_backfill())
+    asyncio.create_task(memory_service.fill_vectors())
     yield
 
 

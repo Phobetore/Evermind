@@ -339,7 +339,7 @@ async def list_message_embeddings(db: aiosqlite.Connection, convo_id: str) -> di
 
 
 async def list_messages_missing_embeddings(db: aiosqlite.Connection) -> list[dict]:
-    """Messages with no vector yet (for backfill). Carries variants/active_index
+    """Messages with no vector yet (for fill_vectors). Carries variants/active_index
     so the caller can embed the ACTIVE content."""
     rows = await (await db.execute(
         "SELECT id, variants, active_index FROM messages WHERE embedding IS NULL")).fetchall()
