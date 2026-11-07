@@ -201,9 +201,9 @@ describe("routes", () => {
     ["conversations.get", () => http.conversations.get("v1"), "GET", "api/conversations/v1"],
     [
       "conversations.create",
-      () => http.conversations.create({ character_id: "c1", persona_id: null, connection_id: "k1", greeting_index: 2 }),
+      () => http.conversations.create({ character_id: "c1", persona_id: null, connection_id: "k1" }),
       "POST", "api/conversations",
-      { character_id: "c1", persona_id: null, connection_id: "k1", greeting_index: 2 },
+      { character_id: "c1", persona_id: null, connection_id: "k1" },
     ],
     ["conversations.update", () => http.conversations.update("v1", { title: "T" }), "PATCH", "api/conversations/v1", { title: "T" }],
     ["conversations.remove", () => http.conversations.remove("v1"), "DELETE", "api/conversations/v1"],

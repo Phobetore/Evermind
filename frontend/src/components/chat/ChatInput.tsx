@@ -9,8 +9,7 @@ import { useEffect, useRef, useState } from "react";
 
 /** A pointing device that hovers, which in practice means a real keyboard is
  *  attached too. Read at the moment of the keypress rather than remembered. */
-const KEYBOARD_QUERY = "(hover: hover) and (pointer: fine)";
-const hasKeyboard = () => window.matchMedia(KEYBOARD_QUERY).matches;
+const hasKeyboard = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 const MODES: Record<MessageMode, {
   next: MessageMode;
@@ -66,13 +65,6 @@ export function ChatInput({
   // switched on before trying again is worth anything.
   const [silent, setSilent] = useState(false);
   const [restored, setRestored] = useState(value !== "");
-  // A phone keyboard has no Shift, so Enter-to-send left no way at all to start
-  // a new line. Only a device that actually has a keyboard keeps that shortcut;
-  // everywhere else Enter does what its key says and the send button sends.
-  // This state drives the hint only. The keypress reads the query live, because
-  // a cached answer goes stale the moment someone docks a tablet to a keyboard
-  // and the change event is not something every browser reliably fires.
-  const [enterSends, setEnterSends] = useState(true);
   const ref = useRef<HTMLTextAreaElement>(null);
   const held = useRef({ value, mode });
   // The pen's last suggestion, which pressing it again replaces while it is as written.
@@ -101,14 +93,6 @@ export function ChatInput({
     el.style.height = "0px";
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
   }, [value]);
-
-  useEffect(() => {
-    const media = window.matchMedia(KEYBOARD_QUERY);
-    const apply = () => setEnterSends(media.matches);
-    apply();
-    media.addEventListener("change", apply);
-    return () => media.removeEventListener("change", apply);
-  }, []);
 
   // The notice that a draft came back, for a few seconds.
   useEffect(() => {
@@ -205,6 +189,7 @@ export function ChatInput({
           value={value}
           onChange={(e) => change(e.target.value)}
           onKeyDown={(e) => {
+            // A phone keyboard has no Shift, so there Enter is the only way to a new line.
             if (e.key === "Enter" && !e.shiftKey && hasKeyboard()) {
               e.preventDefault();
               submit();
@@ -241,7 +226,7 @@ export function ChatInput({
         {hint ??
           (restored
             ? t("chat.input.draftRestored")
-            : t(enterSends ? "chat.input.hintDefault" : "chat.input.hintTouch"))}
+            : t(hasKeyboard() ? "chat.input.hintDefault" : "chat.input.hintTouch"))}
       </p>
     </div>
   );

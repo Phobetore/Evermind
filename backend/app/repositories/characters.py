@@ -55,8 +55,7 @@ async def get_raw(db: aiosqlite.Connection, char_id: str) -> dict | None:
 
 
 async def list_all(db: aiosqlite.Connection, kind: str | None = None,
-                   q: str | None = None, tag: str | None = None,
-                   favorites: bool = False) -> list[dict]:
+                   q: str | None = None, tag: str | None = None) -> list[dict]:
     sql = "SELECT * FROM characters"
     clauses, params = [], []
     if kind in ("character", "scenario"):
@@ -66,8 +65,6 @@ async def list_all(db: aiosqlite.Connection, kind: str | None = None,
         clauses.append("(name LIKE ? OR tagline LIKE ? OR description LIKE ?)")
         like = f"%{q}%"
         params += [like, like, like]
-    if favorites:
-        clauses.append("is_favorite = 1")
     if clauses:
         sql += " WHERE " + " AND ".join(clauses)
     sql += " ORDER BY is_favorite DESC, updated_at DESC"

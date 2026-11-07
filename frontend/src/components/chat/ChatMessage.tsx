@@ -97,10 +97,12 @@ export function ChatMessage({
           <div className="hover-actions ml-auto flex items-center gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:flex-wrap pointer-coarse:justify-end pointer-coarse:gap-0">
             {isLast && !busy && (
               <div className="flex items-center gap-0.5 pointer-coarse:gap-0">
-                {/* On a message of the person's, the reply it is waiting for. */}
-                <IconButton title={t("chat.message.regenerateTitle")} onClick={onRegenerate}>
-                  <RefreshCcw className="h-3.5 w-3.5" />
-                </IconButton>
+                {/* On a message of the person's, the reply it is waiting for. Never on a greeting: it answers nothing. */}
+                {!message.meta?.greeting && (
+                  <IconButton title={t("chat.message.regenerateTitle")} onClick={onRegenerate}>
+                    <RefreshCcw className="h-3.5 w-3.5" />
+                  </IconButton>
+                )}
                 {!isUser && (
                   <IconButton title={t("chat.message.continueTitle")} onClick={onContinue}>
                     <StepForward className="h-3.5 w-3.5" />
@@ -185,7 +187,7 @@ export function ChatMessage({
             </span>
             <button
               className="rounded p-1.5 transition-colors hover:text-parchment disabled:opacity-30 md:p-0.5 pointer-coarse:p-3.5 md:pointer-coarse:p-3.5"
-              disabled={busy || (message.active_index === variants.length - 1 && !isLast)}
+              disabled={busy || (message.active_index === variants.length - 1 && (!isLast || Boolean(message.meta?.greeting)))}
               onClick={() => {
                 if (message.active_index < variants.length - 1) onSwipe(message.active_index + 1);
                 else onRegenerate();

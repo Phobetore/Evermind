@@ -92,7 +92,6 @@ class ConversationIn(BaseModel):
     character_id: str
     persona_id: str | None = None
     connection_id: str | None = None
-    greeting_index: int = Field(default=0, ge=0)
 
 
 class ConversationPatch(BaseModel):

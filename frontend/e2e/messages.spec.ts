@@ -56,6 +56,22 @@ test("what the server does not take of a change to a message is said, and a rewr
   await expect(said).toHaveCount(0);
 });
 
+test("the arrows of a greeting go through the others and stop at the last, and nothing regenerates it", async ({ page, request }) => {
+  const convo = await makeConversation(request, { alternate_greetings: ["The lamp was still warm."] });
+  const opening = page.locator(`[data-message-id="${convo.messages[0].id}"]`);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(opening).toContainText("The door was already open.");
+
+  const next = opening.getByRole("button", { name: "Next variant or regenerate" });
+  await next.click();
+  await expect(opening).toContainText("The lamp was still warm.");
+  await expect(opening).toContainText("2/2");
+  // A greeting answers nothing: there is no reply to write again.
+  await expect(next).toBeDisabled();
+  await expect(opening.getByTitle("Regenerate")).toHaveCount(0);
+  await expect.poll(async () => (await conversation(request, convo.id)).messages[0].active_index).toBe(1);
+});
+
 test("a message whose reply was deleted can be given another", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await conversationWithReply(request);
   const [question, answer] = convo.messages.slice(-2);

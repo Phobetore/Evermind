@@ -46,9 +46,7 @@ async def create_conversation(payload: ConversationIn,
         user_name = (persona or {}).get("name") or "User"
         variants = [substitute(g, char_name=character["name"], user_name=user_name)
                     for g in greetings]
-        index = payload.greeting_index if 0 <= payload.greeting_index < len(variants) else 0
-        await repo.add_message(db, convo["id"], "assistant", variants, active_index=index,
-                               meta={"greeting": True})
+        await repo.add_message(db, convo["id"], "assistant", variants, meta={"greeting": True})
     return await repo.get(db, convo["id"])
 
 
