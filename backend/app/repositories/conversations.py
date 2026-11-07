@@ -244,7 +244,7 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
             "INSERT INTO memory_summaries (conversation_id, position, summary, typed)"
             " SELECT ?, position, summary, typed FROM memory_summaries WHERE conversation_id = ?",
             (branch_id, source["id"]))
-        await _rewind_memory(db, branch_id, position)
+        await _rewind_memory(db, branch_id, position, branch=True)
 
     return await get(db, branch_id)
 
@@ -278,7 +278,8 @@ async def remember(db: aiosqlite.Connection, convo_id: str, position: int,
         (position, summary, now_iso(), convo_id))
 
 
-async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int) -> None:
+async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int,
+                         branch: bool = False) -> None:
     """Take what a conversation remembers back to a story that now ends with the turn at
     ``cut``, as the last pass at or before it left it: the model's later facts go, its later
     corrections are undone, and what a person wrote, pinned or typed stays. Does not commit."""
@@ -303,7 +304,9 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int) -> N
     position = back["position"] if back else 0
     await db.execute("DELETE FROM memory_summaries WHERE conversation_id = ? AND position > ?",
                      (convo_id, cut))
-    if passes and passes[0]["typed"]:  # what a person wrote stays theirs, part stale
+    if branch and not back:  # it would tell what happens after the message, in another story
+        summary = ""
+    elif passes and passes[0]["typed"]:  # what a person wrote stays theirs, part stale
         summary = row["summary"]
         await db.execute(
             "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"

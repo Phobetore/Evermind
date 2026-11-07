@@ -874,6 +874,27 @@ async def test_a_long_story_cut_before_its_only_pass_keeps_its_summary(
     assert "(turn 449)" not in shown
 
 
+@pytest.mark.parametrize("typed", [False, True], ids=["by a pass", "typed"])
+async def test_a_branch_from_before_any_pass_it_has_starts_with_no_summary(
+        client, fake_provider, typed):
+    """As releases did: that summary tells what comes after the message, in a story the branch
+    is not. Its next pass writes one from the turns before it."""
+    convo_id = await a_long_story_read_once(client)
+    if typed:
+        await client.patch(f"/api/conversations/{convo_id}", json={"summary": "My words."})
+    fork = await at_position(client, convo_id, 200)
+
+    branch = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
+
+    assert (branch["memory_position"], branch["summary"]) == (0, "")
+    assert await summaries_of(branch["id"]) == []
+    fake_provider.captured.clear()
+    await extract(client, branch["id"], {"facts": [], "summary": "From 161 to 200."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "CURRENT SUMMARY:\n(empty)" in shown
+    assert "(turn 161)" in shown and "(turn 200)" in shown and "(turn 160)" not in shown
+
+
 @pytest.mark.parametrize(("removed_from", "summary"), [
     (42, "The whole story."),
     (41, "The whole story."),  # the story is 41 turns, 0 to 40: one more than a pass reads
