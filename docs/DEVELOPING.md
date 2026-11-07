@@ -132,9 +132,11 @@ environment.
 `frontend/dist`, so a run cannot replace the interface of an Evermind you are
 using. Playwright then starts the whole stack itself: a mock model and two
 `python -m app` servers, one of them behind an access password, each on a port
-and a data directory of its own. None reads `.env`, and each starts with an
-environment built from scratch, so no `EVERMIND_*` variable of your shell
-reaches them. It runs them from the virtualenv in `backend/.venv`, which the
+and a data directory of its own. None reads `.env`, and the suite
+removes `EVERMIND_*`, `BIND`, `PORT` and proxy variables from what they inherit,
+so none of your shell reaches them. They listen on this computer's network
+address, as for a phone (an insecure context), and Windows may ask whether
+`python.exe` can accept connections the first time: that can be ignored. It runs them from the virtualenv in `backend/.venv`, which the
 launch scripts create, and needs the browser once:
 `npx playwright install chromium`. `npm run test:e2e:ui` opens Playwright's
 runner if you want to watch one.

@@ -232,6 +232,10 @@ The first run installs what it needs and takes a few minutes, and so does the
 first run after an update that changes any of it. Then open
 **http://localhost:3000**.
 
+To start again without rebuilding the interface, run `.venv\Scripts\python -m app`
+(`.venv/bin/python -m app` on macOS and Linux) from the `backend` folder, adding
+`--lan` to reach it from other devices.
+
 ---
 
 ## Step 3: introduce Evermind to your AI
@@ -359,7 +363,7 @@ program that starts Evermind, which always writes in English.
 | "The model returned nothing, twice" | That model's chat template will not work for roleplay here, whatever you write. Nothing you can configure fixes it; pick another model. |
 | `docker compose` complains about `env_file`, a variable that "contains whitespaces", "invalid utf8", "Invalid template" or "unexpected character" | Write that line of `.env` as `NAME=value`, with no `export` and no spaces around `=`, and save the file as UTF-8 (Windows PowerShell 5.1 writes UTF-16 with `>`). A value holding `${` with no `}` after it cannot be used with Docker: pick another. Otherwise your Docker is older than November 2024: update it; on Debian or Ubuntu, install Docker from Docker's own packages rather than the distribution's. |
 | "Port 3000 is already in use", or Docker says the port is already allocated | Something else on your computer already uses that port, and often it is Evermind itself, still running. Stop it first. Otherwise set `PORT` to a free one, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
-| "Port 80 needs administrator rights" | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Set `PORT` to a number above 1024, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
+| "error while attempting to bind on address", with "Permission denied" or "forbidden by its access permissions" | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Set `PORT` to a number above 1024, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
 | Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you ran `docker compose up -d` again afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. Evermind prints the exact command when it starts on the network. |
 | "Evermind does not answer to this address" | You opened Evermind by a name it does not know, and no password is set. Open it by its address (`http://192.168.1.42:3000`), by `localhost` (or a name ending in `.localhost`) or by the computer's own name, also with `.local` after it (when the name has a domain, as in `nas.home.lan`, its first part works too, `nas` and `nas.local`). Or list the name in `EVERMIND_ALLOWED_HOSTS` in your `.env`, separated by commas if there are several. Setting a password works too: with one, any name is accepted. With Docker, the computer's own name has to be listed as well, because the container cannot see it. With Docker, after changing `.env`, run `docker compose up -d` again (`docker compose restart` keeps the settings the container started with); otherwise start Evermind again. |
 | "Evermind refused this request because it seems to come from another address" | Evermind turns away changes that a page from another website sends. If you reach it through a reverse proxy, the proxy has to pass the browser's original `Host` header on unchanged, which always works. Serving it over HTTPS helps too, but Safari before 16.4 sends no Fetch Metadata even then. [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an example. |
