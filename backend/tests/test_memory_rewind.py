@@ -1011,6 +1011,30 @@ async def test_a_pass_is_refused_when_a_turn_it_read_changed_while_the_model_ans
     assert (read["memory_position"], read["summary"]) == (4, "Before.")
 
 
+@pytest.mark.parametrize(("edited", "kept"), [
+    (5, True),    # read by the pass before
+    (15, True),   # not read yet, but before the 40 turns a pass reads
+    (21, False),  # the first of those the model was sent
+])
+async def test_a_typo_put_right_while_the_model_answers_refuses_the_pass_only_in_a_turn_it_was_sent(
+        client, fake_provider, monkeypatch, edited, kept):
+    """What the model was told of the other turns is nothing, and a cut changes their ids."""
+    convo_id = await a_story_read_once(client, last=60, read=10)
+    message = await at_position(client, convo_id, edited)
+
+    async def puts_right():
+        await client.patch(f"/api/messages/{message['id']}", json={"content": "Put right."})
+
+    while_the_model_answers(monkeypatch, puts_right)
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps({"facts": [], "summary": "To 60."})),
+                            ProviderEvent(type="done")]
+
+    resp = await client.post(f"/api/conversations/{convo_id}/memories/extract")
+
+    assert resp.status_code == (200 if kept else 409), resp.text
+    assert (await conversation(client, convo_id))["memory_position"] == (60 if kept else 10)
+
+
 async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merge(
         client, fake_provider, monkeypatch):
     """Pinned, kept past a cut at the end of the story, unpinned again: the same fact, with the

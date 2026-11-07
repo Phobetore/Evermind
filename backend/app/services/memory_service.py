@@ -250,8 +250,10 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     built = build_extraction_payload(character, persona, convo, messages, existing)
     if built is None:
         return {"facts_added": [], "summary": convo.get("summary") or ""}
-    payload, top_position = built
-    read = [(m["id"], m["content"]) for m in messages]  # the newest of them is at top_position
+    payload, turns = built
+    top_position = turns[-1]["position"]
+    read = [m["id"] for m in messages]  # the story up to the newest of the turns, at top_position
+    told = {(m["id"], m["content"]) for m in turns}  # what the model was told they say
     sent = {(m["id"], m["content"]) for m in existing}
 
     chunks: list[str] = []
@@ -267,11 +269,12 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
                        kind=MODEL_UNREADABLE)
     vectors = await _vectors_of(answer_texts(parsed))
 
-    # Nothing is kept of turns cut or rewritten, or of facts edited or forgotten, while the model answered.
+    # Nothing is kept of turns cut, or rewritten among those told, or of facts changed meanwhile.
     async with write_transaction(db):
         current = await convo_repo.get(db, convo_id, with_messages=False)
         now = await memories_repo.list_for_conversation(db, convo_id)
-        if await convo_repo.turns_through(db, convo_id, top_position) != read:
+        story = await convo_repo.turns_through(db, convo_id, top_position)
+        if [i for i, _ in story] != read or not told <= set(story):
             raise AppError("The conversation changed while the model read it.", 409,
                            kind=CONVERSATION_CHANGED)
         if not sent <= {(m["id"], m["content"]) for m in now}:
