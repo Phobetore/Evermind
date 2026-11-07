@@ -1,4 +1,4 @@
-"""What plan_memory_changes returns is pinned by parity/memory_changes.json; here,
+"""What plan_memory_changes returns is pinned by cases/memory_changes.json; here,
 what it leaves alone."""
 
 import copy

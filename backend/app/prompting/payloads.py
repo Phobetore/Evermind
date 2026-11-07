@@ -1,9 +1,8 @@
 """The prompts that are not a chat turn's: ghost-writing the player's next message,
 summarizing, extracting and consolidating the memory, and drafting a card.
 
-Pure, with no database and no model, so that frontend/src/engine/payloads.ts can
-answer the same cases (parity/payloads.json). The services fetch what these read,
-send what they return, and say what went wrong.
+Pure: no database, no model. The services fetch what these read, send what they return,
+and say what went wrong.
 """
 
 import json

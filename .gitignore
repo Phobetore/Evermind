@@ -31,9 +31,6 @@ logs/
 .env.local
 .env.production
 
-# A wider look at the prompt engines (parity/README.md), not for the repository.
-parity/hunt*.json
-
 # Left behind by the end-to-end suite.
 frontend/test-results/
 frontend/playwright-report/
