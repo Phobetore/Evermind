@@ -435,9 +435,8 @@ async def test_a_pass_that_was_reading_when_the_story_was_cut_leaves_nothing_of_
         release.set()
     answered = await within(5, reading)
 
-    assert answered.status_code == 200, answered.text
-    assert answered.json()["skipped"] == "changed"
-    assert answered.json()["facts_added"] == []
+    assert answered.status_code == 409, answered.text
+    assert answered.json()["kind"] == "conversation_changed"
     assert await names(client, convo["id"]) == set()
     read = await conversation(client, convo["id"])
     assert (read["memory_position"], read["summary"]) == (0, "")
@@ -470,7 +469,7 @@ async def test_a_pass_that_was_reading_is_kept_when_only_later_turns_were_added(
         release.set()
     answered = await within(5, reading)
 
-    assert "skipped" not in answered.json()
+    assert answered.status_code == 200, answered.text
     assert [f["content"] for f in answered.json()["facts_added"]] == ["Learned meanwhile."]
     assert (await conversation(client, convo["id"]))["memory_position"] == 4
 
@@ -747,8 +746,8 @@ async def test_a_pass_is_refused_when_a_person_changed_a_fact_it_was_sent(
 
     resp = await client.post(f"/api/conversations/{convo_id}/memories/extract")
 
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["skipped"] == "changed"
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["kind"] == "conversation_changed"
     left = {"To drop."} | ({"By hand."} if change == "edited" else set())
     assert await names(client, convo_id) == left
     read = await conversation(client, convo_id)
@@ -781,7 +780,8 @@ async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merg
 
     answered = await client.post(f"/api/conversations/{convo_id}/memories/consolidate")
 
-    assert answered.json()["skipped"] == "changed"
+    assert answered.status_code == 409, answered.text
+    assert answered.json()["kind"] == "facts_changed"
     assert await stored_facts(client, convo_id) == [
         (f"Fact {n}.", 4, False, "auto") for n in range(8)]
 
@@ -870,7 +870,6 @@ async def test_a_summary_typed_while_the_model_answers_is_kept_with_the_rest_of_
     while_the_model_answers(monkeypatch, types)
     answered = await extract(client, convo_id, AN_ANSWER)
 
-    assert "skipped" not in answered
     assert answered["summary"] == typed
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (8, typed)

@@ -17,8 +17,12 @@ import aiosqlite
 
 from ..db import _connect, write_transaction
 from ..errors import (
+    CONVERSATION_CHANGED,
+    FACTS_CHANGED,
+    MEMORY_BUSY,
     MODEL_UNREADABLE,
     NO_CONNECTION,
+    TOO_FEW_FACTS,
     AppError,
     NotFoundError,
     error_body,
@@ -93,28 +97,27 @@ def schedule_if_due(convo_id: str) -> None:
         try:
             if await is_due(db, convo_id):
                 await run_maintenance(db, convo_id)
-        except Exception as exc:
+        except AppError as exc:
+            if exc.kind in (MEMORY_BUSY, CONVERSATION_CHANGED):
+                return  # the next reply asks again
+            logger.warning("memory maintenance failed for %s: %s", convo_id, exc.message)
+            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1, "error": error_body(exc)}
+        except Exception:
             logger.exception("memory maintenance failed for %s", convo_id)
-            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1, "error": _error_body(exc)}
+            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1,
+                                 "error": {"error": "The memory pass failed.", "kind": "internal"}}
         finally:
             await db.close()
 
     asyncio.get_running_loop().create_task(_task())
 
 
-def _error_body(exc: Exception) -> dict:
-    if not isinstance(exc, AppError):
-        return {"error": "The memory pass failed.", "kind": "internal"}
-    return error_body(exc)
-
-
-async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
-                        busy: Callable[[], Awaitable[dict]]) -> dict:
-    """Run ``work``, or answer ``busy`` when another memory task is running for this
-    conversation. A pass and a consolidation each read the memory, wait for a model, and
-    write what it said, so that the two would cross."""
+async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]]) -> dict:
+    """Run ``work``, unless another memory task is running for this conversation. A pass and a
+    consolidation each read the memory, wait for a model, and write what it said, so that the
+    two would cross."""
     if convo_id in _running:
-        return await busy()
+        raise AppError("Another memory task is running.", 409, kind=MEMORY_BUSY)
     _running.add(convo_id)
     try:
         return await work()
@@ -125,21 +128,13 @@ async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
 async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
                           hold_back: int = HOLD_BACK) -> dict:
     """One extraction+summary pass, which leaves the ``hold_back`` newest messages for the
-    next. Returns {"facts_added": [...], "summary": str}, with
-    "skipped" set to "busy" and nothing looked at when another memory task was running,
-    and to "changed" and nothing kept when the turns it read were not the story's any more
-    when it came to write what it learned, the memory's position had moved, or a person had
-    edited or forgotten a fact it was sent."""
-    async def busy() -> dict:
-        return {"facts_added": [], "summary": None, "skipped": "busy"}
-
+    next. Returns {"facts_added": [...], "summary": str}."""
     async def work() -> dict:
         result = await _run(db, convo_id, hold_back)
-        if "skipped" not in result:
-            _failed.pop(convo_id, None)
+        _failed.pop(convo_id, None)
         return result
 
-    return await one_at_a_time(convo_id, work, busy)
+    return await one_at_a_time(convo_id, work)
 
 
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
@@ -153,15 +148,8 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
 
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Merge non-pinned facts into a shorter, denser set (pinned untouched).
-    Returns {"before": n, "after": n, "memories": [...]}, with "skipped" set and nothing
-    changed when there were too few facts, or when one of those sent to the model was
-    changed, pinned or deleted while it answered ("changed"), or another memory task was
-    running ("busy")."""
-    async def busy() -> dict:
-        facts = await memories_repo.list_for_conversation(db, convo_id)
-        return {"before": len(facts), "after": len(facts), "memories": facts, "skipped": "busy"}
-
-    return await one_at_a_time(convo_id, lambda: _consolidate(db, convo_id), busy)
+    Returns {"before": n, "after": n, "memories": [...]}."""
+    return await one_at_a_time(convo_id, lambda: _consolidate(db, convo_id))
 
 
 async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
@@ -175,8 +163,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     all_facts = await memories_repo.list_for_conversation(db, convo_id)
     movable = movable_facts(all_facts)
     if len(movable) < MIN_FACTS_TO_CONSOLIDATE:
-        return {"before": len(all_facts), "after": len(all_facts),
-                "memories": all_facts, "skipped": "too_few"}
+        raise AppError("Too few facts to consolidate.", 409, kind=TOO_FEW_FACTS)
 
     payload = build_consolidation_payload(character, persona, movable)
     chunks: list[str] = []
@@ -203,7 +190,8 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
         now = await memories_repo.list_for_conversation(db, convo_id)
         still = {(m["id"], m["content"], m["source_position"]) for m in movable_facts(now)}
         if any((m["id"], m["content"], m["source_position"]) not in still for m in movable):
-            return {"before": len(now), "after": len(now), "memories": now, "skipped": "changed"}
+            raise AppError("The facts changed while the model merged them.", 409,
+                           kind=FACTS_CHANGED)
 
         # A fact that the merge repeats stays as it is, since adding it again is refused
         # as a double.
@@ -276,20 +264,14 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
                        kind=MODEL_UNREADABLE)
     vectors = await _vectors_of(answer_texts(parsed))
 
-    # All of what it learned, or none of it. The model and the vectors can take a while. A
-    # person can cut the story back meanwhile: what it learned is then from turns that are
-    # gone, and a memory read up to a position the story no longer reaches would take the
-    # turns that come next for ones it has read. A person can also edit or forget a fact it
-    # was sent: what it decided was decided on the fact as it was, and a correction of a
-    # fact just forgotten would bring it back in other words. Nothing is kept then, and the
-    # next pass starts again. The changes are decided on the facts as they are now: a fact
-    # pinned meanwhile is no longer one to correct or drop.
+    # Nothing is kept of turns cut, or of facts edited or forgotten, while the model answered.
     async with write_transaction(db):
         current = await convo_repo.get(db, convo_id, with_messages=False)
         now = await memories_repo.list_for_conversation(db, convo_id)
         if (await convo_repo.message_ids_through(db, convo_id, top_position) != read
                 or not sent <= {(m["id"], m["content"]) for m in now}):
-            return {"facts_added": [], "summary": None, "skipped": "changed"}
+            raise AppError("The conversation changed while the model read it.", 409,
+                           kind=CONVERSATION_CHANGED)
         changes = plan_memory_changes(parsed, now, top_position)
         # A summary a person typed meanwhile is theirs, and the model wrote from the one before.
         written = changes["summary"] if current["summary"] == convo["summary"] else None

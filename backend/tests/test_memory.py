@@ -209,7 +209,8 @@ async def test_a_pass_sets_no_cap_on_a_connection_that_has_none(client, fake_pro
     assert fake_provider.captured["connection"]["max_tokens"] is None
 
 
-async def test_a_failed_automatic_pass_waits_for_more_replies_and_says_why(client, monkeypatch):
+async def test_a_failed_automatic_pass_waits_for_more_replies_and_says_why(
+        client, monkeypatch, caplog):
     monkeypatch.setattr("app.services.chat_service.get_provider", Said)
     monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
     FakeProvider.captured = {}
@@ -224,7 +225,9 @@ async def test_a_failed_automatic_pass_waits_for_more_replies_and_says_why(clien
     for n in range(every):
         await reply(n)
     asked = FakeProvider.captured["payload"]
-    assert (await client.get(f"/api/conversations/{convo['id']}")).json()["memory_error"]["kind"]         == "model_unreadable"
+    failed = (await client.get(f"/api/conversations/{convo['id']}")).json()["memory_error"]
+    assert failed["kind"] == "model_unreadable"
+    assert not [r for r in caplog.records if r.exc_info], "a model's failure is no fault of the code"
 
     # Not again until `every - 1` more replies have come, however many are due.
     FakeProvider.captured = {}
@@ -239,6 +242,27 @@ async def test_a_failed_automatic_pass_waits_for_more_replies_and_says_why(clien
     read = (await client.get(f"/api/conversations/{convo['id']}")).json()
     assert read["memory_error"] is None
     assert read["memory_position"] > 0
+
+
+async def test_an_automatic_pass_that_a_cut_overtook_is_no_failure(client, monkeypatch):
+    """The story changed while it read: the next reply asks again, and nothing went wrong."""
+    monkeypatch.setattr("app.services.chat_service.get_provider", Said)
+    started, release, _ = waiting_provider(monkeypatch)
+    FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                           ProviderEvent(type="done")]
+    convo = await setup_conversation(client)
+    for n in range(memory_service.MAINTENANCE_EVERY):
+        await send(client, convo["id"], content=f"exchange {n}")
+    try:
+        await within(5, started.wait())
+        messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
+        assert (await client.delete(f"/api/messages/{messages[3]['id']}")).status_code == 204
+    finally:
+        release.set()
+    await asyncio.gather(*[t for t in asyncio.all_tasks() if "schedule_if_due" in repr(t)])
+
+    read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+    assert (read["memory_position"], read["memory_error"]) == (0, None)
 
 
 async def test_a_pass_never_reads_a_message_out_of_character(client, fake_provider):
@@ -368,8 +392,8 @@ async def test_consolidate_skips_when_few_facts(client, fake_provider):
     convo = await setup_conversation(client)
     await client.post(f"/api/conversations/{convo['id']}/memories", json={"content": "Un seul fait."})
     resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
-    assert resp.status_code == 200
-    assert resp.json().get("skipped") == "too_few"
+    assert resp.status_code == 409
+    assert resp.json()["kind"] == "too_few_facts"
 
 
 MERGED = json.dumps({"facts": [{"content": "All of it, merged."}]})
@@ -460,10 +484,8 @@ async def test_nothing_is_written_when_a_fact_sent_to_the_model_changed_meanwhil
 
     resp = await consolidate_while(client, monkeypatch, convo["id"], meanwhile)
 
-    assert resp.status_code == 200, resp.text
-    body = resp.json()
-    assert body["skipped"] == "changed"
-    assert body["before"] == body["after"] == len(body["memories"])
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["kind"] == "facts_changed"
 
     def as_left(row):
         content, position, pinned, source = row
@@ -517,19 +539,12 @@ async def test_a_second_pass_while_a_consolidation_runs_changes_nothing_and_asks
         release.set()
     merged = await within(5, first)
 
-    assert second.status_code == 200, second.text
-    assert second.json()["skipped"] == "busy"
-    assert second.json()["before"] == second.json()["after"] == 8
-    assert len(second.json()["memories"]) == 8
-    assert extraction.status_code == 200, extraction.text
-    assert extraction.json()["skipped"] == "busy"
-    assert extraction.json()["facts_added"] == []
-    assert extraction.json()["summary"] is None
-    assert len(extraction.json()["memories"]) == 8
+    for refused in (second, extraction):
+        assert refused.status_code == 409, refused.text
+        assert refused.json()["kind"] == "memory_busy"
     assert len(asked) == 1
     assert merged.status_code == 200, merged.text
     assert merged.json()["before"] == 8 and merged.json()["after"] == 1
-    assert "skipped" not in merged.json()
     assert [f[0] for f in await stored_facts(client, convo["id"])] == ["All of it, merged."]
 
 
@@ -563,7 +578,6 @@ async def test_a_consolidation_that_fails_lets_the_next_one_run(
     resp = await client.post(url)
 
     assert resp.status_code == 200, resp.text
-    assert "skipped" not in resp.json()
     assert [f[0] for f in await stored_facts(client, convo["id"])] == ["All of it, merged."]
 
 

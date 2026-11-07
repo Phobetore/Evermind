@@ -169,7 +169,8 @@ async def walk(client, seed):
         elif step in ("pass", "consolidate"):
             url = {"pass": "memories/extract", "consolidate": "memories/consolidate"}
             answered = await client.post(f"{base}/{url[step]}")
-            assert answered.status_code == 200 or not messages, answered.text
+            too_few = answered.status_code == 409 and answered.json()["kind"] == "too_few_facts"
+            assert answered.status_code == 200 or too_few or not messages, answered.text
         elif step == "type":
             await client.patch(base, json={"summary": f"TYPED {World.token('t').strip('@')}"})
         elif step == "hand":
