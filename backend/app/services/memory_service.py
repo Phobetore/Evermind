@@ -283,17 +283,13 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     # turns that come next for ones it has read. A person can also edit or forget a fact it
     # was sent: what it decided was decided on the fact as it was, and a correction of a
     # fact just forgotten would bring it back in other words. Nothing is kept then, and the
-    # next pass starts again. So too if the memory's position moved: the conversation and its
-    # messages are two reads, and a cut between them, with new turns after it, leaves a story
-    # that checks out and a position that does not, from which the turns it passed over would
-    # count as read. The changes are decided on the facts as they are now: a fact pinned
-    # meanwhile is no longer one to correct or drop.
+    # next pass starts again. The changes are decided on the facts as they are now: a fact
+    # pinned meanwhile is no longer one to correct or drop.
     async with write_transaction(db):
         current = await convo_repo.get(db, convo_id, with_messages=False)
         now = await memories_repo.list_for_conversation(db, convo_id)
         if (await convo_repo.message_ids_through(db, convo_id, top_position) != read
-                or not sent <= {(m["id"], m["content"]) for m in now}
-                or current["memory_position"] != convo["memory_position"]):
+                or not sent <= {(m["id"], m["content"]) for m in now}):
             return {"facts_added": [], "summary": None, "skipped": "changed"}
         changes = plan_memory_changes(parsed, now, top_position)
         # A summary a person typed meanwhile is theirs, and the model wrote from the one
