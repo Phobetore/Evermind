@@ -74,7 +74,7 @@ async def talk(client, convo_id, exchanges, first=1):
 async def remove_from(client, convo_id, position):
     messages = (await client.get(f"/api/conversations/{convo_id}")).json()["messages"]
     message = next(m for m in messages if m["position"] == position)
-    resp = await client.delete(f"/api/messages/{message['id']}?following=true")
+    resp = await client.delete(f"/api/messages/{message['id']}")
     assert resp.status_code == 204, resp.text
 
 
@@ -471,13 +471,13 @@ async def test_a_conversation_from_before_the_checkpoints_can_be_cut_back(client
     after_the_read = next(m for m in last if m["position"] == 9)
     before_the_read = next(m for m in last if m["position"] == 5)
 
-    await client.delete(f"/api/messages/{after_the_read['id']}?following=true")
+    await client.delete(f"/api/messages/{after_the_read['id']}")
     kept = (await client.get(f"/api/conversations/{convo['id']}")).json()
     assert (kept["memory_position"], kept["summary"]) == (8, "Up to eight.")
     facts = (await client.get(f"/api/conversations/{convo['id']}/memories")).json()
     assert [f["content"] for f in facts] == ["Read by then."]
 
-    await client.delete(f"/api/messages/{before_the_read['id']}?following=true")
+    await client.delete(f"/api/messages/{before_the_read['id']}")
     gone = (await client.get(f"/api/conversations/{convo['id']}")).json()
     assert (gone["memory_position"], gone["summary"]) == (0, "")
     assert (await client.get(f"/api/conversations/{convo['id']}/memories")).json() == []

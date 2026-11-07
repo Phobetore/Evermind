@@ -99,7 +99,7 @@ describe("request building", () => {
   test("removeFrom deletes the message and what follows", async () => {
     await http.messages.removeFrom("m1");
     expect(calls[0]).toMatchObject({
-      url: "api/messages/m1?following=true",
+      url: "api/messages/m1",
       init: { method: "DELETE" },
     });
   });

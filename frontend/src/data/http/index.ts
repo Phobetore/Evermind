@@ -127,7 +127,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
     messages: {
       update: (id, changes) => patch<Message>(`api/messages/${seg(id)}`, changes),
       branch: (id) => post<Conversation>(`api/messages/${seg(id)}/branch`).then(conversationOf),
-      removeFrom: (id) => del(`api/messages/${seg(id)}?following=true`),
+      removeFrom: (id) => del(`api/messages/${seg(id)}`),
     },
 
     memories: {

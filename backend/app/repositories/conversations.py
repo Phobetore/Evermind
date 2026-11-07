@@ -382,21 +382,17 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int) -> N
                 (fact["content"], fact["kind"], fact["content"], fact["source_position"], fact_id))
 
 
-async def delete_message(db: aiosqlite.Connection, message_id: str,
-                         following: bool = False) -> bool:
-    """Remove a message, or with ``following`` the story from it on. Either way the memory
-    goes back to before it: nothing says what was drawn from it, or from the turns that
-    were read with it in the story, and the next pass reads again those that stay."""
+async def delete_message(db: aiosqlite.Connection, message_id: str) -> bool:
+    """Remove the story from this message on. The memory goes back to before it: nothing
+    says what was drawn from it, or from the turns that were read with it in the story,
+    and the next pass reads again those that stay."""
     message = await get_message(db, message_id)
     if not message:
         return False
-    if following:
-        await db.execute(
-            "DELETE FROM messages WHERE conversation_id = ? AND position >= ?",
-            (message["conversation_id"], message["position"]),
-        )
-    else:
-        await db.execute("DELETE FROM messages WHERE id = ?", (message_id,))
+    await db.execute(
+        "DELETE FROM messages WHERE conversation_id = ? AND position >= ?",
+        (message["conversation_id"], message["position"]),
+    )
     await _rewind_memory(db, message["conversation_id"], message["position"] - 1)
     await db.commit()
     return True

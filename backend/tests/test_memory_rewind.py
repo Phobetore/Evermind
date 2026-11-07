@@ -114,7 +114,7 @@ async def checkpoints_of(convo_id):
 
 async def remove_from(client, convo_id, position):
     message = await at_position(client, convo_id, position)
-    resp = await client.delete(f"/api/messages/{message['id']}?following=true")
+    resp = await client.delete(f"/api/messages/{message['id']}")
     assert resp.status_code == 204, resp.text
 
 
@@ -239,10 +239,9 @@ async def test_removing_from_the_first_message_removes_every_fact_it_can(client,
     assert (read["memory_position"], read["summary"]) == (0, "")
 
 
-async def test_removing_one_message_goes_through_the_same_cut(client, fake_provider):
+async def test_removing_a_message_removes_the_story_from_it_on(client, fake_provider):
     """The memory read the turns after it with it in the story, and nothing says what they
-    drew from it. It goes back to before it, and the next pass reads again the ones that
-    stay. The interface does not do this, but the API lets anyone."""
+    drew from it: the story stops before it, and so does the memory."""
     convo = await setup_conversation(client)
     convo_id = convo["id"]
     await told_then_corrected(client, convo_id)
@@ -251,8 +250,7 @@ async def test_removing_one_message_goes_through_the_same_cut(client, fake_provi
     resp = await client.delete(f"/api/messages/{message['id']}")
 
     assert resp.status_code == 204
-    assert [m["position"] for m in await messages_of(client, convo_id)] == [
-        n for n in range(17) if n != 11]
+    assert [m["position"] for m in await messages_of(client, convo_id)] == list(range(11))
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (8, "To 8.")
     assert await stored_facts(client, convo_id) == [("Alice is alive.", "state", 8, False, "auto")]
@@ -261,9 +259,9 @@ async def test_removing_one_message_goes_through_the_same_cut(client, fake_provi
     fake_provider.captured.clear()
     await extract(client, convo_id, {"facts": [], "summary": "Again."})
     shown = fake_provider.captured["payload"].messages[0]["content"]
-    assert "(turn 9)" in shown and "(turn 10)" in shown and "(turn 12)" in shown and "(turn 16)" in shown
+    assert "(turn 9)" in shown and "(turn 10)" in shown
     assert "(turn 11)" not in shown and "(turn 8)" not in shown
-    assert (await conversation(client, convo_id))["memory_position"] == 16
+    assert (await conversation(client, convo_id))["memory_position"] == 10
 
 
 async def test_removing_the_last_message_alone_is_a_cut_before_it(client, fake_provider):

@@ -130,7 +130,6 @@ async def branch_conversation(message_id: str, db: aiosqlite.Connection = Depend
 
 
 @router.delete("/messages/{message_id}", status_code=204)
-async def delete_message(message_id: str, following: bool = False,
-                         db: aiosqlite.Connection = Depends(get_db)):
-    if not await repo.delete_message(db, message_id, following=following):
+async def delete_message(message_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    if not await repo.delete_message(db, message_id):
         raise NotFoundError("Message not found.", "message")

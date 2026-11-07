@@ -212,7 +212,7 @@ async def test_a_message_deleted_during_its_reply_ends_the_reply_without_a_messa
     await reader.asend(None)
     await reader.aclose()
     mine = next(m for m in await _messages(client, convo["id"]) if m["content"] == "Efface-moi")
-    await client.delete(f"/api/messages/{mine['id']}?following=true")
+    await client.delete(f"/api/messages/{mine['id']}")
 
     await asyncio.wait_for(turn.finished.wait(), timeout=15)
     ending = turn.events[-1]
@@ -230,7 +230,7 @@ async def test_a_failed_turn_does_not_mark_a_message_it_never_touched(client, un
     await client.post("/api/chat", json={
         "conversation_id": convo["id"], "mode": "send", "content": "Dis quelque chose"})
     reply = (await _messages(client, convo["id"]))[-1]
-    await client.delete(f"/api/messages/{reply['id']}?following=true")
+    await client.delete(f"/api/messages/{reply['id']}")
 
     turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="continue"))
     await asyncio.wait_for(turn.finished.wait(), timeout=15)
@@ -650,7 +650,7 @@ async def test_a_regeneration_whose_reply_was_deleted_raises_no_alarm(client, un
     for _ in range(2):
         await reader.asend(None)
     await reader.aclose()
-    await client.delete(f"/api/messages/{reply['id']}?following=true")
+    await client.delete(f"/api/messages/{reply['id']}")
     await asyncio.wait_for(turn.finished.wait(), timeout=15)
 
     assert turn.discarded
@@ -703,7 +703,7 @@ async def test_a_reply_to_a_message_deleted_before_its_first_word_is_not_written
     reader = turns.follow(turn)
     await reader.asend(None)  # the start event
     await reader.aclose()
-    await client.delete(f"/api/messages/{asked['id']}?following=true")
+    await client.delete(f"/api/messages/{asked['id']}")
     await asyncio.wait_for(turn.finished.wait(), timeout=15)
 
     assert '"discarded"' in turn.events[-1], f"ended with {turn.events[-1]!r}"
