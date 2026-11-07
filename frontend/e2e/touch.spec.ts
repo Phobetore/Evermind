@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply, makeConversation } from "./fixtures";
+import { chat, conversationWithReply, makeConversation } from "./fixtures";
 
 /**
  * Small controls on a touch screen. The owner uses Evermind from his phone, and
@@ -28,12 +28,9 @@ async function withFacts(request: APIRequestContext) {
  *  characters, which on a phone is more than the title has room for. */
 async function withALongTitle(request: APIRequestContext) {
   const convo = await makeConversation(request);
-  await request.post(`${API}/api/chat`, {
-    data: {
-      conversation_id: convo.id, mode: "send", message_mode: "say",
-      content: "I came as soon as I could, and I brought everything you asked me for, so tell me what you owe me.",
-    },
-    timeout: 60_000,
+  await chat(request, {
+    conversation_id: convo.id, mode: "send",
+    content: "I came as soon as I could, and I brought everything you asked me for, so tell me what you owe me.",
   });
   const { title } = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(title.length, "the title is not long enough to test with").toBeGreaterThan(40);
@@ -199,9 +196,7 @@ test.describe("on a touch screen", () => {
   test("the actions of a message can be hit, and stay on the screen", async ({ page, request }) => {
     const convo = await withFacts(request);
     // A second variant of the reply, so that the arrows between them are there.
-    await request.post(`${API}/api/chat`, {
-      data: { conversation_id: convo.id, mode: "regenerate" }, timeout: 60_000,
-    });
+    await chat(request, { conversation_id: convo.id, mode: "regenerate" });
     for (const width of [412, 360, 320]) {
       await page.setViewportSize({ width, height: 800 });
       await messagesIn(page, convo.id);

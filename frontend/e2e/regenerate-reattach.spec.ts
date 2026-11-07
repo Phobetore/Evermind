@@ -22,10 +22,8 @@ test("a page arriving mid-regeneration hides the reply being replaced", async ({
   const target = convo.messages.at(-1);
   expect(target.role).toBe("assistant");
 
-  // Not awaited: the reply is being written while the page below opens.
-  const running = request.post(`${API}/api/chat`, {
-    data: { conversation_id: convo.id, mode: "regenerate" }, timeout: 120_000,
-  });
+  // Answered once it is under way: the reply is being written while the page below opens.
+  await request.post(`${API}/api/chat`, { data: { conversation_id: convo.id, mode: "regenerate" } });
 
   await expect.poll(async () =>
     (await (await request.get(`${API}/api/conversations/${convo.id}/turn`)).json()).running,
@@ -56,7 +54,9 @@ test("a page arriving mid-regeneration hides the reply being replaced", async ({
     return "hidden";
   }, { timeout: 40_000 }).toBe("hidden");
 
-  await running;
+  await expect.poll(async () =>
+    (await (await request.get(`${API}/api/conversations/${convo.id}/turn`)).json()).running,
+    { timeout: 60_000 }).toBe(false);
 
   // And it replaced rather than appended.
   const after = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).messages;

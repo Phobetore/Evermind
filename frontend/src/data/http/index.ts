@@ -135,11 +135,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
     },
 
     turns: {
-      send: (turn, onEvent, signal) =>
-        readEvents(
-          send("api/chat", { method: "POST", body: JSON.stringify(turn), signal }, fetchImpl),
-          onEvent,
-        ),
+      start: (turn) => post<{ user_message: Message | null }>("api/chat", turn),
       follow: (conversationId, onEvent, signal) =>
         readEvents(
           send(`api/conversations/${seg(conversationId)}/turn/stream`, { signal }, fetchImpl),

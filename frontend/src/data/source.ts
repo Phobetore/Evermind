@@ -1,6 +1,6 @@
 import type {
-  ChatEvent, Character, Connection, Conversation, Installation, Kind, LibraryItem, LoreEntry,
-  LoreEntryDraft, Memory, Message, Persona, ProviderType, Settings, TurnState,
+  Character, Connection, Conversation, Installation, Kind, LibraryItem, LoreEntry,
+  LoreEntryDraft, Memory, Message, Persona, ProviderType, Settings, TurnEvent, TurnState,
 } from "@/types";
 
 /** Everything the interface asks of its server, and nothing about how the
@@ -55,11 +55,12 @@ export interface DataSource {
     consolidate(conversationId: string): Promise<ConsolidateResult>;
   };
   turns: {
-    send(request: TurnRequest, onEvent: (event: ChatEvent) => void, signal?: AbortSignal): Promise<void>;
-    follow(conversationId: string, onEvent: (event: ChatEvent) => void, signal?: AbortSignal): Promise<void>;
+    /** Answers once the server has the message, with the message as it was saved. */
+    start(request: TurnRequest): Promise<{ user_message: Message | null }>;
+    follow(conversationId: string, onEvent: (event: TurnEvent) => void, signal?: AbortSignal): Promise<void>;
     stop(conversationId: string): Promise<void>;
-    /** Whether a reply is being written for this conversation right now, asked
-     *  for from this page or from another device. */
+    /** The reply being written for this conversation right now, asked for from this page or
+     *  from another device. */
     state(conversationId: string): Promise<TurnState>;
     impersonate(conversationId: string): Promise<{ text: string }>;
   };

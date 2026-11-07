@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
 import {
-  connectionBack, connectionDiesDuring, countingPosts, expectPickedUp, goWithinThePage, phoneComesBack,
+  connectionBack, connectionDiesDuring, countingPosts, countingStreams, expectPickedUp, goWithinThePage,
   report, retryButton, stopButton, writing,
 } from "./connection";
 import { conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
@@ -113,7 +113,7 @@ test.describe("sending while a reply is being written", () => {
     const refused = page.waitForResponse((r) => r.url().endsWith("/api/chat") && r.status() === 409);
     await beforeSending();
     await send(page, "Et ceci ?");
-    await expect(page.locator("textarea").first()).toHaveValue("");
+    await expect(page.locator("textarea").first(), "it waits in the box").toHaveValue("Et ceci ?");
     return async () => {
       release();
       await refused;
@@ -177,17 +177,17 @@ test.describe("what is asked of a connection that does not answer", () => {
   test("continuing a reply through a lost connection shows nothing twice", async ({ page, request }) => {
     const convo = await conversationWithReply(request, { slowly: true, says: "bravo" });
     const target = convo.messages.at(-1);
-    await connectionDiesDuring(page, "api/chat", { chunks: 3 });
+    await connectionDiesDuring(page, "/turn/stream", { chunks: 3 });
+    const streams = countingStreams(page);
     await page.goto(`/#/chat/${convo.id}`);
     await expect(page.locator(`[data-message-id="${target.id}"]`)).toBeVisible();
 
-    const pickedUp = page.waitForRequest("**/turn/stream");
     await page.locator('button[title="Continue the reply"]').first().click({ force: true });
-    await expectPickedUp(page, pickedUp);
-    await expect(page.locator(`[data-message-id="${target.id}"]`),
-      "the reply being continued went away").toBeVisible();
+    await expectPickedUp(page, expect.poll(streams).toBeGreaterThan(1));
+    // Drawn whole, from its words as they arrive, in place of the message.
+    await expect(page.locator(`[data-message-id="${target.id}"]`)).toHaveCount(0);
     expect((await page.locator("main").textContent())?.match(/bravo one/g)?.length,
-      "the words so far are there twice").toBe(1);
+      "the words so far are there twice, or not at all").toBe(1);
 
     await expect.poll(() => turnRunning(request, convo.id), { timeout: 60_000 }).toBe(false);
     const after = (await conversation(request, convo.id)).messages;
@@ -208,6 +208,8 @@ test.describe("Retry on what was asked for by hand", () => {
       if (r.url().endsWith("/api/chat")) asked.push(r.postDataJSON().mode);
     });
     await page.goto(`/#/chat/${convo.id}`);
+    // Once the page has settled: a name arriving moves the button from under a click.
+    await page.waitForLoadState("networkidle");
     await page.locator(`button[title="${button}"]`).first().click({ force: true });
     await expect(report(page).first()).toBeVisible({ timeout: 20_000 });
     await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
@@ -254,7 +256,7 @@ test.describe("a message that does not go", () => {
     await expect(box(page)).toHaveValue("");
   });
 
-  test("turned away by something in between, it is in the box, and retrying sends it", async ({ page, request }) => {
+  test("turned away by something in between, it is in the box as what it was meant as, and Send sends it", async ({ page, request }) => {
     const convo = await conversationWithReply(request);
     const reply = convo.messages.at(-1);
     await page.route("**/api/chat", (route) => route.fulfill(badGateway));
@@ -265,23 +267,23 @@ test.describe("a message that does not go", () => {
     await expect(report(page).first()).toBeVisible({ timeout: 20_000 });
     await expect(box(page), "the message was lost").toHaveValue("Passe donc.");
     await expect(narrationMode(page), "it came back as something else").toBeVisible();
+    await expect(retryButton(page), "Send is what sends it").toHaveCount(0);
     await page.unroute("**/api/chat");
 
-    await box(page).fill("Passe donc.\nEt puis ceci.");
-    await retryButton(page).click();
+    await page.locator('button[title="Send"]').click();
 
     await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
       { timeout: 30_000 }).toBe(convo.messages.length + 2);
     const { messages } = await conversation(request, convo.id);
-    expect(messages.at(-2).content, "half of what is being typed went with it").toBe("Passe donc.");
+    expect(messages.at(-2).content).toBe("Passe donc.");
     expect(messages.at(-2).meta.mode, "not what it was meant as").toBe("narrate");
     expect(messages.find((m: { id: string }) => m.id === reply.id).variants.length,
       "asked for a new version of the reply before it").toBe(reply.variants.length);
-    await expect(box(page)).toHaveValue("Et puis ceci.");
+    await expect(box(page)).toHaveValue("");
     await expect(report(page)).toHaveCount(0);
   });
 
-  test("two quick Retries send it once", async ({ page, request }) => {
+  test("two quick presses of Send send it once", async ({ page, request }) => {
     const convo = await conversationWithReply(request);
     await page.route("**/api/chat", (route) => route.fulfill(badGateway));
     await page.goto(`/#/chat/${convo.id}`);
@@ -290,7 +292,7 @@ test.describe("a message that does not go", () => {
     await page.unroute("**/api/chat");
 
     const posts = countingPosts(page);
-    await retryButton(page).dblclick();
+    await page.locator('button[title="Send"]').dblclick();
     await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
       { timeout: 30_000 }).toBe(convo.messages.length + 2);
     expect(posts()).toBe(1);
@@ -314,7 +316,8 @@ test.describe("a message that does not go", () => {
     await expect(box(page), "the message was lost").toHaveValue("Me revoilà.");
   });
 
-  /** A message that got there, with the answer lost on the way back. */
+  /** A message that got there, with the answer lost on the way back, and nothing getting through
+   *  until the connection is back. */
   async function sentWithTheAnswerLost(page: Page, id: string, text: string) {
     await connectionDiesDuring(page, "api/chat", { chunks: 0, staysDead: true });
     await page.goto(`/#/chat/${id}`);
@@ -323,36 +326,36 @@ test.describe("a message that does not go", () => {
     await expect(box(page), "there is no telling yet, so it is kept").toHaveValue(text);
   }
 
-  test("one that arrived and was answered is not said twice by pressing Send", async ({ page, request }) => {
+  test("one that arrived and was answered leaves the box by itself, and is said once", async ({ page, request }) => {
     const convo = await conversationWithReply(request);
     await sentWithTheAnswerLost(page, convo.id, "Arrivé quand même.");
     await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
-    await connectionBack(page); // and nothing says so
 
     const posts = countingPosts(page);
-    await page.locator('button[title="Send"]').click();
+    await connectionBack(page); // and nothing says so: the page asks again by itself
 
-    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2, { timeout: 15_000 });
-    await expect(box(page)).toHaveValue("");
+    await expect(box(page), "still offered for sending").toHaveValue("", { timeout: 15_000 });
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
     await expect(report(page)).toHaveCount(0);
     expect(await said(request, convo.id, "Arrivé quand même."), "sent twice").toBe(1);
-    expect((await conversation(request, convo.id)).messages.length, "a second reply").toBe(convo.messages.length + 2);
     expect(posts(), "there was nothing to ask for").toBe(0);
   });
 
-  test("Retry on one that arrived with no reply gets it one, and does not say it twice", async ({ page, request }) => {
+  test("one that arrived with no reply says why, and Retry gets it one without saying it twice", async ({ page, request }) => {
     const convo = await conversationWithReply(request, { failing: true });
     const reply = convo.messages.at(-1);
     await sentWithTheAnswerLost(page, convo.id, "Réponds.");
     await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
     await connectionBack(page);
+    await expect(box(page)).toHaveValue("", { timeout: 15_000 });
+    await expect(report(page).first(), "the reason was lost").toContainText("500");
     await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
 
     await retryButton(page).click();
 
-    await expect(box(page)).toHaveValue("", { timeout: 10_000 });
     await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
       { timeout: 30_000 }).toBe(convo.messages.length + 2);
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
     const { messages } = await conversation(request, convo.id);
     expect(messages.at(-1).role, "no reply").toBe("assistant");
     expect(await said(request, convo.id, "Réponds."), "sent twice").toBe(1);
@@ -367,8 +370,8 @@ test.describe("a message that does not go", () => {
     await expect(box(page)).toBeVisible();
     await narrating(page);
     await send(page, "Trop tard.");
-    await expect(box(page)).toHaveValue("");
-    await expect(stopButton(page)).toBeVisible();
+    await expect(box(page), "it waits in the box").toHaveValue("Trop tard.");
+    await expect(page.locator('button[title="Send"]')).toBeDisabled();
 
     await page.reload();
 
@@ -380,22 +383,5 @@ test.describe("a message that does not go", () => {
       { timeout: 30_000 }).toBe(convo.messages.length + 2);
     expect(await said(request, convo.id, "Trop tard.")).toBe(1);
     await expect(box(page)).toHaveValue("");
-  });
-
-  test("one that arrived, its answer being what was lost, does not stay to be sent twice", async ({ page, request }) => {
-    const convo = await conversationWithReply(request, { slowly: true });
-    await connectionDiesDuring(page, "api/chat", { chunks: 0, staysDead: true });
-    await page.goto(`/#/chat/${convo.id}`);
-    await send(page, "Arrivé quand même.");
-    await expect(report(page).first()).toBeVisible({ timeout: 20_000 });
-    await expect(box(page), "there is no telling yet, so it is kept").toHaveValue("Arrivé quand même.");
-
-    await connectionBack(page);
-    await phoneComesBack(page);
-    await expect(box(page), "still offered for sending").toHaveValue("", { timeout: 15_000 });
-    await stopTurn(request, convo.id);
-    const said = (await conversation(request, convo.id)).messages
-      .filter((m: { content: string }) => m.content === "Arrivé quand même.");
-    expect(said.length).toBe(1);
   });
 });

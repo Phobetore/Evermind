@@ -49,7 +49,8 @@ export function ChatInput({
   characterName,
 }: {
   conversationId: string;
-  onSend: (content: string, messageMode: MessageMode) => Promise<void>;
+  /** Whether the server has the message, which leaves the box only then. */
+  onSend: (content: string, messageMode: MessageMode) => Promise<boolean>;
   onStop: () => void;
   busy: boolean;
   characterName: string;
@@ -59,6 +60,7 @@ export function ChatInput({
   // own and its unsent draft is read once, as the input appears.
   const [value, setValue] = useState(() => loadDraft(conversationId));
   const [mode, setMode] = useState<MessageMode>("say");
+  const [sending, setSending] = useState(false);
   const [ghostwriting, setGhostwriting] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   // Stays until the next attempt, rather than fading: something has to be
@@ -107,23 +109,27 @@ export function ChatInput({
     saveDraft(conversationId, text);
   }
 
-  function submit() {
+  async function submit() {
     const content = value.trim();
-    if (!content || busy) return;
+    if (!content || busy || sending) return;
     // The reply about to be asked for reports its own silence, in the
     // conversation. Two of these on screen at once is the fuss this was
     // supposed to avoid.
     setSilent(false);
+    change(content);
+    suggested.current = ""; // sent, it is the person's message, refused or not
+    setSending(true);
+    const sent = await onSend(content, mode);
+    setSending(false);
+    if (!sent) return;
     setValue("");
     clearDraft(conversationId);
-    suggested.current = ""; // sent, it is the person's message, given back or not
     setMode("say"); // narration and OOC are one-shot by nature
-    held.current = { value: "", mode: "say" }; // before anything is given back to it
-    void onSend(content, mode);
+    held.current = { value: "", mode: "say" };
   }
 
   async function ghostwrite() {
-    if (busy || ghostwriting) return;
+    if (busy || sending || ghostwriting) return;
     setGhostwriting(true);
     setHint(null);
     setSilent(false);
@@ -164,7 +170,7 @@ export function ChatInput({
         <button
           className={clsx("btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12", MODES[mode].color)}
           onClick={() => setMode(MODES[mode].next)}
-          disabled={busy}
+          disabled={busy || sending}
           title={t(MODES[mode].labelKey)}
         >
           {(() => {
@@ -175,7 +181,7 @@ export function ChatInput({
         <button
           className="btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
           onClick={ghostwrite}
-          disabled={busy || ghostwriting}
+          disabled={busy || sending || ghostwriting}
           title={t("chat.input.ghostwriteTitle")}
         >
           {ghostwriting ? (
@@ -187,6 +193,7 @@ export function ChatInput({
         <textarea
           ref={ref}
           value={value}
+          readOnly={sending}
           onChange={(e) => change(e.target.value)}
           onKeyDown={(e) => {
             // A phone keyboard has no Shift, so there Enter is the only way to a new line.
@@ -215,10 +222,11 @@ export function ChatInput({
           <button
             className="btn btn-primary h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
             onClick={submit}
-            disabled={!value.trim()}
+            disabled={!value.trim() || sending}
             title={t("chat.input.sendTitle")}
           >
-            <Send className="h-5 w-5" />
+            {/* Waking on wifi can take a few seconds, and the message waits here for the server. */}
+            {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
           </button>
         )}
       </div>

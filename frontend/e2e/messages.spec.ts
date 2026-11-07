@@ -1,17 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { API } from "../playwright.config";
-import { conversation, conversationWithReply, makeConversation } from "./fixtures";
+import { chat, conversation, conversationWithReply, makeConversation } from "./fixtures";
 
 /** What a conversation shows of its messages, and what can be done to them. */
 
 test("a message written on several lines is shown on as many", async ({ page, request }) => {
   const convo = await makeConversation(request);
-  await request.post(`${API}/api/chat`, {
-    data: {
-      conversation_id: convo.id, mode: "send", message_mode: "say",
-      content: "First line\nsecond line.\nAfter a hard break:  \nthe last.",
-    },
-    timeout: 60_000,
+  await chat(request, {
+    conversation_id: convo.id, mode: "send",
+    content: "First line\nsecond line.\nAfter a hard break:  \nthe last.",
   });
   await page.goto(`/#/chat/${convo.id}`);
 

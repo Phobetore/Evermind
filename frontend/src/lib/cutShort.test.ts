@@ -12,12 +12,7 @@ test("another version was, or none", () => {
   expect(isCutShort({ meta: {}, active_index: 0 })).toBe(false);
 });
 
-test("a reply stored by an older version reads as the version active", () => {
-  expect(isCutShort({ meta: { interrupted: true }, active_index: 0 })).toBe(true);
-  expect(isCutShort({ meta: { interrupted: true }, active_index: 3 })).toBe(true);
-});
-
-test("what is neither is no mark", () => {
+test("what is not a list is no mark", () => {
   expect(isCutShort({ meta: { interrupted: false }, active_index: 0 })).toBe(false);
   expect(isCutShort({ meta: { interrupted: "yes" }, active_index: 0 })).toBe(false);
 });

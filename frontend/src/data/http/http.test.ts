@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { data, DataError as ExportedDataError, onLocked as exportedOnLocked } from "@/data";
-import type { ChatEvent } from "@/types";
+import type { TurnEvent } from "@/types";
 import { DataError } from "../errors";
 import type { DataSource } from "../source";
 import { createHttpSource } from "./index";
@@ -221,6 +221,11 @@ describe("routes", () => {
     ["memories.remove", () => http.memories.remove("f1"), "DELETE", "api/memories/f1"],
     ["memories.extract", () => http.memories.extract("v1"), "POST", "api/conversations/v1/memories/extract"],
     ["memories.consolidate", () => http.memories.consolidate("v1"), "POST", "api/conversations/v1/memories/consolidate"],
+    [
+      "turns.start",
+      () => http.turns.start({ conversation_id: "v1", mode: "send", content: "Hi", message_mode: "narrate" }),
+      "POST", "api/chat", { conversation_id: "v1", mode: "send", content: "Hi", message_mode: "narrate" },
+    ],
     ["turns.stop", () => http.turns.stop("v1"), "DELETE", "api/conversations/v1/turn"],
     ["turns.state", () => http.turns.state("v1"), "GET", "api/conversations/v1/turn"],
     ["turns.impersonate", () => http.turns.impersonate("v1"), "POST", "api/conversations/v1/impersonate"],
@@ -508,112 +513,86 @@ describe("fetch", () => {
 });
 
 describe("turns", () => {
-  const start = '{"type":"start","conversation_id":"v1","user_message":null}';
-
   test("turn events survive chunk boundaries", async () => {
-    reply(chunked(`data: ${start}\n\nda`, 'ta: {"type":"delta","text":"Hi"}\n\n'));
-    const events: ChatEvent[] = [];
+    reply(chunked('data: {"text":"He"}\n\nda', 'ta: {"delta":"llo"}\n\n'));
+    const events: TurnEvent[] = [];
 
-    await http.turns.send({ conversation_id: "v1", mode: "send", content: "Hello" }, (e) => events.push(e));
+    await http.turns.follow("v1", (e) => events.push(e));
 
-    expect(events).toEqual([
-      { type: "start", conversation_id: "v1", user_message: null },
-      { type: "delta", text: "Hi" },
-    ]);
+    expect(events).toEqual([{ text: "He" }, { delta: "llo" }]);
   });
 
   test("the last event counts even without a closing blank line", async () => {
-    reply(chunked('data: {"type":"delta","text":"Hi"}'));
-    const events: ChatEvent[] = [];
+    reply(chunked('data: {"end":true}'));
+    const events: TurnEvent[] = [];
 
-    await http.turns.send({ conversation_id: "v1", mode: "continue" }, (e) => events.push(e));
+    await http.turns.follow("v1", (e) => events.push(e));
 
-    expect(events).toEqual([{ type: "delta", text: "Hi" }]);
+    expect(events).toEqual([{ end: true }]);
   });
 
   test("garbage between events is skipped", async () => {
-    reply(chunked(': keep-alive\n\ndata: {oops\n\ndata: {"type":"delta","text":"Hi"}\n\n'));
-    const events: ChatEvent[] = [];
+    reply(chunked(': keep-alive\n\ndata: {oops\n\ndata: {"delta":"Hi"}\n\n'));
+    const events: TurnEvent[] = [];
 
-    await http.turns.send({ conversation_id: "v1", mode: "send" }, (e) => events.push(e));
+    await http.turns.follow("v1", (e) => events.push(e));
 
-    expect(events).toEqual([{ type: "delta", text: "Hi" }]);
+    expect(events).toEqual([{ delta: "Hi" }]);
   });
 
   test("a character cut in two between chunks arrives whole", async () => {
-    const bytes = new TextEncoder().encode('data: {"type":"delta","text":"Zoé 紅"}\n\n');
+    const bytes = new TextEncoder().encode('data: {"delta":"Zoé 紅"}\n\n');
     // Inside "é", which is two bytes, and inside "紅", which is three.
     const cuts = [bytes.indexOf(0xc3) + 1, bytes.indexOf(0xe7) + 1];
     reply(chunkedBytes(
       bytes.slice(0, cuts[0]), bytes.slice(cuts[0], cuts[1]), bytes.slice(cuts[1]),
     ));
-    const events: ChatEvent[] = [];
+    const events: TurnEvent[] = [];
 
-    await http.turns.send({ conversation_id: "v1", mode: "send" }, (e) => events.push(e));
+    await http.turns.follow("v1", (e) => events.push(e));
 
-    expect(events).toEqual([{ type: "delta", text: "Zoé 紅" }]);
+    expect(events).toEqual([{ delta: "Zoé 紅" }]);
   });
 
-  test("a handler that throws makes the turn reject and lets the connection go", async () => {
+  test("a handler that throws makes following reject and lets the connection go", async () => {
     let cancelled = false;
     const encoder = new TextEncoder();
     reply(new Response(new ReadableStream({
       start(controller) {
-        controller.enqueue(encoder.encode('data: {"type":"delta","text":"Hi"}\n\n'));
+        controller.enqueue(encoder.encode('data: {"delta":"Hi"}\n\n'));
       },
       cancel() {
         cancelled = true;
       },
     })));
-
-    await http.turns
-      .send({ conversation_id: "v1", mode: "send" }, () => {
-        throw new Error("handler bug");
-      })
-      .catch(() => {});
-
-    // Left open, the server would go on writing to a page that has stopped listening.
-    expect(cancelled).toBe(true);
-  });
-
-  test("a handler that throws makes the turn reject", async () => {
-    reply(chunked('data: {"type":"delta","text":"Hi"}\n\n'));
     const bug = new Error("handler bug");
 
     const failure = await http.turns
-      .send({ conversation_id: "v1", mode: "send" }, () => {
+      .follow("v1", () => {
         throw bug;
       })
       .catch((e) => e);
 
     expect(failure).toBe(bug);
+    // Left open, the server would go on writing to a page that has stopped listening.
+    expect(cancelled).toBe(true);
   });
 
-  test("send posts the request and hands the signal to fetch", async () => {
-    reply(chunked());
-    const controller = new AbortController();
-    const request = { conversation_id: "v1", mode: "send" as const, content: "Hi", message_mode: "narrate" as const };
+  test("starting answers with the message as the server saved it", async () => {
+    const saved = { id: "m1", content: "Hi" };
+    reply(json({ user_message: saved }));
 
-    await http.turns.send(request, () => {}, controller.signal);
-
-    expect(calls[0].url).toBe("api/chat");
-    expect(calls[0].init.method).toBe("POST");
-    expect(bodyOf(calls[0])).toEqual(request);
+    expect(await http.turns.start({ conversation_id: "v1", mode: "send", content: "Hi" }))
+      .toEqual({ user_message: saved });
     expect(new Headers(calls[0].init.headers).get("Content-Type")).toBe("application/json");
-    expect(calls[0].init.signal).toBe(controller.signal);
   });
 
-  test("following an idle conversation yields nothing", async () => {
-    reply(new Response("", { status: 200, headers: { "Content-Type": "text/event-stream" } }));
-    reply(new Response(null, { status: 200 }));
-    const events: ChatEvent[] = [];
-
-    await http.turns.follow("v1", (e) => events.push(e));
-    await http.turns.follow("v1", (e) => events.push(e));
-
-    expect(events).toEqual([]);
-    expect(calls[0].url).toBe("api/conversations/v1/turn/stream");
-    expect(calls[0].init.method ?? "GET").toBe("GET");
+  test("a refused turn rejects with what the server said", async () => {
+    reply(json({ error: "No LLM connection configured.", kind: "no_connection" }, 400));
+    const failure = await http.turns.start({ conversation_id: "v1", mode: "send" }).catch((e) => e);
+    expect(failure).toBeInstanceOf(DataError);
+    expect(failure.kind).toBe("no_connection");
+    expect(failure.status).toBe(400);
   });
 
   test("following a turn hands the signal to fetch", async () => {
@@ -622,17 +601,9 @@ describe("turns", () => {
 
     await http.turns.follow("v1", () => {}, controller.signal);
 
+    expect(calls[0].url).toBe("api/conversations/v1/turn/stream");
+    expect(calls[0].init.method ?? "GET").toBe("GET");
     expect(calls[0].init.signal).toBe(controller.signal);
-  });
-
-  test("a refused turn rejects with what the server said", async () => {
-    reply(json({ error: "No model is connected." }, 400));
-    const failure = await http.turns
-      .send({ conversation_id: "v1", mode: "send" }, () => {})
-      .catch((e) => e);
-    expect(failure).toBeInstanceOf(DataError);
-    expect(failure.message).toBe("No model is connected.");
-    expect(failure.status).toBe(400);
   });
 
   test("a connection that never opens is a network error", async () => {
@@ -652,16 +623,14 @@ describe("turns", () => {
       pull(controller) {
         if (sent) throw dropped;
         sent = true;
-        controller.enqueue(encoder.encode('data: {"type":"delta","text":"Hi"}\n\n'));
+        controller.enqueue(encoder.encode('data: {"delta":"Hi"}\n\n'));
       },
     })));
-    const events: ChatEvent[] = [];
+    const events: TurnEvent[] = [];
 
-    const failure = await http.turns
-      .send({ conversation_id: "v1", mode: "send" }, (e) => events.push(e))
-      .catch((e) => e);
+    const failure = await http.turns.follow("v1", (e) => events.push(e)).catch((e) => e);
 
-    expect(events).toEqual([{ type: "delta", text: "Hi" }]);
+    expect(events).toEqual([{ delta: "Hi" }]);
     expect(failure).toBeInstanceOf(DataError);
     expect(failure.kind).toBe("network");
     expect(failure.cause).toBe(dropped);
@@ -674,7 +643,7 @@ describe("turns", () => {
         throw aborted;
       },
     })));
-    await expect(http.turns.send({ conversation_id: "v1", mode: "send" }, () => {})).rejects.toBe(aborted);
+    await expect(http.turns.follow("v1", () => {})).rejects.toBe(aborted);
   });
 });
 
@@ -691,14 +660,14 @@ describe("under a path prefix", () => {
     reply(json([]));
     reply(json({}));
     reply(json({}));
-    reply(chunked());
+    reply(json({ user_message: null }));
     reply(chunked());
     reply(new Response("{}"));
     reply(json({}));
     await http.characters.list();
     await http.characters.get("c1");
     await http.characters.uploadAvatar("c1", file);
-    await http.turns.send({ conversation_id: "v1", mode: "send" }, () => {});
+    await http.turns.start({ conversation_id: "v1", mode: "send" });
     await http.turns.follow("v1", () => {});
     await http.characters.exportCard("c1", "json");
     await http.conversations.setWallpaper("v1", file);

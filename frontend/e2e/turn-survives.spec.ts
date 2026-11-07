@@ -44,7 +44,7 @@ test("the reply keeps being written after the page goes away", async ({ browser,
   const messages = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).messages;
   const reply = messages.at(-1);
   expect(reply.role).toBe("assistant");
-  expect(reply.meta.streaming, "left unfinished, so the generation died with the page").toBeUndefined();
+  expect(reply.meta.interrupted, "left unfinished, so the generation died with the page").toBeUndefined();
   expect(reply.content.length).toBeGreaterThan(40);
 });
 
@@ -77,30 +77,23 @@ test("coming back shows the reply still arriving", async ({ browser, request }) 
 });
 
 /**
- * A page opening asks two things, what the conversation says and whether a reply
- * is being written, and the answers are not from one moment. A turn ending between
- * them left the reply as far as it had got, with nothing saying so and nothing
- * coming to replace it until the page was reloaded.
+ * A page opening asks whether a reply is being written, reads the conversation, then follows
+ * the words. A turn ending while it follows left the reply as far as it had got, with nothing
+ * saying so and nothing coming to replace it until the page was reloaded.
  */
-test("a reply ending while the page opens is shown whole", async ({ page, request }) => {
+test("a reply ending while the page follows it is shown whole", async ({ page, request }) => {
   const convo = await conversationWithReply(request, { slowly: true });
-
-  // Not awaited: the reply is being written while the page below opens.
-  const writing = request.post(`${API}/api/chat`, {
+  await request.post(`${API}/api/chat`, {
     data: { conversation_id: convo.id, mode: "send", content: "Ecris longuement.", message_mode: "say" },
-    timeout: 120_000,
   });
 
   // Some of it has landed, so that what the page reads below is unfinished.
-  await expect.poll(async () => {
-    const last = (await conversation(request, convo.id)).messages.at(-1);
-    return last.meta.streaming === true || last.variants.length > 1;
-  }, { timeout: 10_000 }).toBe(true);
+  await expect.poll(async () => (await conversation(request, convo.id)).messages.at(-1).role,
+    { timeout: 10_000 }).toBe("assistant");
 
-  // The order this is about, forced: the conversation is read now, and whether
-  // anything is running is only answered once nothing is.
-  await page.route("**/turn", async (route) => {
-    await writing;
+  // The order this is about, forced: what it follows only answers once nothing is running.
+  await page.route("**/turn/stream", async (route) => {
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 60_000 }).toBe(false);
     await route.continue();
   });
   const firstRead = page.waitForResponse(
@@ -108,7 +101,7 @@ test("a reply ending while the page opens is shown whole", async ({ page, reques
   await page.goto(`/#/chat/${convo.id}`);
   const seen = (await (await firstRead).json()).messages.at(-1);
 
-  await writing;
+  await expect.poll(() => turnRunning(request, convo.id), { timeout: 60_000 }).toBe(false);
   const reply = (await conversation(request, convo.id)).messages.at(-1);
   expect(seen.content.length, "the page did not read the reply unfinished")
     .toBeLessThan(reply.content.length);
@@ -120,11 +113,10 @@ test("a reply ending while the page opens is shown whole", async ({ page, reques
 });
 
 /**
- * A reply whose turn was cut off keeps a mark saying it is still being written,
- * and while a turn is live the view hides the reply that turn is writing. Taken
- * for that one, the reply left marked vanished for the length of every later
- * generation — most visibly the moment you tried to continue it, which is
- * exactly what you do with one that stopped short.
+ * A reply cut short keeps a mark saying so, and while a turn is live the view draws the
+ * message it writes from its words as they arrive. The reply left marked vanished for the
+ * length of every later generation — most visibly the moment you tried to continue it, which
+ * is exactly what you do with one that stopped short.
  */
 test("a reply left mid-write stays on screen while it is continued", async ({ page, request }) => {
   // Slowly, so the reply is still being written when it is stopped however fast
@@ -156,10 +148,10 @@ test("a reply left mid-write stays on screen while it is continued", async ({ pa
 
   const stranded = (await (await request.get(
     `${API}/api/conversations/${convo.id}`)).json()).messages.at(-1);
-  expect(stranded.meta.streaming, "the stop did not leave an unfinished reply").toBe(true);
+  expect(stranded.meta.interrupted, "the stop did not leave a reply cut short").toEqual([0]);
 
-  const onScreen = page.locator(`[data-message-id="${stranded.id}"]`);
-  await expect(onScreen).toBeVisible();
+  await expect(page.locator(`[data-message-id="${stranded.id}"]`)).toBeVisible();
+  const words = stranded.content.replaceAll("*", "").split(" ").slice(0, 4).join(" ");
 
   await page.locator('button[title="Continue the reply"]').first().click({ force: true });
 
@@ -168,8 +160,8 @@ test("a reply left mid-write stays on screen while it is continued", async ({ pa
   const writing = page.locator(".stream-caret");
   await expect(writing).toBeVisible();
   for (let i = 0; i < 6; i++) {
-    await expect(onScreen,
-      "the reply disappeared while its continuation was being written").toBeVisible();
+    await expect(page.locator("main"),
+      "the reply disappeared while its continuation was being written").toContainText(words);
     await expect(writing).not.toHaveText((await writing.textContent()) ?? "");
   }
 
