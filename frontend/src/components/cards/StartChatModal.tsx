@@ -104,8 +104,11 @@ export function StartChatModal({
                   value={connectionId}
                   onChange={(e) => setConnectionId(e.target.value)}
                 >
+                  {/* The connections come with the personas: null personas is loading. */}
                   {connections.length === 0 && (
-                    <option value="">{t("cards.startChatModal.noConnectionOption")}</option>
+                    <option value="">
+                      {personas === null ? t("common.loading") : t("cards.startChatModal.noConnectionOption")}
+                    </option>
                   )}
                   {connections.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -135,7 +138,7 @@ export function StartChatModal({
               </Field>
             )}
 
-            {data.connections && connections.length === 0 && (
+            {personas !== null && data.connections && connections.length === 0 && (
               <p className="rounded-lg border border-ember-600/40 bg-ember-glow px-4 py-2.5 text-sm text-ember-300">
                 {t("cards.startChatModal.noConnectionWarning")}
               </p>
