@@ -1,9 +1,12 @@
 """Self-maintained long-term memory.
 
-Every MAINTENANCE_EVERY assistant replies, one LLM call (the conversation's
-own connection) extracts new durable facts and rewrites the running summary
-to cover what it read, which leaves the newest HOLD_BACK messages out. Runs as a background task with its
-own SQLite connection; a per-conversation guard prevents overlapping runs.
+A pass is due once MAINTENANCE_EVERY assistant replies are unread: one LLM call (the
+conversation's own connection) extracts new durable facts and rewrites the running summary to
+cover what it read. An automatic pass leaves the newest HOLD_BACK messages unread, and the
+replies among them count toward the next one: with the player and the character taking turns,
+the first pass comes after MAINTENANCE_EVERY replies and each later one HOLD_BACK / 2 replies
+earlier, after 8 and then every 6. Runs as a background task with its own SQLite connection; a
+per-conversation guard prevents overlapping runs.
 """
 
 import asyncio
