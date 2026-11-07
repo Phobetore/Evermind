@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page, type Request, type Route } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { API } from "../playwright.config";
 import { makeCharacter, makeConversation } from "./fixtures";
 
@@ -63,6 +63,36 @@ test("a favourite that is not saved says so on its card, whose star is what the 
   await expect(star("Add to favorites")).toBeVisible();
   await expect(said).toHaveCount(0);
   expect(await favourite(request, card.id)).toBe(false);
+});
+
+/** What is drawn over `box`, looked for down its middle. */
+const drawnOver = (box: Locator) => box.evaluate((el) => {
+  const { left, top, width, height } = el.getBoundingClientRect();
+  const over = new Set<string>();
+  for (let y = top + 1; y < top + height - 1; y += 4) {
+    const hit = document.elementFromPoint(left + width / 2, y);
+    if (!el.contains(hit)) over.add(hit ? `${hit.tagName.toLowerCase()} "${hit.textContent?.trim().slice(0, 30)}"` : "nothing");
+  }
+  return [...over];
+});
+
+test("at 320px, a favourite that is not saved is said over the name that comes up behind it", { tag: "@desktop" }, async ({ page, request }) => {
+  // The longest of the four sentences, four lines there, under a name of three.
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "de"));
+  await page.setViewportSize({ width: 320, height: 700 });
+  const card = await makeCharacter(request, { name: `Hüterin des Nordtors ${Date.now().toString(36)}` });
+  await page.goto("/#/");
+  const shown = page.locator("main a", { has: page.getByRole("heading", { name: card.name }) });
+  await failing(page, "PUT", `/api/characters/${card.id}`, refused);
+  await shown.getByRole("button", { name: "Zu Favoriten hinzufügen" }).click();
+  const said = shown.getByRole("alert");
+  await expect(said).toContainText("(HTTP 500)");
+
+  await said.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  const box = (await said.boundingBox())!;
+  const name = (await shown.getByRole("heading").boundingBox())!;
+  expect(name.y, "the name does not come up to the box, so this proves nothing").toBeLessThan(box.y + box.height);
+  expect(await drawnOver(said), "drawn over the sentence").toEqual([]);
 });
 
 /** A conversation of its own in the list, under a title of its own. */

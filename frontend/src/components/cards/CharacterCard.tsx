@@ -56,10 +56,11 @@ export function CharacterCard({
           <Star className={clsx("h-4 w-4", character.is_favorite && "fill-current")} />
         </button>
       )}
+      {/* Over the caption: at 320px a long name comes up behind it. */}
       {error && (
         <p
           role="alert"
-          className="absolute inset-x-2 top-14 z-10 rounded-lg border border-blood/40 bg-ink-950/90 px-2.5 py-1.5 text-xs leading-snug text-blood"
+          className="absolute inset-x-2 top-14 z-20 rounded-lg border border-blood/40 bg-ink-950/90 px-2.5 py-1.5 text-xs leading-snug text-blood"
         >
           {error}
         </p>
