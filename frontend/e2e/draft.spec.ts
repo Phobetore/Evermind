@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { makeConversation } from "./fixtures";
+import { API } from "../playwright.config";
+import { retryButton } from "./connection";
+import { conversation, conversationWithReply, makeConversation } from "./fixtures";
 
 /** A half-written message is kept in the browser, per conversation, and comes
  *  back when the page does: the phone's browser reloads a tab it had to free
@@ -32,4 +34,33 @@ test("the notice about a restored draft goes away by itself", async ({ page, req
   await expect(page.getByText("Draft restored")).toBeVisible();
   await expect(page.getByText("Draft restored")).toBeHidden({ timeout: 8000 });
   await expect(page.locator("textarea").first()).toHaveValue("Hold on");
+});
+
+test("the pen writes under what the box holds, and a message given back to it still goes", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const { text: suggestion } = await (await request.post(`${API}/api/conversations/${convo.id}/impersonate`)).json();
+  await page.route("**/api/chat", (route) =>
+    route.fulfill({ status: 502, contentType: "text/html", body: "<html>Bad gateway</html>" }));
+  await page.goto(`/#/chat/${convo.id}`);
+  const box = page.locator("textarea").first();
+  await box.fill("Passe donc.");
+  await page.locator('button[title="Send"]').click();
+  await expect(box, "the refused message did not come back").toHaveValue("Passe donc.", { timeout: 20_000 });
+  await page.unroute("**/api/chat");
+
+  const pen = page.getByTitle("Write my reply for me (editable before sending)");
+  for (let press = 1; press <= 2; press++) {
+    const answered = page.waitForResponse((r) => r.url().endsWith("/impersonate"));
+    await pen.click();
+    await (await answered).finished();
+    await expect(pen).toBeEnabled();
+    // A second press replaces the suggestion it made, and nothing else.
+    await expect(box, `after press ${press}`).toHaveValue(`Passe donc.\n${suggestion}`);
+  }
+
+  await retryButton(page).click();
+  await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
+    { timeout: 30_000 }).toBe(convo.messages.length + 2);
+  expect((await conversation(request, convo.id)).messages.at(-2).content).toBe("Passe donc.");
+  await expect(box).toHaveValue(suggestion);
 });

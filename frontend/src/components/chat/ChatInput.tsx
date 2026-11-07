@@ -75,6 +75,8 @@ export function ChatInput({
   const [enterSends, setEnterSends] = useState(true);
   const ref = useRef<HTMLTextAreaElement>(null);
   const held = useRef({ value, mode });
+  // The pen's last suggestion, which pressing it again replaces while it is as written.
+  const suggested = useRef("");
 
   useEffect(() => {
     held.current = { value, mode };
@@ -142,7 +144,12 @@ export function ChatInput({
     setSilent(false);
     try {
       const result = await data.turns.impersonate(conversationId);
-      setValue(result.text);
+      const last = suggested.current;
+      suggested.current = result.text;
+      // Under what the box holds, which is where a message given back to it is looked for.
+      const box = held.current.value;
+      const kept = last && box.endsWith(last) ? box.slice(0, -last.length).trimEnd() : box;
+      change(kept.trim() ? `${kept}\n${result.text}` : result.text);
       ref.current?.focus();
     } catch (e) {
       // The model saying nothing is not the same as a mistake, and it used to
