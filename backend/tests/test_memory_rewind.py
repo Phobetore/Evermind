@@ -428,6 +428,33 @@ async def test_a_summary_a_person_put_right_comes_back_past_the_pass_that_rewrot
     assert (read["memory_position"], read["summary"]) == (8, SERANA)
 
 
+@pytest.mark.parametrize(("was", "position"), [
+    ("To 8.", 8),  # what the memory holds: nothing was read since
+    ("To 4.", 4),  # a pass wrote another since, of turns 5 to 8
+    ("", 0),       # no pass wrote what it was typed over
+])
+async def test_a_summary_typed_over_an_older_one_leaves_the_turns_read_since_to_the_next_pass(
+        client, fake_provider, was, position):
+    """It tells what the person read when they began typing, and nothing of the turns a pass
+    read meanwhile."""
+    convo_id = (await setup_conversation(client))["id"]
+    for first, read in ((1, 4), (3, 8)):
+        await talk(client, convo_id, 2, first=first)
+        await extract(client, convo_id, {"facts": [], "summary": f"To {read}."})
+
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": "Typed.", "summary_was": was})
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (position, "Typed.")
+    assert (await summaries_of(convo_id))[-1] == (position, "Typed.")
+    await talk(client, convo_id, 1, first=5)
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [], "summary": "Next."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "CURRENT SUMMARY:\nTyped.\n" in shown
+    assert f"(turn {position + 1})" in shown and f"(turn {position})" not in shown
+
+
 async def test_a_pass_that_gives_no_summary_keeps_a_typed_one_as_typed(client, fake_provider):
     """Its row holds what the person typed, so that a cut back to it gives that back after a
     later pass has rewritten it."""
