@@ -3,13 +3,15 @@ import { Avatar } from "@/components/ui/Avatar";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
-import { describeError } from "@/lib/errors";
+import { describeError, describeResult } from "@/lib/errors";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+
+type Where = "connection" | "directive" | "summary" | "memory";
 
 export function ChatSidePanel({
   conversation,
@@ -34,14 +36,19 @@ export function ChatSidePanel({
   const t = useT();
   const character = conversation.character!;
   const [connections, setConnections] = useState<Connection[]>([]);
-  const [summary, setSummary] = useState(conversation.summary);
+  // What is being typed, or null: the box then shows what the conversation holds, so a
+  // pass that wrote the summary meanwhile, or a cut in the story, shows without a patch.
+  const [summaryDraft, setSummaryDraft] = useState<string | null>(null);
+  const [directiveDraft, setDirectiveDraft] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Partial<Record<Where, string>>>({});
   const [memories, setMemories] = useState<Memory[]>([]);
   const [newFact, setNewFact] = useState("");
   const [memorizing, setMemorizing] = useState(false);
   const [memoryNote, setMemoryNote] = useState<string | null>(null);
   const [consolidating, setConsolidating] = useState(false);
-  const [directive, setDirective] = useState(conversation.author_note ?? "");
+  const summary = summaryDraft ?? conversation.summary;
+  const directive = directiveDraft ?? conversation.author_note ?? "";
   const wallpaperInput = useRef<HTMLInputElement>(null);
   const [wallpaperBusy, setWallpaperBusy] = useState(false);
   const [wallpaperError, setWallpaperError] = useState<string | null>(null);
@@ -85,72 +92,121 @@ export function ChatSidePanel({
       .catch(() => {});
   }, [conversation.id, storyCuts]);
 
-  // Both fields are editable, and both have to follow the conversation when it
-  // changes from elsewhere: summarising rewrites the summary, and switching
-  // conversation replaces the directive. Adjusting during render rather than in
-  // an effect is what React recommends for that, and it costs one render
-  // instead of two.
-  const [lastSummary, setLastSummary] = useState(conversation.summary);
-  if (conversation.summary !== lastSummary) {
-    setLastSummary(conversation.summary);
-    setSummary(conversation.summary);
-  }
-  const incomingDirective = conversation.author_note ?? "";
-  const [lastDirective, setLastDirective] = useState(incomingDirective);
-  if (incomingDirective !== lastDirective) {
-    setLastDirective(incomingDirective);
-    setDirective(incomingDirective);
-  }
+  // The panel can be older than the conversation: a pass writes the summary on its own,
+  // and a cut in the story takes it back. Read it again when the panel opens, after a cut,
+  // and when the person comes back to the window.
+  const patchConversation = useRef(onConversationChange);
+  useEffect(() => {
+    patchConversation.current = onConversationChange;
+  });
+  useEffect(() => {
+    const read = () =>
+      data.conversations
+        .get(conversation.id)
+        .then(({ summary, author_note, memory_error }) =>
+          patchConversation.current({ summary, author_note, memory_error: memory_error ?? null }),
+        )
+        .catch(() => {});
+    const visible = () => {
+      if (document.visibilityState === "visible") void read();
+    };
+    void read();
+    window.addEventListener("focus", read);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      window.removeEventListener("focus", read);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, [conversation.id, storyCuts]);
+
+  // A pass of its own that failed is told here until one succeeds.
+  const failed = conversation.memory_error;
+  const memoryError =
+    errors.memory ??
+    (failed
+      ? describeResult(
+          {
+            detail: failed.error,
+            kind: failed.kind,
+            upstream: failed.upstream,
+            upstream_status: failed.upstream_status,
+            upstream_url: failed.upstream_url,
+          },
+          t,
+        )
+      : null);
+
+  const fail = (where: Where, text: string | null) =>
+    setErrors((prev) => ({ ...prev, [where]: text ?? undefined }));
 
   async function saveDirective() {
-    const value = directive.trim();
-    if (value === (conversation.author_note ?? "")) return;
-    await data.conversations.update(conversation.id, { author_note: value });
-    onConversationChange({ author_note: value });
+    if (directiveDraft === null) return;
+    const value = directiveDraft.trim();
+    fail("directive", null);
+    if (value !== (conversation.author_note ?? "")) {
+      try {
+        await data.conversations.update(conversation.id, { author_note: value });
+      } catch (e) {
+        fail("directive", describeError(e, t));
+        return;
+      }
+      onConversationChange({ author_note: value });
+    }
+    setDirectiveDraft(null);
   }
 
   async function memorizeNow() {
     setMemorizing(true);
     setMemoryNote(null);
+    fail("memory", null);
     try {
       const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
       if (result.summary) {
-        setSummary(result.summary);
-        onConversationChange({ summary: result.summary });
+        onConversationChange({ summary: result.summary, memory_error: null });
+        setSummaryDraft(null);
       }
-      setMemoryNote(describeExtraction(result, t, conversation.summary));
+      const said = describeExtraction(result, t, conversation.summary);
+      if (result.skipped) fail("memory", said);
+      else {
+        setMemoryNote(said);
+        setTimeout(() => setMemoryNote(null), 4000);
+      }
     } catch (e) {
-      setMemoryNote(describeError(e, t, t("chat.panel.facts.extractError")));
+      fail("memory", describeError(e, t, t("chat.panel.facts.extractError")));
     }
     setMemorizing(false);
-    setTimeout(() => setMemoryNote(null), 4000);
   }
 
   async function consolidateMemory() {
     setConsolidating(true);
     setMemoryNote(null);
+    fail("memory", null);
     try {
       const result = await data.memories.consolidate(conversation.id);
       setMemories(result.memories);
-      setMemoryNote(describeConsolidation(result, t));
+      const said = describeConsolidation(result, t);
+      if (result.skipped) fail("memory", said);
+      else {
+        setMemoryNote(said);
+        setTimeout(() => setMemoryNote(null), 5000);
+      }
     } catch (e) {
-      setMemoryNote(describeError(e, t, t("chat.panel.facts.consolidateError")));
+      fail("memory", describeError(e, t, t("chat.panel.facts.consolidateError")));
     }
     setConsolidating(false);
-    setTimeout(() => setMemoryNote(null), 5000);
   }
 
   async function addFact() {
     const content = newFact.trim();
     if (!content) return;
+    fail("memory", null);
     try {
       const saved = await data.memories.create(conversation.id, { content, is_pinned: true });
       setMemories((prev) => [saved, ...prev]);
       setNewFact("");
     } catch (e) {
-      setMemoryNote(describeError(e, t, t("chat.panel.facts.addError")));
-      setTimeout(() => setMemoryNote(null), 3000);
+      fail("memory", describeError(e, t, t("chat.panel.facts.addError")));
     }
   }
 
@@ -158,8 +214,7 @@ export function ChatSidePanel({
   // failure to add one. The fact may be gone already, taken out by a cut in the story
   // or by a pass of the memory, so the list is read again rather than left as it was.
   function failedFactChange(error: unknown) {
-    setMemoryNote(describeError(error, t));
-    setTimeout(() => setMemoryNote(null), 3000);
+    fail("memory", describeError(error, t));
     data.memories.list(conversation.id).then(setMemories).catch(() => {});
   }
 
@@ -182,7 +237,13 @@ export function ChatSidePanel({
   }
 
   async function changeConnection(connectionId: string) {
-    await data.conversations.update(conversation.id, { connection_id: connectionId });
+    fail("connection", null);
+    try {
+      await data.conversations.update(conversation.id, { connection_id: connectionId });
+    } catch (e) {
+      fail("connection", describeError(e, t));
+      return;
+    }
     onConversationChange({ connection_id: connectionId });
   }
 
@@ -190,8 +251,15 @@ export function ChatSidePanel({
   const summaryIsBeingWritten = memorizing;
 
   async function saveSummary() {
-    await data.conversations.update(conversation.id, { summary });
+    fail("summary", null);
+    try {
+      await data.conversations.update(conversation.id, { summary });
+    } catch (e) {
+      fail("summary", describeError(e, t));
+      return;
+    }
     onConversationChange({ summary });
+    setSummaryDraft(null);
     setNote(t("chat.panel.summary.saved"));
     setTimeout(() => setNote(null), 1500);
   }
@@ -253,6 +321,7 @@ export function ChatSidePanel({
               </option>
             ))}
           </select>
+          {errors.connection && <p className="mt-1.5 break-words text-xs text-blood">{errors.connection}</p>}
         </Field>
       )}
 
@@ -396,7 +465,7 @@ export function ChatSidePanel({
         <textarea
           className="field min-h-20 text-sm"
           value={directive}
-          onChange={(e) => setDirective(e.target.value)}
+          onChange={(e) => setDirectiveDraft(e.target.value)}
           onBlur={saveDirective}
           placeholder={t("chat.panel.directive.placeholder")}
         />
@@ -405,6 +474,7 @@ export function ChatSidePanel({
             {t("chat.panel.directive.applyButton")}
           </button>
         )}
+        {errors.directive && <p className="mt-1.5 break-words text-xs text-blood">{errors.directive}</p>}
       </div>
 
       <div>
@@ -412,7 +482,7 @@ export function ChatSidePanel({
         <textarea
           className="field min-h-32 text-sm"
           value={summary}
-          onChange={(e) => setSummary(e.target.value)}
+          onChange={(e) => setSummaryDraft(e.target.value)}
           disabled={summaryIsBeingWritten}
           placeholder={t("chat.panel.summary.placeholder")}
         />
@@ -425,6 +495,7 @@ export function ChatSidePanel({
             {t("chat.panel.summary.saveButton")}
           </button>
         )}
+        {errors.summary && <p className="mt-1.5 break-words text-xs text-blood">{errors.summary}</p>}
         {note && <p className="mt-1.5 break-words text-xs text-moss">{note}</p>}
       </div>
 
@@ -522,6 +593,7 @@ export function ChatSidePanel({
             <Plus className="h-4 w-4" />
           </button>
         </div>
+        {memoryError && <p className="mt-1.5 break-words text-xs text-blood">{memoryError}</p>}
         {memoryNote && <p className="mt-1.5 break-words text-xs text-moss">{memoryNote}</p>}
       </div>
 

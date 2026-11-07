@@ -132,6 +132,80 @@ test("the summary box cannot be typed in while the memory reads the story", asyn
   await expect(summary).toBeEnabled();
 });
 
+test("a summary being typed is not replaced by one a pass wrote meanwhile", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
+    timeout: 60_000,
+  });
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await summary.fill("Typed, not saved yet.");
+
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.waitForTimeout(500);
+
+  await expect(summary).toHaveValue("Typed, not saved yet.");
+  await panel.getByRole("button", { name: panelText.summary.saveButton }).click();
+  await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
+  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(read.summary).toBe("Typed, not saved yet.");
+});
+
+test("a summary a pass wrote meanwhile shows when the person comes back to the window", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
+    timeout: 60_000,
+  });
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await expect(summary).toHaveValue("");
+
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+
+  await expect(summary).toHaveValue(/woke the character in a crypt/);
+});
+
+test("a memory pass that fails says so in the colour of an error, and keeps saying it", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await page.route("**/memories/extract", (route) =>
+    route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Cannot reach the model.", kind: "unreachable" }),
+    }),
+  );
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+
+  await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+
+  const error = panel.locator("p.text-blood");
+  await expect(error).toBeVisible();
+  await page.waitForTimeout(4500);
+  await expect(error).toBeVisible();
+});
+
 test("a fact that is gone says so when it is pinned, and leaves the list", async ({ page, request }) => {
   const convo = await makeConversation(request);
   const made = await request.post(`${API}/api/conversations/${convo.id}/memories`, {
