@@ -967,20 +967,43 @@ async def set_message(message_id, column, value):
         await db.close()
 
 
-async def test_remember_reads_no_further_than_a_reply_still_being_written(client, fake_provider):
-    """What has come of it is not what it will say, and no pass would read the rest."""
+async def test_remember_reads_no_further_than_a_reply_still_being_written(
+        client, fake_provider, monkeypatch):
+    """What has come of it is not what it will say, and no pass would read the rest. The turn is a
+    real one: how a reply says it is still being written belongs to the code that writes it."""
     convo_id = (await setup_conversation(client))["id"]
-    await talk(client, convo_id, 2)
-    reply = await at_position(client, convo_id, 4)
-    await set_message(reply["id"], "meta", {"streaming": True})
+    await talk(client, convo_id, 1)
+    finish = asyncio.Event()
 
-    await extract(client, convo_id, {"facts": [], "summary": "To 3."})
+    class HalfWay:
+        def __init__(self, connection):
+            pass
+
+        async def stream_chat(self, payload):
+            yield ProviderEvent(type="delta", text="She opens the door.")
+            await finish.wait()
+            yield ProviderEvent(type="delta", text=" Behind it, the king lies dead.")
+            yield ProviderEvent(type="done")
+
+    async def half_written():
+        while not any(m["position"] == 4 for m in await messages_of(client, convo_id)):
+            await asyncio.sleep(0.01)
+
+    monkeypatch.setattr("app.services.chat_service.get_provider", HalfWay)
+    replying = asyncio.create_task(client.post("/api/chat", json={
+        "conversation_id": convo_id, "mode": "send", "content": "Open it."}))
+    try:
+        await within(5, half_written())
+        await extract(client, convo_id, {"facts": [], "summary": "To 3."})
+    finally:
+        finish.set()
+        await within(5, replying)
 
     assert "(turn 4)" not in fake_provider.captured["payload"].messages[0]["content"]
     assert (await conversation(client, convo_id))["memory_position"] == 3
-    await set_message(reply["id"], "meta", {})
     await extract(client, convo_id, {"facts": [], "summary": "To 4."})
-    assert "(turn 4): Reply." in fake_provider.captured["payload"].messages[0]["content"]
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "(turn 4): She opens the door. Behind it, the king lies dead." in shown
 
 
 @pytest.mark.parametrize("change", ["edited", "swiped"])
