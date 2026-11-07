@@ -93,8 +93,9 @@ async def update(db: aiosqlite.Connection, char_id: str, fields: dict) -> dict |
         elif key == "is_favorite":
             sets.append("is_favorite = ?")
             params.append(int(bool(value)))
-    sets.append("updated_at = ?")
-    params.append(now_iso())
+    if sets != ["is_favorite = ?"]:  # a favourite is no edit: the card keeps its place
+        sets.append("updated_at = ?")
+        params.append(now_iso())
     params.append(char_id)
     await db.execute(f"UPDATE characters SET {', '.join(sets)} WHERE id = ?", params)
     await db.commit()

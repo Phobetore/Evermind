@@ -414,6 +414,25 @@ async def test_favorites_toggle_and_sort(client):
     assert {c["id"] for c in everyone} == {fav["id"], plain["id"]}
 
 
+async def test_a_favourite_is_no_edit_and_leaves_the_card_in_its_place(client):
+    cards = [await create_character(client, name=name) for name in ("Old", "Middle", "New")]
+    from app.db import _connect
+    db = await _connect()
+    for day, card in enumerate(cards, start=1):
+        await db.execute("UPDATE characters SET updated_at = ? WHERE id = ?",
+                         (f"2026-01-0{day}", card["id"]))
+    await db.commit()
+    await db.close()
+    url = f"/api/characters/{cards[0]['id']}"
+
+    starred = (await client.put(url, json={"is_favorite": True})).json()
+    await client.put(url, json={"is_favorite": False})
+
+    assert starred["updated_at"] == "2026-01-01"
+    assert [c["name"] for c in (await client.get("/api/characters")).json()] == [
+        "New", "Middle", "Old"]
+
+
 async def test_a_conversation_asked_for_on_a_deleted_connection_starts_without_one(client):
     """A listing older than the deletion must not fail the start on the foreign key."""
     conn = await make_connection(client, "Jetable")
