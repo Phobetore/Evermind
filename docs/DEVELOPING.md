@@ -200,22 +200,22 @@ adds `"resource"` (`character`, `conversation`, `message`, `persona`,
 `connection`, `lore_entry`, `fact`, `library_card`, `illustration`, `file`). The
 sentence is for whoever reads the API; the interface reads `kind` and shows its
 own text for it, in the language the person chose (`frontend/src/lib/errors.ts`,
-sentences under `errors` in `frontend/src/i18n/locales/`). The same goes for the
-error events of a reply's stream. A new `AppError` needs a `kind`, and a test
-fails without one.
+sentences under `errors` in `frontend/src/i18n/locales/`). The same goes for how
+a reply failed, which `GET /api/conversations/{id}/turn` tells. A new `AppError`
+needs a `kind`, and a test fails without one.
 
-When a model's server is what failed, the kind says how (`unreachable`,
-`model_auth_refused`, `model_not_found`, `model_rate_limited`, `model_http_error`,
-`model_timeout`, `model_network_error`, `model_unexpected_response`, or
-`model_error` for a complaint of its own), and what it said travels apart from the
-sentence: `upstream` is its words as it sent them (for a page that is not JSON,
-the words of the page without its markup, cut short), `upstream_status` its status,
-and `upstream_url` the address that could not be reached, without any
-`user:password@` in it. The interface cannot translate what another program wrote,
-so it says the failure in the person's language, with the address where there is
-one, and shows `upstream` after it. The connection test, the
-benchmark and the model list report failures the same way inside their `200`
-bodies: `{"ok": false, "detail": "<English sentence>", "kind": ..., "upstream": ...}`.
+When a model's server is what failed (a `ProviderError`, `502`), the kind says how:
+`unreachable` (nothing answered at its address), `model_connection_lost` (the
+connection broke off or went quiet), `model_auth_refused`, `model_not_found` or
+`model_rate_limited` (an error status 401, 404 or 429), or `model_error` (any other
+error status, or an error inside its stream). The `error` is then not a sentence of
+Evermind's but what the server said (`HTTP <status>` when it said nothing), the
+address that could not be reached, or how the connection broke. The interface
+cannot translate what another program wrote, so it says the failure in the person's
+language and quotes those words. A model that answers with nothing is `model_empty`
+(`model_no_text` for the benchmark), and an answer that cannot be read is
+`model_unreadable`. The connection test, the benchmark and the model list fail the
+same way.
 
 Some answers never come from an `AppError`, and have no `kind`: FastAPI's
 own, `{"detail": ...}` for a route that does not exist (`404`), a method a route
@@ -313,8 +313,8 @@ Three things are worth knowing before changing it:
 - **A conversation opens on an assistant turn** when the character has a
   greeting, since the character then speaks first. Some chat templates refuse
   that shape and stream zero tokens, or an error inside a stream already begun
-  (an error event, which gets the same retry), so the first message of a first
-  conversation fails or dies in silence.
+  (which gets the same retry, unlike an error status), so the first message of a
+  first conversation fails or dies in silence.
   `chat_service` retries once with `fold_leading_assistant=True`, which moves the
   leading assistant turns into the system prompt and leaves a list that starts
   with the player. It is the weaker shape, since the model reads its own opening
