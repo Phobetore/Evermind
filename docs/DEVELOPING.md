@@ -284,8 +284,9 @@ Three things are worth knowing before changing it:
   relies on that exactness to avoid injecting something already on screen.
 - **A conversation opens on an assistant turn** when the character has a
   greeting, since the character then speaks first. Some chat templates refuse
-  that shape and stream zero tokens rather than erroring, so the first message
-  of a first conversation dies in silence.
+  that shape and stream zero tokens, or an error inside a stream already begun
+  (an error event, which gets the same retry), so the first message of a first
+  conversation fails or dies in silence.
   `chat_service` retries once with `fold_leading_assistant=True`, which moves the
   leading assistant turns into the system prompt and leaves a list that starts
   with the player. It is the weaker shape, since the model reads its own opening
