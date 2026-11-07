@@ -119,7 +119,8 @@ class Provider:
         if isinstance(exc, httpx.ConnectError | httpx.ConnectTimeout
                       | httpx.UnsupportedProtocol | httpx.InvalidURL):
             return ProviderError(self.base_url, UNREACHABLE)
-        message = str(exc) or "The connection to the model's server was lost."
+        message = str(exc) or (
+            "The model took too long to answer, or the connection to its server broke.")
         return ProviderError(message, CONNECTION_LOST)
 
 

@@ -118,7 +118,8 @@ async def test_a_connection_that_breaks_or_goes_quiet_is_lost(ask, name, make, e
 async def test_a_connection_lost_without_words_still_says_so():
     error = await failure_of(reply, oai_provider(raising(httpx.ReadTimeout, "")))
     assert (error.kind, error.message) == (
-        "model_connection_lost", "The connection to the model's server was lost.")
+        "model_connection_lost",
+        "The model took too long to answer, or the connection to its server broke.")
 
 
 class BreaksAfterAWord(httpx.AsyncByteStream):
