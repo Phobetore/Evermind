@@ -4,12 +4,11 @@ name: CodeQL
 # they would not want leaving it. Static analysis is cheap insurance against the
 # classes of bug that make that promise false.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  # Weekly only, because the queries improve even when the code does not. Never on
+  # pushes or pull requests, so it cannot hold a merge.
   schedule:
-    # Weekly, because the queries improve even when the code does not.
     - cron: "37 6 * * 1"
+  workflow_dispatch:
 
 jobs:
   analyze:
