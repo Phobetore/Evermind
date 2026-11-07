@@ -104,8 +104,9 @@ export function ChatSidePanel({
     for (const key of Object.keys(patch)) written.current[key as keyof Conversation] = reads.current;
     onConversationChange(patch);
   }
-  const read = useCallback(() => {
-    if (!aside.current?.offsetParent) return; // hidden, as the inline panel is on a phone
+  const read = useCallback((evenHidden = false) => {
+    // Hidden (the inline panel on a phone), it reads only after a cut: nothing else brings that.
+    if (!evenHidden && !aside.current?.offsetParent) return;
     const sent = ++reads.current;
     data.conversations
       .get(conversation.id)
@@ -129,9 +130,9 @@ export function ChatSidePanel({
     const wake = () => {
       if (document.visibilityState !== "visible") return;
       clearTimeout(waking);
-      waking = setTimeout(read, 100);
+      waking = setTimeout(() => read(), 100);
     };
-    read();
+    read(storyCuts > 0);
     window.addEventListener("focus", wake);
     document.addEventListener("visibilitychange", wake);
     return () => {

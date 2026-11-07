@@ -95,11 +95,22 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
   const summary = panel.getByPlaceholder(panelText.summary.placeholder);
   await expect(summary).toHaveValue(before.summary);
 
+  // Reopened on a phone, the panel's own read never lands: the cut must be on the page already.
+  let reopened = false;
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (!reopened || route.request().method() !== "GET") await route.continue();
+  });
   // greeting, then two questions and their replies: the second question is the fourth message.
   if (covers) await panel.getByLabel(panelText.closeAriaLabel).click();
+  // The facts are read again in the same breath as the reads that follow the cut.
+  const cut = page.waitForResponse((r) => r.url().endsWith(`/api/conversations/${convo.id}/memories`));
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByTitle("Delete from here").nth(3).click();
-  if (covers) await opener.click();
+  await cut;
+  if (covers) {
+    reopened = true;
+    await opener.click();
+  }
 
   // The second pass had read to the second reply; the first, to the first.
   await expect(summary).toHaveValue(first.summary);
