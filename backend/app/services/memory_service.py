@@ -190,7 +190,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     if merged is None:
         raise AppError("Unreadable consolidation — try again.", 502, kind=MODEL_UNREADABLE)
 
-    vectors = await _vectors_of(f["content"] for f in merged["facts"])
+    vectors = await _vectors_of(merged["facts"])
 
     # The memory as it is now rather than before the model was asked. The merge was
     # written from all the facts that were sent: if one of them was edited, pinned or
@@ -207,10 +207,10 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
 
         # A fact that the merge repeats stays as it is, since adding it again is refused
         # as a double.
-        for f in merged["facts"]:
-            await memories_repo.add_with_vector(db, convo_id, f["content"], f["kind"],
-                                                merged["source_position"], vectors.get(f["content"]))
-        kept = {f["content"] for f in merged["facts"]}
+        for content in merged["facts"]:
+            await memories_repo.add_with_vector(db, convo_id, content, merged["source_position"],
+                                                vectors.get(content))
+        kept = set(merged["facts"])
         for m in movable:
             if m["content"] not in kept:
                 await memories_repo.remove(db, m["id"])
@@ -238,8 +238,7 @@ async def _apply(db: aiosqlite.Connection, convo_id: str, changes: dict,
     added = []
     for fact in changes["add"]:
         saved = await memories_repo.add_with_vector(
-            db, convo_id, fact["content"], fact["kind"], fact["source_position"],
-            vectors.get(fact["content"]))
+            db, convo_id, fact["content"], fact["source_position"], vectors.get(fact["content"]))
         if saved:
             added.append(saved)
     return added

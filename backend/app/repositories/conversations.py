@@ -232,10 +232,10 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
             "SELECT * FROM memories WHERE conversation_id = ? AND source_position <= ?",
             (source["id"], position))).fetchall()
         await db.executemany(
-            "INSERT INTO memories (id, conversation_id, kind, content, source_position, is_pinned,"
+            "INSERT INTO memories (id, conversation_id, content, source_position, is_pinned,"
             " source, created_at, embedding, previous_content, corrected_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [(new_id(), branch_id, f["kind"], f["content"], f["source_position"], f["is_pinned"],
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(new_id(), branch_id, f["content"], f["source_position"], f["is_pinned"],
               f["source"], f["created_at"], f["embedding"], f["previous_content"],
               f["corrected_at"]) for f in facts])
         await db.execute(

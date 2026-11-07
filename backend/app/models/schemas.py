@@ -135,7 +135,6 @@ class LoreEntryPatch(BaseModel):
 
 class MemoryIn(BaseModel):
     content: str = Field(max_length=2000)
-    kind: Literal["fact", "event", "relationship", "promise", "state"] = "fact"
     is_pinned: bool = False
 
 

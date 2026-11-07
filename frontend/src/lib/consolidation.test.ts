@@ -14,7 +14,6 @@ const lookup = (key: string) =>
 const fact: Memory = {
   id: "m1",
   conversation_id: "c1",
-  kind: "fact",
   content: "A fact.",
   source_position: 2,
   is_pinned: false,

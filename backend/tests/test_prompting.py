@@ -432,7 +432,7 @@ def test_oldest_visible_reflects_real_rendered_window():
 
 
 def _fact(content: str, *, pinned: bool, position: int = 0) -> dict:
-    return {"id": content[:8], "content": content, "kind": "event",
+    return {"id": content[:8], "content": content,
             "is_pinned": pinned, "source_position": position}
 
 

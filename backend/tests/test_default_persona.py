@@ -125,7 +125,7 @@ async def test_with_none_marked_the_player_is_user_in_the_greeting_and_in_every_
         await client.post(f"/api/conversations/{convo['id']}/memories",
                           json={"content": f"Fact number {i}."})
     await mark_facts_as_the_models()
-    merged = '{"facts": [{"content": "All of it, merged.", "kind": "fact"}]}'
+    merged = '{"facts": [{"content": "All of it, merged."}]}'
     fake_provider.script = [ProviderEvent(type="delta", text=merged), ProviderEvent(type="done")]
     resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
     assert resp.status_code == 200, resp.text

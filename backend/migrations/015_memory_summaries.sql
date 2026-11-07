@@ -10,6 +10,7 @@ CREATE TABLE memory_summaries (
 );
 ALTER TABLE memories ADD COLUMN previous_content TEXT;
 ALTER TABLE memories ADD COLUMN corrected_at INTEGER;
+ALTER TABLE memories DROP COLUMN kind;
 -- A cut used to leave the memory as it was: what it read past the end of the story comes back.
 UPDATE memories SET source_position = COALESCE(
     (SELECT MAX(position) FROM messages WHERE messages.conversation_id = memories.conversation_id), 0)

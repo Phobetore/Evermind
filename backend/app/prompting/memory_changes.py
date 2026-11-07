@@ -3,7 +3,7 @@ to correct and to drop, and the summary to keep, decided from the answer alone.
 
 Pure: no database, no model. The callers read what these functions read, and apply what they return.
 
-Only a string is text. A ``content``, a ``kind`` or a ``replaces`` that is a number,
+Only a string is text. A ``content`` or a ``replaces`` that is a number,
 a list or ``null`` is absent, where ``str()`` of it used to be saved as a memory
 ("12", "['a']"); and what is not a list is no list, where a string used to be read
 letter by letter. A string that cannot be written (a lone surrogate) is absent too:
@@ -12,16 +12,11 @@ it would fail in the database, after the changes before it were saved.
 
 from .text import text_of
 
-ALLOWED_KINDS = {"fact", "event", "relationship", "promise", "state"}
 MAX_TURNS_PER_RUN = 40  # safety cap on turns fed to one extraction call
 
 
 def _items(value: object) -> list:
     return value if isinstance(value, list) else []
-
-
-def _kind(value: object) -> str:
-    return value if isinstance(value, str) and value in ALLOWED_KINDS else "fact"
 
 
 def is_movable(fact: dict) -> bool:
@@ -51,7 +46,7 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
     correction into the text of another fact drops the corrected one instead, since what it
     says is recorded already.
 
-    ``{"add": [{"content", "kind", "source_position"}], "update": {id: content}, "delete":
+    ``{"add": [{"content", "source_position"}], "update": {id: content}, "delete":
     [id], "summary": ...}``, with ``summary`` None when the answer holds none to keep. Applied
     in that order, deletes first, an add never repeats what a fact says.
     """
@@ -60,10 +55,10 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
     updates: dict[str, str] = {}
     deletes: list[str] = []
 
-    def add(content: str, kind: str) -> None:
+    def add(content: str) -> None:
         if not content or any(m["content"] == content for m in known):
             return
-        new = {"content": content, "kind": kind, "source_position": top_position}
+        new = {"content": content, "source_position": top_position}
         adds.append(new)
         known.append({"added": new, "content": content, "movable": True})
 
@@ -88,7 +83,7 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
 
     for fact in _items(parsed.get("facts")):
         if isinstance(fact, dict):
-            add(text_of(fact.get("content")), _kind(fact.get("kind")))
+            add(text_of(fact.get("content")))
 
     # Corrections and merges.
     for update in _items(parsed.get("updated_facts")):
@@ -97,7 +92,7 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
             continue
         target = find(update.get("replaces"))
         if target is None:
-            add(new_content, "fact")
+            add(new_content)
         elif target["movable"]:
             if any(m is not target and m["content"] == new_content for m in known):
                 drop(target)
@@ -121,10 +116,8 @@ def plan_consolidation(parsed: dict | None, movable: list[dict]) -> dict | None:
     history and mute it for dozens of turns.
 
     Two of them may say the same thing: adding them is what drops the second."""
-    facts = []
-    for item in _items((parsed or {}).get("facts")):
-        if isinstance(item, dict) and text_of(item.get("content")):
-            facts.append({"content": text_of(item["content"]), "kind": _kind(item.get("kind"))})
+    facts = [text for item in _items((parsed or {}).get("facts"))
+             if isinstance(item, dict) and (text := text_of(item.get("content")))]
     if not facts:
         return None
     return {"facts": facts,

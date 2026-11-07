@@ -43,7 +43,6 @@
     "add": [
      {
       "content": "Alex broke the seal.",
-      "kind": "event",
       "source_position": 7
      }
     ],
@@ -95,27 +94,22 @@
     "add": [
      {
       "content": "A fact.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "A event.",
-      "kind": "event",
       "source_position": 7
      },
      {
       "content": "A relationship.",
-      "kind": "relationship",
       "source_position": 7
      },
      {
       "content": "A promise.",
-      "kind": "promise",
       "source_position": 7
      },
      {
       "content": "A state.",
-      "kind": "state",
       "source_position": 7
      }
     ],
@@ -167,77 +161,62 @@
     "add": [
      {
       "content": "Kind 0.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 1.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 2.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 3.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 4.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 5.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 6.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 7.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 8.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 9.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 10.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 11.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 12.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 13.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 14.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -289,12 +268,10 @@
     "add": [
      {
       "content": "No kind.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Null kind.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -346,37 +323,30 @@
     "add": [
      {
       "content": "Kind 0.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 1.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 2.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 3.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 4.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 5.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Kind 6.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -428,37 +398,30 @@
     "add": [
      {
       "content": "padded",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "no-break",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "next line",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "file",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "ideographic",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "line",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "vertical and form feed",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -510,12 +473,10 @@
     "add": [
      {
       "content": "\ufeffBom fact.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "\u200bZero width fact.\u200b",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -567,7 +528,6 @@
     "add": [
      {
       "content": "two  spaces\tand\nlines",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -619,12 +579,10 @@
     "add": [
      {
       "content": "Alex gave Serana a 🗡\ufe0f.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "😀",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -676,7 +634,6 @@
     "add": [
      {
       "content": "Same.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -728,7 +685,6 @@
     "add": [
      {
       "content": "Same.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -780,17 +736,14 @@
     "add": [
      {
       "content": "Same.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "same.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Sa me.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -956,7 +909,6 @@
     "add": [
      {
       "content": "Old one.",
-      "kind": "state",
       "source_position": 7
      }
     ],
@@ -1008,7 +960,6 @@
     "add": [
      {
       "content": "Kept.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -1060,7 +1011,6 @@
     "add": [
      {
       "content": "Kept.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -1112,7 +1062,6 @@
     "add": [
      {
       "content": "Kept.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -1440,227 +1389,182 @@
     "add": [
      {
       "content": "Fact number 0.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 1.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 2.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 3.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 4.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 5.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 6.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 7.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 8.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 9.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 10.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 11.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 12.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 13.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 14.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 15.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 16.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 17.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 18.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 19.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 20.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 21.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 22.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 23.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 24.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 25.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 26.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 27.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 28.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 29.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 30.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 31.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 32.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 33.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 34.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 35.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 36.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 37.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 38.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 39.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 40.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 41.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 42.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 43.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Fact number 44.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -1712,7 +1616,6 @@
     "add": [
      {
       "content": "A fact.",
-      "kind": "fact",
       "source_position": 0
      }
     ],
@@ -1764,12 +1667,10 @@
     "add": [
      {
       "content": "A fact.",
-      "kind": "fact",
       "source_position": 123456
      },
      {
       "content": "Another.",
-      "kind": "fact",
       "source_position": 123456
      }
     ],
@@ -1790,7 +1691,6 @@
     "add": [
      {
       "content": "A fact.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -1822,7 +1722,6 @@
     "add": [
      {
       "content": "New.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -1852,7 +1751,6 @@
     "add": [
      {
       "content": "Better.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -1880,7 +1778,6 @@
     "add": [
      {
       "content": "Better.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -1908,7 +1805,6 @@
     "add": [
      {
       "content": "Old one.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -2148,7 +2044,6 @@
     "add": [
      {
       "content": "Said now.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -2200,22 +2095,18 @@
     "add": [
      {
       "content": "No replaces.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Empty replaces.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Blank replaces.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "Null replaces.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -2267,22 +2158,18 @@
     "add": [
      {
       "content": "A number.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "A list.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "An object.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "True.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -2756,7 +2643,6 @@
     "add": [
      {
       "content": "Fresh fact, corrected.",
-      "kind": "event",
       "source_position": 7
      }
     ],
@@ -2856,7 +2742,6 @@
     "add": [
      {
       "content": "Other.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -2910,7 +2795,6 @@
     "add": [
      {
       "content": "Same.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -2962,7 +2846,6 @@
     "add": [
      {
       "content": "Grown.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3354,7 +3237,6 @@
     "add": [
      {
       "content": "Fresh.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3458,7 +3340,6 @@
     "add": [
      {
       "content": "Fresh.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3561,7 +3442,6 @@
     "add": [
      {
       "content": "Old two.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3615,12 +3495,10 @@
     "add": [
      {
       "content": "Before.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "After.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3672,7 +3550,6 @@
     "add": [
      {
       "content": "Kept.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3724,7 +3601,6 @@
     "add": [
      {
       "content": "Kept.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3776,7 +3652,6 @@
     "add": [
      {
       "content": "Kept.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3828,7 +3703,6 @@
     "add": [
      {
       "content": "Kept.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3880,12 +3754,10 @@
     "add": [
      {
       "content": "A 😀 fact.",
-      "kind": "fact",
       "source_position": 7
      },
      {
       "content": "😀",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3937,7 +3809,6 @@
     "add": [
      {
       "content": "A fact.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -3989,7 +3860,6 @@
     "add": [
      {
       "content": "Added.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -4135,7 +4005,6 @@
     "add": [
      {
       "content": "Kept.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -5752,7 +5621,6 @@
     "add": [
      {
       "content": "In a fence.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -5804,7 +5672,6 @@
     "add": [
      {
       "content": "Prose.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -5856,7 +5723,6 @@
     "add": [
      {
       "content": "Line one.\nLine two.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -5908,7 +5774,6 @@
     "add": [
      {
       "content": "café 😀 \"quoted\" \\",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -5960,7 +5825,6 @@
     "add": [
      {
       "content": "Kept.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -6012,7 +5876,6 @@
     "add": [
      {
       "content": "Real.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -6064,7 +5927,6 @@
     "add": [
      {
       "content": "Real.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -6116,7 +5978,6 @@
     "add": [
      {
       "content": "Real.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -6168,7 +6029,6 @@
     "add": [
      {
       "content": "Real.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -6220,7 +6080,6 @@
     "add": [
      {
       "content": "Real.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -6272,7 +6131,6 @@
     "add": [
      {
       "content": "Second.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -6324,7 +6182,6 @@
     "add": [
      {
       "content": "Second.",
-      "kind": "promise",
       "source_position": 7
      }
     ],
@@ -6417,7 +6274,6 @@
     "add": [
      {
       "content": "First.",
-      "kind": "fact",
       "source_position": 7
      }
     ],
@@ -6469,17 +6325,14 @@
     "add": [
      {
       "content": "Odd kind.",
-      "kind": "fact",
       "source_position": 42
      },
      {
       "content": "Typed, again.",
-      "kind": "state",
       "source_position": 42
      },
      {
       "content": "Replaces nothing.",
-      "kind": "fact",
       "source_position": 42
      }
     ],
@@ -6511,14 +6364,8 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Three facts in one.",
-      "kind": "fact"
-     },
-     {
-      "content": "A second one.",
-      "kind": "event"
-     }
+     "Three facts in one.",
+     "A second one."
     ],
     "source_position": 4
    }
@@ -6542,126 +6389,36 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Merged 0.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 1.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 2.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 3.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 4.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 5.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 6.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 7.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 8.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 9.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 10.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 11.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 12.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 13.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 14.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 15.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 16.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 17.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 18.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 19.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 20.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 21.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 22.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 23.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 24.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 25.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 26.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 27.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 28.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 29.",
-      "kind": "fact"
-     }
+     "Merged 0.",
+     "Merged 1.",
+     "Merged 2.",
+     "Merged 3.",
+     "Merged 4.",
+     "Merged 5.",
+     "Merged 6.",
+     "Merged 7.",
+     "Merged 8.",
+     "Merged 9.",
+     "Merged 10.",
+     "Merged 11.",
+     "Merged 12.",
+     "Merged 13.",
+     "Merged 14.",
+     "Merged 15.",
+     "Merged 16.",
+     "Merged 17.",
+     "Merged 18.",
+     "Merged 19.",
+     "Merged 20.",
+     "Merged 21.",
+     "Merged 22.",
+     "Merged 23.",
+     "Merged 24.",
+     "Merged 25.",
+     "Merged 26.",
+     "Merged 27.",
+     "Merged 28.",
+     "Merged 29."
     ],
     "source_position": 4
    }
@@ -6685,130 +6442,37 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Merged 0.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 1.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 2.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 3.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 4.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 5.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 6.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 7.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 8.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 9.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 10.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 11.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 12.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 13.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 14.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 15.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 16.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 17.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 18.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 19.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 20.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 21.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 22.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 23.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 24.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 25.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 26.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 27.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 28.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 29.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 30.",
-      "kind": "fact"
-     }
+     "Merged 0.",
+     "Merged 1.",
+     "Merged 2.",
+     "Merged 3.",
+     "Merged 4.",
+     "Merged 5.",
+     "Merged 6.",
+     "Merged 7.",
+     "Merged 8.",
+     "Merged 9.",
+     "Merged 10.",
+     "Merged 11.",
+     "Merged 12.",
+     "Merged 13.",
+     "Merged 14.",
+     "Merged 15.",
+     "Merged 16.",
+     "Merged 17.",
+     "Merged 18.",
+     "Merged 19.",
+     "Merged 20.",
+     "Merged 21.",
+     "Merged 22.",
+     "Merged 23.",
+     "Merged 24.",
+     "Merged 25.",
+     "Merged 26.",
+     "Merged 27.",
+     "Merged 28.",
+     "Merged 29.",
+     "Merged 30."
     ],
     "source_position": 4
    }
@@ -6832,166 +6496,46 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Merged 0.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 1.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 2.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 3.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 4.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 5.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 6.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 7.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 8.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 9.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 10.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 11.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 12.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 13.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 14.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 15.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 16.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 17.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 18.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 19.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 20.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 21.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 22.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 23.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 24.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 25.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 26.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 27.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 28.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 29.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 30.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 31.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 32.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 33.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 34.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 35.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 36.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 37.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 38.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 39.",
-      "kind": "fact"
-     }
+     "Merged 0.",
+     "Merged 1.",
+     "Merged 2.",
+     "Merged 3.",
+     "Merged 4.",
+     "Merged 5.",
+     "Merged 6.",
+     "Merged 7.",
+     "Merged 8.",
+     "Merged 9.",
+     "Merged 10.",
+     "Merged 11.",
+     "Merged 12.",
+     "Merged 13.",
+     "Merged 14.",
+     "Merged 15.",
+     "Merged 16.",
+     "Merged 17.",
+     "Merged 18.",
+     "Merged 19.",
+     "Merged 20.",
+     "Merged 21.",
+     "Merged 22.",
+     "Merged 23.",
+     "Merged 24.",
+     "Merged 25.",
+     "Merged 26.",
+     "Merged 27.",
+     "Merged 28.",
+     "Merged 29.",
+     "Merged 30.",
+     "Merged 31.",
+     "Merged 32.",
+     "Merged 33.",
+     "Merged 34.",
+     "Merged 35.",
+     "Merged 36.",
+     "Merged 37.",
+     "Merged 38.",
+     "Merged 39."
     ],
     "source_position": 4
    }
@@ -7015,122 +6559,35 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Merged 0.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 1.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 2.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 3.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 4.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 5.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 6.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 7.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 8.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 9.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 10.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 11.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 12.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 13.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 14.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 15.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 16.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 17.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 18.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 19.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 20.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 21.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 22.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 23.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 24.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 25.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 26.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 27.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 28.",
-      "kind": "fact"
-     }
+     "Merged 0.",
+     "Merged 1.",
+     "Merged 2.",
+     "Merged 3.",
+     "Merged 4.",
+     "Merged 5.",
+     "Merged 6.",
+     "Merged 7.",
+     "Merged 8.",
+     "Merged 9.",
+     "Merged 10.",
+     "Merged 11.",
+     "Merged 12.",
+     "Merged 13.",
+     "Merged 14.",
+     "Merged 15.",
+     "Merged 16.",
+     "Merged 17.",
+     "Merged 18.",
+     "Merged 19.",
+     "Merged 20.",
+     "Merged 21.",
+     "Merged 22.",
+     "Merged 23.",
+     "Merged 24.",
+     "Merged 25.",
+     "Merged 26.",
+     "Merged 27.",
+     "Merged 28."
     ],
     "source_position": 4
    }
@@ -7154,146 +6611,41 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Merged 0.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 1.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 2.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 3.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 4.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 5.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 6.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 7.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 8.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 9.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 10.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 11.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 12.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 13.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 14.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 15.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 16.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 17.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 18.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 19.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 20.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 21.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 22.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 23.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 24.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 25.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 26.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 27.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 28.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 29.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 30.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 31.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 32.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 33.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 34.",
-      "kind": "fact"
-     }
+     "Merged 0.",
+     "Merged 1.",
+     "Merged 2.",
+     "Merged 3.",
+     "Merged 4.",
+     "Merged 5.",
+     "Merged 6.",
+     "Merged 7.",
+     "Merged 8.",
+     "Merged 9.",
+     "Merged 10.",
+     "Merged 11.",
+     "Merged 12.",
+     "Merged 13.",
+     "Merged 14.",
+     "Merged 15.",
+     "Merged 16.",
+     "Merged 17.",
+     "Merged 18.",
+     "Merged 19.",
+     "Merged 20.",
+     "Merged 21.",
+     "Merged 22.",
+     "Merged 23.",
+     "Merged 24.",
+     "Merged 25.",
+     "Merged 26.",
+     "Merged 27.",
+     "Merged 28.",
+     "Merged 29.",
+     "Merged 30.",
+     "Merged 31.",
+     "Merged 32.",
+     "Merged 33.",
+     "Merged 34."
     ],
     "source_position": 4
    }
@@ -7317,134 +6669,38 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Same.",
-      "kind": "fact"
-     },
-     {
-      "content": "Same.",
-      "kind": "fact"
-     },
-     {
-      "content": "Same.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 0.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 1.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 2.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 3.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 4.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 5.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 6.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 7.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 8.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 9.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 10.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 11.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 12.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 13.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 14.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 15.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 16.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 17.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 18.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 19.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 20.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 21.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 22.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 23.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 24.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 25.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 26.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 27.",
-      "kind": "fact"
-     },
-     {
-      "content": "Merged 28.",
-      "kind": "fact"
-     }
+     "Same.",
+     "Same.",
+     "Same.",
+     "Merged 0.",
+     "Merged 1.",
+     "Merged 2.",
+     "Merged 3.",
+     "Merged 4.",
+     "Merged 5.",
+     "Merged 6.",
+     "Merged 7.",
+     "Merged 8.",
+     "Merged 9.",
+     "Merged 10.",
+     "Merged 11.",
+     "Merged 12.",
+     "Merged 13.",
+     "Merged 14.",
+     "Merged 15.",
+     "Merged 16.",
+     "Merged 17.",
+     "Merged 18.",
+     "Merged 19.",
+     "Merged 20.",
+     "Merged 21.",
+     "Merged 22.",
+     "Merged 23.",
+     "Merged 24.",
+     "Merged 25.",
+     "Merged 26.",
+     "Merged 27.",
+     "Merged 28."
     ],
     "source_position": 4
    }
@@ -7468,14 +6724,8 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Same.",
-      "kind": "event"
-     },
-     {
-      "content": "Same.",
-      "kind": "state"
-     }
+     "Same.",
+     "Same."
     ],
     "source_position": 4
    }
@@ -7499,26 +6749,11 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "A fact.",
-      "kind": "fact"
-     },
-     {
-      "content": "A event.",
-      "kind": "event"
-     },
-     {
-      "content": "A relationship.",
-      "kind": "relationship"
-     },
-     {
-      "content": "A promise.",
-      "kind": "promise"
-     },
-     {
-      "content": "A state.",
-      "kind": "state"
-     }
+     "A fact.",
+     "A event.",
+     "A relationship.",
+     "A promise.",
+     "A state."
     ],
     "source_position": 4
    }
@@ -7542,42 +6777,15 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Kind 0.",
-      "kind": "fact"
-     },
-     {
-      "content": "Kind 1.",
-      "kind": "fact"
-     },
-     {
-      "content": "Kind 2.",
-      "kind": "fact"
-     },
-     {
-      "content": "Kind 3.",
-      "kind": "fact"
-     },
-     {
-      "content": "Kind 4.",
-      "kind": "fact"
-     },
-     {
-      "content": "Kind 5.",
-      "kind": "fact"
-     },
-     {
-      "content": "Kind 6.",
-      "kind": "fact"
-     },
-     {
-      "content": "Kind 7.",
-      "kind": "fact"
-     },
-     {
-      "content": "Kind 8.",
-      "kind": "fact"
-     }
+     "Kind 0.",
+     "Kind 1.",
+     "Kind 2.",
+     "Kind 3.",
+     "Kind 4.",
+     "Kind 5.",
+     "Kind 6.",
+     "Kind 7.",
+     "Kind 8."
     ],
     "source_position": 4
    }
@@ -7601,10 +6809,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "No kind.",
-      "kind": "fact"
-     }
+     "No kind."
     ],
     "source_position": 4
    }
@@ -7628,22 +6833,10 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Padded.",
-      "kind": "fact"
-     },
-     {
-      "content": "Nbsp.",
-      "kind": "fact"
-     },
-     {
-      "content": "Nel.",
-      "kind": "fact"
-     },
-     {
-      "content": "\ufeffBom.",
-      "kind": "fact"
-     }
+     "Padded.",
+     "Nbsp.",
+     "Nel.",
+     "\ufeffBom."
     ],
     "source_position": 4
    }
@@ -7667,10 +6860,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Kept.",
-      "kind": "fact"
-     }
+     "Kept."
     ],
     "source_position": 4
    }
@@ -7922,10 +7112,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Fenced.",
-      "kind": "promise"
-     }
+     "Fenced."
     ],
     "source_position": 4
    }
@@ -7952,10 +7139,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "One.",
-      "kind": "fact"
-     }
+     "One."
     ],
     "source_position": 5
    }
@@ -7973,10 +7157,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "One.",
-      "kind": "fact"
-     }
+     "One."
     ],
     "source_position": 7
    }
@@ -7990,10 +7171,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "One.",
-      "kind": "fact"
-     }
+     "One."
     ],
     "source_position": 0
    }
@@ -8014,10 +7192,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "One.",
-      "kind": "fact"
-     }
+     "One."
     ],
     "source_position": 0
    }
@@ -8046,10 +7221,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "One.",
-      "kind": "fact"
-     }
+     "One."
     ],
     "source_position": 2
    }
@@ -8073,10 +7245,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Kept.",
-      "kind": "fact"
-     }
+     "Kept."
     ],
     "source_position": 4
    }
@@ -8119,10 +7288,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Kept.",
-      "kind": "fact"
-     }
+     "Kept."
     ],
     "source_position": 4
    }
@@ -8165,10 +7331,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "😀",
-      "kind": "fact"
-     }
+     "😀"
     ],
     "source_position": 4
    }
@@ -8192,10 +7355,7 @@
    },
    "expected": {
     "facts": [
-     {
-      "content": "Kept.",
-      "kind": "fact"
-     }
+     "Kept."
     ],
     "source_position": 4
    }

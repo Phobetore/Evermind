@@ -12,8 +12,8 @@ from .test_chat import FakeProvider, send, setup_conversation
 
 EXTRACTION_JSON = json.dumps({
     "facts": [
-        {"content": "Aymeric broke the crypt seal.", "kind": "event"},
-        {"content": "Serana distrusts Aymeric.", "kind": "relationship"},
+        {"content": "Aymeric broke the crypt seal."},
+        {"content": "Serana distrusts Aymeric."},
     ],
     "summary": "Aymeric woke Serana by breaking the seal of her crypt.",
 })
@@ -262,8 +262,7 @@ async def test_a_pass_never_reads_a_message_out_of_character(client, fake_provid
 async def test_facts_injected_into_chat_payload(client, fake_provider):
     convo = await setup_conversation(client)
     await client.post(f"/api/conversations/{convo['id']}/memories", json={
-        "content": "Aymeric killed Serana's parents before her eyes.",
-        "kind": "event", "is_pinned": True,
+        "content": "Aymeric killed Serana's parents before her eyes.", "is_pinned": True,
     })
     await send(client, convo["id"])
     payload = fake_provider.captured["payload"]
@@ -274,7 +273,7 @@ async def test_facts_injected_into_chat_payload(client, fake_provider):
 async def test_memory_crud(client, fake_provider):
     convo = await setup_conversation(client)
     created = (await client.post(f"/api/conversations/{convo['id']}/memories", json={
-        "content": "Serana hates garlic.", "kind": "fact",
+        "content": "Serana hates garlic.",
     })).json()
     assert created["source"] == "user"
 
@@ -348,8 +347,8 @@ async def test_consolidate_merges_facts(client, fake_provider):
     await db.close()
 
     merged = json.dumps({"facts": [
-        {"content": "Three facts merged into a single dense one.", "kind": "fact"},
-        {"content": "A second synthesized fact.", "kind": "event"},
+        {"content": "Three facts merged into a single dense one."},
+        {"content": "A second synthesized fact."},
     ]})
     fake_provider.script = [ProviderEvent(type="delta", text=merged), ProviderEvent(type="done")]
     resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
@@ -373,7 +372,7 @@ async def test_consolidate_skips_when_few_facts(client, fake_provider):
     assert resp.json().get("skipped") == "too_few"
 
 
-MERGED = json.dumps({"facts": [{"content": "All of it, merged.", "kind": "fact"}]})
+MERGED = json.dumps({"facts": [{"content": "All of it, merged."}]})
 
 
 async def add_facts(client, convo_id, contents, *, pinned=False, by_the_model=False):
@@ -460,8 +459,8 @@ async def test_consolidation_keeps_every_fact_that_is_text_and_only_those(client
     await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
                     by_the_model=True)
     merged = [{"content": ["a"]}, {"content": 12}, {"content": "   "}, "text", {"kind": "event"},
-              {"content": "  Padded.  ", "kind": "Event"}]
-    merged += [{"content": f"Merged {i}.", "kind": "promise"} for i in range(40)]
+              {"content": "  Padded.  "}]
+    merged += [{"content": f"Merged {i}."} for i in range(40)]
     fake_provider.script = [ProviderEvent(type="delta", text=json.dumps({"facts": merged})),
                             ProviderEvent(type="done")]
 
@@ -469,11 +468,9 @@ async def test_consolidation_keeps_every_fact_that_is_text_and_only_those(client
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    # All of the readable ones: the padded one, stripped and made a fact, and the 40 after
-    # it, with the kind they were given.
+    # All of the readable ones: the padded one, stripped, and the 40 after it.
     assert body["after"] == 41
-    kinds = {m["content"]: m["kind"] for m in body["memories"]}
-    assert kinds == {"Padded.": "fact", **{f"Merged {i}.": "promise" for i in range(40)}}
+    assert {m["content"] for m in body["memories"]} == {"Padded.", *(f"Merged {i}." for i in range(40))}
 
 
 async def consolidate_while(client, monkeypatch, convo_id, meanwhile):
@@ -525,11 +522,11 @@ async def test_nothing_is_written_when_a_fact_sent_to_the_model_changed_meanwhil
     assert body["before"] == body["after"] == len(body["memories"])
 
     def as_left(row):
-        content, kind, position, pinned, source = row
+        content, position, pinned, source = row
         if content != "Movable fact 3.":
             return row
-        return {"pinned": (content, kind, position, True, source),
-                "edited": ("Movable fact 3, edited.", kind, position, pinned, source),
+        return {"pinned": (content, position, True, source),
+                "edited": ("Movable fact 3, edited.", position, pinned, source),
                 "deleted": None, "replaced": row}[change]
 
     assert await stored_facts(client, convo["id"]) == sorted(
@@ -772,7 +769,7 @@ async def test_a_fact_pinned_or_edited_while_the_vectors_of_a_merge_are_worked_o
 
     assert resp.status_code == 200, resp.text
     assert resp.json()["skipped"] == "changed"
-    held = {f[0]: f[3] for f in await stored_facts(client, convo["id"])}
+    held = {f[0]: f[2] for f in await stored_facts(client, convo["id"])}
     assert "All of it, merged." not in held
     assert held["Movable fact 2."] is True
     assert "Movable fact 4, edited." in held
@@ -785,7 +782,7 @@ async def test_a_merged_fact_that_repeats_a_fact_sent_leaves_that_fact_in_place(
     convo = await setup_conversation(client)
     await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
                     by_the_model=True)
-    merged = {"facts": [{"content": "Movable fact 3.", "kind": "event"}, {"content": "And more."}]}
+    merged = {"facts": [{"content": "Movable fact 3."}, {"content": "And more."}]}
     fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(merged)),
                             ProviderEvent(type="done")]
 
@@ -863,7 +860,7 @@ async def extract(client, convo_id, reply):
 async def stored_facts(client, convo_id):
     """What the conversation remembers, as one comparable list."""
     rows = (await client.get(f"/api/conversations/{convo_id}/memories")).json()
-    return sorted((m["content"], m["kind"], m["source_position"], m["is_pinned"], m["source"])
+    return sorted((m["content"], m["source_position"], m["is_pinned"], m["source"])
                   for m in rows)
 
 
@@ -900,7 +897,7 @@ async def test_a_fact_pinned_while_an_extraction_is_applied_is_not_rewritten_or_
     resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
 
     assert resp.status_code == 200, resp.text
-    assert [(f[0], f[3]) for f in await stored_facts(client, convo["id"])] == [
+    assert [(f[0], f[2]) for f in await stored_facts(client, convo["id"])] == [
         ("A new fact.", False), ("Corrected, as asked.", False), ("To correct.", True),
         ("To drop.", True)]
 
@@ -935,13 +932,13 @@ async def test_a_fact_changed_while_its_correction_is_worked_out_keeps_what_was_
 
     assert resp.status_code == 200, resp.text
     assert done
-    assert [(f[0], f[3]) for f in await stored_facts(client, convo["id"])] == [left]
+    assert [(f[0], f[2]) for f in await stored_facts(client, convo["id"])] == [left]
 
 
 async def test_a_messy_extraction_reply_leaves_the_facts_a_person_would_expect(
         client, fake_provider):
-    """Spaces to strip, doubles, an unknown kind, a fact the reply itself adds and
-    then corrects, and the ones no reply may touch."""
+    """Spaces to strip, doubles, a fact the reply itself adds and then corrects, and the
+    ones no reply may touch."""
     convo = await setup_conversation(client)
     await send(client, convo["id"])
     top = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"][-1]["position"]
@@ -952,12 +949,12 @@ async def test_a_messy_extraction_reply_leaves_the_facts_a_person_would_expect(
 
     await extract(client, convo["id"], {
         "facts": [
-            {"content": "  Fresh fact.  ", "kind": "event"},
-            {"content": "Fresh fact.", "kind": "promise"},  # the same, once stripped
-            {"content": "Old one.", "kind": "promise"},  # already known
-            {"content": "   ", "kind": "event"},
-            {"content": "Odd kind.", "kind": "Event"},  # not one of the kinds
-            {"content": "Typed.", "kind": "state"},
+            {"content": "  Fresh fact.  "},
+            {"content": "Fresh fact."},  # the same, once stripped
+            {"content": "Old one."},  # already known
+            {"content": "   "},
+            {"content": "Odd kind.", "kind": "Event"},  # what is not asked for is not read
+            {"content": "Typed."},
             "a line, not a fact",
             {"kind": "event"},
         ],
@@ -979,13 +976,13 @@ async def test_a_messy_extraction_reply_leaves_the_facts_a_person_would_expect(
     })
 
     assert await stored_facts(client, convo["id"]) == sorted([
-        ("Pinned fact.", "fact", 0, True, "auto"),
-        ("Hand fact.", "fact", 0, False, "user"),
-        ("Old one.", "fact", 0, False, "auto"),
-        ("Old two, corrected.", "fact", 0, False, "auto"),
-        ("Odd kind.", "fact", top, False, "auto"),
-        ("Typed, again.", "state", top, False, "auto"),
-        ("Replaces nothing.", "fact", top, False, "auto"),
+        ("Pinned fact.", 0, True, "auto"),
+        ("Hand fact.", 0, False, "user"),
+        ("Old one.", 0, False, "auto"),
+        ("Old two, corrected.", 0, False, "auto"),
+        ("Odd kind.", top, False, "auto"),
+        ("Typed, again.", top, False, "auto"),
+        ("Replaces nothing.", top, False, "auto"),
     ])
     assert (await client.get(f"/api/conversations/{convo['id']}")).json()["summary"] == "A new summary."
 
@@ -1018,7 +1015,7 @@ async def test_a_drop_reaches_the_oldest_of_two_facts_that_say_the_same(client, 
 
     await extract(client, convo["id"], {"obsolete_facts": ["Same."]})
 
-    assert await stored_facts(client, convo["id"]) == [("Same.", "fact", 4, False, "auto")]
+    assert await stored_facts(client, convo["id"]) == [("Same.", 4, False, "auto")]
 
 
 async def test_a_drop_reaches_a_pinned_fact_before_another_that_says_the_same(
@@ -1033,7 +1030,7 @@ async def test_a_drop_reaches_a_pinned_fact_before_another_that_says_the_same(
 
     # The pinned one is the one found, and a pinned fact is not dropped.
     assert await stored_facts(client, convo["id"]) == [
-        ("Pinned.", "fact", 0, False, "auto"), ("Pinned.", "fact", 0, True, "auto")]
+        ("Pinned.", 0, False, "auto"), ("Pinned.", 0, True, "auto")]
 
 
 async def test_a_drop_never_reaches_a_hand_written_fact_that_an_edit_repeated(
@@ -1048,7 +1045,7 @@ async def test_a_drop_never_reaches_a_hand_written_fact_that_an_edit_repeated(
 
     await extract(client, convo["id"], {"obsolete_facts": ["Same."]})
 
-    assert await stored_facts(client, convo["id"]) == [("Same.", "fact", 9, False, "user")]
+    assert await stored_facts(client, convo["id"]) == [("Same.", 9, False, "user")]
 
 
 async def test_a_correction_never_rewrites_a_fact_that_a_person_wrote_or_pinned(
@@ -1068,8 +1065,8 @@ async def test_a_correction_never_rewrites_a_fact_that_a_person_wrote_or_pinned(
 
     # Nothing is added in the place of a correction that is refused.
     assert await stored_facts(client, convo["id"]) == [
-        ("Hand fact.", "fact", 0, False, "user"), ("Old one, corrected.", "fact", 0, False, "auto"),
-        ("Pinned by hand.", "fact", 0, True, "user"), ("Pinned fact.", "fact", 0, True, "auto")]
+        ("Hand fact.", 0, False, "user"), ("Old one, corrected.", 0, False, "auto"),
+        ("Pinned by hand.", 0, True, "user"), ("Pinned fact.", 0, True, "auto")]
 
 
 async def test_a_correction_into_what_another_fact_says_drops_the_corrected_one(
@@ -1091,7 +1088,7 @@ async def test_a_correction_into_what_another_fact_says_drops_the_corrected_one(
     # "Old one." went because "Same." says it; "Fresh." went into "Same." too; the drop of
     # "Same." then reaches the one that is left of the three.
     assert await stored_facts(client, convo["id"]) == [
-        ("Hand fact.", "fact", 0, False, "user"), ("Old two.", "fact", 0, False, "auto")]
+        ("Hand fact.", 0, False, "user"), ("Old two.", 0, False, "auto")]
 
 
 async def test_a_fact_pinned_while_the_model_answers_is_left_alone(
@@ -1112,7 +1109,7 @@ async def test_a_fact_pinned_while_the_model_answers_is_left_alone(
         "updated_facts": [{"replaces": "Old one.", "content": "Overwritten."}],
         "obsolete_facts": ["Old one."]})
 
-    assert await stored_facts(client, convo["id"]) == [("Old one.", "fact", 0, True, "auto")]
+    assert await stored_facts(client, convo["id"]) == [("Old one.", 0, True, "auto")]
 
 
 async def test_only_text_counts_as_text_in_an_extraction_reply(client, fake_provider):

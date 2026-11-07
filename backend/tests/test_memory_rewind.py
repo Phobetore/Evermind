@@ -124,7 +124,7 @@ async def fact_named(client, convo_id, content):
 async def told_then_corrected(client, convo_id):
     """Talk to 8, a pass adds a fact; talk to 16, a pass corrects it."""
     await talk(client, convo_id, 4)
-    await extract(client, convo_id, {"facts": [{"content": "Alice is alive.", "kind": "state"}],
+    await extract(client, convo_id, {"facts": [{"content": "Alice is alive."}],
                                      "summary": "To 8."})
     await talk(client, convo_id, 4, first=5)
     await extract(client, convo_id, {
@@ -243,7 +243,7 @@ async def test_removing_a_message_removes_the_story_from_it_on(client, fake_prov
     assert [m["position"] for m in await messages_of(client, convo_id)] == list(range(11))
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (8, "To 8.")
-    assert await stored_facts(client, convo_id) == [("Alice is alive.", "state", 8, False, "auto")]
+    assert await stored_facts(client, convo_id) == [("Alice is alive.", 8, False, "auto")]
     assert await summaries_of(convo_id) == [(8, "To 8.")]
 
     fake_provider.captured.clear()
@@ -271,14 +271,14 @@ async def test_a_pass_that_read_only_the_first_message_has_read_nothing_as_far_a
     await send(client, convo_id, content="Only this.")
     assert [m["position"] for m in await messages_of(client, convo_id)] == [0]
 
-    first = await extract(client, convo_id, {"facts": [{"content": "Learned.", "kind": "fact"}],
+    first = await extract(client, convo_id, {"facts": [{"content": "Learned."}],
                                              "summary": "Just this."})
     assert [f["source_position"] for f in first["facts_added"]] == [0]
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (0, "Just this.")
 
     fake_provider.captured.clear()
-    again = await extract(client, convo_id, {"facts": [{"content": "Learned.", "kind": "fact"}]})
+    again = await extract(client, convo_id, {"facts": [{"content": "Learned."}]})
     assert "(turn 0): Only this." in fake_provider.captured["payload"].messages[0]["content"]
     assert again["facts_added"] == []
     assert await names(client, convo_id) == {"Learned."}
@@ -296,13 +296,13 @@ async def test_the_next_pass_reads_the_turns_that_came_after_a_removal(client, f
     await talk(client, convo_id, 4, label="old exchange")  # positions 0 to 8
     await put_fact(convo_id, "Kept by hand.", source="user")
     first = await extract(client, convo_id, {
-        "facts": [{"content": "Learned early.", "kind": "event"}],
+        "facts": [{"content": "Learned early."}],
         "summary": "The first four exchanges."})
     assert [f["source_position"] for f in first["facts_added"]] == [8]
     await talk(client, convo_id, 4, label="old exchange", first=5)  # positions 9 to 16
     await extract(client, convo_id, {
-        "facts": [{"content": "Learned from turn 9.", "kind": "event"},
-                  {"content": "Learned in removed turns.", "kind": "event"}],
+        "facts": [{"content": "Learned from turn 9."},
+                  {"content": "Learned in removed turns."}],
         "summary": "Eight exchanges."})
     assert (await conversation(client, convo_id))["memory_position"] == 16
 
@@ -325,8 +325,8 @@ async def test_the_next_pass_reads_the_turns_that_came_after_a_removal(client, f
 
     fake_provider.captured.clear()
     await extract(client, convo_id, {
-        "facts": [{"content": "Learned from turn 9.", "kind": "event"},
-                  {"content": "Learned afterwards.", "kind": "event"}],
+        "facts": [{"content": "Learned from turn 9."},
+                  {"content": "Learned afterwards."}],
         "summary": "Then something else."})
 
     shown = fake_provider.captured["payload"].messages[0]["content"]
@@ -339,7 +339,7 @@ async def test_the_next_pass_reads_the_turns_that_came_after_a_removal(client, f
     assert "old exchange 6" not in shown
     final = await stored_facts(client, convo_id)
     end = 10 + 2 * memory_service.MAINTENANCE_EVERY
-    assert [(f[0], f[2]) for f in final] == [
+    assert [(f[0], f[1]) for f in final] == [
         ("Kept by hand.", 0), ("Learned afterwards.", end), ("Learned early.", 8),
         ("Learned from turn 9.", end)]
     assert (await conversation(client, convo_id))["memory_position"] == end
@@ -424,7 +424,7 @@ async def test_a_pass_that_was_reading_when_the_story_was_cut_leaves_nothing_of_
     await talk(client, convo["id"], 3)  # positions 0 to 6
     started, release, asked = waiting_provider(monkeypatch)
     FakeProvider.script = [ProviderEvent(type="delta", text=json.dumps({
-        "facts": [{"content": "Learned from turns that went.", "kind": "event"}],
+        "facts": [{"content": "Learned from turns that went."}],
         "summary": "A story that was cut."})), ProviderEvent(type="done")]
 
     reading = asyncio.create_task(client.post(f"/api/conversations/{convo['id']}/memories/extract"))
@@ -447,7 +447,7 @@ async def test_a_pass_that_was_reading_when_the_story_was_cut_leaves_nothing_of_
     await send(client, convo["id"], content="After the cut")
     asked.clear()
     again = await extract(client, convo["id"], {
-        "facts": [{"content": "Learned after the cut.", "kind": "event"}]})
+        "facts": [{"content": "Learned after the cut."}]})
     assert [f["source_position"] for f in again["facts_added"]] == [4]
     assert "(turn 3): After the cut" in asked[0].messages[0]["content"]
 
@@ -459,7 +459,7 @@ async def test_a_pass_that_was_reading_is_kept_when_only_later_turns_were_added(
     await talk(client, convo["id"], 2)  # positions 0 to 4
     started, release, _ = waiting_provider(monkeypatch)
     FakeProvider.script = [ProviderEvent(type="delta", text=json.dumps({
-        "facts": [{"content": "Learned meanwhile.", "kind": "event"}]})),
+        "facts": [{"content": "Learned meanwhile."}]})),
         ProviderEvent(type="done")]
 
     reading = asyncio.create_task(client.post(f"/api/conversations/{convo['id']}/memories/extract"))
@@ -484,7 +484,7 @@ async def test_a_fact_a_later_pass_corrected_is_back_as_it_was(client, fake_prov
 
     await remove_from(client, convo["id"], 11)
 
-    assert await stored_facts(client, convo["id"]) == [("Alice is alive.", "state", 8, False, "auto")]
+    assert await stored_facts(client, convo["id"]) == [("Alice is alive.", 8, False, "auto")]
     assert (await fact_named(client, convo["id"], "Alice is alive."))["id"] == corrected["id"]
     read = await conversation(client, convo["id"])
     assert (read["memory_position"], read["summary"]) == (8, "To 8.")
@@ -502,8 +502,8 @@ async def test_a_restored_fact_never_has_the_vector_of_another_text(
 
     monkeypatch.setattr(embeddings, "embed", embed)
     await talk(client, convo_id, 4)
-    await extract(client, convo_id, {"facts": [{"content": "Stays as it is.", "kind": "fact"},
-                                               {"content": "To be corrected.", "kind": "fact"}]})
+    await extract(client, convo_id, {"facts": [{"content": "Stays as it is."},
+                                               {"content": "To be corrected."}]})
     await talk(client, convo_id, 4, first=5)
     await extract(client, convo_id, {
         "updated_facts": [{"replaces": "To be corrected.", "content": "Corrected, much longer."}]})
@@ -541,7 +541,7 @@ async def test_a_fact_pinned_since_is_not_touched_and_not_restored_a_second_time
     await remove_from(client, convo["id"], 11)
 
     assert await stored_facts(client, convo["id"]) == [
-        ("Alice died on the bridge.", "state", 8, True, "auto")]
+        ("Alice died on the bridge.", 8, True, "auto")]
 
 
 async def test_a_persons_edit_stays_through_a_cut(client, fake_provider):
@@ -553,7 +553,7 @@ async def test_a_persons_edit_stays_through_a_cut(client, fake_provider):
     await client.patch(f"/api/memories/{fact['id']}", json={"content": "Alice is my sister."})
     await remove_from(client, convo["id"], 11)
 
-    assert await stored_facts(client, convo["id"]) == [("Alice is my sister.", "state", 8, False, "auto")]
+    assert await stored_facts(client, convo["id"]) == [("Alice is my sister.", 8, False, "auto")]
 
 
 async def test_a_fact_forgotten_does_not_come_back_with_a_rewind(client, fake_provider):
@@ -573,17 +573,17 @@ async def test_a_pinned_fact_drawn_from_removed_turns_stays_at_the_end_of_the_st
     with the story, so that the prompt does not place it at a turn that no longer exists."""
     convo = await setup_conversation(client)
     await talk(client, convo["id"], 4)
-    await extract(client, convo["id"], {"facts": [{"content": "Late, and pinned.", "kind": "fact"}]})
+    await extract(client, convo["id"], {"facts": [{"content": "Late, and pinned."}]})
     fact = await fact_named(client, convo["id"], "Late, and pinned.")
     await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": True})
 
     await remove_from(client, convo["id"], 5)
 
-    assert await stored_facts(client, convo["id"]) == [("Late, and pinned.", "fact", 4, True, "auto")]
+    assert await stored_facts(client, convo["id"]) == [("Late, and pinned.", 4, True, "auto")]
 
     await remove_from(client, convo["id"], 0)
 
-    assert await stored_facts(client, convo["id"]) == [("Late, and pinned.", "fact", 0, True, "auto")]
+    assert await stored_facts(client, convo["id"]) == [("Late, and pinned.", 0, True, "auto")]
 
 
 # ---------- a branch is a cut too ----------
@@ -642,7 +642,7 @@ async def test_a_branch_gets_the_facts_as_they_were_at_its_message_with_new_ids(
 
     branch = (await client.post(f"/api/messages/{fork['id']}/branch")).json()
 
-    assert await stored_facts(client, branch["id"]) == [("Alice is alive.", "state", 8, False, "auto")]
+    assert await stored_facts(client, branch["id"]) == [("Alice is alive.", 8, False, "auto")]
     assert (branch["memory_position"], branch["summary"]) == (8, "To 8.")
     assert (await fact_named(client, branch["id"], "Alice is alive."))["id"] != source_fact["id"]
     assert await summaries_of(branch["id"]) == [(8, "To 8.")]
@@ -656,7 +656,7 @@ async def test_a_cut_in_a_branch_goes_back_through_the_passes_it_was_given(clien
     convo_id = convo["id"]
     for first, position in ((1, 4), (3, 8), (5, 12)):
         await talk(client, convo_id, 2, first=first)
-        await extract(client, convo_id, {"facts": [{"content": f"At {position}.", "kind": "fact"}],
+        await extract(client, convo_id, {"facts": [{"content": f"At {position}."}],
                                          "summary": f"To {position}."})
     fork = await at_position(client, convo_id, 9)
 
@@ -675,13 +675,13 @@ async def test_a_cut_in_a_branch_goes_back_through_the_passes_it_was_given(clien
 async def a_memory_to_change(client, convo_id):
     """Facts for an answer to correct and to drop, and turns for it to read."""
     await talk(client, convo_id, 2)
-    await extract(client, convo_id, {"facts": [{"content": "To correct.", "kind": "fact"},
-                                               {"content": "To drop.", "kind": "fact"}],
+    await extract(client, convo_id, {"facts": [{"content": "To correct."},
+                                               {"content": "To drop."}],
                                      "summary": "Before."})
     await talk(client, convo_id, 2, first=3)
 
 
-AN_ANSWER = {"facts": [{"content": "New.", "kind": "fact"}],
+AN_ANSWER = {"facts": [{"content": "New."}],
              "updated_facts": [{"replaces": "To correct.", "content": "Corrected."}],
              "obsolete_facts": ["To drop."],
              "summary": "After."}
@@ -764,7 +764,7 @@ async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merg
     convo = await setup_conversation(client)
     convo_id = convo["id"]
     await talk(client, convo_id, 4)  # positions 0 to 8
-    await extract(client, convo_id, {"facts": [{"content": f"Fact {n}.", "kind": "fact"}
+    await extract(client, convo_id, {"facts": [{"content": f"Fact {n}."}
                                                for n in range(8)]})
     facts = (await client.get(f"/api/conversations/{convo_id}/memories")).json()
 
@@ -783,7 +783,7 @@ async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merg
 
     assert answered.json()["skipped"] == "changed"
     assert await stored_facts(client, convo_id) == [
-        (f"Fact {n}.", "fact", 4, False, "auto") for n in range(8)]
+        (f"Fact {n}.", 4, False, "auto") for n in range(8)]
 
 
 # ---------- a long story keeps its summary ----------

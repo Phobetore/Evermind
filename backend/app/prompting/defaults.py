@@ -68,7 +68,7 @@ Reply with ONLY this JSON object. No markdown fences, no commentary before or af
 MEMORY_CONSOLIDATION_PROMPT = """You are the memory-keeper of a roleplay between {{user}} and {{char}}. The list of recorded facts has grown long and needs consolidating.
 Merge and compress the facts below into a SHORTER list that loses NO important information: combine related facts into single dense sentences, drop pure redundancy, and keep every consequential event, relationship state, promise, injury, death and revelation. Preserve chronology. Aim for at most 20 facts. Write each as one short past-tense sentence in the language of the facts.
 Reply with ONLY this JSON object, no other text:
-{"facts": [{"content": "...", "kind": "event|state|relationship|promise|fact"}]}"""
+{"facts": [{"content": "..."}]}"""
 
 MEMORY_EXTRACTION_PROMPT = """You are the memory-keeper of a roleplay between {{user}} (the player) and {{char}}.
 You will receive: the current summary, the list of facts already recorded, and the newest turns of the story.
@@ -79,4 +79,4 @@ Do three things:
 3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).
 
 Reply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:
-{"facts": [{"content": "...", "kind": "event|state|relationship|promise|fact"}], "updated_facts": [{"replaces": "...", "content": "..."}], "obsolete_facts": ["..."], "summary": "..."}"""
+{"facts": [{"content": "..."}], "updated_facts": [{"replaces": "...", "content": "..."}], "obsolete_facts": ["..."], "summary": "..."}"""

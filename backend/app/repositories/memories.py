@@ -1,7 +1,6 @@
 import aiosqlite
 
 from ..prompting import embeddings
-from ..prompting.memory_changes import ALLOWED_KINDS
 from .base import new_id, now_iso
 
 
@@ -28,20 +27,20 @@ async def _says(db: aiosqlite.Connection, convo_id: str, content: str) -> bool:
 
 
 async def add(db: aiosqlite.Connection, convo_id: str, content: str,
-              kind: str = "fact", source_position: int = 0,
-              is_pinned: bool = False, source: str = "auto") -> dict | None:
+              source_position: int = 0, is_pinned: bool = False,
+              source: str = "auto") -> dict | None:
     content = (content or "").strip()
     if not content or await _says(db, convo_id, content):
         return None
     vectors = await embeddings.embed([content], kind="passage")
-    saved = await add_with_vector(db, convo_id, content, kind, source_position,
+    saved = await add_with_vector(db, convo_id, content, source_position,
                                   embeddings.pack(vectors[0]) if vectors else None,
                                   is_pinned=is_pinned, source=source)
     await db.commit()
     return saved
 
 
-async def add_with_vector(db: aiosqlite.Connection, convo_id: str, content: str, kind: str,
+async def add_with_vector(db: aiosqlite.Connection, convo_id: str, content: str,
                           source_position: int, blob: bytes | None, *,
                           is_pinned: bool = False, source: str = "auto") -> dict | None:
     """``add`` for what is written with other things: the vector was worked out before, and
@@ -50,10 +49,9 @@ async def add_with_vector(db: aiosqlite.Connection, convo_id: str, content: str,
         return None
     memory_id = new_id()
     await db.execute(
-        "INSERT INTO memories (id, conversation_id, kind, content, source_position,"
-        " is_pinned, source, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (memory_id, convo_id, kind if kind in ALLOWED_KINDS else "fact", content,
-         source_position, int(is_pinned), source, now_iso(), blob),
+        "INSERT INTO memories (id, conversation_id, content, source_position,"
+        " is_pinned, source, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (memory_id, convo_id, content, source_position, int(is_pinned), source, now_iso(), blob),
     )
     return await get(db, memory_id)
 
