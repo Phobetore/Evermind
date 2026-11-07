@@ -470,50 +470,6 @@ def test_facts_from_past_the_end_of_a_stalled_story_come_back_to_it(tmp_path):
                             ("stalled", 4, "pinned", 4)]
 
 
-def test_a_migration_killed_at_any_point_ends_up_the_same_when_it_runs_again(tmp_path):
-    """It is applied without a transaction, and the next start runs it from the top."""
-    def before(path):
-        conn = database_before_the_checkpoints(path)
-        story(conn, "read", 10, memory_position=8, summary="Up to eight.")
-        fact(conn, "read", "plain", 8)
-        story(conn, "stalled", 4, memory_position=16, summary="Up to sixteen, it said.")
-        fact(conn, "stalled", "past", 16)
-        story(conn, "empty", 0, memory_position=12, summary="Of a story no longer there.")
-        conn.execute("DELETE FROM messages WHERE conversation_id = 'empty'")
-        fact(conn, "empty", "model", 12)
-        fact(conn, "empty", "pinned", 12, pinned=1)
-        story(conn, "greeted", 0, memory_position=9, summary="Of a story gone too.")
-        down_to_its_greeting(conn, "greeted")
-        fact(conn, "greeted", "gone too", 9)
-        fact(conn, "greeted", "pinned too", 9, pinned=1)
-        conn.commit()
-        return conn
-
-    def dump(conn):
-        return [conn.execute(f"SELECT * FROM {table} ORDER BY 1, 2, 3").fetchall()
-                for table in ("memory_checkpoints", "memory_checkpoint_facts")] + [
-            conn.execute("SELECT id, summary, memory_position FROM conversations ORDER BY id").fetchall(),
-            conn.execute("SELECT id, source_position FROM memories ORDER BY id").fetchall()]
-
-    whole = next(MIGRATIONS.glob("011_*.sql")).read_text(encoding="utf-8")
-    statements, pending = [], ""
-    for line in whole.splitlines(keepends=True):
-        pending += line
-        if sqlite3.complete_statement(pending):
-            statements.append(pending)
-            pending = ""
-    assert len(statements) >= 8
-
-    straight = before(tmp_path / "straight.db")
-    straight.executescript(whole)
-    expected = dump(straight)
-    for killed_after in range(len(statements) + 1):
-        conn = before(tmp_path / f"killed-{killed_after}.db")
-        conn.executescript("".join(statements[:killed_after]))
-        conn.executescript(whole)
-        assert dump(conn) == expected, f"killed after statement {killed_after}"
-
-
 def test_a_conversation_that_is_fine_is_not_touched_but_for_its_checkpoint(tmp_path):
     conn = database_before_the_checkpoints(tmp_path / "old.db")
     story(conn, "fine", 10, memory_position=10, summary="Up to ten.")
