@@ -273,6 +273,50 @@ test("a read sent with the directive's save does not put the old directive back"
   expect(read.author_note).toBe("Fog, lamplight, nothing resolved tonight.");
 });
 
+test("an older read that lands last does not put back the summary a newer one brought", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
+    timeout: 60_000,
+  });
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await expect(summary).toHaveValue("");
+  await page.waitForLoadState("networkidle");
+
+  // The read of a wake is answered before the pass, and delivered after the summary box's read.
+  let fetched = () => {};
+  const answered = new Promise<void>((resolve) => { fetched = resolve; });
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  let reads = 0;
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() !== "GET" || ++reads > 1) return route.continue();
+    const old = await route.fetch();
+    fetched();
+    await released;
+    await route.fulfill({ response: old });
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await answered;
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await summary.click();
+  await expect(summary).toHaveValue(/woke the character in a crypt/);
+  const brought = await summary.inputValue();
+
+  const late = page.waitForResponse((r) => r.url().endsWith(`/api/conversations/${convo.id}`));
+  release();
+  await (await late).finished();
+  await page.waitForTimeout(500);
+  await expect(summary).toHaveValue(brought);
+});
+
 // On a phone the panel beside the conversation is there but hidden, and the one over it is
 // a second copy. Each read on both events of a wake, and a read is the whole story.
 test("a phone waking reads the conversation once, and only for the panel it shows", async ({ page, request, isMobile }) => {
