@@ -27,8 +27,11 @@ const GATED_PORT = Number(process.env.E2E_GATED_PORT ?? 3098);
 // The servers listen on this computer's address on the network, as they do for
 // the phone that uses Evermind: over plain HTTP there, the browser withholds the
 // APIs of a secure context. Without a network, the loopback.
-const HOST = Object.values(os.networkInterfaces()).flat()
-  .find((i) => i?.family === "IPv4" && !i.internal)?.address ?? "127.0.0.1";
+// A private address is preferred: a tunnel adapter can list a public one first.
+const addresses = Object.values(os.networkInterfaces()).flat()
+  .filter((i) => i?.family === "IPv4" && !i.internal).map((i) => i!.address);
+const HOST = addresses.find((a) => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a))
+  ?? addresses[0] ?? "127.0.0.1";
 
 // One server serves the interface and the API, so the page and the calls it
 // makes share an origin, as they do for anyone running Evermind.

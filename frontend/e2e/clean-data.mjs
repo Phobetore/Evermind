@@ -18,8 +18,11 @@ import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..", "..");
 
 // As in playwright.config.ts, which a plain script cannot import.
-const HOST = Object.values(os.networkInterfaces()).flat()
-  .find((i) => i?.family === "IPv4" && !i.internal)?.address ?? "127.0.0.1";
+// A private address is preferred: a tunnel adapter can list a public one first.
+const addresses = Object.values(os.networkInterfaces()).flat()
+  .filter((i) => i?.family === "IPv4" && !i.internal).map((i) => i.address);
+const HOST = addresses.find((a) => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a))
+  ?? addresses[0] ?? "127.0.0.1";
 const COPIES = [
   { folder: ".e2e-data", port: Number(process.env.E2E_WEB_PORT ?? 3099) },
   { folder: ".e2e-data-gate", port: Number(process.env.E2E_GATED_PORT ?? 3098) },
