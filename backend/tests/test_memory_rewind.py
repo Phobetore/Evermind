@@ -466,13 +466,13 @@ async def test_a_summary_typed_over_an_older_one_leaves_the_turns_read_since_to_
     assert f"(turn {position + 1})" in shown and f"(turn {position})" not in shown
 
 
-@pytest.mark.parametrize(("before", "was", "kept"), [
-    ("a pass, then a cut", "To 8.", False),  # typed over a summary the cut took away
-    ("a pass", "", False),                   # typed over none while a pass read on
-    ("nothing", None, True),                 # before any pass: theirs from the start, as in releases
+@pytest.mark.parametrize(("before", "was"), [
+    ("a pass, then a cut", "To 8."),  # typed over a summary the cut took away
+    ("a pass", ""),                   # typed over none while a pass read on
+    ("nothing", None),                # before any pass, which releases let any branch keep
 ], ids=["over one cut away", "over none, read since", "before any pass"])
 async def test_a_summary_typed_over_one_no_pass_holds_is_no_pass_for_a_branch_to_go_back_to(
-        client, fake_provider, before, was, kept):
+        client, fake_provider, before, was):
     """It goes to position 0 and may tell any turn the person had read, past a branch's message."""
     convo_id = (await setup_conversation(client))["id"]
     await talk(client, convo_id, 4)
@@ -485,7 +485,8 @@ async def test_a_summary_typed_over_one_no_pass_holds_is_no_pass_for_a_branch_to
 
     assert (await conversation(client, convo_id))["memory_position"] == 0
     branch = await branch_at(client, convo_id, 2)
-    assert (branch["memory_position"], branch["summary"]) == (0, "Typed." if kept else "")
+    assert (branch["memory_position"], branch["summary"]) == (0, "")
+    assert (await conversation(client, convo_id))["summary"] == "Typed."
 
 
 PREMISE = "Premise: a heist in Venice."
