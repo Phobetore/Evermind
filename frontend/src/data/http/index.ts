@@ -151,6 +151,11 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
       update: (input) => put<Settings>("api/settings", input),
     },
 
+    async file(url) {
+      const blob = await (await send(url, undefined, fetchImpl)).blob();
+      return new File([blob], "image", { type: blob.type });
+    },
+
     connections: {
       list: () => get<Connection[]>("api/connections"),
       create: (input) => post<Connection>("api/connections", input),

@@ -68,6 +68,8 @@ export interface DataSource {
     avatarUrl(filename: string): string;
   };
   settings: { get(): Promise<Settings>; update(input: Partial<Settings>): Promise<Settings> };
+  /** An image the server serves, such as a portrait, as a file to draw or to send back. */
+  file(url: string): Promise<File>;
   // Self-hosted only. Absent means the edition has no such thing, and the interface hides it.
   connections?: {
     list(): Promise<Connection[]>;

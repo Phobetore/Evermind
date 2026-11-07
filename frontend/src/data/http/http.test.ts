@@ -137,6 +137,13 @@ describe("request building", () => {
     ]);
   });
 
+  test("an image read back is a file of the type the server gave", async () => {
+    reply(new Response(new Uint8Array([0xff, 0xd8]), { headers: { "Content-Type": "image/jpeg" } }));
+    const file = await http.file("api/media/a.jpg");
+    expect(calls[0].url).toBe("api/media/a.jpg");
+    expect([file.type, file.size]).toEqual(["image/jpeg", 2]);
+  });
+
   test("library avatar names are encoded", () => {
     expect(http.library.avatarUrl("a b.png")).toBe("api/library/a%20b.png/avatar");
   });
