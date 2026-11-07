@@ -173,7 +173,6 @@ describe("routes", () => {
     ["characters.update", () => http.characters.update("c1", { is_favorite: true }), "PUT", "api/characters/c1", { is_favorite: true }],
     ["characters.remove", () => http.characters.remove("c1"), "DELETE", "api/characters/c1"],
     ["characters.uploadAvatar", () => http.characters.uploadAvatar("c1", file), "POST", "api/characters/c1/avatar", file],
-    ["characters.importCard", () => http.characters.importCard(file), "POST", "api/characters/import", file],
     [
       "characters.assist",
       () => http.characters.assist({ prompt: "a ferryman", kind: "character", existing: {}, connection_id: null }),
@@ -662,14 +661,12 @@ describe("under a path prefix", () => {
     reply(json({}));
     reply(json({ user_message: null }));
     reply(chunked());
-    reply(new Response("{}"));
     reply(json({}));
     await http.characters.list();
     await http.characters.get("c1");
     await http.characters.uploadAvatar("c1", file);
     await http.turns.start({ conversation_id: "v1", mode: "send" });
     await http.turns.follow("v1", () => {});
-    await http.characters.exportCard("c1", "json");
     await http.conversations.setWallpaper("v1", file);
 
     expect(calls.map((c) => resolved(c.url))).toEqual([
@@ -678,7 +675,6 @@ describe("under a path prefix", () => {
       "http://192.168.1.42:3000/evermind/api/characters/c1/avatar",
       "http://192.168.1.42:3000/evermind/api/chat",
       "http://192.168.1.42:3000/evermind/api/conversations/v1/turn/stream",
-      "http://192.168.1.42:3000/evermind/api/characters/c1/export?format=json",
       "http://192.168.1.42:3000/evermind/api/conversations/v1/wallpaper",
     ]);
   });
@@ -693,49 +689,6 @@ describe("under a path prefix", () => {
     expect(new URL(http.library.avatarUrl("vane.json"), "http://localhost:3000/").pathname).toBe(
       "/api/library/vane.json/avatar",
     );
-  });
-});
-
-describe("card export", () => {
-  test("the file name comes from Content-Disposition", async () => {
-    reply(new Response("{}", { headers: { "Content-Disposition": 'attachment; filename="Vane the Ferryman.json"' } }));
-    const { blob, filename } = await http.characters.exportCard("c1", "json");
-    expect(calls[0].url).toBe("api/characters/c1/export?format=json");
-    expect(filename).toBe("Vane the Ferryman.json");
-    expect(await blob.text()).toBe("{}");
-  });
-
-  test("the UTF-8 name wins over the ASCII fallback", async () => {
-    reply(new Response("{}", {
-      headers: {
-        "Content-Disposition":
-          `attachment; filename="card.json"; filename*=UTF-8''${encodeURIComponent("Алиса 紅 ✨.json")}`,
-      },
-    }));
-    const { filename } = await http.characters.exportCard("c1", "json");
-    expect(filename).toBe("Алиса 紅 ✨.json");
-  });
-
-  test("a broken UTF-8 name falls back to the plain one", async () => {
-    reply(new Response("{}", {
-      headers: { "Content-Disposition": `attachment; filename="Vane.json"; filename*=UTF-8''%E0%A4%A` },
-    }));
-    const { filename } = await http.characters.exportCard("c1", "json");
-    expect(filename).toBe("Vane.json");
-  });
-
-  test("without a usable header the file is named after the format", async () => {
-    reply(new Response("png"));
-    const { filename } = await http.characters.exportCard("c1", "png");
-    expect(filename).toBe("card.png");
-  });
-
-  test("a failed export is an error, not a download", async () => {
-    reply(json({ error: "Character not found." }, 404));
-    const failure = await http.characters.exportCard("gone", "json").catch((e) => e);
-    expect(failure).toBeInstanceOf(DataError);
-    expect(failure.message).toBe("Character not found.");
-    expect(failure.status).toBe(404);
   });
 });
 

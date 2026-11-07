@@ -4,6 +4,7 @@ import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { data, type CharacterInput } from "@/data";
 import { useT } from "@/i18n/useT";
+import { cardFile } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
 import type { CharacterWithLore, Connection, Kind, LoreEntry } from "@/types";
@@ -156,7 +157,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     if (!initial) return;
     setExportError(null);
     try {
-      const { blob, filename } = await data.characters.exportCard(initial.id, format);
+      const { blob, filename } = await cardFile(initial, format);
       downloadBlob(blob, filename);
     } catch (e) {
       // Called from a click, so a rejection would reach nobody: say it here.

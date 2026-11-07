@@ -19,8 +19,6 @@ export interface DataSource {
     ): Promise<Character>;
     remove(id: string): Promise<void>;
     uploadAvatar(id: string, file: File): Promise<Character>;
-    importCard(file: File): Promise<Character>;
-    exportCard(id: string, format: "json" | "png"): Promise<{ blob: Blob; filename: string }>;
     assist(input: AssistInput): Promise<AssistResult>;
   };
   personas: {
