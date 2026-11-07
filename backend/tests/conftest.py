@@ -19,6 +19,14 @@ def _no_developer_settings(tmp_path, monkeypatch):
     _default_settings(tmp_path, monkeypatch)
 
 
+@pytest.fixture(autouse=True)
+def _no_wrong_passwords_counted():
+    # The server counts them per process, and every test client has the same address.
+    from app import gate
+
+    gate._failures.clear()
+
+
 @pytest.fixture()
 async def make_client(tmp_path, monkeypatch):
     """Open clients on fresh applications that all share one data directory.

@@ -21,12 +21,6 @@ LOCKED = {"error": "Locked.", "kind": "locked"}
 LONGEST = f"max-age={400 * 86400}"
 
 
-@pytest.fixture(autouse=True)
-def _no_failures_left():
-    # Kept by the process, as in the server, and every test client has the same address.
-    gate._failures.clear()
-
-
 async def sign_in(c, password: str = PW) -> str:
     """Signs in as a new device and returns its token, leaving the client's jar
     empty so that every later request says which device it comes from."""
