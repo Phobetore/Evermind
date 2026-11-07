@@ -91,3 +91,12 @@ test("a card's lorebook changes when the card is saved, and not when it is left"
   await expect(page).toHaveURL(new RegExp(`#/characters/${card.id}$`));
   expect(await loreOf(request, card.id)).toEqual(["The harbour never freezes.", "The gate shuts at dusk."]);
 });
+
+test("an edit page that cannot read its card says so, and offers no form to save over its lorebook", async ({ page, request }) => {
+  const card = await makeCharacter(request, { lore_entries: [{ keys: ["gate"], content: lore.gate }] });
+  await page.route(`**/api/characters/${card.id}`, (route) => route.abort("internetdisconnected"));
+  await page.goto(`/#/characters/${card.id}/edit`);
+  await expect(page.getByText("Evermind is not answering")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
+  expect(await loreOf(request, card.id)).toEqual([lore.gate]);
+});
