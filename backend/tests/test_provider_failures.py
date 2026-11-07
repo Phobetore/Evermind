@@ -15,7 +15,7 @@ from app.errors import NO_CONNECTION
 from app.providers import get_provider
 from app.providers.base import ProviderError
 
-from .test_chat import parse_sse, setup_conversation
+from .test_chat import send, setup_conversation
 from .test_providers import anth_provider, collect, oai_provider, sse
 
 PROVIDERS = [("openai-compatible", oai_provider), ("anthropic", anth_provider)]
@@ -354,16 +354,12 @@ async def test_listing_models_names_what_failed(client, monkeypatch):
 async def test_a_model_error_in_a_reply_keeps_what_the_server_said(client, monkeypatch):
     convo = await setup_conversation(client)
     patch_providers(monkeypatch, lambda: oai_provider(answering(401, {"error": "bad key"})))
-    resp = await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "send", "content": "Hi",
-    })
-    event = parse_sse(resp.text)[-1]
-    assert event == {
-        "type": "error",
+    assert await send(client, convo["id"], content="Hi") == {
         "message": "Authentication refused (401): invalid or missing API key. bad key",
         "kind": "model_auth_refused",
         "upstream_status": 401,
         "upstream": "bad key",
+        "mode": "send",
     }
 
 
@@ -396,9 +392,7 @@ async def test_a_failed_memory_pass_keeps_what_the_server_said(client, monkeypat
 
     convo = await setup_conversation(client)
     patch_providers(monkeypatch, lambda: oai_provider(replying))
-    await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "send", "content": "Hi",
-    })
+    await send(client, convo["id"], content="Hi")
 
     patch_providers(monkeypatch, lambda: oai_provider(answering(500, {"error": "boom"})))
     resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
@@ -437,13 +431,7 @@ async def corrupt_connection(client) -> dict:
 async def test_a_reply_on_a_corrupted_connection_says_so(client):
     convo = await setup_conversation(client)
     await corrupt_connection(client)
-    resp = await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "send", "content": "Hi",
-    })
-    assert resp.status_code == 200
-    event = parse_sse(resp.text)[-1]
-    assert event["type"] == "error"
-    assert event["kind"] == "model_unknown_type"
+    assert (await send(client, convo["id"], content="Hi"))["kind"] == "model_unknown_type"
 
 
 async def test_a_story_tool_on_a_corrupted_connection_says_so(client):

@@ -12,7 +12,7 @@ import app as app_package
 from app.providers.base import ProviderEvent
 
 from .test_cards import make_minimal_png
-from .test_chat import FakeProvider, parse_sse, send, setup_conversation
+from .test_chat import FakeProvider, send, setup_conversation
 
 
 @pytest.fixture()
@@ -417,45 +417,35 @@ async def test_a_memory_pass_the_model_refuses(client, provider, route):
     assert resp.json() == {"error": "Quota exceeded.", "kind": "model_error"}
 
 
-async def test_the_stream_names_what_went_wrong_too(client, provider):
-    """The same sentences travel as events of a reply, where they would
-    otherwise reach the screen in English whatever the language chosen."""
+async def test_a_turn_that_cannot_be_had_is_refused_by_name(client, provider):
+    """Before anything is saved, as any refusal of the API is: the page keeps the message."""
     char = (await client.post("/api/characters", json={"name": "X", "greeting": ""})).json()
     convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
 
-    events = await send(client, convo["id"])
-    assert events[-1]["kind"] == "no_connection"
+    resp = await client.post("/api/chat", json={"conversation_id": convo["id"], "content": "Hi"})
+    assert (resp.status_code, resp.json()["kind"]) == (400, "no_connection")
 
-    events = await send(client, "nope")
-    assert events[-1] == {
-        "type": "error", "message": "Conversation not found.", "kind": "not_found",
-        "resource": "conversation",
-    }
-
-
-async def test_the_stream_refuses_an_empty_message_by_name(client, provider):
-    convo = await setup_conversation(client)
-    events = await send(client, convo["id"], content="   ")
-    assert events[-1]["kind"] == "empty_message"
+    resp = await client.post("/api/chat", json={"conversation_id": "nope", "content": "Hi"})
+    assert resp.status_code == 404
+    assert resp.json() == {"error": "Conversation not found.", "kind": "not_found",
+                           "resource": "conversation"}
 
 
-async def test_the_stream_names_a_regeneration_with_nothing_to_regenerate(client, provider):
-    convo = await setup_conversation(client)
-    events = await send(client, convo["id"], content=None, mode="regenerate")
-    assert events[-1]["kind"] == "nothing_to_regenerate"
-
-
-async def test_the_stream_names_a_continuation_with_nothing_to_continue(client, provider):
-    convo = await setup_conversation(client, greeting="")
-    events = await send(client, convo["id"], content=None, mode="continue")
-    assert events[-1]["kind"] == "nothing_to_continue"
+@pytest.mark.parametrize(("asked", "greeting", "kind"), [
+    ({"mode": "send", "content": "   "}, "Hi.", "empty_message"),
+    ({"mode": "regenerate"}, "Hi.", "nothing_to_regenerate"),
+    ({"mode": "continue"}, "", "nothing_to_continue"),
+])
+async def test_a_turn_with_nothing_to_do_is_refused_by_name(client, provider, asked, greeting, kind):
+    convo = await setup_conversation(client, greeting=greeting)
+    resp = await client.post("/api/chat", json={"conversation_id": convo["id"], **asked})
+    assert (resp.status_code, resp.json()["kind"]) == (400, kind)
 
 
 async def test_the_stream_gives_a_failing_model_a_kind(client, provider):
     convo = await setup_conversation(client)
     FakeProvider.script = [ProviderEvent(type="error", message="boom")]
-    events = await send(client, convo["id"])
-    assert events[-1] == {"type": "error", "message": "boom", "kind": "model_error"}
+    assert await send(client, convo["id"]) == {"message": "boom", "kind": "model_error", "mode": "send"}
 
 
 async def test_the_stream_keeps_a_kind_the_model_gave(client, provider):
@@ -463,15 +453,13 @@ async def test_the_stream_keeps_a_kind_the_model_gave(client, provider):
     FakeProvider.script = [
         ProviderEvent(type="error", message="Cannot reach it.", meta={"kind": "unreachable"}),
     ]
-    events = await send(client, convo["id"])
-    assert events[-1]["kind"] == "unreachable"
+    assert (await send(client, convo["id"]))["kind"] == "unreachable"
 
 
 async def test_the_stream_names_a_reply_that_stays_empty(client, provider):
     convo = await setup_conversation(client, greeting="")
     FakeProvider.script = [ProviderEvent(type="done")]
-    events = await send(client, convo["id"])
-    assert events[-1]["kind"] == "model_empty"
+    assert (await send(client, convo["id"]))["kind"] == "model_empty"
 
 
 async def test_the_stream_names_a_reply_that_stayed_empty_after_a_second_try(
@@ -481,38 +469,26 @@ async def test_the_stream_names_a_reply_that_stayed_empty_after_a_second_try(
     moved out of the way, and the sentence says so."""
     convo = await setup_conversation(client)
     FakeProvider.script = [ProviderEvent(type="done")]
-    events = await send(client, convo["id"])
-    assert events[-1]["kind"] == "model_empty_retried"
+    assert (await send(client, convo["id"]))["kind"] == "model_empty_retried"
 
 
-async def test_a_crash_while_writing_a_reply_is_internal(client, provider, monkeypatch):
+@pytest.mark.parametrize("saved", [False, True], ids=["before the message is saved", "after"])
+async def test_a_crash_while_writing_a_reply_is_internal(client, provider, monkeypatch, saved):
     convo = await setup_conversation(client)
 
-    async def crash(*args, **kwargs):
+    async def crash(db, request, turn):
+        if saved:
+            turn.accepted.set()
         raise RuntimeError("disk on fire")
-        yield  # pragma: no cover
 
-    monkeypatch.setattr("app.services.chat_service.stream_turn", crash)
+    monkeypatch.setattr("app.services.chat_service.run_turn", crash)
     resp = await client.post("/api/chat", json={
         "conversation_id": convo["id"], "mode": "send", "content": "Hi",
     })
-    assert parse_sse(resp.text)[-1] == {
-        "type": "error", "message": "disk on fire", "kind": "internal",
-    }
-
-
-async def test_a_mode_the_schema_would_have_refused_is_named_too(client, provider):
-    """The request schema only lets three modes through, so this cannot arrive
-    over HTTP; it is what the turn says if it ever is not so."""
-    from app.db import _connect
-    from app.models.schemas import ChatRequest
-    from app.services import chat_service
-
-    convo = await setup_conversation(client)
-    request = ChatRequest.model_construct(conversation_id=convo["id"], mode="dance", content="Hi")
-    db = await _connect()
-    try:
-        events = [parse_sse(chunk)[0] async for chunk in chat_service.stream_turn(db, request)]
-    finally:
-        await db.close()
-    assert events[-1] == {"type": "error", "message": "Unknown mode: dance", "kind": "internal"}
+    if saved:
+        assert resp.status_code == 200
+        state = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()
+        assert state["outcome"] == {"kind": "internal", "message": "disk on fire", "mode": "send"}
+    else:
+        assert resp.status_code == 500
+        assert resp.json() == {"error": "disk on fire", "kind": "internal"}

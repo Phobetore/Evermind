@@ -10,7 +10,7 @@ import pytest
 from app.providers.base import ProviderEvent
 
 from .test_cards import CHAR_FIELDS, make_minimal_png
-from .test_chat import FakeProvider
+from .test_chat import FakeProvider, send
 from .test_providers import SAMPLING
 
 
@@ -299,7 +299,7 @@ async def tagged_and_used(client, monkeypatch, **conversation) -> tuple[list[str
     char = await create_character(client)
     convo = (await client.post("/api/conversations",
                                json={"character_id": char["id"], **conversation})).json()
-    await client.post("/api/chat", json={"conversation_id": convo["id"], "content": "Hello"})
+    await send(client, convo["id"], content="Hello")
     return tagged, FakeProvider.captured["connection"]["name"]
 
 

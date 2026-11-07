@@ -9,7 +9,7 @@ from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as repo
 from ..repositories import personas as personas_repo
-from ..services import media, memory_service
+from ..services import media, memory_service, turns
 
 router = APIRouter(prefix="/api", tags=["conversations"])
 
@@ -88,6 +88,7 @@ async def clear_wallpaper(convo_id: str, db: aiosqlite.Connection = Depends(get_
 
 @router.delete("/conversations/{convo_id}", status_code=204)
 async def delete_conversation(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    await turns.stop(convo_id)
     if not await repo.delete(db, convo_id):
         raise NotFoundError("Conversation not found.", "conversation")
 
@@ -120,5 +121,9 @@ async def branch_conversation(message_id: str, db: aiosqlite.Connection = Depend
 
 @router.delete("/messages/{message_id}", status_code=204)
 async def delete_message(message_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    if not await repo.delete_message(db, message_id):
+    message = await repo.get_message(db, message_id)
+    # What the reply being written has, it writes before the story is cut, and nothing after.
+    if message:
+        await turns.stop(message["conversation_id"])
+    if not message or not await repo.delete_message(db, message_id):
         raise NotFoundError("Message not found.", "message")

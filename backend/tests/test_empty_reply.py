@@ -16,7 +16,7 @@ import pytest
 
 from app.prompting.engine import build_chat_payload
 from app.providers.base import ProviderEvent
-from tests.test_chat import parse_sse, setup_conversation
+from tests.test_chat import messages_of, send, setup_conversation
 from tests.test_prompting import PERSONA, make_character, make_connection, make_message
 from tests.test_providers import oai_provider, sse
 
@@ -110,26 +110,18 @@ def scripted(monkeypatch):
     return ScriptedProvider
 
 
-async def send(client, convo_id, content="Hello there"):
-    resp = await client.post("/api/chat", json={
-        "conversation_id": convo_id, "mode": "send", "content": content,
-    })
-    assert resp.status_code == 200, resp.text
-    return parse_sse(resp.text)
-
-
 async def test_silence_is_retried_once_with_the_greeting_folded(client, scripted):
     scripted.scripts = [SILENCE, speech("She answers after all.")]
     convo = await setup_conversation(client)
 
-    events = await send(client, convo["id"])
+    outcome = await send(client, convo["id"])
 
     assert len(scripted.payloads) == 2, "one silent answer should buy exactly one retry"
     assert scripted.payloads[0].messages[0]["role"] == "assistant"
     assert scripted.payloads[1].messages[0]["role"] == "user"
     assert scripted.payloads[1].stats["leading_assistant_folded"] == 1
-    assert events[-1]["type"] == "done"
-    assert events[-1]["message"]["content"] == "She answers after all."
+    assert outcome is None
+    assert (await messages_of(client, convo["id"]))[-1]["content"] == "She answers after all."
 
 
 async def test_a_model_that_answers_is_only_asked_once(client, scripted):
@@ -145,13 +137,12 @@ async def test_silence_twice_says_what_was_actually_tried(client, scripted):
     scripted.scripts = [SILENCE, SILENCE]
     convo = await setup_conversation(client)
 
-    events = await send(client, convo["id"])
+    outcome = await send(client, convo["id"])
 
     assert len(scripted.payloads) == 2
-    assert events[-1]["type"] == "error"
-    message = events[-1]["message"]
-    assert "twice" in message
-    assert "chat template" in message, "the message has to name the likely cause"
+    assert outcome["kind"] == "model_empty_retried"
+    assert "twice" in outcome["message"]
+    assert "chat template" in outcome["message"], "the message has to name the likely cause"
 
 
 async def test_the_retry_reply_is_the_one_that_gets_stored(client, scripted):
@@ -159,18 +150,18 @@ async def test_the_retry_reply_is_the_one_that_gets_stored(client, scripted):
     convo = await setup_conversation(client)
     await send(client, convo["id"])
 
-    messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
+    messages = await messages_of(client, convo["id"])
 
     assert [m["role"] for m in messages] == ["assistant", "user", "assistant"]
     assert messages[-1]["content"] == "Saved from the second pass."
 
 
-@pytest.mark.parametrize(("status", "openings", "last"), [
-    (200, ["assistant", "user"], "done"),
-    (400, ["assistant"], "error"),
+@pytest.mark.parametrize(("status", "openings", "failed"), [
+    (200, ["assistant", "user"], False),
+    (400, ["assistant"], True),
 ])
 async def test_a_refusal_inside_the_stream_is_retried_and_an_error_status_is_not(
-        client, monkeypatch, status, openings, last):
+        client, monkeypatch, status, openings, failed):
     """A template may refuse the greeting with an error in a stream it has already begun."""
     refusal = json.dumps({"error": {"message": "Error rendering prompt with jinja template: "
                                                "roles must alternate"}})
@@ -188,10 +179,10 @@ async def test_a_refusal_inside_the_stream_is_retried_and_an_error_status_is_not
                             lambda connection: oai_provider(server))
     convo = await setup_conversation(client)
 
-    events = await send(client, convo["id"])
+    outcome = await send(client, convo["id"])
 
     assert asked == openings
-    assert events[-1]["type"] == last
+    assert (outcome is not None) == failed
 
 
 async def test_a_refusal_with_no_greeting_to_blame_is_the_error_the_server_gave(
@@ -208,10 +199,10 @@ async def test_a_refusal_with_no_greeting_to_blame_is_the_error_the_server_gave(
                             lambda connection: oai_provider(server))
     convo = await setup_conversation(client, greeting="")
 
-    events = await send(client, convo["id"])
+    outcome = await send(client, convo["id"])
 
     assert len(asked) == 1
-    assert events[-1]["kind"] == "model_error"
+    assert outcome["kind"] == "model_error"
 
 
 @pytest.mark.parametrize("silence", [SILENCE, speech("  \n ")])
@@ -222,14 +213,12 @@ async def test_a_continuation_that_says_nothing_adds_nothing_not_even_a_space(
     convo = await setup_conversation(client)
     await send(client, convo["id"])
 
-    resp = await client.post("/api/chat", json={"conversation_id": convo["id"], "mode": "continue"})
-    events = parse_sse(resp.text)
+    outcome = await send(client, convo["id"], content=None, mode="continue")
 
-    assert events[-1]["type"] == "done"
-    assert events[-1]["message"]["content"] == "She waits."
-    # And says so, so that the page can: a Continue that adds nothing looks like one that did nothing.
-    assert events[-1]["nothing_added"] is True
-    messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
+    # Said, so that the page can: a Continue that adds nothing looks like one that did nothing.
+    assert outcome["kind"] == "nothing_added"
+    assert outcome["mode"] == "continue"
+    messages = await messages_of(client, convo["id"])
     assert messages[-1]["variants"] == ["She waits."]
 
 
@@ -238,19 +227,12 @@ async def test_a_continuation_that_adds_something_does_not_say_otherwise(client,
     convo = await setup_conversation(client)
     await send(client, convo["id"])
 
-    resp = await client.post("/api/chat", json={"conversation_id": convo["id"], "mode": "continue"})
-    events = parse_sse(resp.text)
-
-    assert events[-1]["type"] == "done"
-    assert "nothing_added" not in events[-1]
-    assert events[-1]["message"]["content"] == "She waits. Then she speaks."
+    assert await send(client, convo["id"], content=None, mode="continue") is None
+    assert (await messages_of(client, convo["id"]))[-1]["content"] == "She waits. Then she speaks."
 
 
 async def test_a_reply_that_is_new_or_replaced_never_says_nothing_was_added(client, scripted):
     scripted.scripts = [speech("She waits."), speech("Another take.")]
     convo = await setup_conversation(client)
-    sent = await send(client, convo["id"])
-    resp = await client.post("/api/chat", json={"conversation_id": convo["id"], "mode": "regenerate"})
-
-    assert "nothing_added" not in sent[-1]
-    assert "nothing_added" not in parse_sse(resp.text)[-1]
+    assert await send(client, convo["id"]) is None
+    assert await send(client, convo["id"], content=None, mode="regenerate") is None

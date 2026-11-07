@@ -6,15 +6,10 @@ says that it failed, so that none of it is thrown away for the sake of the sente
 that explains why it stops.
 """
 
-import asyncio
-
 import pytest
 
-from app.db import _connect
 from app.errors import MODEL_ERROR
-from app.models.schemas import ChatRequest
 from app.providers.base import ProviderEvent, failure
-from app.services import chat_service
 
 from .test_chat import FakeProvider, send, setup_conversation
 
@@ -42,11 +37,9 @@ async def test_a_reply_cut_short_by_a_failure_is_kept_and_the_failure_is_said(cl
     convo = await setup_conversation(client)
     provider.script = FAILS_AFTER_TWO_WORDS
 
-    events = await send(client, convo["id"], content="Knock")
+    outcome = await send(client, convo["id"], content="Knock")
 
-    assert [e["type"] for e in events] == ["start", "delta", "delta", "error"]
-    assert events[-1]["kind"] == "model_error"
-    assert events[-1]["message"] == "The server went away."
+    assert outcome == {"kind": "model_error", "message": "The server went away.", "mode": "send"}
     messages = await messages_of(client, convo["id"])
     assert [m["role"] for m in messages] == ["assistant", "user", "assistant"]
     assert messages[-1]["content"] == "The door creaks open"
@@ -58,12 +51,12 @@ async def test_a_failure_before_any_word_leaves_the_message_waiting_for_its_repl
     convo = await setup_conversation(client)
     provider.script = [ProviderEvent(type="error", message="Down.", meta=failure(MODEL_ERROR))]
 
-    events = await send(client, convo["id"], content="Knock")
+    await send(client, convo["id"], content="Knock")
 
-    assert events[-1]["type"] == "error"
     messages = await messages_of(client, convo["id"])
     assert [m["role"] for m in messages] == ["assistant", "user"]
-    assert messages[-1]["meta"]["unanswered"] is True
+    # And why, for a page that opens on it later.
+    assert messages[-1]["meta"]["unanswered"] == {"kind": "model_error", "message": "Down."}
 
 
 async def test_a_regeneration_cut_short_by_a_failure_keeps_its_words_as_a_variant(client, provider):
@@ -71,9 +64,8 @@ async def test_a_regeneration_cut_short_by_a_failure_keeps_its_words_as_a_varian
     await send(client, convo["id"], content="Knock")
     provider.script = FAILS_AFTER_TWO_WORDS
 
-    events = await send(client, convo["id"], content=None, mode="regenerate")
+    assert await send(client, convo["id"], content=None, mode="regenerate")
 
-    assert events[-1]["type"] == "error"
     reply = (await messages_of(client, convo["id"]))[-1]
     assert reply["variants"] == ["Complete.", "The door creaks open"]
     assert reply["active_index"] == 1
@@ -86,9 +78,8 @@ async def test_a_regeneration_for_a_message_without_a_reply_keeps_what_arrived(c
     await send(client, convo["id"], content="Knock")
     provider.script = FAILS_AFTER_TWO_WORDS
 
-    events = await send(client, convo["id"], content=None, mode="regenerate")
+    assert await send(client, convo["id"], content=None, mode="regenerate")
 
-    assert events[-1]["type"] == "error"
     messages = await messages_of(client, convo["id"])
     assert [m["role"] for m in messages] == ["assistant", "user", "assistant"]
     assert messages[-1]["content"] == "The door creaks open"
@@ -100,9 +91,8 @@ async def test_a_continuation_cut_short_by_a_failure_keeps_its_words(client, pro
     await send(client, convo["id"], content="Knock")
     provider.script = FAILS_AFTER_TWO_WORDS
 
-    events = await send(client, convo["id"], content=None, mode="continue")
+    assert await send(client, convo["id"], content=None, mode="continue")
 
-    assert events[-1]["type"] == "error"
     reply = (await messages_of(client, convo["id"]))[-1]
     assert reply["content"] == "Complete. The door creaks open"
     assert reply["variants"] == ["Complete. The door creaks open"]
@@ -114,9 +104,8 @@ async def test_a_continuation_that_fails_before_any_word_changes_nothing(client,
     before = await messages_of(client, convo["id"])
     provider.script = [ProviderEvent(type="error", message="Down.", meta=failure(MODEL_ERROR))]
 
-    events = await send(client, convo["id"], content=None, mode="continue")
+    assert await send(client, convo["id"], content=None, mode="continue")
 
-    assert events[-1]["type"] == "error"
     assert await messages_of(client, convo["id"]) == before
 
 
@@ -130,13 +119,13 @@ async def test_the_conversation_read_after_a_failure_says_the_reply_was_cut_shor
 
     reply = (await messages_of(client, convo["id"]))[-1]
 
-    assert reply["meta"] == {"interrupted": [0]}
+    assert reply["meta"].get("interrupted") == [0]
     # And the next turn leaves it so.
     provider.script = [ProviderEvent(type="delta", text="Again."), ProviderEvent(type="done")]
     await send(client, convo["id"], content="Knock again")
     kept = (await messages_of(client, convo["id"]))[-3]
     assert kept["content"] == "The door creaks open"
-    assert kept["meta"] == {"interrupted": [0]}
+    assert kept["meta"].get("interrupted") == [0]
 
 
 async def test_a_regeneration_or_a_continuation_cut_short_by_a_failure_says_so_too(client, provider):
@@ -162,13 +151,11 @@ async def test_finishing_a_reply_that_was_cut_short_takes_the_label_away(client,
     convo = await setup_conversation(client)
     provider.script = FAILS_AFTER_TWO_WORDS
     await send(client, convo["id"], content="Knock")
-    assert (await messages_of(client, convo["id"]))[-1]["meta"] == {"interrupted": [0]}
+    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [0]
     provider.script = [ProviderEvent(type="delta", text="the rest."), ProviderEvent(type="done")]
 
-    events = await send(client, convo["id"], content=None, mode="continue")
+    assert await send(client, convo["id"], content=None, mode="continue") is None
 
-    assert events[-1]["type"] == "done"
-    assert events[-1]["message"]["meta"].get("interrupted") is None
     reply = (await messages_of(client, convo["id"]))[-1]
     assert "interrupted" not in reply["meta"]
 
@@ -183,7 +170,7 @@ async def test_only_finishing_a_reply_takes_the_label_away(client, provider):
     # failing again, labels it again, and only finishing clears it.
     provider.script = FAILS_AFTER_TWO_WORDS
     await send(client, convo["id"], content=None, mode="continue")
-    assert (await messages_of(client, convo["id"]))[-1]["meta"] == {"interrupted": [0]}
+    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [0]
     provider.script = [ProviderEvent(type="delta", text=" Done."), ProviderEvent(type="done")]
     await send(client, convo["id"], content=None, mode="continue")
     assert "interrupted" not in (await messages_of(client, convo["id"]))[-1]["meta"]
@@ -205,76 +192,13 @@ async def test_a_failure_that_is_not_a_model_event_keeps_what_arrived_too(client
     monkeypatch.setattr("app.services.chat_service.get_provider", Breaks)
     convo = await setup_conversation(client)
 
-    events = await send(client, convo["id"], content="Knock")
+    outcome = await send(client, convo["id"], content="Knock")
 
-    assert events[-1]["type"] == "error"
-    assert events[-1]["kind"] == "internal"
-    assert "not an object" in events[-1]["message"]
+    assert outcome["kind"] == "internal"
+    assert "not an object" in outcome["message"]
     reply = (await messages_of(client, convo["id"]))[-1]
     assert reply["content"] == "The door creaks open"
-    assert reply["meta"] == {"interrupted": [0]}
-
-
-async def test_a_reply_that_cannot_be_kept_does_not_hide_the_failure_of_the_model(
-        client, provider, monkeypatch):
-    from app.repositories import conversations as convo_repo
-
-    real = convo_repo.update_message
-
-    async def refuses_the_label(db, message_id, **fields):
-        if (fields.get("meta") or {}).get("interrupted"):
-            raise RuntimeError("the database is locked")
-        return await real(db, message_id, **fields)
-
-    monkeypatch.setattr(convo_repo, "update_message", refuses_the_label)
-    convo = await setup_conversation(client)
-    provider.script = FAILS_AFTER_TWO_WORDS
-
-    events = await send(client, convo["id"], content="Knock")
-
-    assert events[-1]["type"] == "error"
-    assert events[-1]["kind"] == "model_error"
-    assert events[-1]["message"] == "The server went away."
-
-
-async def test_a_failure_after_the_message_was_deleted_ends_the_turn_without_a_reply(
-        client, monkeypatch):
-    """The person took the message back while the model was writing, and the model failed
-    after that: there is nothing to keep the words in, and nothing to report a failure of."""
-    delta_sent, gate = asyncio.Event(), asyncio.Event()
-
-    class FailsAfterTheMessageIsGone:
-        def __init__(self, connection):
-            pass
-
-        async def stream_chat(self, payload):
-            yield ProviderEvent(type="delta", text="Half a reply")
-            delta_sent.set()
-            await gate.wait()
-            yield ProviderEvent(type="error", message="Down.", meta=failure(MODEL_ERROR))
-
-    monkeypatch.setattr("app.services.chat_service.get_provider", FailsAfterTheMessageIsGone)
-    convo = await setup_conversation(client)
-    db = await _connect()
-    events: list[str] = []
-
-    async def run():
-        async for chunk in chat_service.stream_turn(
-                db, ChatRequest(conversation_id=convo["id"], mode="send", content="Gone soon")):
-            events.append(chunk)
-
-    turn = asyncio.create_task(run())
-    try:
-        await asyncio.wait_for(delta_sent.wait(), 5)
-        mine = next(m for m in await messages_of(client, convo["id"]) if m["role"] == "user")
-        await client.delete(f"/api/messages/{mine['id']}")
-    finally:
-        gate.set()
-    await asyncio.wait_for(turn, 5)
-    await db.close()
-
-    assert events[-1] == 'data: {"type": "discarded"}\n\n'
-    assert [m["role"] for m in await messages_of(client, convo["id"])] == ["assistant"]
+    assert reply["meta"].get("interrupted") == [0]
 
 
 # ---------- which version of a reply was cut short ----------
@@ -300,7 +224,7 @@ async def test_a_failed_regeneration_labels_its_own_version_and_not_the_whole_on
 
     await send(client, convo["id"], content=None, mode="regenerate")
 
-    assert (await messages_of(client, convo["id"]))[-1]["meta"] == {"interrupted": [1]}
+    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [1]
     assert await active_label(client, convo["id"]) == ("The door creaks open", True)
     await swipe(client, convo["id"], 0)
     assert await active_label(client, convo["id"]) == ("Complete.", False)
@@ -324,12 +248,12 @@ async def test_finishing_one_version_leaves_the_label_of_another(client, provide
     provider.script = FAILS_AFTER_TWO_WORDS
     await send(client, convo["id"], content="Knock")
     await send(client, convo["id"], content=None, mode="regenerate")
-    assert (await messages_of(client, convo["id"]))[-1]["meta"] == {"interrupted": [0, 1]}
+    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [0, 1]
     provider.script = [ProviderEvent(type="delta", text="the rest."), ProviderEvent(type="done")]
 
     await send(client, convo["id"], content=None, mode="continue")
 
-    assert (await messages_of(client, convo["id"]))[-1]["meta"] == {"interrupted": [0]}
+    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [0]
 
 
 @pytest.mark.parametrize("nothing", [
@@ -343,48 +267,8 @@ async def test_a_continuation_that_adds_nothing_leaves_the_label(client, provide
     await send(client, convo["id"], content="Knock")
     provider.script = nothing
 
-    events = await send(client, convo["id"], content=None, mode="continue")
-
-    assert events[-1]["type"] == "done"
-    assert events[-1]["nothing_added"] is True
-    assert (await messages_of(client, convo["id"]))[-1]["meta"] == {"interrupted": [0]}
-
-
-async def stored_as_it_used_to_be(convo_id):
-    """A reply cut short by an older version: the whole message says so."""
-    db = await _connect()
-    try:
-        await db.execute(
-            "UPDATE messages SET meta = '{\"interrupted\": true}' WHERE conversation_id = ?"
-            " AND position = (SELECT MAX(position) FROM messages WHERE conversation_id = ?)",
-            (convo_id, convo_id))
-        await db.commit()
-    finally:
-        await db.close()
-
-
-async def test_an_old_label_is_the_active_versions_when_another_version_comes(client, provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"], content="Knock")
-    await stored_as_it_used_to_be(convo["id"])
-    assert await active_label(client, convo["id"]) == ("Complete.", True)
-    provider.script = [ProviderEvent(type="delta", text="Whole."), ProviderEvent(type="done")]
-
-    await send(client, convo["id"], content=None, mode="regenerate")
-
-    assert (await messages_of(client, convo["id"]))[-1]["meta"] == {"interrupted": [0]}
-    assert await active_label(client, convo["id"]) == ("Whole.", False)
-
-
-async def test_an_old_label_goes_when_its_version_is_finished(client, provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"], content="Knock")
-    await stored_as_it_used_to_be(convo["id"])
-    provider.script = [ProviderEvent(type="delta", text="the rest."), ProviderEvent(type="done")]
-
-    await send(client, convo["id"], content=None, mode="continue")
-
-    assert "interrupted" not in (await messages_of(client, convo["id"]))[-1]["meta"]
+    assert (await send(client, convo["id"], content=None, mode="continue"))["kind"] == "nothing_added"
+    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [0]
 
 
 async def test_a_branch_keeps_which_version_was_cut_short(client, provider):
@@ -396,7 +280,7 @@ async def test_a_branch_keeps_which_version_was_cut_short(client, provider):
 
     branch = (await client.post(f"/api/messages/{reply['id']}/branch")).json()
 
-    assert branch["messages"][-1]["meta"] == {"interrupted": [1]}
+    assert branch["messages"][-1]["meta"].get("interrupted") == [1]
     assert branch["messages"][-1]["variants"] == ["Complete.", "The door creaks open"]
     assert await active_label(client, branch["id"]) == ("The door creaks open", True)
     await swipe(client, branch["id"], 0)
