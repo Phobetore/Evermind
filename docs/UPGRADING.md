@@ -28,7 +28,9 @@ instead.
   connection. Other connections are not touched.
 - **A copy of the database is kept.** If the update changes the database, it is
   first copied beside the original as `evermind.before-3.0.2.db`. To go back, see
-  [Going back after an update](../INSTALL.md#where-your-things-are-kept).
+  [Going back after an update](../INSTALL.md#going-back-after-an-update).
+- **From the source, Python must use SQLite 3.35 or newer.** The python.org ones
+  do. If yours is older, Evermind says so at start and changes nothing.
 
 ## From 2.x to 3.0
 

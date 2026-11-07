@@ -389,7 +389,9 @@ once the checkbox is clear.
 
 To back it up, copy that folder. To start fresh, delete it.
 
-**Going back after an update.** An update is applied whole or not at all. If one
+### Going back after an update
+
+An update is applied whole or not at all. If one
 fails to start, it has changed nothing in your database: put back the version you
 had.
 
