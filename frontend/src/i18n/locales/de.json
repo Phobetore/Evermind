@@ -510,7 +510,7 @@
     "modelRateLimited": "Der Server des Modells hat sein Anfragelimit erreicht. Versuch es gleich noch einmal. Der Server meldet: {message}",
     "modelHttpError": "Der Server des Modells hat mit einem Fehler geantwortet (HTTP {status}).",
     "modelTimeout": "Das Modell hat zu lange für die Antwort gebraucht.",
-    "modelNetworkError": "Die Verbindung zum Server des Modells ist fehlgeschlagen.",
+    "modelNetworkError": "Das Modell hat zu lange für die Antwort gebraucht, oder die Verbindung zu seinem Server ist abgebrochen.",
     "modelUnexpectedResponse": "Der Server des Modells hat so geantwortet, dass Evermind es nicht versteht. Prüfe die URL der Verbindung.",
     "modelUnknownType": "Diese Verbindung hat einen Typ, den Evermind nicht kennt. Bearbeite sie oder lege sie neu an.",
     "modelNoText": "Das Modell hat keinen Text erzeugt.",
