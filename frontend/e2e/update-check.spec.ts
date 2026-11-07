@@ -36,21 +36,33 @@ test("a newer release is announced with the command that updates this installati
     .toHaveAttribute("href", "https://github.com/Phobetore/Evermind/releases/tag/v99.0.0");
 });
 
-test("a copy downloaded as a ZIP, which no command updates, is sent to the steps in INSTALL.md", async ({
-  page,
-}) => {
-  await github(page, "v99.0.0");
-  await page.route("**/api/update", (route) => route.fulfill({ json: { current: "3.0.0", command: null } }));
+for (const { title, kind, said } of [
+  {
+    title: "a copy downloaded as a ZIP, which no command updates, is sent to the steps in INSTALL.md",
+    kind: "zip",
+    said: "Downloaded as a ZIP, this copy is updated by hand: the steps are in INSTALL.md.",
+  },
+  {
+    // The pull would put the published image, which has no semantic memory, in its place.
+    title: "an image built from the source is sent to the steps in INSTALL.md rather than told to pull",
+    kind: "built",
+    said: "Built from the source, this image is updated by building it again from the new source: "
+      + "the steps are in INSTALL.md.",
+  },
+]) {
+  test(title, async ({ page }) => {
+    await github(page, "v99.0.0");
+    await page.route("**/api/update", (route) => route.fulfill({ json: { current: "3.0.0", kind, command: null } }));
 
-  await page.goto("/#/settings");
+    await page.goto("/#/settings");
 
-  await expect(page.getByText("Evermind 99.0.0 is out.")).toBeVisible();
-  const steps = page.getByRole("link", { name: "the steps are in INSTALL.md" });
-  await expect(steps).toHaveAttribute("href", "https://github.com/Phobetore/Evermind/blob/main/INSTALL.md#updating");
-  await expect(page.locator("p", { has: steps }))
-    .toHaveText("Downloaded as a ZIP, this copy is updated by hand: the steps are in INSTALL.md.");
-  await expect(page.locator("main code")).toHaveCount(0);
-});
+    await expect(page.getByText("Evermind 99.0.0 is out.")).toBeVisible();
+    const steps = page.getByRole("link", { name: "the steps are in INSTALL.md" });
+    await expect(steps).toHaveAttribute("href", "https://github.com/Phobetore/Evermind/blob/main/INSTALL.md#updating");
+    await expect(page.locator("p", { has: steps })).toHaveText(said);
+    await expect(page.locator("main code")).toHaveCount(0);
+  });
+}
 
 test("with the check off nothing is asked until the button is, which says what came of it", async ({
   page, request,

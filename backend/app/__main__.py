@@ -75,9 +75,10 @@ def main(argv: list[str] | None = None) -> int:
             'Run scripts/prod.ps1 or scripts/prod.sh, or "npm run build" in frontend/.',
         )
 
+    kind = config.install_kind()
     # In a container docker-compose.yml decides what is exposed: an address or a
     # warning printed from in here would be wrong.
-    if config.install_kind() != "docker":
+    if kind not in ("docker", "built"):
         local = host in ("127.0.0.1", "localhost", "::1")
         if not args.dev:
             shown = "localhost" if local or host in ("0.0.0.0", "::") else host

@@ -150,6 +150,7 @@
         "link": "la marche à suivre est dans INSTALL.md",
         "after": "."
       },
+      "builtHint": "Construite depuis la source, cette image se met à jour en la reconstruisant depuis la nouvelle source :",
       "releaseNotes": "Ce qui a changé",
       "checkHint": "Demander à GitHub, à chaque ouverture de cette page, s'il existe une version plus récente. La demande ne contient rien de ce que vous avez écrit, mais GitHub voit ce que tout site voit d'un navigateur, y compris l'adresse à laquelle vous avez ouvert Evermind. Décochée, plus rien ne part de lui-même, et le bouton ci-dessous fonctionne toujours quand vous le pressez.",
       "checkNow": "Vérifier maintenant",

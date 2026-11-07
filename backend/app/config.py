@@ -1,6 +1,7 @@
 """Runtime configuration resolved from environment variables."""
 
 import codecs
+import importlib.util
 import os
 import re
 from pathlib import Path
@@ -73,8 +74,16 @@ def gate_password() -> str:
     return os.environ.get("EVERMIND_GATE_PASSWORD", "").strip()
 
 
+def semantic_installed() -> bool:
+    """Whether the ``semantic`` extra is installed, which it never is in the published image."""
+    return importlib.util.find_spec("sentence_transformers") is not None
+
+
 def install_kind() -> str:
-    """``docker`` in a container, ``clone`` where git can update the source, ``zip`` otherwise."""
+    """``docker`` in a container of the published image, ``built`` in one built from the source,
+    ``clone`` where git can update the source, ``zip`` otherwise."""
     if _DOCKERENV.exists():
-        return "docker"
+        # SEMANTIC=true reaches the container through the .env: the image was built, or meant to be.
+        built = semantic_installed() or os.environ.get("SEMANTIC") == "true"
+        return "built" if built else "docker"
     return "clone" if (_REPO_ROOT / ".git").exists() else "zip"  # .git is a file in a worktree

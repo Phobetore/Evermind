@@ -18,13 +18,13 @@ async def update() -> dict:
     kind = config.install_kind()
     if kind == "docker":
         command = "docker compose up -d --pull always"
-    elif kind == "zip":
-        command = None  # Settings links to INSTALL.md, which says what to copy across
+    elif kind in ("zip", "built"):
+        command = None  # Settings links to INSTALL.md: what to copy across, or how to build again
     elif sys.platform == "win32":
         command = r"git pull; .\scripts\prod.ps1"  # Windows PowerShell has no &&
     else:
         command = "git pull && ./scripts/prod.sh"
-    return {"current": __version__, "command": command}
+    return {"current": __version__, "kind": kind, "command": command}
 
 
 def register_routers(app: FastAPI) -> None:

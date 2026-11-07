@@ -364,10 +364,13 @@ def test_windows_gets_the_firewall_command_on_stderr_for_a_network_start(
     assert (rule in err) is prints
 
 
-def test_a_container_prints_no_addresses_and_no_warning(clean_env, ui_built, monkeypatch, capsys):
+@pytest.mark.parametrize("kind", ["docker", "built"])
+def test_a_container_prints_no_addresses_and_no_warning(
+    clean_env, ui_built, monkeypatch, capsys, kind
+):
     # docker-compose.yml decides what is exposed; from inside, 0.0.0.0 is simply
     # how the published port reaches the process.
-    monkeypatch.setattr(config, "install_kind", lambda: "docker")
+    monkeypatch.setattr(config, "install_kind", lambda: kind)
     monkeypatch.setattr(sys, "platform", "win32")
     assert start(monkeypatch, BIND="0.0.0.0") == 0
     captured = capsys.readouterr()
