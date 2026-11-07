@@ -395,6 +395,10 @@ async def test_a_summary_a_person_typed_stays_when_the_story_is_cut_back(client,
     read = await conversation(client, convo["id"])
     assert (read["memory_position"], read["summary"]) == (4, "In my own words.")
     assert [p for p, _ in await summaries_of(convo["id"])] == [4]
+    # Still theirs at the point the memory went back to, through the next cut.
+    await remove_from(client, convo["id"], 3)
+    read = await conversation(client, convo["id"])
+    assert (read["memory_position"], read["summary"]) == (0, "In my own words.")
 
 
 SELENA = "Selena woke in the crypt."
@@ -471,6 +475,9 @@ async def test_a_pass_that_gives_no_summary_keeps_a_typed_one_as_typed(client, f
 
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (16, SERANA)
+    await remove_from(client, convo_id, 4)
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, SERANA)
 
 
 async def test_a_pass_that_was_reading_when_the_story_was_cut_leaves_nothing_of_it(
