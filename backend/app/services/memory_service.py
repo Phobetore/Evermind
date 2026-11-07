@@ -153,7 +153,9 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
         connection = await connections_repo.get_default_raw(db)
     if connection is None:
         raise AppError("No LLM connection configured.", kind=NO_CONNECTION)
-    return {**connection, "max_tokens": max(connection.get("max_tokens") or 0, MIN_ANSWER_TOKENS)}
+    if connection.get("max_tokens"):
+        connection = {**connection, "max_tokens": max(connection["max_tokens"], MIN_ANSWER_TOKENS)}
+    return connection
 
 
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:

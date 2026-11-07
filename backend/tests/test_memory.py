@@ -195,6 +195,20 @@ async def test_a_pass_asks_for_room_to_answer_whatever_the_connection_allows(cli
     assert fake_provider.captured["connection"]["max_tokens"] == 2048
 
 
+async def test_a_pass_sets_no_cap_on_a_connection_that_has_none(client, fake_provider):
+    """Some providers refuse the field, and chat works without it."""
+    convo = await setup_conversation(client)
+    connection = (await client.get("/api/connections")).json()[0]
+    await client.put(f"/api/connections/{connection['id']}", json={"max_tokens": None})
+    await send(client, convo["id"])
+    fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                            ProviderEvent(type="done")]
+
+    await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+
+    assert fake_provider.captured["connection"]["max_tokens"] is None
+
+
 async def test_a_failed_automatic_pass_waits_for_more_replies_and_says_why(client, monkeypatch):
     monkeypatch.setattr("app.services.chat_service.get_provider", Said)
     monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
