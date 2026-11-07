@@ -70,3 +70,8 @@ def ui_dir() -> Path:
 def gate_password() -> str:
     """Empty means no password, which is the default."""
     return os.environ.get("EVERMIND_GATE_PASSWORD", "").strip()
+
+
+def install_kind() -> str:
+    """``docker`` in a container, which Docker marks with this file; ``source`` otherwise."""
+    return "docker" if Path("/.dockerenv").exists() else "source"

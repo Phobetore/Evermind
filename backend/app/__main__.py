@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 
 from . import config
-from .services import update_check
 
 
 def lan_address() -> str | None:
@@ -78,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # In a container docker-compose.yml decides what is exposed: an address or a
     # warning printed from in here would be wrong.
-    if update_check.install_kind() != "docker":
+    if config.install_kind() != "docker":
         local = host in ("127.0.0.1", "localhost", "::1")
         if not args.dev:
             shown = "localhost" if local or host in ("0.0.0.0", "::") else host

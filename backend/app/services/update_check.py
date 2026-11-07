@@ -10,11 +10,11 @@ check is not worth breaking a page over.
 import asyncio
 import os
 import time
-from pathlib import Path
 
 import httpx
 
 from .. import __version__
+from ..config import install_kind
 
 _LATEST_RELEASE = "https://api.github.com/repos/Phobetore/Evermind/releases/latest"
 _CACHE_SECONDS = 60 * 60 * 24
@@ -59,12 +59,6 @@ def _as_numbers(version: str) -> tuple[int, ...] | None:
 def is_newer(candidate: str, current: str) -> bool:
     left, right = _as_numbers(candidate), _as_numbers(current)
     return bool(left and right and left > right)
-
-
-def install_kind() -> str:
-    """Which upgrade instructions to offer. Docker writes this file into every
-    container it starts; a source checkout has no equivalent to look for."""
-    return "docker" if Path("/.dockerenv").exists() else "source"
 
 
 def upgrade_command() -> str:
