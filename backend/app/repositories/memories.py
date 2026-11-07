@@ -91,10 +91,11 @@ async def update(db: aiosqlite.Connection, memory_id: str,
 async def rewrite(db: aiosqlite.Connection, memory_id: str, content: str,
                   blob: bytes | None, at: int) -> None:
     """The model corrects a fact, in a pass that read up to ``at``: what it said is kept, for
-    a cut back before that pass to restore. The caller commits."""
+    a cut back before that pass to restore. A fact it restates word for word keeps its vector,
+    and what it said before an earlier correction. The caller commits."""
     await db.execute(
         "UPDATE memories SET previous_content = content, corrected_at = ?, content = ?,"
-        " embedding = ? WHERE id = ?", (at, content, blob, memory_id))
+        " embedding = ? WHERE id = ? AND content <> ?", (at, content, blob, memory_id, content))
 
 
 async def remove(db: aiosqlite.Connection, memory_id: str) -> None:

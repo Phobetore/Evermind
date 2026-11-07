@@ -20,6 +20,7 @@ import json
 import pytest
 
 from app.db import _connect
+from app.prompting import embeddings
 from app.providers.base import ProviderEvent
 from app.repositories import conversations as convo_repo
 from app.repositories import memories as memories_repo
@@ -489,17 +490,26 @@ async def test_a_fact_a_later_pass_corrected_is_back_as_it_was(client, fake_prov
     assert (read["memory_position"], read["summary"]) == (8, "To 8.")
 
 
+async def by_length(texts, kind):
+    """A semantic model whose vector of a text says how long it is."""
+    return [[float(len(text)), 1.0] for text in texts]
+
+
+async def vectors():
+    db = await _connect()
+    try:
+        rows = await (await db.execute("SELECT content, embedding FROM memories")).fetchall()
+        return {r["content"]: r["embedding"] for r in rows}
+    finally:
+        await db.close()
+
+
 async def test_a_restored_fact_never_has_the_vector_of_another_text(
         client, fake_provider, monkeypatch):
-    from app.prompting import embeddings
-
     convo = await setup_conversation(client)
     convo_id = convo["id"]
 
-    async def embed(texts, kind):
-        return [[float(len(text)), 1.0] for text in texts]
-
-    monkeypatch.setattr(embeddings, "embed", embed)
+    monkeypatch.setattr(embeddings, "embed", by_length)
     await talk(client, convo_id, 4)
     await extract(client, convo_id, {"facts": [{"content": "Stays as it is."},
                                                {"content": "To be corrected."}]})
@@ -508,14 +518,6 @@ async def test_a_restored_fact_never_has_the_vector_of_another_text(
         "updated_facts": [{"replaces": "To be corrected.", "content": "Corrected, much longer."}]})
 
     await remove_from(client, convo_id, 11)
-
-    async def vectors():
-        db = await _connect()
-        try:
-            rows = await (await db.execute("SELECT content, embedding FROM memories")).fetchall()
-            return {r["content"]: r["embedding"] for r in rows}
-        finally:
-            await db.close()
 
     held = await vectors()
     assert held["Stays as it is."] == embeddings.pack([float(len("Stays as it is.")), 1.0])
@@ -528,6 +530,22 @@ async def test_a_restored_fact_never_has_the_vector_of_another_text(
     await memory_service.fill_vectors()
     assert (await vectors())["To be corrected."] == embeddings.pack(
         [float(len("To be corrected.")), 1.0])
+
+
+async def test_a_fact_restated_as_it_is_keeps_its_vector_and_the_correction_a_cut_undoes(
+        client, fake_provider, monkeypatch):
+    convo_id = (await setup_conversation(client))["id"]
+    monkeypatch.setattr(embeddings, "embed", by_length)
+    await told_then_corrected(client, convo_id)
+    await talk(client, convo_id, 4, first=9)
+    same = "Alice died on the bridge."
+    await extract(client, convo_id, {"updated_facts": [{"replaces": same, "content": same}]})
+
+    await remove_from(client, convo_id, 19)  # back before the pass that restated it
+    assert await vectors() == {same: embeddings.pack([float(len(same)), 1.0])}
+
+    await remove_from(client, convo_id, 11)  # back before the pass that corrected it
+    assert await vectors() == {"Alice is alive.": None}
 
 
 async def test_a_fact_pinned_since_is_not_touched_and_not_restored_a_second_time(
