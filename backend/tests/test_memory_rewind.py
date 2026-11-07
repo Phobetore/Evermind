@@ -586,6 +586,25 @@ async def test_a_summary_put_right_over_a_pass_goes_with_no_branch_made_before_t
     assert (await conversation(client, convo_id))["summary"] == LATER
 
 
+@pytest.mark.parametrize(("greeting", "removed_from", "fork", "kept_at"), [
+    ("Hello.", 12, 10, 8),
+    ("", 4, 1, 0),
+], ids=["passes at 8 and 16", "a first pass of message 0 alone"])
+async def test_a_summary_put_right_then_cut_back_before_its_pass_goes_with_no_branch(
+        client, fake_provider, greeting, removed_from, fork, kept_at):
+    """The cut keeps it on the earlier pass's row, in place of that pass's summary, and it still
+    tells the turns of the later one: a branch made from there starts with none."""
+    convo_id = await two_passes_and_the_later_put_right(client, greeting)
+    await remove_from(client, convo_id, removed_from)
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (kept_at, LATER)
+
+    branch = await branch_at(client, convo_id, fork)
+
+    assert (branch["memory_position"], branch["summary"]) == (0, "")
+    assert await summaries_of(branch["id"]) == []
+
+
 async def test_a_pass_that_gives_no_summary_keeps_a_typed_one_as_typed(client, fake_provider):
     """Its row holds what the person typed, so that a cut back to it gives that back after a
     later pass has rewritten it."""
