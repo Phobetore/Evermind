@@ -1241,6 +1241,23 @@ async def test_a_branch_from_a_story_cut_before_its_only_pass_starts_with_no_sum
     assert (branch["memory_position"], branch["summary"]) == (removed_from - 1, "Read on.")
 
 
+async def test_a_cut_in_a_branch_never_gives_it_the_summary_it_started_without(
+        client, fake_provider):
+    """A row of it left in the branch would be what a cut back past the branch's own first pass
+    goes back to: the story after the branch's message, told in it."""
+    convo_id = await a_story_read_once(client, last=20, read=18)
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": "My words."})
+    await remove_from(client, convo_id, 10)  # kept at 0, as telling turns up to 18
+    branch_id = (await branch_at(client, convo_id, 5))["id"]
+    await talk(client, branch_id, 2, first=100)
+    await extract(client, branch_id, {"facts": [], "summary": "The branch, to 9."})
+
+    await remove_from(client, branch_id, 8)
+
+    read = await conversation(client, branch_id)
+    assert (read["memory_position"], read["summary"]) == (0, "")
+
+
 @pytest.mark.parametrize(("removed_from", "summary"), [
     (42, "The whole story."),
     (41, "The whole story."),  # the story is 41 turns, 0 to 40: one more than a pass reads
