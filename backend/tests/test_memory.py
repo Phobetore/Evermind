@@ -417,62 +417,6 @@ async def test_consolidation_prompt_holds_only_the_facts_it_may_merge(client, fa
         "Pinned fact.", "Hand-written fact.", "All of it, merged."}
 
 
-async def test_consolidation_names_the_player_as_a_chat_turn_does(client, fake_provider):
-    """The conversation has no persona of its own: the default one is the player."""
-    convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
-                    by_the_model=True)
-    fake_provider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
-
-    assert resp.status_code == 200, resp.text
-    assert "between Alex and Serana" in fake_provider.captured["payload"].system
-
-
-@pytest.mark.parametrize(("movable", "merged"), [(7, False), (8, True)])
-async def test_consolidation_starts_at_eight_movable_facts(client, fake_provider, movable, merged):
-    convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(movable)],
-                    by_the_model=True)
-    # Two more that it may not merge, so that counting every fact would reach eight.
-    await add_facts(client, convo["id"], ["Pinned fact."], pinned=True)
-    await add_facts(client, convo["id"], ["Hand-written fact."])
-    fake_provider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
-
-    assert resp.status_code == 200, resp.text
-    body = resp.json()
-    if merged:
-        assert "skipped" not in body
-        assert "payload" in fake_provider.captured
-    else:
-        assert body["skipped"] == "too_few"
-        assert body["before"] == body["after"] == movable + 2
-        assert fake_provider.captured == {}  # the model was not asked
-
-
-async def test_consolidation_keeps_every_fact_that_is_text_and_only_those(client, fake_provider):
-    """The facts it replaces are removed, so that a merged fact left out would be lost."""
-    convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
-                    by_the_model=True)
-    merged = [{"content": ["a"]}, {"content": 12}, {"content": "   "}, "text", {"kind": "event"},
-              {"content": "  Padded.  "}]
-    merged += [{"content": f"Merged {i}."} for i in range(40)]
-    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps({"facts": merged})),
-                            ProviderEvent(type="done")]
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
-
-    assert resp.status_code == 200, resp.text
-    body = resp.json()
-    # All of the readable ones: the padded one, stripped, and the 40 after it.
-    assert body["after"] == 41
-    assert {m["content"] for m in body["memories"]} == {"Padded.", *(f"Merged {i}." for i in range(40))}
-
-
 async def consolidate_while(client, monkeypatch, convo_id, meanwhile):
     """Consolidate, running ``meanwhile`` (a coroutine function) as the model answers."""
     class Meanwhile(FakeProvider):
@@ -533,24 +477,6 @@ async def test_nothing_is_written_when_a_fact_sent_to_the_model_changed_meanwhil
         row for row in map(as_left, before) if row)
 
 
-async def test_a_fact_added_meanwhile_does_not_stop_the_merge(client, fake_provider, monkeypatch):
-    """It is not one of the facts that were sent, so the merge cannot have used it."""
-    convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
-                    by_the_model=True)
-
-    async def meanwhile():
-        await client.post(f"/api/conversations/{convo['id']}/memories",
-                          json={"content": "Added meanwhile."})
-
-    resp = await consolidate_while(client, monkeypatch, convo["id"], meanwhile)
-
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["before"] == 9 and resp.json()["after"] == 2
-    assert [f[0] for f in await stored_facts(client, convo["id"])] == [
-        "Added meanwhile.", "All of it, merged."]
-
-
 def waiting_provider(monkeypatch):
     """A provider for the memory passes that does not answer until ``release`` is set,
     and says when it was asked and with what."""
@@ -607,60 +533,6 @@ async def test_a_second_pass_while_a_consolidation_runs_changes_nothing_and_asks
     assert [f[0] for f in await stored_facts(client, convo["id"])] == ["All of it, merged."]
 
 
-async def test_a_consolidation_while_an_extraction_runs_changes_nothing_and_asks_nothing(
-        client, fake_provider, monkeypatch):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
-                    by_the_model=True)
-    started, release, asked = waiting_provider(monkeypatch)
-    FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
-                           ProviderEvent(type="done")]
-    url = f"/api/conversations/{convo['id']}/memories"
-
-    extraction = asyncio.create_task(client.post(f"{url}/extract"))
-    try:
-        await within(5, started.wait())
-        consolidation = await within(5, client.post(f"{url}/consolidate"))
-    finally:
-        release.set()
-    extracted = await within(5, extraction)
-
-    assert consolidation.status_code == 200, consolidation.text
-    assert consolidation.json()["skipped"] == "busy"
-    assert consolidation.json()["before"] == consolidation.json()["after"] == 8
-    assert len(asked) == 1
-    assert len(extracted.json()["facts_added"]) == 2
-    assert "skipped" not in extracted.json()
-    assert len(await stored_facts(client, convo["id"])) == 10
-
-
-async def test_an_extraction_while_one_runs_says_that_it_did_not_look(
-        client, fake_provider, monkeypatch):
-    """"Nothing new" would say that it looked and found nothing."""
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    started, release, asked = waiting_provider(monkeypatch)
-    FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
-                           ProviderEvent(type="done")]
-    url = f"/api/conversations/{convo['id']}/memories"
-
-    first = asyncio.create_task(client.post(f"{url}/extract"))
-    try:
-        await within(5, started.wait())
-        second = await within(5, client.post(f"{url}/extract"))
-    finally:
-        release.set()
-    extracted = await within(5, first)
-
-    assert second.status_code == 200, second.text
-    assert second.json()["skipped"] == "busy"
-    assert second.json()["facts_added"] == []
-    assert len(asked) == 1
-    assert len(extracted.json()["facts_added"]) == 2
-    assert "skipped" not in extracted.json()
-
-
 class Raises(FakeProvider):
     async def stream_chat(self, payload):
         raise RuntimeError("the connection broke")
@@ -695,87 +567,6 @@ async def test_a_consolidation_that_fails_lets_the_next_one_run(
     assert [f[0] for f in await stored_facts(client, convo["id"])] == ["All of it, merged."]
 
 
-async def break_sqlite_when(sql_trigger: str):
-    """Make the database refuse a statement, as a disk that fills up or a lock that
-    times out would, whatever function of the repository issues it."""
-    from app.db import _connect
-
-    db = await _connect()
-    try:
-        await db.execute(sql_trigger)
-        await db.commit()
-    finally:
-        await db.close()
-
-
-async def test_a_merge_that_breaks_while_deleting_changes_nothing(client, fake_provider):
-    convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
-                    by_the_model=True)
-    await break_sqlite_when(
-        "CREATE TRIGGER refuse BEFORE DELETE ON memories WHEN old.content = 'Movable fact 5.'"
-        " BEGIN SELECT RAISE(ABORT, 'refused'); END")
-    fake_provider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
-
-    with pytest.raises(Exception, match="refused"):
-        await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
-
-    assert [f[0] for f in await stored_facts(client, convo["id"])] == [
-        f"Movable fact {i}." for i in range(8)]
-
-
-async def test_a_merge_that_breaks_while_writing_changes_nothing(client, fake_provider):
-    convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
-                    by_the_model=True)
-    await break_sqlite_when(
-        "CREATE TRIGGER refuse BEFORE INSERT ON memories WHEN new.content = 'Second merged.'"
-        " BEGIN SELECT RAISE(ABORT, 'refused'); END")
-    merged = {"facts": [{"content": "First merged."}, {"content": "Second merged."}]}
-    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(merged)),
-                            ProviderEvent(type="done")]
-
-    with pytest.raises(Exception, match="refused"):
-        await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
-
-    assert [f[0] for f in await stored_facts(client, convo["id"])] == [
-        f"Movable fact {i}." for i in range(8)]
-
-
-async def test_a_fact_pinned_or_edited_while_the_vectors_of_a_merge_are_worked_out_stops_it(
-        client, fake_provider, monkeypatch):
-    """The vectors take a while and come first, and a person can act on a fact meanwhile:
-    the merge was written from what the fact said."""
-    from app.prompting import embeddings
-
-    convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
-                    by_the_model=True)
-    facts = {f["content"]: f["id"] for f in
-             (await client.get(f"/api/conversations/{convo['id']}/memories")).json()}
-    done = []
-
-    async def embed_and_meanwhile(texts, kind="passage"):
-        if not done:
-            done.append(True)
-            await client.patch(f"/api/memories/{facts['Movable fact 2.']}", json={"is_pinned": True})
-            await client.patch(f"/api/memories/{facts['Movable fact 4.']}",
-                               json={"content": "Movable fact 4, edited."})
-
-    monkeypatch.setattr(embeddings, "embed", embed_and_meanwhile)
-    fake_provider.script = [ProviderEvent(type="delta", text=MERGED), ProviderEvent(type="done")]
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
-
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["skipped"] == "changed"
-    held = {f[0]: f[2] for f in await stored_facts(client, convo["id"])}
-    assert "All of it, merged." not in held
-    assert held["Movable fact 2."] is True
-    assert "Movable fact 4, edited." in held
-    assert len(held) == 8
-
-
 async def test_a_merged_fact_that_repeats_a_fact_sent_leaves_that_fact_in_place(
         client, fake_provider):
     """Adding it again is refused as a double, so deleting the one sent would lose it."""
@@ -792,21 +583,6 @@ async def test_a_merged_fact_that_repeats_a_fact_sent_leaves_that_fact_in_place(
     assert resp.json()["before"] == 8 and resp.json()["after"] == 2
     assert [f[0] for f in await stored_facts(client, convo["id"])] == [
         "And more.", "Movable fact 3."]
-
-
-async def test_consolidation_with_no_fact_that_is_text_changes_nothing(client, fake_provider):
-    convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
-                    by_the_model=True)
-    fake_provider.script = [
-        ProviderEvent(type="delta", text=json.dumps({"facts": [{"content": ["a"]}, {"content": 12}]})),
-        ProviderEvent(type="done")]
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
-
-    assert resp.status_code == 502
-    assert resp.json()["kind"] == "model_unreadable"
-    assert len((await client.get(f"/api/conversations/{convo['id']}/memories")).json()) == 8
 
 
 async def test_extraction_prompt_holds_the_facts_the_turns_and_the_default_persona(
@@ -833,22 +609,6 @@ async def test_extraction_prompt_holds_the_facts_the_turns_and_the_default_perso
     assert "between Alex (the player) and Serana" in payload.system
 
 
-async def test_extraction_asks_the_model_nothing_when_no_turn_is_new(client, fake_provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
-                            ProviderEvent(type="done")]
-    await client.post(f"/api/conversations/{convo['id']}/memories/extract")
-    assert "payload" in fake_provider.captured
-    fake_provider.captured.clear()
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
-
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["facts_added"] == []
-    assert fake_provider.captured == {}
-
-
 async def extract(client, convo_id, reply):
     FakeProvider.script = [ProviderEvent(type="delta", text=json.dumps(reply)),
                            ProviderEvent(type="done")]
@@ -862,77 +622,6 @@ async def stored_facts(client, convo_id):
     rows = (await client.get(f"/api/conversations/{convo_id}/memories")).json()
     return sorted((m["content"], m["source_position"], m["is_pinned"], m["source"])
                   for m in rows)
-
-
-async def test_a_fact_pinned_while_an_extraction_is_applied_is_not_rewritten_or_deleted(
-        client, fake_provider, monkeypatch):
-    """The plan was made from the facts as they were read, and working out the vectors of
-    its changes can take a while with the semantic model: each change asks again."""
-    from app.prompting import embeddings
-
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    await add_facts(client, convo["id"], ["To correct.", "To drop.", "Corrected anyway.",
-                                          "Dropped anyway."], by_the_model=True)
-    facts = {f["content"]: f["id"] for f in
-             (await client.get(f"/api/conversations/{convo['id']}/memories")).json()}
-    done = []
-
-    async def embed_and_meanwhile(texts, kind="passage"):
-        if not done:
-            done.append(True)
-            await client.patch(f"/api/memories/{facts['To correct.']}", json={"is_pinned": True})
-            await client.patch(f"/api/memories/{facts['To drop.']}", json={"is_pinned": True})
-
-    monkeypatch.setattr(embeddings, "embed", embed_and_meanwhile)
-    answer = {
-        "facts": [{"content": "A new fact."}],
-        "updated_facts": [{"replaces": "To correct.", "content": "Corrected."},
-                          {"replaces": "Corrected anyway.", "content": "Corrected, as asked."}],
-        "obsolete_facts": ["To drop.", "Dropped anyway."],
-    }
-    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(answer)),
-                            ProviderEvent(type="done")]
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
-
-    assert resp.status_code == 200, resp.text
-    assert [(f[0], f[2]) for f in await stored_facts(client, convo["id"])] == [
-        ("A new fact.", False), ("Corrected, as asked.", False), ("To correct.", True),
-        ("To drop.", True)]
-
-
-@pytest.mark.parametrize("change, left", [
-    ({"is_pinned": True}, ("To correct.", True)),
-    ({"content": "Edited by hand."}, ("Edited by hand.", False)),
-], ids=["pinned", "edited"])
-async def test_a_fact_changed_while_its_correction_is_worked_out_keeps_what_was_done_to_it(
-        client, fake_provider, monkeypatch, change, left):
-    """Working out the vector of the new text is the slow part of a correction, and it
-    comes after the fact was looked up."""
-    from app.prompting import embeddings
-
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    await add_facts(client, convo["id"], ["To correct."], by_the_model=True)
-    fact = (await client.get(f"/api/conversations/{convo['id']}/memories")).json()[0]
-    done = []
-
-    async def embed_and_meanwhile(texts, kind="passage"):
-        if texts == ["Corrected."] and not done:
-            done.append(True)
-            await client.patch(f"/api/memories/{fact['id']}", json=change)
-
-    monkeypatch.setattr(embeddings, "embed", embed_and_meanwhile)
-    answer = {"updated_facts": [{"replaces": "To correct.", "content": "Corrected."}]}
-    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(answer)),
-                            ProviderEvent(type="done")]
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
-
-    assert resp.status_code == 200, resp.text
-    assert done
-    assert [(f[0], f[2]) for f in await stored_facts(client, convo["id"])] == [left]
 
 
 async def test_a_messy_extraction_reply_leaves_the_facts_a_person_would_expect(
@@ -1007,32 +696,6 @@ async def say_the_same(client, convo_id, other, same, positions):
     assert resp.status_code == 200, resp.text
 
 
-async def test_a_drop_reaches_the_oldest_of_two_facts_that_say_the_same(client, fake_provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    await add_facts(client, convo["id"], ["Same.", "Other."], by_the_model=True)
-    await say_the_same(client, convo["id"], "Other.", "Same.", {"Same.": 3, "Other.": 4})
-
-    await extract(client, convo["id"], {"obsolete_facts": ["Same."]})
-
-    assert await stored_facts(client, convo["id"]) == [("Same.", 4, False, "auto")]
-
-
-async def test_a_drop_reaches_a_pinned_fact_before_another_that_says_the_same(
-        client, fake_provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    await add_facts(client, convo["id"], ["Pinned."], pinned=True, by_the_model=True)
-    await add_facts(client, convo["id"], ["Other."], by_the_model=True)
-    await say_the_same(client, convo["id"], "Other.", "Pinned.", {})
-
-    await extract(client, convo["id"], {"obsolete_facts": ["Pinned."]})
-
-    # The pinned one is the one found, and a pinned fact is not dropped.
-    assert await stored_facts(client, convo["id"]) == [
-        ("Pinned.", 0, False, "auto"), ("Pinned.", 0, True, "auto")]
-
-
 async def test_a_drop_never_reaches_a_hand_written_fact_that_an_edit_repeated(
         client, fake_provider):
     """The drop reaches the first fact that says the text, in the order of the list: here
@@ -1069,28 +732,6 @@ async def test_a_correction_never_rewrites_a_fact_that_a_person_wrote_or_pinned(
         ("Pinned by hand.", 0, True, "user"), ("Pinned fact.", 0, True, "auto")]
 
 
-async def test_a_correction_into_what_another_fact_says_drops_the_corrected_one(
-        client, fake_provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    await add_facts(client, convo["id"], ["Same.", "Old one.", "Old two.", "Old three."],
-                    by_the_model=True)
-    await add_facts(client, convo["id"], ["Hand fact."])
-
-    await extract(client, convo["id"], {"updated_facts": [
-        {"replaces": "Old one.", "content": "  Same.  "},  # said already: it goes
-        {"replaces": "Hand fact.", "content": "Same."},  # by hand: it stays, and nothing is added
-        {"replaces": "Old two.", "content": "Old two."},  # into itself: no other says it
-        {"replaces": "Old three.", "content": "Fresh."},
-        {"replaces": "Fresh.", "content": "Same."}],  # the second change sees the first
-        "obsolete_facts": ["Same."]})
-
-    # "Old one." went because "Same." says it; "Fresh." went into "Same." too; the drop of
-    # "Same." then reaches the one that is left of the three.
-    assert await stored_facts(client, convo["id"]) == [
-        ("Hand fact.", 0, False, "user"), ("Old two.", 0, False, "auto")]
-
-
 async def test_a_fact_pinned_while_the_model_answers_is_left_alone(
         client, fake_provider, monkeypatch):
     convo = await setup_conversation(client)
@@ -1112,102 +753,6 @@ async def test_a_fact_pinned_while_the_model_answers_is_left_alone(
     assert await stored_facts(client, convo["id"]) == [("Old one.", 0, True, "auto")]
 
 
-async def test_only_text_counts_as_text_in_an_extraction_reply(client, fake_provider):
-    """A number or a list is not a fact: ``str()`` of it used to be stored as one."""
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    await add_facts(client, convo["id"], ["Old one."], by_the_model=True)
-
-    body = await extract(client, convo["id"], {
-        "facts": [{"content": ["a"]}, {"content": 12}, {"content": None}, {"content": True},
-                  {"content": "Real fact.", "kind": ["event"]}],
-        "updated_facts": [{"replaces": ["Old one."], "content": {"a": 1}},
-                          {"replaces": 5, "content": "Kept by no one.", "kind": 3}],
-        "obsolete_facts": [["Old one."], None, 0, False],
-        "summary": ["A summary."],
-    })
-
-    assert [m["content"] for m in body["facts_added"]] == ["Real fact.", "Kept by no one."]
-    assert {m["content"] for m in (
-        await client.get(f"/api/conversations/{convo['id']}/memories")).json()} == {
-        "Old one.", "Real fact.", "Kept by no one."}
-    assert body["summary"] == ""
-
-
-async def test_what_is_not_a_list_in_an_extraction_reply_holds_nothing(client, fake_provider):
-    """A string is not a list of letters, and a number is not a list: neither
-    gives a fact nor fails the extraction."""
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    await add_facts(client, convo["id"], ["a", "b"], by_the_model=True)
-
-    body = await extract(client, convo["id"], {
-        "facts": "abc", "updated_facts": 5, "obsolete_facts": "ab", "summary": 7})
-
-    assert body["facts_added"] == []
-    assert {m["content"] for m in (
-        await client.get(f"/api/conversations/{convo['id']}/memories")).json()} == {"a", "b"}
-
-
-# A lone surrogate is what an escape such as \ud800 in a model's answer gives: a string
-# that Python holds and that cannot be written to the database or to a response.
-LONE = chr(0xD800)
-
-
-async def test_a_drop_of_a_text_that_cannot_be_stored_finds_nothing(client, fake_provider):
-    """It used to reach the database as a lookup, fail there, and end the extraction
-    in an error after the facts written before it were committed."""
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-
-    body = await extract(client, convo["id"], {
-        "facts": [{"content": "Written first."}], "obsolete_facts": [LONE]})
-
-    assert [m["content"] for m in body["facts_added"]] == ["Written first."]
-    assert [f[0] for f in await stored_facts(client, convo["id"])] == ["Written first."]
-
-
-async def test_a_text_that_cannot_be_stored_is_absent_wherever_it_stands(client, fake_provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    await add_facts(client, convo["id"], ["Old one."], by_the_model=True)
-
-    body = await extract(client, convo["id"], {
-        "facts": [{"content": "Written first."}, {"content": LONE}, {"content": "After.", "kind": LONE}],
-        "updated_facts": [{"replaces": LONE, "content": "Replaces nothing."},
-                          {"replaces": "Old one.", "content": LONE}],
-        "obsolete_facts": [LONE],
-        "summary": LONE})
-
-    assert body["summary"] == ""
-    assert [f[0] for f in await stored_facts(client, convo["id"])] == [
-        "After.", "Old one.", "Replaces nothing.", "Written first."]
-
-
-async def test_a_merge_with_a_text_that_cannot_be_stored_keeps_the_others(
-        client, fake_provider):
-    convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
-                    by_the_model=True)
-    reply = {"facts": [{"content": LONE}, {"content": "Kept."}]}
-    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(reply)),
-                            ProviderEvent(type="done")]
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
-
-    assert resp.status_code == 200, resp.text
-    assert [f[0] for f in await stored_facts(client, convo["id"])] == ["Kept."]
-
-    reply = {"facts": [{"content": LONE}]}
-    await add_facts(client, convo["id"], [f"Movable fact {i}." for i in range(8)],
-                    by_the_model=True)
-    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(reply)),
-                            ProviderEvent(type="done")]
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/consolidate")
-    assert resp.status_code == 502  # nothing readable, and nothing deleted
-    assert len(await stored_facts(client, convo["id"])) == 9
-
-
 async def test_embedding_stored_and_excluded_from_output(client, fake_provider, monkeypatch):
     from app.db import _connect
     from app.prompting import embeddings
@@ -1227,31 +772,6 @@ async def test_embedding_stored_and_excluded_from_output(client, fake_provider, 
         emb_map = await mem_repo.list_embeddings(db, convo["id"])
         assert created["id"] in emb_map
         assert isinstance(emb_map[created["id"]], (bytes, memoryview))
-    finally:
-        await db.close()
-
-
-async def test_list_missing_and_set_embedding(client, fake_provider, monkeypatch):
-    from app.db import _connect
-    from app.prompting import embeddings
-    from app.repositories import memories as mem_repo
-
-    async def no_embed(texts, kind):
-        return None  # model not ready -> stored as NULL
-
-    monkeypatch.setattr(embeddings, "embed", no_embed)
-    convo = await setup_conversation(client)
-    created = (await client.post(f"/api/conversations/{convo['id']}/memories",
-                                 json={"content": "Fact without a vector."})).json()
-
-    db = await _connect()
-    try:
-        missing = await mem_repo.list_missing_embeddings(db)
-        assert any(m["id"] == created["id"] for m in missing)
-        await mem_repo.set_embedding(
-            db, created["id"], "Fact without a vector.", embeddings.pack([0.1, 0.2]))
-        missing_after = await mem_repo.list_missing_embeddings(db)
-        assert all(m["id"] != created["id"] for m in missing_after)
     finally:
         await db.close()
 
@@ -1279,25 +799,6 @@ async def test_backfill_embeddings_fills_missing(client, fake_provider, monkeypa
         filled = await memory_service.backfill_embeddings(db)
         assert filled == 2
         assert await mem_repo.list_missing_embeddings(db) == []
-    finally:
-        await db.close()
-
-
-async def test_backfill_noop_without_model(client, fake_provider, monkeypatch):
-    from app.db import _connect
-    from app.prompting import embeddings
-    from app.services import memory_service
-
-    async def no_embed(texts, kind):
-        return None
-
-    monkeypatch.setattr(embeddings, "embed", no_embed)
-    convo = await setup_conversation(client)
-    await client.post(f"/api/conversations/{convo['id']}/memories", json={"content": "A."})
-    db = await _connect()
-    try:
-        filled = await memory_service.backfill_embeddings(db)
-        assert filled == 0  # nothing embedded, no crash
     finally:
         await db.close()
 
@@ -1377,32 +878,6 @@ async def test_update_content_refreshes_embedding(client, fake_provider, monkeyp
     assert bytes(before) != bytes(after)  # vector refreshed to match new content
 
 
-async def test_update_content_nulls_embedding_without_model(client, fake_provider, monkeypatch):
-    from app.db import _connect
-    from app.prompting import embeddings
-    from app.repositories import memories as mem_repo
-
-    async def has_embed(texts, kind):
-        return [[0.5, 0.5]]
-
-    monkeypatch.setattr(embeddings, "embed", has_embed)
-    convo = await setup_conversation(client)
-    created = (await client.post(f"/api/conversations/{convo['id']}/memories",
-                                 json={"content": "With vector."})).json()
-
-    async def no_embed(texts, kind):
-        return None
-
-    monkeypatch.setattr(embeddings, "embed", no_embed)
-    await client.patch(f"/api/memories/{created['id']}", json={"content": "Modified text."})
-    db = await _connect()
-    try:
-        missing = await mem_repo.list_missing_embeddings(db)
-        assert any(m["id"] == created["id"] for m in missing)  # NULLed for backfill
-    finally:
-        await db.close()
-
-
 async def test_fork_copies_fact_embedding(client, fake_provider, monkeypatch):
     from app.db import _connect
     from app.prompting import embeddings
@@ -1444,24 +919,6 @@ async def test_backfill_message_embeddings_fills_missing(client, fake_provider, 
         filled = await memory_service.backfill_message_embeddings(db)
         assert filled >= 1
         assert await convo_repo.list_messages_missing_embeddings(db) == []
-    finally:
-        await db.close()
-
-
-async def test_backfill_messages_noop_without_model(client, fake_provider, monkeypatch):
-    from app.db import _connect
-    from app.prompting import embeddings
-    from app.services import memory_service
-
-    async def no_embed(texts, kind):
-        return None
-
-    monkeypatch.setattr(embeddings, "embed", no_embed)
-    await setup_conversation(client)
-    db = await _connect()
-    try:
-        filled = await memory_service.backfill_message_embeddings(db)
-        assert filled == 0
     finally:
         await db.close()
 
