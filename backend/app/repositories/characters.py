@@ -1,5 +1,6 @@
 import aiosqlite
 
+from . import lore as lore_repo
 from .base import dumps, loads, new_id, now_iso
 
 _JSON_FIELDS = ("alternate_greetings", "tags")
@@ -34,6 +35,7 @@ async def create(db: aiosqlite.Connection, fields: dict) -> dict:
          dumps([str(t) for t in fields.get("tags") or []]),
          fields.get("avatar_path"), now, now),
     )
+    await lore_repo.replace(db, char_id, fields.get("lore_entries") or [])
     await db.commit()
     return await get(db, char_id)
 
@@ -54,31 +56,14 @@ async def get_raw(db: aiosqlite.Connection, char_id: str) -> dict | None:
     return out
 
 
-async def list_all(db: aiosqlite.Connection, kind: str | None = None,
-                   q: str | None = None, tag: str | None = None) -> list[dict]:
-    sql = "SELECT * FROM characters"
-    clauses, params = [], []
-    if kind in ("character", "scenario"):
-        clauses.append("kind = ?")
-        params.append(kind)
-    if q:
-        clauses.append("(name LIKE ? OR tagline LIKE ? OR description LIKE ?)")
-        like = f"%{q}%"
-        params += [like, like, like]
-    if clauses:
-        sql += " WHERE " + " AND ".join(clauses)
-    sql += " ORDER BY is_favorite DESC, updated_at DESC"
-    rows = await (await db.execute(sql, params)).fetchall()
-    out = [to_out(r) for r in rows]
-    if tag:
-        needle = tag.lower()
-        out = [c for c in out if needle in [t.lower() for t in c["tags"]]]
-    return out
+async def list_all(db: aiosqlite.Connection) -> list[dict]:
+    rows = await (await db.execute(
+        "SELECT * FROM characters ORDER BY is_favorite DESC, updated_at DESC")).fetchall()
+    return [to_out(r) for r in rows]
 
 
 async def update(db: aiosqlite.Connection, char_id: str, fields: dict) -> dict | None:
-    current = await get_raw(db, char_id)
-    if not current:
+    if not await get(db, char_id):
         return None
     sets, params = [], []
     for key, value in fields.items():
@@ -93,10 +78,13 @@ async def update(db: aiosqlite.Connection, char_id: str, fields: dict) -> dict |
         elif key == "is_favorite":
             sets.append("is_favorite = ?")
             params.append(int(bool(value)))
-    sets.append("updated_at = ?")
-    params.append(now_iso())
+    if sets != ["is_favorite = ?"]:  # a favourite is no edit: the card keeps its place
+        sets.append("updated_at = ?")
+        params.append(now_iso())
     params.append(char_id)
     await db.execute(f"UPDATE characters SET {', '.join(sets)} WHERE id = ?", params)
+    if fields.get("lore_entries") is not None:
+        await lore_repo.replace(db, char_id, fields["lore_entries"])
     await db.commit()
     return await get(db, char_id)
 

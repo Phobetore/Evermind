@@ -3,10 +3,17 @@ import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { cardToCharacter, installCard, type CardCharacter } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
-import type { LibraryItem } from "@/types";
 import { BookMarked, Check, Download, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+
+interface Shelved {
+  filename: string;
+  has_avatar: boolean;
+  character: CardCharacter;
+  installed: boolean;
+}
 
 export function LibraryModal({
   onClose,
@@ -16,26 +23,32 @@ export function LibraryModal({
   onInstalled: () => void;
 }) {
   const t = useT();
-  const [items, setItems] = useState<LibraryItem[] | null>(null);
+  const [items, setItems] = useState<Shelved[] | null>(null);
   const [installing, setInstalling] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
-  // What cannot be read is no empty library.
+  // What cannot be read is no empty library. A card counts as installed when one has its name.
   const load = () =>
-    data.library.list().then((list) => {
-      setItems(list);
+    Promise.all([data.library.list(), data.characters.list()]).then(([shelf, characters]) => {
+      const names = new Set(characters.map((c) => c.name));
+      setItems(shelf.flatMap(({ filename, card, has_avatar }) => {
+        const character = cardToCharacter(card);
+        return character ? [{ filename, has_avatar, character, installed: names.has(character.name) }] : [];
+      }));
       setFailure(null);
     }, (error) => setFailure({ error }));
   useEffect(() => {
     load();
   }, []);
 
-  async function install(item: LibraryItem) {
+  async function install(item: Shelved) {
     setInstalling(item.filename);
     setError(null);
     try {
-      await data.library.install(item.filename);
+      // The portrait first: one that cannot be had leaves nothing made.
+      const portrait = item.has_avatar ? await data.file(data.library.avatarUrl(item.filename)) : null;
+      await installCard(item.character, portrait);
       await load();
       onInstalled();
     } catch (e) {
@@ -69,18 +82,18 @@ export function LibraryModal({
               {item.has_avatar && (
                 <img
                   src={data.library.avatarUrl(item.filename)}
-                  alt={item.name}
+                  alt={item.character.name}
                   className="h-[4.5rem] w-14 shrink-0 rounded-lg border border-ink-600 object-cover sm:h-24 sm:w-[4.5rem]"
                   draggable={false}
                 />
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-display font-semibold">{item.name}</h3>
-                  <Tag tone={item.kind === "scenario" ? "arcane" : "ember"}>
-                    {item.kind === "scenario" ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}
+                  <h3 className="font-display font-semibold">{item.character.name}</h3>
+                  <Tag tone={item.character.kind === "scenario" ? "arcane" : "ember"}>
+                    {item.character.kind === "scenario" ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}
                   </Tag>
-                  {item.has_lorebook && (
+                  {item.character.lore_entries.length > 0 && (
                     <Tag tone="arcane">
                       <span className="inline-flex items-center gap-1">
                         <BookMarked className="h-3 w-3" /> {t("cards.libraryModal.lorebookTag")}
@@ -89,11 +102,11 @@ export function LibraryModal({
                   )}
                 </div>
                 <p className="mt-1 text-sm italic leading-snug text-parchment-dim">
-                  {item.tagline}
+                  {item.character.tagline}
                 </p>
-                {item.tags.length > 0 && (
+                {item.character.tags.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
-                    {item.tags.map((tag) => (
+                    {item.character.tags.map((tag) => (
                       <Tag key={tag}>{tag}</Tag>
                     ))}
                   </div>

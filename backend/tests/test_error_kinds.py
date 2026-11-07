@@ -3,7 +3,6 @@ can say it in the person's own language. The English ``error`` sentence stays
 for clients that read it."""
 
 import ast
-import json
 from pathlib import Path
 
 import pytest
@@ -11,7 +10,6 @@ import pytest
 import app as app_package
 from app.providers.base import ProviderError, ProviderEvent
 
-from .test_cards import make_minimal_png
 from .test_chat import FakeProvider, send, setup_conversation
 
 
@@ -67,12 +65,7 @@ NOT_FOUND = [
     ("post", "/api/messages/nope/branch", None, "Message not found.", "message"),
     ("put", "/api/personas/nope", {"name": "x"}, "Persona not found.", "persona"),
     ("delete", "/api/connections/nope", None, "Connection not found.", "connection"),
-    ("patch", "/api/lore/nope", {"enabled": False}, "Entry not found.", "lore_entry"),
-    ("post", "/api/characters/nope/lore", {"keys": ["a"], "content": "b"},
-     "Character not found.", "character"),
     ("patch", "/api/memories/nope", {"is_pinned": True}, "Fact not found.", "fact"),
-    ("post", "/api/library/nope.json/install", None, "Card not found in the library.",
-     "library_card"),
     ("get", "/api/library/nope.json/avatar", None, "No illustration for this card.",
      "illustration"),
     ("get", "/api/media/nope.png", None, "File not found.", "file"),
@@ -91,37 +84,11 @@ async def test_a_missing_thing_is_not_found_and_says_which(
     assert resp.json() == {"error": message, "kind": "not_found", "resource": resource}
 
 
-async def test_other_errors_carry_no_resource(client):
-    resp = await client.post("/api/characters/import",
-                             files={"file": ("x.txt", b"not a card", "text/plain")})
-    assert resp.status_code == 400
-    assert "resource" not in resp.json()
-
-
-async def test_a_png_without_a_card(client):
-    resp = await client.post("/api/characters/import",
-                             files={"file": ("x.png", make_minimal_png(), "image/png")})
-    assert resp.status_code == 400
-    assert resp.json() == {
-        "error": 'This PNG does not contain a character card (no "chara" chunk).',
-        "kind": "png_without_card",
-    }
-
-
-async def test_a_file_that_is_no_card(client):
-    resp = await client.post("/api/characters/import",
-                             files={"file": ("x.json", b"not json", "application/json")})
-    assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Unrecognized file: provide a JSON card or a card PNG.",
-        "kind": "unrecognized_card_file",
-    }
-
-
 async def test_an_upload_over_the_limit(client, monkeypatch):
     monkeypatch.setattr("app.services.media.MAX_UPLOAD_BYTES", 10)
-    resp = await client.post("/api/characters/import",
-                             files={"file": ("x.json", b"x" * 11, "application/json")})
+    char = (await client.post("/api/characters", json={"name": "Vane"})).json()
+    resp = await client.post(f"/api/characters/{char['id']}/avatar",
+                             files={"file": ("x.png", b"x" * 11, "image/png")})
     assert resp.status_code == 413
     assert resp.json() == {"error": "File too large (15 MB max).", "kind": "file_too_large"}
 
@@ -144,17 +111,6 @@ async def test_a_variant_that_does_not_exist(client, provider):
     assert resp.status_code == 400
     assert resp.json() == {
         "error": "Variant index out of range.", "kind": "variant_out_of_range",
-    }
-
-
-async def test_a_lore_entry_without_keywords_or_content(client):
-    char = (await client.post("/api/characters", json={"name": "Vane"})).json()
-    resp = await client.post(f"/api/characters/{char['id']}/lore",
-                             json={"keys": [" "], "content": "It is shut."})
-    assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "An entry needs at least one keyword and some content.",
-        "kind": "lore_entry_incomplete",
     }
 
 
@@ -201,74 +157,6 @@ async def test_a_fact_can_still_be_pinned_or_rewritten(client, provider):
 
     assert pinned.status_code == 200 and pinned.json()["is_pinned"] is True
     assert rewritten.status_code == 200 and rewritten.json()["content"] == "She tells the truth."
-
-
-@pytest.mark.parametrize("entry", [
-    {"keys": [], "content": "It is shut."},
-    {"keys": ["crypt"], "content": ""},
-])
-async def test_a_lore_entry_with_nothing_in_a_field_is_incomplete_too(client, entry):
-    char = (await client.post("/api/characters", json={"name": "Vane"})).json()
-    resp = await client.post(f"/api/characters/{char['id']}/lore", json=entry)
-    assert resp.status_code == 400
-    assert resp.json()["kind"] == "lore_entry_incomplete"
-
-
-async def _lore_entry(client):
-    char = (await client.post("/api/characters", json={"name": "Vane"})).json()
-    entry = (await client.post(f"/api/characters/{char['id']}/lore",
-                               json={"keys": ["crypt", "seal"], "content": "It is shut."})).json()
-    return entry
-
-
-@pytest.mark.parametrize("patch", [
-    {"keys": []},
-    {"keys": [" ", ""]},
-    {"content": ""},
-    {"content": "  \n "},
-    {"keys": [], "content": "Still something."},
-    {"keys": ["crypt"], "content": " "},
-])
-async def test_a_lore_entry_cannot_be_edited_into_an_incomplete_one(client, patch):
-    entry = await _lore_entry(client)
-
-    resp = await client.patch(f"/api/lore/{entry['id']}", json=patch)
-
-    assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "An entry needs at least one keyword and some content.",
-        "kind": "lore_entry_incomplete",
-    }
-    char_lore = (await client.get(f"/api/characters/{entry['character_id']}/lore")).json()
-    assert [(e["keys"], e["content"]) for e in char_lore] == [(["crypt", "seal"], "It is shut.")]
-
-
-async def test_a_lore_entry_can_still_be_edited_in_part(client):
-    entry = await _lore_entry(client)
-
-    toggled = await client.patch(f"/api/lore/{entry['id']}", json={"enabled": False})
-    rekeyed = await client.patch(f"/api/lore/{entry['id']}",
-                                 json={"keys": [" vault ", " ", "door"], "content": " Open. "})
-    ignored = await client.patch(f"/api/lore/{entry['id']}", json={"keys": None, "content": None})
-
-    assert toggled.status_code == 200 and toggled.json()["enabled"] is False
-    assert rekeyed.status_code == 200
-    assert (rekeyed.json()["keys"], rekeyed.json()["content"]) == (["vault", "door"], "Open.")
-    assert ignored.status_code == 200
-    assert (ignored.json()["keys"], ignored.json()["content"]) == (["vault", "door"], "Open.")
-
-
-async def test_a_library_card_that_is_already_installed(client, tmp_path, monkeypatch):
-    shelf = tmp_path / "shelf"
-    shelf.mkdir()
-    (shelf / "vane.json").write_text(json.dumps({"name": "Vane", "description": "x"}),
-                                     encoding="utf-8")
-    monkeypatch.setenv("EVERMIND_LIBRARY_DIR", str(shelf))
-    resp = await client.post("/api/library/vane.json/install")
-    assert resp.status_code == 201
-    resp = await client.post("/api/library/vane.json/install")
-    assert resp.status_code == 400
-    assert resp.json() == {"error": "This card is already installed.", "kind": "already_installed"}
 
 
 async def test_no_connection_for_the_card_assistant(client, provider):

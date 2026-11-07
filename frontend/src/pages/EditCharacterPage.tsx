@@ -2,7 +2,7 @@ import { CharacterForm } from "@/components/editor/CharacterForm";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import type { Character } from "@/types";
+import type { CharacterWithLore } from "@/types";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 
@@ -15,7 +15,7 @@ export function EditCharacterPage() {
 
 function EditCharacter({ id }: { id: string }) {
   const t = useT();
-  const [character, setCharacter] = useState<Character | null>(null);
+  const [character, setCharacter] = useState<CharacterWithLore | null>(null);
   // The error itself, described when drawn, so that a change of language
   // reaches the sentence too.
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);

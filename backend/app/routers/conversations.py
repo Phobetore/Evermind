@@ -23,7 +23,7 @@ async def list_conversations(character_id: str | None = None,
 @router.post("/conversations", status_code=201)
 async def create_conversation(payload: ConversationIn,
                               db: aiosqlite.Connection = Depends(get_db)):
-    character = await characters_repo.get_raw(db, payload.character_id)
+    character = await characters_repo.get(db, payload.character_id)
     if not character:
         raise NotFoundError("Character not found.", "character")
 

@@ -79,7 +79,6 @@ export interface Conversation {
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
   forked_from?: string | null;
-  forked_at_position?: number | null;
   created_at: string;
   updated_at: string;
   character?: Character;
@@ -103,33 +102,25 @@ export interface TurnPerf {
   tokens_per_s: number | null;
 }
 
-/** A lorebook entry as edited in the form: identical for a saved entry and for
-    one being drafted before the character exists (temporary client-side id). */
-export interface LoreEntryDraft {
+/** A lorebook entry. The id only tells entries apart in the form: the lorebook is
+ *  saved whole, with the card. */
+export interface LoreEntry {
   id: string;
   keys: string[];
   content: string;
   enabled: boolean;
-  case_sensitive: boolean;
-  priority: number;
 }
 
-export interface LoreEntry extends LoreEntryDraft {
-  character_id: string;
-  created_at: string;
-  updated_at: string;
+/** A card as it is read on its own: with its lorebook. */
+export interface CharacterWithLore extends Character {
+  lore_entries: LoreEntry[];
 }
 
+/** A card of the starter library, as its file holds it. */
 export interface LibraryItem {
   filename: string;
-  name: string;
-  kind: Kind;
-  tagline: string;
-  tags: string[];
-  creator_notes: string;
-  has_lorebook: boolean;
+  card: unknown;
   has_avatar: boolean;
-  installed: boolean;
 }
 
 export interface Settings {

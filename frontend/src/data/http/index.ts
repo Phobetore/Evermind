@@ -1,6 +1,6 @@
 import type {
-  Character, Connection, Conversation, Installation, LibraryItem, LoreEntry, Memory, Message,
-  Persona, Settings, TurnState,
+  Character, CharacterWithLore, Connection, Conversation, Installation, LibraryItem, Memory,
+  Message, Persona, Settings, TurnState,
 } from "@/types";
 import type {
   BenchmarkResult, ConnectionTestResult, ConsolidateResult, DataSource, ExtractResult,
@@ -20,25 +20,6 @@ function queryString(params: Record<string, string | undefined>): string {
   }
   const text = search.toString();
   return text ? `?${text}` : "";
-}
-
-/** The name the server gave the download, which is the card's own name with
- *  the characters a file name cannot carry taken out. `filename*` carries it in
- *  UTF-8 and is preferred; `filename` is the ASCII fallback, which for a name in
- *  another script is only a generic one. */
-function downloadName(disposition: string | null): string | undefined {
-  if (!disposition) return undefined;
-  const encoded = /filename\*\s*=\s*utf-8'[^']*'([^;]+)/i.exec(disposition);
-  if (encoded) {
-    try {
-      const name = decodeURIComponent(encoded[1].trim());
-      if (name) return name;
-    } catch {
-      // A broken percent escape: the plain name below is still good.
-    }
-  }
-  const match = /filename="([^"]*)"|filename=([^;]+)/i.exec(disposition);
-  return (match && (match[1] ?? match[2])?.trim()) || undefined;
 }
 
 /** The self-hosted edition: the interface and the server share an origin, and
@@ -67,32 +48,13 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
     edition: "self-hosted",
 
     characters: {
-      list: (query) =>
-        get<Character[]>(`api/characters${queryString({ kind: query?.kind, q: query?.q?.trim() })}`),
-      get: (id) => get<Character>(`api/characters/${seg(id)}`),
+      list: () => get<Character[]>("api/characters"),
+      get: (id) => get<CharacterWithLore>(`api/characters/${seg(id)}`),
       create: (input) => post<Character>("api/characters", input),
       update: (id, input) => put<Character>(`api/characters/${seg(id)}`, input),
       remove: (id) => del(`api/characters/${seg(id)}`),
       uploadAvatar: (id, file) => upload<Character>(`api/characters/${seg(id)}/avatar`, file),
-      importCard: (file) => upload<Character>("api/characters/import", file),
-      async exportCard(id, format) {
-        const resp = await send(
-          `api/characters/${seg(id)}/export${queryString({ format })}`, undefined, fetchImpl,
-        );
-        return {
-          blob: await resp.blob(),
-          filename: downloadName(resp.headers.get("Content-Disposition")) ?? `card.${format}`,
-        };
-      },
       assist: (input) => post("api/characters/assist", input),
-    },
-
-    lore: {
-      list: (characterId) => get<LoreEntry[]>(`api/characters/${seg(characterId)}/lore`),
-      create: (characterId, input) =>
-        post<LoreEntry>(`api/characters/${seg(characterId)}/lore`, input),
-      update: (id, changes) => patch<LoreEntry>(`api/lore/${seg(id)}`, changes),
-      remove: (id) => del(`api/lore/${seg(id)}`),
     },
 
     personas: {
@@ -150,13 +112,17 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
 
     library: {
       list: () => get<LibraryItem[]>("api/library"),
-      install: (filename) => post<Character>(`api/library/${seg(filename)}/install`),
       avatarUrl: (filename) => `api/library/${seg(filename)}/avatar`,
     },
 
     settings: {
       get: () => get<Settings>("api/settings"),
       update: (input) => put<Settings>("api/settings", input),
+    },
+
+    async file(url) {
+      const blob = await (await send(url, undefined, fetchImpl)).blob();
+      return new File([blob], "image", { type: blob.type });
     },
 
     connections: {

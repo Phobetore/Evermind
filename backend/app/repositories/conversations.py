@@ -60,7 +60,8 @@ async def list_all(db: aiosqlite.Connection, character_id: str | None = None) ->
     if character_id:
         sql += " WHERE c.character_id = ?"
         params.append(character_id)
-    sql += " GROUP BY c.id ORDER BY COALESCE(MAX(m.created_at), c.updated_at) DESC"
+    sql += (" GROUP BY c.id"
+            " ORDER BY MAX(COALESCE(MAX(m.created_at), c.updated_at), c.created_at) DESC")
     rows = await (await db.execute(sql, params)).fetchall()
     out = []
     for row in rows:
@@ -77,8 +78,7 @@ async def update(db: aiosqlite.Connection, convo_id: str, fields: dict) -> dict 
     if fields.get("summary") is not None:
         await _type_summary(db, convo_id, fields["summary"], fields.get("summary_was"))
     sets, params = [], []
-    for key in ("title", "author_note", "persona_id", "connection_id",
-                "wallpaper_path", "wallpaper_opacity"):
+    for key in ("title", "author_note", "connection_id", "wallpaper_path", "wallpaper_opacity"):
         if key in fields and fields[key] is not None:
             sets.append(f"{key} = ?")
             params.append(fields[key])
@@ -201,21 +201,20 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
 
         branch_id = new_id()
         now = now_iso()
-        title = (source["title"] or "Sans titre")[:52] + " (branche)"
         # The backdrop follows, like the persona and the connection: a branch is the
         # same scene carried on differently, and losing the picture behind it would
         # read as something having gone wrong rather than as a fresh start.
         await db.execute(
             "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
-            " summary, author_note, memory_position, forked_from, forked_at_position,"
-            " wallpaper_path, wallpaper_opacity, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " summary, author_note, memory_position, forked_from, wallpaper_path,"
+            " wallpaper_opacity, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (branch_id, source["character_id"], source["persona_id"],
-             source["connection_id"], title, source["summary"],
+             source["connection_id"], source["title"], source["summary"],
              # The scene directive is the strongest lever there is on a reply, and
              # it was the one piece of the setup a branch dropped.
              source["author_note"] or "", source["memory_position"],
-             source["id"], position, source["wallpaper_path"],
+             source["id"], source["wallpaper_path"],
              source["wallpaper_opacity"], now, now),
         )
 

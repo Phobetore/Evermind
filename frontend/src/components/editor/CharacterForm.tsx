@@ -4,9 +4,10 @@ import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { data, type CharacterInput } from "@/data";
 import { useT } from "@/i18n/useT";
+import { cardFile } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
-import type { Character, Connection, Kind, LoreEntryDraft } from "@/types";
+import type { CharacterWithLore, Connection, Kind, LoreEntry } from "@/types";
 import { clsx } from "clsx";
 import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
@@ -56,7 +57,7 @@ const KIND_COPY: Record<Kind, Record<string, { labelKey: string; hintKey: string
   },
 };
 
-export function CharacterForm({ initial }: { initial?: Character }) {
+export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const navigate = useNavigate();
   const t = useT();
   const editing = Boolean(initial);
@@ -74,17 +75,14 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   const [assistError, setAssistError] = useState<string | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [assistConnectionId, setAssistConnectionId] = useState("");
-  const [loreEntries, setLoreEntries] = useState<LoreEntryDraft[]>([]);
+  const [loreEntries, setLoreEntries] = useState<LoreEntry[]>(initial?.lore_entries ?? []);
   const fileInput = useRef<HTMLInputElement>(null);
-  // A save that fails partway has made the new card already, and some of its lore (by draft id).
-  const created = useRef({ id: "", lore: new Map<string, string>() });
+  // A save whose portrait fails has made the new card already.
+  const created = useRef("");
 
   useEffect(() => {
     data.connections?.list().then(setConnections).catch(() => {});
-    if (initial) {
-      data.lore.list(initial.id).then(setLoreEntries).catch(() => {});
-    }
-  }, [initial]);
+  }, []);
 
   const copy = KIND_COPY[draft.kind];
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
@@ -101,7 +99,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
         if (Array.isArray(value) && value.length > 0) existing[key] = value;
       }
       delete existing.kind;
-      if (loreEntries.length > 0) existing.lore_entries = loreEntries;
+      existing.lore_entries = loreEntries.length > 0 ? loreEntries : undefined;
       const generated = await data.characters.assist({
         prompt: brief,
         kind: draft.kind,
@@ -111,20 +109,8 @@ export function CharacterForm({ initial }: { initial?: Character }) {
       const { lore_entries: generatedLore, ...fields } = generated;
       setDraft((d) => ({ ...d, ...fields }));
       if (generatedLore?.length) {
-        const additions = generatedLore.map((entry) => ({
-          ...entry,
-          id: newId(),
-          enabled: true,
-          case_sensitive: false,
-          priority: 0,
-        }));
-        // editing an existing card: the entries must be persisted right away
-        const saved = initial
-          ? await Promise.all(
-              additions.map((entry) => data.lore.create(initial.id, entry)),
-            )
-          : additions;
-        setLoreEntries((prev) => [...prev, ...saved]);
+        const additions = generatedLore.map((entry) => ({ ...entry, id: newId(), enabled: true }));
+        setLoreEntries((prev) => [...prev, ...additions]);
       }
     } catch (e) {
       setAssistError(describeError(e, t, t("characters.assist.generateError")));
@@ -140,34 +126,14 @@ export function CharacterForm({ initial }: { initial?: Character }) {
     setSaving(true);
     setError(null);
     try {
-      const id = initial?.id || created.current.id;
+      const id = initial?.id || created.current;
+      const card = { ...draft, lore_entries: loreEntries };
       const saved = id
-        ? await data.characters.update(id, draft)
-        : await data.characters.create(draft);
-      created.current.id = saved.id;
+        ? await data.characters.update(id, card)
+        : await data.characters.create(card);
+      created.current = saved.id;
       if (avatarFile) {
         await data.characters.uploadAvatar(saved.id, avatarFile);
-      }
-      if (!editing) {
-        // lorebook entries drafted before the card existed, as they are now
-        const made = created.current.lore;
-        for (const [draftId, loreId] of made) {
-          if (loreEntries.some((entry) => entry.id === draftId)) continue;
-          await data.lore.remove(loreId);
-          made.delete(draftId);
-        }
-        for (const entry of loreEntries) {
-          const fields = {
-            keys: entry.keys,
-            content: entry.content,
-            enabled: entry.enabled,
-            case_sensitive: entry.case_sensitive,
-            priority: entry.priority,
-          };
-          const loreId = made.get(entry.id);
-          if (loreId) await data.lore.update(loreId, fields);
-          else made.set(entry.id, (await data.lore.create(saved.id, fields)).id);
-        }
       }
       navigate(`/characters/${saved.id}`);
     } catch (e) {
@@ -191,7 +157,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
     if (!initial) return;
     setExportError(null);
     try {
-      const { blob, filename } = await data.characters.exportCard(initial.id, format);
+      const { blob, filename } = await cardFile(initial, format);
       downloadBlob(blob, filename);
     } catch (e) {
       // Called from a click, so a rejection would reach nobody: say it here.
@@ -465,11 +431,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
         </Field>
 
         {/* Lorebook */}
-        <LorebookSection
-          characterId={initial?.id}
-          entries={loreEntries}
-          onChange={setLoreEntries}
-        />
+        <LorebookSection entries={loreEntries} onChange={setLoreEntries} />
 
         {/* Advanced */}
         <button

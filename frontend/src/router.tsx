@@ -1,3 +1,4 @@
+import { CharacterForm } from "@/components/editor/CharacterForm";
 import { AccessGate } from "@/components/layout/Access";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageError } from "@/components/layout/PageError";
@@ -7,7 +8,6 @@ import { ChatPage } from "@/pages/ChatPage";
 import { EditCharacterPage } from "@/pages/EditCharacterPage";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
-import { NewCharacterPage } from "@/pages/NewCharacterPage";
 import { PersonasPage } from "@/pages/PersonasPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { createHashRouter, Navigate, Outlet } from "react-router";
@@ -32,7 +32,7 @@ export const router = createHashRouter([
           { path: "/", Component: HomePage },
           { path: "/chat", Component: ChatListPage },
           { path: "/chat/:id", Component: ChatPage },
-          { path: "/characters/new", Component: NewCharacterPage },
+          { path: "/characters/new", Component: CharacterForm },
           { path: "/characters/:id", Component: CharacterPage },
           { path: "/characters/:id/edit", Component: EditCharacterPage },
           { path: "/personas", Component: PersonasPage },

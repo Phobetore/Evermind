@@ -9,10 +9,9 @@ import urllib.parse
 
 import pytest
 
-from app.cards.png import make_placeholder_png
 from app.config import media_dir
 
-PNG = make_placeholder_png(16, 16)
+from .conftest import PNG
 
 ESCAPES = [
     "../../../etc/passwd",
@@ -97,37 +96,28 @@ async def test_an_upload_for_nothing_leaves_no_file(client, route):
     assert list(media_dir().iterdir()) == []
 
 
-LIBRARY_ESCAPES = [
-    "../../../etc/passwd",
-    "../secrets.json",
-    "..%2fsecrets.json",
-    "/etc/passwd.json",
-    "sub/dir/card.json",
-    "card.json\n",
-    "Card.json",
-    ".hidden.json",
-    "card.json.png",
-    "-leading-dash.json",
-]
+async def test_a_library_portrait_is_one_of_a_card_the_library_lists(client, tmp_path, monkeypatch):
+    """On Windows a backslash separates: a name made into a path would climb out of the library."""
+    library = tmp_path / "lib"
+    library.mkdir()
+    for path in (library / "card.json", library / "card.jpg",
+                 tmp_path / "secret.json", tmp_path / "secret.jpg"):
+        path.touch()
+    monkeypatch.setenv("EVERMIND_LIBRARY_DIR", str(library))
+
+    assert (await client.get("/api/library/card.json/avatar")).status_code == 200
+    assert (await client.get("/api/library/..%5Csecret.json/avatar")).status_code == 404
 
 
-@pytest.mark.parametrize("attempt", LIBRARY_ESCAPES)
-def test_library_names_outside_the_allowlist_are_refused(attempt):
-    """The library reads a file whose name comes from the URL. The allowlist is
-    what keeps that from being a way to read the rest of the disk, so it gets a
-    test rather than a comment."""
-    from app.routers.library import _image_path, _read_card
-
-    assert _read_card(attempt) is None
-    assert _image_path(attempt) is None
-
-
-def test_library_accepts_the_names_it_actually_ships():
+async def test_every_card_the_library_ships_is_listed_with_its_jpeg_portrait(client):
     """Rejecting everything would pass the test above and break the product."""
     from app.config import library_dir
-    from app.routers.library import _SAFE_NAME
 
     shipped = sorted(p.name for p in library_dir().glob("*.json"))
     assert shipped, "no library cards found, so this test proves nothing"
+    listed = (await client.get("/api/library")).json()
+    assert [(item["filename"], item["has_avatar"]) for item in listed] == [
+        (name, True) for name in shipped]
     for name in shipped:
-        assert _SAFE_NAME.match(name), name
+        resp = await client.get(f"/api/library/{name}/avatar")
+        assert (resp.status_code, resp.headers["content-type"]) == (200, "image/jpeg"), name

@@ -1,6 +1,6 @@
 import { Modal } from "@/components/ui/Modal";
-import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { importCard } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
 import { Check, FileUp, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
@@ -31,11 +31,10 @@ export function ImportModal({
     setBusy(true);
     setResults([]);
     const done: Result[] = [];
-    // One at a time: the endpoint takes a single card, and a failure part way
-    // through should not cost the ones that already worked.
+    // One at a time: a failure part way through should not cost the ones that already worked.
     for (const file of files) {
       try {
-        await data.characters.importCard(file);
+        await importCard(file);
         done.push({ name: file.name });
       } catch (e) {
         done.push({

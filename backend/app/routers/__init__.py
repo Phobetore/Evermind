@@ -35,7 +35,6 @@ def register_routers(app: FastAPI) -> None:
         conversations,
         gate,
         library,
-        lore,
         media,
         memories,
         personas,
@@ -46,7 +45,6 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(gate.router)
     app.include_router(chat.router)
     app.include_router(memories.router)
-    app.include_router(lore.router)
     app.include_router(library.router)
     app.include_router(characters.router)
     app.include_router(personas.router)

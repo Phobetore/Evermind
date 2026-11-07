@@ -4,7 +4,6 @@ import json
 
 import pytest
 
-from app.cards.codec import card_to_lore_entries, character_to_card
 from app.prompting.engine import match_lore
 from app.providers.base import ProviderEvent
 
@@ -28,14 +27,10 @@ def make_msg(text, position):
 
 def test_match_lore_case_and_enabled_and_window():
     entries = [
-        {"keys": ["Kabukicho"], "content": "Le quartier rouge.", "enabled": True,
-         "case_sensitive": False, "priority": 0},
-        {"keys": ["yakuza"], "content": "Les clans.", "enabled": False,
-         "case_sensitive": False, "priority": 0},
-        {"keys": ["Oni"], "content": "Case sensitive.", "enabled": True,
-         "case_sensitive": True, "priority": 0},
-        {"keys": ["old"], "content": "Outside window.", "enabled": True,
-         "case_sensitive": False, "priority": 0},
+        {"keys": ["Kabukicho"], "content": "Le quartier rouge.", "enabled": True},
+        {"keys": ["yakuza"], "content": "Les clans.", "enabled": False},
+        {"keys": ["Oni"], "content": "Any case.", "enabled": True},
+        {"keys": ["old"], "content": "Outside window.", "enabled": True},
     ]
     messages = [make_msg("the word old is here", 0)] + [
         make_msg(f"turn {i}", i) for i in range(1, 7)
@@ -44,42 +39,25 @@ def test_match_lore_case_and_enabled_and_window():
     contents = [e["content"] for e in matched]
     assert "Le quartier rouge." in contents          # case-insensitive match
     assert "Les clans." not in contents              # disabled
-    assert "Case sensitive." not in contents    # case mismatch
+    assert "Any case." in contents
     assert "Outside window." not in contents           # outside scan window
 
 
-def test_match_lore_priority_and_budget():
-    big = "mot " * 700  # ~800 tokens each
-    entries = [
-        {"keys": ["key"], "content": big, "enabled": True, "case_sensitive": False, "priority": 1},
-        {"keys": ["key"], "content": "Small but higher priority.", "enabled": True,
-         "case_sensitive": False, "priority": 10},
-    ]
+def test_match_lore_order_and_budget():
+    big = "mot " * 525  # 601 tokens of the 800
+    entries = [{"keys": ["key"], "content": content} for content in (big, big + "again", "Small.")]
     matched = match_lore(entries, [make_msg("the key is here", 0)])
-    assert matched[0]["content"] == "Small but higher priority."
-    assert len(matched) == 1  # the big one no longer fits the budget
+    # The first in the lorebook has the room; one that does not fit leaves it to the next.
+    assert [e["content"] for e in matched] == [big, "Small."]
 
 
-# ---------- codec character_book ----------
+# ---------- lore injection ----------
 
-def test_character_book_round_trip():
-    lore = [{"keys": ["crypt"], "content": "A sealed place.", "enabled": True,
-             "case_sensitive": False, "priority": 3}]
-    card = character_to_card({"name": "X", "kind": "character"}, lore_entries=lore)
-    assert card["data"]["character_book"]["entries"][0]["insertion_order"] == 3
-    back = card_to_lore_entries(card)
-    assert back == lore
-
-
-# ---------- lore API + injection ----------
-
-async def test_lore_crud_and_injection(client, fake_provider):
+async def test_lore_reaches_the_prompt_until_it_is_switched_off(client, fake_provider):
     convo = await setup_conversation(client)
-    char_id = convo["character_id"]
-    entry = (await client.post(f"/api/characters/{char_id}/lore", json={
-        "keys": ["crypt", "seal"], "content": "The crypt is protected by a blood seal.",
-    })).json()
-    assert entry["keys"] == ["crypt", "seal"]
+    url = f"/api/characters/{convo['character_id']}"
+    entry = {"keys": ["crypt", "seal"], "content": "The crypt is protected by a blood seal."}
+    await client.put(url, json={"lore_entries": [entry]})
 
     await send(client, convo["id"], content="Tell me about the crypt.")
     system = fake_provider.captured["payload"].system
@@ -88,27 +66,9 @@ async def test_lore_crud_and_injection(client, fake_provider):
 
     await send(client, convo["id"], content="Let's change the subject entirely." * 10)
     # keyword still in scan window (previous turns), so it stays; disable it
-    await client.patch(f"/api/lore/{entry['id']}", json={"enabled": False})
+    await client.put(url, json={"lore_entries": [{**entry, "enabled": False}]})
     await send(client, convo["id"], content="Encore something else.")
     assert "blood seal" not in fake_provider.captured["payload"].system
-
-    deleted = await client.delete(f"/api/lore/{entry['id']}")
-    assert deleted.status_code == 204
-
-
-async def test_export_includes_book_import_restores_it(client, fake_provider):
-    convo = await setup_conversation(client)
-    char_id = convo["character_id"]
-    await client.post(f"/api/characters/{char_id}/lore", json={
-        "keys": ["clan"], "content": "The Shadow clan rules.",
-    })
-    card = (await client.get(f"/api/characters/{char_id}/export?format=json")).json()
-    assert card["data"]["character_book"]["entries"][0]["keys"] == ["clan"]
-
-    files = {"file": ("copy.json", json.dumps(card).encode(), "application/json")}
-    imported = (await client.post("/api/characters/import", files=files)).json()
-    lore = (await client.get(f"/api/characters/{imported['id']}/lore")).json()
-    assert lore[0]["content"] == "The Shadow clan rules."
 
 
 # ---------- branches ----------
@@ -135,7 +95,6 @@ async def test_branch_copies_up_to_message_and_filters_memories(client, fake_pro
 
     branch = (await client.post(f"/api/messages/{fork_at['id']}/branch")).json()
     assert branch["forked_from"] == convo["id"]
-    assert branch["forked_at_position"] == 2
     assert len(branch["messages"]) == 3
     assert branch["messages"][-1]["content"] == fork_at["content"]
     branch_memories = (await client.get(f"/api/conversations/{branch['id']}/memories")).json()
@@ -144,6 +103,40 @@ async def test_branch_copies_up_to_message_and_filters_memories(client, fake_pro
     # original untouched
     original = (await client.get(f"/api/conversations/{convo['id']}")).json()
     assert len(original["messages"]) == 5
+
+
+@pytest.mark.parametrize("title", ["Crypt run", ""])
+async def test_a_branch_keeps_the_title_of_its_story(client, title):
+    """The list marks a branch, and says "Untitled" in the person's language."""
+    convo = await setup_conversation(client)
+    await client.patch(f"/api/conversations/{convo['id']}", json={"title": title})
+    greeting = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"][0]
+
+    branch = (await client.post(f"/api/messages/{greeting['id']}/branch")).json()
+
+    assert branch["title"] == title
+
+
+async def test_a_new_branch_comes_first_in_the_list(client):
+    """Its messages keep the dates they were written on, but the branch itself is new."""
+    story = await setup_conversation(client)
+    later = (await client.post("/api/conversations",
+                               json={"character_id": story["character_id"]})).json()
+    from app.db import _connect
+    db = await _connect()
+    for convo_id, day in ((story["id"], "2026-01-01"), (later["id"], "2026-01-02")):
+        await db.execute("UPDATE messages SET created_at = ? WHERE conversation_id = ?",
+                         (day, convo_id))
+        await db.execute("UPDATE conversations SET created_at = ?, updated_at = ? WHERE id = ?",
+                         (day, day, convo_id))
+    await db.commit()
+    await db.close()
+    greeting = (await client.get(f"/api/conversations/{story['id']}")).json()["messages"][0]
+
+    branch = (await client.post(f"/api/messages/{greeting['id']}/branch")).json()
+
+    listed = [c["id"] for c in (await client.get("/api/conversations")).json()]
+    assert listed == [branch["id"], later["id"], story["id"]]
 
 
 # ---------- memory maintenance v2 ----------
@@ -185,46 +178,26 @@ async def test_memory_updates_and_obsoletes_respect_pins(client, fake_provider):
 
 # ---------- starter library ----------
 
-async def test_library_list_and_install(client, tmp_path, monkeypatch, fake_provider):
-    card = {
-        "spec": "chara_card_v2", "spec_version": "2.0",
-        "data": {"name": "Demo card", "first_mes": "Hello {{user}}.",
-                 "tags": ["demo"],
-                 "character_book": {"entries": [{"keys": ["demo"], "content": "An entry."}]},
-                 "extensions": {"evermind": {"kind": "scenario", "tagline": "Demo."}}},
-    }
+async def test_the_library_lists_its_cards_and_serves_their_jpeg_portraits(client, tmp_path,
+                                                                            monkeypatch):
+    card = {"spec": "chara_card_v2", "spec_version": "2.0", "data": {"name": "Demo card"}}
     lib = tmp_path / "lib"
     lib.mkdir()
-    (lib / "fiche-demo.json").write_text(json.dumps(card), encoding="utf-8")
-    from .test_cards import make_minimal_png
-    (lib / "fiche-demo.png").write_bytes(make_minimal_png())
+    for name in ("demo", "other"):
+        (lib / f"{name}.json").write_text(json.dumps(card), encoding="utf-8")
+    (lib / "demo.jpg").write_bytes(b"JPEG bytes")
+    (lib / "other.png").write_bytes(b"PNG bytes")  # a portrait is a JPEG
+    (lib / "broken.json").write_text("{", encoding="utf-8")
     monkeypatch.setenv("EVERMIND_LIBRARY_DIR", str(lib))
 
-    listed = (await client.get("/api/library")).json()
-    assert listed[0]["name"] == "Demo card"
-    assert listed[0]["has_avatar"] is True
-    avatar_resp = await client.get("/api/library/fiche-demo.json/avatar")
-    assert avatar_resp.status_code == 200
-    assert listed[0]["kind"] == "scenario"
-    assert listed[0]["has_lorebook"] is True
-    assert listed[0]["installed"] is False
-
-    installed = await client.post("/api/library/fiche-demo.json/install")
-    assert installed.status_code == 201
-    char = installed.json()
-    lore = (await client.get(f"/api/characters/{char['id']}/lore")).json()
-    assert lore[0]["keys"] == ["demo"]
-    assert char["avatar_url"], "install should copy the library illustration as avatar"
-    media = await client.get(char["avatar_url"])
-    assert media.status_code == 200
-    assert media.content.startswith(bytes([0x89]) + b"PNG")
-
-    listed = (await client.get("/api/library")).json()
-    assert listed[0]["installed"] is True
-    dupe = await client.post("/api/library/fiche-demo.json/install")
-    assert dupe.status_code == 400
-    traversal = await client.post("/api/library/..%2Fevil.json/install")
-    assert traversal.status_code in (400, 404)
+    assert (await client.get("/api/library")).json() == [
+        {"filename": "demo.json", "card": card, "has_avatar": True},
+        {"filename": "other.json", "card": card, "has_avatar": False},
+    ]
+    portrait = await client.get("/api/library/demo.json/avatar")
+    assert (portrait.status_code, portrait.headers["content-type"]) == (200, "image/jpeg")
+    assert portrait.content == b"JPEG bytes"
+    assert (await client.get("/api/library/other.json/avatar")).status_code == 404
 
 
 # ---------- message embeddings (phase 2 storage layer) ----------

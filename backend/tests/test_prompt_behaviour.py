@@ -46,14 +46,11 @@ def test_a_pinned_fact_is_kept_outside_the_budget():
     assert select_facts([pinned], 1) == [pinned]
 
 
-def test_lore_comes_in_priority_order_and_keys_ignore_case_unless_asked():
-    entries = [
-        {"keys": ["Harbor"], "content": "low", "priority": 1},
-        {"keys": ["harbor"], "content": "high", "priority": 5},
-        {"keys": ["Harbor"], "content": "exact", "priority": 9, "case_sensitive": True},
-    ]
-    assert [e["content"] for e in match_lore(entries, [message(1, "the harbor")])] == ["high", "low"]
-    assert [e["content"] for e in match_lore(entries, [message(1, "the Harbor")])] == ["exact", "high", "low"]
+def test_lore_comes_in_the_order_of_the_lorebook_and_keys_ignore_case():
+    entries = [{"keys": ["Harbor"], "content": "first"}, {"keys": ["harbor"], "content": "second"}]
+    assert [e["content"] for e in match_lore(entries, [message(1, "the HARBOR")])] == [
+        "first", "second"]
+    assert match_lore(entries[::-1], [message(1, "the harbor")]) == entries[::-1]
 
 
 def test_no_more_facts_than_the_cap_and_the_history_leaves_a_margin_below_the_window():

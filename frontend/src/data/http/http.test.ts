@@ -82,20 +82,6 @@ describe("request building", () => {
     expect(exportedOnLocked).toBe(onLocked);
   });
 
-  test("character list builds its query", async () => {
-    reply(json([]));
-    await http.characters.list({ kind: "scenario", q: " vane " });
-    expect(calls[0].url).toBe("api/characters?kind=scenario&q=vane");
-  });
-
-  test("character list without a query has no question mark", async () => {
-    reply(json([]));
-    reply(json([]));
-    await http.characters.list();
-    await http.characters.list({ q: "   " });
-    expect(calls.map((c) => c.url)).toEqual(["api/characters", "api/characters"]);
-  });
-
   test("removeFrom deletes the message and what follows", async () => {
     await http.messages.removeFrom("m1");
     expect(calls[0]).toMatchObject({
@@ -130,13 +116,18 @@ describe("request building", () => {
 
   test("every variable path segment is encoded", async () => {
     await http.characters.get("a/b?c");
-    await http.lore.list("x y");
-    await http.library.install("a b.json");
+    await http.messages.branch("x y");
     expect(calls.map((c) => c.url)).toEqual([
       "api/characters/a%2Fb%3Fc",
-      "api/characters/x%20y/lore",
-      "api/library/a%20b.json/install",
+      "api/messages/x%20y/branch",
     ]);
+  });
+
+  test("an image read back is a file of the type the server gave", async () => {
+    reply(new Response(new Uint8Array([0xff, 0xd8]), { headers: { "Content-Type": "image/jpeg" } }));
+    const file = await http.file("api/media/a.jpg");
+    expect(calls[0].url).toBe("api/media/a.jpg");
+    expect([file.type, file.size]).toEqual(["image/jpeg", 2]);
   });
 
   test("library avatar names are encoded", () => {
@@ -158,28 +149,23 @@ describe("routes", () => {
     model: "m", context_size: 16384, max_tokens: 1024, temperature: 0.8, top_p: 0.95,
     frequency_penalty: 0.15, presence_penalty: 0.15, is_default: false,
   };
-  const lore = { keys: ["gate"], content: "It is shut.", enabled: true, case_sensitive: false, priority: 0 };
 
   // `body` is the JSON that goes out, or the File of an upload; absent when
   // nothing is sent.
   type Row = [name: string, run: () => Promise<unknown>, method: string, url: string, body?: unknown];
   const rows: Row[] = [
+    ["characters.list", () => http.characters.list(), "GET", "api/characters"],
     ["characters.get", () => http.characters.get("c1"), "GET", "api/characters/c1"],
     ["characters.create", () => http.characters.create(character), "POST", "api/characters", character],
     ["characters.update", () => http.characters.update("c1", { is_favorite: true }), "PUT", "api/characters/c1", { is_favorite: true }],
     ["characters.remove", () => http.characters.remove("c1"), "DELETE", "api/characters/c1"],
     ["characters.uploadAvatar", () => http.characters.uploadAvatar("c1", file), "POST", "api/characters/c1/avatar", file],
-    ["characters.importCard", () => http.characters.importCard(file), "POST", "api/characters/import", file],
     [
       "characters.assist",
       () => http.characters.assist({ prompt: "a ferryman", kind: "character", existing: {}, connection_id: null }),
       "POST", "api/characters/assist",
       { prompt: "a ferryman", kind: "character", existing: {}, connection_id: null },
     ],
-    ["lore.list", () => http.lore.list("c1"), "GET", "api/characters/c1/lore"],
-    ["lore.create", () => http.lore.create("c1", lore), "POST", "api/characters/c1/lore", lore],
-    ["lore.update", () => http.lore.update("l1", { enabled: false }), "PATCH", "api/lore/l1", { enabled: false }],
-    ["lore.remove", () => http.lore.remove("l1"), "DELETE", "api/lore/l1"],
     ["personas.list", () => http.personas.list(), "GET", "api/personas"],
     [
       "personas.create",
@@ -230,7 +216,6 @@ describe("routes", () => {
     ["turns.state", () => http.turns.state("v1"), "GET", "api/conversations/v1/turn"],
     ["turns.impersonate", () => http.turns.impersonate("v1"), "POST", "api/conversations/v1/impersonate"],
     ["library.list", () => http.library.list(), "GET", "api/library"],
-    ["library.install", () => http.library.install("vane.json"), "POST", "api/library/vane.json/install"],
     ["settings.get", () => http.settings.get(), "GET", "api/settings"],
     ["settings.update", () => http.settings.update({ reply_length: "long" }), "PUT", "api/settings", { reply_length: "long" }],
     ["connections.list", () => http.connections.list(), "GET", "api/connections"],
@@ -637,14 +622,12 @@ describe("under a path prefix", () => {
     reply(json({}));
     reply(json({ user_message: null }));
     reply(chunked());
-    reply(new Response("{}"));
     reply(json({}));
     await http.characters.list();
     await http.characters.get("c1");
     await http.characters.uploadAvatar("c1", file);
     await http.turns.start({ conversation_id: "v1", mode: "send" });
     await http.turns.follow("v1", () => {});
-    await http.characters.exportCard("c1", "json");
     await http.conversations.setWallpaper("v1", file);
 
     expect(calls.map((c) => resolved(c.url))).toEqual([
@@ -653,7 +636,6 @@ describe("under a path prefix", () => {
       "http://192.168.1.42:3000/evermind/api/characters/c1/avatar",
       "http://192.168.1.42:3000/evermind/api/chat",
       "http://192.168.1.42:3000/evermind/api/conversations/v1/turn/stream",
-      "http://192.168.1.42:3000/evermind/api/characters/c1/export?format=json",
       "http://192.168.1.42:3000/evermind/api/conversations/v1/wallpaper",
     ]);
   });
@@ -668,49 +650,6 @@ describe("under a path prefix", () => {
     expect(new URL(http.library.avatarUrl("vane.json"), "http://localhost:3000/").pathname).toBe(
       "/api/library/vane.json/avatar",
     );
-  });
-});
-
-describe("card export", () => {
-  test("the file name comes from Content-Disposition", async () => {
-    reply(new Response("{}", { headers: { "Content-Disposition": 'attachment; filename="Vane the Ferryman.json"' } }));
-    const { blob, filename } = await http.characters.exportCard("c1", "json");
-    expect(calls[0].url).toBe("api/characters/c1/export?format=json");
-    expect(filename).toBe("Vane the Ferryman.json");
-    expect(await blob.text()).toBe("{}");
-  });
-
-  test("the UTF-8 name wins over the ASCII fallback", async () => {
-    reply(new Response("{}", {
-      headers: {
-        "Content-Disposition":
-          `attachment; filename="card.json"; filename*=UTF-8''${encodeURIComponent("Алиса 紅 ✨.json")}`,
-      },
-    }));
-    const { filename } = await http.characters.exportCard("c1", "json");
-    expect(filename).toBe("Алиса 紅 ✨.json");
-  });
-
-  test("a broken UTF-8 name falls back to the plain one", async () => {
-    reply(new Response("{}", {
-      headers: { "Content-Disposition": `attachment; filename="Vane.json"; filename*=UTF-8''%E0%A4%A` },
-    }));
-    const { filename } = await http.characters.exportCard("c1", "json");
-    expect(filename).toBe("Vane.json");
-  });
-
-  test("without a usable header the file is named after the format", async () => {
-    reply(new Response("png"));
-    const { filename } = await http.characters.exportCard("c1", "png");
-    expect(filename).toBe("card.png");
-  });
-
-  test("a failed export is an error, not a download", async () => {
-    reply(json({ error: "Character not found." }, 404));
-    const failure = await http.characters.exportCard("gone", "json").catch((e) => e);
-    expect(failure).toBeInstanceOf(DataError);
-    expect(failure.message).toBe("Character not found.");
-    expect(failure.status).toBe(404);
   });
 });
 
