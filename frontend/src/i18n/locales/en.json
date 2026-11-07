@@ -145,6 +145,11 @@
       "reportLink": "Report a problem",
       "updateAvailable": "Evermind {version} is out.",
       "updateHint": "Stop Evermind, run this from the folder you installed it in, then start it again.",
+      "zipHint": {
+        "before": "Downloaded as a ZIP, this copy is updated by hand:",
+        "link": "the steps are in INSTALL.md",
+        "after": "."
+      },
       "releaseNotes": "What changed",
       "checkHint": "Ask GitHub whether a newer release exists each time this page opens. The request carries nothing you wrote, but GitHub sees what any website sees of a browser, including the address you opened Evermind at. With this off nothing goes out on its own, and the button below still works when you press it.",
       "checkNow": "Check now",

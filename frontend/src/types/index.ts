@@ -150,7 +150,8 @@ export interface Settings {
 /** What only the server knows for the notice of a newer release. */
 export interface Installation {
   current: string;
-  command: string;
+  /** Null for a copy downloaded as a ZIP, which no command updates. */
+  command: string | null;
 }
 
 export interface Memory {

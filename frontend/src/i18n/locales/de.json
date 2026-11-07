@@ -145,6 +145,11 @@
       "reportLink": "Ein Problem melden",
       "updateAvailable": "Evermind {version} ist da.",
       "updateHint": "Halte Evermind an, führe das hier in dem Ordner aus, in dem du es installiert hast, und starte es wieder.",
+      "zipHint": {
+        "before": "Als ZIP heruntergeladen, wird diese Kopie von Hand aktualisiert:",
+        "link": "Die Schritte stehen in INSTALL.md",
+        "after": "."
+      },
       "releaseNotes": "Was sich geändert hat",
       "checkHint": "Bei jedem Öffnen dieser Seite bei GitHub nachfragen, ob es eine neuere Version gibt. Die Anfrage enthält nichts von dem, was du geschrieben hast, aber GitHub sieht, was jede Website von einem Browser sieht, auch die Adresse, unter der du Evermind geöffnet hast. Ohne Haken passiert von allein gar nichts, und der Knopf darunter tut es trotzdem, wenn du ihn drückst.",
       "checkNow": "Jetzt nachsehen",
