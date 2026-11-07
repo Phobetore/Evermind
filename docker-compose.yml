@@ -27,7 +27,7 @@ services:
       dockerfile: Dockerfile
       args:
         SEMANTIC: "${SEMANTIC:-false}"
-    # Read as written (format: raw, Compose 2.30): a password may hold $ or " #".
+    # Read as written (format: raw, Compose 2.30): a password may hold $ or " #", but not "${" with no "}".
     env_file:
       - path: .env
         required: false
