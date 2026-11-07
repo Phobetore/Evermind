@@ -87,6 +87,8 @@ export default defineConfig({
     baseURL: API,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    // Settings asks GitHub for the newest release: never reached from here, update-check.spec.ts answers for it.
+    launchOptions: { args: ["--host-resolver-rules=MAP api.github.com ~NOTFOUND"] },
   },
 
   projects: [
