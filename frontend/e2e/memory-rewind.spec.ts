@@ -176,6 +176,8 @@ test("a summary being typed is not replaced by one a pass wrote meanwhile", asyn
   await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(read.summary).toBe("Typed, not saved yet.");
+  // Typed over the summary from before the pass: the turns the pass read are read again.
+  expect(read.memory_position).toBe(0);
 });
 
 test("a summary a pass wrote meanwhile shows when the person comes back to the window", async ({ page, request }) => {

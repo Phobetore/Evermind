@@ -36,8 +36,8 @@ export function ChatSidePanel({
   const t = useT();
   const character = conversation.character!;
   const [connections, setConnections] = useState<Connection[]>([]);
-  // null unless typing: the box shows what the conversation holds.
-  const [summaryDraft, setSummaryDraft] = useState<string | null>(null);
+  // null unless typing: the box shows what the conversation holds. `over` is what it was typed over.
+  const [summaryDraft, setSummaryDraft] = useState<{ text: string; over: string } | null>(null);
   const [directiveDraft, setDirectiveDraft] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Where, string>>>({});
@@ -59,7 +59,7 @@ export function ChatSidePanel({
   const [memorizing, setMemorizing] = useState(false);
   const [memoryNote, setMemoryNote] = useState<string | null>(null);
   const [consolidating, setConsolidating] = useState(false);
-  const summary = summaryDraft ?? conversation.summary;
+  const summary = summaryDraft?.text ?? conversation.summary;
   const directive = directiveDraft ?? conversation.author_note ?? "";
   const wallpaperInput = useRef<HTMLInputElement>(null);
   const [wallpaperBusy, setWallpaperBusy] = useState(false);
@@ -279,7 +279,7 @@ export function ChatSidePanel({
   async function saveSummary() {
     fail("summary", null);
     try {
-      await data.conversations.update(conversation.id, { summary });
+      await data.conversations.update(conversation.id, { summary, summary_was: summaryDraft?.over });
     } catch (e) {
       fail("summary", describeError(e, t));
       return;
@@ -509,7 +509,10 @@ export function ChatSidePanel({
         <textarea
           className="field min-h-32 text-sm"
           value={summary}
-          onChange={(e) => setSummaryDraft(e.target.value)}
+          onChange={(e) => {
+            const text = e.target.value;
+            setSummaryDraft((draft) => ({ text, over: draft?.over ?? conversation.summary }));
+          }}
           onFocus={() => summaryDraft === null && read()}
           disabled={summaryIsBeingWritten}
           placeholder={t("chat.panel.summary.placeholder")}
