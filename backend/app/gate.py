@@ -19,6 +19,7 @@ import math
 import secrets
 import time
 import unicodedata
+from collections import OrderedDict
 from urllib.parse import urlsplit
 
 from starlette.datastructures import Headers
@@ -35,9 +36,10 @@ PUBLIC_PATHS = {"/api/health", "/api/gate"}
 MAX_FAILURES = 10
 FAILURE_WINDOW_S = 900
 MAX_SIGN_IN_BYTES = 4096
+MAX_ADDRESSES = 10_000
 
-# Wrong passwords per address: how many, and since when.
-_failures: dict[str, tuple[int, float]] = {}
+# Wrong passwords per address: how many, and since when, the oldest window first.
+_failures: OrderedDict[str, tuple[int, float]] = OrderedDict()
 
 
 def enabled() -> bool:
@@ -64,6 +66,17 @@ def _fingerprint(salt: str) -> str:
     return f"{salt}${digest.hex()}"
 
 
+def counted_as(address: str) -> str:
+    """Whose wrong passwords these are; for IPv6 its /64, as a device can take any address in it."""
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return address
+    if ip.version == 4 or ip.ipv4_mapped:
+        return address
+    return str(ipaddress.ip_network(f"{address}/64", strict=False))
+
+
 def retry_after(address: str) -> int:
     """Seconds until ``address`` may try again; 0 if it may now."""
     count, start = _failures.get(address, (0, 0.0))
@@ -73,9 +86,10 @@ def retry_after(address: str) -> int:
 
 def count_failure(address: str) -> None:
     now = time.monotonic()
-    # A window that has run out is forgotten, this address's too, which then starts a new one.
-    for quiet in [a for a, (_, start) in _failures.items() if now - start >= FAILURE_WINDOW_S]:
-        del _failures[quiet]
+    # Oldest first: expired windows go, this address's too, and the oldest of a full table.
+    while _failures and (len(_failures) >= MAX_ADDRESSES
+                         or now - next(iter(_failures.values()))[1] >= FAILURE_WINDOW_S):
+        _failures.popitem(last=False)
     count, start = _failures.get(address, (0, now))
     _failures[address] = (count + 1, start)
 

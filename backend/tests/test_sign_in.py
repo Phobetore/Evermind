@@ -1,12 +1,15 @@
 """The sign-in, the one call anyone can make while a password is set.
 
-A client gets ten wrong passwords per 15 minutes for its address. A header
-naming another address counts only from a proxy the owner has named, or each
-guess would claim an address of its own. And what anyone sends costs little:
-a long body is refused unread, and what does not validate is not echoed back.
+A client gets ten wrong passwords per 15 minutes for its address, and an IPv6
+device for its /64, any address of which it can take. A header naming another
+address counts only from a proxy the owner has named, or each guess would claim
+an address of its own. And what anyone sends costs little: a long body is
+refused unread, what does not validate is not echoed back, and the count of
+wrong passwords stays small however many addresses try.
 """
 
 import socket
+import types
 from contextlib import asynccontextmanager
 
 import httpx
@@ -48,6 +51,14 @@ async def as_served(monkeypatch, tmp_path, **env):
         yield c
 
 
+@asynccontextmanager
+async def from_address(address: str):
+    """A client at ``address``, straight to the application."""
+    transport = httpx.ASGITransport(app=create_app(), client=(address, 50000))
+    async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as c:
+        yield c
+
+
 def sign_in(c, *, sent_for: str | None = None, over_https: bool = False):
     headers = {"x-forwarded-for": sent_for} if sent_for else {}
     if over_https:
@@ -55,9 +66,9 @@ def sign_in(c, *, sent_for: str | None = None, over_https: bool = False):
     return c.post("/api/gate", json={"password": PW}, headers=headers)
 
 
-async def wrong(c, sent_for: str) -> int:
-    r = await c.post("/api/gate", json={"password": "nope"}, headers={"x-forwarded-for": sent_for})
-    return r.status_code
+async def wrong(c, sent_for: str | None = None) -> int:
+    headers = {"x-forwarded-for": sent_for} if sent_for else {}
+    return (await c.post("/api/gate", json={"password": "nope"}, headers=headers)).status_code
 
 
 def secure(response: httpx.Response) -> bool:
@@ -89,6 +100,35 @@ async def test_a_proxy_named_by_the_owner_says_who_the_client_is(make_client, mo
                                                      "x-forwarded-proto": "https"})
         assert secure(renewed)
         assert (await sign_in(c, sent_for="198.51.100.1")).status_code == 429
+
+
+async def test_an_ipv6_device_is_counted_by_its_whole_slash_64(make_client):
+    async with make_client(EVERMIND_GATE_PASSWORD=PW):
+        for n in range(gate.MAX_FAILURES):
+            async with from_address(f"2001:db8:0:1::{n + 1:x}") as c:
+                assert await wrong(c) == 401
+        async with from_address("2001:db8:0:1:ffff:ffff:ffff:ffff") as c:
+            assert (await sign_in(c)).status_code == 429
+        async with from_address("2001:db8:0:2::1") as c:
+            assert (await sign_in(c)).status_code == 204
+        # An IPv4 client written as IPv6 is still one address, not the network ::/64.
+        async with from_address("::ffff:10.0.0.1") as c:
+            assert [await wrong(c) for _ in range(gate.MAX_FAILURES)] == [401] * 10
+        async with from_address("::ffff:10.0.0.2") as c:
+            assert (await sign_in(c)).status_code == 204
+
+
+def test_the_count_of_wrong_passwords_stays_small(monkeypatch):
+    # However many addresses try: what has run out goes first, then the oldest of a full table.
+    clock = types.SimpleNamespace(monotonic=lambda: 1000.0)
+    monkeypatch.setattr(gate, "time", clock)
+    monkeypatch.setattr(gate, "MAX_ADDRESSES", 3)
+    for n in range(5):
+        gate.count_failure(f"10.0.0.{n}")
+    assert list(gate._failures) == ["10.0.0.2", "10.0.0.3", "10.0.0.4"]
+    clock.monotonic = lambda: 1000.0 + gate.FAILURE_WINDOW_S
+    gate.count_failure("10.0.0.9")
+    assert list(gate._failures) == ["10.0.0.9"]
 
 
 @pytest.mark.parametrize("headers", [

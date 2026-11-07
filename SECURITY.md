@@ -59,9 +59,11 @@ changed; and of each session only an HMAC of its token keyed by the password. So
 reading the database does not hand anyone a way in. The password is compared
 after Unicode normalisation, so an accent typed on a phone keyboard is the same
 password as the one in `.env` however each wrote it. Wrong guesses are limited to
-10 per 15 minutes for each address. Behind Docker the requests usually all reach
-Evermind from Docker's own address, so that limit is shared by every device: ten
-wrong guesses from one of them keep the others out too, for up to 15 minutes.
+10 per 15 minutes for each address, and for each /64 network over IPv6, where one
+device can take any address of its network. Behind Docker the requests usually
+all reach Evermind from Docker's own address, so that limit is shared by every
+device: ten wrong guesses from one of them keep the others out too, for up to 15
+minutes.
 
 ## Requests from other sites
 
