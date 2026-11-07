@@ -76,10 +76,13 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
     request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
   await say("First question.");
   await pass();
+  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   await say("Second question.");
   await pass();
   const before = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
-  expect(before.summary).toMatch(/woke the character in a crypt/);
+  // The mock's summary names the newest turn it read.
+  expect(first.summary).toMatch(/woke the character in a crypt/);
+  expect(before.summary).not.toBe(first.summary);
   expect(before.memory_position).toBe(4);
 
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
@@ -99,9 +102,9 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
   if (covers) await opener.click();
 
   // The second pass had read to the second reply; the first, to the first.
-  await expect(summary).toHaveValue(before.summary);
+  await expect(summary).toHaveValue(first.summary);
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
-  expect(read.summary).toBe(before.summary);
+  expect(read.summary).toBe(first.summary);
   expect(read.memory_position).toBe(2);
 });
 

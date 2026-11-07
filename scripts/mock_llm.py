@@ -102,7 +102,8 @@ class Handler(BaseHTTPRequestHandler):
                 "tags": ["fantasy", "mystery"],
             }, ensure_ascii=False)
         elif "memory-keeper" in system:
-            # memory extraction request -> strict JSON
+            # memory extraction request -> strict JSON, a summary of its own for each pass
+            newest = max(map(int, re.findall(r"\(turn (\d+)\)", json.dumps(payload))), default=0)
             reply = json.dumps({
                 "facts": [
                     {"content": f"{char} met the player in a sealed crypt.",
@@ -111,7 +112,7 @@ class Handler(BaseHTTPRequestHandler):
                      "kind": "relationship"},
                 ],
                 "summary": "The player woke the character in a crypt; introductions "
-                           "have been made and mistrust still dominates.",
+                           f"have been made and mistrust still dominates. Read to turn {newest}.",
             }, ensure_ascii=False)
         elif "long-term memory" in system:
             reply = ("The player woke the character in a sealed crypt; they have "
