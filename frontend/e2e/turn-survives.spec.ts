@@ -13,6 +13,8 @@ import { conversation, conversationWithReply, stopTurn, turnRunning } from "./fi
  * seconds on a loaded CI runner at a phone's resolution, and a reply at the
  * ordinary pace was over by the time anybody looked.
  *
+ * This note covers the first two tests only, not the last two.
+ *
  * And they wait for the first words before the page goes, not only for the stop
  * button: the button is there from the click, before the request has reached
  * anybody, and closing the page then would be testing something else.
