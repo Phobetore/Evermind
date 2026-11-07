@@ -492,7 +492,7 @@
     "memoryBusy": "Another memory task is running. Nothing was altered; try again in a moment.",
     "factsChanged": "The facts changed while the model was working with them. Nothing was kept; try again.",
     "conversationChanged": "The conversation changed while the model was reading it. Nothing was kept; try again.",
-    "tooFewFacts": "Too few facts to consolidate.",
+    "tooFewFacts": "Too few facts to condense: only the ones the model wrote and nobody pinned are merged.",
     "fileTooLarge": "This file is too large (15 MB at most).",
     "unsupportedImage": "This image format is not supported. Use PNG, JPEG or WebP.",
     "conversationEmpty": "This conversation has no messages yet.",

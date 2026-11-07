@@ -492,7 +492,7 @@
     "memoryBusy": "Eine andere Gedächtnisaufgabe läuft gerade. Nichts wurde verändert; versuche es gleich noch einmal.",
     "factsChanged": "Die Fakten haben sich geändert, während das Modell mit ihnen arbeitete. Nichts wurde übernommen; versuche es noch einmal.",
     "conversationChanged": "Die Unterhaltung hat sich geändert, während das Modell sie las. Nichts wurde übernommen; versuche es noch einmal.",
-    "tooFewFacts": "Zu wenige Fakten zum Verdichten.",
+    "tooFewFacts": "Zu wenige Fakten zum Verdichten: Zusammengeführt werden nur die, die das Modell geschrieben hat und die niemand angeheftet hat.",
     "fileTooLarge": "Diese Datei ist zu groß (höchstens 15 MB).",
     "unsupportedImage": "Dieses Bildformat wird nicht unterstützt. Nimm PNG, JPEG oder WebP.",
     "conversationEmpty": "Diese Unterhaltung enthält noch keine Nachrichten.",
