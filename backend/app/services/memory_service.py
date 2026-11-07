@@ -299,16 +299,14 @@ async def backfill_embeddings(db: aiosqlite.Connection) -> int:
 
 async def backfill_message_embeddings(db: aiosqlite.Connection) -> int:
     """Encode messages still missing a vector (their ACTIVE variant). Best-effort:
-    returns how many were filled (0 if the model is unavailable). A message changed
-    while its vector was worked out is not filled with it: the next pass does it
-    again. Never raises."""
+    returns how many were filled (0 if the model is unavailable). Never raises."""
     missing = await convo_repo.list_messages_missing_embeddings(db)
     filled = 0
     for msg in missing:
         content = active_content(msg)
         vectors = await embeddings.embed([content], kind="passage")
         if vectors and await convo_repo.set_message_embedding(
-                db, msg["id"], content, embeddings.pack(vectors[0])):
+                db, msg["id"], embeddings.pack(vectors[0])):
             filled += 1
     if filled:
         logger.info("semantic memory: backfilled %d message embeddings", filled)
