@@ -8,7 +8,7 @@ import { Tag } from "@/components/ui/Tag";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import type { Connection, Persona, Settings, UpdateStatus } from "@/types";
+import type { Connection, Settings, UpdateStatus } from "@/types";
 import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -16,10 +16,6 @@ export function SettingsPage() {
   const t = useT();
   const { status: accessStatus } = useAccess();
   const [connections, setConnections] = useState<Connection[] | null>(null);
-  // Null until the list has come, so that "None" is not shown for a persona that
-  // is marked but not yet known.
-  const [personas, setPersonas] = useState<Persona[] | null>(null);
-  const [savingPersona, setSavingPersona] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [editing, setEditing] = useState<Connection | "new" | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -27,23 +23,13 @@ export function SettingsPage() {
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorLine = useRef<HTMLParagraphElement>(null);
-  const personasAsked = useRef(0);
-
-  // Only the newest answer is kept: a slow, older one must not put back what a
-  // change has replaced since.
-  const loadPersonas = useCallback(async () => {
-    const mine = ++personasAsked.current;
-    const list = await data.personas.list();
-    if (mine === personasAsked.current) setPersonas(list);
-  }, []);
 
   const load = useCallback(() => {
     Promise.all([
       data.connections?.list().then(setConnections),
-      loadPersonas(),
       data.settings.get().then(setSettings),
     ]).then(() => setLoadFailure(null), (error) => setLoadFailure({ error }));
-  }, [loadPersonas]);
+  }, []);
 
   useEffect(load, [load]);
 
@@ -74,31 +60,6 @@ export function SettingsPage() {
       setSettings(await data.settings.update(patch));
       flashSaved();
     });
-  }
-
-  // The default persona is the one marked on the Personas page, so this list
-  // writes that mark: choosing a persona marks it (which unmarks the rest), and
-  // "None" unmarks the one that was. Only the mark is sent: the name and the
-  // description here may be older than the ones stored.
-  const defaultPersona = personas?.find((p) => p.is_default);
-
-  async function saveDefaultPersona(id: string) {
-    const target = id ? personas?.find((p) => p.id === id) : defaultPersona;
-    if (!target) return;
-    // The list is disabled meanwhile, so that a second choice is made from what
-    // the first one left, not from what it was made from.
-    setSavingPersona(true);
-    await attempt(async () => {
-      try {
-        await data.personas.update(target.id, { is_default: id !== "" });
-        flashSaved();
-      } finally {
-        // Whatever came of it, show what is stored, so that this list and the
-        // tag on the Personas page cannot disagree.
-        await loadPersonas();
-      }
-    });
-    setSavingPersona(false);
   }
 
   return (
@@ -172,48 +133,6 @@ export function SettingsPage() {
                 </button>
               ))}
             </div>
-          )}
-        </section>
-      )}
-
-      {/* Defaults */}
-      {settings && (
-        <section className="mb-10 grid gap-4 sm:grid-cols-2">
-          <Field label={t("settings.defaultPersonaLabel")}>
-            <select
-              className="field"
-              disabled={personas === null || savingPersona}
-              value={defaultPersona?.id ?? ""}
-              onChange={(e) => saveDefaultPersona(e.target.value)}
-            >
-              <option value="">
-                {personas === null ? t("common.loading") : t("settings.noneOption")}
-              </option>
-              {(personas ?? []).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {data.connections && (
-            <Field label={t("settings.defaultConnectionLabel")}>
-              <select
-                className="field"
-                disabled={connections === null}
-                value={connections === null ? "" : (settings.default_connection_id ?? "")}
-                onChange={(e) => saveSettings({ default_connection_id: e.target.value || null })}
-              >
-                <option value="">
-                  {connections === null ? t("common.loading") : t("settings.firstAvailableOption")}
-                </option>
-                {(connections ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
           )}
         </section>
       )}

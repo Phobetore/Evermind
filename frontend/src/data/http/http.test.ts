@@ -240,13 +240,6 @@ describe("routes", () => {
       () => http.settings.update({ default_connection_id: null }),
       "PUT", "api/settings", { default_connection_id: null },
     ],
-    // The mark alone, as the Settings page sends it: the name and description it
-    // may be holding are older than the stored ones, and must not be written back.
-    [
-      "personas.update marking only",
-      () => http.personas.update("p1", { is_default: true }),
-      "PUT", "api/personas/p1", { is_default: true },
-    ],
     ["connections.list", () => http.connections.list(), "GET", "api/connections"],
     ["connections.create", () => http.connections.create({ ...connection, api_key: "k" }), "POST", "api/connections", { ...connection, api_key: "k" }],
     ["connections.update", () => http.connections.update("k1", connection), "PUT", "api/connections/k1", connection],

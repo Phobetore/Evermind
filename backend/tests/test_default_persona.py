@@ -166,26 +166,6 @@ async def test_the_first_persona_made_is_marked_even_after_others_have_gone(clie
     assert await marked(client) == ["Morgan"]
 
 
-async def test_marking_or_unmarking_a_persona_changes_nothing_else_about_it(client):
-    # Sent as the Settings page sends it: the mark alone. Whatever the name and
-    # description have become since the page was opened must stay as they are.
-    await make_persona(client, "Alex", description="Tall.")
-    morgan = await make_persona(client, "Morgan", description="Short.")
-
-    marked_now = (await client.put(f"/api/personas/{morgan['id']}",
-                                   json={"is_default": True})).json()
-    assert (marked_now["name"], marked_now["description"], marked_now["is_default"]) == (
-        "Morgan", "Short.", True)
-    assert {p["name"]: p["description"] for p in (await client.get("/api/personas")).json()} == {
-        "Alex": "Tall.", "Morgan": "Short."}
-
-    unmarked = (await client.put(f"/api/personas/{morgan['id']}",
-                                 json={"is_default": False})).json()
-    assert (unmarked["name"], unmarked["description"], unmarked["is_default"]) == (
-        "Morgan", "Short.", False)
-    assert await marked(client) == []
-
-
 async def test_a_conversation_whose_persona_is_gone_is_played_as_the_marked_one(
         client, fake_provider):
     await make_persona(client, "Alex")
