@@ -68,6 +68,14 @@ async def test_media_refuses_a_symlink_pointing_out_of_the_directory(client, tmp
     assert b"secret" not in resp.content
 
 
+async def test_an_image_is_kept_by_the_browser_alone(client):
+    (media_dir() / "portrait.png").write_bytes(PNG)
+
+    resp = await client.get("/api/media/portrait.png")
+
+    assert resp.headers["cache-control"] == "private, max-age=31536000, immutable"
+
+
 @pytest.mark.parametrize("route", ["characters/nope/avatar", "personas/nope/avatar",
                                    "conversations/nope/wallpaper"])
 async def test_an_upload_for_nothing_leaves_no_file(client, route):

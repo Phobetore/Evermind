@@ -7,6 +7,8 @@ from ..errors import NotFoundError
 router = APIRouter(prefix="/api/media", tags=["media"])
 
 _MEDIA_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp"}
+# Private: the images are behind the access password. Immutable: every upload gets a new name.
+_CACHE = {"Cache-Control": "private, max-age=31536000, immutable"}
 
 
 @router.get("/{filename}")
@@ -15,4 +17,4 @@ async def get_media(filename: str):
     if path.parent != media_dir().resolve() or not path.is_file():
         raise NotFoundError("File not found.", "file")
     media_type = _MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
-    return FileResponse(path, media_type=media_type)
+    return FileResponse(path, media_type=media_type, headers=_CACHE)
