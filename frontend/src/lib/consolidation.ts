@@ -1,4 +1,4 @@
-import type { ConsolidateResult, ExtractResult, SummaryResult } from "@/data/source";
+import type { ConsolidateResult, ExtractResult } from "@/data/source";
 import type { Translate } from "@/i18n/I18nProvider";
 
 /** What a consolidation did, as a sentence. When it was skipped nothing was
@@ -12,22 +12,20 @@ export function describeConsolidation(result: ConsolidateResult, t: Translate): 
   return t("chat.panel.facts.consolidated", { before: result.before, after: result.after });
 }
 
-/** What asking for a summary did, as a sentence. Nothing was written when another memory
- *  task was running, or when turns it read were removed while the model answered. */
-export function describeSummary(result: SummaryResult, t: Translate): string {
-  if (result.skipped === "busy") return t("chat.panel.facts.memoryTaskRunning");
-  if (result.skipped === "changed") return t("chat.panel.facts.conversationChangedWhileReading");
-  return t("chat.panel.summary.generated");
-}
-
 /** What "memorize now" did, as a sentence. Finding nothing new is not the same as not
  *  having looked, which is what happens while another memory task is running, or as
- *  having looked at turns that were removed meanwhile, of which nothing is kept. */
-export function describeExtraction(result: ExtractResult, t: Translate): string {
+ *  having looked at turns that were removed meanwhile, of which nothing is kept. With no
+ *  new fact, a summary that is not the one shown before is still news. */
+export function describeExtraction(
+  result: ExtractResult,
+  t: Translate,
+  summaryBefore: string,
+): string {
   if (result.skipped === "busy") return t("chat.panel.facts.memoryTaskRunning");
   if (result.skipped === "changed") return t("chat.panel.facts.conversationChangedWhileReading");
   if (result.facts_added.length > 0) {
     return t("chat.panel.facts.addedCount", { count: result.facts_added.length });
   }
+  if (result.summary && result.summary !== summaryBefore) return t("chat.panel.facts.summaryOnly");
   return t("chat.panel.facts.noneNew");
 }

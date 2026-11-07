@@ -215,7 +215,6 @@ describe("routes", () => {
     ["conversations.remove", () => http.conversations.remove("v1"), "DELETE", "api/conversations/v1"],
     ["conversations.setWallpaper", () => http.conversations.setWallpaper("v1", file), "POST", "api/conversations/v1/wallpaper", file],
     ["conversations.clearWallpaper", () => http.conversations.clearWallpaper("v1"), "DELETE", "api/conversations/v1/wallpaper"],
-    ["conversations.summarize", () => http.conversations.summarize("v1"), "POST", "api/conversations/v1/summarize"],
     ["messages.update", () => http.messages.update("m1", { active_index: 1 }), "PATCH", "api/messages/m1", { active_index: 1 }],
     ["messages.branch", () => http.messages.branch("m1"), "POST", "api/messages/m1/branch"],
     ["memories.list", () => http.memories.list("v1"), "GET", "api/conversations/v1/memories"],
@@ -795,7 +794,6 @@ describe("media addresses", () => {
     ["create", () => http.conversations.create({ character_id: "c1", persona_id: null, connection_id: null, greeting_index: 0 })],
     ["update", () => http.conversations.update("v1", {})],
     ["setWallpaper", () => http.conversations.setWallpaper("v1", new File(["x"], "f.png"))],
-    ["summarize", () => http.conversations.summarize("v1")],
   ])("a conversation returned by %s has a relative backdrop and character", async (_name, run) => {
     reply(json(conversation));
     expect(await run()).toEqual(relativeConversation);

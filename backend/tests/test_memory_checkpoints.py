@@ -174,33 +174,6 @@ async def test_a_checkpoint_copies_every_fact_the_model_wrote_and_none_a_person_
         (facts["To pin."]["id"], "state", "To pin.", 4)}
 
 
-async def test_a_summary_asked_for_copies_the_facts_too(client, models):
-    convo = await setup_conversation(client)
-    await talk(client, convo["id"], 2)
-    await extract(client, convo["id"], {"facts": [{"content": "Plain.", "kind": "event"}]})
-    await talk(client, convo["id"], 1, first=3)
-    Replies.text = "Written when asked for."
-
-    await client.post(f"/api/conversations/{convo['id']}/summarize")
-
-    assert {row[2] for row in await copies_of(convo["id"], 6)} == {"Plain."}
-
-
-async def test_a_pass_at_the_same_place_replaces_the_copy(client, models):
-    convo = await setup_conversation(client)
-    await talk(client, convo["id"], 2)
-    await extract(client, convo["id"], {"facts": [{"content": "Then.", "kind": "fact"}]})
-    Replies.text = "Asked for."
-    facts = (await client.get(f"/api/conversations/{convo['id']}/memories")).json()
-    await client.patch(f"/api/memories/{facts[0]['id']}", json={"content": "Now."})
-    await client.post(f"/api/conversations/{convo['id']}/memories",
-                      json={"content": "Not the model's."})
-
-    await client.post(f"/api/conversations/{convo['id']}/summarize")
-
-    assert {row[2] for row in await copies_of(convo["id"], 4)} == {"Now."}
-
-
 async def test_a_pass_that_is_refused_leaves_no_checkpoint(client, models):
     convo = await setup_conversation(client)
     await talk(client, convo["id"], 2)
@@ -220,33 +193,6 @@ async def test_a_pass_with_nothing_new_to_read_leaves_no_checkpoint(client, mode
     await extract(client, convo["id"], {"facts": [], "summary": "Said again."})
 
     assert await checkpoints_of(convo["id"]) == [(4, "The first two.", 4)]
-
-
-async def test_a_summary_asked_for_leaves_one_at_the_last_message_without_moving_the_memory(
-        client, models):
-    convo = await setup_conversation(client)
-    await talk(client, convo["id"], 2)
-    await extract(client, convo["id"], {"facts": [], "summary": "The first two."})
-    await talk(client, convo["id"], 1, first=3)
-    Replies.text = "Written when asked for."
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/summarize")
-
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["summary"] == "Written when asked for."
-    assert resp.json()["memory_position"] == 4
-    assert await checkpoints_of(convo["id"]) == [
-        (4, "The first two.", 4), (6, "Written when asked for.", 4)]
-
-
-async def test_a_summary_asked_for_of_a_conversation_the_memory_never_read(client, models):
-    convo = await setup_conversation(client)
-    await talk(client, convo["id"], 1)
-    Replies.text = "Written when asked for."
-
-    await client.post(f"/api/conversations/{convo['id']}/summarize")
-
-    assert await checkpoints_of(convo["id"]) == [(2, "Written when asked for.", 0)]
 
 
 async def test_deleting_a_conversation_deletes_its_checkpoints(client, models):

@@ -15,8 +15,8 @@ const panelText = JSON.parse(
   readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", "en.json"), "utf8"),
 ).chat.panel as {
   closeAriaLabel: string;
-  summary: { placeholder: string; generateButton: string; saveButton: string };
-  facts: { memoryTaskRunning: string; conversationChangedWhileReading: string; extractButton: string };
+  summary: { placeholder: string; saveButton: string };
+  facts: { extractButton: string };
 };
 
 test("cutting the story back empties the summary and the facts of what went", async ({ page, request }) => {
@@ -71,17 +71,15 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
       data: { conversation_id: convo.id, mode: "send", content, message_mode: "say" },
       timeout: 60_000,
     });
+  const pass = () =>
+    request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
   await say("First question.");
-  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await pass();
   await say("Second question.");
-  // Asked for, the summary of the story so far is another one than the pass wrote.
-  const asked = await (await request.post(`${API}/api/conversations/${convo.id}/summarize`, {
-    timeout: 60_000,
-  })).json();
-  await say("Third question.");
-  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await pass();
   const before = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
-  expect(before.summary).not.toBe(asked.summary);
+  expect(before.summary).toMatch(/woke the character in a crypt/);
+  expect(before.memory_position).toBe(4);
 
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
   await page.goto(`/#/chat/${convo.id}`);
@@ -93,78 +91,46 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
   const summary = panel.getByPlaceholder(panelText.summary.placeholder);
   await expect(summary).toHaveValue(before.summary);
 
-  // greeting, then three questions and their replies: the third question is the sixth message.
+  // greeting, then two questions and their replies: the second question is the fourth message.
   if (covers) await panel.getByLabel(panelText.closeAriaLabel).click();
   page.once("dialog", (dialog) => void dialog.accept());
-  await page.getByTitle("Delete from here").nth(5).click();
+  await page.getByTitle("Delete from here").nth(3).click();
   if (covers) await opener.click();
 
-  await expect(summary).toHaveValue(asked.summary);
+  // The second pass had read to the second reply; the first, to the first.
+  await expect(summary).toHaveValue(before.summary);
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
-  expect(read.summary).toBe(asked.summary);
-  // What was asked for read the turns without drawing facts from them: the pass that
-  // wrote the first summary had read to the reply of the first question.
+  expect(read.summary).toBe(before.summary);
   expect(read.memory_position).toBe(2);
 });
 
-for (const [skipped, sentence] of [
-  ["busy", panelText.facts.memoryTaskRunning],
-  ["changed", panelText.facts.conversationChangedWhileReading],
-] as const) {
-  test(`a summary that was refused (${skipped}) says why and leaves the box alone`, async ({ page, request }) => {
-    const convo = await makeConversation(request);
-    await page.route("**/summarize", async (route) => {
-      await route.fulfill({ json: { ...convo, summary: "", skipped } });
-    });
-
-    await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
-    await page.goto(`/#/chat/${convo.id}`);
-    await expect(page.locator("textarea").first()).toBeVisible();
-    const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
-    if (await opener.isVisible()) await opener.click();
-    const panel = page.locator("aside:visible:has(textarea)");
-    const summary = panel.getByPlaceholder(panelText.summary.placeholder);
-    await summary.fill("Being typed.");
-
-    await panel.getByRole("button", { name: panelText.summary.generateButton, exact: true }).click();
-
-    await expect(panel).toContainText(sentence);
-    await expect(summary).toHaveValue("Being typed.");
-  });
-}
-
 // What is typed while the memory writes a summary would be replaced by what it writes.
-for (const [task, url, button] of [
-  ["a summary is written", "**/summarize", panelText.summary.generateButton],
-  ["the memory reads the story", "**/memories/extract", panelText.facts.extractButton],
-] as const) {
-  test(`the summary box cannot be typed in while ${task}`, async ({ page, request }) => {
-    const convo = await makeConversation(request);
-    let release = () => {};
-    const released = new Promise<void>((resolve) => { release = resolve; });
-    await page.route(url, async (route) => {
-      await released;
-      await route.continue();
-    });
-
-    await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
-    await page.goto(`/#/chat/${convo.id}`);
-    await expect(page.locator("textarea").first()).toBeVisible();
-    const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
-    if (await opener.isVisible()) await opener.click();
-    const panel = page.locator("aside:visible:has(textarea)");
-    const summary = panel.getByPlaceholder(panelText.summary.placeholder);
-    await summary.fill("Typed before.");
-    await expect(summary).toBeEnabled();
-
-    await panel.getByRole("button", { name: button, exact: true }).click();
-
-    await expect(summary).toBeDisabled();
-    await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeDisabled();
-    release();
-    await expect(summary).toBeEnabled();
+test("the summary box cannot be typed in while the memory reads the story", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/memories/extract", async (route) => {
+    await released;
+    await route.continue();
   });
-}
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await summary.fill("Typed before.");
+  await expect(summary).toBeEnabled();
+
+  await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+
+  await expect(summary).toBeDisabled();
+  await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeDisabled();
+  release();
+  await expect(summary).toBeEnabled();
+});
 
 test("a fact that is gone says so when it is pinned, and leaves the list", async ({ page, request }) => {
   const convo = await makeConversation(request);

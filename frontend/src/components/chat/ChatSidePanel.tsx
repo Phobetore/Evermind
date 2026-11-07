@@ -2,12 +2,12 @@ import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { describeConsolidation, describeExtraction, describeSummary } from "@/lib/consolidation";
+import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
 import { describeError } from "@/lib/errors";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
-import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, NotebookPen, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
+import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 
@@ -56,7 +56,6 @@ export function ChatSidePanel({
   const character = conversation.character!;
   const [connections, setConnections] = useState<Connection[]>([]);
   const [summary, setSummary] = useState(conversation.summary);
-  const [summarizing, setSummarizing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [newFact, setNewFact] = useState("");
@@ -141,7 +140,7 @@ export function ChatSidePanel({
         setSummary(result.summary);
         onConversationChange({ summary: result.summary });
       }
-      setMemoryNote(describeExtraction(result, t));
+      setMemoryNote(describeExtraction(result, t, conversation.summary));
     } catch (e) {
       setMemoryNote(describeError(e, t, t("chat.panel.facts.extractError")));
     }
@@ -215,31 +214,13 @@ export function ChatSidePanel({
   }
 
   // What is typed while the memory writes a summary would be replaced by what it writes.
-  const summaryIsBeingWritten = summarizing || memorizing;
+  const summaryIsBeingWritten = memorizing;
 
   async function saveSummary() {
     await data.conversations.update(conversation.id, { summary });
     onConversationChange({ summary });
     setNote(t("chat.panel.summary.saved"));
     setTimeout(() => setNote(null), 1500);
-  }
-
-  async function generateSummary() {
-    setSummarizing(true);
-    setNote(null);
-    try {
-      const updated = await data.conversations.summarize(conversation.id);
-      // Refused, it wrote nothing, and the box may hold what is being typed in it.
-      if (!updated.skipped) {
-        setSummary(updated.summary);
-        onConversationChange({ summary: updated.summary });
-      }
-      setNote(describeSummary(updated, t));
-    } catch (e) {
-      setNote(describeError(e, t, t("chat.panel.summary.generateError")));
-    }
-    setSummarizing(false);
-    setTimeout(() => setNote(null), 4000);
   }
 
   return (
@@ -454,27 +435,7 @@ export function ChatSidePanel({
       </div>
 
       <div>
-        {/* A title and its button or buttons, here and under the facts. The title
-            gives way first, down to its longest word (no min-w-0: that is what
-            tells the row when to wrap); a button that still does not fit drops to
-            a line of its own instead of running past the edge. How wide a button
-            is depends on its word in the language it is read in. */}
-        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
-          <span className="ui-label flex-1">{t("chat.panel.summary.title")}</span>
-          <button
-            className="btn btn-ghost !px-2.5 !py-1 text-xs"
-            onClick={generateSummary}
-            disabled={summarizing}
-            title={t("chat.panel.summary.generateTitle")}
-          >
-            {summarizing ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <NotebookPen className="h-3.5 w-3.5" />
-            )}
-            {t("chat.panel.summary.generateButton")}
-          </button>
-        </div>
+        <span className="ui-label mb-1.5 block">{t("chat.panel.summary.title")}</span>
         <textarea
           className="field min-h-32 text-sm"
           value={summary}
@@ -494,7 +455,8 @@ export function ChatSidePanel({
         {note && <p className="mt-1.5 break-words text-xs text-moss">{note}</p>}
       </div>
 
-      {/* Established facts */}
+      {/* The title gives way first (no min-w-0: that tells the row when to wrap); a button
+          that still does not fit drops to its own line. */}
       <div>
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
           <span className="ui-label flex-1">{t("chat.panel.facts.title")} {memories.length > 0 && `(${memories.length})`}</span>

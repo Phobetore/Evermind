@@ -122,8 +122,6 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
         upload<Conversation>(`api/conversations/${seg(id)}/wallpaper`, file).then(conversationOf),
       clearWallpaper: (id) =>
         del<Conversation>(`api/conversations/${seg(id)}/wallpaper`).then(conversationOf),
-      summarize: (id) =>
-        post<Conversation>(`api/conversations/${seg(id)}/summarize`).then(conversationOf),
     },
 
     messages: {

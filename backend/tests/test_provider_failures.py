@@ -340,11 +340,10 @@ async def test_a_model_error_in_a_reply_keeps_what_the_server_said(client, monke
     }
 
 
-@pytest.mark.parametrize("route", ["impersonate", "summarize"])
-async def test_a_failed_story_tool_keeps_what_the_server_said(client, monkeypatch, route):
+async def test_a_failed_story_tool_keeps_what_the_server_said(client, monkeypatch):
     convo = await setup_conversation(client)
     patch_providers(monkeypatch, lambda: oai_provider(answering(500, {"error": "boom"})))
-    resp = await client.post(f"/api/conversations/{convo['id']}/{route}")
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 502
     body = resp.json()
     assert body["kind"] == "model_http_error"
@@ -420,11 +419,10 @@ async def test_a_reply_on_a_corrupted_connection_says_so(client):
     assert event["kind"] == "model_unknown_type"
 
 
-@pytest.mark.parametrize("route", ["impersonate", "summarize"])
-async def test_a_story_tool_on_a_corrupted_connection_says_so(client, route):
+async def test_a_story_tool_on_a_corrupted_connection_says_so(client):
     convo = await setup_conversation(client)
     await corrupt_connection(client)
-    resp = await client.post(f"/api/conversations/{convo['id']}/{route}")
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 502
     assert resp.json()["kind"] == "model_unknown_type"
 

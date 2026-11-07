@@ -290,57 +290,51 @@ async def test_no_connection_for_the_card_assistant(client, provider):
     assert "connection" in resp.json()["error"].lower()
 
 
-@pytest.mark.parametrize("route", ["impersonate", "summarize"])
-async def test_no_connection_for_the_story_tools(client, provider, route):
+async def test_no_connection_for_the_story_tools(client, provider):
     char = (await client.post("/api/characters", json={"name": "X", "greeting": ""})).json()
     convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
-    resp = await client.post(f"/api/conversations/{convo['id']}/{route}")
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 400
     assert resp.json()["kind"] == "no_connection"
 
 
-@pytest.mark.parametrize("route", ["impersonate", "summarize"])
-async def test_a_missing_conversation_for_the_story_tools(client, provider, route):
-    resp = await client.post(f"/api/conversations/nope/{route}")
+async def test_a_missing_conversation_for_the_story_tools(client, provider):
+    resp = await client.post("/api/conversations/nope/impersonate")
     assert resp.status_code == 404
     assert resp.json() == {
         "error": "Conversation not found.", "kind": "not_found", "resource": "conversation",
     }
 
 
-@pytest.mark.parametrize("route", ["impersonate", "summarize"])
-async def test_an_empty_conversation_for_the_story_tools(client, provider, route):
+async def test_an_empty_conversation_for_the_story_tools(client, provider):
     convo = await setup_conversation(client, greeting="")
-    resp = await client.post(f"/api/conversations/{convo['id']}/{route}")
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 400
     assert resp.json()["kind"] == "conversation_empty"
 
 
-@pytest.mark.parametrize("route", ["impersonate", "summarize"])
-async def test_a_model_that_reports_an_error(client, provider, route):
+async def test_a_model_that_reports_an_error(client, provider):
     convo = await setup_conversation(client)
     FakeProvider.script = [ProviderEvent(type="error", message="Rate limit reached (429).")]
-    resp = await client.post(f"/api/conversations/{convo['id']}/{route}")
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 502
     assert resp.json() == {"error": "Rate limit reached (429).", "kind": "model_error"}
 
 
-@pytest.mark.parametrize("route", ["impersonate", "summarize"])
-async def test_a_model_that_cannot_be_reached_keeps_its_own_kind(client, provider, route):
+async def test_a_model_that_cannot_be_reached_keeps_its_own_kind(client, provider):
     convo = await setup_conversation(client)
     FakeProvider.script = [
         ProviderEvent(type="error", message="Cannot reach it.", meta={"kind": "unreachable"}),
     ]
-    resp = await client.post(f"/api/conversations/{convo['id']}/{route}")
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 502
     assert resp.json() == {"error": "Cannot reach it.", "kind": "unreachable"}
 
 
-@pytest.mark.parametrize("route", ["impersonate", "summarize"])
-async def test_a_model_that_says_nothing(client, provider, route):
+async def test_a_model_that_says_nothing(client, provider):
     convo = await setup_conversation(client)
     FakeProvider.script = [ProviderEvent(type="done")]
-    resp = await client.post(f"/api/conversations/{convo['id']}/{route}")
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 502
     assert resp.json()["kind"] == "model_empty"
 

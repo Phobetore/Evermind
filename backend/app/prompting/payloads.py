@@ -1,5 +1,5 @@
 """The prompts that are not a chat turn's: ghost-writing the player's next message,
-summarizing, extracting and consolidating the memory, and drafting a card.
+extracting and consolidating the memory, and drafting a card.
 
 Pure: no database, no model. The services fetch what these read, send what they return,
 and say what went wrong.
@@ -12,7 +12,6 @@ from .defaults import (
     IMPERSONATE_PROMPT,
     MEMORY_CONSOLIDATION_PROMPT,
     MEMORY_EXTRACTION_PROMPT,
-    SUMMARIZE_PROMPT,
 )
 from .engine import PromptPayload, active_content, build_chat_payload
 from .macros import substitute
@@ -49,21 +48,6 @@ def build_impersonate_payload(character: dict, persona: dict | None, conversatio
                 "content": m["content"]} for m in base.messages]
 
     return PromptPayload(system=system, messages=flipped, stop=[f"\n{char_name}:"])
-
-
-def build_summary_payload(character: dict, persona: dict | None, conversation: dict,
-                          messages: list[dict], connection: dict) -> PromptPayload:
-    """The prompt that writes the story so far."""
-    char_name = character.get("name") or "Character"
-    user_name = (persona or {}).get("name") or "User"
-    base = build_chat_payload(character=character, persona=persona, conversation=conversation,
-                              messages=messages, connection=connection)
-    return PromptPayload(
-        system=substitute(SUMMARIZE_PROMPT, char_name=char_name, user_name=user_name),
-        messages=[*base.messages,
-                  {"role": "user", "content": "[Write the summary of the roleplay so far now.]"}],
-        stop=[],
-    )
 
 
 def build_extraction_payload(character: dict, persona: dict | None, conversation: dict,

@@ -32,7 +32,6 @@ from contextlib import aclosing
 
 import aiosqlite
 
-from ..db import write_transaction
 from ..errors import (
     MODEL_EMPTY,
     MODEL_ERROR,
@@ -46,7 +45,7 @@ from ..errors import (
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval
 from ..prompting.engine import active_content, build_chat_payload
-from ..prompting.payloads import build_impersonate_payload, build_summary_payload
+from ..prompting.payloads import build_impersonate_payload
 from ..prompting.tokens import estimate_tokens
 from ..prompting.turn import (
     continue_history,
@@ -612,52 +611,3 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
     if not text:
         raise AppError("The model did not suggest anything. Try again.", 502, kind=MODEL_EMPTY)
     return {"text": text}
-
-
-async def summarize(db: aiosqlite.Connection, convo_id: str) -> dict:
-    """The summary of the story so far, written by the model. The conversation as it stands,
-    with "skipped" set and nothing written when another memory task was running ("busy"),
-    or when the turns it read were not the story's any more when the model answered
-    ("changed")."""
-    try:
-        convo, character, persona, connection, _ = await _resolve(db, convo_id)
-    except _TurnError as exc:
-        raise exc.as_app_error() from None
-
-    async def busy() -> dict:
-        return {**convo, "skipped": "busy"}
-
-    return await memory_service.one_at_a_time(
-        convo_id, lambda: _summarize(db, convo, character, persona, connection), busy)
-
-
-async def _summarize(db: aiosqlite.Connection, convo: dict, character: dict, persona: dict | None,
-                     connection: dict) -> dict:
-    convo_id = convo["id"]
-    messages = await convo_repo.list_messages(db, convo_id)
-    if not messages:
-        raise AppError("Nothing to summarize: the conversation is empty.", kind="conversation_empty")
-
-    payload = build_summary_payload(character, persona, convo, messages, connection)
-
-    chunks: list[str] = []
-    async for event in get_provider(connection).stream_chat(payload):
-        if event.type == "delta":
-            chunks.append(event.text)
-        elif event.type == "error":
-            raise model_failure(event.message, event.meta)
-    summary = "".join(chunks).strip()
-    if not summary:
-        raise AppError("The model returned an empty summary.", 502, kind=MODEL_EMPTY)
-    # It describes the story up to the last message it was given, and the facts were not
-    # read from those turns, so the memory is checkpointed with the position it had. The
-    # story may have been cut back while the model answered, and it would then describe
-    # turns that are gone.
-    last = messages[-1]["position"]
-    async with write_transaction(db):
-        if await convo_repo.message_ids_through(db, convo_id, last) != [m["id"] for m in messages]:
-            # It may have been deleted, in which case it is answered as it was read.
-            current = await convo_repo.get(db, convo_id, with_messages=False)
-            return {**(current or convo), "skipped": "changed"}
-        await convo_repo.remember(db, convo_id, last, summary)
-    return await convo_repo.get(db, convo_id, with_messages=False)

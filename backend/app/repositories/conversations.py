@@ -270,10 +270,9 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
 
 
 async def list_checkpoints(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
-    """What the memory held each time a pass ended, whether or not it wrote a summary, or a
-    summary was asked for, oldest first: the summary it had written once the turns up to
-    ``position`` were read, how far the facts had been read then, and a copy of the facts
-    the model had written."""
+    """What the memory held each time a pass ended, whether or not it wrote a summary,
+    oldest first: the summary it had written once the turns up to ``position`` were read,
+    how far the facts had been read then, and a copy of the facts the model had written."""
     rows = await (await db.execute(
         "SELECT position, summary, memory_position FROM memory_checkpoints"
         " WHERE conversation_id = ? ORDER BY position ASC", (convo_id,))).fetchall()
@@ -288,16 +287,14 @@ async def list_checkpoints(db: aiosqlite.Connection, convo_id: str) -> list[dict
     return [{**dict(row), "facts": facts[row["position"]]} for row in rows]
 
 
-async def remember(db: aiosqlite.Connection, convo_id: str, position: int, summary: str | None,
-                   memory_position: int | None = None) -> None:
-    """What the memory wrote of the story up to ``position``: the conversation says so, and
-    a checkpoint keeps it. ``memory_position`` is how far a pass read the facts; a summary
-    asked for reads turns without drawing facts from them, so it leaves the position as it
-    is. Does not commit: it belongs to what it records."""
+async def remember(db: aiosqlite.Connection, convo_id: str, position: int,
+                   summary: str | None) -> None:
+    """What a pass wrote of the story up to ``position``: the conversation says so, and
+    a checkpoint keeps it. Does not commit: it belongs to what it records."""
     await db.execute(
-        "UPDATE conversations SET memory_position = COALESCE(?, memory_position),"
-        " summary = COALESCE(?, summary), updated_at = ? WHERE id = ?",
-        (memory_position, summary, now_iso(), convo_id))
+        "UPDATE conversations SET memory_position = ?, summary = COALESCE(?, summary),"
+        " updated_at = ? WHERE id = ?",
+        (position, summary, now_iso(), convo_id))
     await checkpoint(db, convo_id, position, summary)
 
 

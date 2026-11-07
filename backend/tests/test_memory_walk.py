@@ -1,5 +1,5 @@
 """A walk through what a conversation remembers, on the real API and a real database: random
-passes, corrections, drops, typed summaries, summaries asked for, consolidations, cuts,
+passes, corrections, drops, typed summaries, consolidations, cuts,
 forgotten and edited facts, pins, and branches of branches. Every message holds a token of
 its own, so that what the memory says can be held against what is left of the story."""
 
@@ -20,7 +20,7 @@ SEEDS, STEPS = 4, 30
 TABLES = {"conversations": "id", "messages": "conversation_id", "memories": "conversation_id",
           "memory_checkpoints": "conversation_id", "memory_checkpoint_facts": "conversation_id"}
 STEP_KINDS = ["talk"] * 3 + ["pass"] * 3 + ["cut"] * 2 + [
-    "one", "summarize", "type", "consolidate", "forget", "edit", "pin", "hand", "branch"]
+    "type", "consolidate", "forget", "edit", "pin", "hand", "branch"]
 
 
 def tokens(text):
@@ -57,8 +57,7 @@ class Answering:
 
 class Story(Answering):
     def answer(self, messages):
-        said = " ".join(m["content"] for m in messages)
-        return f"GEN {say(tokens(said))}" if "[Write the summary" in said else f"reply {World.token('a')}"
+        return f"reply {World.token('a')}"
 
 
 class Memory(Answering):
@@ -180,19 +179,18 @@ async def walk(client, seed):
         if step == "talk":
             for _ in range(rng.randint(1, 3)):
                 await send(client, cid, content=f"say {World.token('u')}")
-        elif step in ("pass", "consolidate", "summarize"):
-            url = {"pass": "memories/extract", "consolidate": "memories/consolidate", "summarize": "summarize"}
+        elif step in ("pass", "consolidate"):
+            url = {"pass": "memories/extract", "consolidate": "memories/consolidate"}
             answered = await client.post(f"{base}/{url[step]}")
             assert answered.status_code == 200 or not messages, answered.text
         elif step == "type":
             await client.patch(base, json={"summary": f"TYPED {World.token('t').strip('@')}"})
         elif step == "hand":
             await client.post(f"{base}/memories", json={"content": f"By hand {World.token('h').strip('@')}"})
-        elif step in ("cut", "one") and messages:
+        elif step == "cut" and messages:
             message = rng.choice(messages)
             cut = message["position"] - 1
-            following = "?following=true" if step == "cut" else ""
-            assert (await client.delete(f"/api/messages/{message['id']}{following}")).status_code == 204
+            assert (await client.delete(f"/api/messages/{message['id']}")).status_code == 204
             trace[-1] += f" {message['position']}"
             after = await read(client, cid)
             assert {f["id"] for f in facts if not the_models(f)} <= {f["id"] for f in after["facts"]}, trace

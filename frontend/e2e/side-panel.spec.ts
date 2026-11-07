@@ -25,7 +25,7 @@ function messages(locale: Locale) {
   const chat = JSON.parse(readFileSync(file, "utf8")).chat;
   return { ...chat.panel, wallpaper: chat.wallpaper } as {
     facts: { consolidateButton: string; extractButton: string; dormantWarning: string };
-    summary: { saveButton: string; generateButton: string; placeholder: string };
+    summary: { saveButton: string; placeholder: string };
     directive: { applyButton: string; placeholder: string };
     wallpaper: { replace: string };
   };
@@ -213,14 +213,12 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
   }
 
   // What a model's server is called is whatever its owner called it, and the
-  // sentence about a failed attempt to reach it quotes the address. Three
+  // sentence about a failed attempt to reach it quotes the address. Two
   // places in the panel show that sentence, each in a paragraph of its own.
   const text = messages("en");
   const failures: Record<string, (panel: Locator, page: Page) => Promise<void>> = {
     "remembering the story": (panel) =>
       panel.getByRole("button", { name: text.facts.extractButton, exact: true }).click(),
-    "summarizing it": (panel) =>
-      panel.getByRole("button", { name: text.summary.generateButton, exact: true }).click(),
     "setting a backdrop": async (panel, page) => {
       const chooser = page.waitForEvent("filechooser");
       await panel.getByRole("button", { name: text.wallpaper.replace, exact: true }).click();
@@ -242,7 +240,6 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
         })
         : route.continue();
       await page.route("**/api/conversations/*/memories/extract", unreachable);
-      await page.route("**/api/conversations/*/summarize", unreachable);
       await page.route("**/api/conversations/*/wallpaper", unreachable);
 
       const panel = await panelFor(page, request, "en");

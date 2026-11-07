@@ -84,8 +84,8 @@ def schedule_if_due(convo_id: str) -> None:
 async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
                         busy: Callable[[], Awaitable[dict]]) -> dict:
     """Run ``work``, or answer ``busy`` when another memory task is running for this
-    conversation. A pass, a consolidation and a summary asked for each read the memory,
-    wait for a model, and write what it said, so that any two of them would cross."""
+    conversation. A pass and a consolidation each read the memory, wait for a model, and
+    write what it said, so that the two would cross."""
     if convo_id in _running:
         return await busy()
     _running.add(convo_id)
@@ -281,8 +281,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
         # before as if this pass had written none, so that the typed one still reads as typed.
         written = changes["summary"] if current["summary"] == convo["summary"] else None
         added = await _apply(db, convo_id, changes["ops"], vectors)
-        await convo_repo.remember(db, convo_id, top_position, written,
-                                  memory_position=top_position)
+        await convo_repo.remember(db, convo_id, top_position, written)
 
     return {"facts_added": added, "summary": written or current["summary"] or ""}
 

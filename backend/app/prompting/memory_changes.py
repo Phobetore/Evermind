@@ -44,16 +44,14 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
     removal from position p cuts at p - 1, a branch at the position of its message.
 
     ``checkpoints`` are what the memory held each time a pass ended, whether or not it wrote
-    a summary, or a summary was asked for: ``{"position", "summary", "memory_position",
-    "facts"}``, the summary it had written once the turns up to ``position`` had been read,
-    how far the facts had been read then, and a copy of the facts the model had written,
+    a summary: ``{"position", "summary", "memory_position", "facts"}``, the summary it had
+    written once the turns up to ``position`` had been read, how far the facts had been read
+    then, and a copy of the facts the model had written,
     ``{"id", "kind", "content", "source_position"}``.
     ``facts`` are what it holds now, each with ``is_pinned`` and ``source`` as well.
 
-    The checkpoints after the cut go. When the memory had read past the cut, or when the
-    summary is one written after it (a summary asked for describes the turns up to the last
-    message without the facts having been read as far), the memory goes back to the newest
-    checkpoint at or before the cut: the summary is that one's, the next pass reads from
+    The checkpoints after the cut go. When the memory had read past the cut, it goes back to
+    the newest checkpoint at or before the cut: the summary is that one's, the next pass reads from
     how far it had read, at the usual cost, and the model's facts become its copy. A later
     pass may have corrected or dropped one of them, and only the copy still has it. What
     the copy does not hold goes, whatever its position says.
@@ -90,7 +88,6 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
     chosen = kept[-1] if kept else None
     newest = ordered[-1] if ordered else None
     typed = summary.strip() != (newest["summary"].strip() if newest else "")
-    summary_is_ahead = not typed and newest is not None and newest["position"] > cut
 
     theirs = [f for f in facts if not is_movable(f)]
     stays = [_fact(f, source_position=max(cut, 0)) if f["source_position"] > cut else _fact(f)
@@ -98,7 +95,7 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
     models = [_fact(f) for f in facts if is_movable(f) and f["source_position"] <= cut]
     result = {"memory_position": memory_position, "summary": summary,
               "checkpoints": [c["position"] for c in kept], "facts": stays + models}
-    if memory_position <= cut and not summary_is_ahead:
+    if memory_position <= cut:
         return result
 
     result["memory_position"] = chosen["memory_position"] if chosen is not None else 0
