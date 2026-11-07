@@ -254,7 +254,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             else:
                 variants.append(body)
             await convo_repo.update_message(db, target["id"], variants=variants, active_index=index,
-                                            meta=meta)
+                                            meta=meta, reread=True)
         elif written:
             await convo_repo.update_message(db, turn.message_id, variants=[body], meta=meta)
         else:

@@ -151,7 +151,9 @@ async def get_message(db: aiosqlite.Connection, message_id: str) -> dict | None:
 async def update_message(db: aiosqlite.Connection, message_id: str,
                          variants: list[str] | None = None,
                          active_index: int | None = None,
-                         meta: dict | None = None) -> dict | None:
+                         meta: dict | None = None, reread: bool = False) -> dict | None:
+    """``reread``: other words of the message are shown, and a memory that read it goes back to
+    before it, in the same write."""
     current = await get_message(db, message_id)
     if not current:
         return None
@@ -170,8 +172,14 @@ async def update_message(db: aiosqlite.Connection, message_id: str,
         params.append(None)  # active content may have changed -> re-embed lazily
     if sets:
         params.append(message_id)
-        await db.execute(f"UPDATE messages SET {', '.join(sets)} WHERE id = ?", params)
-        await db.commit()
+        async with write_transaction(db):
+            if reread:
+                memory = await (await db.execute(
+                    "SELECT memory_position FROM conversations WHERE id = ?",
+                    (current["conversation_id"],))).fetchone()
+                if 0 < current["position"] <= memory["memory_position"]:  # no pass reads the greeting
+                    await _rewind_memory(db, current["conversation_id"], current["position"] - 1)
+            await db.execute(f"UPDATE messages SET {', '.join(sets)} WHERE id = ?", params)
     return await get_message(db, message_id)
 
 
