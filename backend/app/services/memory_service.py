@@ -2,7 +2,7 @@
 
 Every MAINTENANCE_EVERY assistant replies, one LLM call (the conversation's
 own connection) extracts new durable facts and rewrites the running summary
-to cover everything up to the latest turn. Runs as a background task with its
+to cover what it read, which leaves the newest HOLD_BACK messages out. Runs as a background task with its
 own SQLite connection; a per-conversation guard prevents overlapping runs.
 """
 
@@ -18,6 +18,7 @@ from ..errors import (
     NO_CONNECTION,
     AppError,
     NotFoundError,
+    error_body,
     model_failure,
 )
 from ..prompting import embeddings
@@ -40,7 +41,7 @@ from .llm_json import parse_llm_json
 
 logger = logging.getLogger(__name__)
 
-MAINTENANCE_EVERY = 8  # assistant replies between maintenance runs
+MAINTENANCE_EVERY = 8  # unread assistant replies that make a pass due
 HOLD_BACK = 4  # newest messages an automatic pass leaves unread: a reply may still be thrown away
 
 MIN_ANSWER_TOKENS = 2048  # a pass's JSON is cut, and unreadable, in less than this
@@ -101,10 +102,7 @@ def schedule_if_due(convo_id: str) -> None:
 def _error_body(exc: Exception) -> dict:
     if not isinstance(exc, AppError):
         return {"error": "The memory pass failed.", "kind": "internal"}
-    body = {"error": exc.message, **exc.details}
-    if exc.kind:
-        body["kind"] = exc.kind
-    return body
+    return error_body(exc)
 
 
 async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
