@@ -192,26 +192,22 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
         fork_point = await get_message(db, message_id)
         if not fork_point:
             return None
-        source = await get(db, fork_point["conversation_id"], with_messages=False)
+        source = await (await db.execute(
+            "SELECT * FROM conversations WHERE id = ?", (fork_point["conversation_id"],))).fetchone()
         if not source:
             return None
         position = fork_point["position"]
 
         branch_id = new_id()
         now = now_iso()
-        title = (source.get("title") or "Sans titre")[:52] + " (branche)"
+        title = (source["title"] or "Sans titre")[:52] + " (branche)"
         # What the memory holds of a story that ends at the fork: the summary may describe
         # events past it, and the facts may be drawn from them.
         rows = {row["id"]: row for row in await (await db.execute(
             "SELECT * FROM memories WHERE conversation_id = ?", (source["id"],))).fetchall()}
         checkpoints = await list_checkpoints(db, source["id"])
-        remembered = plan_cut(source.get("memory_position") or 0, source.get("summary") or "",
+        remembered = plan_cut(source["memory_position"] or 0, source["summary"] or "",
                               checkpoints, [dict(row) for row in rows.values()], position)
-        # Read raw rather than off `source`, which has already turned the stored
-        # filename into a URL for the client.
-        backdrop = await (await db.execute(
-            "SELECT wallpaper_path, wallpaper_opacity FROM conversations WHERE id = ?",
-            (source["id"],))).fetchone()
 
         # The backdrop follows, like the persona and the connection: a branch is the
         # same scene carried on differently, and losing the picture behind it would
@@ -222,13 +218,13 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
             " summary, author_note, memory_position, forked_from, forked_at_position,"
             " wallpaper_path, wallpaper_opacity, created_at, updated_at)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (branch_id, source["character_id"], source.get("persona_id"),
-             source.get("connection_id"), title, remembered["summary"],
+            (branch_id, source["character_id"], source["persona_id"],
+             source["connection_id"], title, remembered["summary"],
              # The scene directive is the strongest lever there is on a reply, and
              # it was the one piece of the setup a branch dropped.
-             source.get("author_note") or "", remembered["memory_position"],
-             source["id"], position, backdrop["wallpaper_path"],
-             backdrop["wallpaper_opacity"], now, now),
+             source["author_note"] or "", remembered["memory_position"],
+             source["id"], position, source["wallpaper_path"],
+             source["wallpaper_opacity"], now, now),
         )
 
         messages = await (await db.execute(
