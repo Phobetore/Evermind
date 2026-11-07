@@ -952,7 +952,7 @@ function ChatView({ id }: { id: string }) {
                 message={message}
                 character={character}
                 persona={persona}
-                isLast={message.id === lastMessage?.id}
+                isLast={message.id === lastMessage?.id && (message.role === "assistant" || !cutOff)}
                 busy={busy}
                 onSwipe={(index) => write(() => swipe(message, index))}
                 onRegenerate={() => runTurn("regenerate")}
