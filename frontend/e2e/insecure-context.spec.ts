@@ -15,8 +15,6 @@ test.describe("on a page that is not a secure context", () => {
   });
 
   test("a lorebook entry can still be added to a new card", async ({ page }) => {
-    // A new card, not an existing one: on a card already saved the server
-    // hands out the identifier, and the call that fails is never reached.
     await page.goto("/#/characters/new");
 
     const box = page.locator("div.border-dashed").last();
