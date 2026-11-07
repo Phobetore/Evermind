@@ -5,6 +5,7 @@ reads ``kind`` instead, and says it in the person's own language.
 """
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 # What the model said when it gave no kind of its own: the sentence is the
@@ -87,3 +88,9 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(_: Request, exc: AppError) -> JSONResponse:
         return JSONResponse(status_code=exc.status_code, content=error_body(exc))
+
+    @app.exception_handler(RequestValidationError)
+    async def _invalid(_: Request, exc: RequestValidationError) -> JSONResponse:
+        # FastAPI's own echoes what was sent, which can be anything, nested thousands deep.
+        problems = [{key: error[key] for key in ("type", "loc", "msg")} for error in exc.errors()]
+        return JSONResponse(status_code=422, content={"detail": problems})

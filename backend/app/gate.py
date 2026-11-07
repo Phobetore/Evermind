@@ -34,6 +34,7 @@ COOKIE_MAX_AGE = 400 * 86400  # What browsers allow at most.
 PUBLIC_PATHS = {"/api/health", "/api/gate"}
 MAX_FAILURES = 10
 FAILURE_WINDOW_S = 900
+MAX_SIGN_IN_BYTES = 4096
 
 # Wrong passwords per address: how many, and since when.
 _failures: dict[str, tuple[int, float]] = {}
@@ -141,10 +142,20 @@ def _named_by_address(host: str) -> bool:
         return False
 
 
+def _short(headers: Headers) -> bool:
+    # A browser always gives the length of a sign-in; a chunked body could be any length.
+    length = headers.get("content-length", "")
+    return ("transfer-encoding" not in headers and length.isascii() and length.isdigit()
+            and int(length) <= MAX_SIGN_IN_BYTES)
+
+
 async def _refusal(scope: Scope) -> Response | None:
     headers = Headers(scope=scope)
     if scope["method"] not in ("GET", "HEAD") and _from_another_origin(headers):
         return JSONResponse({"error": "Cross-origin request refused.", "kind": "cross_origin"}, 403)
+    if scope["method"] == "POST" and scope["path"] == "/api/gate" and not _short(headers):
+        return JSONResponse({"error": f"A sign-in gives its length, {MAX_SIGN_IN_BYTES} bytes "
+                             "at most.", "kind": "too_large"}, 413)
     if not enabled():
         if _named_by_address(headers.get("host", "")):
             return None

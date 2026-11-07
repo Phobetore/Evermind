@@ -169,6 +169,9 @@ test that passes either way is worse than none, because it reads like cover.
   and sets the session cookie; `DELETE /api/gate` signs this device out;
   `DELETE /api/gate/sessions` signs every device out
 
+A sign-in whose body is over 4096 bytes, or does not give its length in
+`Content-Length`, is refused unread: `413` with `"kind": "too_large"`.
+
 With a password set, everything under `/api/` except `/api/health` and
 `/api/gate` answers `401` with `"kind": "locked"` until the device has signed in.
 A path under `/api/` that no route answers gets the API's own JSON 404, never the
@@ -214,8 +217,9 @@ bodies: `{"ok": false, "detail": "<English sentence>", "kind": ..., "upstream": 
 Some answers never come from an `AppError`, and have no `kind`: FastAPI's
 own, `{"detail": ...}` for a route that does not exist (`404`), a method a route
 does not take (`405`) or a request body that does not validate (`422`, with a list
-of problems in `detail`), and whatever a proxy in front of the server answers,
-often not JSON at all. The request layer gives the last an `http_error` kind and
+of problems in `detail`, each its `type`, `loc` and `msg` but never what was
+sent), and whatever a proxy in front of the server answers, often not JSON at
+all. The request layer gives the last an `http_error` kind and
 the status as its message (`HTTP 502`). The interface does not show the words of
 any of them: a `422` is "something is missing or not valid", a `404` a missing
 thing, a `5xx` "Evermind answered with an error (HTTP n)", and any other `4xx` the
