@@ -76,6 +76,8 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   const [assistConnectionId, setAssistConnectionId] = useState("");
   const [loreEntries, setLoreEntries] = useState<LoreEntryDraft[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
+  // A save that fails partway has made the new card already, and some of its lore.
+  const created = useRef({ id: "", lore: new Set<string>() });
 
   useEffect(() => {
     data.connections?.list().then(setConnections).catch(() => {});
@@ -138,15 +140,18 @@ export function CharacterForm({ initial }: { initial?: Character }) {
     setSaving(true);
     setError(null);
     try {
-      const saved = editing
-        ? await data.characters.update(initial!.id, draft)
+      const id = initial?.id || created.current.id;
+      const saved = id
+        ? await data.characters.update(id, draft)
         : await data.characters.create(draft);
+      created.current.id = saved.id;
       if (avatarFile) {
         await data.characters.uploadAvatar(saved.id, avatarFile);
       }
       if (!editing) {
         // lorebook entries drafted before the card existed
         for (const entry of loreEntries) {
+          if (created.current.lore.has(entry.id)) continue;
           await data.lore.create(saved.id, {
             keys: entry.keys,
             content: entry.content,
@@ -154,6 +159,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
             case_sensitive: entry.case_sensitive,
             priority: entry.priority,
           });
+          created.current.lore.add(entry.id);
         }
       }
       navigate(`/characters/${saved.id}`);

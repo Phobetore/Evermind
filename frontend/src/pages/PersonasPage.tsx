@@ -20,6 +20,12 @@ export function PersonasPage() {
     load();
   }, []);
 
+  // Read again however it closes: a save that failed partway may have made one.
+  function close() {
+    setEditing(null);
+    load();
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
       <header className="mb-8 flex items-center justify-between animate-rise">
@@ -62,28 +68,13 @@ export function PersonasPage() {
       )}
 
       {editing && (
-        <PersonaModal
-          persona={editing === "new" ? null : editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null);
-            load();
-          }}
-        />
+        <PersonaModal persona={editing === "new" ? null : editing} onClose={close} />
       )}
     </div>
   );
 }
 
-function PersonaModal({
-  persona,
-  onClose,
-  onSaved,
-}: {
-  persona: Persona | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
+function PersonaModal({ persona, onClose }: { persona: Persona | null; onClose: () => void }) {
   const t = useT();
   const [name, setName] = useState(persona?.name ?? "");
   const [description, setDescription] = useState(persona?.description ?? "");
@@ -93,6 +84,8 @@ function PersonaModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  // A save that fails partway has made the new persona already.
+  const created = useRef("");
 
   async function save() {
     if (!name.trim()) {
@@ -102,11 +95,15 @@ function PersonaModal({
     setSaving(true);
     try {
       const body = { name, description, is_default: isDefault };
-      const saved = persona
-        ? await data.personas.update(persona.id, body)
+      const id = persona?.id || created.current;
+      const saved = id
+        ? await data.personas.update(id, body)
         : await data.personas.create(body);
+      created.current = saved.id;
+      // The first persona is made the default whatever was asked, which saving again must not undo.
+      setIsDefault(saved.is_default);
       if (avatarFile) await data.personas.uploadAvatar(saved.id, avatarFile);
-      onSaved();
+      onClose();
     } catch (e) {
       setError(describeError(e, t, t("personas.saveError")));
       setSaving(false);
@@ -117,7 +114,7 @@ function PersonaModal({
     if (!persona) return;
     if (!confirm(t("personas.confirmDelete", { name: persona.name }))) return;
     await data.personas.remove(persona.id);
-    onSaved();
+    onClose();
   }
 
   return (
