@@ -1,5 +1,6 @@
 import aiosqlite
 
+from . import lore as lore_repo
 from .base import dumps, loads, new_id, now_iso
 
 _JSON_FIELDS = ("alternate_greetings", "tags")
@@ -34,6 +35,7 @@ async def create(db: aiosqlite.Connection, fields: dict) -> dict:
          dumps([str(t) for t in fields.get("tags") or []]),
          fields.get("avatar_path"), now, now),
     )
+    await lore_repo.replace(db, char_id, fields.get("lore_entries") or [])
     await db.commit()
     return await get(db, char_id)
 
@@ -98,6 +100,8 @@ async def update(db: aiosqlite.Connection, char_id: str, fields: dict) -> dict |
         params.append(now_iso())
     params.append(char_id)
     await db.execute(f"UPDATE characters SET {', '.join(sets)} WHERE id = ?", params)
+    if fields.get("lore_entries") is not None:
+        await lore_repo.replace(db, char_id, fields["lore_entries"])
     await db.commit()
     return await get(db, char_id)
 

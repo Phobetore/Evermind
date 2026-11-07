@@ -8,6 +8,14 @@ Kind = Literal["character", "scenario"]
 ProviderType = Literal["openai-compatible", "anthropic"]
 
 
+class LoreEntryIn(BaseModel):
+    keys: list[str]
+    content: str
+    enabled: bool = True
+    case_sensitive: bool = False
+    priority: int = 0
+
+
 class CharacterIn(BaseModel):
     kind: Kind = "character"
     name: str = Field(min_length=1, max_length=200)
@@ -24,6 +32,7 @@ class CharacterIn(BaseModel):
     tags: list[str] = []
     creator: str = ""
     character_version: str = ""
+    lore_entries: list[LoreEntryIn] = []
 
 
 class CharacterUpdate(BaseModel):
@@ -43,6 +52,7 @@ class CharacterUpdate(BaseModel):
     creator: str | None = None
     character_version: str | None = None
     is_favorite: bool | None = None
+    lore_entries: list[LoreEntryIn] | None = None  # the whole lorebook, in order
 
 
 class CardAssistRequest(BaseModel):
@@ -115,14 +125,6 @@ class SettingsIn(BaseModel):
     history_limit: int | None = Field(default=None, ge=4, le=200)
     passage_budget: int | None = Field(default=None, ge=0, le=4000)
     update_check: bool | None = None
-
-
-class LoreEntryIn(BaseModel):
-    keys: list[str]
-    content: str = Field(max_length=4000)
-    enabled: bool = True
-    case_sensitive: bool = False
-    priority: int = 0
 
 
 class LoreEntryPatch(BaseModel):

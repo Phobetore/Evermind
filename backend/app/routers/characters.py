@@ -117,7 +117,7 @@ async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)
     character = await repo.get(db, char_id)
     if not character:
         raise NotFoundError("Character not found.", "character")
-    return character
+    return {**character, "lore_entries": await lore_repo.list_for_character(db, char_id)}
 
 
 @router.put("/{char_id}")

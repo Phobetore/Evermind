@@ -220,6 +220,34 @@ async def test_export_name_cannot_inject_into_the_header(client):
     assert fallback == real == "a filenameevilx.json"
 
 
+async def test_a_card_is_made_read_and_saved_with_its_lorebook(client):
+    long = "The tide comes in twice a day. " * 200  # an imported book has such entries
+    made = await create_character(client, lore_entries=[
+        {"keys": ["tide", " "], "content": long, "enabled": False},
+        {"keys": [], "content": "No keyword."},
+        {"keys": ["crypt"], "content": " It is shut. "},
+        {"keys": ["nothing"], "content": "  "},
+        {"keys": ["bell"], "content": "It rings at noon."},
+    ])
+    url = f"/api/characters/{made['id']}"
+
+    async def lore():
+        read = (await client.get(url)).json()
+        return [(e["keys"], e["content"], e["enabled"]) for e in read["lore_entries"]]
+
+    assert await lore() == [
+        (["tide"], long.strip(), False), (["crypt"], "It is shut.", True),
+        (["bell"], "It rings at noon.", True)]
+
+    await client.put(url, json={"tagline": "Lore left as it is"})
+    assert len(await lore()) == 3
+
+    # Emptying a box and saving is how an entry is taken out.
+    await client.put(url, json={"lore_entries": [
+        {"keys": ["bell"], "content": "It rings at dusk."}, {"keys": ["crypt"], "content": ""}]})
+    assert await lore() == [(["bell"], "It rings at dusk.", True)]
+
+
 async def test_avatar_upload(client):
     created = await create_character(client)
     files = {"file": ("a.png", make_minimal_png(), "image/png")}
