@@ -967,12 +967,13 @@ async def set_message(message_id, column, value):
         await db.close()
 
 
+@pytest.mark.parametrize("mode", ["send", "regenerate", "continue"])
 async def test_remember_reads_no_further_than_a_reply_still_being_written(
-        client, fake_provider, monkeypatch):
+        client, fake_provider, monkeypatch, mode):
     """What has come of it is not what it will say, and no pass would read the rest. The turn is a
     real one: how a reply says it is still being written belongs to the code that writes it."""
     convo_id = (await setup_conversation(client))["id"]
-    await talk(client, convo_id, 1)
+    await talk(client, convo_id, 1 if mode == "send" else 2)  # the reply written is the one at 4
     finish = asyncio.Event()
 
     class HalfWay:
@@ -986,12 +987,12 @@ async def test_remember_reads_no_further_than_a_reply_still_being_written(
             yield ProviderEvent(type="done")
 
     async def half_written():
-        while not any(m["position"] == 4 for m in await messages_of(client, convo_id)):
+        while not any(m["position"] == 4 and m["content"].endswith("She opens the door.")
+                      for m in await messages_of(client, convo_id)):
             await asyncio.sleep(0.01)
 
     monkeypatch.setattr("app.services.chat_service.get_provider", HalfWay)
-    replying = asyncio.create_task(client.post("/api/chat", json={
-        "conversation_id": convo_id, "mode": "send", "content": "Open it."}))
+    replying = asyncio.create_task(send(client, convo_id, content="Open it.", mode=mode))
     try:
         await within(5, half_written())
         await extract(client, convo_id, {"facts": [], "summary": "To 3."})
@@ -1003,7 +1004,8 @@ async def test_remember_reads_no_further_than_a_reply_still_being_written(
     assert (await conversation(client, convo_id))["memory_position"] == 3
     await extract(client, convo_id, {"facts": [], "summary": "To 4."})
     shown = fake_provider.captured["payload"].messages[0]["content"]
-    assert "(turn 4): She opens the door. Behind it, the king lies dead." in shown
+    before = "Reply. " if mode == "continue" else ""
+    assert f"(turn 4): {before}She opens the door. Behind it, the king lies dead." in shown
 
 
 @pytest.mark.parametrize("change", ["edited", "swiped"])
