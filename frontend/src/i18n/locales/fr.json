@@ -463,7 +463,7 @@
     "locked": "Votre session est terminée. Reconnectez-vous.",
     "wrongPassword": "Accès refusé.",
     "rateLimited": "Trop de tentatives. Réessayez dans {minutes} min.",
-    "crossOrigin": "Evermind a refusé cette requête, qui semble venir d'une autre adresse. Derrière un proxy inverse, le proxy doit transmettre l'en-tête Host d'origine sans le modifier ; servir Evermind en HTTPS aide aussi.",
+    "crossOrigin": "Evermind a refusé cette requête, qui semble venir d'une autre adresse. Derrière un proxy inverse, le proxy doit transmettre l'en-tête Host d'origine sans le modifier.",
     "unknownHost": "Evermind ne répond pas à cette adresse. Ajoutez son nom à EVERMIND_ALLOWED_HOSTS, ou définissez un mot de passe.",
     "notFound": {
       "character": "Cette fiche n'existe plus.",

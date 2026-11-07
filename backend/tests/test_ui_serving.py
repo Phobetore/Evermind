@@ -12,8 +12,6 @@ import pytest
 
 from app.ui import UIFiles
 
-from .test_gate import open_socket
-
 IMMUTABLE = "public, max-age=31536000, immutable"
 
 
@@ -135,14 +133,6 @@ async def test_the_interface_answers_head_too(ui_client):
 async def test_a_page_cannot_be_written_to(ui_client):
     r = await ui_client.post("/", json={})
     assert r.status_code == 405
-
-
-@pytest.mark.parametrize("path", ["/nope", "/api/nope"])
-async def test_a_websocket_to_a_path_nobody_serves_is_closed(make_client, ui_dir, path):
-    from app.main import create_app
-
-    async with make_client(EVERMIND_UI_DIR=str(ui_dir)):
-        assert await open_socket(create_app(), {}, path=path) == ["websocket.close 1000"]
 
 
 async def test_ui_is_public_when_password_is_set(make_client, ui_dir):

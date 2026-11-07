@@ -463,7 +463,7 @@
     "locked": "Tu sesión ha terminado. Vuelve a iniciar sesión.",
     "wrongPassword": "Acceso denegado.",
     "rateLimited": "Demasiados intentos. Vuelve a intentarlo en {minutes} min.",
-    "crossOrigin": "Evermind ha rechazado esta petición porque parece venir de otra dirección. Detrás de un proxy inverso, el proxy debe conservar la cabecera Host original tal cual; servir Evermind por HTTPS también ayuda.",
+    "crossOrigin": "Evermind ha rechazado esta petición porque parece venir de otra dirección. Detrás de un proxy inverso, el proxy debe conservar la cabecera Host original tal cual.",
     "unknownHost": "Evermind no responde en esta dirección. Añade su nombre a EVERMIND_ALLOWED_HOSTS o establece una contraseña.",
     "notFound": {
       "character": "Esta ficha ya no existe.",

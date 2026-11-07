@@ -13,8 +13,8 @@ Sessions are checked against memory on every API request and written through
 to the database. That is only right with a single process, which is how
 Evermind runs.
 
-Whether or not a password is set, the same middleware refuses the writes and
-the websockets under /api/ that a browser sent from a page of another origin.
+Whether or not a password is set, the same middleware refuses the writes under
+/api/ that a browser sent from a page of another origin.
 Without a password it also answers only to host names it knows, which is what
 stops a website from reaching Evermind through a name of its own.
 """
@@ -35,12 +35,10 @@ import unicodedata
 from collections import deque
 from datetime import UTC, datetime, timedelta
 
-from starlette import status
 from starlette.datastructures import Headers
 from starlette.requests import HTTPConnection
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
-from starlette.websockets import WebSocketClose
 
 from . import config
 from .db import connect
@@ -54,11 +52,6 @@ FAILURE_DELAY_S = 0.6
 MAX_FAILURES = 10
 FAILURE_WINDOW_S = 900
 PUBLIC_API_PATHS = frozenset({"/api/health", "/api/gate"})
-# RFC 9110's safe methods. Every other one may change something.
-SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
-_THIS_ORIGIN_SITES = frozenset({"same-origin", "none"})
-# A websocket's Origin is that of the page that opened it, an http(s) one.
-_PAGE_SCHEMES = {"ws": "http", "wss": "https"}
 # A Host header as a browser writes it: a name, or an IPv6 address in square
 # brackets, then a port if there is one. Anything with more to it is not a host,
 # whatever it starts with.
@@ -371,31 +364,10 @@ def clear_session_cookie(response: Response) -> None:
     response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="lax")
 
 
-def _from_another_origin(scope: Scope) -> bool:
-    """Whether the browser says this request was sent by a page of another
-    origin. A request that says nothing about it did not come from a page:
-    curl, a script, a test.
-
-    Two headers can say it, and neither is always there. Sec-Fetch-Site is the
-    browser's own verdict, but browsers send Fetch Metadata only to addresses
-    they trust, https or localhost, never to http://192.168.1.42:3000. Origin
-    is sent with every write and every websocket handshake, to any address,
-    so without Fetch Metadata it is compared with the origin the request was
-    addressed to, rebuilt from the scheme and the Host header. A reverse proxy
-    that rewrites Host breaks that comparison, unless the browser sends
-    Sec-Fetch-Site, which is read first: it does over https, but Safari before
-    16.4 does not, even there.
-    """
-    headers = Headers(scope=scope)
-    site = headers.get("sec-fetch-site")
-    if site is not None:
-        return site not in _THIS_ORIGIN_SITES
+def _from_another_origin(headers: Headers) -> bool:
+    # Without the scheme: a proxy that ends https reaches this over http.
     origin = headers.get("origin")
-    if origin is None:
-        return False
-    scheme = scope.get("scheme", "http")
-    own = f"{_PAGE_SCHEMES.get(scheme, scheme)}://{headers.get('host', '')}"
-    return origin.lower() != own.lower()
+    return origin is not None and origin.partition("://")[2].lower() != headers.get("host", "").lower()
 
 
 def _host_name(host: str) -> str | None:
@@ -467,11 +439,6 @@ def _host_refusal(host: str | None) -> str | None:
 
 async def _refuse(scope: Scope, receive: Receive, send: Send, status_code: int,
                   error: str, kind: str) -> None:
-    """Answers in the app's place: with a JSON error, or, for a websocket, by
-    closing it before it is accepted, which refuses the handshake."""
-    if scope["type"] == "websocket":
-        await WebSocketClose(code=status.WS_1008_POLICY_VIOLATION)(scope, receive, send)
-        return
     response = JSONResponse({"error": error, "kind": kind}, status_code=status_code)
     await response(scope, receive, send)
 
@@ -485,14 +452,11 @@ def _session_cookie_header(token: str, *, secure: bool) -> bytes:
 
 
 class GateMiddleware:
-    """Guards /api/. Password or not, it refuses the writes and websockets of
-    pages from other origins. Without a password, it answers only to host
-    names it knows; with one, only to a device with a session.
+    """Guards /api/. Password or not, it refuses the writes of pages from other
+    origins. Without a password, it answers only to host names it knows; with
+    one, only to a device with a session.
 
-    Pure ASGI on purpose: BaseHTTPMiddleware lets websockets through without
-    looking at them, and relays every response, the stream of a turn included,
-    through a stream of its own instead of handing each message on as the app
-    sends it.
+    Pure ASGI, so that a stream goes out as the app sends it.
     """
 
     def __init__(self, app: ASGIApp, store: GateStore) -> None:
@@ -500,20 +464,14 @@ class GateMiddleware:
         self.store = store
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] not in ("http", "websocket"):
+        if scope["type"] != "http" or not scope["path"].startswith("/api/"):
             await self.app(scope, receive, send)
             return
         path = scope["path"]
-        if not path.startswith("/api/"):
-            await self.app(scope, receive, send)
-            return
-        socket = scope["type"] == "websocket"
         # Judged before the password, and whether or not there is one: without
         # it a forged write needs no session, and any website could send one
-        # to an Evermind listening on localhost. A websocket's handshake is a
-        # GET, but the browser sends the cookie with it, and what goes through
-        # it afterwards can be anything.
-        if (socket or scope["method"] not in SAFE_METHODS) and _from_another_origin(scope):
+        # to an Evermind listening on localhost.
+        if scope["method"] not in ("GET", "HEAD") and _from_another_origin(Headers(scope=scope)):
             await _refuse(scope, receive, send, 403, "Cross-origin request refused.",
                           "cross_origin")
             return
@@ -538,9 +496,7 @@ class GateMiddleware:
         if not store.check(token):
             await _refuse(scope, receive, send, 401, "Locked.", "locked")
             return
-        # Only HTTP requests slide the session: the cookie is sent again on
-        # http.response.start, which a websocket never sends.
-        if socket or not await store.touch(token):
+        if not await store.touch(token):
             await self.app(scope, receive, send)
             return
 

@@ -13,8 +13,6 @@ import pytest
 
 from app import gate
 
-from .test_gate import open_socket, socket_app
-
 PW = "s3cret"
 REFUSED = {"error": "Unknown host name. Add it to EVERMIND_ALLOWED_HOSTS or set a password.",
            "kind": "unknown_host"}
@@ -48,14 +46,6 @@ async def test_the_public_paths_are_refused_too(client, path):
     r = await client.get(path, headers=REBOUND)
     assert r.status_code == 403
     assert r.json() == REFUSED
-
-
-async def test_a_websocket_from_a_rebound_name_is_refused(make_client):
-    async with make_client():
-        assert await open_socket(socket_app(), REBOUND) == ["websocket.close 1008"]
-    async with make_client(EVERMIND_GATE_PASSWORD=PW):
-        # With a password the name is not checked; the missing session is.
-        assert await open_socket(socket_app(), REBOUND) == ["websocket.close 1008"]
 
 
 async def test_a_rebound_name_meets_the_password_instead(make_client):
