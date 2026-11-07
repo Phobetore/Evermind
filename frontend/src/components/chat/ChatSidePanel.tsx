@@ -8,7 +8,7 @@ import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
 type Where = "connection" | "directive" | "summary" | "memory";
@@ -36,8 +36,7 @@ export function ChatSidePanel({
   const t = useT();
   const character = conversation.character!;
   const [connections, setConnections] = useState<Connection[]>([]);
-  // What is being typed, or null: the box then shows what the conversation holds, so a
-  // pass that wrote the summary meanwhile, or a cut in the story, shows without a patch.
+  // null unless typing: the box shows what the conversation holds.
   const [summaryDraft, setSummaryDraft] = useState<string | null>(null);
   const [directiveDraft, setDirectiveDraft] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -92,21 +91,30 @@ export function ChatSidePanel({
       .catch(() => {});
   }, [conversation.id, storyCuts]);
 
-  // The panel can be older than the conversation: a pass writes the summary on its own,
-  // and a cut in the story takes it back. Read it again when the panel opens, after a cut,
-  // and when the person comes back to the window.
-  const patchConversation = useRef(onConversationChange);
+  // Read again on opening, after a cut and on return: a pass writes the summary on its own.
+  const latest = useRef({ conversation, onConversationChange });
   useEffect(() => {
-    patchConversation.current = onConversationChange;
+    latest.current = { conversation, onConversationChange };
   });
-  useEffect(() => {
-    const read = () =>
+  const read = useCallback(
+    () =>
       data.conversations
         .get(conversation.id)
-        .then(({ summary, author_note, memory_error }) =>
-          patchConversation.current({ summary, author_note, memory_error: memory_error ?? null }),
-        )
-        .catch(() => {});
+        .then(({ summary, author_note, memory_error }) => {
+          const { conversation: shown, onConversationChange: patch } = latest.current;
+          const error = memory_error ?? null;
+          // A patch re-renders the whole story, so it is made only for a change.
+          if (
+            summary !== shown.summary ||
+            (author_note ?? null) !== (shown.author_note ?? null) ||
+            JSON.stringify(error) !== JSON.stringify(shown.memory_error ?? null)
+          )
+            patch({ summary, author_note, memory_error: error });
+        })
+        .catch(() => {}),
+    [conversation.id],
+  );
+  useEffect(() => {
     const visible = () => {
       if (document.visibilityState === "visible") void read();
     };
@@ -117,7 +125,7 @@ export function ChatSidePanel({
       window.removeEventListener("focus", read);
       document.removeEventListener("visibilitychange", visible);
     };
-  }, [conversation.id, storyCuts]);
+  }, [read, storyCuts]);
 
   // A pass of its own that failed is told here until one succeeds.
   const failed = conversation.memory_error;
@@ -483,6 +491,7 @@ export function ChatSidePanel({
           className="field min-h-32 text-sm"
           value={summary}
           onChange={(e) => setSummaryDraft(e.target.value)}
+          onFocus={() => summaryDraft === null && void read()}
           disabled={summaryIsBeingWritten}
           placeholder={t("chat.panel.summary.placeholder")}
         />
