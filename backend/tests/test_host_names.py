@@ -50,7 +50,7 @@ async def test_addresses_and_localhost_are_answered(client, host):
 @pytest.mark.parametrize("host", [
     # Names, this computer's own included: a website can lend itself any of them.
     "study-pc", "nas.local", "evermind.localhost", "localhost.example", "127.0.0.1.evil.com",
-    # What is not a host at all is refused too, rather than an error.
+    # These are not hosts at all: refused, never an error.
     "localhost:3000@evil.com", "::1", "[::1", "[127.0.0.1]", "", " ",
 ])
 async def test_anything_else_is_refused(client, host):
