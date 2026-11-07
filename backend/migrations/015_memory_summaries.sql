@@ -6,6 +6,7 @@ CREATE TABLE memory_summaries (
     conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     position INTEGER NOT NULL,
     summary TEXT NOT NULL,
+    typed INTEGER NOT NULL DEFAULT 0,  -- by a person, which a cut keeps
     PRIMARY KEY (conversation_id, position)
 );
 ALTER TABLE memories ADD COLUMN previous_content TEXT;
@@ -19,4 +20,5 @@ WHERE source_position > COALESCE(
 UPDATE conversations SET memory_position = MIN(memory_position,
     COALESCE((SELECT MAX(position) FROM messages WHERE messages.conversation_id = conversations.id), 0))
 WHERE memory_position > 0;
-INSERT INTO memory_summaries SELECT id, memory_position, summary FROM conversations WHERE memory_position > 0;
+INSERT INTO memory_summaries (conversation_id, position, summary)
+SELECT id, memory_position, summary FROM conversations WHERE memory_position > 0;

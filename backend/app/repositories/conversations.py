@@ -74,8 +74,10 @@ async def update(db: aiosqlite.Connection, convo_id: str, fields: dict) -> dict 
     if not await (await db.execute(
             "SELECT id FROM conversations WHERE id = ?", (convo_id,))).fetchone():
         return None
+    if fields.get("summary") is not None:
+        await _type_summary(db, convo_id, fields["summary"])
     sets, params = [], []
-    for key in ("title", "summary", "author_note", "persona_id", "connection_id",
+    for key in ("title", "author_note", "persona_id", "connection_id",
                 "wallpaper_path", "wallpaper_opacity"):
         if key in fields and fields[key] is not None:
             sets.append(f"{key} = ?")
@@ -239,24 +241,37 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
               f["source"], f["created_at"], f["embedding"], f["previous_content"],
               f["corrected_at"]) for f in facts])
         await db.execute(
-            "INSERT INTO memory_summaries (conversation_id, position, summary)"
-            " SELECT ?, position, summary FROM memory_summaries WHERE conversation_id = ?",
+            "INSERT INTO memory_summaries (conversation_id, position, summary, typed)"
+            " SELECT ?, position, summary, typed FROM memory_summaries WHERE conversation_id = ?",
             (branch_id, source["id"]))
         await _rewind_memory(db, branch_id, position)
 
     return await get(db, branch_id)
 
 
+# A conversation's newest summary row is where its memory has read to, and holds its summary.
+async def _type_summary(db: aiosqlite.Connection, convo_id: str, summary: str) -> None:
+    """A summary a person saved, kept as theirs at how far the memory has read: a cut back there
+    gives it back, even once a pass has written the next one from it."""
+    async with write_transaction(db):
+        await db.execute(
+            "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"
+            " SELECT id, memory_position, ?, 1 FROM conversations WHERE id = ? AND summary <> ?",
+            (summary, convo_id, summary))
+        await db.execute("UPDATE conversations SET summary = ? WHERE id = ?", (summary, convo_id))
+
+
 async def remember(db: aiosqlite.Connection, convo_id: str, position: int,
                    summary: str | None) -> None:
     """What a pass wrote of the story up to ``position``. A pass that wrote no summary leaves the
-    conversation's, maybe typed, and its row the last pass's, so that a typed one still reads
-    as typed. Does not commit: it belongs to what it records."""
+    one there was, as typed as it was. Does not commit: it belongs to what it records."""
+    newest = await (await db.execute(
+        "SELECT typed FROM memory_summaries WHERE conversation_id = ? ORDER BY position DESC LIMIT 1",
+        (convo_id,))).fetchone()
     await db.execute(
-        "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary)"
-        " VALUES (?, ?, COALESCE(?, (SELECT summary FROM memory_summaries"
-        " WHERE conversation_id = ? ORDER BY position DESC LIMIT 1), ''))",
-        (convo_id, position, summary, convo_id))
+        "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"
+        " SELECT id, ?, COALESCE(?, summary), ? FROM conversations WHERE id = ?",
+        (position, summary, summary is None and bool(newest and newest["typed"]), convo_id))
     await db.execute(
         "UPDATE conversations SET memory_position = ?, summary = COALESCE(?, summary),"
         " updated_at = ? WHERE id = ?",
@@ -282,19 +297,25 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int) -> N
     if row["memory_position"] <= cut:
         return
     passes = await (await db.execute(
-        "SELECT position, summary FROM memory_summaries WHERE conversation_id = ?"
+        "SELECT position, summary, typed FROM memory_summaries WHERE conversation_id = ?"
         " ORDER BY position DESC", (convo_id,))).fetchall()
     back = next((p for p in passes if p["position"] <= cut), None)
-    summary = row["summary"]
-    if summary.strip() == (passes[0]["summary"].strip() if passes else ""):
-        if back:
-            summary = back["summary"]
-        elif cut + 1 <= MAX_TURNS_PER_RUN:  # the next pass reads all that is left of the story
-            summary = ""
+    position = back["position"] if back else 0
     await db.execute("DELETE FROM memory_summaries WHERE conversation_id = ? AND position > ?",
                      (convo_id, cut))
+    if passes and passes[0]["typed"]:  # what a person wrote stays theirs, part stale
+        summary = row["summary"]
+        await db.execute(
+            "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"
+            " VALUES (?, ?, ?, 1)", (convo_id, position, summary))
+    elif back:
+        summary = back["summary"]
+    elif cut + 1 <= MAX_TURNS_PER_RUN:  # the next pass reads all that is left of the story
+        summary = ""
+    else:
+        summary = row["summary"]
     await db.execute("UPDATE conversations SET memory_position = ?, summary = ? WHERE id = ?",
-                     (back["position"] if back else 0, summary, convo_id))
+                     (position, summary, convo_id))
 
 
 async def delete_message(db: aiosqlite.Connection, message_id: str) -> bool:
