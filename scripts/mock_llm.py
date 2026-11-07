@@ -114,9 +114,6 @@ class Handler(BaseHTTPRequestHandler):
                 "summary": "The player woke the character in a crypt; introductions "
                            f"have been made and mistrust still dominates. Read to turn {newest}.",
             }, ensure_ascii=False)
-        elif "long-term memory" in system:
-            reply = ("The player woke the character in a sealed crypt; they have "
-                     "exchanged cautious introductions.")
         else:
             reply = random.choice(REPLIES).replace("{char}", char)
 
