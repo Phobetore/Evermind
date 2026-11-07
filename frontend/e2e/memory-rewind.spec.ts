@@ -180,6 +180,35 @@ test("a summary being typed is not replaced by one a pass wrote meanwhile", asyn
   expect(read.memory_position).toBe(0);
 });
 
+test("a summary being typed stays through a Remember", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/chat`, {
+    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
+    timeout: 60_000,
+  });
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await summary.fill("Typed, not saved yet.");
+
+  const remembered = page.waitForResponse((r) => r.url().endsWith("/memories/extract"));
+  await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+  await remembered;
+  await expect(summary).toBeEnabled();
+
+  await expect(summary).toHaveValue("Typed, not saved yet.");
+  await panel.getByRole("button", { name: panelText.summary.saveButton }).click();
+  await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
+  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(read.summary).toBe("Typed, not saved yet.");
+  expect(read.memory_position).toBe(0);
+});
+
 test("a summary a pass wrote meanwhile shows when the person comes back to the window", async ({ page, request }) => {
   const convo = await makeConversation(request);
   await request.post(`${API}/api/chat`, {

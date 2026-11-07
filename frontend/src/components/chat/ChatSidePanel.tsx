@@ -196,10 +196,8 @@ export function ChatSidePanel({
       const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
       write({ memory_error: null });
-      if (result.summary) {
-        write({ summary: result.summary });
-        setSummaryDraft(null);
-      }
+      // What is being typed stays in the box, still typed over the summary from before.
+      if (result.summary) write({ summary: result.summary });
       setMemoryNote(describeExtraction(result, t, conversation.summary));
       setTimeout(() => setMemoryNote(null), 4000);
     } catch (e) {
