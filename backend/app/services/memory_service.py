@@ -43,6 +43,7 @@ from ..repositories import conversations as convo_repo
 from ..repositories import memories as memories_repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
+from . import turns as chat_turns
 from .llm_json import parse_llm_json
 
 logger = logging.getLogger(__name__)
@@ -235,9 +236,11 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
 
     connection = await _resolve_connection(db, convo)
 
+    # A reply being written is read once finished, and what follows it: asked first, never half.
+    turn = await chat_turns.running_for(convo_id)
     messages = await convo_repo.list_messages(db, convo_id)
-    # A reply still being written is read once it is finished, and what follows it with it.
-    writing = next((i for i, m in enumerate(messages) if m["meta"].get("streaming")), len(messages))
+    writing = next((i for i, m in enumerate(messages) if turn and m["id"] == turn.message_id),
+                   len(messages))
     messages = messages[:min(writing, max(0, len(messages) - hold_back))]
     existing = await memories_repo.list_for_conversation(db, convo_id)
     built = build_extraction_payload(character, persona, convo, messages, existing)

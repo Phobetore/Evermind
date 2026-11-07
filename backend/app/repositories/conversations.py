@@ -277,8 +277,8 @@ async def _type_summary(db: aiosqlite.Connection, convo_id: str, summary: str,
 
 async def remember(db: aiosqlite.Connection, convo_id: str, position: int,
                    summary: str | None) -> None:
-    """What a pass wrote of the story up to ``position``. A pass that wrote no summary leaves the
-    one there was, as typed as it was. Does not commit: it belongs to what it records."""
+    """What a pass wrote of the story up to ``position``. A pass that wrote no summary keeps the
+    one there was, typed (1) if a person's. Does not commit: it belongs to what it records."""
     newest = await (await db.execute(
         "SELECT typed FROM memory_summaries WHERE conversation_id = ? ORDER BY position DESC LIMIT 1",
         (convo_id,))).fetchone()
@@ -316,21 +316,22 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int,
     passes = await (await db.execute(
         "SELECT position, summary, typed FROM memory_summaries WHERE conversation_id = ?"
         " ORDER BY position DESC", (convo_id,))).fetchall()
-    # A branch goes back to no summary of turns past its row: they may come after its message.
-    back = next((p for p in passes if p["position"] <= cut and not (branch and p["typed"] == 2)), None)
-    if row["memory_position"] <= cut and (back or not branch):
+    # A branch takes no summary typed at 0 or of turns past its row: it may tell later turns.
+    back = next((p for p in passes if p["position"] <= cut and not (
+        branch and (p["typed"] == 2 or (p["typed"] and p["position"] == 0)))), None)
+    if not branch and row["memory_position"] <= cut:  # a branch may go back past the newest row
         return
     position = back["position"] if back else 0
     await db.execute("DELETE FROM memory_summaries WHERE conversation_id = ? AND position > ?",
                      (convo_id, position if back else -1))
-    if branch and not back:  # it would tell what happens after the message, in another story
-        summary = ""
+    if branch:  # what the memory had at the message, and nothing of what came after it
+        summary = back["summary"] if back else ""
     elif passes and passes[0]["typed"]:  # what a person wrote stays theirs, part stale
         summary = row["summary"]
-        ahead = not back or back["typed"] == 2  # no pass of the turns up to here under it
-        await db.execute(
-            "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"
-            " VALUES (?, ?, ?, ?)", (convo_id, position, summary, 2 if ahead else 1))
+        if not back or back["summary"] != summary:  # typed over a later row: of turns past this one
+            await db.execute(
+                "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"
+                " VALUES (?, ?, ?, 2)", (convo_id, position, summary))
     elif back:
         summary = back["summary"]
     elif cut + 1 <= MAX_TURNS_PER_RUN:  # the next pass reads all that is left of the story
