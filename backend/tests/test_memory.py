@@ -1038,9 +1038,8 @@ async def test_a_drop_reaches_a_pinned_fact_before_another_that_says_the_same(
 
 async def test_a_drop_never_reaches_a_hand_written_fact_that_an_edit_repeated(
         client, fake_provider):
-    """The drop is applied by the text, so plan_memory_changes must choose the fact
-    that the repository will: here the older one, written by hand, though the other
-    comes first by position."""
+    """The drop reaches the first fact that says the text, in the order of the list: here
+    the model's, as it comes first by position."""
     convo = await setup_conversation(client)
     await send(client, convo["id"])
     await add_facts(client, convo["id"], ["Same."])
@@ -1049,8 +1048,7 @@ async def test_a_drop_never_reaches_a_hand_written_fact_that_an_edit_repeated(
 
     await extract(client, convo["id"], {"obsolete_facts": ["Same."]})
 
-    assert await stored_facts(client, convo["id"]) == [
-        ("Same.", "fact", 1, False, "auto"), ("Same.", "fact", 9, False, "user")]
+    assert await stored_facts(client, convo["id"]) == [("Same.", "fact", 9, False, "user")]
 
 
 async def test_a_correction_never_rewrites_a_fact_that_a_person_wrote_or_pinned(
@@ -1115,26 +1113,6 @@ async def test_a_fact_pinned_while_the_model_answers_is_left_alone(
         "obsolete_facts": ["Old one."]})
 
     assert await stored_facts(client, convo["id"]) == [("Old one.", "fact", 0, True, "auto")]
-
-
-async def test_a_change_to_a_fact_that_is_gone_is_left_alone(client, fake_provider):
-    from app.db import _connect
-
-    convo = await setup_conversation(client)
-    await add_facts(client, convo["id"], ["Here."], by_the_model=True)
-    db = await _connect()
-    try:
-        added = await memory_service._apply(db, convo["id"], [
-            {"op": "update", "target": "Gone.", "content": "Back."},
-            {"op": "delete", "target": "Gone."},
-            {"op": "update", "target": "Here.", "content": "Here, corrected."},
-        ], {})
-        await db.commit()
-    finally:
-        await db.close()
-
-    assert added == []
-    assert [f[0] for f in await stored_facts(client, convo["id"])] == ["Here, corrected."]
 
 
 async def test_only_text_counts_as_text_in_an_extraction_reply(client, fake_provider):

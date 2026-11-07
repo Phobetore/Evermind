@@ -26,7 +26,8 @@ def test_planning_leaves_the_facts_as_they_were():
 
     assert existing == EXISTING
     # What it did decide, so that the test is about an answer that changes things.
-    assert [op["op"] for op in plan["ops"]] == ["add", "update", "update", "delete"]
+    assert (plan["add"], plan["update"], plan["delete"]) == (
+        [{"content": "Fresh, corrected.", "kind": "event", "source_position": 9}], {}, ["2"])
 
 
 def test_planning_a_cut_leaves_what_it_reads_as_it_was():

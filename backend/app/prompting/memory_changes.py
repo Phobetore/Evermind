@@ -112,49 +112,61 @@ def plan_cut(memory_position: int, summary: str, checkpoints: list[dict],
     return result
 
 
+def answer_texts(parsed: dict) -> list[str]:
+    """Every text that the changes of an extraction's answer can write."""
+    items = _items(parsed.get("facts")) + _items(parsed.get("updated_facts"))
+    return [text for item in items if isinstance(item, dict) and (text := text_of(item.get("content")))]
+
+
 def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -> dict:
-    """The changes that an extraction's answer makes, in the order they are applied:
-    the facts it adds, then those it corrects, then those it drops.
+    """The changes that an extraction's answer makes to ``existing``, the facts of the
+    conversation as they are, each with its ``id``: the facts it adds, corrects and drops.
 
-    ``existing`` is what the conversation remembers. Each change is decided on
-    what the ones before it leave, so that one can reach a fact that an earlier one
-    added, and the result is what applying them one by one to the memory gives.
-    Several facts can say the same thing, since a person may edit one into what
-    another says: the first of ``existing`` is the one that a later correction or
-    drop reaches, so ``existing`` comes in the order in which the repository looks
-    a fact up (``memories_repo.list_in_lookup_order``).
+    Its changes are read in order, the new facts first, and each is decided on what the ones
+    before it leave, so that one can reach a fact that an earlier one added: that fact keeps
+    its add, which a correction rewrites and a drop takes back. Several facts can say the same
+    thing, since a person may edit one into what another says: the first of ``existing`` is
+    the one that a correction or a drop reaches.
 
-    Only a fact that the model wrote and nobody pinned is for it to correct or drop:
-    the model leaves alone what a person typed or pinned, and adds nothing in its place.
-    A correction into the text of another fact drops the corrected one instead, since
-    what it says is recorded already.
+    Only a fact that the model wrote and nobody pinned is for it to correct or drop: the
+    model leaves alone what a person typed or pinned, and adds nothing in its place. A
+    correction into the text of another fact drops the corrected one instead, since what it
+    says is recorded already.
 
-    ``{"ops": [...], "summary": ...}``. An op is ``{"op": "add", "content", "kind",
-    "source_position", "source": "auto"}``, ``{"op": "update", "target", "content"}``
-    (``target`` is what the fact says now) or ``{"op": "delete", "target"}``.
-    ``summary`` is None when the answer holds none to keep.
+    ``{"add": [{"content", "kind", "source_position"}], "update": {id: content}, "delete":
+    [id], "summary": ...}``, with ``summary`` None when the answer holds none to keep. Applied
+    in that order, deletes first, an add never repeats what a fact says.
     """
-    known = [{"content": m["content"], "is_pinned": bool(m["is_pinned"]), "source": m["source"]}
-             for m in existing]
-    ops: list[dict] = []
+    known = [{"id": m["id"], "content": m["content"], "movable": is_movable(m)} for m in existing]
+    adds: list[dict] = []
+    updates: dict[str, str] = {}
+    deletes: list[str] = []
 
     def add(content: str, kind: str) -> None:
-        """What ``memories_repo.add`` does with a stripped text: nothing when it is
-        empty or already said, and a fact that the next change may reach otherwise."""
         if not content or any(m["content"] == content for m in known):
             return
-        known.append({"content": content, "is_pinned": False, "source": "auto"})
-        ops.append({"op": "add", "content": content, "kind": kind,
-                    "source_position": top_position, "source": "auto"})
+        new = {"content": content, "kind": kind, "source_position": top_position}
+        adds.append(new)
+        known.append({"added": new, "content": content, "movable": True})
 
     def find(text: object) -> dict | None:
-        """What ``memories_repo.find_by_content`` finds."""
         wanted = text_of(text)
         return next((m for m in known if m["content"] == wanted), None)
 
+    def correct(fact: dict, content: str) -> None:
+        fact["content"] = content
+        if "added" in fact:
+            fact["added"]["content"] = content
+        else:
+            updates[fact["id"]] = content
+
     def drop(fact: dict) -> None:
-        ops.append({"op": "delete", "target": fact["content"]})
         known[:] = [m for m in known if m is not fact]
+        if "added" in fact:
+            adds[:] = [a for a in adds if a is not fact["added"]]
+        else:
+            updates.pop(fact["id"], None)
+            deletes.append(fact["id"])
 
     for fact in _items(parsed.get("facts")):
         if isinstance(fact, dict):
@@ -168,19 +180,19 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
         target = find(update.get("replaces"))
         if target is None:
             add(new_content, "fact")
-        elif is_movable(target):
+        elif target["movable"]:
             if any(m is not target and m["content"] == new_content for m in known):
                 drop(target)
             else:
-                ops.append({"op": "update", "target": target["content"], "content": new_content})
-                target["content"] = new_content
+                correct(target, new_content)
 
     for obsolete in _items(parsed.get("obsolete_facts")):
         target = find(obsolete)
-        if target and is_movable(target):
+        if target and target["movable"]:
             drop(target)
 
-    return {"ops": ops, "summary": text_of(parsed.get("summary")) or None}
+    return {"add": adds, "update": updates, "delete": deletes,
+            "summary": text_of(parsed.get("summary")) or None}
 
 
 def plan_consolidation(parsed: dict | None, movable: list[dict]) -> dict | None:

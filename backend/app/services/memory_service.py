@@ -26,7 +26,7 @@ from ..errors import (
 )
 from ..prompting import embeddings
 from ..prompting.engine import active_content
-from ..prompting.memory_changes import is_movable, plan_consolidation, plan_memory_changes
+from ..prompting.memory_changes import answer_texts, plan_consolidation, plan_memory_changes
 from ..prompting.payloads import (
     MIN_FACTS_TO_CONSOLIDATE,
     build_consolidation_payload,
@@ -227,28 +227,21 @@ async def _vectors_of(texts: Iterable[str]) -> dict[str, bytes]:
     return {text: embeddings.pack(vector) for text, vector in zip(unique, vectors or [], strict=False)}
 
 
-async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict],
+async def _apply(db: aiosqlite.Connection, convo_id: str, changes: dict,
                  vectors: dict[str, bytes]) -> list[dict]:
-    """Make the changes of ``plan_memory_changes`` one after the other, and return the
-    facts that were added. The plan was made from the facts as they were read, and a
-    person can pin one while the vectors are worked out: one that is no longer the model's
-    to move is left alone, as one that cannot be found any more is. The caller commits."""
+    """Make the changes of ``plan_memory_changes``, and return the facts that were added.
+    The caller commits."""
+    for fact_id in changes["delete"]:
+        await memories_repo.remove(db, fact_id)
+    for fact_id, content in changes["update"].items():
+        await memories_repo.rewrite(db, fact_id, content, vectors.get(content))
     added = []
-    for op in ops:
-        if op["op"] == "add":
-            saved = await memories_repo.add_with_vector(
-                db, convo_id, op["content"], op["kind"], op["source_position"],
-                vectors.get(op["content"]), source=op["source"])
-            if saved:
-                added.append(saved)
-            continue
-        target = await memories_repo.find_by_content(db, convo_id, op["target"])
-        if target is None or not is_movable(target):
-            continue
-        if op["op"] == "update":
-            await memories_repo.rewrite(db, target["id"], op["content"], vectors.get(op["content"]))
-        else:
-            await memories_repo.remove(db, target["id"])
+    for fact in changes["add"]:
+        saved = await memories_repo.add_with_vector(
+            db, convo_id, fact["content"], fact["kind"], fact["source_position"],
+            vectors.get(fact["content"]))
+        if saved:
+            added.append(saved)
     return added
 
 
@@ -282,12 +275,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     if parsed is None:
         raise AppError("Unreadable memory response (JSON expected).", 502,
                        kind=MODEL_UNREADABLE)
-
-    # What the memory holds now rather than before the model was asked: a fact
-    # pinned in the meantime is no longer one to correct or drop.
-    changes = plan_memory_changes(
-        parsed, await memories_repo.list_in_lookup_order(db, convo_id), top_position)
-    vectors = await _vectors_of(op["content"] for op in changes["ops"] if op["op"] != "delete")
+    vectors = await _vectors_of(answer_texts(parsed))
 
     # All of what it learned, or none of it. The model and the vectors can take a while. A
     # person can cut the story back meanwhile: what it learned is then from turns that are
@@ -298,7 +286,8 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     # next pass starts again. So too if the memory's position moved: the conversation and its
     # messages are two reads, and a cut between them, with new turns after it, leaves a story
     # that checks out and a position that does not, from which the turns it passed over would
-    # count as read. A pin stops only what would have moved that fact.
+    # count as read. The changes are decided on the facts as they are now: a fact pinned
+    # meanwhile is no longer one to correct or drop.
     async with write_transaction(db):
         current = await convo_repo.get(db, convo_id, with_messages=False)
         now = await memories_repo.list_for_conversation(db, convo_id)
@@ -306,11 +295,12 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
                 or not sent <= {(m["id"], m["content"]) for m in now}
                 or current["memory_position"] != convo["memory_position"]):
             return {"facts_added": [], "summary": None, "skipped": "changed"}
+        changes = plan_memory_changes(parsed, now, top_position)
         # A summary a person typed meanwhile is theirs, and the model wrote from the one
         # before it. The rest of what it learned stands, and the checkpoint holds the summary
         # before as if this pass had written none, so that the typed one still reads as typed.
         written = changes["summary"] if current["summary"] == convo["summary"] else None
-        added = await _apply(db, convo_id, changes["ops"], vectors)
+        added = await _apply(db, convo_id, changes, vectors)
         await convo_repo.remember(db, convo_id, top_position, written)
 
     return {"facts_added": added, "summary": written or current["summary"] or ""}

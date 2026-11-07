@@ -7,26 +7,31 @@
     "text": "{\"facts\": [{\"content\": \"Alex broke the seal.\", \"kind\": \"event\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -35,15 +40,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Alex broke the seal.",
       "kind": "event",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -54,26 +59,31 @@
     "text": "{\"facts\": [{\"content\": \"A fact.\", \"kind\": \"fact\"}, {\"content\": \"A event.\", \"kind\": \"event\"}, {\"content\": \"A relationship.\", \"kind\": \"relationship\"}, {\"content\": \"A promise.\", \"kind\": \"promise\"}, {\"content\": \"A state.\", \"kind\": \"state\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -82,43 +92,35 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "A fact.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "A event.",
       "kind": "event",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "A relationship.",
       "kind": "relationship",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "A promise.",
       "kind": "promise",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "A state.",
       "kind": "state",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -129,26 +131,31 @@
     "text": "{\"facts\": [{\"content\": \"Kind 0.\", \"kind\": \"Event\"}, {\"content\": \"Kind 1.\", \"kind\": \" event\"}, {\"content\": \"Kind 2.\", \"kind\": \"events\"}, {\"content\": \"Kind 3.\", \"kind\": \"\"}, {\"content\": \"Kind 4.\", \"kind\": \"junk\"}, {\"content\": \"Kind 5.\", \"kind\": \"FACT\"}, {\"content\": \"Kind 6.\", \"kind\": \"state \"}, {\"content\": \"Kind 7.\", \"kind\": \"relationship\\n\"}, {\"content\": \"Kind 8.\", \"kind\": \"événement\"}, {\"content\": \"Kind 9.\", \"kind\": \"rumour\"}, {\"content\": \"Kind 10.\", \"kind\": \"note\"}, {\"content\": \"Kind 11.\", \"kind\": \"memory\"}, {\"content\": \"Kind 12.\", \"kind\": \"goal\"}, {\"content\": \"Kind 13.\", \"kind\": \"secret\"}, {\"content\": \"Kind 14.\", \"kind\": \"location\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -157,113 +164,85 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kind 0.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 1.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 2.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 3.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 4.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 5.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 6.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 7.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 8.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 9.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 10.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 11.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 12.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 13.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 14.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -274,26 +253,31 @@
     "text": "{\"facts\": [{\"content\": \"No kind.\"}, {\"content\": \"Null kind.\", \"kind\": null}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -302,22 +286,20 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "No kind.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Null kind.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -328,26 +310,31 @@
     "text": "{\"facts\": [{\"content\": \"Kind 0.\", \"kind\": 3}, {\"content\": \"Kind 1.\", \"kind\": [\"event\"]}, {\"content\": \"Kind 2.\", \"kind\": {\"a\": 1}}, {\"content\": \"Kind 3.\", \"kind\": true}, {\"content\": \"Kind 4.\", \"kind\": 1.5}, {\"content\": \"Kind 5.\", \"kind\": false}, {\"content\": \"Kind 6.\", \"kind\": []}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -356,57 +343,45 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kind 0.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 1.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 2.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 3.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 4.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 5.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Kind 6.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -417,26 +392,31 @@
     "text": "{\"facts\": [{\"content\": \"  padded  \"}, {\"content\": \"\u00a0no-break\u00a0\"}, {\"content\": \"\u0085next line\u0085\"}, {\"content\": \"\\u001cfile\\u001f\"}, {\"content\": \"\u3000ideographic\u3000\"}, {\"content\": \"\u2028line\u2029\"}, {\"content\": \"\\u000b\\fvertical and form feed\\r\\n\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -445,57 +425,45 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "padded",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "no-break",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "next line",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "file",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "ideographic",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "line",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "vertical and form feed",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -506,26 +474,31 @@
     "text": "{\"facts\": [{\"content\": \"\ufeffBom fact.\"}, {\"content\": \"\u200bZero width fact.\u200b\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -534,22 +507,20 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "\ufeffBom fact.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "\u200bZero width fact.\u200b",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -560,26 +531,31 @@
     "text": "{\"facts\": [{\"content\": \"two  spaces\\tand\\nlines\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -588,15 +564,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "two  spaces\tand\nlines",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -607,26 +583,31 @@
     "text": "{\"facts\": [{\"content\": \"Alex gave Serana a 🗡\ufe0f.\"}, {\"content\": \"😀\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -635,22 +616,20 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Alex gave Serana a 🗡\ufe0f.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "😀",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -661,26 +640,31 @@
     "text": "{\"facts\": [{\"content\": \"Same.\"}, {\"content\": \"Same.\", \"kind\": \"event\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -689,15 +673,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Same.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -708,26 +692,31 @@
     "text": "{\"facts\": [{\"content\": \"Same.\"}, {\"content\": \"  Same.\\n\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -736,15 +725,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Same.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -755,26 +744,31 @@
     "text": "{\"facts\": [{\"content\": \"Same.\"}, {\"content\": \"same.\"}, {\"content\": \"Sa me.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -783,29 +777,25 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Same.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "same.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Sa me.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -816,26 +806,31 @@
     "text": "{\"facts\": [{\"content\": \"Old one.\", \"kind\": \"event\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -844,7 +839,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -855,26 +852,31 @@
     "text": "{\"facts\": [{\"content\": \"  Old one.\\t\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -883,7 +885,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -894,26 +898,31 @@
     "text": "{\"facts\": [{\"content\": \"Pinned fact.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -922,7 +931,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -933,6 +944,7 @@
     "text": "{\"facts\": [{\"content\": \"Old one.\", \"kind\": \"state\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": " Old one. ",
       "is_pinned": false,
       "source": "auto"
@@ -941,15 +953,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Old one.",
       "kind": "state",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -960,26 +972,31 @@
     "text": "{\"facts\": [{\"content\": \"\"}, {\"content\": \"   \"}, {\"content\": \"\\n\\t\"}, {\"content\": \"\u00a0\"}, {\"kind\": \"event\"}, {\"content\": null}, {\"content\": \"Kept.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -988,15 +1005,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kept.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1007,26 +1024,31 @@
     "text": "{\"facts\": [{\"content\": [\"a\"]}, {\"content\": 12}, {\"content\": 1.5}, {\"content\": true}, {\"content\": false}, {\"content\": null}, {\"content\": {\"a\": 1}}, {\"content\": []}, {\"content\": \"Kept.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1035,15 +1057,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kept.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1054,26 +1076,31 @@
     "text": "{\"facts\": [\"a line\", 5, null, [\"a\"], true, [{\"content\": \"In a list.\"}], {\"content\": \"Kept.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1082,15 +1109,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kept.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1101,26 +1128,31 @@
     "text": "{\"facts\": \"abc\"}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1129,7 +1161,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1140,26 +1174,31 @@
     "text": "{\"facts\": {\"content\": \"Not in a list.\"}}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1168,7 +1207,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1179,26 +1220,31 @@
     "text": "{\"facts\": 5}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1207,7 +1253,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1218,26 +1266,31 @@
     "text": "{\"facts\": null}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1246,7 +1299,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1257,26 +1312,31 @@
     "text": "{\"facts\": true}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1285,7 +1345,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1296,26 +1358,31 @@
     "text": "{}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1324,7 +1391,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1335,26 +1404,31 @@
     "text": "{\"facts\": [{\"content\": \"Fact number 0.\"}, {\"content\": \"Fact number 1.\"}, {\"content\": \"Fact number 2.\"}, {\"content\": \"Fact number 3.\"}, {\"content\": \"Fact number 4.\"}, {\"content\": \"Fact number 5.\"}, {\"content\": \"Fact number 6.\"}, {\"content\": \"Fact number 7.\"}, {\"content\": \"Fact number 8.\"}, {\"content\": \"Fact number 9.\"}, {\"content\": \"Fact number 10.\"}, {\"content\": \"Fact number 11.\"}, {\"content\": \"Fact number 12.\"}, {\"content\": \"Fact number 13.\"}, {\"content\": \"Fact number 14.\"}, {\"content\": \"Fact number 15.\"}, {\"content\": \"Fact number 16.\"}, {\"content\": \"Fact number 17.\"}, {\"content\": \"Fact number 18.\"}, {\"content\": \"Fact number 19.\"}, {\"content\": \"Fact number 20.\"}, {\"content\": \"Fact number 21.\"}, {\"content\": \"Fact number 22.\"}, {\"content\": \"Fact number 23.\"}, {\"content\": \"Fact number 24.\"}, {\"content\": \"Fact number 25.\"}, {\"content\": \"Fact number 26.\"}, {\"content\": \"Fact number 27.\"}, {\"content\": \"Fact number 28.\"}, {\"content\": \"Fact number 29.\"}, {\"content\": \"Fact number 30.\"}, {\"content\": \"Fact number 31.\"}, {\"content\": \"Fact number 32.\"}, {\"content\": \"Fact number 33.\"}, {\"content\": \"Fact number 34.\"}, {\"content\": \"Fact number 35.\"}, {\"content\": \"Fact number 36.\"}, {\"content\": \"Fact number 37.\"}, {\"content\": \"Fact number 38.\"}, {\"content\": \"Fact number 39.\"}, {\"content\": \"Fact number 40.\"}, {\"content\": \"Fact number 41.\"}, {\"content\": \"Fact number 42.\"}, {\"content\": \"Fact number 43.\"}, {\"content\": \"Fact number 44.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1363,323 +1437,235 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Fact number 0.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 1.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 2.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 3.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 4.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 5.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 6.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 7.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 8.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 9.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 10.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 11.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 12.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 13.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 14.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 15.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 16.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 17.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 18.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 19.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 20.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 21.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 22.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 23.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 24.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 25.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 26.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 27.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 28.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 29.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 30.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 31.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 32.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 33.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 34.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 35.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 36.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 37.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 38.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 39.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 40.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 41.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 42.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 43.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Fact number 44.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1690,26 +1676,31 @@
     "text": "{\"facts\": [{\"content\": \"A fact.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1718,15 +1709,15 @@
     "top_position": 0
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "A fact.",
       "kind": "fact",
-      "source_position": 0,
-      "source": "auto"
+      "source_position": 0
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1737,26 +1728,31 @@
     "text": "{\"facts\": [{\"content\": \"A fact.\"}], \"updated_facts\": [{\"content\": \"Another.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1765,22 +1761,20 @@
     "top_position": 123456
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "A fact.",
       "kind": "fact",
-      "source_position": 123456,
-      "source": "auto"
+      "source_position": 123456
      },
      {
-      "op": "add",
       "content": "Another.",
       "kind": "fact",
-      "source_position": 123456,
-      "source": "auto"
+      "source_position": 123456
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1793,15 +1787,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "A fact.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1825,18 +1819,16 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "New.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
-     },
-     {
-      "op": "delete",
-      "target": "Rich."
+      "source_position": 7
      }
+    ],
+    "update": {},
+    "delete": [
+     "x1"
     ],
     "summary": null
    }
@@ -1848,6 +1840,7 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Better.\"}], \"obsolete_facts\": [\"Old one.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": " Old one. ",
       "is_pinned": false,
       "source": "auto"
@@ -1856,15 +1849,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Better.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1875,6 +1868,7 @@
     "text": "{\"obsolete_facts\": [\"Old one.\"], \"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Better.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "\u00a0Old one.",
       "is_pinned": false,
       "source": "auto"
@@ -1883,15 +1877,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Better.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1902,6 +1896,7 @@
     "text": "{\"facts\": [{\"content\": \"Old one.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Old one.\n",
       "is_pinned": false,
       "source": "auto"
@@ -1910,15 +1905,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Old one.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -1929,26 +1924,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old two.\", \"content\": \"Old two, corrected.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -1957,13 +1957,11 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "update",
-      "target": "Old two.",
-      "content": "Old two, corrected."
-     }
-    ],
+    "add": [],
+    "update": {
+     "4": "Old two, corrected."
+    },
+    "delete": [],
     "summary": null
    }
   },
@@ -1974,26 +1972,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"  Old two.\\n\", \"content\": \"\u00a0Corrected.\\t\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2002,13 +2005,11 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "update",
-      "target": "Old two.",
-      "content": "Corrected."
-     }
-    ],
+    "add": [],
+    "update": {
+     "4": "Corrected."
+    },
+    "delete": [],
     "summary": null
    }
   },
@@ -2019,26 +2020,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Pinned fact.\", \"content\": \"Overwritten.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2047,7 +2053,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2058,26 +2066,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Hand fact.\", \"content\": \"Hand fact, corrected.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2086,7 +2099,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2097,26 +2112,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Never said.\", \"content\": \"Said now.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2125,15 +2145,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Said now.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2144,26 +2164,31 @@
     "text": "{\"updated_facts\": [{\"content\": \"No replaces.\"}, {\"replaces\": \"\", \"content\": \"Empty replaces.\"}, {\"replaces\": \"   \", \"content\": \"Blank replaces.\"}, {\"replaces\": null, \"content\": \"Null replaces.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2172,36 +2197,30 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "No replaces.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Empty replaces.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Blank replaces.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "Null replaces.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2212,26 +2231,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": 5, \"content\": \"A number.\"}, {\"replaces\": [\"Old one.\"], \"content\": \"A list.\"}, {\"replaces\": {\"a\": 1}, \"content\": \"An object.\"}, {\"replaces\": true, \"content\": \"True.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2240,36 +2264,30 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "A number.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "A list.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "An object.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "True.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2280,26 +2298,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"\"}, {\"replaces\": \"Old one.\", \"content\": \"  \"}, {\"replaces\": \"Old one.\", \"content\": null}, {\"replaces\": \"Old one.\", \"content\": 5}, {\"replaces\": \"Old one.\", \"content\": [\"x\"]}, {\"replaces\": \"Old one.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2308,7 +2331,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2319,26 +2344,31 @@
     "text": "{\"updated_facts\": [\"a line\", 5, null, [\"a\"], true, {\"replaces\": \"Old one.\", \"content\": \"Kept.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2347,13 +2377,11 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "update",
-      "target": "Old one.",
-      "content": "Kept."
-     }
-    ],
+    "add": [],
+    "update": {
+     "3": "Kept."
+    },
+    "delete": [],
     "summary": null
    }
   },
@@ -2364,26 +2392,31 @@
     "text": "{\"updated_facts\": \"Old one.\"}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2392,7 +2425,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2403,26 +2438,31 @@
     "text": "{\"updated_facts\": {\"replaces\": \"Old one.\", \"content\": \"x\"}}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2431,7 +2471,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2442,26 +2484,31 @@
     "text": "{\"updated_facts\": 5}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2470,7 +2517,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2481,26 +2530,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old two.\", \"content\": \"Old one.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2509,11 +2563,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Old two."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "4"
     ],
     "summary": null
    }
@@ -2525,26 +2578,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Old one.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2553,13 +2611,11 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "update",
-      "target": "Old one.",
-      "content": "Old one."
-     }
-    ],
+    "add": [],
+    "update": {
+     "3": "Old one."
+    },
+    "delete": [],
     "summary": null
    }
   },
@@ -2570,26 +2626,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \" Old one. \"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2598,13 +2659,11 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "update",
-      "target": "Old one.",
-      "content": "Old one."
-     }
-    ],
+    "add": [],
+    "update": {
+     "3": "Old one."
+    },
+    "delete": [],
     "summary": null
    }
   },
@@ -2615,26 +2674,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Never said.\", \"content\": \"Old one.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2643,7 +2707,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2654,26 +2720,31 @@
     "text": "{\"facts\": [{\"content\": \"Fresh fact.\", \"kind\": \"event\"}], \"updated_facts\": [{\"replaces\": \"Fresh fact.\", \"content\": \"Fresh fact, corrected.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2682,20 +2753,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
-      "content": "Fresh fact.",
+      "content": "Fresh fact, corrected.",
       "kind": "event",
-      "source_position": 7,
-      "source": "auto"
-     },
-     {
-      "op": "update",
-      "target": "Fresh fact.",
-      "content": "Fresh fact, corrected."
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2706,26 +2772,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Second.\"}, {\"replaces\": \"Second.\", \"content\": \"Third.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2734,18 +2805,11 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "update",
-      "target": "Old one.",
-      "content": "Second."
-     },
-     {
-      "op": "update",
-      "target": "Second.",
-      "content": "Third."
-     }
-    ],
+    "add": [],
+    "update": {
+     "3": "Third."
+    },
+    "delete": [],
     "summary": null
    }
   },
@@ -2756,26 +2820,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Second.\"}, {\"replaces\": \"Old one.\", \"content\": \"Other.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2784,20 +2853,17 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "update",
-      "target": "Old one.",
-      "content": "Second."
-     },
-     {
-      "op": "add",
       "content": "Other.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {
+     "3": "Second."
+    },
+    "delete": [],
     "summary": null
    }
   },
@@ -2808,26 +2874,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Nope.\", \"content\": \"Same.\"}, {\"replaces\": \"Nada.\", \"content\": \"Same.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2836,15 +2907,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Same.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2855,26 +2926,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Nope.\", \"content\": \"Born of an update.\"}, {\"replaces\": \"Born of an update.\", \"content\": \"Grown.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2883,20 +2959,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
-      "content": "Born of an update.",
+      "content": "Grown.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
-     },
-     {
-      "op": "update",
-      "target": "Born of an update.",
-      "content": "Grown."
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2907,26 +2978,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Pinned fact.\"}, {\"replaces\": \"Pinned fact.\", \"content\": \"Touched?\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -2935,11 +3011,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Old one."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "3"
     ],
     "summary": null
    }
@@ -2951,6 +3026,7 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Typed by hand.\", \"content\": \"Rewritten.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Typed by hand.",
       "is_pinned": true,
       "source": "user"
@@ -2959,7 +3035,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2970,6 +3048,7 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"From elsewhere.\", \"content\": \"Rewritten.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "From elsewhere.",
       "is_pinned": false,
       "source": "import"
@@ -2978,7 +3057,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -2989,26 +3070,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Hand fact.\", \"content\": \"Old one.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3017,7 +3103,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3028,26 +3116,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Pinned fact.\", \"content\": \"Old one.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3056,7 +3149,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3067,26 +3162,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Hand fact.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3095,11 +3195,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Old one."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "3"
     ],
     "summary": null
    }
@@ -3111,26 +3210,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"  Old one.\\n\", \"content\": \"\u00a0Old two.\\t\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3139,11 +3243,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Old one."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "3"
     ],
     "summary": null
    }
@@ -3155,11 +3258,13 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Same.\", \"content\": \"Same.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
@@ -3168,11 +3273,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Same."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "1"
     ],
     "summary": null
    }
@@ -3184,11 +3288,13 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Same.\", \"content\": \"Same.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Same.",
       "is_pinned": false,
       "source": "user"
@@ -3197,11 +3303,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Same."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "1"
     ],
     "summary": null
    }
@@ -3213,26 +3318,31 @@
     "text": "{\"facts\": [{\"content\": \"Fresh.\"}], \"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Fresh.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3241,18 +3351,16 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Fresh.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
-     },
-     {
-      "op": "delete",
-      "target": "Old one."
+      "source_position": 7
      }
+    ],
+    "update": {},
+    "delete": [
+     "3"
     ],
     "summary": null
    }
@@ -3264,26 +3372,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Second.\"}, {\"replaces\": \"Old two.\", \"content\": \"Second.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3292,16 +3405,12 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "update",
-      "target": "Old one.",
-      "content": "Second."
-     },
-     {
-      "op": "delete",
-      "target": "Old two."
-     }
+    "add": [],
+    "update": {
+     "3": "Second."
+    },
+    "delete": [
+     "4"
     ],
     "summary": null
    }
@@ -3313,26 +3422,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old two.\", \"content\": \"Old one.\"}, {\"replaces\": \"Old two.\", \"content\": \"Fresh.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3341,18 +3455,16 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "delete",
-      "target": "Old two."
-     },
-     {
-      "op": "add",
       "content": "Fresh.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
+    ],
+    "update": {},
+    "delete": [
+     "4"
     ],
     "summary": null
    }
@@ -3364,26 +3476,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old two.\", \"content\": \"Old one.\"}], \"obsolete_facts\": [\"Old two.\", \"Old one.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3392,15 +3509,11 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Old two."
-     },
-     {
-      "op": "delete",
-      "target": "Old one."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "4",
+     "3"
     ],
     "summary": null
    }
@@ -3412,26 +3525,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old two.\", \"content\": \"Old one.\"}, {\"content\": \"Old two.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3440,18 +3558,16 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "delete",
-      "target": "Old two."
-     },
-     {
-      "op": "add",
       "content": "Old two.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
+    ],
+    "update": {},
+    "delete": [
+     "4"
     ],
     "summary": null
    }
@@ -3463,26 +3579,31 @@
     "text": "{\"facts\": [{\"content\": \"Before.\"}, {\"content\": \"\\ud800\"}, {\"content\": \"After.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3491,22 +3612,20 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Before.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "After.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3517,26 +3636,31 @@
     "text": "{\"facts\": [{\"content\": \"\\ud83dx\"}, {\"content\": \"Kept.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3545,15 +3669,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kept.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3564,26 +3688,31 @@
     "text": "{\"facts\": [{\"content\": \"\\ude00\"}, {\"content\": \"Kept.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3592,15 +3721,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kept.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3611,26 +3740,31 @@
     "text": "{\"facts\": [{\"content\": \"\\ude00\\ud83d\"}, {\"content\": \"Kept.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3639,15 +3773,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kept.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3658,26 +3792,31 @@
     "text": "{\"facts\": [{\"content\": \"Before \\ud800 after\"}, {\"content\": \"Kept.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3686,15 +3825,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kept.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3705,26 +3844,31 @@
     "text": "{\"facts\": [{\"content\": \"A \\ud83d\\ude00 fact.\"}, {\"content\": \"\\ud83d\\ude00\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3733,22 +3877,20 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "A 😀 fact.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      },
      {
-      "op": "add",
       "content": "😀",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3759,26 +3901,31 @@
     "text": "{\"facts\": [{\"content\": \"A fact.\", \"kind\": \"\\ud800\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3787,15 +3934,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "A fact.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3806,26 +3953,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"\\ud800\", \"content\": \"Added.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3834,15 +3986,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Added.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3853,26 +4005,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"\\ud800\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3881,7 +4038,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3892,26 +4051,31 @@
     "text": "{\"obsolete_facts\": [\"\\ud800\", \"Old one.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3920,11 +4084,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Old one."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "3"
     ],
     "summary": null
    }
@@ -3936,26 +4099,31 @@
     "text": "{\"summary\": \"\\ud800\", \"facts\": [{\"content\": \"Kept.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -3964,15 +4132,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kept.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -3983,26 +4151,31 @@
     "text": "{\"obsolete_facts\": [\"Old one.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4011,11 +4184,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Old one."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "3"
     ],
     "summary": null
    }
@@ -4027,26 +4199,31 @@
     "text": "{\"obsolete_facts\": [\"  Old one.\\n\", \"\u00a0Old two.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4055,15 +4232,11 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Old one."
-     },
-     {
-      "op": "delete",
-      "target": "Old two."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "3",
+     "4"
     ],
     "summary": null
    }
@@ -4075,26 +4248,31 @@
     "text": "{\"obsolete_facts\": [\"Pinned fact.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4103,7 +4281,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4114,26 +4294,31 @@
     "text": "{\"obsolete_facts\": [\"Hand fact.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4142,7 +4327,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4153,26 +4340,31 @@
     "text": "{\"obsolete_facts\": [\"Never said.\", \"old one.\", \"Old one\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4181,7 +4373,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4192,26 +4386,31 @@
     "text": "{\"obsolete_facts\": [\"\", \"  \"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4220,7 +4419,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4231,26 +4432,31 @@
     "text": "{\"obsolete_facts\": [\"Old one.\", \"Old one.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4259,11 +4465,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Old one."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "3"
     ],
     "summary": null
    }
@@ -4275,26 +4480,31 @@
     "text": "{\"facts\": [{\"content\": \"Fresh fact.\"}], \"obsolete_facts\": [\"Fresh fact.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4303,19 +4513,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "add",
-      "content": "Fresh fact.",
-      "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
-     },
-     {
-      "op": "delete",
-      "target": "Fresh fact."
-     }
-    ],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4326,26 +4526,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Old one.\", \"content\": \"Corrected.\"}], \"obsolete_facts\": [\"Old one.\", \"Corrected.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4354,16 +4559,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "update",
-      "target": "Old one.",
-      "content": "Corrected."
-     },
-     {
-      "op": "delete",
-      "target": "Corrected."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "3"
     ],
     "summary": null
    }
@@ -4375,26 +4574,31 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Nope.\", \"content\": \"Born of an update.\"}], \"obsolete_facts\": [\"Born of an update.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4403,19 +4607,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "add",
-      "content": "Born of an update.",
-      "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
-     },
-     {
-      "op": "delete",
-      "target": "Born of an update."
-     }
-    ],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4426,26 +4620,31 @@
     "text": "{\"obsolete_facts\": [[\"Old one.\"], null, 0, false, {\"a\": 1}, 5, \"Old two.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4454,11 +4653,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Old two."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "4"
     ],
     "summary": null
    }
@@ -4470,26 +4668,31 @@
     "text": "{\"obsolete_facts\": \"Old one.\"}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4498,7 +4701,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4509,26 +4714,31 @@
     "text": "{\"obsolete_facts\": {\"Old one.\": 1}}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4537,7 +4747,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4548,26 +4760,31 @@
     "text": "{\"obsolete_facts\": 5}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4576,7 +4793,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4587,11 +4806,13 @@
     "text": "{\"obsolete_facts\": \"ab\"}",
     "existing": [
      {
+      "id": "1",
       "content": "a",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "b",
       "is_pinned": false,
       "source": "auto"
@@ -4600,7 +4821,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4611,11 +4834,13 @@
     "text": "{\"obsolete_facts\": [\"Same.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
@@ -4624,11 +4849,10 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Same."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "1"
     ],
     "summary": null
    }
@@ -4640,11 +4864,13 @@
     "text": "{\"obsolete_facts\": [\"Same.\", \"Same.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
@@ -4653,15 +4879,11 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Same."
-     },
-     {
-      "op": "delete",
-      "target": "Same."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "1",
+     "2"
     ],
     "summary": null
    }
@@ -4673,11 +4895,13 @@
     "text": "{\"obsolete_facts\": [\"Same.\", \"Same.\", \"Same.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
@@ -4686,15 +4910,11 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "delete",
-      "target": "Same."
-     },
-     {
-      "op": "delete",
-      "target": "Same."
-     }
+    "add": [],
+    "update": {},
+    "delete": [
+     "1",
+     "2"
     ],
     "summary": null
    }
@@ -4706,11 +4926,13 @@
     "text": "{\"obsolete_facts\": [\"Same.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Same.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
@@ -4719,7 +4941,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4730,11 +4954,13 @@
     "text": "{\"obsolete_facts\": [\"Same.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Same.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "2",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
@@ -4743,7 +4969,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4754,11 +4982,13 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Same.\", \"content\": \"Different.\"}, {\"replaces\": \"Same.\", \"content\": \"Again.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
@@ -4767,18 +4997,12 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
-     {
-      "op": "update",
-      "target": "Same.",
-      "content": "Different."
-     },
-     {
-      "op": "update",
-      "target": "Same.",
-      "content": "Again."
-     }
-    ],
+    "add": [],
+    "update": {
+     "1": "Different.",
+     "2": "Again."
+    },
+    "delete": [],
     "summary": null
    }
   },
@@ -4789,11 +5013,13 @@
     "text": "{\"updated_facts\": [{\"replaces\": \"Same.\", \"content\": \"Different.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Same.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Same.",
       "is_pinned": false,
       "source": "auto"
@@ -4802,7 +5028,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4813,26 +5041,31 @@
     "text": "{\"summary\": \"They met in a crypt.\"}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4841,7 +5074,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": "They met in a crypt."
    }
   },
@@ -4852,26 +5087,31 @@
     "text": "{\"summary\": \"  \u00a0They met.\\n\\t\"}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4880,7 +5120,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": "They met."
    }
   },
@@ -4891,26 +5133,31 @@
     "text": "{\"summary\": \"\"}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4919,7 +5166,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4930,26 +5179,31 @@
     "text": "{\"summary\": \" \\n\u00a0\u3000\"}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4958,7 +5212,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -4969,26 +5225,31 @@
     "text": "{\"summary\": [\"They met.\"]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -4997,7 +5258,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5008,26 +5271,31 @@
     "text": "{\"summary\": 5}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5036,7 +5304,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5047,26 +5317,31 @@
     "text": "{\"summary\": null}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5075,7 +5350,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5086,26 +5363,31 @@
     "text": "{\"summary\": {\"text\": \"They met.\"}}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5114,7 +5396,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5125,26 +5409,31 @@
     "text": "{\"summary\": \"\ufeffThey met.\"}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5153,7 +5442,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": "\ufeffThey met."
    }
   },
@@ -5164,26 +5455,31 @@
     "text": "{\"facts\": [], \"updated_facts\": [], \"obsolete_facts\": []}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5192,7 +5488,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5203,26 +5501,31 @@
     "text": "{\"facts\": [], \"summary\": \"Only this.\"}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5231,7 +5534,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": "Only this."
    }
   },
@@ -5242,26 +5547,31 @@
     "text": "I could not do it.",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5278,26 +5588,31 @@
     "text": "[{\"content\": \"x\"}]",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5306,7 +5621,9 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [],
+    "add": [],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5317,26 +5634,31 @@
     "text": "",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5353,26 +5675,31 @@
     "text": "\"{\\\"facts\\\": [{\\\"content\\\": \\\"x\\\"}]}\"",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5389,26 +5716,31 @@
     "text": "Here is the memory:\n```json\n{\n \"facts\": [{\"content\": \"In a fence.\",},],\n \"summary\": \"Fenced.\",\n}\n```\nDone!",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5417,15 +5749,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "In a fence.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": "Fenced."
    }
   },
@@ -5436,26 +5768,31 @@
     "text": "Of course! {\"facts\": [{\"content\": \"Prose.\"}]} Hope that helps {really}.",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5464,15 +5801,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Prose.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5483,26 +5820,31 @@
     "text": "{\"facts\": [{\"content\": \"Line one.\nLine two.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5511,15 +5853,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Line one.\nLine two.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5530,26 +5872,31 @@
     "text": "{\"facts\": [{\"content\": \"caf\\u00e9 \\ud83d\\ude00 \\\"quoted\\\" \\\\ \\n\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5558,15 +5905,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "café 😀 \"quoted\" \\",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5577,26 +5924,31 @@
     "text": "{\"facts\": [{\"content\": \"Kept.\"}], \"weight\": NaN, \"bounds\": [-Infinity, Infinity], \"other\": {\"x\": NaN}}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5605,15 +5957,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Kept.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5624,26 +5976,31 @@
     "text": "{\"facts\": [{\"content\": NaN}, {\"content\": Infinity}, {\"content\": \"Real.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5652,15 +6009,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Real.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5671,26 +6028,31 @@
     "text": "{\"summary\": NaN, \"facts\": [{\"content\": \"Real.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5699,15 +6061,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Real.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5718,26 +6080,31 @@
     "text": "{\"facts\": [{\"__proto__\": {\"content\": \"Hidden.\"}, \"content\": \"Real.\"}, {\"__proto__\": {\"content\": \"Only.\"}}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5746,15 +6113,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Real.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5765,26 +6132,31 @@
     "text": "{\"__proto__\": {\"facts\": [{\"content\": \"Hidden.\"}]}, \"facts\": [{\"content\": \"Real.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5793,15 +6165,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Real.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5812,26 +6184,31 @@
     "text": "{\"constructor\": {\"facts\": [{\"content\": \"Hidden.\"}]}, \"facts\": [{\"content\": \"Real.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5840,15 +6217,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Real.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5859,26 +6236,31 @@
     "text": "{\"facts\": [{\"content\": \"First.\"}], \"facts\": [{\"content\": \"Second.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5887,15 +6269,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Second.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5906,26 +6288,31 @@
     "text": "{\"facts\": [{\"content\": \"First.\", \"content\": \"Second.\", \"kind\": \"event\", \"kind\": \"promise\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5934,15 +6321,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "Second.",
       "kind": "promise",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -5953,26 +6340,31 @@
     "text": "{\"facts\": [{\"content\": \"Cut off.\"}], \"summary\": \"No end",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -5989,26 +6381,31 @@
     "text": "{\"facts\": [{\"content\": \"First.\"}]} {\"facts\": [{\"content\": \"Second.\"}]}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -6017,15 +6414,15 @@
     "top_position": 7
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
       "content": "First.",
       "kind": "fact",
-      "source_position": 7,
-      "source": "auto"
+      "source_position": 7
      }
     ],
+    "update": {},
+    "delete": [],
     "summary": null
    }
   },
@@ -6036,26 +6433,31 @@
     "text": "{\"facts\": [{\"content\": \"  Fresh fact.  \", \"kind\": \"event\"}, {\"content\": \"Fresh fact.\", \"kind\": \"promise\"}, {\"content\": \"Old one.\", \"kind\": \"promise\"}, {\"content\": \"   \", \"kind\": \"event\"}, {\"content\": \"Odd kind.\", \"kind\": \"Event\"}, {\"content\": \"Typed.\", \"kind\": \"state\"}, \"a line, not a fact\", {\"kind\": \"event\"}, {\"content\": 12}, {\"content\": [\"a\"]}], \"updated_facts\": [{\"replaces\": \"  Old two.  \", \"content\": \"  Old two, corrected.  \"}, {\"replaces\": \"Pinned fact.\", \"content\": \"Overwritten.\"}, {\"replaces\": \"Fresh fact.\", \"content\": \"Fresh fact, corrected.\"}, {\"replaces\": \"Typed.\", \"content\": \"Typed, again.\"}, {\"replaces\": \"Never said.\", \"content\": \"Said by an update.\"}, {\"replaces\": \"Hand fact.\", \"content\": \"Hand fact, corrected.\"}, {\"content\": \"Replaces nothing.\"}, {\"replaces\": \"Old three.\", \"content\": \"   \"}, [\"not\", \"an\", \"update\"]], \"obsolete_facts\": [\"Old three.\", \"Pinned fact.\", \"Hand fact, corrected.\", \"  Fresh fact, corrected.  \", \"Said by an update.\", \"Not known.\", 3, null], \"summary\": \"  A new summary.  \"}",
     "existing": [
      {
+      "id": "1",
       "content": "Pinned fact.",
       "is_pinned": true,
       "source": "auto"
      },
      {
+      "id": "2",
       "content": "Hand fact.",
       "is_pinned": false,
       "source": "user"
      },
      {
+      "id": "3",
       "content": "Old one.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "4",
       "content": "Old two.",
       "is_pinned": false,
       "source": "auto"
      },
      {
+      "id": "5",
       "content": "Old three.",
       "is_pinned": false,
       "source": "auto"
@@ -6064,69 +6466,28 @@
     "top_position": 42
    },
    "expected": {
-    "ops": [
+    "add": [
      {
-      "op": "add",
-      "content": "Fresh fact.",
-      "kind": "event",
-      "source_position": 42,
-      "source": "auto"
-     },
-     {
-      "op": "add",
       "content": "Odd kind.",
       "kind": "fact",
-      "source_position": 42,
-      "source": "auto"
+      "source_position": 42
      },
      {
-      "op": "add",
-      "content": "Typed.",
+      "content": "Typed, again.",
       "kind": "state",
-      "source_position": 42,
-      "source": "auto"
+      "source_position": 42
      },
      {
-      "op": "update",
-      "target": "Old two.",
-      "content": "Old two, corrected."
-     },
-     {
-      "op": "update",
-      "target": "Fresh fact.",
-      "content": "Fresh fact, corrected."
-     },
-     {
-      "op": "update",
-      "target": "Typed.",
-      "content": "Typed, again."
-     },
-     {
-      "op": "add",
-      "content": "Said by an update.",
-      "kind": "fact",
-      "source_position": 42,
-      "source": "auto"
-     },
-     {
-      "op": "add",
       "content": "Replaces nothing.",
       "kind": "fact",
-      "source_position": 42,
-      "source": "auto"
-     },
-     {
-      "op": "delete",
-      "target": "Old three."
-     },
-     {
-      "op": "delete",
-      "target": "Fresh fact, corrected."
-     },
-     {
-      "op": "delete",
-      "target": "Said by an update."
+      "source_position": 42
      }
+    ],
+    "update": {
+     "4": "Old two, corrected."
+    },
+    "delete": [
+     "5"
     ],
     "summary": "A new summary."
    }

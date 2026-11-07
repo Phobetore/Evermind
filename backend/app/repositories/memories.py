@@ -15,7 +15,7 @@ def to_out(row) -> dict:
 async def list_for_conversation(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
     rows = await (await db.execute(
         "SELECT * FROM memories WHERE conversation_id = ?"
-        " ORDER BY is_pinned DESC, source_position ASC, created_at ASC",
+        " ORDER BY is_pinned DESC, source_position ASC, created_at ASC, rowid ASC",
         (convo_id,))).fetchall()
     return [to_out(r) for r in rows]
 
@@ -56,28 +56,6 @@ async def add_with_vector(db: aiosqlite.Connection, convo_id: str, content: str,
          source_position, int(is_pinned), source, now_iso(), blob),
     )
     return await get(db, memory_id)
-
-
-# A person can edit a fact into what another already says, so that a text may name
-# several facts. The one a lookup by content gives is the first in this order:
-# the pinned ones, then the oldest. It is the order in which idx_memories_conversation
-# is walked, so the lookup always gave that one; it is written out so that
-# plan_memory_changes, which is given the facts in this order, chooses the same.
-async def list_in_lookup_order(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
-    rows = await (await db.execute(
-        "SELECT * FROM memories WHERE conversation_id = ?"
-        " ORDER BY is_pinned DESC, created_at ASC, rowid ASC",
-        (convo_id,))).fetchall()
-    return [to_out(r) for r in rows]
-
-
-async def find_by_content(db: aiosqlite.Connection, convo_id: str,
-                          content: str) -> dict | None:
-    row = await (await db.execute(
-        "SELECT * FROM memories WHERE conversation_id = ? AND content = ?"
-        " ORDER BY is_pinned DESC, created_at ASC, rowid ASC LIMIT 1",
-        (convo_id, (content or "").strip()))).fetchone()
-    return to_out(row) if row else None
 
 
 async def get(db: aiosqlite.Connection, memory_id: str) -> dict | None:

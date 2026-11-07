@@ -39,13 +39,19 @@ async def seed(db, convo_id, rng):
     await db.commit()
 
 
+async def first_saying(db, convo_id, text):
+    """The fact a text reaches: the first of those that say it, in the order of the list."""
+    return next((m for m in await repo.list_for_conversation(db, convo_id)
+                 if m["content"] == text.strip()), None)
+
+
 async def by_the_rules(db, convo_id, reply, top):
     """The rules, applied to the database as each change comes."""
     for fact in reply["facts"]:
         await repo.add(db, convo_id, fact["content"], fact["kind"], top, source="auto")
     for update in reply["updated_facts"]:
         new = update["content"].strip()
-        target = await repo.find_by_content(db, convo_id, update["replaces"])
+        target = await first_saying(db, convo_id, update["replaces"])
         if not new:
             continue
         if target is None:
@@ -59,7 +65,7 @@ async def by_the_rules(db, convo_id, reply, top):
         else:
             await repo.update(db, target["id"], content=new)
     for text in reply["obsolete_facts"]:
-        target = await repo.find_by_content(db, convo_id, text)
+        target = await first_saying(db, convo_id, text)
         if target and not target["is_pinned"] and target["source"] == "auto":
             await repo.delete(db, target["id"])
 
@@ -81,8 +87,8 @@ async def test_the_changes_decided_from_a_list_are_the_ones_made_one_by_one(clie
             reply = answer(random.Random(1000 + n))
 
             await by_the_rules(db, ruled["id"], reply, n)
-            changes = plan_memory_changes(reply, await repo.list_in_lookup_order(db, planned["id"]), n)
-            await _apply(db, planned["id"], changes["ops"], {})
+            changes = plan_memory_changes(reply, await repo.list_for_conversation(db, planned["id"]), n)
+            await _apply(db, planned["id"], changes, {})
             await db.commit()
 
             assert await stored(db, ruled["id"]) == await stored(db, planned["id"]), (n, reply)
