@@ -278,8 +278,8 @@ async def _type_summary(db: aiosqlite.Connection, convo_id: str, summary: str,
 
 async def remember(db: aiosqlite.Connection, convo_id: str, position: int,
                    summary: str | None) -> None:
-    """What a pass wrote of the story up to ``position``. A pass that wrote no summary leaves the
-    one there was, as typed as it was. Does not commit: it belongs to what it records."""
+    """What a pass wrote of the story up to ``position``. A pass that wrote no summary keeps the
+    one there was, typed (1) if a person's. Does not commit: it belongs to what it records."""
     newest = await (await db.execute(
         "SELECT typed FROM memory_summaries WHERE conversation_id = ? ORDER BY position DESC LIMIT 1",
         (convo_id,))).fetchone()
