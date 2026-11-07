@@ -1,4 +1,5 @@
 import { Field } from "@/components/editor/Field";
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Modal } from "@/components/ui/Modal";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
@@ -73,17 +74,7 @@ export function StartChatModal({
     <Modal title={t("cards.startChatModal.title", { name: character.name })} onClose={onClose}>
       <div className="flex flex-col gap-4">
         {loadFailure ? (
-          <>
-            <p
-              role="alert"
-              className="rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood"
-            >
-              {describeError(loadFailure.error, t)}
-            </p>
-            <button type="button" className="btn btn-ghost" onClick={tryAgain}>
-              {t("common.reload")}
-            </button>
-          </>
+          <LoadFailure error={loadFailure.error} onRetry={tryAgain} />
         ) : (
           <>
             <Field label={t("chat.panel.youArePlaying")} hint={t("cards.startChatModal.personaHint")}>

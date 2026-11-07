@@ -94,7 +94,7 @@ test("when the personas cannot be had, the start window says so and cannot start
   await page.getByRole("button", { name: "Start a conversation" }).click();
 
   // Not an empty list: a conversation started now would be played as Mara all the same.
-  await expect(page.getByRole("alert")).toHaveText("Evermind is not answering. Is it still running?");
+  await expect(page.getByRole("alert")).toContainText("Evermind is not answering. Is it still running?");
   await expect(page.getByRole("button", { name: "Enter the story" })).toBeDisabled();
   await expect(page.getByLabel("You are playing as")).toHaveCount(0);
 
