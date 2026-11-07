@@ -11,7 +11,6 @@ the person's message is ``unanswered`` (``true``, or how the model failed) until
 """
 
 import asyncio
-import logging
 import re
 import time
 from contextlib import aclosing
@@ -49,8 +48,6 @@ from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
 from ..repositories.base import new_id
 from . import memory_service
-
-logger = logging.getLogger(__name__)
 
 # How often a reply in progress is written to the database. Often enough that a
 # server going down loses at most a second of text, rarely enough that a long reply
