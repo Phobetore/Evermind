@@ -242,7 +242,9 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     connection = await _resolve_connection(db, convo)
 
     messages = await convo_repo.list_messages(db, convo_id)
-    messages = messages[:max(0, len(messages) - hold_back)]
+    # A reply still being written is read once it is finished, and what follows it with it.
+    writing = next((i for i, m in enumerate(messages) if m["meta"].get("streaming")), len(messages))
+    messages = messages[:min(writing, max(0, len(messages) - hold_back))]
     existing = await memories_repo.list_for_conversation(db, convo_id)
     built = build_extraction_payload(character, persona, convo, messages, existing)
     if built is None:

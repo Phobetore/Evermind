@@ -830,6 +830,31 @@ async def test_a_pass_is_refused_when_a_person_changed_a_fact_it_was_sent(
     assert await summaries_of(convo_id) == [(4, "Before.")]
 
 
+async def set_message(message_id, column, value):
+    db = await _connect()
+    try:
+        await db.execute(f"UPDATE messages SET {column} = ? WHERE id = ?", (json.dumps(value), message_id))
+        await db.commit()
+    finally:
+        await db.close()
+
+
+async def test_remember_reads_no_further_than_a_reply_still_being_written(client, fake_provider):
+    """What has come of it is not what it will say, and no pass would read the rest."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 2)
+    reply = await at_position(client, convo_id, 4)
+    await set_message(reply["id"], "meta", {"streaming": True})
+
+    await extract(client, convo_id, {"facts": [], "summary": "To 3."})
+
+    assert "(turn 4)" not in fake_provider.captured["payload"].messages[0]["content"]
+    assert (await conversation(client, convo_id))["memory_position"] == 3
+    await set_message(reply["id"], "meta", {})
+    await extract(client, convo_id, {"facts": [], "summary": "To 4."})
+    assert "(turn 4): Reply." in fake_provider.captured["payload"].messages[0]["content"]
+
+
 async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merge(
         client, fake_provider, monkeypatch):
     """Pinned, kept past a cut at the end of the story, unpinned again: the same fact, with the
