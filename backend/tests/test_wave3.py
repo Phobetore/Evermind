@@ -28,14 +28,10 @@ def make_msg(text, position):
 
 def test_match_lore_case_and_enabled_and_window():
     entries = [
-        {"keys": ["Kabukicho"], "content": "Le quartier rouge.", "enabled": True,
-         "case_sensitive": False, "priority": 0},
-        {"keys": ["yakuza"], "content": "Les clans.", "enabled": False,
-         "case_sensitive": False, "priority": 0},
-        {"keys": ["Oni"], "content": "Case sensitive.", "enabled": True,
-         "case_sensitive": True, "priority": 0},
-        {"keys": ["old"], "content": "Outside window.", "enabled": True,
-         "case_sensitive": False, "priority": 0},
+        {"keys": ["Kabukicho"], "content": "Le quartier rouge.", "enabled": True},
+        {"keys": ["yakuza"], "content": "Les clans.", "enabled": False},
+        {"keys": ["Oni"], "content": "Any case.", "enabled": True},
+        {"keys": ["old"], "content": "Outside window.", "enabled": True},
     ]
     messages = [make_msg("the word old is here", 0)] + [
         make_msg(f"turn {i}", i) for i in range(1, 7)
@@ -44,20 +40,16 @@ def test_match_lore_case_and_enabled_and_window():
     contents = [e["content"] for e in matched]
     assert "Le quartier rouge." in contents          # case-insensitive match
     assert "Les clans." not in contents              # disabled
-    assert "Case sensitive." not in contents    # case mismatch
+    assert "Any case." in contents
     assert "Outside window." not in contents           # outside scan window
 
 
-def test_match_lore_priority_and_budget():
-    big = "mot " * 700  # ~800 tokens each
-    entries = [
-        {"keys": ["key"], "content": big, "enabled": True, "case_sensitive": False, "priority": 1},
-        {"keys": ["key"], "content": "Small but higher priority.", "enabled": True,
-         "case_sensitive": False, "priority": 10},
-    ]
+def test_match_lore_order_and_budget():
+    big = "mot " * 525  # 601 tokens of the 800
+    entries = [{"keys": ["key"], "content": content} for content in (big, big + "again", "Small.")]
     matched = match_lore(entries, [make_msg("the key is here", 0)])
-    assert matched[0]["content"] == "Small but higher priority."
-    assert len(matched) == 1  # the big one no longer fits the budget
+    # The first in the lorebook has the room; one that does not fit leaves it to the next.
+    assert [e["content"] for e in matched] == [big, "Small."]
 
 
 # ---------- codec character_book ----------
@@ -115,7 +107,6 @@ async def test_branch_copies_up_to_message_and_filters_memories(client, fake_pro
 
     branch = (await client.post(f"/api/messages/{fork_at['id']}/branch")).json()
     assert branch["forked_from"] == convo["id"]
-    assert branch["forked_at_position"] == 2
     assert len(branch["messages"]) == 3
     assert branch["messages"][-1]["content"] == fork_at["content"]
     branch_memories = (await client.get(f"/api/conversations/{branch['id']}/memories")).json()

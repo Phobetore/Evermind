@@ -7,7 +7,6 @@ def to_out(row) -> dict:
     out = dict(row)
     out["keys"] = loads(out.get("keys"), [])
     out["enabled"] = bool(out["enabled"])
-    out["case_sensitive"] = bool(out["case_sensitive"])
     return out
 
 

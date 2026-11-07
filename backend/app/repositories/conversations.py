@@ -206,15 +206,15 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
         # read as something having gone wrong rather than as a fresh start.
         await db.execute(
             "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
-            " summary, author_note, memory_position, forked_from, forked_at_position,"
-            " wallpaper_path, wallpaper_opacity, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " summary, author_note, memory_position, forked_from, wallpaper_path,"
+            " wallpaper_opacity, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (branch_id, source["character_id"], source["persona_id"],
              source["connection_id"], source["title"], source["summary"],
              # The scene directive is the strongest lever there is on a reply, and
              # it was the one piece of the setup a branch dropped.
              source["author_note"] or "", source["memory_position"],
-             source["id"], position, source["wallpaper_path"],
+             source["id"], source["wallpaper_path"],
              source["wallpaper_opacity"], now, now),
         )
 

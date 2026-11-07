@@ -12,8 +12,6 @@ class LoreEntryIn(BaseModel):
     keys: list[str]
     content: str
     enabled: bool = True
-    case_sensitive: bool = False
-    priority: int = 0
 
 
 class CharacterIn(BaseModel):

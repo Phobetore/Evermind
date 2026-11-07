@@ -104,26 +104,15 @@ def _format_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
 
 
 def match_lore(entries: list[dict], messages: list[dict]) -> list[dict]:
-    """Entries whose keywords appear in the recent turns, priority first,
-    within the lore token budget."""
+    """Entries whose keywords appear in the recent turns, whatever the case, in the
+    lorebook's order, within the lore token budget."""
     if not entries:
         return []
     recent = sorted(messages, key=lambda m: m.get("position", 0))[-_LORE_SCAN_MESSAGES:]
-    text = "\n".join(active_content(m) for m in recent)
-    lowered = text.lower()
+    text = "\n".join(active_content(m) for m in recent).lower()
 
-    matched = []
-    for entry in entries:
-        if not entry.get("enabled", True):
-            continue
-        haystack = text if entry.get("case_sensitive") else lowered
-        for key in entry.get("keys") or []:
-            needle = key if entry.get("case_sensitive") else key.lower()
-            if needle and needle in haystack:
-                matched.append(entry)
-                break
-
-    matched.sort(key=lambda e: e.get("priority", 0), reverse=True)
+    matched = [entry for entry in entries if entry.get("enabled", True)
+               and any(key and key.lower() in text for key in entry.get("keys") or [])]
     kept, budget = [], _LORE_TOKEN_BUDGET
     for entry in matched:
         cost = estimate_tokens(entry.get("content") or "")

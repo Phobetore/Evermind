@@ -85,7 +85,6 @@ export interface Conversation {
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
   forked_from?: string | null;
-  forked_at_position?: number | null;
   created_at: string;
   updated_at: string;
   character?: Character;
