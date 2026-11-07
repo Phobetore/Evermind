@@ -15,7 +15,6 @@ $appArgs = if ($Lan) { @("--lan") } else { @() }
 $here = Get-Location
 
 function Stop-Here($why) {
-    Set-Location $here
     Write-Host ("$why Nothing was started.").Trim() -ForegroundColor Red
     exit 1
 }
@@ -45,25 +44,30 @@ if (Changed "$root\backend\pyproject.toml" $pyStamp) {
     Copy-Item "$root\backend\pyproject.toml" $pyStamp
 }
 
-# Asked before anything is installed or built: the likeliest reason for a taken
-# port is Evermind itself, still running while it is updated.
-Set-Location "$root\backend"
-& $python -m app --check @appArgs | Out-Null
-if ($LASTEXITCODE -ne 0) { Stop-Here "" }
+# However what follows ends, Ctrl+C included, the window goes back to the folder it started in.
+try {
+    # Asked before anything is installed or built: the likeliest reason for a taken
+    # port is Evermind itself, still running while it is updated.
+    Set-Location "$root\backend"
+    & $python -m app --check @appArgs | Out-Null
+    if ($LASTEXITCODE -ne 0) { Stop-Here "" }
 
-$lock = "$root\frontend\package-lock.json"
-$lockStamp = "$root\frontend\node_modules\.installed-package-lock.json"
-Set-Location "$root\frontend"
-if (Changed $lock $lockStamp) {
-    Write-Host "Installing frontend dependencies (a minute or two)..."
-    Remove-Item $lockStamp -ErrorAction SilentlyContinue
-    npm ci   # exactly the lockfile, never a local change that would stop `git pull`
-    if ($LASTEXITCODE -ne 0) { Stop-Here "Installing the frontend dependencies failed." }
-    Copy-Item $lock $lockStamp
+    $lock = "$root\frontend\package-lock.json"
+    $lockStamp = "$root\frontend\node_modules\.installed-package-lock.json"
+    Set-Location "$root\frontend"
+    if (Changed $lock $lockStamp) {
+        Write-Host "Installing frontend dependencies (a minute or two)..."
+        Remove-Item $lockStamp -ErrorAction SilentlyContinue
+        npm ci   # exactly the lockfile, never a local change that would stop `git pull`
+        if ($LASTEXITCODE -ne 0) { Stop-Here "Installing the frontend dependencies failed." }
+        Copy-Item $lock $lockStamp
+    }
+    Write-Host "Building the frontend (a minute or two)..."
+    npm run build
+    if ($LASTEXITCODE -ne 0) { Stop-Here "The build failed." }
+    Set-Location "$root\backend"
+    & $python -m app @appArgs
+} finally {
+    Set-Location -LiteralPath $here
 }
-Write-Host "Building the frontend (a minute or two)..."
-npm run build
-if ($LASTEXITCODE -ne 0) { Stop-Here "The build failed." }
-Set-Location "$root\backend"
-try { & $python -m app @appArgs } finally { Set-Location $here }
 exit $LASTEXITCODE
