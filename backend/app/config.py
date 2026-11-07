@@ -19,8 +19,8 @@ def load_env_file(path: Path) -> None:
     """Put the ``KEY=value`` lines of a ``.env`` into the environment, as written:
     quotes belong to the value, and ``#`` starts a comment only at the start of a
     line, because a password may hold one. A variable already set and not empty
-    wins over the file. UTF-8 and UTF-16 (what PowerShell 5.1 writes) are read,
-    with or without a byte order mark; anything else raises ValueError.
+    wins over the file. UTF-8 (with or without a byte order mark) and UTF-16
+    with one (what PowerShell 5.1 writes) are read; anything else raises ValueError.
     A missing file is not an error."""
     try:
         data = path.read_bytes()
