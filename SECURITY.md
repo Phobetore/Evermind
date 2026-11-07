@@ -60,10 +60,15 @@ reading the database does not hand anyone a way in. The password is compared
 after Unicode normalisation, so an accent typed on a phone keyboard is the same
 password as the one in `.env` however each wrote it. Wrong guesses are limited to
 10 per 15 minutes for each address, and for each /64 network over IPv6, where one
-device can take any address of its network. Behind Docker the requests usually
-all reach Evermind from Docker's own address, so that limit is shared by every
-device: ten wrong guesses from one of them keep the others out too, for up to 15
-minutes.
+device can take any address of its network.
+
+That limit has a cost when every device reaches Evermind from one address, as
+behind Docker Desktop, or behind a reverse proxy that `FORWARDED_ALLOW_IPS` does
+not name (see below). The limit is then shared: ten wrong passwords, from anyone
+who can reach Evermind, lock everyone out of signing in for 15 minutes, the right
+password included, and a new burst of ten does it again as soon as those 15
+minutes are over. Devices already signed in go on working. Restarting Evermind
+lifts the lock at once.
 
 ## Requests from other sites
 
