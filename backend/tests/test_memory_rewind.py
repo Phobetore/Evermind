@@ -606,6 +606,23 @@ async def test_a_summary_put_right_then_cut_back_before_its_pass_goes_with_no_br
     assert await summaries_of(branch["id"]) == []
 
 
+async def test_a_summary_put_right_over_a_pass_stays_with_a_branch_from_after_it_through_a_cut(
+        client, fake_provider):
+    """A later pass that wrote none carries it on. A cut back to the pass it was put right over
+    leaves it there as it was, of the turns up to that pass, and a branch made from there keeps it."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [], "summary": SELENA})
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": SERANA})
+    await talk(client, convo_id, 4, first=5)
+    await extract(client, convo_id, {"facts": []})
+
+    await remove_from(client, convo_id, 12)
+    branch = await branch_at(client, convo_id, 10)
+
+    assert (branch["memory_position"], branch["summary"]) == (8, SERANA)
+
+
 async def test_a_pass_that_gives_no_summary_keeps_a_typed_one_as_typed(client, fake_provider):
     """Its row holds what the person typed, so that a cut back to it gives that back after a
     later pass has rewritten it."""
