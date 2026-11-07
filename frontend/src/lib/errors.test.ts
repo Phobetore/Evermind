@@ -205,7 +205,8 @@ describe("the sentences exist", () => {
     "conversation_empty", "no_connection", "unreachable", "model_connection_lost",
     "model_auth_refused", "model_not_found", "model_rate_limited", "model_error", "model_no_text",
     "model_empty", "model_unreadable", "empty_message", "nothing_to_regenerate",
-    "nothing_to_continue", "turn_running", "internal", "http_error", "network", "not_found",
+    "nothing_to_continue", "turn_running", "internal", "http_error", "network", "offline", "not_sent",
+    "not_found",
   ];
   const resources = [
     "character", "conversation", "message", "persona", "connection", "lore_entry", "fact",
