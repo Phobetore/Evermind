@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from ..errors import MODEL_ERROR
 from ..prompting.engine import PromptPayload
 from .base import (
     NETWORK_ERROR,
@@ -22,6 +23,9 @@ from .base import (
     failure,
     status_failure,
 )
+
+# Each is sent only when the connection holds a value: empty leaves it to the model.
+SAMPLING = ("max_tokens", "temperature", "top_p", "frequency_penalty", "presence_penalty")
 
 
 class OpenAICompatProvider(Provider):
@@ -52,19 +56,11 @@ class OpenAICompatProvider(Provider):
             "model": self.model,
             "messages": self._build_messages(payload),
             "stream": True,
-            "max_tokens": int(conn.get("max_tokens") or 1024),
-            "temperature": float(conn.get("temperature") or 0.9),
-            "top_p": float(conn.get("top_p") or 0.95),
+            **{key: conn[key] for key in SAMPLING if conn.get(key) is not None},
         }
-        for key in ("frequency_penalty", "presence_penalty"):
-            value = conn.get(key)
-            if value:
-                body[key] = float(value)
-        if payload.stop:
+        # OpenAI's newest models refuse it; trim_reply cuts the saved reply there instead.
+        if payload.stop and "api.openai.com" not in self.base_url:
             body["stop"] = payload.stop[:4]
-        extra = conn.get("extra_params") or {}
-        if isinstance(extra, dict):
-            body.update(extra)
         return body
 
     async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
@@ -95,6 +91,10 @@ class OpenAICompatProvider(Provider):
                         obj = json.loads(data)
                     except json.JSONDecodeError:
                         continue
+                    if obj.get("error"):
+                        yield ProviderEvent(type="error", message=_error_text(data.encode()),
+                                            meta=failure(MODEL_ERROR))
+                        return
                     if obj.get("usage"):
                         usage = obj["usage"]
                     choices = obj.get("choices") or []

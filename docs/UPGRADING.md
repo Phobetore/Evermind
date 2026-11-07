@@ -8,6 +8,30 @@ program, and your data lives somewhere of its own (the `data` folder, or the
 If you are installing for the first time, you want [INSTALL.md](../INSTALL.md)
 instead.
 
+## From 3.0.0 or 3.0.1 to 3.0.2
+
+- **With Docker, download `docker-compose.yml` again before updating.** The
+  upgrade command, `docker compose up -d --pull always`, does not replace it, and
+  the old file can leave Evermind without a password. This matters most when the
+  password holds `$` or ` #`. It needs Compose 2.30 or later.
+- **Remove quotes around values in `.env`.** Values are read as written, so the
+  quotes would now be part of the value.
+- **With Docker, a password set in the shell or with `--env-file` no longer reaches
+  the container.** Put it in the `.env` beside `docker-compose.yml`.
+- **OpenAI and Anthropic connections leave temperature, top_p and the penalties to
+  the model.** The first start empties those four settings on every connection to
+  Anthropic and to api.openai.com, because the newest models refuse some of them.
+  Max response (tokens) is emptied on the OpenAI ones too and kept on the
+  Anthropic ones, but where it was under 4096 it becomes 4096, since Claude's
+  thinking counts in it, and the Context (tokens) grows by the same difference so
+  that the story keeps its room. You can set any of them again on the
+  connection. Other connections are not touched.
+- **A copy of the database is kept.** If the update changes the database, it is
+  first copied beside the original as `evermind.before-3.0.2.db`. To go back, see
+  [Going back after an update](../INSTALL.md#going-back-after-an-update).
+- **From the source, Python must use SQLite 3.35 or newer.** The python.org ones
+  do. If yours is older, Evermind says so at start and changes nothing.
+
 ## From 2.x to 3.0
 
 Evermind used to be two programs, an interface and an API, each on a port of its
@@ -158,7 +182,10 @@ A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
   `EVERMIND_BACKEND_PORT` is only for development now (`scripts/dev`), and
   `EVERMIND_BACKEND_URL` is not read at all any more. If either is in your
   `.env`, you can delete the line.
-- **Your `.env` keeps working.** From the source, Evermind reads it itself now,
-  the same file in the same place, wherever it is started from; with Docker,
-  `docker compose` reads it as before. A value set in the environment still wins
-  over the file.
+- **Your `.env` is read as written.** From the source, Evermind reads it itself
+  now, the same file in the same place, wherever it is started from, and a value
+  set in the environment still wins over the file. With Docker, the container
+  gets the lines of the `.env` beside `docker-compose.yml`, and nothing else: a
+  password set in the shell or with `--env-file` no longer reaches it, while
+  `BIND` and `PORT` set there still apply. Keep the password in that `.env`.
+  See [From 3.0.0 or 3.0.1 to 3.0.2](#from-300-or-301-to-302) for the quotes.

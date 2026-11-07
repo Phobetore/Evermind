@@ -10,7 +10,8 @@ SSE wire contract (one `data: <json>` line per event):
   {"type":"error","message":"...","kind":"...","resource":"..."}
   (``kind`` names the failure for the interface; ``resource`` only goes with
   "not_found", and says what was not found. A model's failure also carries
-  what its server said: ``upstream``, ``upstream_status``, ``upstream_url``.)
+  what its server said: ``upstream``, ``upstream_status``, ``upstream_url``. The
+  words that arrived before a model failed are kept, as when a turn is stopped.)
 A turn that is stopped just ends, with neither ``done`` nor ``error``.
 
 Modes:
@@ -31,6 +32,7 @@ import aiosqlite
 
 from ..errors import (
     MODEL_EMPTY,
+    MODEL_ERROR,
     NO_CONNECTION,
     NOT_FOUND,
     AppError,
@@ -464,6 +466,18 @@ async def stream_turn(db: aiosqlite.Connection, request: ChatRequest,
                     usage = event.usage
                     finish_reason = (event.meta or {}).get("finish_reason")
                 elif event.type == "error":
+                    # Refusing the greeting may be said in the stream rather than by silence.
+                    if (event.meta.get("kind") == MODEL_ERROR and attempt == 0 and not chunks
+                            and not continue_mode and payload.messages
+                            and payload.messages[0]["role"] == "assistant"):
+                        break
+                    # Whatever arrived is the reply as far as it goes, as it is when
+                    # the turn is stopped: flushing only now and then would lose up to
+                    # the last second of what the person watched come.
+                    await persist(final=False)
+                    if reply_gone:
+                        yield _sse({"type": "discarded"})
+                        return
                     fields = failure_fields(event.meta)
                     yield error_event(event.message, fields.pop("kind"), **fields)
                     return

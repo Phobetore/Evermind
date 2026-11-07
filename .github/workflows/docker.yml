@@ -1,7 +1,7 @@
 name: Docker image
 
 # Publishes a ready-to-run image so people do not have to compile anything:
-#   docker compose pull && docker compose up -d
+#   docker compose up -d --pull always
 on:
   push:
     tags: ["v*"]

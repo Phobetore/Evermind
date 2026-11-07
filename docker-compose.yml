@@ -27,16 +27,16 @@ services:
       dockerfile: Dockerfile
       args:
         SEMANTIC: "${SEMANTIC:-false}"
+    # Read as written (format: raw, Compose 2.30): a password may hold $ or " #", but not "${" with no "}".
+    env_file:
+      - path: .env
+        required: false
+        format: raw
+    # Pinned over the file: .env.example's BIND and PORT would cut every connection.
     environment:
-      # No default. Unset means the gate is off, which is the right answer while
-      # BIND keeps this on localhost.
-      EVERMIND_GATE_PASSWORD: "${EVERMIND_GATE_PASSWORD-}"
-      # The names, besides an address, localhost or *.localhost, that Evermind
-      # answers to while there is no password. The container cannot see this
-      # computer's own name, so it has to be listed here to be used.
-      EVERMIND_ALLOWED_HOSTS: "${EVERMIND_ALLOWED_HOSTS-}"
-      # The path a reverse proxy serves Evermind under, if any (/evermind).
-      EVERMIND_ROOT_PATH: "${EVERMIND_ROOT_PATH-}"
+      BIND: 0.0.0.0
+      PORT: "8000"
+      EVERMIND_DATA_DIR: /data
     volumes:
       # The name the data had when Evermind was two containers, so an install
       # that is upgraded picks up its conversations where it left them.

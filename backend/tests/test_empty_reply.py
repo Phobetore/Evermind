@@ -1,21 +1,24 @@
 """A model that answers nothing at all, and the one retry that saves it.
 
 Several popular roleplay finetunes ship a chat template that refuses a
-conversation whose first message is the assistant's. They do not error: they
-stream zero tokens. Evermind opens a conversation on the character's greeting
-when it has one, so on those models the first message of a first conversation
+conversation whose first message is the assistant's. They stream zero tokens, or
+an error inside a stream already begun. Evermind opens a conversation on the
+character's greeting when it has one, so on those models the first message of a first conversation
 dies in silence, which reads as "this application is broken" rather than "this
 model is picky".
 """
 
+import json
 from typing import ClassVar
 
+import httpx
 import pytest
 
 from app.prompting.engine import build_chat_payload
 from app.providers.base import ProviderEvent
 from tests.test_chat import parse_sse, setup_conversation
 from tests.test_prompting import PERSONA, make_character, make_connection, make_message
+from tests.test_providers import oai_provider, sse
 
 
 def build(messages, **kwargs):
@@ -160,3 +163,52 @@ async def test_the_retry_reply_is_the_one_that_gets_stored(client, scripted):
 
     assert [m["role"] for m in messages] == ["assistant", "user", "assistant"]
     assert messages[-1]["content"] == "Saved from the second pass."
+
+
+@pytest.mark.parametrize(("status", "openings", "last"), [
+    (200, ["assistant", "user"], "done"),
+    (400, ["assistant"], "error"),
+])
+async def test_a_refusal_inside_the_stream_is_retried_and_an_error_status_is_not(
+        client, monkeypatch, status, openings, last):
+    """A template may refuse the greeting with an error in a stream it has already begun."""
+    refusal = json.dumps({"error": {"message": "Error rendering prompt with jinja template: "
+                                               "roles must alternate"}})
+    asked = []
+
+    def server(request: httpx.Request) -> httpx.Response:
+        asked.append(json.loads(request.content)["messages"][1]["role"])
+        if asked[-1] == "user":
+            return httpx.Response(200, content=sse([json.dumps(
+                {"choices": [{"delta": {"content": "She answers."}}]}), "[DONE]"]))
+        return httpx.Response(status, content=sse([refusal]) if status == 200 else refusal)
+
+    for module in ("chat_service", "memory_service"):
+        monkeypatch.setattr(f"app.services.{module}.get_provider",
+                            lambda connection: oai_provider(server))
+    convo = await setup_conversation(client)
+
+    events = await send(client, convo["id"])
+
+    assert asked == openings
+    assert events[-1]["type"] == last
+
+
+async def test_a_refusal_with_no_greeting_to_blame_is_the_error_the_server_gave(
+        client, monkeypatch):
+    refusal = json.dumps({"error": {"message": "Error rendering prompt with jinja template"}})
+    asked = []
+
+    def server(request: httpx.Request) -> httpx.Response:
+        asked.append(request)
+        return httpx.Response(200, content=sse([refusal]))
+
+    for module in ("chat_service", "memory_service"):
+        monkeypatch.setattr(f"app.services.{module}.get_provider",
+                            lambda connection: oai_provider(server))
+    convo = await setup_conversation(client, greeting="")
+
+    events = await send(client, convo["id"])
+
+    assert len(asked) == 1
+    assert events[-1]["kind"] == "model_error"

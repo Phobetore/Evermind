@@ -185,6 +185,7 @@
     "topPLabel": "Top-p",
     "frequencyPenaltyLabel": "Pénalité fréquence",
     "presencePenaltyLabel": "Pénalité présence",
+    "modelDefaultPlaceholder": "Valeur du modèle",
     "isDefaultLabel": "Connexion par défaut",
     "nameUrlRequired": "Nom et URL sont requis.",
     "saveFailed": "Enregistrement impossible",

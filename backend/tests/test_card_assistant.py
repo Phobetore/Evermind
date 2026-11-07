@@ -29,10 +29,10 @@ def fake_provider(monkeypatch):
     return FakeProvider
 
 
-async def add_connection(client):
+async def add_connection(client, **fields):
     return (await client.post("/api/connections", json={
         "name": "Mock", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test",
+        "base_url": "http://localhost:1234/v1", "model": "test", **fields,
     })).json()
 
 
@@ -96,11 +96,12 @@ async def test_assist_repairs_rp_model_json(client, fake_provider):
     assert "Kabukicho" in draft["greeting"]
 
 
-async def test_assist_raises_max_tokens_floor(client, fake_provider):
-    await add_connection(client)
+@pytest.mark.parametrize(("ceiling", "sent"), [(512, 2048), (4096, 4096), (None, None)])
+async def test_assist_raises_only_a_ceiling_the_connection_has(client, fake_provider,
+                                                               ceiling, sent):
+    await add_connection(client, max_tokens=ceiling)
     await client.post("/api/characters/assist", json={"prompt": "japanese gangster"})
-    conn = fake_provider.captured.get("connection") or {}
-    assert conn.get("max_tokens", 0) >= 2048
+    assert fake_provider.captured["connection"]["max_tokens"] == sent
 
 
 async def test_assist_returns_lore_entries(client, fake_provider):
