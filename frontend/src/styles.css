@@ -290,7 +290,9 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 
 /* Roleplay text rendering */
 .rp-prose { font-size: 1.05rem; }
-.rp-prose p { margin: 0 0 0.65em; }
+/* Lines as they were typed. A hard break ends its line too, so its <br> would add a second. */
+.rp-prose p { margin: 0 0 0.65em; white-space: pre-line; }
+.rp-prose p br { display: none; }
 .rp-prose p:last-child { margin-bottom: 0; }
 .rp-prose em {
   color: var(--color-arcane-300);
