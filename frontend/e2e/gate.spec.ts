@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import http from "node:http";
 import { GATE_PASSWORD, GATED } from "../playwright.config";
 
 /**
@@ -11,6 +12,25 @@ test.use({ baseURL: GATED });
 async function enter(page: Page, password: string) {
   await page.getByLabel(/password/i).fill(password);
   await page.getByRole("button", { name: /enter/i }).click();
+}
+
+/** The server's answer to a sign-in sent in chunks, with no length, as a streaming proxy sends it. */
+function signInInChunks(password: string): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const request = http.request(`${GATED}/api/gate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    }, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (part) => (body += part));
+      response.on("end", () => resolve({ status: response.statusCode ?? 0, body }));
+    });
+    request.on("error", reject);
+    // Written before the end: Node then sends it chunked.
+    request.write(JSON.stringify({ password }));
+    request.end();
+  });
 }
 
 test("a locked page asks for the password, then opens where it was going", async ({ page }) => {
@@ -37,6 +57,23 @@ test("a wrong password is refused and stays on the login", async ({ page }) => {
   // stays shut: nothing behind the login has been loaded.
   await expect(page.getByLabel(/password/i)).toHaveValue("");
   expect((await page.request.get(`${GATED}/api/characters`)).status()).toBe(401);
+});
+
+test("a sign-in that a proxy passes on without its length points at the proxy", { tag: "@desktop" }, async ({ page }) => {
+  // The right password, refused for want of a length: "too long" alone would leave nothing to fix.
+  const refused = await signInInChunks(GATE_PASSWORD);
+  expect(refused.status).toBe(413);
+  await page.route("**/api/gate", (route) =>
+    route.request().method() === "POST"
+      ? route.fulfill({ status: refused.status, contentType: "application/json", body: refused.body })
+      : route.continue(),
+  );
+
+  await page.goto("/#/login");
+  await enter(page, GATE_PASSWORD);
+
+  await expect(page.getByText(/proxy/i)).toBeVisible();
+  await expect(page).toHaveURL(/#\/login/);
 });
 
 test("a browser that keeps no cookie is told so, not sent back to an empty login", async ({ page, context }) => {

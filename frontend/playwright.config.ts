@@ -14,7 +14,7 @@ import path from "node:path";
 // A developer's own settings must not reach the servers this suite starts: they
 // inherit this environment. Proxy variables would route the calls to the model.
 for (const name of Object.keys(process.env)) {
-  if (/^(evermind_|bind$|port$|semantic$|(http|https|all)_proxy$|no_proxy$)/i.test(name)) {
+  if (/^(evermind_|bind$|port$|semantic$|forwarded_allow_ips$|(http|https|all)_proxy$|no_proxy$)/i.test(name)) {
     delete process.env[name];
   }
 }

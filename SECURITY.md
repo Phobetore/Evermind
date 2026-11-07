@@ -48,18 +48,28 @@ closed as working-as-intended:
 Each device types the password once and gets a session of its own, which lasts
 until it is ended. **Sign out of this device** and **Sign out every device**, both
 in Settings, end one session or all of them, and changing or removing the password
-ends them all. A session never expires by itself: each opening of Evermind gives
-its cookie another 400 days, so a device that is lost stays signed in until every
-device is signed out or the password changes.
+ends them all, for good: an old password set again later lets none of them back in.
+A session never expires by itself: each opening of Evermind gives its cookie
+another 400 days, so a device that is lost stays signed in until every device is
+signed out or the password changes.
 
-The database keeps nothing of the password, and of each session only an HMAC of
-its token keyed by the password, so reading the database does not hand anyone a
-way in. The password is compared after Unicode normalisation, so an accent typed
-on a phone keyboard is the same password as the one in `.env` however each wrote
-it. Wrong guesses are limited to 10 per 15 minutes for each address. Behind Docker
-the requests usually all reach Evermind from Docker's own address, so that limit
-is shared by every device: ten wrong guesses from one of them keep the others
-out too, for up to 15 minutes.
+The database keeps of the password only a salted scrypt digest, slow to guess
+from on purpose, by which Evermind finds out at start that the password has
+changed; and of each session only an HMAC of its token keyed by the password. So
+reading the database does not hand anyone a way in. The password is compared
+after Unicode normalisation, so an accent typed on a phone keyboard is the same
+password as the one in `.env` however each wrote it. Wrong guesses are limited to
+10 per 15 minutes for each address, and over IPv6 for each /64 network, since one
+device can take any address of its network.
+
+That limit has a cost when devices share what it counts. Every device does when
+they all reach Evermind from one address, as behind Docker Desktop, or behind a
+reverse proxy that `FORWARDED_ALLOW_IPS` does not name (see below); and over
+IPv6, every device of one network does, since a home network is a single /64.
+Ten wrong passwords from anyone who can reach Evermind that way then lock all of
+them out of signing in for 15 minutes, the right password included, and a new
+burst of ten does it again as soon as those 15 minutes are over. Devices already
+signed in go on working. Restarting Evermind lifts the lock at once.
 
 ## Requests from other sites
 
@@ -82,6 +92,36 @@ what stands in its way:
   a proxy can serve Evermind under its own, but the session cookie belongs to
   the name each device signed in on: a page under another name has none, and
   would need the password.
+
+## Behind a reverse proxy
+
+A proxy that ends HTTPS passes requests on to Evermind over plain HTTP, so
+Evermind only knows that a browser came over HTTPS, and from which address, if
+the proxy says so in `X-Forwarded-Proto` and `X-Forwarded-For`. Anyone can send
+those headers, so Evermind believes them only from the addresses listed in
+`FORWARDED_ALLOW_IPS`. Set it, in `.env`, to the address the proxy connects from,
+as long as nothing else connects from it (see below). The session cookie is then marked
+`Secure`, at sign-in and each time it is renewed, so the browser never sends it
+over plain HTTP, and wrong passwords are counted for each device, or over IPv6
+for each network, rather than for the proxy.
+[docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an nginx
+example.
+
+Anything else that reaches Evermind from that address is believed just as much,
+and can claim a new address for each guess, so name only an address that nothing
+but the proxy connects from. On the same computer that is not `127.0.0.1`, which
+every program and browser there uses: the nginx example has its proxy connect
+from `127.0.0.2` instead. With Docker, a proxy outside the container reaches it
+from the same address as everything else on that computer. Where the proxy cannot
+have an address of its own, leave `FORWARDED_ALLOW_IPS` empty: both headers are
+then ignored, every device shares the limit on wrong passwords, and the cookie is
+not marked `Secure`, which HSTS below makes up for.
+
+Turn on HSTS at the proxy as well (the `Strict-Transport-Security` header). A
+browser that has been there once then never uses plain HTTP for that name again,
+not for an address typed without `https://` nor for an old `http://` link.
+Without it, that first plain request can be answered by someone on the network
+instead of the proxy, with a page of their own that asks for the password.
 
 ## What is worth reporting
 

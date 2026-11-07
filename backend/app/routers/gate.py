@@ -38,7 +38,7 @@ async def gate_state(request: Request, response: Response) -> dict:
 async def login(payload: LoginRequest, request: Request) -> Response:
     if not gate.enabled():
         return Response(status_code=204)
-    address = request.client.host if request.client else "unknown"
+    address = gate.counted_as(request.client.host if request.client else "unknown")
     if wait := gate.retry_after(address):
         return JSONResponse({"error": "Too many attempts.", "kind": "rate_limited"},
                             status_code=429, headers={"Retry-After": str(wait)})

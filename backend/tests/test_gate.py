@@ -7,6 +7,7 @@ address, so the cookie has to work without the Secure flag there.
 """
 
 import asyncio
+import hashlib
 import types
 import unicodedata
 
@@ -122,13 +123,32 @@ async def test_sessions_outlive_a_restart_but_not_a_new_password(make_client):
 async def test_removing_the_password_ends_every_session(make_client, monkeypatch):
     # Or setting the same one again later would let in a device from before, a lost phone too.
     monkeypatch.setattr(memory_service, "warmup_and_backfill", lambda: asyncio.sleep(0))
-    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+    async with make_client(EVERMIND_GATE_PASSWORD=PW) as c, lifespan(None):
         token = await sign_in(c)
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c, lifespan(None):
         assert (await c.get("/api/characters", headers=device(token))).status_code == 200
     async with make_client() as c, lifespan(None):
         assert (await c.get("/api/characters")).status_code == 200
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
+        assert (await c.get("/api/characters", headers=device(token))).status_code == 401
+
+
+async def test_a_new_password_ends_every_session_for_good(make_client, monkeypatch):
+    # Not even with the old one set again; the password itself is kept as a salted scrypt digest.
+    monkeypatch.setattr(memory_service, "warmup_and_backfill", lambda: asyncio.sleep(0))
+    async with make_client(EVERMIND_GATE_PASSWORD="ALPHA") as c, lifespan(None):
+        token = await sign_in(c, "ALPHA")
+        conn = await connect()
+        try:
+            [(kept,)] = await conn.execute_fetchall("SELECT password_hash FROM gate_state")
+        finally:
+            await conn.close()
+    salt, _, digest = kept.partition("$")
+    assert len(salt) >= 32
+    assert digest == hashlib.scrypt(b"ALPHA", salt=salt.encode(), n=2**14, r=8, p=1).hex()
+    async with make_client(EVERMIND_GATE_PASSWORD="BETA") as c, lifespan(None):
+        assert (await c.get("/api/characters", headers=device(token))).status_code == 401
+    async with make_client(EVERMIND_GATE_PASSWORD="ALPHA") as c, lifespan(None):
         assert (await c.get("/api/characters", headers=device(token))).status_code == 401
 
 

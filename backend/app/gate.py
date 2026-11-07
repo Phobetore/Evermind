@@ -3,7 +3,8 @@ under /api/ except PUBLIC_PATHS needs a session cookie. Pages hold no data and
 stay public, so that the interface can load and ask for the password.
 
 The database keeps, per device, an HMAC of its random token keyed by the
-password: a copy of it lets nobody in, and changing the password ends them all.
+password, and of the password a salted scrypt digest: a copy of it lets nobody
+in, and a start with another password, or none, ends every session for good.
 
 Password or not, a page of another origin cannot write. Without a password, the
 API only answers to an address or localhost, which is what stops a website from
@@ -18,6 +19,7 @@ import math
 import secrets
 import time
 import unicodedata
+from collections import OrderedDict
 from urllib.parse import urlsplit
 
 from starlette.datastructures import Headers
@@ -33,9 +35,11 @@ COOKIE_MAX_AGE = 400 * 86400  # What browsers allow at most.
 PUBLIC_PATHS = {"/api/health", "/api/gate"}
 MAX_FAILURES = 10
 FAILURE_WINDOW_S = 900
+MAX_SIGN_IN_BYTES = 4096
+MAX_ADDRESSES = 10_000
 
-# Wrong passwords per address: how many, and since when.
-_failures: dict[str, tuple[int, float]] = {}
+# Wrong passwords per address: how many, and since when, the oldest window first.
+_failures: OrderedDict[str, tuple[int, float]] = OrderedDict()
 
 
 def enabled() -> bool:
@@ -56,6 +60,23 @@ def password_matches(typed: str) -> bool:
     return hmac.compare_digest(_digest(typed), _digest(config.gate_password()))
 
 
+def _fingerprint(salt: str) -> str:
+    # Slow on purpose: a copy of the database must not make the password quick to guess.
+    digest = hashlib.scrypt(_utf8(config.gate_password()), salt=salt.encode(), n=2**14, r=8, p=1)
+    return f"{salt}${digest.hex()}"
+
+
+def counted_as(address: str) -> str:
+    """Whose wrong passwords these are; for IPv6 its /64, as a device can take any address in it."""
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return address
+    if ip.version == 4 or ip.ipv4_mapped:
+        return address
+    return str(ipaddress.ip_network(f"{address}/64", strict=False))
+
+
 def retry_after(address: str) -> int:
     """Seconds until ``address`` may try again; 0 if it may now."""
     count, start = _failures.get(address, (0, 0.0))
@@ -65,9 +86,10 @@ def retry_after(address: str) -> int:
 
 def count_failure(address: str) -> None:
     now = time.monotonic()
-    # A window that has run out is forgotten, this address's too, which then starts a new one.
-    for quiet in [a for a, (_, start) in _failures.items() if now - start >= FAILURE_WINDOW_S]:
-        del _failures[quiet]
+    # Oldest first: expired windows go, this address's too, and the oldest of a full table.
+    while _failures and (len(_failures) >= MAX_ADDRESSES
+                         or now - next(iter(_failures.values()))[1] >= FAILURE_WINDOW_S):
+        _failures.popitem(last=False)
     count, start = _failures.get(address, (0, now))
     _failures[address] = (count + 1, start)
 
@@ -107,6 +129,18 @@ async def end_all_sessions() -> None:
     await _run("DELETE FROM gate_sessions")
 
 
+async def end_sessions_if_the_password_changed() -> None:
+    """Once at start: unless the password is the one the sessions were opened with, they all end."""
+    kept = [row[0] for row in await _run("SELECT password_hash FROM gate_state")]
+    if enabled() and kept and _fingerprint(kept[0].partition("$")[0]) == kept[0]:
+        return
+    await end_all_sessions()
+    await _run("DELETE FROM gate_state")
+    if enabled():
+        await _run("INSERT INTO gate_state (id, password_hash) VALUES (1, ?)",
+                   _fingerprint(secrets.token_hex(16)))
+
+
 def _from_another_origin(headers: Headers) -> bool:
     # Without the scheme: a proxy that ends https reaches this over http.
     origin = headers.get("origin")
@@ -122,10 +156,20 @@ def _named_by_address(host: str) -> bool:
         return False
 
 
+def _short(headers: Headers) -> bool:
+    # A browser always gives a sign-in's length, in a few digits; a chunked one could be any length.
+    length = headers.get("content-length", "")
+    return ("transfer-encoding" not in headers and length.isascii() and length.isdigit()
+            and len(length) <= len(str(MAX_SIGN_IN_BYTES)) and int(length) <= MAX_SIGN_IN_BYTES)
+
+
 async def _refusal(scope: Scope) -> Response | None:
     headers = Headers(scope=scope)
     if scope["method"] not in ("GET", "HEAD") and _from_another_origin(headers):
         return JSONResponse({"error": "Cross-origin request refused.", "kind": "cross_origin"}, 403)
+    if scope["method"] == "POST" and scope["path"] == "/api/gate" and not _short(headers):
+        return JSONResponse({"error": f"A sign-in gives its length, {MAX_SIGN_IN_BYTES} bytes "
+                             "at most.", "kind": "too_large"}, 413)
     if not enabled():
         if _named_by_address(headers.get("host", "")):
             return None

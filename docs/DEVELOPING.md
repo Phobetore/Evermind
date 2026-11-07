@@ -133,12 +133,12 @@ environment.
 using. Playwright then starts the whole stack itself: a mock model and two
 `python -m app` servers, one of them behind an access password, each on a port
 and a data directory of its own. None reads `.env`, and the suite removes
-`EVERMIND_*`, `BIND`, `PORT`, `SEMANTIC` and the proxy variables from what they
-inherit, so those set in your shell do not reach them; the rest of your shell's
-environment, `PATH` for one, still does. It runs them from the virtualenv in
-`backend/.venv`, which the launch scripts create, and needs the browser once:
-`npx playwright install chromium`. `npm run test:e2e:ui` opens Playwright's
-runner if you want to watch one.
+`EVERMIND_*`, `BIND`, `PORT`, `SEMANTIC`, `FORWARDED_ALLOW_IPS` and the proxy
+variables from what they inherit, so those set in your shell do not reach them;
+the rest of your shell's environment, `PATH` for one, still does. It runs them
+from the virtualenv in `backend/.venv`, which the launch scripts create, and needs
+the browser once: `npx playwright install chromium`. `npm run test:e2e:ui` opens
+Playwright's runner if you want to watch one.
 
 The servers listen on this computer's network address, as for a phone (an
 insecure context), so the first time the suite runs, Windows may ask whether to
@@ -168,6 +168,10 @@ test that passes either way is worse than none, because it reads like cover.
   and if it is, its cookie again for another 400 days; `POST /api/gate` signs in
   and sets the session cookie; `DELETE /api/gate` signs this device out;
   `DELETE /api/gate/sessions` signs every device out
+
+A sign-in whose body is over 4096 bytes, or that does not give its length as four
+digits at most in `Content-Length`, is refused unread: `413` with
+`"kind": "too_large"`.
 
 With a password set, everything under `/api/` except `/api/health` and
 `/api/gate` answers `401` with `"kind": "locked"` until the device has signed in.
@@ -214,8 +218,9 @@ bodies: `{"ok": false, "detail": "<English sentence>", "kind": ..., "upstream": 
 Some answers never come from an `AppError`, and have no `kind`: FastAPI's
 own, `{"detail": ...}` for a route that does not exist (`404`), a method a route
 does not take (`405`) or a request body that does not validate (`422`, with a list
-of problems in `detail`), and whatever a proxy in front of the server answers,
-often not JSON at all. The request layer gives the last an `http_error` kind and
+of problems in `detail`, each its `type`, `loc` and `msg` but never what was
+sent), and whatever a proxy in front of the server answers, often not JSON at
+all. The request layer gives the last an `http_error` kind and
 the status as its message (`HTTP 502`). The interface does not show the words of
 any of them: a `422` is "something is missing or not valid", a `404` a missing
 thing, a `5xx` "Evermind answered with an error (HTTP n)", and any other `4xx` the
@@ -234,10 +239,38 @@ location /evermind/ {
     # As the browser sent it, port included. Without it every write is refused
     # as cross_origin (see above), since Origin and Host differ.
     proxy_set_header Host $http_host;
+    # Who the client is and how it came, in the proxy's own words: what the
+    # client sent as X-Forwarded-For is replaced, never passed along.
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # An address of its own, since a browser on this computer connects from
+    # 127.0.0.1. Only for a proxy_pass to this computer, as here.
+    proxy_bind 127.0.0.2;
 }
 ```
 
-The server needs to be told nothing. The pages, every call and every image work
+Evermind believes `X-Forwarded-For` and `X-Forwarded-Proto` only from the
+addresses listed in `FORWARDED_ALLOW_IPS`, in its `.env`: here `127.0.0.2`, which
+`proxy_bind` has this proxy connect from. Once it is set, the session cookie is
+`Secure` for a browser that came over https, and wrong passwords are counted for
+each device, or over IPv6 for each network, rather than for the proxy. Without
+it, both headers are ignored whoever sends them, so that no client can claim a
+new address for each guess.
+
+Whatever reaches Evermind from a listed address is believed as the proxy is. A
+browser on this computer connects from `127.0.0.1`: with that address named, a
+page open in it could claim a new address for each guess. A program running on
+this computer still can, from `127.0.0.2`. On Linux and Windows every address of
+`127.0.0.0/8` is this computer's own; macOS needs this one added first, with
+`sudo ifconfig lo0 alias 127.0.0.2`, which lasts until the Mac restarts.
+
+With Docker, a proxy outside the container reaches Evermind from the same address
+as every program and browser on that computer, Docker Desktop included. Leave
+`FORWARDED_ALLOW_IPS` empty there, unless the proxy runs in a container of its own
+on Evermind's network with a fixed address (`ipv4_address` in Compose): name that
+address, which starts each of its requests' lines in `docker compose logs`.
+
+The prefix needs nothing more. The pages, every call and every image work
 under the prefix. The one thing that does not follow it is the redirect of an old
 2.x bookmark such as `/chat/<id>`, which goes to `/#/chat/<id>` at the root of
 the host.

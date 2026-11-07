@@ -12,6 +12,7 @@ describe("an error the server named", () => {
   test.each([
     ["locked", "errors.locked"],
     ["wrong_password", "errors.wrongPassword"],
+    ["too_large", "errors.tooLarge"],
     ["cross_origin", "errors.crossOrigin"],
     ["unknown_host", "errors.unknownHost"],
     ["png_without_card", "errors.pngWithoutCard"],
@@ -289,7 +290,7 @@ describe("the sentences exist", () => {
     return key;
   };
   const kinds = [
-    "locked", "wrong_password", "rate_limited", "cross_origin", "unknown_host",
+    "locked", "wrong_password", "too_large", "rate_limited", "cross_origin", "unknown_host",
     "png_without_card", "unrecognized_card_file", "variant_out_of_range", "already_installed",
     "lore_entry_incomplete", "fact_exists", "fact_empty", "file_too_large", "unsupported_image",
     "conversation_empty", "no_connection", "unreachable", "model_error", "model_empty",
