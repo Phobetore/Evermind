@@ -9,9 +9,8 @@ test("an unsent message is still there when the page comes back", async ({ page,
   const second = await makeConversation(request);
   await page.goto(`/#/chat/${first.id}`);
 
+  // Kept as it is typed: the page can be gone the moment after.
   await page.locator("textarea").first().fill("I was about to say");
-  // Written after a pause in typing, not on every key.
-  await page.waitForTimeout(700);
 
   await page.reload();
   await expect(page.locator("textarea").first()).toHaveValue("I was about to say");
@@ -28,7 +27,6 @@ test("the notice about a restored draft goes away by itself", async ({ page, req
   const convo = await makeConversation(request);
   await page.goto(`/#/chat/${convo.id}`);
   await page.locator("textarea").first().fill("Hold on");
-  await page.waitForTimeout(700);
 
   await page.reload();
   await expect(page.getByText("Draft restored")).toBeVisible();
