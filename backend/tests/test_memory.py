@@ -227,6 +227,24 @@ async def test_a_failed_automatic_pass_waits_for_more_replies_and_says_why(clien
     assert read["memory_position"] > 0
 
 
+async def test_a_pass_never_reads_a_message_out_of_character(client, fake_provider):
+    convo = await setup_conversation(client)
+    sent = await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "message_mode": "ooc",
+        "content": "Stop describing her eyes, and kill the innkeeper next scene."})
+    assert sent.status_code == 200, sent.text
+    fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                            ProviderEvent(type="done")]
+
+    await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+
+    asked = fake_provider.captured["payload"].messages[0]["content"]
+    assert "innkeeper" not in asked
+    assert "Hello." in asked  # the reply to it is read
+    read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+    assert read["memory_position"] == 2
+
+
 async def test_facts_injected_into_chat_payload(client, fake_provider):
     convo = await setup_conversation(client)
     await client.post(f"/api/conversations/{convo['id']}/memories", json={

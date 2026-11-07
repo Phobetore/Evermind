@@ -16,6 +16,7 @@ from .defaults import (
 from .engine import PromptPayload, active_content, build_chat_payload
 from .macros import substitute
 from .memory_changes import MAX_TURNS_PER_RUN, is_movable
+from .turn import is_out_of_character
 
 MIN_FACTS_TO_CONSOLIDATE = 8  # fewer than this and merging them is not worth a call
 
@@ -73,6 +74,10 @@ def build_extraction_payload(character: dict, persona: dict | None, conversation
     if not new_turns:
         return None
     top_position = max(m["position"] for m in new_turns)
+    # What the player said out of character is for the next reply, not a line of the story.
+    new_turns = [m for m in new_turns if not is_out_of_character(m)]
+    if not new_turns:
+        return None
 
     facts_block = "\n".join(f"- {m['content']}" for m in memories) or "(none yet)"
     turns_block = "\n\n".join(
