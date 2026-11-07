@@ -263,9 +263,14 @@ async def _type_summary(db: aiosqlite.Connection, convo_id: str, summary: str,
         base = await (await db.execute(
             "SELECT position, typed FROM memory_summaries WHERE conversation_id = ? AND summary = ?"
             " ORDER BY position DESC LIMIT 1", (convo_id, over))).fetchone()
+        newest = await (await db.execute(
+            "SELECT position, typed FROM memory_summaries WHERE conversation_id = ?"
+            " ORDER BY position DESC LIMIT 1", (convo_id,))).fetchone()
+        # A person's summary at 0 that no pass has read past: what replaces it is theirs as well.
+        theirs = newest and (newest["position"], newest["typed"]) == (0, 1)
         position = base["position"] if base else 0
         # Over a summary of turns past its row, or over one no row holds now: it may tell them too.
-        ahead = base["typed"] == 2 if base else bool(over or row["summary"])
+        ahead = base["typed"] == 2 if base else bool(over or row["summary"]) and not theirs
         await db.execute("DELETE FROM memory_summaries WHERE conversation_id = ? AND position > ?",
                          (convo_id, position))
         await db.execute(

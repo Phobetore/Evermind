@@ -467,17 +467,23 @@ async def test_a_summary_typed_over_an_older_one_leaves_the_turns_read_since_to_
 
 
 @pytest.mark.parametrize(("before", "was"), [
-    ("a pass, then a cut", "To 8."),  # typed over a summary the cut took away
-    ("a pass", ""),                   # typed over none while a pass read on
-], ids=["over one cut away", "over none, read since"])
+    ("a pass, then a cut", "To 8."),          # typed over a summary the cut took away
+    ("a pass", ""),                           # typed over none while a pass read on
+    ("a pass, then a save", "To 8."),         # and put right from another page meanwhile
+    ("a pass, a cut, then a save", "To 8."),  # and saved from another page after the cut
+], ids=["over one cut away", "over none, read since", "over one put right since",
+        "over one cut away, saved twice"])
 async def test_a_summary_typed_over_one_no_pass_holds_is_no_pass_for_a_branch_to_go_back_to(
         client, fake_provider, before, was):
     """It goes to position 0 and may tell any turn the person had read, past a branch's message."""
     convo_id = (await setup_conversation(client))["id"]
     await talk(client, convo_id, 4)
     await extract(client, convo_id, {"facts": [], "summary": "To 8."})
-    if before.endswith("cut"):
+    if "cut" in before:
         await remove_from(client, convo_id, 7)
+    if before.endswith("save"):  # its draft begun over the same summary
+        await client.patch(f"/api/conversations/{convo_id}",
+                           json={"summary": "Saved first.", "summary_was": was})
 
     await client.patch(f"/api/conversations/{convo_id}", json={"summary": "Typed.", "summary_was": was})
 
@@ -562,6 +568,25 @@ async def test_a_summary_kept_by_hand_with_the_automatic_passes_off_goes_with_a_
     shown = fake_provider.captured["payload"].messages[0]["content"]
     assert "CURRENT SUMMARY:\nBy hand, to 60.\n" in shown
     assert "(turn 21)" in shown and "(turn 60)" in shown and "(turn 20)" not in shown
+
+
+@pytest.mark.parametrize("was", ["", "By hand 1."], ids=["over none", "over an older one"])
+async def test_a_summary_kept_by_hand_from_a_draft_begun_before_another_goes_with_a_branch(
+        client, fake_provider, was):
+    """A draft begun on one device before another saved its own: no pass has read past either, and
+    the one it replaces was the person's too."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 3)
+    if was:
+        await client.patch(f"/api/conversations/{convo_id}", json={"summary": was})
+    await client.patch(f"/api/conversations/{convo_id}",
+                       json={"summary": "By hand 2.", "summary_was": was})
+
+    await client.patch(f"/api/conversations/{convo_id}",
+                       json={"summary": "By hand 3.", "summary_was": was})
+
+    branch = await branch_at(client, convo_id, 6)  # the last message
+    assert (branch["memory_position"], branch["summary"]) == (0, "By hand 3.")
 
 
 async def a_premise_then_a_pass(client, convo_id, origin):
