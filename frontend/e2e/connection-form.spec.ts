@@ -66,6 +66,23 @@ test("a generation setting left empty is saved empty, and stays so", async ({ pa
   await forgetMine(request);
 });
 
+test("a connection's own box makes it the default, and the list tags it alone", async ({ page, request }) => {
+  await forgetMine(request);
+  await request.post(`${API}/api/connections`, { data: { name: "Tuned", base_url: "http://127.0.0.1:1/v1" } });
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: /^Tuned/ }).click();
+  const form = page.getByRole("dialog");
+  await form.getByLabel("Default connection").check();
+  await form.getByRole("button", { name: "Save" }).click();
+  await expect(form).toBeHidden();
+
+  await expect(page.getByRole("button", { name: /^Tuned/ })).toContainText("Default");
+  await expect(page.locator("main").getByText("Default", { exact: true })).toHaveCount(1);
+  const [tuned] = await saved(request, "Tuned");
+  expect(tuned.is_default).toBe(true);
+  await forgetMine(request);
+});
+
 test("testing a saved connection saves nothing of what was changed", async ({ page, request }) => {
   await forgetMine(request);
   await request.post(`${API}/api/connections`, {
