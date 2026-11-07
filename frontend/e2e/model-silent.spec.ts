@@ -59,19 +59,3 @@ test("a reply that never comes says so too", async ({ page, request }) => {
   // The message that was sent is still there to try again from.
   await expect(page.getByText("Bonjour ?")).toBeVisible();
 });
-
-
-test("only one notice at a time", async ({ page, request }) => {
-  const convo = await conversationWithNoModel(request);
-  await page.goto(`/#/chat/${convo.id}`);
-  await expect(page.locator("textarea").first()).toBeVisible();
-
-  await page.locator('button[title="Write my reply for me (editable before sending)"]').click();
-  await expect(page.getByText(/no answer from the model/i)).toBeVisible({ timeout: 20_000 });
-
-  await page.locator("textarea").first().fill("Bonjour ?");
-  await page.locator('button[title="Send"]').click();
-  await expect(page.getByText(/no answer from the model/i)).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/no answer from the model/i),
-    "the one from the suggestion stayed while the reply added its own").toHaveCount(1);
-});

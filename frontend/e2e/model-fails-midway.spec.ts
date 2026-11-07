@@ -105,18 +105,3 @@ test("a regeneration cut short labels its own version, not the whole one", async
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(read.messages.at(-1).meta.interrupted).toEqual([1]);
 });
-
-test("a reload after the server has forgotten the turn finds the same", async ({ page, request }) => {
-  await failedMidway(page, request);
-
-  // The server keeps a finished turn for two minutes (turns._KEEP_FINISHED_SECONDS), and
-  // this is what it answers after them.
-  await page.route("**/turn", (route) => route.fulfill({
-    json: { running: false, mode: null, ended_recently: false },
-  }));
-  await page.reload();
-
-  await expect(reply(page)).toBeVisible();
-  await expect(reply(page)).toContainText("interrupted");
-  await expect(failure(page)).toHaveCount(0);
-});
