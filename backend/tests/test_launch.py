@@ -57,7 +57,7 @@ def served(monkeypatch):
 @pytest.fixture(autouse=True)
 def outside_container(monkeypatch):
     """Whether the tests themselves run in Docker must not change their outcome."""
-    monkeypatch.setattr(config, "install_kind", lambda: "source")
+    monkeypatch.setattr(config, "install_kind", lambda: "clone")
 
 
 def free_port() -> int:

@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_DOCKERENV = Path("/.dockerenv")  # Docker puts it in every container
 
 _ENV_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
@@ -73,5 +74,7 @@ def gate_password() -> str:
 
 
 def install_kind() -> str:
-    """``docker`` in a container, which Docker marks with this file; ``source`` otherwise."""
-    return "docker" if Path("/.dockerenv").exists() else "source"
+    """``docker`` in a container, ``clone`` where git can update the source, ``zip`` otherwise."""
+    if _DOCKERENV.exists():
+        return "docker"
+    return "clone" if (_REPO_ROOT / ".git").exists() else "zip"  # .git is a file in a worktree

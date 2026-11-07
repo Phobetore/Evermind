@@ -15,8 +15,11 @@ async def health() -> dict:
 @health_router.get("/api/update")
 async def update() -> dict:
     """What only the server knows for the notice of a newer release: the browser asks GitHub."""
-    if config.install_kind() == "docker":
+    kind = config.install_kind()
+    if kind == "docker":
         command = "docker compose up -d --pull always"
+    elif kind == "zip":
+        command = None  # Settings links to INSTALL.md, which says what to copy across
     elif sys.platform == "win32":
         command = r"git pull; .\scripts\prod.ps1"  # Windows PowerShell has no &&
     else:

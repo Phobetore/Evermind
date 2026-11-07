@@ -392,12 +392,29 @@ function About({
             <p className="text-sm font-semibold text-ember-300">
               {t("settings.about.updateAvailable").replace("{version}", update.version)}
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-mist">
-              {t("settings.about.updateHint")}
-            </p>
-            <code className="mt-2 block overflow-x-auto rounded-lg border border-ink-600 bg-ink-950/60 px-3 py-2 text-xs text-parchment-dim">
-              {installed?.command}
-            </code>
+            {installed?.command ? (
+              <>
+                <p className="mt-1 text-sm leading-relaxed text-mist">
+                  {t("settings.about.updateHint")}
+                </p>
+                <code className="mt-2 block overflow-x-auto rounded-lg border border-ink-600 bg-ink-950/60 px-3 py-2 text-xs text-parchment-dim">
+                  {installed.command}
+                </code>
+              </>
+            ) : (
+              <p className="mt-1 text-sm leading-relaxed text-mist">
+                {t("settings.about.zipHint.before")}{" "}
+                <a
+                  className="text-ember-400 hover:text-ember-300"
+                  href="https://github.com/Phobetore/Evermind/blob/main/INSTALL.md#updating"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  {t("settings.about.zipHint.link")}
+                </a>
+                {t("settings.about.zipHint.after")}
+              </p>
+            )}
             {update.url && (
               <a
                 className="mt-2 inline-block text-sm text-ember-400 hover:text-ember-300"
