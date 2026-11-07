@@ -211,8 +211,7 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
 
         # The backdrop follows, like the persona and the connection: a branch is the
         # same scene carried on differently, and losing the picture behind it would
-        # read as something having gone wrong rather than as a fresh start. The
-        # file is shared, not copied, which is why removing one never deletes it.
+        # read as something having gone wrong rather than as a fresh start.
         await db.execute(
             "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
             " summary, author_note, memory_position, forked_from, forked_at_position,"

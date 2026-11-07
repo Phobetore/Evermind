@@ -75,13 +75,10 @@ async def patch_conversation(convo_id: str, payload: ConversationPatch,
 @router.post("/conversations/{convo_id}/wallpaper")
 async def upload_wallpaper(convo_id: str, file: UploadFile,
                            db: aiosqlite.Connection = Depends(get_db)):
-    previous = (await repo.get(db, convo_id, with_messages=False) or {}).get("wallpaper_url") or ""
     data, extension = await media.read_image_upload(file)
     updated = await repo.update(db, convo_id, {"wallpaper_path": media.save(data, extension)})
     if not updated:
         raise NotFoundError("Conversation not found.", "conversation")
-    # Only if nothing else still points at it: branching shares the one file.
-    await media.forget(db, previous.removeprefix("/api/media/"))
     return updated
 
 
@@ -89,11 +86,9 @@ async def upload_wallpaper(convo_id: str, file: UploadFile,
 async def clear_wallpaper(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
     """Empty string rather than null: the column has no nulls, and the update
     below skips a None as "leave this alone"."""
-    previous = (await repo.get(db, convo_id, with_messages=False) or {}).get("wallpaper_url") or ""
     updated = await repo.update(db, convo_id, {"wallpaper_path": ""})
     if not updated:
         raise NotFoundError("Conversation not found.", "conversation")
-    await media.forget(db, previous.removeprefix("/api/media/"))
     return updated
 
 
