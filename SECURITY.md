@@ -104,11 +104,18 @@ those headers, so Evermind believes them only from the addresses listed in
 request's line in `docker compose logs`). The session cookie is then marked
 `Secure`, at sign-in and each time it is renewed, so the browser never sends it
 over plain HTTP, and wrong passwords are counted for each device, or over IPv6
-for each network, rather than for the proxy. Anything else that reaches Evermind
-from that address is believed just as much, so let only the proxy reach it from
-there.
+for each network, rather than for the proxy.
 [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an nginx
 example.
+
+Anything else that reaches Evermind from that address is believed just as much,
+and can claim a new address for each guess. With a proxy on the same computer,
+any program running there can do it, and so can a page open in its browser when
+the browser reaches Evermind from the proxy's address: behind Docker Desktop,
+where every connection to Evermind's port arrives from one address, or when the
+address named is `127.0.0.1`, which the browser connects from. For that last
+reason the nginx example has its proxy connect from `127.0.0.2`, the address to
+name.
 
 Turn on HSTS at the proxy as well (the `Strict-Transport-Security` header). A
 browser that has been there once then never uses plain HTTP for that name again,
