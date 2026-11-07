@@ -32,7 +32,8 @@ export function ChatMessage({
   onSwipe: (index: number) => void;
   onRegenerate: () => void;
   onContinue: () => void;
-  onEdit: (content: string) => void;
+  /** Whether the server took it: if not, the rewrite stays open. */
+  onEdit: (content: string) => Promise<boolean>;
   onDeleteFrom: () => void;
   onBranch: () => void;
 }) {
@@ -141,9 +142,8 @@ export function ChatMessage({
               <div className="flex gap-2">
                 <button
                   className="btn btn-primary !py-1.5 text-xs"
-                  onClick={() => {
-                    onEdit(draft);
-                    setEditing(false);
+                  onClick={async () => {
+                    if (await onEdit(draft)) setEditing(false);
                   }}
                 >
                   <Check className="h-3.5 w-3.5" /> {t("common.save")}

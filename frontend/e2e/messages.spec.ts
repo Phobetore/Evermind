@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { makeConversation } from "./fixtures";
+import { conversationWithReply, makeConversation } from "./fixtures";
 
 /** What a conversation shows of its messages, and what can be done to them. */
 
@@ -20,4 +20,38 @@ test("a message written on several lines is shown on as many", async ({ page, re
   // One line for each, and a hard break no blank line.
   expect(await text.innerText())
     .toBe("First line\nsecond line.\nAfter a hard break:\nthe last.");
+});
+
+test("what the server does not take of a change to a message is said, and a rewrite is kept", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(reply).toBeVisible();
+
+  await page.route("**/api/messages/*", (route) =>
+    route.fulfill({ status: 500, contentType: "text/html", body: "<h1>Bad gateway</h1>" }));
+  await reply.getByTitle("Edit").click();
+  const editor = reply.locator("textarea");
+  await editor.fill("Rewritten, and not yet saved.");
+  await reply.getByRole("button", { name: "Save" }).click();
+
+  const said = page.getByRole("alert").filter({ hasText: "HTTP 500" });
+  await expect(said).toBeVisible();
+  await expect(editor, "the rewrite went").toHaveValue("Rewritten, and not yet saved.");
+  // Not the reply's banner: its Retry would ask for another reply.
+  await expect(page.getByRole("button", { name: "Retry" })).toHaveCount(0);
+
+  await reply.getByRole("button", { name: "Cancel" }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await reply.getByTitle("Delete from here").click();
+  await expect(said).toBeVisible();
+  await expect(reply).toBeVisible();
+
+  await page.unroute("**/api/messages/*");
+  await reply.getByTitle("Edit").click();
+  await editor.fill("Rewritten.");
+  await reply.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(reply).toContainText("Rewritten.");
+  await expect(said).toHaveCount(0);
 });
