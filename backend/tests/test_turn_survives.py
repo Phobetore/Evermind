@@ -15,6 +15,7 @@ from app import db
 from app.models.schemas import ChatRequest
 from app.prompting import embeddings
 from app.providers.base import CONNECTION_LOST, ProviderError, ProviderEvent
+from app.repositories import conversations as convo_repo
 from app.services import turns
 from tests.test_chat import messages_of, send, setup_conversation
 
@@ -167,6 +168,33 @@ async def test_the_state_says_whether_the_story_changed_as_its_read_does(client,
         await change()
         seen.append(await revision())
     assert len(set(seen)) == len(seen), f"a change went unseen: {seen}"
+
+
+async def _another_device_sends(convo_id):
+    other = await db.connect()
+    try:
+        await convo_repo.add_message(other, convo_id, "user", ["Depuis le PC."], meta={"unanswered": True})
+    finally:
+        await other.close()
+
+
+async def test_a_message_landing_as_the_state_is_asked_makes_the_read_after_it_newer(client, monkeypatch):
+    """The state says how things stood before the turn it may have missed, so that a page does not
+    take the new message, unanswered, for a reply that did not arrive."""
+    convo = await setup_conversation(client)
+    running_for = turns.running_for
+
+    async def landing_first(convo_id):
+        await _another_device_sends(convo_id)
+        return await running_for(convo_id)
+
+    monkeypatch.setattr(turns, "running_for", landing_first)
+    state = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()
+    monkeypatch.setattr(turns, "running_for", running_for)
+    read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+
+    assert not state["running"]
+    assert state["revision"] != read["revision"], "the read looks no newer than the state"
 
 
 async def test_a_continuation_or_a_regeneration_is_the_whole_of_the_message_being_written(
