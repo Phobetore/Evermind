@@ -244,19 +244,25 @@ async def test_a_failed_automatic_pass_waits_for_more_replies_and_says_why(
     assert read["memory_position"] > 0
 
 
-async def test_an_automatic_pass_that_a_cut_overtook_is_no_failure(client, monkeypatch):
-    """The story changed while it read: the next reply asks again, and nothing went wrong."""
+@pytest.mark.parametrize("change", ["cut", "forgotten"])
+async def test_an_automatic_pass_that_a_change_overtook_is_no_failure(client, monkeypatch, change):
+    """The story or a fact changed while it read: the next reply asks again, and nothing went wrong."""
     monkeypatch.setattr("app.services.chat_service.get_provider", Said)
     started, release, _ = waiting_provider(monkeypatch)
     FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
                            ProviderEvent(type="done")]
     convo = await setup_conversation(client)
+    fact = (await client.post(f"/api/conversations/{convo['id']}/memories",
+                              json={"content": "Written by hand."})).json()
     for n in range(memory_service.MAINTENANCE_EVERY):
         await send(client, convo["id"], content=f"exchange {n}")
     try:
         await within(5, started.wait())
-        messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
-        assert (await client.delete(f"/api/messages/{messages[3]['id']}")).status_code == 204
+        if change == "cut":
+            messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
+            assert (await client.delete(f"/api/messages/{messages[3]['id']}")).status_code == 204
+        else:
+            assert (await client.delete(f"/api/memories/{fact['id']}")).status_code == 204
     finally:
         release.set()
     await asyncio.gather(*[t for t in asyncio.all_tasks() if "schedule_if_due" in repr(t)])

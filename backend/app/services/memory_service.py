@@ -98,7 +98,7 @@ def schedule_if_due(convo_id: str) -> None:
             if await is_due(db, convo_id):
                 await run_maintenance(db, convo_id)
         except AppError as exc:
-            if exc.kind in (MEMORY_BUSY, CONVERSATION_CHANGED):
+            if exc.kind in (MEMORY_BUSY, CONVERSATION_CHANGED, FACTS_CHANGED):
                 return  # the next reply asks again
             logger.warning("memory maintenance failed for %s: %s", convo_id, exc.message)
             _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1, "error": error_body(exc)}
@@ -270,10 +270,11 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     async with write_transaction(db):
         current = await convo_repo.get(db, convo_id, with_messages=False)
         now = await memories_repo.list_for_conversation(db, convo_id)
-        if (await convo_repo.turns_through(db, convo_id, top_position) != read
-                or not sent <= {(m["id"], m["content"]) for m in now}):
+        if await convo_repo.turns_through(db, convo_id, top_position) != read:
             raise AppError("The conversation changed while the model read it.", 409,
                            kind=CONVERSATION_CHANGED)
+        if not sent <= {(m["id"], m["content"]) for m in now}:
+            raise AppError("A fact changed while the model read the story.", 409, kind=FACTS_CHANGED)
         changes = plan_memory_changes(parsed, now, top_position)
         added = await _apply(db, convo_id, changes, vectors, top_position)
         # A summary typed meanwhile stays, and holds none of these turns: the next pass reads them.

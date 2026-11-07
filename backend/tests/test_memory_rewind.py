@@ -866,7 +866,7 @@ async def test_a_pass_is_refused_when_a_person_changed_a_fact_it_was_sent(
     resp = await client.post(f"/api/conversations/{convo_id}/memories/extract")
 
     assert resp.status_code == 409, resp.text
-    assert resp.json()["kind"] == "conversation_changed"
+    assert resp.json()["kind"] == "facts_changed"
     left = {"To drop."} | ({"By hand."} if change == "edited" else set())
     assert await names(client, convo_id) == left
     read = await conversation(client, convo_id)
