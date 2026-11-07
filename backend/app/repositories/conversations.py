@@ -327,8 +327,8 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int,
     position = back["position"] if back else 0
     await db.execute("DELETE FROM memory_summaries WHERE conversation_id = ? AND position > ?",
                      (convo_id, position if back else -1))
-    if branch and not back:  # it would tell what happens after the message, in another story
-        summary = ""
+    if branch:  # what the memory had at the message, and nothing of what came after it
+        summary = back["summary"] if back else ""
     elif passes and passes[0]["typed"]:  # what a person wrote stays theirs, part stale
         summary = row["summary"]
         ahead = not back or back["typed"] == 2  # no pass of the turns up to here under it

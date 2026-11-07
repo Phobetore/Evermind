@@ -549,6 +549,43 @@ async def test_a_summary_typed_at_the_start_is_no_pass_for_a_branch_once_a_pass_
     assert await summaries_of(branch["id"]) == []
 
 
+LATER = "Put right: Marco betrays the crew, then the vault floods."
+
+
+async def two_passes_and_the_later_put_right(client, greeting):
+    """Passes at 8 and 16; or, with no greeting, one of message 0 alone (Remember while the first
+    reply is written) and one at 7. Then the person puts the later pass's summary right."""
+    convo_id = (await setup_conversation(client, greeting=greeting))["id"]
+    if greeting:
+        await talk(client, convo_id, 4)
+        await extract(client, convo_id, {"facts": [], "summary": "To 8."})
+        await talk(client, convo_id, 4, first=5)
+    else:
+        await talk(client, convo_id, 1)
+        await read_up_to(convo_id, 0, "To 0.")
+        await talk(client, convo_id, 3, first=2)
+    await extract(client, convo_id, {"facts": [], "summary": "To the end."})
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": LATER})
+    return convo_id
+
+
+@pytest.mark.parametrize(("greeting", "fork", "earlier"), [
+    ("Hello.", 10, (8, "To 8.")),
+    ("", 1, (0, "To 0.")),
+], ids=["passes at 8 and 16", "a first pass of message 0 alone"])
+async def test_a_summary_put_right_over_a_pass_goes_with_no_branch_made_before_that_pass(
+        client, fake_provider, greeting, fork, earlier):
+    """It tells that pass's turns, past the branch's message: the branch starts with what the memory
+    had at its message. The story keeps the person's words."""
+    convo_id = await two_passes_and_the_later_put_right(client, greeting)
+
+    branch = await branch_at(client, convo_id, fork)
+
+    assert (branch["memory_position"], branch["summary"]) == earlier
+    assert await summaries_of(branch["id"]) == [earlier]
+    assert (await conversation(client, convo_id))["summary"] == LATER
+
+
 async def test_a_pass_that_gives_no_summary_keeps_a_typed_one_as_typed(client, fake_provider):
     """Its row holds what the person typed, so that a cut back to it gives that back after a
     later pass has rewritten it."""
