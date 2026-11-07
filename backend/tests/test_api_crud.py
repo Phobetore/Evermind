@@ -400,7 +400,7 @@ async def test_a_generation_setting_left_empty_is_stored_empty(client):
     assert (emptied["temperature"], emptied["max_tokens"]) == (None, 512)
 
 
-async def test_favorites_toggle_filter_and_sort(client):
+async def test_favorites_toggle_and_sort(client):
     plain = await create_character(client, name="Ordinaire")
     fav = await create_character(client, name="Beloved")
     assert fav["is_favorite"] is False
@@ -408,9 +408,6 @@ async def test_favorites_toggle_filter_and_sort(client):
     updated = (await client.put(f"/api/characters/{fav['id']}", json={"is_favorite": True})).json()
     assert updated["is_favorite"] is True
     assert updated["name"] == "Beloved"  # partial update untouched
-
-    only_favs = (await client.get("/api/characters", params={"favorites": "true"})).json()
-    assert [c["id"] for c in only_favs] == [fav["id"]]
 
     everyone = (await client.get("/api/characters")).json()
     assert everyone[0]["id"] == fav["id"]  # favorites sort first

@@ -68,10 +68,9 @@ def _attachment(name: str, extension: str) -> str:
 
 
 @router.get("")
-async def list_characters(kind: str | None = None, q: str | None = None,
-                          tag: str | None = None, favorites: bool = False,
+async def list_characters(kind: str | None = None, q: str | None = None, tag: str | None = None,
                           db: aiosqlite.Connection = Depends(get_db)):
-    return await repo.list_all(db, kind=kind, q=q, tag=tag, favorites=favorites)
+    return await repo.list_all(db, kind=kind, q=q, tag=tag)
 
 
 @router.post("", status_code=201)
