@@ -35,38 +35,26 @@ async def add_connection(client):
 APP_DIR = Path(app_package.__file__).parent
 
 
-def _raised_errors():
-    """Every ``raise AppError(...)`` and ``raise NotFoundError(...)`` in the
-    application, as (file, line, class name, call)."""
+def test_every_raised_error_names_itself():
+    """Every ``raise AppError(...)`` has a kind, and every ``raise NotFoundError(...)`` says what
+    it did not find (its second argument)."""
+    raised, unnamed = 0, []
     for path in sorted(APP_DIR.rglob("*.py")):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if not (isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call)):
                 continue
             func = node.exc.func
             name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
-            if name in ("AppError", "NotFoundError"):
-                yield path.name, node.lineno, name, node.exc
-
-
-def test_the_application_raises_errors():
-    # Otherwise the check below would pass by looking at nothing.
-    assert len(list(_raised_errors())) >= 30
-
-
-@pytest.mark.parametrize(
-    ("file", "line", "name", "call"),
-    list(_raised_errors()),
-    ids=lambda value: value if isinstance(value, str | int) else "",
-)
-def test_every_raised_error_names_itself(file, line, name, call):
-    keywords = {keyword.arg for keyword in call.keywords}
-    if name == "NotFoundError":
-        # The second argument is what was not found.
-        assert len(call.args) >= 2 or "resource" in keywords, (
-            f"{file}:{line} NotFoundError without a resource"
-        )
-    else:
-        assert "kind" in keywords or len(call.args) >= 3, f"{file}:{line} AppError without a kind"
+            keywords = {keyword.arg for keyword in node.exc.keywords}
+            named = {"AppError": "kind" in keywords or len(node.exc.args) >= 3,
+                     "NotFoundError": "resource" in keywords or len(node.exc.args) >= 2}
+            if name in named:
+                raised += 1
+                if not named[name]:
+                    unnamed.append(f"{path.name}:{node.lineno}")
+    # Otherwise the check would pass by looking at nothing.
+    assert raised >= 30
+    assert unnamed == []
 
 
 NOT_FOUND = [
