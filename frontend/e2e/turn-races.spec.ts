@@ -88,6 +88,25 @@ test.describe("Stop", () => {
     await expect(report(page)).toHaveCount(0);
     await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
   });
+
+  test("a stop whose answer was lost is not reported once the reply is seen stopped", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    await page.goto(`/#/chat/${convo.id}`);
+    await send(page, "Vas-y.");
+    await expect(writing(page)).toBeVisible();
+    await page.route(`**/api/conversations/${convo.id}/turn`, async (route) => {
+      if (route.request().method() !== "DELETE") return route.continue();
+      await route.fetch();
+      await route.abort("connectionreset");
+    });
+
+    await stopButton(page).click();
+
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 10_000 }).toBe(false);
+    const reply = (await conversation(request, convo.id)).messages.at(-1);
+    await expect(page.locator(`[data-message-id="${reply.id}"]`)).toBeVisible();
+    await expect(report(page), "still said to be out of reach once it had answered").toHaveCount(0);
+  });
 });
 
 test.describe("sending while a reply is being written", () => {
