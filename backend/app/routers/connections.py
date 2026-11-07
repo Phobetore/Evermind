@@ -24,7 +24,7 @@ async def create_connection(payload: ConnectionIn, db: aiosqlite.Connection = De
 @router.put("/{conn_id}")
 async def update_connection(conn_id: str, payload: ConnectionUpdate,
                             db: aiosqlite.Connection = Depends(get_db)):
-    updated = await repo.update(db, conn_id, payload.model_dump(exclude_unset=True))
+    updated = await repo.update(db, conn_id, payload.model_dump())
     if not updated:
         raise NotFoundError("Connection not found.", "connection")
     return updated

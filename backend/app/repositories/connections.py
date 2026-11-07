@@ -2,9 +2,8 @@ import aiosqlite
 
 from .base import new_id, now_iso
 
-# The fields a null empties, which leaves them to the model.
-_SAMPLING = ("max_tokens", "temperature", "top_p", "frequency_penalty", "presence_penalty")
-_FIELDS = ("name", "provider", "base_url", "model", "context_size", *_SAMPLING)
+_FIELDS = ("name", "provider", "base_url", "model", "context_size",
+           "max_tokens", "temperature", "top_p", "frequency_penalty", "presence_penalty")
 # The marked connection, else the oldest: the one used when a conversation names none.
 _DEFAULT_FIRST = "is_default DESC, created_at, rowid"
 
@@ -71,23 +70,14 @@ async def list_all(db: aiosqlite.Connection) -> list[dict]:
 async def update(db: aiosqlite.Connection, conn_id: str, fields: dict) -> dict | None:
     if not await get(db, conn_id):
         return None
-    if fields.get("is_default"):
+    if fields["is_default"]:
         await _clear_default(db)
-    sets, params = [], []
-    for key in _FIELDS:
-        if key in fields and (fields[key] is not None or key in _SAMPLING):
-            sets.append(f"{key} = ?")
-            params.append(fields[key])
-    if fields.get("api_key") is not None:  # None keeps the key, "" clears it
-        sets.append("api_key = ?")
-        params.append(fields["api_key"])
-    if fields.get("is_default") is not None:
-        sets.append("is_default = ?")
-        params.append(int(fields["is_default"]))
-    sets.append("updated_at = ?")
-    params.append(now_iso())
-    params.append(conn_id)
-    await db.execute(f"UPDATE connections SET {', '.join(sets)} WHERE id = ?", params)
+    await db.execute(
+        f"UPDATE connections SET {', '.join(f'{f} = ?' for f in _FIELDS)},"
+        " api_key = COALESCE(?, api_key), is_default = ?, updated_at = ? WHERE id = ?",
+        (*[fields[f] for f in _FIELDS], fields["api_key"], int(fields["is_default"]), now_iso(),
+         conn_id),
+    )
     await db.commit()
     return await get(db, conn_id)
 

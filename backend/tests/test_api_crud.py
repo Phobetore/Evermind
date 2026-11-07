@@ -259,11 +259,12 @@ async def test_connection_key_masking_and_update(client):
     assert body["api_key_hint"].endswith("1234")
     assert body["is_default"] is True  # first connection becomes default
 
-    # update without api_key keeps the stored key
-    upd = (await client.put(f"/api/connections/{body['id']}", json={"name": "OR"})).json()
-    assert upd["api_key_set"] is True
+    # a PUT is the whole connection: what it leaves out is emptied, but for the key
+    url = f"/api/connections/{body['id']}"
+    upd = (await client.put(url, json={"name": "OR", "base_url": body["base_url"]})).json()
+    assert (upd["name"], upd["model"], upd["api_key_set"]) == ("OR", "", True)
     # explicit empty string clears it
-    upd = (await client.put(f"/api/connections/{body['id']}", json={"api_key": ""})).json()
+    upd = (await client.put(url, json={**upd, "api_key": ""})).json()
     assert upd["api_key_set"] is False
 
 
@@ -393,11 +394,10 @@ async def test_a_generation_setting_left_empty_is_stored_empty(client):
     assert "extra_params" not in created
 
     url = f"/api/connections/{created['id']}"
-    filled = (await client.put(url, json={"temperature": 0, "max_tokens": 512})).json()
+    filled = (await client.put(url, json={**created, "temperature": 0, "max_tokens": 512})).json()
     assert (filled["temperature"], filled["max_tokens"]) == (0, 512)
-    emptied = (await client.put(url, json={"temperature": None, "name": None})).json()
+    emptied = (await client.put(url, json={**filled, "temperature": None})).json()
     assert (emptied["temperature"], emptied["max_tokens"]) == (None, 512)
-    assert emptied["name"] == "Bare"
 
 
 async def test_favorites_toggle_filter_and_sort(client):
