@@ -618,6 +618,29 @@ async def test_a_fact_pinned_since_is_not_touched_and_not_restored_a_second_time
         ("Alice died on the bridge.", 8, True, "auto")]
 
 
+@pytest.mark.parametrize("back", ["cut", "branch"])
+async def test_a_fact_kept_by_a_pin_through_a_cut_forgets_the_correction_of_the_turns_that_went(
+        client, fake_provider, back):
+    """Unpinned later, the next cut would put back the text that correction replaced, even a cut
+    of turns no pass has read."""
+    convo_id = (await setup_conversation(client))["id"]
+    await told_then_corrected(client, convo_id)
+    fact = await fact_named(client, convo_id, "Alice died on the bridge.")
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": True})
+    if back == "cut":
+        await remove_from(client, convo_id, 11)
+    else:
+        fork = await at_position(client, convo_id, 10)
+        convo_id = (await client.post(f"/api/messages/{fork['id']}/branch")).json()["id"]
+        fact = await fact_named(client, convo_id, "Alice died on the bridge.")
+    await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": False})
+    await talk(client, convo_id, 2, first=20)
+
+    await remove_from(client, convo_id, 14)
+
+    assert await stored_facts(client, convo_id) == [("Alice died on the bridge.", 8, False, "auto")]
+
+
 async def test_a_persons_edit_stays_through_a_cut(client, fake_provider):
     """What they wrote replaced the model's correction, and is theirs."""
     convo = await setup_conversation(client)

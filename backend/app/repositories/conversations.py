@@ -304,6 +304,10 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int,
         "UPDATE memories SET content = previous_content, previous_content = NULL,"
         " corrected_at = NULL, embedding = NULL WHERE conversation_id = ? AND source = 'auto'"
         " AND is_pinned = 0 AND corrected_at > ?", (convo_id, cut))
+    # A fact kept as it is: no later cut puts back what a correction from turns now gone replaced.
+    await db.execute(
+        "UPDATE memories SET previous_content = NULL, corrected_at = NULL WHERE conversation_id = ?"
+        " AND corrected_at > ?", (convo_id, cut))
     await db.execute(
         "UPDATE memories SET source_position = ? WHERE conversation_id = ? AND source_position > ?",
         (max(cut, 0), convo_id, cut))
