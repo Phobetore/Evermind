@@ -29,9 +29,22 @@ async def _says(db: aiosqlite.Connection, convo_id: str, content: str) -> bool:
 async def add(db: aiosqlite.Connection, convo_id: str, content: str,
               source_position: int = 0, is_pinned: bool = False,
               source: str = "auto") -> dict | None:
+    """A new fact, or None for a text said already. What a person writes that only the model has
+    said makes the model's fact theirs."""
     content = (content or "").strip()
-    if not content or await _says(db, convo_id, content):
+    if not content:
         return None
+    said = await (await db.execute(
+        "SELECT id, source FROM memories WHERE conversation_id = ? AND content = ?"
+        " ORDER BY source = 'user' DESC LIMIT 1", (convo_id, content))).fetchone()
+    if said:
+        if source != "user" or said["source"] == "user":
+            return None
+        await db.execute(
+            "UPDATE memories SET source = 'user', is_pinned = MAX(is_pinned, ?),"
+            " previous_content = NULL, corrected_at = NULL WHERE id = ?", (int(is_pinned), said["id"]))
+        await db.commit()
+        return await get(db, said["id"])
     vectors = await embeddings.embed([content], kind="passage")
     saved = await add_with_vector(db, convo_id, content, source_position,
                                   embeddings.pack(vectors[0]) if vectors else None,

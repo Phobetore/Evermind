@@ -641,6 +641,24 @@ async def test_a_fact_kept_by_a_pin_through_a_cut_forgets_the_correction_of_the_
     assert await stored_facts(client, convo_id) == [("Alice died on the bridge.", 8, False, "auto")]
 
 
+async def test_a_fact_a_person_writes_that_the_model_holds_becomes_theirs(client, fake_provider):
+    """Rather than refused as there already: the model's copy would go with a cut or a merge."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 4)
+    await extract(client, convo_id, {"facts": [{"content": "The ring is cursed."}]})
+    held = await fact_named(client, convo_id, "The ring is cursed.")
+    url = f"/api/conversations/{convo_id}/memories"
+
+    resp = await client.post(url, json={"content": "The ring is cursed.", "is_pinned": True})
+
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["id"] == held["id"]
+    await remove_from(client, convo_id, 7)
+    assert await stored_facts(client, convo_id) == [("The ring is cursed.", 6, True, "user")]
+    again = await client.post(url, json={"content": "The ring is cursed."})
+    assert (again.status_code, again.json()["kind"]) == (400, "fact_exists")
+
+
 async def test_a_fact_a_person_rewrote_is_theirs_through_any_cut(client, fake_provider):
     """What they wrote replaced the model's words: no cut takes it back to them, nor away with
     the turns the model drew it from."""
