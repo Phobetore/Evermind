@@ -31,7 +31,7 @@ def clean_env(tmp_path, monkeypatch):
     default settings file is a file that does not exist, so that a test that
     forgets ``--no-env-file`` still cannot pick up the real ``.env``."""
     for name in list(os.environ):
-        if name in ("PORT", "BIND") or name.startswith("EVERMIND_"):
+        if name in ("PORT", "BIND", "FORWARDED_ALLOW_IPS") or name.startswith("EVERMIND_"):
             monkeypatch.delenv(name)
     monkeypatch.setattr(os, "environ", dict(os.environ))
     monkeypatch.setattr(config, "default_env_file", lambda: tmp_path / "no-such.env")
@@ -297,7 +297,7 @@ def test_it_starts_uvicorn_on_the_loopback_with_the_resolved_values(clean_env, u
     assert start(monkeypatch, PORT=str(port)) == 0
     assert served == [("app.main:app", {
         "host": "127.0.0.1", "port": port, "reload": False, "reload_dirs": None,
-        "timeout_graceful_shutdown": 5,
+        "timeout_graceful_shutdown": 5, "proxy_headers": False,
     })]
     captured = capsys.readouterr()
     assert (captured.out, captured.err) == (f"Evermind -> http://localhost:{port}\n", "")

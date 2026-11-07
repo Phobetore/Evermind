@@ -106,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
         # A page reading a reply holds its connection open; a model that has hung
         # must not hang the shutdown too.
         timeout_graceful_shutdown=5,
+        # Who the client is and whether it came over https, only from a proxy the owner names.
+        proxy_headers=bool(env.get("FORWARDED_ALLOW_IPS")),
     )
     return 0
 
