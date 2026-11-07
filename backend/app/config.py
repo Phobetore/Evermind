@@ -3,7 +3,6 @@
 import codecs
 import os
 import re
-from collections.abc import Mapping
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -16,78 +15,26 @@ def default_env_file() -> Path:
     return _REPO_ROOT / ".env"
 
 
-def _settings_text(data: bytes) -> str:
-    """The text of a settings file, in UTF-8, UTF-16 or UTF-32.
-
-    A byte order mark says which. The UTF-32 ones are looked for first: the
-    little-endian one starts with the little-endian mark of UTF-16, and read as
-    UTF-16 the file would come out with a NUL between its letters and not one
-    key. Without a mark, a file that starts with ASCII characters gives itself
-    away by its NUL bytes: UTF-16 puts one after each character in little-endian
-    and before each in big-endian. UTF-32 without a mark has NULs on both sides,
-    which fits neither, and is refused rather than guessed at.
-    """
-    if data.startswith((codecs.BOM_UTF32_LE, codecs.BOM_UTF32_BE)):
-        return data.decode("utf-32")
-    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
-        return data.decode("utf-16")
-    head = data[:8]
-    after, before = head[1::2].count(0), head[0::2].count(0)
-    if after and not before:
-        return data.decode("utf-16-le")
-    if before and not after:
-        return data.decode("utf-16-be")
-    if after and before:
-        raise UnicodeError("NUL bytes that fit neither byte order of UTF-16")
-    return data.decode("utf-8-sig")
-
-
-def load_env_file(path: Path) -> list[str]:
-    """Put the settings of a ``.env`` file into the environment; return the keys set.
-
-    The file is read here rather than by the launch scripts because bash and
-    PowerShell each read it a little differently, and a setting that one of them
-    misreads is silent: a password that looks configured and is never asked for.
-    The format is the plain ``KEY=value`` one, with these decisions made on
-    purpose:
-
-    - The file may start with a byte order mark and use CRLF line endings, which
-      is what Notepad and PowerShell write. Neither may end up in a key or value.
-    - UTF-16 is understood as well as UTF-8, because that is what ``>`` and
-      ``Out-File`` write in Windows PowerShell 5.1. That PowerShell always writes
-      a byte order mark; other tools may not, and the NUL bytes show the order.
-      UTF-32 is understood too when it starts with its mark, as
-      ``Out-File -Encoding utf32`` writes it.
-    - Quotes belong to the value, and ``#`` starts a comment only at the start of
-      a line, because a password is allowed to contain one.
-    - A variable that is already set and not empty wins over the file, so that
-      ``PORT=3001 python -m app`` does what it says. An empty one does not: the
-      launch scripts always treated it as unset.
-
-    A missing file is not an error. One that exists but cannot be read, or is not
-    text in any of these encodings, raises OSError or UnicodeError, before
-    anything has been set.
-    """
+def load_env_file(path: Path) -> None:
+    """Put the ``KEY=value`` lines of a ``.env`` into the environment, as written:
+    quotes belong to the value, and ``#`` starts a comment only at the start of a
+    line, because a password may hold one. A variable already set and not empty
+    wins over the file. UTF-8 (with or without a byte order mark) and UTF-16
+    with one (what PowerShell 5.1 writes) are read; anything else raises ValueError.
+    A missing file is not an error."""
     try:
         data = path.read_bytes()
     except FileNotFoundError:
-        return []
-    keys: list[str] = []
-    for raw in _settings_text(data).split("\n"):
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        line = line.removeprefix("export ")
-        key, equals, value = line.partition("=")
-        key, value = key.strip(), value.strip()
-        if not equals or not _ENV_KEY.fullmatch(key):
-            continue
-        if os.environ.get(key):
-            continue
-        os.environ[key] = value
-        if key not in keys:
-            keys.append(key)
-    return keys
+        return
+    utf16 = data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE))
+    text = data.decode("utf-16" if utf16 else "utf-8-sig")
+    if "\0" in text:
+        raise ValueError("it has NUL bytes: save it as UTF-8, or as UTF-16 with a byte order mark")
+    for line in text.split("\n"):
+        key, equals, value = line.strip().removeprefix("export ").partition("=")
+        key = key.strip()
+        if equals and _ENV_KEY.fullmatch(key) and not os.environ.get(key):
+            os.environ[key] = value.strip()
 
 
 def data_dir() -> Path:
@@ -123,45 +70,6 @@ def ui_dir() -> Path:
 def gate_password() -> str:
     """Empty means no password, which is the default."""
     return os.environ.get("EVERMIND_GATE_PASSWORD", "").strip()
-
-
-def parse_root_path(raw: str, name: str) -> str:
-    """The path prefix a reverse proxy serves Evermind under, as uvicorn wants
-    it: a path that starts with a slash and does not end with one, and nothing
-    at all for the root. ``name`` is the setting to blame when it is not one.
-
-    A trailing slash is taken off rather than refused, since ``/evermind/`` is
-    how the same prefix looks in a proxy's own configuration. Anything that
-    could not be part of a path is refused here, because it would only come
-    back as a redirect that leads nowhere, or somewhere else: a query, a
-    fragment or whitespace; ``//`` anywhere, which at the start is another site
-    to a browser that follows the redirect; a backslash, which a browser reads as
-    a slash; a ``%``, which hides dots and slashes from these checks until
-    something decodes it; and a ``.`` or ``..`` segment, which a browser or a
-    proxy resolves away.
-    """
-    path = raw.strip()
-    if not path:
-        return ""
-    if not path.startswith("/"):
-        raise ValueError(f"{name} must start with /, got {raw!r}")
-    kept = path.rstrip("/")
-    if re.search(r"[\s?#\\%]", path) or path.startswith("//") or "//" in kept:
-        raise ValueError(f"{name} must be a plain path such as /evermind, got {raw!r}")
-    if any(segment in (".", "..") for segment in kept.split("/")):
-        raise ValueError(f"{name} must be a plain path such as /evermind, got {raw!r}")
-    return kept
-
-
-def root_path(env: Mapping[str, str] | None = None) -> str:
-    """The path Evermind is served under by a reverse proxy that removes it
-    before passing the request on, from EVERMIND_ROOT_PATH. Empty, the default,
-    means it is served at the root. The server needs to be told: it is what lets
-    the redirect of an old bookmark go to the right place.
-
-    Raises ValueError for a value that is not a path prefix."""
-    source = os.environ if env is None else env
-    return parse_root_path(source.get("EVERMIND_ROOT_PATH", ""), "EVERMIND_ROOT_PATH")
 
 
 def allowed_hosts() -> list[str]:

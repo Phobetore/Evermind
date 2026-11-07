@@ -29,15 +29,11 @@ async def make_client(tmp_path, monkeypatch):
     a new application, with the defaults above plus ``env``, on the same
     database as the previous one. That is what lets a test log in, change the
     password and see what the next start makes of the old session.
-
-    ``root_path`` is not a setting: it is what the server tells the application
-    about the prefix it is served under (``uvicorn --root-path``), and the
-    requests then carry the prefix, as uvicorn's do.
     """
     monkeypatch.setenv("EVERMIND_DATA_DIR", str(tmp_path / f"data-{uuid.uuid4().hex}"))
 
     @asynccontextmanager
-    async def make(*, root_path: str = "", **env: str):
+    async def make(**env: str):
         # Start from the defaults every time, so that a call says everything
         # about the configuration it starts with.
         _default_settings(tmp_path, monkeypatch)
@@ -48,7 +44,7 @@ async def make_client(tmp_path, monkeypatch):
 
         app = create_app()
         await init_db()
-        transport = httpx.ASGITransport(app=app, root_path=root_path)
+        transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as c:
             yield c
 

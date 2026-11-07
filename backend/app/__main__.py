@@ -1,124 +1,18 @@
-"""``python -m app``: start Evermind.
-
-One entry point for every way of starting Evermind, so that the settings file,
-the port and the warnings behave the same wherever it runs.
-"""
+"""``python -m app``: start Evermind, the interface and the API on one port."""
 
 import argparse
-import errno
-import ipaddress
 import os
 import socket
 import sys
-from collections.abc import Mapping
-from dataclasses import dataclass
 from pathlib import Path
 
 from . import config
 from .services import update_check
 
-# What a bind reports when another program has the port.
-_PORT_TAKEN = errno.EADDRINUSE
-
-# What it reports when this program may not use the port: one below 1024 for
-# someone who is not an administrator, on POSIX. Windows has no such ports but
-# says "access denied" all the same, both for a port the system keeps back and
-# for one that another program holds for itself alone, so there it only means a
-# lack of rights when nobody is listening on the port.
-_NO_RIGHTS = {errno.EACCES, errno.EPERM, getattr(errno, "WSAEACCES", errno.EACCES)}
-
-# How long to wait for a program that may be listening on the port to answer.
-_LISTENER_TIMEOUT_S = 0.15
-
-
-@dataclass(frozen=True)
-class Listen:
-    host: str
-    port: int
-    dev: bool
-    # The prefix a reverse proxy serves Evermind under; empty at the root.
-    root_path: str = ""
-
-
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="python -m app",
-        description="Start Evermind: the interface and the API on one port.",
-    )
-    parser.add_argument(
-        "--lan", action="store_true", help="also listen on the local network (0.0.0.0)"
-    )
-    parser.add_argument(
-        "--dev",
-        action="store_true",
-        help="serve the API alone, restarted on every change, for the Vite dev server to use",
-    )
-    parser.add_argument(
-        "--check",
-        action="store_true",
-        help="print the port that would be used and exit without starting anything",
-    )
-    parser.add_argument("--host", metavar="HOST", help="address to listen on")
-    parser.add_argument("--port", metavar="N", help="port to listen on")
-    parser.add_argument(
-        "--root-path",
-        metavar="PATH",
-        help="the path a reverse proxy serves Evermind under, such as /evermind "
-        "(default: EVERMIND_ROOT_PATH, else none)",
-    )
-    parser.add_argument("--data-dir", metavar="DIR", help="where the database and media live")
-    parser.add_argument("--env-file", metavar="PATH", help="settings file (default: .env)")
-    parser.add_argument(
-        "--no-env-file", action="store_true", help="do not read any settings file"
-    )
-    return parser.parse_args(argv)
-
-
-def _port(name: str, raw: str) -> int:
-    try:
-        port = int(raw)
-    except ValueError:
-        raise ValueError(f"{name} must be a number, got {raw!r}") from None
-    if not 1 <= port <= 65535:
-        raise ValueError(f"{name} must be between 1 and 65535, got {raw!r}")
-    return port
-
-
-def resolve_listen(args: argparse.Namespace, env: Mapping[str, str]) -> Listen:
-    """Work out where to listen. A value that is set but empty counts as unset,
-    since ``PORT=`` is what a settings file looks like once its value is erased."""
-    if args.host:
-        host = args.host
-    elif args.dev:
-        # Vite is what the network sees in development; the API stays behind it.
-        host = "127.0.0.1"
-    elif args.lan:
-        host = "0.0.0.0"
-    else:
-        host = env.get("BIND") or "127.0.0.1"
-
-    if args.port is not None:
-        port = _port("--port", args.port)
-    elif args.dev:
-        port = _port("EVERMIND_BACKEND_PORT", env.get("EVERMIND_BACKEND_PORT") or "8000")
-    else:
-        port = _port("PORT", env.get("PORT") or "3000")
-
-    if args.root_path is not None:
-        root_path = config.parse_root_path(args.root_path, "--root-path")
-    else:
-        root_path = config.root_path(env)
-    return Listen(host, port, args.dev, root_path)
-
 
 def lan_address() -> str | None:
-    """The address other devices on the network can reach this computer by.
-
-    Connecting a UDP socket sends nothing; it only makes the system pick the
-    route, and so the local address, it would use to reach that destination.
-    192.0.2.1 is reserved for documentation, so nothing answers there. No route,
-    no address.
-    """
+    """The address other devices reach this computer by. Connecting a UDP socket
+    sends nothing; it only makes the system pick the route, and so the address."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("192.0.2.1", 9))
@@ -127,219 +21,90 @@ def lan_address() -> str | None:
         return None
 
 
-def _wildcard(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
-    """The address that ``host`` is if it covers every interface (0.0.0.0, ::
-    and their other spellings, such as ``0``, which the system reads as 0.0.0.0),
-    and None for a host that names one interface."""
-    try:
-        address = ipaddress.ip_address(host)
-    except ValueError:
-        if not (host.isascii() and host.isdigit()):
-            return None
-        try:
-            address = ipaddress.IPv4Address(int(host))
-        except ValueError:
-            return None
-    return address if address.is_unspecified else None
+def port_taken(port: int) -> bool:
+    # A connection, not a bind: Windows lets a bind succeed next to a listener
+    # on the other side of the wildcard.
+    with socket.socket() as s:
+        s.settimeout(0.2)
+        return s.connect_ex(("127.0.0.1", port)) == 0
 
 
-def port_in_use(host: str, port: int) -> bool:
-    """Whether something already holds the port.
-
-    The probe has to bind the way uvicorn will. On POSIX uvicorn sets
-    SO_REUSEADDR, so a port that only has closed connections waiting out
-    TIME_WAIT is free for it, and the probe sets the option too: without it a
-    restart a few seconds after a stop would be told the port is busy. On Windows
-    the option means something else, it lets a second socket bind to a port that
-    is in active use, which is exactly the case to catch, so it stays off.
-
-    Only the failures that mean "the port is taken" count. A host that is not an
-    address of this computer, or a name that does not resolve, fails the bind too,
-    and telling someone to pick another port for that would send them the wrong
-    way; uvicorn reports those itself, with the real reason.
-
-    A port that this program may not bind, and that nobody is listening on, is not
-    taken either, and PermissionError says so.
-    """
-    family = socket.AF_INET6 if ":" in host else socket.AF_INET
-    try:
-        with socket.socket(family, socket.SOCK_STREAM) as s:
-            if os.name != "nt":
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind((host, port))
-    except OSError as err:
-        if err.errno in _NO_RIGHTS:
-            if _someone_listens(host, port):
-                return True
-            raise PermissionError(err.errno, f"Port {port} needs administrator rights") from err
-        return err.errno == _PORT_TAKEN
-    # Windows lets a bind succeed next to a listener on the other side of the
-    # wildcard, in either direction: 127.0.0.1 or the network address while
-    # another program holds 0.0.0.0, and 0.0.0.0 while another holds 127.0.0.1
-    # alone, or the network address alone. Both programs then run, the second one
-    # sharing the first one's data folder or only being reached by part of the
-    # traffic. The bind cannot see that; a connection can.
-    return _someone_listens(host, port)
+def say(*lines: str) -> None:
+    print(*lines, sep="\n", file=sys.stderr, flush=True)
 
 
-def _someone_listens(host: str, port: int) -> bool:
-    """Whether a program answers on the port at ``host``. When ``host`` covers
-    every interface, that is on the loopback or, for IPv4, on the network address
-    when it is known. That address is IPv4, so a program holding it says nothing
-    about a server bound to ``::``."""
-    wildcard = _wildcard(host)
-    if wildcard is None:
-        return _has_listener(host, port)
-    if wildcard.version == 6:
-        return _has_listener("::1", port)
-    if _has_listener("127.0.0.1", port):
-        return True
-    lan = lan_address()
-    return lan is not None and _has_listener(lan, port)
-
-
-def _has_listener(host: str, port: int) -> bool:
-    family = socket.AF_INET6 if ":" in host else socket.AF_INET
-    try:
-        with socket.socket(family, socket.SOCK_STREAM) as s:
-            # A listener accepts at once. Windows takes about two seconds to
-            # refuse a closed loopback port, and there is no point waiting for it.
-            s.settimeout(_LISTENER_TIMEOUT_S)
-            s.connect((host, port))
-    except OSError:
-        return False
-    return True
-
-
-def _is_loopback(host: str) -> bool:
-    if host == "localhost":
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        # A name that is not an address: it may resolve to anything, so assume
-        # the network can reach it.
-        return False
-
-
-def _browse_host(host: str) -> str:
-    """What to put in the address printed for a browser: localhost wherever
-    that answers, and the address itself where it cannot. Bound to one address
-    of the network, the computer refuses connections to localhost."""
-    if _wildcard(host) is not None or _is_loopback(host):
-        return "localhost"
-    return f"[{host}]" if ":" in host else host
-
-
-def _say(*lines: str, file=None) -> None:
-    # Flushed because a script that reads the output through a pipe would
-    # otherwise see nothing until the server stops.
-    for line in lines:
-        print(line, file=file, flush=True)
-
-
-def _load_settings(args: argparse.Namespace) -> str | None:
-    """Put the settings file into the environment. Returns what to tell the
-    person when that cannot be done, and None when it has been."""
-    # The default file is optional, since Evermind runs without one. A file that
-    # was asked for by name is not: a typo there would otherwise start the server
-    # without the settings the person meant to give it.
-    env_file = Path(args.env_file) if args.env_file else config.default_env_file()
-    if args.env_file and not env_file.exists():
-        return f"The settings file {env_file} does not exist."
-    try:
-        config.load_env_file(env_file)
-    except UnicodeError:
-        reason = "it is not valid UTF-8, UTF-16 or UTF-32 text"
-    except OSError as err:
-        reason = err.strerror or str(err)
-    else:
-        return None
-    return f"Cannot read the settings file {env_file}: {reason}."
+def fail(*lines: str) -> int:
+    say(*lines)
+    return 1
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
+    parser = argparse.ArgumentParser(prog="python -m app", description=__doc__)
+    parser.add_argument("--lan", action="store_true", help="listen on the local network")
+    parser.add_argument("--dev", action="store_true", help="the API alone, for the Vite server")
+    parser.add_argument("--check", action="store_true", help="print the port and exit")
+    parser.add_argument("--no-env-file", action="store_true", help="do not read .env")
+    args = parser.parse_args(argv)
 
-    if not args.no_env_file and (problem := _load_settings(args)):
-        _say(problem, file=sys.stderr)
-        return 1
-    if args.data_dir:
-        # After the settings file, so the flag wins over a data directory set there.
-        os.environ["EVERMIND_DATA_DIR"] = args.data_dir
-
+    env_file = config.default_env_file()
     try:
-        listen = resolve_listen(args, os.environ)
-    except ValueError as err:
-        _say(str(err), file=sys.stderr)
-        return 1
+        if not args.no_env_file:
+            config.load_env_file(env_file)
+    except (OSError, ValueError) as err:  # a UnicodeError is a ValueError
+        return fail(f"Cannot read {env_file}: {err}")
 
-    # In development the API's port is a setting of its own: PORT is Vite's, and
-    # changing it would not move the API.
-    example = "EVERMIND_BACKEND_PORT=8001" if listen.dev else "PORT=3001"
-    try:
-        taken = port_in_use(listen.host, listen.port)
-    except PermissionError:
-        _say(
-            f"Port {listen.port} needs administrator rights. "
-            f"Pick a port above 1024, for example {example}.",
-            file=sys.stderr,
-        )
-        return 1
-    if taken:
-        _say(
-            f"Port {listen.port} is already in use.",
-            "If Evermind is still running, stop it and run this again. "
-            f"Otherwise put a free port in .env next to the scripts, for example {example}.",
-            file=sys.stderr,
-        )
-        return 1
+    env = os.environ
+    host = "127.0.0.1" if args.dev else "0.0.0.0" if args.lan else env.get("BIND") or "127.0.0.1"
+    name, default = ("EVERMIND_BACKEND_PORT", "8000") if args.dev else ("PORT", "3000")
+    raw = env.get(name) or default
+    if not (raw.isascii() and raw.isdigit() and 1 <= int(raw) <= 65535):
+        return fail(f"{name} must be a number from 1 to 65535, got {raw!r}.")
+    port = int(raw)
 
+    if port_taken(port):
+        return fail(
+            f"Port {port} is already in use.",
+            f"If Evermind is still running, stop it. Otherwise put {name}=<a free port> in .env.",
+        )
     if args.check:
-        _say(str(listen.port))
+        print(port, flush=True)
         return 0
-
-    # In development the page comes from the Vite server, so there may be no build.
-    if not listen.dev and not (config.ui_dir() / "index.html").is_file():
-        _say(
+    if not args.dev and not (config.ui_dir() / "index.html").is_file():
+        return fail(
             f"The interface has not been built ({config.ui_dir()} has no index.html).",
-            'Run scripts/prod.ps1 or scripts/prod.sh, which build it, or "npm run build" '
-            "in frontend/.",
-            file=sys.stderr,
+            'Run scripts/prod.ps1 or scripts/prod.sh, or "npm run build" in frontend/.',
         )
-        return 1
 
-    # Inside a container docker-compose.yml decides what is exposed and where, so
-    # an address printed from in here would be wrong and a warning beside the point.
+    # In a container docker-compose.yml decides what is exposed: an address or a
+    # warning printed from in here would be wrong.
     if update_check.install_kind() != "docker":
-        if not listen.dev:
-            _say(f"Evermind -> http://{_browse_host(listen.host)}:{listen.port}")
-            wildcard = _wildcard(listen.host)
-            if wildcard is not None and wildcard.version == 4 and (lan := lan_address()):
-                _say(f"            http://{lan}:{listen.port}  (from the local network)")
-        exposed = not _is_loopback(listen.host) or (listen.dev and args.lan)
-        if exposed and not config.gate_password():
-            _say(
+        local = host in ("127.0.0.1", "localhost", "::1")
+        if not args.dev:
+            shown = "localhost" if local or host in ("0.0.0.0", "::") else host
+            print(f"Evermind -> http://{shown}:{port}", flush=True)
+            if host == "0.0.0.0" and (lan := lan_address()):
+                print(f"            http://{lan}:{port}  (from the local network)", flush=True)
+            if not local and sys.platform == "win32":
+                # Windows drops inbound connections that no rule allows.
+                say(
+                    "Other devices need this rule once, in an administrator PowerShell:",
+                    f"  New-NetFirewallRule -DisplayName 'Evermind ({port})' -Direction Inbound "
+                    f"-Protocol TCP -LocalPort {port} -Action Allow",
+                )
+        if (not local or (args.dev and args.lan)) and not config.gate_password():
+            say(
                 "No password is set, so anyone on this network can read your conversations.",
                 "Put EVERMIND_GATE_PASSWORD in .env to be asked for one.",
-                file=sys.stderr,
             )
 
-    # Imported here so that --help, --check and the tests do not pay for it.
     import uvicorn
 
-    options = {}
-    if listen.dev:
-        # The app folder only: the data folder is written to all the time and
-        # would restart the server on every message.
-        options["reload_dirs"] = [str(Path(__file__).resolve().parent)]
     uvicorn.run(
-        "app.main:app", host=listen.host, port=listen.port, reload=listen.dev,
-        root_path=listen.root_path,
-        # A page reading a reply holds its connection open. Shutting down waits for
-        # those a moment and no longer, or a model that has hung would hang this too.
+        "app.main:app", host=host, port=port, reload=args.dev,
+        reload_dirs=[str(Path(__file__).resolve().parent)] if args.dev else None,
+        # A page reading a reply holds its connection open; a model that has hung
+        # must not hang the shutdown too.
         timeout_graceful_shutdown=5,
-        **options,
     )
     return 0
 

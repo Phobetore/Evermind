@@ -134,16 +134,3 @@ async def test_the_login_is_checked_too(make_client):
         r = await c.post("/api/characters", json=CHARACTER,
                          headers={"origin": "http://evil.example"})
         assert r.status_code == 403
-
-
-async def test_a_root_path_is_judged_too(make_client):
-    import httpx
-
-    from app.main import create_app
-
-    async with make_client():
-        transport = httpx.ASGITransport(app=create_app(), root_path="/evermind")
-        async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as prefixed:
-            r = await prefixed.post("/evermind/api/characters", json=CHARACTER,
-                                    headers={"origin": "http://evil.example"})
-    assert r.status_code == 403
