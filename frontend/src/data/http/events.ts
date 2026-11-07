@@ -1,4 +1,4 @@
-import type { ChatEvent } from "@/types";
+import type { TurnEvent } from "@/types";
 import { networkFailure } from "./request";
 
 /** Dispatch each server-sent event of a streaming answer. Resolves when the
@@ -6,12 +6,10 @@ import { networkFailure } from "./request";
  *  failed one has raised by now. */
 export async function readEvents(
   pending: Promise<Response>,
-  onEvent: (event: ChatEvent) => void,
+  onEvent: (event: TurnEvent) => void,
 ): Promise<void> {
   const resp = await pending;
-  // A response with no body object, a 204 for one, has nothing to read. An idle
-  // conversation answers a request to follow its turn with a 200 and a stream
-  // that is empty, which the loop below ends on at once.
+  // A response with no body object, a 204 for one, has nothing to read.
   if (!resp.body) return;
 
   const reader = resp.body.getReader();
@@ -21,9 +19,9 @@ export async function readEvents(
   const flush = (raw: string) => {
     for (const line of raw.split("\n")) {
       if (!line.startsWith("data:")) continue;
-      let event: ChatEvent;
+      let event: TurnEvent;
       try {
-        event = JSON.parse(line.slice(5).trim()) as ChatEvent;
+        event = JSON.parse(line.slice(5).trim()) as TurnEvent;
       } catch {
         /* partial JSON never happens on \n\n boundaries; ignore garbage */
         continue;

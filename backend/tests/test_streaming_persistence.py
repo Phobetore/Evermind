@@ -1,160 +1,76 @@
 """The reply is written while it streams, not only once it is finished.
 
-Closing a tab tears the request down, and nothing afterwards reliably still has
-a database connection to save with: a handler that tried used to sit here and
-was never once reached under a real disconnect. Writing as we go means whatever
-arrived is already kept, without depending on cleanup at all.
-
-The turn is driven as a generator here rather than through the test client: the
-ASGI transport buffers the whole response before handing over a single line, so
-a stream cannot be interrupted, or even observed, half way through it.
+A server that goes down leaves a turn anywhere, and nothing afterwards gets to save what had
+arrived: writing as it goes means whatever arrived is already kept, marked as cut short until
+the last write says it is whole.
 """
 
 import asyncio
 
 import pytest
 
-from app.db import _connect
 from app.models.schemas import ChatRequest
 from app.providers.base import ProviderEvent
-from app.services import chat_service
-from tests.test_chat import setup_conversation
+from app.services import turns
+from tests.test_chat import messages_of, setup_conversation
 
 
-class UnhurriedProvider:
-    """Streams slowly enough that the turn can be cut in the middle of it."""
+class HeldBack:
+    """Five words, then nothing more until the test lets it go."""
+
+    let_go: asyncio.Event
 
     def __init__(self, connection):
         self.connection = connection
 
     async def stream_chat(self, payload):
-        for i in range(12):
+        for i in range(5):
             yield ProviderEvent(type="delta", text=f"mot{i} ")
-            await asyncio.sleep(0.08)
+        await HeldBack.let_go.wait()
+        yield ProviderEvent(type="delta", text="fin")
         yield ProviderEvent(type="done")
 
 
 @pytest.fixture()
-def unhurried(monkeypatch):
-    monkeypatch.setattr("app.services.chat_service.get_provider", UnhurriedProvider)
-    monkeypatch.setattr("app.services.memory_service.get_provider", UnhurriedProvider)
+def held_back(monkeypatch):
+    HeldBack.let_go = asyncio.Event()
+    monkeypatch.setattr("app.services.chat_service.get_provider", HeldBack)
+    monkeypatch.setattr("app.services.chat_service._FLUSH_SECONDS", 0)
 
 
-async def _messages(client, convo_id):
-    return (await client.get(f"/api/conversations/{convo_id}")).json()["messages"]
-
-
-async def test_a_turn_cut_short_keeps_what_had_arrived(client, unhurried):
+async def test_a_server_going_down_keeps_every_word_written_and_says_it_was_cut_short(
+        client, held_back):
     convo = await setup_conversation(client)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Coupe-moi"))
 
-    db = await _connect()
-    try:
-        turn = chat_service.stream_turn(
-            db, ChatRequest(conversation_id=convo["id"], mode="send", content="Coupe-moi")
-        )
-        deltas = 0
-        async for chunk in turn:
-            if '"delta"' in chunk:
-                deltas += 1
-                if deltas >= 6:
-                    break  # the reader goes away, as a closed tab does
-        await turn.aclose()
-    finally:
-        await db.close()
+    async def written():
+        while "mot4" not in (await messages_of(client, convo["id"]))[-1]["content"]:
+            await asyncio.sleep(0.01)
 
-    messages = await _messages(client, convo["id"])
-    assert deltas >= 6
-    assert messages[-1]["role"] == "assistant", (
-        f"the text already generated should survive, got {[m['role'] for m in messages]}"
-    )
-    assert messages[-1]["content"].startswith("mot0")
-    assert messages[-1]["meta"].get("streaming") is True, (
-        "a reply that never finished should say so, so it can be told apart "
-        "from one the model simply kept short"
-    )
+    await asyncio.wait_for(written(), timeout=10)
+    turn.task.cancel()  # what a server shutting down does to it
+    await asyncio.wait_for(turn.finished.wait(), timeout=5)
+
+    reply = (await messages_of(client, convo["id"]))[-1]
+    assert reply["role"] == "assistant"
+    assert reply["content"] == "mot0 mot1 mot2 mot3 mot4"
+    assert reply["meta"] == {"interrupted": [0]}
+    assert await turns.running_for(convo["id"]) is None
 
 
-async def strand_a_reply(client, convo_id):
-    """A turn that is cut off after a few words by a reader going away, leaving the
-    reply marked as being written."""
-    db = await _connect()
-    try:
-        turn = chat_service.stream_turn(
-            db, ChatRequest(conversation_id=convo_id, mode="send", content="Coupe-moi")
-        )
-        deltas = 0
-        async for chunk in turn:
-            if '"delta"' in chunk:
-                deltas += 1
-                if deltas >= 4:
-                    break
-        await turn.aclose()
-    finally:
-        await db.close()
-
-    stranded = (await _messages(client, convo_id))[-1]
-    assert stranded["meta"].get("streaming") is True
-    return stranded
-
-
-async def test_the_next_turn_settles_a_reply_left_mid_write(client, unhurried):
-    """The mark says "a turn is writing this right now". When the reader goes
-    away there is nothing left to clear it, so it outlives the turn — and the
-    chat view hides anything carrying it while a turn is live, which made an
-    interrupted reply vanish on every generation afterwards. By the time another
-    turn starts nothing is writing it any more, so it is settled into what it
-    really is."""
+async def test_a_reply_says_it_is_unfinished_until_it_is_whole(client, held_back):
     convo = await setup_conversation(client)
-    stranded = await strand_a_reply(client, convo["id"])
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Ecris-moi"))
 
-    await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "send", "content": "Et ensuite ?",
-    })
+    async def cut_short():
+        while (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") != [0]:
+            await asyncio.sleep(0.01)
 
-    settled = next(m for m in await _messages(client, convo["id"]) if m["id"] == stranded["id"])
-    assert "streaming" not in settled["meta"], (
-        "a stale mark keeps the reply hidden through every later turn"
-    )
-    assert settled["meta"].get("interrupted") == [0], (
-        "the view already knows how to label an interrupted reply; nothing was "
-        "ever setting the key it reads"
-    )
+    await asyncio.wait_for(cut_short(), timeout=10)
+    HeldBack.let_go.set()
+    await asyncio.wait_for(turn.finished.wait(), timeout=10)
 
-
-async def test_continuing_a_reply_left_mid_write_settles_it_and_finishes_it(client, unhurried):
-    """The moment you tried to continue it was where it used to vanish. Continuing
-    settles the mark, and the reply is whole when the turn is, so it carries neither."""
-    convo = await setup_conversation(client)
-    stranded = await strand_a_reply(client, convo["id"])
-
-    await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "continue",
-    })
-
-    finished = next(m for m in await _messages(client, convo["id"]) if m["id"] == stranded["id"])
-    assert "streaming" not in finished["meta"]
-    assert "interrupted" not in finished["meta"], "a whole reply is labelled as cut short"
-    assert finished["content"].strip().endswith("mot11")
-
-
-async def test_the_streaming_mark_is_cleared_once_the_reply_lands(client, unhurried):
-    convo = await setup_conversation(client)
-    resp = await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "send", "content": "Ecris-moi",
-    })
-    assert resp.status_code == 200
-
-    messages = await _messages(client, convo["id"])
-    assert messages[-1]["content"].strip().endswith("mot11")
-    assert "streaming" not in messages[-1]["meta"]
-
-
-async def test_the_reply_is_one_message_not_one_per_flush(client, unhurried):
-    """Every flush rewrites the same row; a fresh insert each time would stack up."""
-    convo = await setup_conversation(client)
-    await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "send", "content": "Ecris-moi",
-    })
-
-    roles = [m["role"] for m in await _messages(client, convo["id"])]
-    assert roles == ["assistant", "user", "assistant"], roles
+    messages = await messages_of(client, convo["id"])
+    assert [m["role"] for m in messages] == ["assistant", "user", "assistant"], "a write added a message"
+    assert messages[-1]["content"] == "mot0 mot1 mot2 mot3 mot4 fin"
+    assert "interrupted" not in messages[-1]["meta"]

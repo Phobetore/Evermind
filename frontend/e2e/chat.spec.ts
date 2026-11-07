@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { conversationWithReply, stopTurn } from "./fixtures";
+import { conversationWithReply, makeConversation, stopTurn } from "./fixtures";
 
 /** That the path works at all, on every project. What it does when things go wrong
  *  is in the specs that playwright.config.ts runs on the phone. */
@@ -20,5 +20,17 @@ test("sending a message shows the reply arriving", async ({ page, request }) => 
   // And then the words. The looking is done, so stopped here rather than left
   // writing into the tests that come next.
   await expect(page.locator(".stream-caret")).toBeVisible();
+  await stopTurn(request, convo.id);
+});
+
+test("a new conversation is named after its first message, as the server names it", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await page.goto(`/#/chat/${convo.id}`);
+
+  await page.locator("textarea").first().fill("*smiles* hello");
+  await page.locator('button[title="Send"]').click();
+
+  const title = page.locator("header button.touch-target");
+  await expect(title).toHaveText("hello");
   await stopTurn(request, convo.id);
 });

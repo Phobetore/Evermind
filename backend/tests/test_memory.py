@@ -267,10 +267,8 @@ async def test_an_automatic_pass_that_a_cut_overtook_is_no_failure(client, monke
 
 async def test_a_pass_never_reads_a_message_out_of_character(client, fake_provider):
     convo = await setup_conversation(client)
-    sent = await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "send", "message_mode": "ooc",
-        "content": "Stop describing her eyes, and kill the innkeeper next scene."})
-    assert sent.status_code == 200, sent.text
+    await send(client, convo["id"], message_mode="ooc",
+               content="Stop describing her eyes, and kill the innkeeper next scene.")
     fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
                             ProviderEvent(type="done")]
 

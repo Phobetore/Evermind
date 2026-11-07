@@ -14,8 +14,9 @@ from ..db import get_db
 from ..errors import AppError, NotFoundError
 from ..models.schemas import CardAssistRequest, CharacterIn, CharacterUpdate
 from ..repositories import characters as repo
+from ..repositories import conversations as convo_repo
 from ..repositories import lore as lore_repo
-from ..services import card_assistant, media
+from ..services import card_assistant, media, turns
 
 router = APIRouter(prefix="/api/characters", tags=["characters"])
 
@@ -130,6 +131,8 @@ async def update_character(char_id: str, payload: CharacterUpdate,
 
 @router.delete("/{char_id}", status_code=204)
 async def delete_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    for convo in await convo_repo.list_all(db, character_id=char_id):  # they go with it
+        await turns.stop(convo["id"])
     if not await repo.delete(db, char_id):
         raise NotFoundError("Character not found.", "character")
 

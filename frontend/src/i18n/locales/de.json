@@ -198,6 +198,7 @@
   },
   "chat": {
     "openingScene": "Die Szene wird eröffnet…",
+    "showEarlier": "Frühere Nachrichten anzeigen",
     "header": {
       "backAriaLabel": "Zurück zu den Unterhaltungen",
       "renameTitle": "Unterhaltung umbenennen",

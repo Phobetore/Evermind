@@ -158,7 +158,9 @@ test that passes either way is worse than none, because it reads like cover.
 
 ## Main API surface
 
-- `POST /api/chat`: SSE stream, modes `send` / `regenerate` / `continue`
+- `POST /api/chat`: modes `send` / `regenerate` / `continue`, answered once the message is saved;
+  `GET /api/conversations/{id}/turn` says how the reply stands, `.../turn/stream` follows it (SSE)
+  and `DELETE .../turn` stops it
 - CRUD on `characters`, `personas`, `connections`, `conversations`, `memories`, `lore`
 - `POST /api/characters/import`, `GET /api/characters/{id}/export?format=json|png`
 - `POST /api/characters/assist`: drafts a card from a free-form brief

@@ -126,8 +126,8 @@ async def next_position(db: aiosqlite.Connection, convo_id: str) -> int:
 
 async def add_message(db: aiosqlite.Connection, convo_id: str, role: str,
                       variants: list[str], active_index: int = 0,
-                      meta: dict | None = None) -> dict:
-    message_id = new_id()
+                      meta: dict | None = None, message_id: str | None = None) -> dict:
+    message_id = message_id or new_id()
     position = await next_position(db, convo_id)
     await db.execute(
         "INSERT INTO messages (id, conversation_id, role, variants, active_index, position,"

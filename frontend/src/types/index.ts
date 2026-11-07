@@ -164,31 +164,22 @@ export interface Memory {
   created_at: string;
 }
 
-/** What the server says of a conversation's turn. */
-export interface TurnState {
-  running: boolean;
-  mode: "send" | "regenerate" | "continue" | null;
-  /** One ended a moment ago, so what was read of the conversation just before
-   *  may be out of date. */
-  ended_recently: boolean;
+/** Why a reply did not come, or came cut short: what a model's server said, when it was the one
+ *  that failed, or the address that could not be reached. */
+export interface TurnFailure {
+  kind: string;
+  message: string;
+  resource?: string;
+  upstream?: string;
+  upstream_status?: number;
+  upstream_url?: string;
 }
 
-export type ChatEvent =
-  | { type: "start"; conversation_id: string; user_message: Message | null;
-      mode?: TurnState["mode"];
-      /** The reply this turn replaces or extends, if any. */
-      target_message_id?: string | null }
-  | { type: "delta"; text: string }
-  /** What it was writing into has been deleted, so nothing came of it. */
-  | { type: "discarded" }
-  | {
-      type: "done"; message: Message; context?: ContextStats; perf?: TurnPerf;
-      /** A continuation that left the reply as it was. */
-      nothing_added?: boolean;
-    }
-  | {
-      type: "error"; message: string; kind?: string | null; resource?: string;
-      /** What a model's server said, when it was the one that failed, or the
-       *  address that could not be reached. */
-      upstream?: string; upstream_status?: number; upstream_url?: string;
-    };
+/** What the server says of a conversation's turn: the message being written, as far as it has
+ *  got, or how the last one ended when it failed or added nothing ("nothing_added"). */
+export type TurnState =
+  | { running: true; message_id: string; text: string }
+  | { running: false; outcome: (TurnFailure & { mode: "send" | "regenerate" | "continue" }) | null };
+
+/** What following a turn hands over: the message so far, then each piece as it arrives. */
+export type TurnEvent = { text: string } | { delta: string } | { end: true };

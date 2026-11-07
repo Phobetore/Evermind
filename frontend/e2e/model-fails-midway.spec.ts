@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply } from "./fixtures";
+import { chat, conversationWithReply } from "./fixtures";
 
 /**
  * A model whose connection breaks after four words. What had arrived is the reply as
@@ -8,9 +8,9 @@ import { conversationWithReply } from "./fixtures";
  * cut short. The mock sends a length it does not keep (scripts/mock_llm.py), which is
  * what makes the client see the connection break rather than the reply end.
  *
- * The sentence about the failure belongs to the page that watched it. A page that
- * opens afterwards finds the reply and its label and no sentence, so the label is what
- * says it, and says it without a time limit.
+ * The sentence about the failure belongs to the page that asked for the reply. A page
+ * that opens afterwards finds the reply and its label and no sentence, so the label is
+ * what says it, and says it without a time limit.
  */
 
 const WORDS = "alpha one two three";
@@ -50,8 +50,7 @@ test("after a reload the words and the label are there, and the label is what sa
 
   await expect(reply(page)).toBeVisible();
   await expect(reply(page)).toContainText("interrupted");
-  // The server still has the turn for a while, and the page that opens does not read its
-  // ending: the sentence about the failure is for the page that watched it.
+  // The sentence about the failure is for the page that asked for the reply.
   await expect(failure(page)).toHaveCount(0);
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(read.messages.at(-1).meta).toEqual({ interrupted: [0] });
@@ -83,10 +82,7 @@ test("Retry adds a whole reply, without the label that stays on the one cut shor
 
 test("a regeneration cut short labels its own version, not the whole one", async ({ page, request }) => {
   const convo = await conversationWithReply(request, { says: "alpha" });
-  await request.post(`${API}/api/chat`, {
-    data: { conversation_id: convo.id, mode: "send", content: "Go on.", message_mode: "say" },
-    timeout: 60_000,
-  });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "Go on." });
   await request.patch(`${API}/api/conversations/${convo.id}`, {
     data: { author_note: "MOCK_SAYS_alpha MOCK_FAILS_MIDWAY" },
   });
@@ -104,19 +100,4 @@ test("a regeneration cut short labels its own version, not the whole one", async
   await expect(last).not.toContainText("interrupted");
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(read.messages.at(-1).meta.interrupted).toEqual([1]);
-});
-
-test("a reload after the server has forgotten the turn finds the same", async ({ page, request }) => {
-  await failedMidway(page, request);
-
-  // The server keeps a finished turn for two minutes (turns._KEEP_FINISHED_SECONDS), and
-  // this is what it answers after them.
-  await page.route("**/turn", (route) => route.fulfill({
-    json: { running: false, mode: null, ended_recently: false },
-  }));
-  await page.reload();
-
-  await expect(reply(page)).toBeVisible();
-  await expect(reply(page)).toContainText("interrupted");
-  await expect(failure(page)).toHaveCount(0);
 });

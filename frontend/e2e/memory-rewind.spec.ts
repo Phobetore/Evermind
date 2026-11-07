@@ -2,7 +2,7 @@ import { expect, test, type Request } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
-import { makeConversation } from "./fixtures";
+import { chat, makeConversation } from "./fixtures";
 
 /**
  * Taking the story back from a message takes what was remembered of it back too: the facts
@@ -27,11 +27,7 @@ const panelText = en.chat.panel as {
 test("cutting the story back empties the summary and the facts of what went", async ({ page, request }) => {
   const convo = await makeConversation(request);
   for (const content of ["First question.", "Second question."]) {
-    const sent = await request.post(`${API}/api/chat`, {
-      data: { conversation_id: convo.id, mode: "send", content, message_mode: "say" },
-      timeout: 60_000,
-    });
-    expect(sent.ok()).toBe(true);
+    expect((await chat(request, { conversation_id: convo.id, mode: "send", content })).ok()).toBe(true);
   }
   // The model's memory pass writes two facts and a summary; one fact is by hand.
   const pass = await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, {
@@ -71,11 +67,7 @@ test("cutting the story back empties the summary and the facts of what went", as
 
 test("cutting the story back puts the summary it had back", async ({ page, request }) => {
   const convo = await makeConversation(request);
-  const say = (content: string) =>
-    request.post(`${API}/api/chat`, {
-      data: { conversation_id: convo.id, mode: "send", content, message_mode: "say" },
-      timeout: 60_000,
-    });
+  const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
   const pass = () =>
     request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
   await say("First question.");
@@ -153,10 +145,7 @@ test("the summary box cannot be typed in while the memory reads the story", asyn
 
 test("a summary being typed is not replaced by one a pass wrote meanwhile", async ({ page, request }) => {
   const convo = await makeConversation(request);
-  await request.post(`${API}/api/chat`, {
-    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
-    timeout: 60_000,
-  });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "First question." });
 
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
   await page.goto(`/#/chat/${convo.id}`);
@@ -180,10 +169,7 @@ test("a summary being typed is not replaced by one a pass wrote meanwhile", asyn
 
 test("a summary a pass wrote meanwhile shows when the person comes back to the window", async ({ page, request }) => {
   const convo = await makeConversation(request);
-  await request.post(`${API}/api/chat`, {
-    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
-    timeout: 60_000,
-  });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "First question." });
 
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
   await page.goto(`/#/chat/${convo.id}`);
@@ -203,10 +189,7 @@ test("a summary a pass wrote meanwhile shows when the person comes back to the w
 // On a laptop nothing else reads what a pass wrote before the person edits the summary.
 test("the summary box shows what a pass wrote when it is entered", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await makeConversation(request);
-  await request.post(`${API}/api/chat`, {
-    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
-    timeout: 60_000,
-  });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "First question." });
 
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
   await page.goto(`/#/chat/${convo.id}`);
@@ -228,10 +211,7 @@ test("the summary box shows what a pass wrote when it is entered", { tag: "@desk
 // The directive's save and the summary's read go out together; the read must not undo the save.
 test("a read sent with the directive's save does not put the old directive back", async ({ page, request }) => {
   const convo = await makeConversation(request);
-  await request.post(`${API}/api/chat`, {
-    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
-    timeout: 60_000,
-  });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "First question." });
 
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
   await page.goto(`/#/chat/${convo.id}`);
@@ -276,10 +256,7 @@ test("a read sent with the directive's save does not put the old directive back"
 
 test("an older read that lands last does not put back the summary a newer one brought", async ({ page, request }) => {
   const convo = await makeConversation(request);
-  await request.post(`${API}/api/chat`, {
-    data: { conversation_id: convo.id, mode: "send", content: "First question.", message_mode: "say" },
-    timeout: 60_000,
-  });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "First question." });
 
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
   await page.goto(`/#/chat/${convo.id}`);

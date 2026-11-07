@@ -68,10 +68,7 @@ export async function conversationWithReply(
   } = {},
 ) {
   const convo = await makeConversation(request);
-  await request.post(`${API}/api/chat`, {
-    data: { conversation_id: convo.id, mode: "send", content: "Tell me.", message_mode: "say" },
-    timeout: 60_000,
-  });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "Tell me." });
   // After the first reply, not before: the markers are for the turn the test is
   // about, and putting them in the message would make setting up slow too.
   const markers = [
@@ -97,6 +94,14 @@ export async function conversation(request: APIRequestContext, id: string) {
 /** The server's own account of whether a reply is being written. */
 export async function turnRunning(request: APIRequestContext, id: string): Promise<boolean> {
   return (await (await request.get(`${API}/api/conversations/${id}/turn`)).json()).running;
+}
+
+/** A turn asked for as another device would, and its reply written: the server answers as soon
+ *  as it has the message. */
+export async function chat(request: APIRequestContext, data: { conversation_id: string } & Record<string, unknown>) {
+  const answer = await request.post(`${API}/api/chat`, { data: { message_mode: "say", ...data } });
+  await expect.poll(() => turnRunning(request, data.conversation_id), { timeout: 60_000 }).toBe(false);
+  return answer;
 }
 
 /** Ends a reply and waits for the server to say it has ended. A turn carries on

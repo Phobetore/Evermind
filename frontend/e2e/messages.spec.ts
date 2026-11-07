@@ -1,17 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { API } from "../playwright.config";
-import { conversation, conversationWithReply, makeConversation } from "./fixtures";
+import { chat, conversation, conversationWithReply, makeConversation } from "./fixtures";
 
 /** What a conversation shows of its messages, and what can be done to them. */
 
 test("a message written on several lines is shown on as many", async ({ page, request }) => {
   const convo = await makeConversation(request);
-  await request.post(`${API}/api/chat`, {
-    data: {
-      conversation_id: convo.id, mode: "send", message_mode: "say",
-      content: "First line\nsecond line.\nAfter a hard break:  \nthe last.",
-    },
-    timeout: 60_000,
+  await chat(request, {
+    conversation_id: convo.id, mode: "send",
+    content: "First line\nsecond line.\nAfter a hard break:  \nthe last.",
   });
   await page.goto(`/#/chat/${convo.id}`);
 
@@ -84,4 +80,27 @@ test("a message whose reply was deleted can be given another", { tag: "@desktop"
   await expect.poll(async () => (await conversation(request, convo.id)).messages.at(-1).role,
     { timeout: 30_000 }).toBe("assistant");
   await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length);
+});
+
+test("only the last hundred messages are drawn, and earlier ones come in above the place being read", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const many = Array.from({ length: 150 }, (_, i) => ({
+    ...convo.messages[0], id: `m${i}`, role: i % 2 ? "assistant" : "user", position: i, meta: {},
+    variants: [`Message ${i}`], content: `Message ${i}`, active_index: 0,
+  }));
+  await page.route(`**/api/conversations/${convo.id}`, (route) => route.fulfill({ json: { ...convo, messages: many } }));
+  await page.goto(`/#/chat/${convo.id}`);
+
+  await expect(page.locator("[data-message-id]")).toHaveCount(100);
+  await expect(page.locator('[data-message-id="m149"]')).toBeInViewport();
+  const earlier = page.getByRole("button", { name: "Show earlier messages" });
+  await earlier.scrollIntoViewIfNeeded();
+  const place = page.locator('[data-message-id="m50"]');
+  const before = (await place.boundingBox())!.y;
+
+  await earlier.click();
+
+  await expect(page.locator("[data-message-id]")).toHaveCount(150);
+  await expect(earlier).toHaveCount(0);
+  expect(Math.abs((await place.boundingBox())!.y - before), "the place being read was lost").toBeLessThan(2);
 });

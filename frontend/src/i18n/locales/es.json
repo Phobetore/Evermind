@@ -198,6 +198,7 @@
   },
   "chat": {
     "openingScene": "Abriendo la escena…",
+    "showEarlier": "Mostrar mensajes anteriores",
     "header": {
       "backAriaLabel": "Volver a las conversaciones",
       "renameTitle": "Renombrar la conversación",
