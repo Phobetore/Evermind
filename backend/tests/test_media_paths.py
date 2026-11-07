@@ -9,7 +9,10 @@ import urllib.parse
 
 import pytest
 
+from app.cards.png import make_placeholder_png
 from app.config import media_dir
+
+PNG = make_placeholder_png(16, 16)
 
 ESCAPES = [
     "../../../etc/passwd",
@@ -63,6 +66,15 @@ async def test_media_refuses_a_symlink_pointing_out_of_the_directory(client, tmp
 
     assert resp.status_code == 404
     assert b"secret" not in resp.content
+
+
+@pytest.mark.parametrize("route", ["characters/nope/avatar", "personas/nope/avatar",
+                                   "conversations/nope/wallpaper"])
+async def test_an_upload_for_nothing_leaves_no_file(client, route):
+    resp = await client.post(f"/api/{route}", files={"file": ("a.png", PNG, "image/png")})
+
+    assert resp.status_code == 404
+    assert list(media_dir().iterdir()) == []
 
 
 LIBRARY_ESCAPES = [

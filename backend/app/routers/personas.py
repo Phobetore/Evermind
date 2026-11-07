@@ -39,8 +39,6 @@ async def delete_persona(persona_id: str, db: aiosqlite.Connection = Depends(get
 async def upload_avatar(persona_id: str, file: UploadFile,
                         db: aiosqlite.Connection = Depends(get_db)):
     data, extension = await media.read_image_upload(file)
-    filename = media.save(data, extension)
-    updated = await repo.update(db, persona_id, {"avatar_path": filename})
-    if not updated:
+    if not await repo.get(db, persona_id):
         raise NotFoundError("Persona not found.", "persona")
-    return updated
+    return await repo.update(db, persona_id, {"avatar_path": media.save(data, extension)})

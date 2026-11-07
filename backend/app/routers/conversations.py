@@ -76,10 +76,9 @@ async def patch_conversation(convo_id: str, payload: ConversationPatch,
 async def upload_wallpaper(convo_id: str, file: UploadFile,
                            db: aiosqlite.Connection = Depends(get_db)):
     data, extension = await media.read_image_upload(file)
-    updated = await repo.update(db, convo_id, {"wallpaper_path": media.save(data, extension)})
-    if not updated:
+    if not await repo.get(db, convo_id, with_messages=False):
         raise NotFoundError("Conversation not found.", "conversation")
-    return updated
+    return await repo.update(db, convo_id, {"wallpaper_path": media.save(data, extension)})
 
 
 @router.delete("/conversations/{convo_id}/wallpaper")

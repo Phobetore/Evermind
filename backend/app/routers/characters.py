@@ -165,8 +165,6 @@ async def export_character(char_id: str, format: str = "json",
 async def upload_avatar(char_id: str, file: UploadFile,
                         db: aiosqlite.Connection = Depends(get_db)):
     data, extension = await media.read_image_upload(file)
-    filename = media.save(data, extension)
-    updated = await repo.update(db, char_id, {"avatar_path": filename})
-    if not updated:
+    if not await repo.get(db, char_id):
         raise NotFoundError("Character not found.", "character")
-    return updated
+    return await repo.update(db, char_id, {"avatar_path": media.save(data, extension)})
