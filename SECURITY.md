@@ -87,6 +87,27 @@ what stands in its way:
   the name each device signed in on: a page under another name has none, and
   would need the password.
 
+## Behind a reverse proxy
+
+A proxy that ends HTTPS passes requests on to Evermind over plain HTTP, so
+Evermind only knows that a browser came over HTTPS, and from which address, if
+the proxy says so in `X-Forwarded-Proto` and `X-Forwarded-For`. Anyone can send
+those headers, so Evermind believes them only from the addresses listed in
+`FORWARDED_ALLOW_IPS`. Set it, in `.env`, to the address the proxy connects from
+(with Docker, the address the proxy reaches the container from, which starts each
+request's line in `docker compose logs`). The session cookie is then marked
+`Secure`, at sign-in and each time it is renewed, so the browser never sends it
+over plain HTTP, and wrong passwords are counted for each device rather than for
+the proxy. Whatever else reaches Evermind from that address is believed too, so
+only the proxy should. [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix)
+has an nginx example.
+
+Turn on HSTS at the proxy as well (the `Strict-Transport-Security` header). A
+browser that has been there once then never uses plain HTTP for that name again,
+not for an address typed without `https://` nor for an old `http://` link.
+Without it, that first plain request can be answered by someone on the network
+instead of the proxy, with a page of their own that asks for the password.
+
 ## What is worth reporting
 
 - Anything that lets a request bypass the access password while it is set, or
