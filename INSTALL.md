@@ -395,10 +395,10 @@ To back it up, copy that folder. To start fresh, delete it.
 
 When a new release is out, Settings says so under **About**, with the command that
 updates your installation, or a link back here if you run a downloaded ZIP without
-Docker. Read the release's notes first, behind **What changed**: a release can ask
-for a step before the command. 3.0.2 asked everyone on Docker to download
-`docker-compose.yml` again. [docs/UPGRADING.md](docs/UPGRADING.md) keeps those
-steps, release by release.
+Docker or an image you built yourself. Read the release's notes first, behind
+**What changed**: a release can ask for a step before the command. 3.0.2 asked
+everyone on Docker to download `docker-compose.yml` again.
+[docs/UPGRADING.md](docs/UPGRADING.md) keeps those steps, release by release.
 
 With Docker, from the folder that holds your `docker-compose.yml`:
 
@@ -410,6 +410,13 @@ The command keeps the `docker-compose.yml` you have. When the notes ask for a ne
 one, download
 **[docker-compose.yml](https://github.com/Phobetore/Evermind/releases/latest/download/docker-compose.yml)**
 again first and put it over the old one. Your `.env` stays as it is.
+
+If you built the image yourself, for semantic memory, that command would replace
+it with the published image, which has none. Bring the folder you built from up
+to date instead (`git pull` in a clone; for a ZIP, rename the old folder, unzip
+the new one in its place under the same name and copy your `.env` into it), then
+run `docker compose up -d --build` from it. Keep the folder's name: Docker stores
+your conversations under it.
 
 From the source, stop Evermind (Ctrl+C in the window it runs in). If you cloned
 the project, one line gets the new version and starts it:
