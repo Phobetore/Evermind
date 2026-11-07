@@ -249,10 +249,9 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
 
 async def remember(db: aiosqlite.Connection, convo_id: str, position: int,
                    summary: str | None) -> None:
-    """What a pass wrote of the story up to ``position``, and the summary a cut back to it
-    restores. None, a pass that wrote none, leaves the conversation's, which a person may have
-    typed: the row then holds the last pass's, so that a typed one still reads as typed. Does
-    not commit: it belongs to what it records."""
+    """What a pass wrote of the story up to ``position``. A pass that wrote no summary leaves the
+    conversation's, maybe typed, and its row the last pass's, so that a typed one still reads
+    as typed. Does not commit: it belongs to what it records."""
     await db.execute(
         "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary)"
         " VALUES (?, ?, COALESCE(?, (SELECT summary FROM memory_summaries"
@@ -266,16 +265,8 @@ async def remember(db: aiosqlite.Connection, convo_id: str, position: int,
 
 async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int) -> None:
     """Take what a conversation remembers back to a story that now ends with the turn at
-    ``cut``. Positions are reused by the messages that come next, so a memory left as it was
-    would wait for them to pass the old mark, and keep as canon turns that no longer exist.
-
-    What the model drew from later turns goes, and a fact it corrected since says again what
-    it said before. What a person wrote or pinned stays, placed at the cut at the latest. The
-    memory has read what the last pass up to the cut had read, and has its summary unless a
-    person typed one, which is any summary but the last pass's. With no such pass the next one
-    reads from the start, and the summary goes only if that pass can write it again.
-
-    Does not commit: it belongs to the removal that calls it."""
+    ``cut``, as the last pass at or before it left it: the model's later facts go, its later
+    corrections are undone, and what a person wrote, pinned or typed stays. Does not commit."""
     await db.execute(
         "DELETE FROM memories WHERE conversation_id = ? AND source = 'auto' AND is_pinned = 0"
         " AND source_position > ?", (convo_id, cut))
