@@ -74,6 +74,14 @@ export interface Conversation {
   title: string;
   summary: string;
   author_note?: string;
+  /** Why the last automatic pass of the memory failed, until one succeeds. */
+  memory_error?: {
+    error: string;
+    kind?: string;
+    upstream?: string;
+    upstream_status?: number;
+    upstream_url?: string;
+  } | null;
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
   forked_from?: string | null;

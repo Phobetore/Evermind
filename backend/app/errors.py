@@ -73,13 +73,17 @@ def model_failure(message: str, meta: dict) -> AppError:
     return AppError(message, 502, kind=fields.pop("kind"), details=fields)
 
 
+def error_body(exc: AppError) -> dict:
+    body = {"error": exc.message}
+    if exc.kind:
+        body["kind"] = exc.kind
+    if exc.resource:
+        body["resource"] = exc.resource
+    body.update(exc.details)
+    return body
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(_: Request, exc: AppError) -> JSONResponse:
-        body = {"error": exc.message}
-        if exc.kind:
-            body["kind"] = exc.kind
-        if exc.resource:
-            body["resource"] = exc.resource
-        body.update(exc.details)
-        return JSONResponse(status_code=exc.status_code, content=body)
+        return JSONResponse(status_code=exc.status_code, content=error_body(exc))

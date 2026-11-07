@@ -2,7 +2,7 @@
 
 Every MAINTENANCE_EVERY assistant replies, one LLM call (the conversation's
 own connection) extracts new durable facts and rewrites the running summary
-to cover everything up to the latest turn. Runs as a background task with its
+to cover what it read, which leaves the newest HOLD_BACK messages out. Runs as a background task with its
 own SQLite connection; a per-conversation guard prevents overlapping runs.
 """
 
@@ -18,6 +18,7 @@ from ..errors import (
     NO_CONNECTION,
     AppError,
     NotFoundError,
+    error_body,
     model_failure,
 )
 from ..prompting import embeddings
@@ -40,9 +41,20 @@ from .llm_json import parse_llm_json
 
 logger = logging.getLogger(__name__)
 
-MAINTENANCE_EVERY = 6  # assistant replies between maintenance runs
+MAINTENANCE_EVERY = 8  # unread assistant replies that make a pass due
+HOLD_BACK = 4  # newest messages an automatic pass leaves unread: a reply may still be thrown away
+
+MIN_ANSWER_TOKENS = 2048  # a pass's JSON is cut, and unreadable, in less than this
 
 _running: set[str] = set()
+# Conversations whose last automatic pass failed: the error body, and how many replies to wait.
+_failed: dict[str, dict] = {}
+
+
+def failure_of(convo_id: str) -> dict | None:
+    """Why the last automatic pass failed, shaped as an error response, until one succeeds."""
+    failed = _failed.get(convo_id)
+    return failed["error"] if failed else None
 
 
 async def _new_assistant_count(db: aiosqlite.Connection, convo: dict) -> int:
@@ -67,25 +79,37 @@ def schedule_if_due(convo_id: str) -> None:
     """Fire-and-forget: check + run with a dedicated DB connection."""
     if convo_id in _running:
         return
+    failed = _failed.get(convo_id)
+    if failed:
+        failed["left"] -= 1
+        if failed["left"] > 0:
+            return
 
     async def _task():
         db = await _connect()
         try:
             if await is_due(db, convo_id):
                 await run_maintenance(db, convo_id)
-        except Exception:
+        except Exception as exc:
             logger.exception("memory maintenance failed for %s", convo_id)
+            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1, "error": _error_body(exc)}
         finally:
             await db.close()
 
     asyncio.get_running_loop().create_task(_task())
 
 
+def _error_body(exc: Exception) -> dict:
+    if not isinstance(exc, AppError):
+        return {"error": "The memory pass failed.", "kind": "internal"}
+    return error_body(exc)
+
+
 async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
                         busy: Callable[[], Awaitable[dict]]) -> dict:
     """Run ``work``, or answer ``busy`` when another memory task is running for this
-    conversation. A pass, a consolidation and a summary asked for each read the memory,
-    wait for a model, and write what it said, so that any two of them would cross."""
+    conversation. A pass and a consolidation each read the memory, wait for a model, and
+    write what it said, so that the two would cross."""
     if convo_id in _running:
         return await busy()
     _running.add(convo_id)
@@ -95,8 +119,10 @@ async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
         _running.discard(convo_id)
 
 
-async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
-    """One extraction+summary pass. Returns {"facts_added": [...], "summary": str}, with
+async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
+                          hold_back: int = HOLD_BACK) -> dict:
+    """One extraction+summary pass, which leaves the ``hold_back`` newest messages for the
+    next. Returns {"facts_added": [...], "summary": str}, with
     "skipped" set to "busy" and nothing looked at when another memory task was running,
     and to "changed" and nothing kept when the turns it read were not the story's any more
     when it came to write what it learned, the memory's position had moved, or a person had
@@ -104,7 +130,13 @@ async def run_maintenance(db: aiosqlite.Connection, convo_id: str) -> dict:
     async def busy() -> dict:
         return {"facts_added": [], "summary": None, "skipped": "busy"}
 
-    return await one_at_a_time(convo_id, lambda: _run(db, convo_id), busy)
+    async def work() -> dict:
+        result = await _run(db, convo_id, hold_back)
+        if "skipped" not in result:
+            _failed.pop(convo_id, None)
+        return result
+
+    return await one_at_a_time(convo_id, work, busy)
 
 
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
@@ -119,6 +151,8 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
         connection = await connections_repo.get_default_raw(db)
     if connection is None:
         raise AppError("No LLM connection configured.", kind=NO_CONNECTION)
+    if connection.get("max_tokens"):
+        connection = {**connection, "max_tokens": max(connection["max_tokens"], MIN_ANSWER_TOKENS)}
     return connection
 
 
@@ -223,7 +257,7 @@ async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict],
     return added
 
 
-async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
+async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
@@ -233,6 +267,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
     connection = await _resolve_connection(db, convo)
 
     messages = await convo_repo.list_messages(db, convo_id)
+    messages = messages[:max(0, len(messages) - hold_back)]
     existing = await memories_repo.list_for_conversation(db, convo_id)
     built = build_extraction_payload(character, persona, convo, messages, existing)
     if built is None:
@@ -281,8 +316,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str) -> dict:
         # before as if this pass had written none, so that the typed one still reads as typed.
         written = changes["summary"] if current["summary"] == convo["summary"] else None
         added = await _apply(db, convo_id, changes["ops"], vectors)
-        await convo_repo.remember(db, convo_id, top_position, written,
-                                  memory_position=top_position)
+        await convo_repo.remember(db, convo_id, top_position, written)
 
     return {"facts_added": added, "summary": written or current["summary"] or ""}
 

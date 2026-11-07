@@ -272,6 +272,17 @@ def test_facts_covering_visible_turns_are_not_reinjected():
     assert "Old fact outside the window." in payload.system
 
 
+def test_a_fact_typed_by_hand_reaches_the_model_unpinned_even_in_a_short_story():
+    """It has no turn it covers: a story that still fits whole would otherwise never be told."""
+    memories = [
+        {"content": "She keeps the key.", "source_position": 0, "is_pinned": False, "source": "user"},
+        {"content": "Written by the model.", "source_position": 0, "is_pinned": False, "source": "auto"},
+    ]
+    payload = build(messages=[make_message("user", "Hello", 0)], memories=memories)
+    assert "She keeps the key." in payload.system
+    assert "Written by the model." not in payload.system
+
+
 def test_history_limit_caps_raw_turns():
     """Past the cap, turns fall out of the prompt even when tokens remain:
     they live on in the summary/facts instead of feeding the echo chamber."""
@@ -288,7 +299,7 @@ def test_history_limit_caps_raw_turns():
         character=make_character(), persona=PERSONA, conversation={"summary": ""},
         messages=messages, connection=make_connection(),
     )
-    assert len(uncapped.messages) == 30  # 0 = unlimited (summarize/impersonate)
+    assert len(uncapped.messages) == 30  # 0 = unlimited (impersonate)
 
 
 def test_history_limit_frees_facts_for_reinjection():

@@ -40,7 +40,6 @@ export interface DataSource {
     remove(id: string): Promise<void>;
     setWallpaper(id: string, file: File): Promise<Conversation>;
     clearWallpaper(id: string): Promise<Conversation>;
-    summarize(id: string): Promise<SummaryResult>;
   };
   messages: {
     update(id: string, patch: { content?: string; active_index?: number }): Promise<Message>;
@@ -133,11 +132,6 @@ export interface ConversationPatch {
   connection_id?: string;
   wallpaper_opacity?: number;
 }
-
-/** The conversation once a summary was asked for. `skipped` is set, and nothing was
- *  written, when another memory task was running (`busy`), or when turns it read were
- *  removed while the model answered (`changed`). */
-export type SummaryResult = Conversation & { skipped?: "busy" | "changed" };
 
 /** What "memorize now" found: the facts it added, a new summary if the
  *  conversation earned one, and the whole list as it stands afterwards. `skipped`

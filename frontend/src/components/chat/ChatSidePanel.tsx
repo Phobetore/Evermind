@@ -2,35 +2,16 @@ import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { describeConsolidation, describeExtraction, describeSummary } from "@/lib/consolidation";
-import { describeError } from "@/lib/errors";
+import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
+import { describeError, describeResult } from "@/lib/errors";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
-import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, NotebookPen, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
-// Mirrors the backend's select_facts: which facts actually reach the model,
-// so the panel can dim the dormant ones instead of hiding the limit.
-function computeDormant(memories: Memory[], contextSize: number, maxTokens: number): Set<string> {
-  const est = (s: string) => Math.floor(s.length / 3.5) + 1;
-  const ctxBudget = Math.max(512, contextSize - maxTokens - 200);
-  let budget = Math.min(2000, Math.max(700, Math.floor(ctxBudget * 0.12)));
-  const pinned = memories.filter((m) => m.is_pinned);
-  const others = memories
-    .filter((m) => !m.is_pinned)
-    .sort((a, b) => b.source_position - a.source_position);
-  const active = new Set<string>();
-  for (const m of [...pinned, ...others]) {
-    if (active.size >= 60) break;
-    const cost = est(m.content);
-    if (!m.is_pinned && cost > budget) continue;
-    budget -= cost;
-    active.add(m.id);
-  }
-  return new Set(memories.filter((m) => !active.has(m.id)).map((m) => m.id));
-}
+type Where = "connection" | "directive" | "summary" | "memory";
 
 export function ChatSidePanel({
   conversation,
@@ -55,15 +36,18 @@ export function ChatSidePanel({
   const t = useT();
   const character = conversation.character!;
   const [connections, setConnections] = useState<Connection[]>([]);
-  const [summary, setSummary] = useState(conversation.summary);
-  const [summarizing, setSummarizing] = useState(false);
+  // null unless typing: the box shows what the conversation holds.
+  const [summaryDraft, setSummaryDraft] = useState<string | null>(null);
+  const [directiveDraft, setDirectiveDraft] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Partial<Record<Where, string>>>({});
   const [memories, setMemories] = useState<Memory[]>([]);
   const [newFact, setNewFact] = useState("");
   const [memorizing, setMemorizing] = useState(false);
   const [memoryNote, setMemoryNote] = useState<string | null>(null);
   const [consolidating, setConsolidating] = useState(false);
-  const [directive, setDirective] = useState(conversation.author_note ?? "");
+  const summary = summaryDraft ?? conversation.summary;
+  const directive = directiveDraft ?? conversation.author_note ?? "";
   const wallpaperInput = useRef<HTMLInputElement>(null);
   const [wallpaperBusy, setWallpaperBusy] = useState(false);
   const [wallpaperError, setWallpaperError] = useState<string | null>(null);
@@ -107,72 +91,131 @@ export function ChatSidePanel({
       .catch(() => {});
   }, [conversation.id, storyCuts]);
 
-  // Both fields are editable, and both have to follow the conversation when it
-  // changes from elsewhere: summarising rewrites the summary, and switching
-  // conversation replaces the directive. Adjusting during render rather than in
-  // an effect is what React recommends for that, and it costs one render
-  // instead of two.
-  const [lastSummary, setLastSummary] = useState(conversation.summary);
-  if (conversation.summary !== lastSummary) {
-    setLastSummary(conversation.summary);
-    setSummary(conversation.summary);
-  }
-  const incomingDirective = conversation.author_note ?? "";
-  const [lastDirective, setLastDirective] = useState(incomingDirective);
-  if (incomingDirective !== lastDirective) {
-    setLastDirective(incomingDirective);
-    setDirective(incomingDirective);
-  }
+  // Read again on opening, after a cut and on return: a pass writes the summary on its own.
+  const latest = useRef({ conversation, onConversationChange });
+  useEffect(() => {
+    latest.current = { conversation, onConversationChange };
+  });
+  const read = useCallback(
+    () =>
+      data.conversations
+        .get(conversation.id)
+        .then(({ summary, author_note, memory_error }) => {
+          const { conversation: shown, onConversationChange: patch } = latest.current;
+          const error = memory_error ?? null;
+          // A patch re-renders the whole story, so it is made only for a change.
+          if (
+            summary !== shown.summary ||
+            (author_note ?? null) !== (shown.author_note ?? null) ||
+            JSON.stringify(error) !== JSON.stringify(shown.memory_error ?? null)
+          )
+            patch({ summary, author_note, memory_error: error });
+        })
+        .catch(() => {}),
+    [conversation.id],
+  );
+  useEffect(() => {
+    const visible = () => {
+      if (document.visibilityState === "visible") void read();
+    };
+    void read();
+    window.addEventListener("focus", read);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      window.removeEventListener("focus", read);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, [read, storyCuts]);
+
+  // A pass of its own that failed is told here until one succeeds.
+  const failed = conversation.memory_error;
+  const memoryError =
+    errors.memory ??
+    (failed
+      ? describeResult(
+          {
+            detail: failed.error,
+            kind: failed.kind,
+            upstream: failed.upstream,
+            upstream_status: failed.upstream_status,
+            upstream_url: failed.upstream_url,
+          },
+          t,
+        )
+      : null);
+
+  const fail = (where: Where, text: string | null) =>
+    setErrors((prev) => ({ ...prev, [where]: text ?? undefined }));
 
   async function saveDirective() {
-    const value = directive.trim();
-    if (value === (conversation.author_note ?? "")) return;
-    await data.conversations.update(conversation.id, { author_note: value });
-    onConversationChange({ author_note: value });
+    if (directiveDraft === null) return;
+    const value = directiveDraft.trim();
+    fail("directive", null);
+    if (value !== (conversation.author_note ?? "")) {
+      try {
+        await data.conversations.update(conversation.id, { author_note: value });
+      } catch (e) {
+        fail("directive", describeError(e, t));
+        return;
+      }
+      onConversationChange({ author_note: value });
+    }
+    setDirectiveDraft(null);
   }
 
   async function memorizeNow() {
     setMemorizing(true);
     setMemoryNote(null);
+    fail("memory", null);
     try {
       const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
+      if (!result.skipped) onConversationChange({ memory_error: null });
       if (result.summary) {
-        setSummary(result.summary);
         onConversationChange({ summary: result.summary });
+        setSummaryDraft(null);
       }
-      setMemoryNote(describeExtraction(result, t));
+      const said = describeExtraction(result, t, conversation.summary);
+      if (result.skipped) fail("memory", said);
+      else {
+        setMemoryNote(said);
+        setTimeout(() => setMemoryNote(null), 4000);
+      }
     } catch (e) {
-      setMemoryNote(describeError(e, t, t("chat.panel.facts.extractError")));
+      fail("memory", describeError(e, t, t("chat.panel.facts.extractError")));
     }
     setMemorizing(false);
-    setTimeout(() => setMemoryNote(null), 4000);
   }
 
   async function consolidateMemory() {
     setConsolidating(true);
     setMemoryNote(null);
+    fail("memory", null);
     try {
       const result = await data.memories.consolidate(conversation.id);
       setMemories(result.memories);
-      setMemoryNote(describeConsolidation(result, t));
+      const said = describeConsolidation(result, t);
+      if (result.skipped) fail("memory", said);
+      else {
+        setMemoryNote(said);
+        setTimeout(() => setMemoryNote(null), 5000);
+      }
     } catch (e) {
-      setMemoryNote(describeError(e, t, t("chat.panel.facts.consolidateError")));
+      fail("memory", describeError(e, t, t("chat.panel.facts.consolidateError")));
     }
     setConsolidating(false);
-    setTimeout(() => setMemoryNote(null), 5000);
   }
 
   async function addFact() {
     const content = newFact.trim();
     if (!content) return;
+    fail("memory", null);
     try {
       const saved = await data.memories.create(conversation.id, { content, is_pinned: true });
       setMemories((prev) => [saved, ...prev]);
       setNewFact("");
     } catch (e) {
-      setMemoryNote(describeError(e, t, t("chat.panel.facts.addError")));
-      setTimeout(() => setMemoryNote(null), 3000);
+      fail("memory", describeError(e, t, t("chat.panel.facts.addError")));
     }
   }
 
@@ -180,12 +223,12 @@ export function ChatSidePanel({
   // failure to add one. The fact may be gone already, taken out by a cut in the story
   // or by a pass of the memory, so the list is read again rather than left as it was.
   function failedFactChange(error: unknown) {
-    setMemoryNote(describeError(error, t));
-    setTimeout(() => setMemoryNote(null), 3000);
+    fail("memory", describeError(error, t));
     data.memories.list(conversation.id).then(setMemories).catch(() => {});
   }
 
   async function togglePin(memory: Memory) {
+    fail("memory", null);
     try {
       const updated = await data.memories.update(memory.id, { is_pinned: !memory.is_pinned });
       setMemories((prev) => prev.map((m) => (m.id === memory.id ? updated : m)));
@@ -195,6 +238,7 @@ export function ChatSidePanel({
   }
 
   async function removeFact(memory: Memory) {
+    fail("memory", null);
     try {
       await data.memories.remove(memory.id);
       setMemories((prev) => prev.filter((m) => m.id !== memory.id));
@@ -203,43 +247,32 @@ export function ChatSidePanel({
     }
   }
 
-  const activeConn = connections.find((c) => c.id === conversation.connection_id);
-  const dormant = useMemo(
-    () => computeDormant(memories, activeConn?.context_size ?? 16384, activeConn?.max_tokens ?? 1024),
-    [memories, activeConn?.context_size, activeConn?.max_tokens],
-  );
-
   async function changeConnection(connectionId: string) {
-    await data.conversations.update(conversation.id, { connection_id: connectionId });
+    fail("connection", null);
+    try {
+      await data.conversations.update(conversation.id, { connection_id: connectionId });
+    } catch (e) {
+      fail("connection", describeError(e, t));
+      return;
+    }
     onConversationChange({ connection_id: connectionId });
   }
 
   // What is typed while the memory writes a summary would be replaced by what it writes.
-  const summaryIsBeingWritten = summarizing || memorizing;
+  const summaryIsBeingWritten = memorizing;
 
   async function saveSummary() {
-    await data.conversations.update(conversation.id, { summary });
+    fail("summary", null);
+    try {
+      await data.conversations.update(conversation.id, { summary });
+    } catch (e) {
+      fail("summary", describeError(e, t));
+      return;
+    }
     onConversationChange({ summary });
+    setSummaryDraft(null);
     setNote(t("chat.panel.summary.saved"));
     setTimeout(() => setNote(null), 1500);
-  }
-
-  async function generateSummary() {
-    setSummarizing(true);
-    setNote(null);
-    try {
-      const updated = await data.conversations.summarize(conversation.id);
-      // Refused, it wrote nothing, and the box may hold what is being typed in it.
-      if (!updated.skipped) {
-        setSummary(updated.summary);
-        onConversationChange({ summary: updated.summary });
-      }
-      setNote(describeSummary(updated, t));
-    } catch (e) {
-      setNote(describeError(e, t, t("chat.panel.summary.generateError")));
-    }
-    setSummarizing(false);
-    setTimeout(() => setNote(null), 4000);
   }
 
   return (
@@ -299,6 +332,7 @@ export function ChatSidePanel({
               </option>
             ))}
           </select>
+          {errors.connection && <p className="mt-1.5 break-words text-xs text-blood">{errors.connection}</p>}
         </Field>
       )}
 
@@ -442,7 +476,7 @@ export function ChatSidePanel({
         <textarea
           className="field min-h-20 text-sm"
           value={directive}
-          onChange={(e) => setDirective(e.target.value)}
+          onChange={(e) => setDirectiveDraft(e.target.value)}
           onBlur={saveDirective}
           placeholder={t("chat.panel.directive.placeholder")}
         />
@@ -451,34 +485,16 @@ export function ChatSidePanel({
             {t("chat.panel.directive.applyButton")}
           </button>
         )}
+        {errors.directive && <p className="mt-1.5 break-words text-xs text-blood">{errors.directive}</p>}
       </div>
 
       <div>
-        {/* A title and its button or buttons, here and under the facts. The title
-            gives way first, down to its longest word (no min-w-0: that is what
-            tells the row when to wrap); a button that still does not fit drops to
-            a line of its own instead of running past the edge. How wide a button
-            is depends on its word in the language it is read in. */}
-        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
-          <span className="ui-label flex-1">{t("chat.panel.summary.title")}</span>
-          <button
-            className="btn btn-ghost !px-2.5 !py-1 text-xs"
-            onClick={generateSummary}
-            disabled={summarizing}
-            title={t("chat.panel.summary.generateTitle")}
-          >
-            {summarizing ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <NotebookPen className="h-3.5 w-3.5" />
-            )}
-            {t("chat.panel.summary.generateButton")}
-          </button>
-        </div>
+        <span className="ui-label mb-1.5 block">{t("chat.panel.summary.title")}</span>
         <textarea
           className="field min-h-32 text-sm"
           value={summary}
-          onChange={(e) => setSummary(e.target.value)}
+          onChange={(e) => setSummaryDraft(e.target.value)}
+          onFocus={() => summaryDraft === null && void read()}
           disabled={summaryIsBeingWritten}
           placeholder={t("chat.panel.summary.placeholder")}
         />
@@ -491,10 +507,12 @@ export function ChatSidePanel({
             {t("chat.panel.summary.saveButton")}
           </button>
         )}
+        {errors.summary && <p className="mt-1.5 break-words text-xs text-blood">{errors.summary}</p>}
         {note && <p className="mt-1.5 break-words text-xs text-moss">{note}</p>}
       </div>
 
-      {/* Established facts */}
+      {/* The title gives way first (no min-w-0: that tells the row when to wrap); a button
+          that still does not fit drops to its own line. */}
       <div>
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
           <span className="ui-label flex-1">{t("chat.panel.facts.title")} {memories.length > 0 && `(${memories.length})`}</span>
@@ -530,28 +548,13 @@ export function ChatSidePanel({
         <p className="mb-2 text-xs leading-relaxed text-mist-dim">
           {t("chat.panel.facts.description")}
         </p>
-        {dormant.size > 0 && (
-          <p className="mb-2 rounded-lg border border-ember-600/40 bg-ember-glow px-2.5 py-1.5 text-xs leading-relaxed text-ember-300">
-            {t("chat.panel.facts.dormantWarning", {
-              count: dormant.size,
-              consolidateLabel: t("chat.panel.facts.consolidateButton"),
-            })}
-          </p>
-        )}
         <div className="flex flex-col gap-1.5">
           {memories.map((memory) => (
             <div
               key={memory.id}
-              className={clsx(
-                // On a touch screen the row is as tall as the thumb, so that
-                // the two small controls in it, centred, have the room their
-                // reachable areas need and do not run into the next row's.
-                "group/fact flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5 pointer-coarse:min-h-11 pointer-coarse:items-center",
-                dormant.has(memory.id)
-                  ? "border-ink-800 bg-ink-950/40 opacity-45"
-                  : "border-ink-700 bg-ink-900/60",
-              )}
-              title={dormant.has(memory.id) ? t("chat.panel.facts.dormantTitle") : undefined}
+              // On a touch screen the row is as tall as the thumb, so that its two small
+              // controls, centred, have the room their reachable areas need.
+              className="group/fact flex items-start gap-1.5 rounded-lg border border-ink-700 bg-ink-900/60 px-2.5 py-1.5 pointer-coarse:min-h-11 pointer-coarse:items-center"
             >
               <button
                 onClick={() => togglePin(memory)}
@@ -602,6 +605,7 @@ export function ChatSidePanel({
             <Plus className="h-4 w-4" />
           </button>
         </div>
+        {memoryError && <p className="mt-1.5 break-words text-xs text-blood">{memoryError}</p>}
         {memoryNote && <p className="mt-1.5 break-words text-xs text-moss">{memoryNote}</p>}
       </div>
 

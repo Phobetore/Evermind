@@ -10,7 +10,7 @@ from ..repositories import connections as connections_repo
 from ..repositories import conversations as repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
-from ..services import media
+from ..services import media, memory_service
 
 router = APIRouter(prefix="/api", tags=["conversations"])
 
@@ -60,7 +60,7 @@ async def get_conversation(convo_id: str, db: aiosqlite.Connection = Depends(get
     convo = await repo.get(db, convo_id)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
-    return convo
+    return {**convo, "memory_error": memory_service.failure_of(convo_id)}
 
 
 @router.patch("/conversations/{convo_id}")
@@ -130,7 +130,6 @@ async def branch_conversation(message_id: str, db: aiosqlite.Connection = Depend
 
 
 @router.delete("/messages/{message_id}", status_code=204)
-async def delete_message(message_id: str, following: bool = False,
-                         db: aiosqlite.Connection = Depends(get_db)):
-    if not await repo.delete_message(db, message_id, following=following):
+async def delete_message(message_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    if not await repo.delete_message(db, message_id):
         raise NotFoundError("Message not found.", "message")

@@ -267,7 +267,7 @@ async def test_a_failure_after_the_message_was_deleted_ends_the_turn_without_a_r
     try:
         await asyncio.wait_for(delta_sent.wait(), 5)
         mine = next(m for m in await messages_of(client, convo["id"]) if m["role"] == "user")
-        await client.delete(f"/api/messages/{mine['id']}?following=true")
+        await client.delete(f"/api/messages/{mine['id']}")
     finally:
         gate.set()
     await asyncio.wait_for(turn, 5)

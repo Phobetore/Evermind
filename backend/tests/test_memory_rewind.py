@@ -34,9 +34,8 @@ from .test_memory import extract, stored_facts, waiting_provider, within
 
 
 class Replies:
-    """The model that plays the story: a short reply to anything, or what ``text`` says
-    when it is asked to summarize. The memory passes talk to the scripted one, so that
-    what each is told is not mixed up."""
+    """The model that plays the story: a short reply to anything, or what ``text`` says.
+    The memory passes talk to the scripted one, so that what each is told is not mixed up."""
 
     text = "Reply."
 
@@ -115,7 +114,7 @@ async def checkpoints_of(convo_id):
 
 async def remove_from(client, convo_id, position):
     message = await at_position(client, convo_id, position)
-    resp = await client.delete(f"/api/messages/{message['id']}?following=true")
+    resp = await client.delete(f"/api/messages/{message['id']}")
     assert resp.status_code == 204, resp.text
 
 
@@ -240,10 +239,9 @@ async def test_removing_from_the_first_message_removes_every_fact_it_can(client,
     assert (read["memory_position"], read["summary"]) == (0, "")
 
 
-async def test_removing_one_message_goes_through_the_same_cut(client, fake_provider):
+async def test_removing_a_message_removes_the_story_from_it_on(client, fake_provider):
     """The memory read the turns after it with it in the story, and nothing says what they
-    drew from it. It goes back to before it, and the next pass reads again the ones that
-    stay. The interface does not do this, but the API lets anyone."""
+    drew from it: the story stops before it, and so does the memory."""
     convo = await setup_conversation(client)
     convo_id = convo["id"]
     await told_then_corrected(client, convo_id)
@@ -252,8 +250,7 @@ async def test_removing_one_message_goes_through_the_same_cut(client, fake_provi
     resp = await client.delete(f"/api/messages/{message['id']}")
 
     assert resp.status_code == 204
-    assert [m["position"] for m in await messages_of(client, convo_id)] == [
-        n for n in range(17) if n != 11]
+    assert [m["position"] for m in await messages_of(client, convo_id)] == list(range(11))
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (8, "To 8.")
     assert await stored_facts(client, convo_id) == [("Alice is alive.", "state", 8, False, "auto")]
@@ -262,9 +259,9 @@ async def test_removing_one_message_goes_through_the_same_cut(client, fake_provi
     fake_provider.captured.clear()
     await extract(client, convo_id, {"facts": [], "summary": "Again."})
     shown = fake_provider.captured["payload"].messages[0]["content"]
-    assert "(turn 9)" in shown and "(turn 10)" in shown and "(turn 12)" in shown and "(turn 16)" in shown
+    assert "(turn 9)" in shown and "(turn 10)" in shown
     assert "(turn 11)" not in shown and "(turn 8)" not in shown
-    assert (await conversation(client, convo_id))["memory_position"] == 16
+    assert (await conversation(client, convo_id))["memory_position"] == 10
 
 
 async def test_removing_the_last_message_alone_is_a_cut_before_it(client, fake_provider):
@@ -407,7 +404,7 @@ async def test_the_next_pass_reads_the_turns_that_came_after_a_removal(client, f
     assert await names(client, convo_id) == {"Kept by hand.", "Learned early."}
     assert await checkpoints_of(convo_id) == [(8, "The first four exchanges.", 8)]
 
-    await talk(client, convo_id, memory_service.MAINTENANCE_EVERY, label="new exchange")  # 11 to 22
+    await talk(client, convo_id, memory_service.MAINTENANCE_EVERY, label="new exchange")  # from 11
     db = await _connect()
     try:
         assert await memory_service._new_assistant_count(
@@ -432,11 +429,12 @@ async def test_the_next_pass_reads_the_turns_that_came_after_a_removal(client, f
     assert "(turn 8)" not in shown
     assert "old exchange 6" not in shown
     final = await stored_facts(client, convo_id)
+    end = 10 + 2 * memory_service.MAINTENANCE_EVERY
     assert [(f[0], f[2]) for f in final] == [
-        ("Kept by hand.", 0), ("Learned afterwards.", 22), ("Learned early.", 8),
-        ("Learned from turn 9.", 22)]
-    assert (await conversation(client, convo_id))["memory_position"] == 22
-    assert [c[0] for c in await checkpoints_of(convo_id)] == [8, 22]
+        ("Kept by hand.", 0), ("Learned afterwards.", end), ("Learned early.", 8),
+        ("Learned from turn 9.", end)]
+    assert (await conversation(client, convo_id))["memory_position"] == end
+    assert [c[0] for c in await checkpoints_of(convo_id)] == [8, end]
 
 
 async def test_a_long_story_cut_back_gets_its_summary_back_and_not_a_rebuilt_one(
@@ -504,47 +502,6 @@ async def test_a_summary_that_only_differs_by_its_edges_is_the_one_the_pass_wrot
     await remove_from(client, convo["id"], 7)
 
     assert (await conversation(client, convo["id"]))["summary"] == "The story to 4."
-
-
-async def test_a_summary_asked_for_is_a_place_to_go_back_to(client, fake_provider):
-    """Generating a summary reads turns without drawing facts from them, so the memory
-    goes back to where it had read, with the summary that was written."""
-    convo = await setup_conversation(client)
-    convo_id = convo["id"]
-    await talk(client, convo_id, 2)  # positions 0 to 4
-    await extract(client, convo_id, {"facts": [], "summary": "Written by a pass."})
-    await talk(client, convo_id, 2, first=3)  # 5 to 8
-    Replies.text = "Written when asked for."
-    resp = await client.post(f"/api/conversations/{convo_id}/summarize")
-    assert resp.status_code == 200, resp.text
-    assert await checkpoints_of(convo_id) == [
-        (4, "Written by a pass.", 4), (8, "Written when asked for.", 4)]
-    await talk(client, convo_id, 2, first=5)  # 9 to 12
-    await extract(client, convo_id, {"facts": [], "summary": "Written by a later pass."})
-
-    await remove_from(client, convo_id, 11)
-
-    read = await conversation(client, convo_id)
-    assert (read["memory_position"], read["summary"]) == (4, "Written when asked for.")
-    assert [c[0] for c in await checkpoints_of(convo_id)] == [4, 8]
-
-
-async def test_a_summary_asked_for_that_covers_removed_turns_goes_back_too(client, fake_provider):
-    """The memory had read less than the summary describes: a cut between the two still
-    makes the summary false."""
-    convo = await setup_conversation(client)
-    convo_id = convo["id"]
-    await talk(client, convo_id, 2)
-    await extract(client, convo_id, {"facts": [], "summary": "Written by a pass."})
-    await talk(client, convo_id, 2, first=3)
-    Replies.text = "Written when asked for."
-    await client.post(f"/api/conversations/{convo_id}/summarize")
-
-    await remove_from(client, convo_id, 6)
-
-    read = await conversation(client, convo_id)
-    assert (read["memory_position"], read["summary"]) == (4, "Written by a pass.")
-    assert await checkpoints_of(convo_id) == [(4, "Written by a pass.", 4)]
 
 
 async def test_a_branch_after_a_removal_takes_what_the_removal_left(client, fake_provider):
@@ -1496,186 +1453,6 @@ async def test_a_cut_that_leaves_every_fact_sent_leaves_the_merge(client, fake_p
 
     assert "skipped" not in answered.json()
     assert await stored_facts(client, convo_id) == [("All of it, merged.", "fact", 4, False, "auto")]
-
-
-# ---------- a summary asked for ----------
-
-@pytest.fixture()
-def slow_summary(monkeypatch):
-    """The model that writes a summary asked for does not answer until ``go_on`` is set."""
-    asked, go_on = asyncio.Event(), asyncio.Event()
-
-    class Slow(Replies):
-        async def stream_chat(self, payload):
-            if "[Write the summary" in payload.messages[-1]["content"]:
-                asked.set()
-                await go_on.wait()
-                yield ProviderEvent(type="delta", text="Written when asked for.")
-                yield ProviderEvent(type="done")
-                return
-            async for event in super().stream_chat(payload):
-                yield event
-
-    monkeypatch.setattr("app.services.chat_service.get_provider", Slow)
-    return asked, go_on
-
-
-async def test_a_cut_while_the_model_writes_a_summary_leaves_no_summary_of_removed_turns(
-        client, fake_provider, slow_summary):
-    asked, go_on = slow_summary
-    convo = await setup_conversation(client)
-    convo_id = convo["id"]
-    await talk(client, convo_id, 2)
-    await extract(client, convo_id, {"facts": [], "summary": "To 4."})
-    await talk(client, convo_id, 2, first=3)
-
-    writing = asyncio.create_task(client.post(f"/api/conversations/{convo_id}/summarize"))
-    try:
-        await within(5, asked.wait())
-        await remove_from(client, convo_id, 7)
-    finally:
-        go_on.set()
-    answered = await within(5, writing)
-
-    assert answered.status_code == 200, answered.text
-    assert answered.json()["skipped"] == "changed"
-    assert answered.json()["summary"] == "To 4."
-    read = await conversation(client, convo_id)
-    assert (read["memory_position"], read["summary"]) == (4, "To 4.")
-    assert await checkpoints_of(convo_id) == [(4, "To 4.", 4)]
-
-
-async def test_a_conversation_deleted_while_the_model_writes_a_summary_writes_nothing(
-        client, fake_provider, slow_summary):
-    asked, go_on = slow_summary
-    convo = await setup_conversation(client)
-    await talk(client, convo["id"], 1)
-
-    writing = asyncio.create_task(client.post(f"/api/conversations/{convo['id']}/summarize"))
-    try:
-        await within(5, asked.wait())
-        assert (await client.delete(f"/api/conversations/{convo['id']}")).status_code == 204
-    finally:
-        go_on.set()
-    answered = await within(5, writing)
-
-    assert answered.status_code == 200, answered.text
-    assert answered.json()["skipped"] == "changed"
-    assert await checkpoints_of(convo["id"]) == []
-
-
-async def test_a_turn_sent_while_the_model_writes_a_summary_does_not_stop_it(
-        client, fake_provider, slow_summary):
-    """It is true of the turns it was given, and is checkpointed at the last of them."""
-    asked, go_on = slow_summary
-    convo = await setup_conversation(client)
-    convo_id = convo["id"]
-    await talk(client, convo_id, 2)  # positions 0 to 4
-
-    writing = asyncio.create_task(client.post(f"/api/conversations/{convo_id}/summarize"))
-    try:
-        await within(5, asked.wait())
-        await send(client, convo_id, content="Sent meanwhile")
-    finally:
-        go_on.set()
-    answered = await within(5, writing)
-
-    assert "skipped" not in answered.json()
-    assert answered.json()["summary"] == "Written when asked for."
-    assert await checkpoints_of(convo_id) == [(4, "Written when asked for.", 0)]
-
-
-@pytest.mark.parametrize("trigger", ["BEFORE INSERT ON memory_checkpoints",
-                                     "BEFORE INSERT ON memory_checkpoint_facts"],
-                         ids=["checkpoint", "copy"])
-async def test_a_summary_that_cannot_be_checkpointed_is_not_written(client, fake_provider, trigger):
-    convo = await setup_conversation(client)
-    convo_id = convo["id"]
-    await talk(client, convo_id, 2)
-    await extract(client, convo_id, {"facts": [{"content": "Known.", "kind": "fact"}], "summary": "To 4."})
-    db = await _connect()
-    try:
-        await db.execute(f"CREATE TRIGGER refuse {trigger} BEGIN SELECT RAISE(ABORT, 'refused'); END")
-        await db.commit()
-    finally:
-        await db.close()
-
-    with pytest.raises(Exception, match="refused"):
-        await client.post(f"/api/conversations/{convo_id}/summarize")
-
-    assert (await conversation(client, convo_id))["summary"] == "To 4."
-
-
-async def test_a_summary_asked_for_during_a_pass_says_so_and_asks_no_model(
-        client, fake_provider, monkeypatch):
-    """A pass and a summary each read the summary and write over it: they cannot cross."""
-    convo = await setup_conversation(client)
-    convo_id = convo["id"]
-    await talk(client, convo_id, 2)
-    started, release, _ = waiting_provider(monkeypatch)
-    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(
-        {"facts": [], "summary": "From the pass."})), ProviderEvent(type="done")]
-    told = []
-
-    class Counts(Replies):
-        async def stream_chat(self, payload):
-            told.append(payload)
-            async for event in super().stream_chat(payload):
-                yield event
-
-    monkeypatch.setattr("app.services.chat_service.get_provider", Counts)
-    reading = asyncio.create_task(client.post(f"/api/conversations/{convo_id}/memories/extract"))
-    try:
-        await within(5, started.wait())
-        answered = await within(5, client.post(f"/api/conversations/{convo_id}/summarize"))
-    finally:
-        release.set()
-    await within(5, reading)
-
-    assert answered.status_code == 200, answered.text
-    assert answered.json()["skipped"] == "busy"
-    assert answered.json()["id"] == convo_id
-    assert told == []
-    assert (await conversation(client, convo_id))["summary"] == "From the pass."
-
-
-@pytest.mark.parametrize("task", ["extract", "consolidate"])
-async def test_a_pass_or_a_consolidation_during_a_summary_asked_for_says_so(
-        client, fake_provider, slow_summary, task):
-    asked, go_on = slow_summary
-    convo = await setup_conversation(client)
-    convo_id = convo["id"]
-    await talk(client, convo_id, 2)
-    fake_provider.captured.clear()
-
-    writing = asyncio.create_task(client.post(f"/api/conversations/{convo_id}/summarize"))
-    try:
-        await within(5, asked.wait())
-        answered = await within(5, client.post(f"/api/conversations/{convo_id}/memories/{task}"))
-    finally:
-        go_on.set()
-    summary = await within(5, writing)
-
-    assert answered.json()["skipped"] == "busy"
-    assert fake_provider.captured == {}
-    assert summary.json()["summary"] == "Written when asked for."
-
-
-async def test_a_summary_that_fails_lets_the_next_task_run(client, fake_provider, monkeypatch):
-    from app.errors import MODEL_ERROR
-
-    class Fails(Replies):
-        async def stream_chat(self, payload):
-            yield ProviderEvent(type="error", message="Down.", meta={"kind": MODEL_ERROR})
-
-    convo = await setup_conversation(client)
-    await talk(client, convo["id"], 2)
-    monkeypatch.setattr("app.services.chat_service.get_provider", Fails)
-
-    assert (await client.post(f"/api/conversations/{convo['id']}/summarize")).status_code >= 400
-
-    answered = await extract(client, convo["id"], {"facts": [], "summary": "To 4."})
-    assert "skipped" not in answered
 
 
 # ---------- a long story keeps its summary ----------

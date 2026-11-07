@@ -67,11 +67,6 @@ async def stop_turn(convo_id: str) -> None:
     await turns.stop(convo_id)
 
 
-@router.post("/conversations/{convo_id}/summarize")
-async def summarize(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    return await chat_service.summarize(db, convo_id)
-
-
 @router.post("/conversations/{convo_id}/impersonate")
 async def impersonate(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
     return await chat_service.impersonate(db, convo_id)

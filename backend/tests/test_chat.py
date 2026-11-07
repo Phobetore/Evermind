@@ -163,35 +163,6 @@ async def test_impersonation_trimmed(client, fake_provider):
     assert events[-1]["message"]["content"] == "Fine."
 
 
-async def test_summarize(client, fake_provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    fake_provider.script = [ProviderEvent(type="delta", text="They met in a crypt."), ProviderEvent(type="done")]
-    resp = await client.post(f"/api/conversations/{convo['id']}/summarize")
-    assert resp.status_code == 200
-    assert resp.json()["summary"] == "They met in a crypt."
-
-
-async def test_summarize_prompt_holds_the_turns_of_the_conversation(client, fake_provider):
-    convo = await setup_conversation(client, greeting="*She stirs.*")
-    await send(client, convo["id"])
-    fake_provider.script = [ProviderEvent(type="delta", text="They met in a crypt."),
-                            ProviderEvent(type="done")]
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/summarize")
-
-    assert resp.status_code == 200, resp.text
-    payload = fake_provider.captured["payload"]
-    assert "long-term memory of a roleplay conversation between Alex and Serana" in payload.system
-    assert [(m["role"], m["content"]) for m in payload.messages] == [
-        ("assistant", "*She stirs.*"),
-        ("user", "Hello there"),
-        ("assistant", "*She smiles.* Hello."),
-        ("user", "[Write the summary of the roleplay so far now.]"),
-    ]
-    assert payload.stop == []
-
-
 async def test_auto_title_strips_rp_markup(client, fake_provider):
     convo = await setup_conversation(client)
     await send(client, convo["id"], content="*I step back, torch raised.* Easy, I'm Aymeric.")

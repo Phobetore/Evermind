@@ -41,10 +41,6 @@ IMPERSONATE_PROMPT = """You are ghost-writing the PLAYER's next message in a rol
 Write ONLY {{user}}'s next message: first person as {{user}}, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to {{char}}'s last message and moves the scene forward.
 Never write {{char}}'s words, thoughts or reactions. Never add commentary. Reply with the message text only."""
 
-SUMMARIZE_PROMPT = """You are keeping the long-term memory of a roleplay conversation between {{user}} and {{char}}.
-Write a compact summary (max 300 words) of everything important that happened so far: key events in order, relationship changes, promises, injuries, revealed secrets, current location, time of day, and any unresolved threads.
-Write it as plain factual prose in the language of the conversation. No commentary, no headers, just the summary."""
-
 CARD_ASSISTANT_PROMPT = """You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.
 
 Rules:

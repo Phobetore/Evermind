@@ -324,7 +324,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     oldest_visible = min((t["position"] for t in provisional), default=0)
     relevant_memories = [
         m for m in (memories or [])
-        if m.get("is_pinned") or (m.get("source_position") or 0) < oldest_visible
+        if m.get("is_pinned") or m.get("source") == "user"
+        or (m.get("source_position") or 0) < oldest_visible
     ]
     facts_shown = select_facts(relevant_memories, facts_budget, relevance_scores)
 

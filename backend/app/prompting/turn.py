@@ -15,6 +15,10 @@ CONTINUE_INSTRUCTION = (
 )
 
 
+def is_out_of_character(message: dict) -> bool:
+    return (message.get("meta") or {}).get("mode") == "ooc"
+
+
 def trim_reply(text: str, char_name: str, user_name: str) -> str:
     """Post-generation cleanup: drop anything the model wrote for the player,
     and a leading "Name:" speaker tag if present."""
@@ -51,7 +55,8 @@ def passage_candidates(history: list[dict], stats: dict) -> tuple[list[dict], se
     window starts, and a message at or after it is still in the prompt."""
     oldest_visible = stats.get("oldest_visible") or 0
     fact_positions = {p for p in (stats.get("fact_positions") or []) if p is not None}
-    candidates = [m for m in history if (m.get("position") or 0) < oldest_visible]
+    candidates = [m for m in history
+                  if (m.get("position") or 0) < oldest_visible and not is_out_of_character(m)]
     return candidates, fact_positions
 
 

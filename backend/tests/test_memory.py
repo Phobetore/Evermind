@@ -119,6 +119,146 @@ async def test_is_due_after_threshold_and_setting(client, fake_provider):
         await db.close()
 
 
+class Said:
+    """The chat model: a reply that names the message it answers, so that what a pass was
+    sent can be told from what it was not."""
+
+    def __init__(self, connection):
+        pass
+
+    async def stream_chat(self, payload):
+        yield ProviderEvent(type="delta", text=f"Reply to {payload.messages[-1]['content']}")
+        yield ProviderEvent(type="done")
+
+
+async def an_automatic_pass(client, monkeypatch):
+    """A conversation whose replies have just made a pass due, with the pass done: the real
+    ``schedule_if_due``, and a memory model that answers with ``EXTRACTION_JSON``."""
+    monkeypatch.setattr("app.services.chat_service.get_provider", Said)
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    FakeProvider.captured = {}
+    FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                           ProviderEvent(type="done")]
+    convo = await setup_conversation(client)
+    for n in range(memory_service.MAINTENANCE_EVERY):
+        await send(client, convo["id"], content=f"exchange {n}")
+    await asyncio.gather(*[t for t in asyncio.all_tasks() if "schedule_if_due" in repr(t)])
+    return convo["id"]
+
+
+async def test_an_automatic_pass_leaves_the_newest_messages_unread(client, monkeypatch):
+    convo_id = await an_automatic_pass(client, monkeypatch)
+    last = memory_service.MAINTENANCE_EVERY - 1
+
+    asked = FakeProvider.captured["payload"].messages[0]["content"]
+    assert "exchange 0" in asked
+    assert f"exchange {last - 2}" in asked and f"exchange {last - 1}" not in asked
+    read = (await client.get(f"/api/conversations/{convo_id}")).json()
+    assert read["memory_position"] == 2 * memory_service.MAINTENANCE_EVERY - memory_service.HOLD_BACK
+    assert len((await client.get(f"/api/conversations/{convo_id}/memories")).json()) == 2
+
+    # Remember reads them all: the person asked for the story as it stands.
+    await client.post(f"/api/conversations/{convo_id}/memories/extract")
+    assert f"exchange {last}" in FakeProvider.captured["payload"].messages[0]["content"]
+    read = (await client.get(f"/api/conversations/{convo_id}")).json()
+    assert read["memory_position"] == 2 * memory_service.MAINTENANCE_EVERY
+
+
+async def test_removing_the_last_reply_after_an_automatic_pass_costs_the_memory_nothing(
+        client, monkeypatch):
+    """A reply that is thrown away and written again was not read, so nothing of it is in
+    the memory and nothing is taken back."""
+    convo_id = await an_automatic_pass(client, monkeypatch)
+    messages = (await client.get(f"/api/conversations/{convo_id}")).json()["messages"]
+
+    resp = await client.delete(f"/api/messages/{messages[-1]['id']}")
+
+    assert resp.status_code == 204
+    read = (await client.get(f"/api/conversations/{convo_id}")).json()
+    assert read["memory_position"] == 2 * memory_service.MAINTENANCE_EVERY - memory_service.HOLD_BACK
+    assert read["summary"].startswith("Aymeric woke")
+    assert len((await client.get(f"/api/conversations/{convo_id}/memories")).json()) == 2
+
+
+async def test_a_pass_asks_for_room_to_answer_whatever_the_connection_allows(client, fake_provider):
+    """A reply cut at a few hundred tokens leaves JSON that cannot be read, and every pass
+    after it fails the same way."""
+    convo = await setup_conversation(client)
+    connection = (await client.get("/api/connections")).json()[0]
+    await client.put(f"/api/connections/{connection['id']}", json={"max_tokens": 300})
+    await send(client, convo["id"])
+    fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                            ProviderEvent(type="done")]
+
+    await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+
+    assert fake_provider.captured["connection"]["max_tokens"] == 2048
+
+
+async def test_a_pass_sets_no_cap_on_a_connection_that_has_none(client, fake_provider):
+    """Some providers refuse the field, and chat works without it."""
+    convo = await setup_conversation(client)
+    connection = (await client.get("/api/connections")).json()[0]
+    await client.put(f"/api/connections/{connection['id']}", json={"max_tokens": None})
+    await send(client, convo["id"])
+    fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                            ProviderEvent(type="done")]
+
+    await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+
+    assert fake_provider.captured["connection"]["max_tokens"] is None
+
+
+async def test_a_failed_automatic_pass_waits_for_more_replies_and_says_why(client, monkeypatch):
+    monkeypatch.setattr("app.services.chat_service.get_provider", Said)
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    FakeProvider.captured = {}
+    FakeProvider.script = [ProviderEvent(type="delta", text="not json"), ProviderEvent(type="done")]
+    convo = await setup_conversation(client)
+    every = memory_service.MAINTENANCE_EVERY
+
+    async def reply(n):
+        await send(client, convo["id"], content=f"exchange {n}")
+        await asyncio.gather(*[t for t in asyncio.all_tasks() if "schedule_if_due" in repr(t)])
+
+    for n in range(every):
+        await reply(n)
+    asked = FakeProvider.captured["payload"]
+    assert (await client.get(f"/api/conversations/{convo['id']}")).json()["memory_error"]["kind"]         == "model_unreadable"
+
+    # Not again until `every - 1` more replies have come, however many are due.
+    FakeProvider.captured = {}
+    for n in range(every, 2 * every - 2):
+        await reply(n)
+    assert FakeProvider.captured == {}
+    FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                           ProviderEvent(type="done")]
+    await reply(2 * every - 2)
+    assert FakeProvider.captured["payload"] is not asked
+
+    read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+    assert read["memory_error"] is None
+    assert read["memory_position"] > 0
+
+
+async def test_a_pass_never_reads_a_message_out_of_character(client, fake_provider):
+    convo = await setup_conversation(client)
+    sent = await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "message_mode": "ooc",
+        "content": "Stop describing her eyes, and kill the innkeeper next scene."})
+    assert sent.status_code == 200, sent.text
+    fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
+                            ProviderEvent(type="done")]
+
+    await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+
+    asked = fake_provider.captured["payload"].messages[0]["content"]
+    assert "innkeeper" not in asked
+    assert "Hello." in asked  # the reply to it is read
+    read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+    assert read["memory_position"] == 2
+
+
 async def test_facts_injected_into_chat_payload(client, fake_provider):
     convo = await setup_conversation(client)
     await client.post(f"/api/conversations/{convo['id']}/memories", json={
