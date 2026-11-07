@@ -462,7 +462,7 @@
     "invalid": "Evermind could not accept this: something in it is missing or not valid.",
     "locked": "Your session has ended. Sign in again.",
     "wrongPassword": "Access denied.",
-    "tooLarge": "Too long to be the password.",
+    "tooLarge": "Too long to be the password, or a reverse proxy passed it on without saying its length.",
     "rateLimited": "Too many attempts. Try again in {minutes} min.",
     "crossOrigin": "Evermind refused this request because it seems to come from another address. Behind a reverse proxy, the proxy has to pass the original Host header on unchanged.",
     "unknownHost": "Without a password, Evermind does not answer to this name. Open it by its address (such as http://192.168.1.42:3000) or by localhost, or set a password.",

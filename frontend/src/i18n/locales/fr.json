@@ -462,7 +462,7 @@
     "invalid": "Evermind n'a pas pu traiter cette demande : des informations manquent ou ne sont pas valides.",
     "locked": "Votre session est terminée. Reconnectez-vous.",
     "wrongPassword": "Accès refusé.",
-    "tooLarge": "Trop long pour être le mot de passe.",
+    "tooLarge": "Trop long pour être le mot de passe, ou un proxy inverse l'a transmis sans en indiquer la longueur.",
     "rateLimited": "Trop de tentatives. Réessayez dans {minutes} min.",
     "crossOrigin": "Evermind a refusé cette requête, qui semble venir d'une autre adresse. Derrière un proxy inverse, le proxy doit transmettre l'en-tête Host d'origine sans le modifier.",
     "unknownHost": "Sans mot de passe, Evermind ne répond pas à ce nom. Ouvrez-le par son adresse (comme http://192.168.1.42:3000) ou par localhost, ou définissez un mot de passe.",
