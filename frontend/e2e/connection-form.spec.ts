@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { API } from "../playwright.config";
+import { MOCK } from "./fixtures";
 
 const SETTINGS = ["max_tokens", "temperature", "top_p", "frequency_penalty", "presence_penalty"];
 const MINE = ["OpenAI", "Tuned"];
@@ -98,5 +99,28 @@ test("testing a saved connection saves nothing of what was changed", async ({ pa
 
   const [tuned] = await saved(request, "Tuned");
   expect(tuned.model, "Test saved the change").toBe("kept");
+  await forgetMine(request);
+});
+
+test("measuring the speed of a saved connection measures what the form holds, and saves nothing", async ({
+  page, request,
+}) => {
+  await forgetMine(request);
+  await request.post(`${API}/api/connections`, {
+    data: { name: "Tuned", base_url: MOCK, model: "evermind-demo" },
+  });
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: /^Tuned/ }).click();
+  const form = page.getByRole("dialog");
+  const measure = form.getByRole("button", { name: "Measure speed" });
+  const nothing = form.getByText("The model did not produce any text.");
+  // The mock writes nothing for a model whose name holds this.
+  await form.getByLabel("Model").fill("MOCK_SILENT");
+  await measure.click();
+  await expect(nothing).toBeVisible();
+  await form.getByRole("button", { name: "Close" }).click();
+
+  const [tuned] = await saved(request, "Tuned");
+  expect(tuned.model, "Measure speed saved the change").toBe("evermind-demo");
   await forgetMine(request);
 });

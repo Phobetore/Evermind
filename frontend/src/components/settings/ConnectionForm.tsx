@@ -117,11 +117,10 @@ export function ConnectionForm({
   }
 
   async function benchmark() {
-    if (!connection) return;
     setBenchmarking(true);
     setBenchResult(null);
     try {
-      setBenchResult(await source.benchmark(connection.id));
+      setBenchResult(await source.benchmark({ ...buildPayload(), name: draft.name || "test", id: connection?.id }));
     } catch (e) {
       setBenchResult({ ok: false, detail: describeError(e, t, t("connections.benchmarkFailed")) });
     }

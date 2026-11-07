@@ -36,27 +36,30 @@ async def delete_connection(conn_id: str, db: aiosqlite.Connection = Depends(get
         raise NotFoundError("Connection not found.", "connection")
 
 
-@router.post("/test")
-async def test_connection(payload: ConnectionDraft, db: aiosqlite.Connection = Depends(get_db)):
-    """Test a connection as the form holds it, saving nothing."""
-    connection = payload.model_dump()
+async def _as_held(db: aiosqlite.Connection, draft: ConnectionDraft) -> dict:
+    """The connection as the form holds it; with no key typed, the saved one lends its own."""
+    connection = draft.model_dump()
     if connection["api_key"] is None:
-        saved = await repo.get_raw(db, payload.id) if payload.id else None
+        saved = await repo.get_raw(db, draft.id) if draft.id else None
         connection["api_key"] = saved["api_key"] if saved else ""
-    return await get_provider(connection).test()
+    return connection
 
 
-@router.post("/{conn_id}/benchmark")
-async def benchmark_connection(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    """Small real generation to measure first-token latency and tokens/s."""
+@router.post("/test")
+async def test_connection(draft: ConnectionDraft, db: aiosqlite.Connection = Depends(get_db)):
+    """Test a connection as the form holds it, saving nothing."""
+    return await get_provider(await _as_held(db, draft)).test()
+
+
+@router.post("/benchmark")
+async def benchmark_connection(draft: ConnectionDraft, db: aiosqlite.Connection = Depends(get_db)):
+    """Small real generation to measure first-token latency and tokens/s, saving nothing."""
     import time
 
     from ..prompting.engine import PromptPayload
     from ..prompting.tokens import estimate_tokens
 
-    connection = await repo.get_raw(db, conn_id)
-    if not connection:
-        raise NotFoundError("Connection not found.", "connection")
+    connection = await _as_held(db, draft)
     payload = PromptPayload(
         system="You are a speed test. Reply in plain prose.",
         messages=[{"role": "user", "content":

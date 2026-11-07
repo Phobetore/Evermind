@@ -78,7 +78,7 @@ NOT_FOUND = [
     ("patch", "/api/messages/nope", {"content": "x"}, "Message not found.", "message"),
     ("post", "/api/messages/nope/branch", None, "Message not found.", "message"),
     ("put", "/api/personas/nope", {"name": "x"}, "Persona not found.", "persona"),
-    ("post", "/api/connections/nope/benchmark", None, "Connection not found.", "connection"),
+    ("delete", "/api/connections/nope", None, "Connection not found.", "connection"),
     ("patch", "/api/lore/nope", {"enabled": False}, "Entry not found.", "lore_entry"),
     ("post", "/api/characters/nope/lore", {"keys": ["a"], "content": "b"},
      "Character not found.", "character"),

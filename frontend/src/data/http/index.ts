@@ -169,7 +169,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
       update: (id, input) => put<Connection>(`api/connections/${seg(id)}`, input),
       remove: (id) => del(`api/connections/${seg(id)}`),
       test: (input) => post<ConnectionTestResult>("api/connections/test", input),
-      benchmark: (id) => post<BenchmarkResult>(`api/connections/${seg(id)}/benchmark`),
+      benchmark: (input) => post<BenchmarkResult>("api/connections/benchmark", input),
     },
 
     updates: {

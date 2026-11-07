@@ -237,7 +237,11 @@ describe("routes", () => {
       () => http.connections.test({ ...connection, id: "k1" }),
       "POST", "api/connections/test", { ...connection, id: "k1" },
     ],
-    ["connections.benchmark", () => http.connections.benchmark("k1"), "POST", "api/connections/k1/benchmark"],
+    [
+      "connections.benchmark",
+      () => http.connections.benchmark({ ...connection, id: "k1" }),
+      "POST", "api/connections/benchmark", { ...connection, id: "k1" },
+    ],
     ["updates.get", () => http.updates.get(), "GET", "api/update"],
     ["access.status", () => http.access.status(), "GET", "api/gate"],
     ["access.login", () => http.access.login("open sesame"), "POST", "api/gate", { password: "open sesame" }],

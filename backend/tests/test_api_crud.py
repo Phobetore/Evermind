@@ -278,7 +278,7 @@ async def test_the_speed_test_keeps_the_connections_own_ceiling(client, monkeypa
     created = (await client.post("/api/connections", json={
         "name": "Local", "base_url": "http://localhost:1234/v1", "max_tokens": ceiling,
     })).json()
-    assert (await client.post(f"/api/connections/{created['id']}/benchmark")).json()["ok"]
+    assert (await client.post("/api/connections/benchmark", json=created)).json()["ok"]
     assert FakeProvider.captured["connection"]["max_tokens"] == ceiling
 
 
