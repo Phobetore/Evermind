@@ -1,5 +1,4 @@
 import { MobileNav } from "@/components/layout/MobileNav";
-import { NavigationProgress } from "@/components/layout/NavigationProgress";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useT } from "@/i18n/useT";
 import { clsx } from "clsx";
@@ -40,7 +39,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {t("nav.skipToContent")}
       </a>
-      <NavigationProgress />
       <Sidebar />
       <main
         id="main"
