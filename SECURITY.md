@@ -45,16 +45,18 @@ closed as working-as-intended:
 
 ## How the access password works
 
-Each device types the password once and gets a session of its own, which lasts 30
-days after that device's last visit. **Sign out of this device** and **Sign out
-every device**, both in Settings, end one session or all of them, and changing or
-removing the password ends them all.
+Each device types the password once and gets a session of its own, which lasts
+until it is ended. **Sign out of this device** and **Sign out every device**, both
+in Settings, end one session or all of them, and changing the password ends them
+all. A session never expires by itself: each opening of Evermind gives its cookie
+another 400 days, so a device that is lost stays signed in until every device is
+signed out or the password changes.
 
-The password is kept as a salted scrypt digest, and only a SHA-256 of each
-session token is stored, so reading the database does not hand anyone a way in.
-It is compared after Unicode normalisation, so an accent typed on a phone
-keyboard is the same password as the one in `.env` however each wrote it.
-Wrong guesses are limited to 10 per 15 minutes for each address. Behind Docker
+The database keeps nothing of the password, and of each session only an HMAC of
+its token keyed by the password, so reading the database does not hand anyone a
+way in. The password is compared after Unicode normalisation, so an accent typed
+on a phone keyboard is the same password as the one in `.env` however each wrote
+it. Wrong guesses are limited to 10 per 15 minutes for each address. Behind Docker
 the requests usually all reach Evermind from Docker's own address, so that limit
 is shared by every device: ten wrong guesses from one of them keep the others
 out too, for up to 15 minutes.
@@ -64,25 +66,18 @@ out too, for up to 15 minutes.
 A website you visit can make your browser send requests to Evermind. This is
 what stands in its way:
 
-- **Changes from another origin are refused, password or not.** A write to the
-  API, or a websocket, that the browser says comes from a page of another origin
-  is turned away. The browser says so in `Sec-Fetch-Site` over HTTPS and on
-  localhost, and otherwise only in `Origin`, which Evermind compares with the
-  address the request was sent to. A reverse proxy in front of Evermind must
-  therefore pass the `Host` header through unchanged, which works with every
-  browser. Serving it over HTTPS is the second safety net, since browsers then
-  send `Sec-Fetch-Site`, though Safari before 16.4 sends no Fetch Metadata even
-  over HTTPS. A proxy that does neither gets the interface's own changes refused
-  too.
-- **Without a password, Evermind only answers to names it knows.** A website can
-  point a name of its own at your computer once its page is loaded (DNS
-  rebinding), and the browser then treats that page as Evermind itself, able to
-  read and change everything. So the API only answers when it is reached by an
-  address, `localhost` (or a name ending in `.localhost`), this computer's own
-  name (also with `.local` after it), its first label when the name has a
-  domain (and that label followed by `.local`; `nas` for `nas.home.lan`), or a
-  name listed in `EVERMIND_ALLOWED_HOSTS`. A container cannot see the
-  computer's own name, so with Docker it has to be listed too.
+- **Changes from another origin are refused, password or not.** The browser
+  names the page that sends a write in `Origin`, and Evermind refuses the write
+  when that is not the address the request was sent to, its `Host`. A reverse
+  proxy in front of Evermind must therefore pass the `Host` header through
+  unchanged, or the interface's own changes are refused too. The scheme is not
+  compared, so a proxy that ends HTTPS works.
+- **Without a password, Evermind only answers to an address or `localhost`.** A
+  website can point a name of its own at your computer once its page is loaded
+  (DNS rebinding), and the browser then treats that page as Evermind itself,
+  able to read and change everything. So the API only answers when it is reached
+  by an address (`192.168.1.42`, `127.0.0.1`) or by `localhost`. To open it by a
+  name, set a password.
 - **With a password, the password protects the rest.** Any name is accepted, so
   a proxy can serve Evermind under its own, but the session cookie belongs to
   the name each device signed in on: a page under another name has none, and

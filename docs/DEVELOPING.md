@@ -105,8 +105,8 @@ through `src/data/`, a typed `DataSource` with an HTTP implementation, so the
 calls and their error handling live in one place.
 
 The backend deliberately runs a **single uvicorn worker**: the memory-maintenance
-lock, the SQLite writes and the cache of access-password sessions are
-per-process, so multiple workers would race.
+lock, the SQLite writes and the count of wrong passwords are per-process, so
+multiple workers would race.
 
 No real model to hand? `python scripts/mock_llm.py` serves an OpenAI-compatible
 endpoint on `http://localhost:5599/v1` that streams placeholder roleplay text,
@@ -164,38 +164,27 @@ test that passes either way is worse than none, because it reads like cover.
 - `POST /api/characters/assist`: drafts a card from a free-form brief
 - `POST /api/conversations/{id}/memories/extract`, `.../memories/consolidate`
 - `GET /api/library`, `POST /api/library/{filename}/install`
-- `GET /api/gate`: whether a password is set and whether this device is past it;
-  `POST /api/gate` signs in and sets the session cookie; `DELETE /api/gate` signs
-  this device out; `DELETE /api/gate/sessions` signs every device out
+- `GET /api/gate`: whether a password is set and whether this device is past it,
+  and if it is, its cookie again for another 400 days; `POST /api/gate` signs in
+  and sets the session cookie; `DELETE /api/gate` signs this device out;
+  `DELETE /api/gate/sessions` signs every device out
 
 With a password set, everything under `/api/` except `/api/health` and
 `/api/gate` answers `401` with `"kind": "locked"` until the device has signed in.
 A path under `/api/` that no route answers gets the API's own JSON 404, never the
 interface's page.
 
-Password or not, a `POST`, `PUT`, `PATCH` or `DELETE` under `/api/` that a
-browser sends from a page of another origin answers `403` with
-`"kind": "cross_origin"`, and such a page's websocket is closed. The browser
-says so in `Sec-Fetch-Site` over HTTPS and on localhost, and otherwise only in
-`Origin`, which the API compares with the scheme and `Host` the request arrived
-with. So a reverse proxy should preserve `Host`, which always works; HTTPS is
-the second safety net, but Safari before 16.4 sends no Fetch Metadata even over
-HTTPS. A request with neither header, from curl or a script, is let through.
+Password or not, a request under `/api/` other than `GET` or `HEAD` whose
+`Origin` does not name the `Host` it arrived with answers `403` with
+`"kind": "cross_origin"`. The scheme is left out, so a reverse proxy that ends
+HTTPS works as long as it preserves `Host`. A request without `Origin`, from curl
+or a script, is let through.
 
-Without a password, anything under `/api/` whose `Host` is not an address,
-`localhost` (or a name ending in `.localhost`), this machine's name (also with
-`.local`), its first label when the name has a domain (and that label followed
-by `.local`; `nas` for `nas.home.lan`) or a name in `EVERMIND_ALLOWED_HOSTS`
-answers `403` with `"kind": "unknown_host"`: a page whose own name was pointed
-at 127.0.0.1 (DNS rebinding) looks same-origin in every other header. The header
-is read strictly, so a name with anything after it (`localhost:3000@evil.com`)
-is not the name in front of it, and a request without a `Host` header is refused
-with a sentence of its own. In a container the machine's name is the container's,
-which nobody types, so with Docker the computer's own name has to be listed. With
-a password the name is not checked. The Vite dev server asks the same of `Host`
-before a request reaches the API (`server.allowedHosts` in `vite.config.ts`, from
-the machine's name and `EVERMIND_ALLOWED_HOSTS`), so a development server
-started with `--lan` answers to the machine's name too.
+Without a password, anything under `/api/` whose `Host` is not an address or
+`localhost` answers `403` with `"kind": "unknown_host"`: a page whose own name was
+pointed at 127.0.0.1 (DNS rebinding) looks same-origin in every other header.
+With a password the name is not checked. The Vite dev server checks `Host` by its
+own default, which lets addresses and `localhost` through.
 
 Responses are plain dicts shaped by the repositories; Pydantic is used for input
 validation only.
@@ -242,8 +231,8 @@ Evermind works behind a reverse proxy that serves it under a path such as
 ```nginx
 location /evermind/ {
     proxy_pass http://127.0.0.1:3000/;
-    # As the browser sent it, port included. Without it every write over plain
-    # HTTP is refused as cross_origin (see above), since Origin and Host differ.
+    # As the browser sent it, port included. Without it every write is refused
+    # as cross_origin (see above), since Origin and Host differ.
     proxy_set_header Host $http_host;
 }
 ```
