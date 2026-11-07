@@ -79,6 +79,8 @@ export interface Conversation {
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
   forked_from?: string | null;
+  /** Counts the changes to its messages. */
+  revision?: number;
   created_at: string;
   updated_at: string;
   character?: Character;
@@ -158,10 +160,11 @@ export interface TurnFailure {
 }
 
 /** What the server says of a conversation's turn: the message being written, as far as it has
- *  got, or how the last one ended when it failed or added nothing ("nothing_added"). */
-export type TurnState =
+ *  got, or how the last one ended when it failed or added nothing ("nothing_added"); and the
+ *  revision of the messages, read before that. */
+export type TurnState = { revision: number | null } & (
   | { running: true; message_id: string; text: string }
-  | { running: false; outcome: (TurnFailure & { mode: "send" | "regenerate" | "continue" }) | null };
+  | { running: false; outcome: (TurnFailure & { mode: "send" | "regenerate" | "continue" }) | null });
 
 /** What following a turn hands over: the message so far, then each piece as it arrives. */
 export type TurnEvent = { text: string } | { delta: string } | { end: true };

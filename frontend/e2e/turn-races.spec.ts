@@ -4,7 +4,7 @@ import {
   connectionBack, connectionDiesDuring, countingPosts, countingStreams, expectPickedUp, goWithinThePage,
   phoneComesBack, report, retryButton, stopButton, writing,
 } from "./connection";
-import { conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
+import { chat, conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
 
 /**
  * What happens when two things meant for the same turn, or for two turns, arrive in
@@ -192,6 +192,40 @@ test.describe("two conversations", () => {
     await expect(writing(page)).not.toContainText("bravo");
     await stopTurn(request, a.id);
     await stopTurn(request, b.id);
+  });
+});
+
+test.describe("what another device did", () => {
+  test("is on screen once the phone wakes", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await page.goto(`/#/chat/${convo.id}`);
+    await page.waitForLoadState("networkidle");
+    await chat(request, { conversation_id: convo.id, mode: "send", content: "Depuis le PC." });
+
+    await phoneComesBack(page);
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    await expect(page.getByText("Depuis le PC.")).toBeVisible();
+  });
+
+  test("beginning between the page's question and its read is followed", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    let first = true;
+    await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+      if (route.request().method() !== "GET" || !first) return route.continue();
+      first = false;
+      void elsewhere(request, convo.id, { mode: "send", content: "Envoyé d'ailleurs." });
+      await expect.poll(() => turnRunning(request, convo.id)).toBe(true);
+      await route.continue();
+    });
+
+    await page.goto(`/#/chat/${convo.id}`);
+
+    await expect(writing(page), "the page did not follow it").toBeVisible({ timeout: 15_000 });
+    await expect(report(page), "said not to have arrived").toHaveCount(0);
+    await stopTurn(request, convo.id);
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    await expect(report(page)).toHaveCount(0);
   });
 });
 

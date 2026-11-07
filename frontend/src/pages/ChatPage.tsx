@@ -117,14 +117,15 @@ function ChatView({ id }: { id: string }) {
   // The title too, which the server gives a new conversation; the side panel reads the rest itself.
   const read = useCallback(async (asking: Asking) => {
     const changes = changesByHand.current;
-    const convo = await data.conversations.get(id, asking);
-    return () => {
-      if (settleSending(id, convo.messages ?? [])) setRefused(null);
+    const conversation = await data.conversations.get(id, asking);
+    const show = () => {
+      if (settleSending(id, conversation.messages ?? [])) setRefused(null);
       if (changesByHand.current !== changes) return false;
-      setConversation((shown) => (shown ? { ...shown, title: convo.title } : convo));
-      setMessages(convo.messages ?? []);
+      setConversation((shown) => (shown ? { ...shown, title: conversation.title } : conversation));
+      setMessages(conversation.messages ?? []);
       return true;
     };
+    return { conversation, show };
   }, [id]);
 
   const { writing, text, lost, outcome, watch, began, recheck, noAnswer, forget } = useTurn(id, read);

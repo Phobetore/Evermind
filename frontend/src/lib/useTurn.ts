@@ -1,5 +1,5 @@
 import { data, DataError, type Asking } from "@/data";
-import type { TurnState } from "@/types";
+import type { Conversation, TurnState } from "@/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export const PATIENCE_MS = 10_000;
@@ -41,19 +41,21 @@ export class LiveText {
 // Conversations whose turn was asked for from a page, which is where how it ended is said.
 const asked = new Set<string>();
 
-/** The reply being written: ask the server how it stands, read, follow the words until that ends
- *  for any reason, ask again. `read` fetches the conversation and hands back what shows it, which
- *  says whether it did. */
-export function useTurn(id: string, read: (asking: Asking) => Promise<() => boolean>) {
+/** The reply being written: ask the server how it stands, read when what is shown may be behind,
+ *  follow the words until that ends for any reason, ask again. `read` fetches the conversation
+ *  with what shows it, which says whether it did. */
+export function useTurn(
+  id: string,
+  read: (asking: Asking) => Promise<{ conversation: Conversation; show: () => boolean }>,
+) {
   // The message being written, "" until the server says which.
   const [writing, setWriting] = useState<string | null>(null);
   const [lost, setLost] = useState<unknown>(null);
   const [outcome, setOutcome] = useState<Outcome>(null);
   const [text] = useState(() => new LiveText());
   const watching = useRef<AbortController | null>(null);
-  // The same, and whether what is on screen may be behind the server: a phone waking to nothing new
-  // reads nothing, which the side panel counts on.
-  const shown = useRef({ writing: null as string | null, behind: true });
+  // The same, the revision of what is on screen, and whether it may be behind the server.
+  const shown = useRef({ writing: null as string | null, revision: null as number | null, behind: true });
 
   const watch = useCallback(async () => {
     watching.current?.abort();
@@ -66,12 +68,17 @@ export function useTurn(id: string, read: (asking: Asking) => Promise<() => bool
       try {
         const state = await data.turns.state(id, asking);
         if (signal.aborted) return;
-        if (shown.current.behind || (state.running ? state.message_id : null) !== shown.current.writing) {
-          const show = await read(asking);
+        const now = state.running ? state.message_id : null;
+        if (shown.current.behind || now !== shown.current.writing
+          || (!state.running && state.revision !== shown.current.revision)) {
+          const { conversation, show } = await read(asking);
           if (signal.aborted) return;
           // Older than a change made by hand meanwhile, it is not shown, and another is sent.
           if (!show()) continue;
           shown.current.behind = false;
+          shown.current.revision = conversation.revision ?? null;
+          // Newer than the state: something began or ended in between, which it says next.
+          if (!state.running && shown.current.revision !== state.revision) continue;
         }
         setLost(null);
         if (!state.running) {
@@ -97,7 +104,6 @@ export function useTurn(id: string, read: (asking: Asking) => Promise<() => bool
         if (!ended) await pause(AFTER_A_CLOSE_MS);
       } catch (error) {
         if (signal.aborted) return;
-        shown.current.behind = true;
         setLost(error);
         await pause(AFTER_A_FAILURE_MS - (Date.now() - started));
       }
