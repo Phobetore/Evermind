@@ -11,13 +11,14 @@ import { makeConversation } from "./fixtures";
  * summary of a story that no longer existed stayed on screen, and saving it wrote it back.
  */
 
-const panelText = JSON.parse(
+const en = JSON.parse(
   readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", "en.json"), "utf8"),
-).chat.panel as {
+);
+const panelText = en.chat.panel as {
   closeAriaLabel: string;
   directive: { placeholder: string; applyButton: string };
   summary: { placeholder: string; saveButton: string };
-  facts: { extractButton: string; pinTitle: string; forgetAriaLabel: string };
+  facts: { extractButton: string; consolidateButton: string; pinTitle: string; forgetAriaLabel: string };
 };
 
 test("cutting the story back empties the summary and the facts of what went", async ({ page, request }) => {
@@ -439,6 +440,23 @@ test("a memory pass that fails says so in the colour of an error, and keeps sayi
   await expect(error).toBeVisible();
   await page.waitForTimeout(4500);
   await expect(error).toBeVisible();
+});
+
+test("a merge with too few facts says why, in the colour of an error", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/conversations/${convo.id}/memories`, { data: { content: "She keeps the key." } });
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+
+  await panel.getByRole("button", { name: panelText.facts.consolidateButton, exact: true }).click();
+
+  await expect(panel.locator("p.text-blood")).toHaveText(en.errors.tooFewFacts);
+  await expect(panel).toContainText("She keeps the key.");
 });
 
 test("a fact that is gone says so when it is pinned, and leaves the list", async ({ page, request }) => {

@@ -185,19 +185,15 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
-      if (!result.skipped) write({ memory_error: null });
+      write({ memory_error: null });
       if (result.summary) {
         write({ summary: result.summary });
         setSummaryDraft(null);
       }
-      const said = describeExtraction(result, t, conversation.summary);
-      if (result.skipped) fail("memory", said);
-      else {
-        setMemoryNote(said);
-        setTimeout(() => setMemoryNote(null), 4000);
-      }
+      setMemoryNote(describeExtraction(result, t, conversation.summary));
+      setTimeout(() => setMemoryNote(null), 4000);
     } catch (e) {
-      fail("memory", describeError(e, t, t("chat.panel.facts.extractError")));
+      failedMemory(e, t("chat.panel.facts.extractError"));
     }
     setMemorizing(false);
   }
@@ -209,14 +205,10 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.consolidate(conversation.id);
       setMemories(result.memories);
-      const said = describeConsolidation(result, t);
-      if (result.skipped) fail("memory", said);
-      else {
-        setMemoryNote(said);
-        setTimeout(() => setMemoryNote(null), 5000);
-      }
+      setMemoryNote(describeConsolidation(result, t));
+      setTimeout(() => setMemoryNote(null), 5000);
     } catch (e) {
-      fail("memory", describeError(e, t, t("chat.panel.facts.consolidateError")));
+      failedMemory(e, t("chat.panel.facts.consolidateError"));
     }
     setConsolidating(false);
   }
@@ -230,15 +222,13 @@ export function ChatSidePanel({
       setMemories((prev) => [saved, ...prev]);
       setNewFact("");
     } catch (e) {
-      fail("memory", describeError(e, t, t("chat.panel.facts.addError")));
+      failedMemory(e, t("chat.panel.facts.addError"));
     }
   }
 
-  // A change to a fact that the server refuses says why, in the same place as the
-  // failure to add one. The fact may be gone already, taken out by a cut in the story
-  // or by a pass of the memory, so the list is read again rather than left as it was.
-  function failedFactChange(error: unknown) {
-    fail("memory", describeError(error, t));
+  // A pass, a merge or a cut in the story may have changed the facts meanwhile.
+  function failedMemory(error: unknown, fallback?: string) {
+    fail("memory", describeError(error, t, fallback));
     data.memories.list(conversation.id).then(setMemories).catch(() => {});
   }
 
@@ -248,7 +238,7 @@ export function ChatSidePanel({
       const updated = await data.memories.update(memory.id, { is_pinned: !memory.is_pinned });
       setMemories((prev) => prev.map((m) => (m.id === memory.id ? updated : m)));
     } catch (e) {
-      failedFactChange(e);
+      failedMemory(e);
     }
   }
 
@@ -258,7 +248,7 @@ export function ChatSidePanel({
       await data.memories.remove(memory.id);
       setMemories((prev) => prev.filter((m) => m.id !== memory.id));
     } catch (e) {
-      failedFactChange(e);
+      failedMemory(e);
     }
   }
 
