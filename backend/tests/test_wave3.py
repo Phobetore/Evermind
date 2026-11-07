@@ -146,6 +146,18 @@ async def test_branch_copies_up_to_message_and_filters_memories(client, fake_pro
     assert len(original["messages"]) == 5
 
 
+@pytest.mark.parametrize("title", ["Crypt run", ""])
+async def test_a_branch_keeps_the_title_of_its_story(client, title):
+    """The list marks a branch, and says "Untitled" in the person's language."""
+    convo = await setup_conversation(client)
+    await client.patch(f"/api/conversations/{convo['id']}", json={"title": title})
+    greeting = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"][0]
+
+    branch = (await client.post(f"/api/messages/{greeting['id']}/branch")).json()
+
+    assert branch["title"] == title
+
+
 # ---------- memory maintenance v2 ----------
 
 async def test_memory_updates_and_obsoletes_respect_pins(client, fake_provider):

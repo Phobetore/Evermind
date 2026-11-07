@@ -201,7 +201,6 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
 
         branch_id = new_id()
         now = now_iso()
-        title = (source["title"] or "Sans titre")[:52] + " (branche)"
         # The backdrop follows, like the persona and the connection: a branch is the
         # same scene carried on differently, and losing the picture behind it would
         # read as something having gone wrong rather than as a fresh start.
@@ -211,7 +210,7 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
             " wallpaper_path, wallpaper_opacity, created_at, updated_at)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (branch_id, source["character_id"], source["persona_id"],
-             source["connection_id"], title, source["summary"],
+             source["connection_id"], source["title"], source["summary"],
              # The scene directive is the strongest lever there is on a reply, and
              # it was the one piece of the setup a branch dropped.
              source["author_note"] or "", source["memory_position"],
