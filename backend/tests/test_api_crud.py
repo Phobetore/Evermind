@@ -328,7 +328,7 @@ async def test_connection_test_endpoint_unreachable(client):
         "name": "Dead", "provider": "openai-compatible",
         "base_url": "http://127.0.0.1:1", "model": "x",
     })).json()
-    resp = await client.post(f"/api/connections/{created['id']}/test")
+    resp = await client.post("/api/connections/test", json=created)
     assert resp.status_code == 200
     assert resp.json()["ok"] is False
 

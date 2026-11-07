@@ -109,15 +109,7 @@ export function ConnectionForm({
     setTesting(true);
     setTestResult(null);
     try {
-      let result;
-      if (connection && !draft.api_key) {
-        // saved key lives server-side only: persist edits, then test by id
-        await source.update(connection.id, buildPayload());
-        result = await source.testSaved(connection.id);
-      } else {
-        result = await source.test({ ...draft, name: draft.name || "test" });
-      }
-      setTestResult(result);
+      setTestResult(await source.test({ ...buildPayload(), name: draft.name || "test", id: connection?.id }));
     } catch (e) {
       setTestResult({ ok: false, detail: describeError(e, t, t("connections.testFailed")) });
     }

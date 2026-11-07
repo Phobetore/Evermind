@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 
 from ..db import get_db
 from ..errors import NotFoundError, failure_fields
-from ..models.schemas import ConnectionIn, ConnectionUpdate
+from ..models.schemas import ConnectionDraft, ConnectionIn, ConnectionUpdate
 from ..providers import ProviderError, get_provider
 from ..providers.base import NO_TEXT
 from ..repositories import connections as repo
@@ -37,16 +37,12 @@ async def delete_connection(conn_id: str, db: aiosqlite.Connection = Depends(get
 
 
 @router.post("/test")
-async def test_connection_payload(payload: ConnectionIn):
-    """Test a connection config before saving it."""
-    return await get_provider(payload.model_dump()).test()
-
-
-@router.post("/{conn_id}/test")
-async def test_connection(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    connection = await repo.get_raw(db, conn_id)
-    if not connection:
-        raise NotFoundError("Connection not found.", "connection")
+async def test_connection(payload: ConnectionDraft, db: aiosqlite.Connection = Depends(get_db)):
+    """Test a connection as the form holds it, saving nothing."""
+    connection = payload.model_dump()
+    if connection["api_key"] is None:
+        saved = await repo.get_raw(db, payload.id) if payload.id else None
+        connection["api_key"] = saved["api_key"] if saved else ""
     return await get_provider(connection).test()
 
 

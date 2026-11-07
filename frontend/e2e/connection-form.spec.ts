@@ -65,3 +65,21 @@ test("a generation setting left empty is saved empty, and stays so", async ({ pa
 
   await forgetMine(request);
 });
+
+test("testing a saved connection saves nothing of what was changed", async ({ page, request }) => {
+  await forgetMine(request);
+  await request.post(`${API}/api/connections`, {
+    data: { name: "Tuned", base_url: "http://127.0.0.1:1/v1", model: "kept" },
+  });
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: /^Tuned/ }).click();
+  const form = page.getByRole("dialog");
+  await form.getByLabel("Model").fill("oops");
+  await form.getByRole("button", { name: "Test connection" }).click();
+  await expect(form.getByText("127.0.0.1:1")).toBeVisible();
+  await form.getByRole("button", { name: "Close" }).click();
+
+  const [tuned] = await saved(request, "Tuned");
+  expect(tuned.model, "Test saved the change").toBe("kept");
+  await forgetMine(request);
+});

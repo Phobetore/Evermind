@@ -75,8 +75,8 @@ export interface DataSource {
     create(input: ConnectionInput): Promise<Connection>;
     update(id: string, input: ConnectionInput): Promise<Connection>;
     remove(id: string): Promise<void>;
-    test(input: ConnectionInput): Promise<ConnectionTestResult>;
-    testSaved(id: string): Promise<ConnectionTestResult>;
+    /** Saves nothing. With no key typed, the saved connection `id` lends its own. */
+    test(input: ConnectionInput & { id?: string }): Promise<ConnectionTestResult>;
     benchmark(id: string): Promise<BenchmarkResult>;
   };
   updates?: { check(refresh?: boolean): Promise<UpdateStatus> };

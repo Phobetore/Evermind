@@ -84,6 +84,10 @@ class ConnectionUpdate(ConnectionIn):
     api_key: str | None = None  # None = keep stored key, "" = clear it
 
 
+class ConnectionDraft(ConnectionUpdate):
+    id: str | None = None  # the saved connection whose key is used when none is typed
+
+
 class ConversationIn(BaseModel):
     character_id: str
     persona_id: str | None = None

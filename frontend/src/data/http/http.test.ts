@@ -238,8 +238,11 @@ describe("routes", () => {
     ["connections.create", () => http.connections.create({ ...connection, api_key: "k" }), "POST", "api/connections", { ...connection, api_key: "k" }],
     ["connections.update", () => http.connections.update("k1", connection), "PUT", "api/connections/k1", connection],
     ["connections.remove", () => http.connections.remove("k1"), "DELETE", "api/connections/k1"],
-    ["connections.test", () => http.connections.test(connection), "POST", "api/connections/test", connection],
-    ["connections.testSaved", () => http.connections.testSaved("k1"), "POST", "api/connections/k1/test"],
+    [
+      "connections.test",
+      () => http.connections.test({ ...connection, id: "k1" }),
+      "POST", "api/connections/test", { ...connection, id: "k1" },
+    ],
     ["connections.benchmark", () => http.connections.benchmark("k1"), "POST", "api/connections/k1/benchmark"],
     ["updates.check", () => http.updates.check(), "GET", "api/update"],
     ["access.status", () => http.access.status(), "GET", "api/gate"],
