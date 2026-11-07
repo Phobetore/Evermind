@@ -133,6 +133,8 @@ def test_the_count_of_wrong_passwords_stays_small(monkeypatch):
 
 @pytest.mark.parametrize("headers", [
     [(b"content-length", b"209715200")],
+    # Zeros in front keep it small for the parser, and too long for int().
+    [(b"content-length", b"0" * 4400 + b"22")],
     [(b"transfer-encoding", b"chunked")],
     # What a chunked body says of its length does not bound it.
     [(b"content-length", b"22"), (b"transfer-encoding", b"chunked")],

@@ -157,10 +157,10 @@ def _named_by_address(host: str) -> bool:
 
 
 def _short(headers: Headers) -> bool:
-    # A browser always gives the length of a sign-in; a chunked body could be any length.
+    # A browser always gives a sign-in's length, in a few digits; a chunked one could be any length.
     length = headers.get("content-length", "")
     return ("transfer-encoding" not in headers and length.isascii() and length.isdigit()
-            and int(length) <= MAX_SIGN_IN_BYTES)
+            and len(length) <= len(str(MAX_SIGN_IN_BYTES)) and int(length) <= MAX_SIGN_IN_BYTES)
 
 
 async def _refusal(scope: Scope) -> Response | None:
