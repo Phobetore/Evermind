@@ -185,7 +185,7 @@ export function ChatMessage({
             </span>
             <button
               className="rounded p-1.5 transition-colors hover:text-parchment disabled:opacity-30 md:p-0.5 pointer-coarse:p-3.5 md:pointer-coarse:p-3.5"
-              disabled={busy || (message.active_index === variants.length - 1 && !isLast)}
+              disabled={busy || (message.active_index === variants.length - 1 && (!isLast || Boolean(message.meta?.greeting)))}
               onClick={() => {
                 if (message.active_index < variants.length - 1) onSwipe(message.active_index + 1);
                 else onRegenerate();
