@@ -98,6 +98,7 @@ export function ConnectionForm({
   const set = <K extends keyof DraftConnection>(key: K, value: DraftConnection[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
     setTestResult(null);
+    setBenchResult(null);
   };
 
   function buildPayload(): ConnectionInput {
@@ -302,7 +303,10 @@ export function ConnectionForm({
               <button
                 key={m}
                 type="button"
-                onClick={() => setDraft((d) => ({ ...d, model: m }))}
+                onClick={() => {
+                  setDraft((d) => ({ ...d, model: m }));
+                  setBenchResult(null);
+                }}
                 className={clsx(
                   "rounded-full border px-2.5 py-1 font-mono text-[0.7rem] transition-colors",
                   draft.model === m

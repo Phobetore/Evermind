@@ -118,6 +118,15 @@ test("measuring the speed of a saved connection measures what the form holds, an
   await form.getByLabel("Model").fill("MOCK_SILENT");
   await measure.click();
   await expect(nothing).toBeVisible();
+
+  // A result goes with the model it measured, whether another is typed or picked.
+  await form.getByLabel("Model").fill("MOCK_SILENT again");
+  await expect(nothing).toBeHidden();
+  await measure.click();
+  await expect(nothing).toBeVisible();
+  await form.getByRole("button", { name: "Test connection" }).click();
+  await form.getByRole("button", { name: "evermind-demo", exact: true }).click();
+  await expect(nothing).toBeHidden();
   await form.getByRole("button", { name: "Close" }).click();
 
   const [tuned] = await saved(request, "Tuned");
