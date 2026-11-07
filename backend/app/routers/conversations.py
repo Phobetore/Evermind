@@ -9,7 +9,6 @@ from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as repo
 from ..repositories import personas as personas_repo
-from ..repositories import settings as settings_repo
 from ..services import media, memory_service
 
 router = APIRouter(prefix="/api", tags=["conversations"])
@@ -33,11 +32,9 @@ async def create_conversation(payload: ConversationIn,
     # conversation is then played as it would be had none been asked for.
     persona = await personas_repo.for_conversation(db, fields)
     fields["persona_id"] = persona["id"] if persona else None
-    if not fields.get("connection_id"):
-        fields["connection_id"] = (await settings_repo.get_all(db)).get("default_connection_id")
 
-    # The connection may point at a row that no longer exists (stale settings,
-    # stale UI listing). Drop it rather than let the insert fail on the foreign key.
+    # The connection may point at a row that no longer exists (a stale listing in
+    # the interface). Drop it rather than let the insert fail on the foreign key.
     if fields.get("connection_id") and not await connections_repo.get(db, fields["connection_id"]):
         fields["connection_id"] = None
 

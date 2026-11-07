@@ -1,4 +1,5 @@
 import { Field } from "@/components/editor/Field";
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Modal } from "@/components/ui/Modal";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
@@ -31,13 +32,12 @@ export function StartChatModal({
     Promise.all([
       data.personas.list(),
       data.connections ? data.connections.list() : Promise.resolve<Connection[]>([]),
-      data.settings.get(),
     ])
-      .then(([p, c, s]) => {
+      .then(([p, c]) => {
         setPersonas(p);
         setConnections(c);
         setPersonaId(p.find((x) => x.is_default)?.id ?? "");
-        setConnectionId(s.default_connection_id ?? c.find((x) => x.is_default)?.id ?? "");
+        setConnectionId(c.find((x) => x.is_default)?.id ?? "");
       })
       // An empty list would say there is no persona to play, when there may be one
       // that a conversation started now would be played as.
@@ -74,17 +74,7 @@ export function StartChatModal({
     <Modal title={t("cards.startChatModal.title", { name: character.name })} onClose={onClose}>
       <div className="flex flex-col gap-4">
         {loadFailure ? (
-          <>
-            <p
-              role="alert"
-              className="rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood"
-            >
-              {describeError(loadFailure.error, t)}
-            </p>
-            <button type="button" className="btn btn-ghost" onClick={tryAgain}>
-              {t("common.reload")}
-            </button>
-          </>
+          <LoadFailure error={loadFailure.error} onRetry={tryAgain} />
         ) : (
           <>
             <Field label={t("chat.panel.youArePlaying")} hint={t("cards.startChatModal.personaHint")}>
@@ -114,8 +104,11 @@ export function StartChatModal({
                   value={connectionId}
                   onChange={(e) => setConnectionId(e.target.value)}
                 >
+                  {/* The connections come with the personas: null personas is loading. */}
                   {connections.length === 0 && (
-                    <option value="">{t("cards.startChatModal.noConnectionOption")}</option>
+                    <option value="">
+                      {personas === null ? t("common.loading") : t("cards.startChatModal.noConnectionOption")}
+                    </option>
                   )}
                   {connections.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -145,7 +138,7 @@ export function StartChatModal({
               </Field>
             )}
 
-            {data.connections && connections.length === 0 && (
+            {personas !== null && data.connections && connections.length === 0 && (
               <p className="rounded-lg border border-ember-600/40 bg-ember-glow px-4 py-2.5 text-sm text-ember-300">
                 {t("cards.startChatModal.noConnectionWarning")}
               </p>

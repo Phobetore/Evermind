@@ -143,15 +143,7 @@ async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
 
 
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
-    connection = None
-    if convo.get("connection_id"):
-        connection = await connections_repo.get_raw(db, convo["connection_id"])
-    if connection is None:
-        settings = await settings_repo.get_all(db)
-        if settings.get("default_connection_id"):
-            connection = await connections_repo.get_raw(db, settings["default_connection_id"])
-    if connection is None:
-        connection = await connections_repo.get_default_raw(db)
+    connection = await connections_repo.resolve(db, convo.get("connection_id"))
     if connection is None:
         raise AppError("No LLM connection configured.", kind=NO_CONNECTION)
     if connection.get("max_tokens"):

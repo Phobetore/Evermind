@@ -259,7 +259,7 @@ async def saved_connection(client):
 async def test_a_connection_test_names_what_failed(client, monkeypatch):
     patch_providers(monkeypatch, lambda: oai_provider(answering(401, {"error": "bad key"})))
     connection = await saved_connection(client)
-    resp = await client.post(f"/api/connections/{connection['id']}/test")
+    resp = await client.post("/api/connections/test", json=connection)
     assert resp.status_code == 200
     assert resp.json() == {
         "ok": False,
@@ -288,17 +288,44 @@ async def test_a_connection_test_that_works_says_how_many_models(client, monkeyp
 
     patch_providers(monkeypatch, lambda: oai_provider(handler))
     connection = await saved_connection(client)
-    body = (await client.post(f"/api/connections/{connection['id']}/test")).json()
+    body = (await client.post("/api/connections/test", json=connection)).json()
     assert body == {
         "ok": True, "detail": "3 models available", "model_count": 3,
         "models_sample": ["a", "b", "c"],
     }
 
 
+@pytest.mark.parametrize("action", ["test", "benchmark"])
+async def test_trying_a_saved_connection_as_edited_lends_it_its_key_and_saves_nothing(
+        client, monkeypatch, action):
+    tried = {}
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/models"):
+            return httpx.Response(200, json={"data": []})
+        return httpx.Response(200, content=sse([
+            json.dumps({"choices": [{"delta": {"content": "Rain."}}]}), "[DONE]"]))
+
+    def provider(connection):
+        tried.update(connection)
+        return oai_provider(answer)
+
+    monkeypatch.setattr("app.routers.connections.get_provider", provider)
+    saved = (await client.post("/api/connections", json={
+        "name": "Mock", "base_url": "http://mock/v1", "api_key": "sk-kept", "model": "kept",
+    })).json()
+
+    body = (await client.post(f"/api/connections/{action}", json={**saved, "model": "oops"})).json()
+
+    assert body["ok"] is True
+    assert (tried["api_key"], tried["model"]) == ("sk-kept", "oops")
+    assert (await client.get("/api/connections")).json()[0]["model"] == "kept"
+
+
 async def test_a_benchmark_names_what_failed(client, monkeypatch):
     patch_providers(monkeypatch, lambda: oai_provider(answering(429, {"error": "slow down"})))
     connection = await saved_connection(client)
-    body = (await client.post(f"/api/connections/{connection['id']}/benchmark")).json()
+    body = (await client.post("/api/connections/benchmark", json=connection)).json()
     assert body["ok"] is False
     assert body["kind"] == "model_rate_limited"
     assert body["upstream"] == "slow down"
@@ -311,7 +338,7 @@ async def test_a_benchmark_that_produced_nothing_says_so(client, monkeypatch):
 
     patch_providers(monkeypatch, lambda: oai_provider(handler))
     connection = await saved_connection(client)
-    body = (await client.post(f"/api/connections/{connection['id']}/benchmark")).json()
+    body = (await client.post("/api/connections/benchmark", json=connection)).json()
     assert body == {"ok": False, "detail": "No text generated.", "kind": "model_no_text"}
 
 
@@ -425,13 +452,6 @@ async def test_a_story_tool_on_a_corrupted_connection_says_so(client):
     resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 502
     assert resp.json()["kind"] == "model_unknown_type"
-
-
-async def test_the_test_of_a_corrupted_connection_says_so(client):
-    connection = await corrupt_connection(client)
-    body = (await client.post(f"/api/connections/{connection['id']}/test")).json()
-    assert body["ok"] is False
-    assert body["kind"] == "model_unknown_type"
 
 
 async def test_a_connection_test_of_a_server_that_is_not_there_names_the_address(client):

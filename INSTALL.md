@@ -380,15 +380,49 @@ you used Docker). Nothing you write is sent anywhere except to the AI service yo
 chose yourself. If you run the AI locally too, nothing you write leaves your
 computer at all.
 
-One thing does go out. Once a day Evermind asks GitHub whether a newer release
-exists, so that you hear about fixes without having to go and look. It is a
-plain request for the latest release number, and nothing about you, your machine
-or what you have installed travels with it. The checkbox under **About** in
-Settings turns it off, and with it off nothing goes out on its own. The button
-beside it still asks when you press it, which is the only time anything is sent
-once the checkbox is clear.
+One thing does go out. Each time you open Settings, your browser asks GitHub
+whether a newer release exists, so that you hear about fixes without having to go
+and look. It asks for the latest release number, with no cookie and nothing you
+wrote. GitHub sees what any website sees of a browser that asks it something: your
+internet address, the browser's name and languages, and the address you opened
+Evermind at. The checkbox under **About** in Settings turns it off, and with it off
+nothing goes out on its own. The button beside it still asks when you press it,
+which is the only time anything is sent once the checkbox is clear.
 
 To back it up, copy that folder. To start fresh, delete it.
+
+## Updating
+
+When a new release is out, Settings says so under **About**, with the command that
+updates your installation. Read the release's notes first, behind **What changed**:
+a release can ask for a step before the command. 3.0.2 asked everyone on Docker to
+download `docker-compose.yml` again. [docs/UPGRADING.md](docs/UPGRADING.md) keeps
+those steps, release by release.
+
+With Docker, from the folder that holds your `docker-compose.yml`:
+
+```bash
+docker compose up -d --pull always
+```
+
+The command keeps the `docker-compose.yml` you have. When the notes ask for a new
+one, download
+**[docker-compose.yml](https://github.com/Phobetore/Evermind/releases/latest/download/docker-compose.yml)**
+again first and put it over the old one. Your `.env` stays as it is.
+
+From the source, stop Evermind (Ctrl+C in the window it runs in). If you cloned
+the project, one line gets the new version and starts it:
+
+```bash
+# Windows
+git pull; .\scripts\prod.ps1
+
+# macOS and Linux
+git pull && ./scripts/prod.sh
+```
+
+If you downloaded a ZIP, unzip the new one, copy the `data` folder and your `.env`
+from the old folder into it, and run the script from there.
 
 ### Going back after an update
 

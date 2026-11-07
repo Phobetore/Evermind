@@ -139,7 +139,6 @@ export interface LibraryItem {
 }
 
 export interface Settings {
-  default_connection_id: string | null;
   global_instructions: string;
   auto_memory: boolean;
   reply_length: "short" | "medium" | "long";
@@ -148,15 +147,10 @@ export interface Settings {
   update_check: boolean;
 }
 
-export interface UpdateStatus {
+/** What only the server knows for the notice of a newer release. */
+export interface Installation {
   current: string;
-  latest: string | null;
-  url: string | null;
-  update_available: boolean;
-  install: "docker" | "source";
   command: string;
-  enabled: boolean;
-  reachable: boolean;
 }
 
 export interface Memory {

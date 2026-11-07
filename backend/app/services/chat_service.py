@@ -154,15 +154,7 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
     if not character:
         raise _TurnError("Character not found.", NOT_FOUND, "character")
     persona = await personas_repo.for_conversation(db, convo)
-    connection = None
-    if convo.get("connection_id"):
-        connection = await connections_repo.get_raw(db, convo["connection_id"])
-    if connection is None:
-        settings = await settings_repo.get_all(db)
-        if settings.get("default_connection_id"):
-            connection = await connections_repo.get_raw(db, settings["default_connection_id"])
-    if connection is None:
-        connection = await connections_repo.get_default_raw(db)
+    connection = await connections_repo.resolve(db, convo.get("connection_id"))
     if connection is None:
         raise _TurnError(
             "No LLM connection configured. Add one in Settings → LLM connections.",

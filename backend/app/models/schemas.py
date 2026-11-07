@@ -79,20 +79,13 @@ class ConnectionIn(BaseModel):
     is_default: bool = False
 
 
-class ConnectionUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=200)
-    provider: ProviderType | None = None
-    base_url: str | None = None
+class ConnectionUpdate(ConnectionIn):
+    """The whole connection, as for a new one."""
     api_key: str | None = None  # None = keep stored key, "" = clear it
-    model: str | None = None
-    context_size: int | None = Field(default=None, ge=1024, le=2_000_000)
-    # A null empties one of these; a null above changes nothing.
-    max_tokens: int | None = Field(default=None, ge=16, le=128_000)
-    temperature: float | None = Field(default=None, ge=0, le=2)
-    top_p: float | None = Field(default=None, gt=0, le=1)
-    frequency_penalty: float | None = Field(default=None, ge=-2, le=2)
-    presence_penalty: float | None = Field(default=None, ge=-2, le=2)
-    is_default: bool | None = None
+
+
+class ConnectionDraft(ConnectionUpdate):
+    id: str | None = None  # the saved connection whose key is used when none is typed
 
 
 class ConversationIn(BaseModel):
@@ -117,7 +110,6 @@ class MessagePatch(BaseModel):
 
 
 class SettingsIn(BaseModel):
-    default_connection_id: str | None = None
     global_instructions: str | None = None
     auto_memory: bool | None = None
     reply_length: Literal["short", "medium", "long"] | None = None

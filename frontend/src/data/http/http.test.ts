@@ -142,12 +142,6 @@ describe("request building", () => {
   test("library avatar names are encoded", () => {
     expect(http.library.avatarUrl("a b.png")).toBe("api/library/a%20b.png/avatar");
   });
-
-  test("the update check only asks to refresh when told to", async () => {
-    await http.updates.check();
-    await http.updates.check(true);
-    expect(calls.map((c) => c.url)).toEqual(["api/update", "api/update?refresh=true"]);
-  });
 });
 
 // One row per call the interface makes today, so that a route or a verb that
@@ -234,27 +228,21 @@ describe("routes", () => {
     ["library.install", () => http.library.install("vane.json"), "POST", "api/library/vane.json/install"],
     ["settings.get", () => http.settings.get(), "GET", "api/settings"],
     ["settings.update", () => http.settings.update({ reply_length: "long" }), "PUT", "api/settings", { reply_length: "long" }],
-    // A null is a choice taken back, so it must reach the server rather than being dropped.
-    [
-      "settings.update clearing a choice",
-      () => http.settings.update({ default_connection_id: null }),
-      "PUT", "api/settings", { default_connection_id: null },
-    ],
-    // The mark alone, as the Settings page sends it: the name and description it
-    // may be holding are older than the stored ones, and must not be written back.
-    [
-      "personas.update marking only",
-      () => http.personas.update("p1", { is_default: true }),
-      "PUT", "api/personas/p1", { is_default: true },
-    ],
     ["connections.list", () => http.connections.list(), "GET", "api/connections"],
     ["connections.create", () => http.connections.create({ ...connection, api_key: "k" }), "POST", "api/connections", { ...connection, api_key: "k" }],
     ["connections.update", () => http.connections.update("k1", connection), "PUT", "api/connections/k1", connection],
     ["connections.remove", () => http.connections.remove("k1"), "DELETE", "api/connections/k1"],
-    ["connections.test", () => http.connections.test(connection), "POST", "api/connections/test", connection],
-    ["connections.testSaved", () => http.connections.testSaved("k1"), "POST", "api/connections/k1/test"],
-    ["connections.benchmark", () => http.connections.benchmark("k1"), "POST", "api/connections/k1/benchmark"],
-    ["updates.check", () => http.updates.check(), "GET", "api/update"],
+    [
+      "connections.test",
+      () => http.connections.test({ ...connection, id: "k1" }),
+      "POST", "api/connections/test", { ...connection, id: "k1" },
+    ],
+    [
+      "connections.benchmark",
+      () => http.connections.benchmark({ ...connection, id: "k1" }),
+      "POST", "api/connections/benchmark", { ...connection, id: "k1" },
+    ],
+    ["updates.get", () => http.updates.get(), "GET", "api/update"],
     ["access.status", () => http.access.status(), "GET", "api/gate"],
     ["access.login", () => http.access.login("open sesame"), "POST", "api/gate", { password: "open sesame" }],
     ["access.logout", () => http.access.logout(), "DELETE", "api/gate"],

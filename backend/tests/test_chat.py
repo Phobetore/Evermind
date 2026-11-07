@@ -242,7 +242,7 @@ async def test_impersonate_cuts_the_chat_to_make_room_for_the_facts(client, fake
     convo = await setup_conversation(client)
     connection = (await client.get("/api/connections")).json()[0]
     await client.put(f"/api/connections/{connection['id']}",
-                     json={"context_size": 2048, "max_tokens": 16})
+                     json={**connection, "context_size": 2048, "max_tokens": 16})
     for _ in range(4):
         fake_provider.script = [ProviderEvent(type="delta", text="word " * 60),
                                 ProviderEvent(type="done")]

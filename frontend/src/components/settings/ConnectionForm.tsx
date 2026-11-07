@@ -98,6 +98,7 @@ export function ConnectionForm({
   const set = <K extends keyof DraftConnection>(key: K, value: DraftConnection[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
     setTestResult(null);
+    setBenchResult(null);
   };
 
   function buildPayload(): ConnectionInput {
@@ -109,15 +110,7 @@ export function ConnectionForm({
     setTesting(true);
     setTestResult(null);
     try {
-      let result;
-      if (connection && !draft.api_key) {
-        // saved key lives server-side only: persist edits, then test by id
-        await source.update(connection.id, buildPayload());
-        result = await source.testSaved(connection.id);
-      } else {
-        result = await source.test({ ...draft, name: draft.name || "test" });
-      }
-      setTestResult(result);
+      setTestResult(await source.test({ ...buildPayload(), name: draft.name || "test", id: connection?.id }));
     } catch (e) {
       setTestResult({ ok: false, detail: describeError(e, t, t("connections.testFailed")) });
     }
@@ -125,11 +118,10 @@ export function ConnectionForm({
   }
 
   async function benchmark() {
-    if (!connection) return;
     setBenchmarking(true);
     setBenchResult(null);
     try {
-      setBenchResult(await source.benchmark(connection.id));
+      setBenchResult(await source.benchmark({ ...buildPayload(), name: draft.name || "test", id: connection?.id }));
     } catch (e) {
       setBenchResult({ ok: false, detail: describeError(e, t, t("connections.benchmarkFailed")) });
     }
@@ -311,7 +303,10 @@ export function ConnectionForm({
               <button
                 key={m}
                 type="button"
-                onClick={() => setDraft((d) => ({ ...d, model: m }))}
+                onClick={() => {
+                  setDraft((d) => ({ ...d, model: m }));
+                  setBenchResult(null);
+                }}
                 className={clsx(
                   "rounded-full border px-2.5 py-1 font-mono text-[0.7rem] transition-colors",
                   draft.model === m

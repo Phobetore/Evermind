@@ -23,22 +23,13 @@ from ..prompting.payloads import (
 from ..prompting.text import is_writable, text_of
 from ..providers import get_provider
 from ..repositories import connections as connections_repo
-from ..repositories import settings as settings_repo
 from .llm_json import parse_llm_json
 
 _MAX_LORE_ENTRIES = 8
 
 
 async def _resolve_connection(db: aiosqlite.Connection, connection_id: str | None) -> dict:
-    connection = None
-    if connection_id:
-        connection = await connections_repo.get_raw(db, connection_id)
-    if connection is None:
-        settings = await settings_repo.get_all(db)
-        if settings.get("default_connection_id"):
-            connection = await connections_repo.get_raw(db, settings["default_connection_id"])
-    if connection is None:
-        connection = await connections_repo.get_default_raw(db)
+    connection = await connections_repo.resolve(db, connection_id)
     if connection is None:
         raise AppError(
             "No LLM connection configured. Add one in Settings → LLM connections.",

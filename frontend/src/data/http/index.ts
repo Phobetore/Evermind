@@ -1,6 +1,6 @@
 import type {
-  Character, Connection, Conversation, LibraryItem, LoreEntry, Memory, Message, Persona,
-  Settings, TurnState, UpdateStatus,
+  Character, Connection, Conversation, Installation, LibraryItem, LoreEntry, Memory, Message,
+  Persona, Settings, TurnState,
 } from "@/types";
 import type {
   BenchmarkResult, ConnectionTestResult, ConsolidateResult, DataSource, ExtractResult,
@@ -169,12 +169,11 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
       update: (id, input) => put<Connection>(`api/connections/${seg(id)}`, input),
       remove: (id) => del(`api/connections/${seg(id)}`),
       test: (input) => post<ConnectionTestResult>("api/connections/test", input),
-      testSaved: (id) => post<ConnectionTestResult>(`api/connections/${seg(id)}/test`),
-      benchmark: (id) => post<BenchmarkResult>(`api/connections/${seg(id)}/benchmark`),
+      benchmark: (input) => post<BenchmarkResult>("api/connections/benchmark", input),
     },
 
     updates: {
-      check: (refresh) => get<UpdateStatus>(`api/update${refresh ? "?refresh=true" : ""}`),
+      get: () => get<Installation>("api/update"),
     },
 
     access: {

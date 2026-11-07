@@ -146,7 +146,7 @@
       "updateAvailable": "Evermind {version} ya está.",
       "updateHint": "Detén Evermind, ejecuta esto en la carpeta donde lo instalaste y vuelve a arrancarlo.",
       "releaseNotes": "Qué ha cambiado",
-      "checkHint": "Preguntar a GitHub una vez al día si hay una versión más nueva. No se envía nada más. Sin la casilla no sale nada por su cuenta, y el botón de abajo sigue funcionando cuando lo pulsas.",
+      "checkHint": "Preguntar a GitHub, cada vez que se abre esta página, si hay una versión más nueva. La consulta no lleva nada de lo que has escrito, pero GitHub ve lo que cualquier sitio web ve de un navegador, incluida la dirección en la que has abierto Evermind. Sin la casilla no sale nada por su cuenta, y el botón de abajo sigue funcionando cuando lo pulsas.",
       "checkNow": "Comprobar ahora",
       "upToDate": "Tienes la última versión.",
       "unreachable": "No se ha podido contactar con GitHub."
