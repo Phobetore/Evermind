@@ -12,8 +12,10 @@ param([switch]$Lan)
 $root = Split-Path -Parent $PSScriptRoot
 $python = "$root\backend\.venv\Scripts\python.exe"
 $appArgs = if ($Lan) { @("--lan") } else { @() }
+$here = Get-Location
 
 function Stop-Here($why) {
+    Set-Location $here
     Write-Host ("$why Nothing was started.").Trim() -ForegroundColor Red
     exit 1
 }
@@ -45,13 +47,13 @@ if (Changed "$root\backend\pyproject.toml" $pyStamp) {
 
 # Asked before anything is installed or built: the likeliest reason for a taken
 # port is Evermind itself, still running while it is updated.
-Push-Location "$root\backend"
+Set-Location "$root\backend"
 & $python -m app --check @appArgs | Out-Null
-if ($LASTEXITCODE -ne 0) { Pop-Location; Stop-Here "" }
+if ($LASTEXITCODE -ne 0) { Stop-Here "" }
 
 $lock = "$root\frontend\package-lock.json"
 $lockStamp = "$root\frontend\node_modules\.installed-package-lock.json"
-Push-Location "$root\frontend"
+Set-Location "$root\frontend"
 if (Changed $lock $lockStamp) {
     Write-Host "Installing frontend dependencies (a minute or two)..."
     Remove-Item $lockStamp -ErrorAction SilentlyContinue
@@ -62,8 +64,6 @@ if (Changed $lock $lockStamp) {
 Write-Host "Building the frontend (a minute or two)..."
 npm run build
 if ($LASTEXITCODE -ne 0) { Stop-Here "The build failed." }
-Pop-Location; Pop-Location
-
-Push-Location "$root\backend"
-& $python -m app @appArgs
+Set-Location "$root\backend"
+try { & $python -m app @appArgs } finally { Set-Location $here }
 exit $LASTEXITCODE
