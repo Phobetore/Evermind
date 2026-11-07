@@ -464,7 +464,7 @@
     "wrongPassword": "Access denied.",
     "rateLimited": "Too many attempts. Try again in {minutes} min.",
     "crossOrigin": "Evermind refused this request because it seems to come from another address. Behind a reverse proxy, the proxy has to pass the original Host header on unchanged.",
-    "unknownHost": "Evermind does not answer to this address. Add its name to EVERMIND_ALLOWED_HOSTS, or set a password.",
+    "unknownHost": "Without a password, Evermind does not answer to this name. Open it by its address (such as http://192.168.1.42:3000) or by localhost, or set a password.",
     "notFound": {
       "character": "This card no longer exists.",
       "conversation": "This conversation no longer exists.",

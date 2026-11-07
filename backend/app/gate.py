@@ -15,8 +15,8 @@ Evermind runs.
 
 Whether or not a password is set, the same middleware refuses the writes under
 /api/ that a browser sent from a page of another origin.
-Without a password it also answers only to host names it knows, which is what
-stops a website from reaching Evermind through a name of its own.
+Without a password it also answers only to an address or localhost, which is
+what stops a website from reaching Evermind through a name of its own.
 """
 
 import asyncio
@@ -26,14 +26,13 @@ import hmac
 import ipaddress
 import logging
 import math
-import re
 import secrets
-import socket
 import sqlite3
 import time
 import unicodedata
 from collections import deque
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlsplit
 
 from starlette.datastructures import Headers
 from starlette.requests import HTTPConnection
@@ -52,10 +51,6 @@ FAILURE_DELAY_S = 0.6
 MAX_FAILURES = 10
 FAILURE_WINDOW_S = 900
 PUBLIC_API_PATHS = frozenset({"/api/health", "/api/gate"})
-# A Host header as a browser writes it: a name, or an IPv6 address in square
-# brackets, then a port if there is one. Anything with more to it is not a host,
-# whatever it starts with.
-_HOST = re.compile(r"(?:\[(?P<v6>[^\]]+)\]|(?P<name>[\w.-]+))(?::[0-9]+)?")
 
 _SCRYPT_N = 16384
 _SCRYPT_R = 8
@@ -71,10 +66,6 @@ def now() -> datetime:
 
 def monotonic() -> float:
     return time.monotonic()
-
-
-def machine_name() -> str:
-    return socket.gethostname()
 
 
 async def failure_pause() -> None:
@@ -370,71 +361,14 @@ def _from_another_origin(headers: Headers) -> bool:
     return origin is not None and origin.partition("://")[2].lower() != headers.get("host", "").lower()
 
 
-def _host_name(host: str) -> str | None:
-    """The name in a Host header: lowercase, without the port, the brackets
-    around an IPv6 address, or a final dot. None when the header is anything but
-    a host and, if there is one, a port: a name with something after it
-    (``localhost:3000@evil.com``, ``localhost:evil.com``) must not pass for the
-    name in front."""
-    match = _HOST.fullmatch(host)
-    if match is None:
-        return None
-    if (v6 := match["v6"]) is not None:
-        try:
-            ipaddress.IPv6Address(v6)
-        except ValueError:
-            return None
-        return v6.lower()
-    return match["name"].lower().removesuffix(".")
-
-
-def _own_names() -> set[str]:
-    """What this computer can be called by: the name the system gives it and,
-    when that name carries a domain, its first label (``nas`` for
-    ``nas.home.lan``, which is what people type), each alone or followed by
-    .local."""
-    machine = machine_name().lower()
-    names = {machine, machine.partition(".")[0]} - {""}
-    return names | {name + ".local" for name in names}
-
-
-def _known_host(host: str) -> bool:
-    """Whether a Host header names this computer in a way that a website
-    cannot borrow: an address, localhost or a name ending in .localhost, the
-    computer's own name (or its first label, if it has a domain), alone or
-    followed by .local, or a name listed in EVERMIND_ALLOWED_HOSTS.
-
-    A website can point a name of its own at 127.0.0.1 once its page is
-    loaded (DNS rebinding). The browser then takes that page and Evermind for
-    one origin, and only the Host header still shows the name it used. An
-    address in the URL is no such trick, and the names above are not the
-    website's to give out.
-    """
-    name = _host_name(host)
-    if not name:
-        return False
+def _named_by_address(host: str) -> bool:
+    """Whether a Host header is an address or localhost, which a website cannot
+    point at this computer as it can a name of its own (DNS rebinding)."""
     try:
-        ipaddress.ip_address(name)
+        name = urlsplit("//" + host).hostname or ""
+        return name == "localhost" or bool(ipaddress.ip_address(name))
     except ValueError:
-        pass
-    else:
-        return True
-    if name == "localhost" or name.endswith(".localhost"):
-        return True
-    if name in _own_names():
-        return True
-    # An entry that is not a host name is None here, and allows nothing.
-    return name in map(_host_name, config.allowed_hosts())
-
-
-def _host_refusal(host: str | None) -> str | None:
-    """Why a password-less install refuses this Host header, or None when it is
-    accepted. ``host`` is None when the request has no Host header at all."""
-    if host is None:
-        return "The request has no Host header."
-    if not _known_host(host):
-        return "Unknown host name. Add it to EVERMIND_ALLOWED_HOSTS or set a password."
-    return None
+        return False
 
 
 async def _refuse(scope: Scope, receive: Receive, send: Send, status_code: int,
@@ -453,8 +387,8 @@ def _session_cookie_header(token: str, *, secure: bool) -> bytes:
 
 class GateMiddleware:
     """Guards /api/. Password or not, it refuses the writes of pages from other
-    origins. Without a password, it answers only to host names it knows; with
-    one, only to a device with a session.
+    origins. Without a password, it answers only to an address or localhost;
+    with one, only to a device with a session.
 
     Pure ASGI, so that a stream goes out as the app sends it.
     """
@@ -483,8 +417,9 @@ class GateMiddleware:
             # alone, so that a proxy can serve Evermind under any name: the
             # session cookie belongs to the name a device signed in on, and a
             # rebound page has none.
-            if refusal := _host_refusal(Headers(scope=scope).get("host")):
-                await _refuse(scope, receive, send, 403, refusal, "unknown_host")
+            if not _named_by_address(Headers(scope=scope).get("host", "")):
+                await _refuse(scope, receive, send, 403, "Unknown host name. Open Evermind "
+                              "by its address, or set a password.", "unknown_host")
                 return
             await self.app(scope, receive, send)
             return

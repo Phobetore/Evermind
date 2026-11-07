@@ -464,7 +464,7 @@
     "wrongPassword": "Accès refusé.",
     "rateLimited": "Trop de tentatives. Réessayez dans {minutes} min.",
     "crossOrigin": "Evermind a refusé cette requête, qui semble venir d'une autre adresse. Derrière un proxy inverse, le proxy doit transmettre l'en-tête Host d'origine sans le modifier.",
-    "unknownHost": "Evermind ne répond pas à cette adresse. Ajoutez son nom à EVERMIND_ALLOWED_HOSTS, ou définissez un mot de passe.",
+    "unknownHost": "Sans mot de passe, Evermind ne répond pas à ce nom. Ouvrez-le par son adresse (comme http://192.168.1.42:3000) ou par localhost, ou définissez un mot de passe.",
     "notFound": {
       "character": "Cette fiche n'existe plus.",
       "conversation": "Cette conversation n'existe plus.",

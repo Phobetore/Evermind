@@ -464,7 +464,7 @@
     "wrongPassword": "Zugriff verweigert.",
     "rateLimited": "Zu viele Versuche. Versuch es in {minutes} Min. noch einmal.",
     "crossOrigin": "Evermind hat diese Anfrage abgelehnt, weil sie von einer anderen Adresse zu kommen scheint. Hinter einem Reverse-Proxy muss der Proxy den ursprünglichen Host-Header unverändert weiterreichen.",
-    "unknownHost": "Evermind antwortet auf diese Adresse nicht. Trage ihren Namen in EVERMIND_ALLOWED_HOSTS ein oder lege ein Passwort fest.",
+    "unknownHost": "Ohne Passwort antwortet Evermind nicht auf diesen Namen. Öffne es über seine Adresse (etwa http://192.168.1.42:3000) oder über localhost, oder lege ein Passwort fest.",
     "notFound": {
       "character": "Diese Karte gibt es nicht mehr.",
       "conversation": "Diese Unterhaltung gibt es nicht mehr.",

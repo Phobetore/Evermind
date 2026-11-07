@@ -8,15 +8,13 @@ import pytest
 
 def _default_settings(tmp_path, monkeypatch) -> None:
     monkeypatch.delenv("EVERMIND_GATE_PASSWORD", raising=False)
-    monkeypatch.delenv("EVERMIND_ALLOWED_HOSTS", raising=False)
     monkeypatch.setenv("EVERMIND_UI_DIR", str(tmp_path / "no-ui"))
 
 
 @pytest.fixture(autouse=True)
 def _no_developer_settings(tmp_path, monkeypatch):
     """What the developer has set must not change what a test sees: a password
-    left in the shell would lock every API test, host names allowed there would
-    let through names that tests expect refused, and a real built interface
+    left in the shell would lock every API test, and a real built interface
     would answer routes that tests expect to be missing."""
     _default_settings(tmp_path, monkeypatch)
 

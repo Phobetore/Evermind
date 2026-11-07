@@ -464,7 +464,7 @@
     "wrongPassword": "Acceso denegado.",
     "rateLimited": "Demasiados intentos. Vuelve a intentarlo en {minutes} min.",
     "crossOrigin": "Evermind ha rechazado esta petición porque parece venir de otra dirección. Detrás de un proxy inverso, el proxy debe conservar la cabecera Host original tal cual.",
-    "unknownHost": "Evermind no responde en esta dirección. Añade su nombre a EVERMIND_ALLOWED_HOSTS o establece una contraseña.",
+    "unknownHost": "Sin contraseña, Evermind no responde a este nombre. Ábrelo por su dirección (como http://192.168.1.42:3000) o por localhost, o establece una contraseña.",
     "notFound": {
       "character": "Esta ficha ya no existe.",
       "conversation": "Esta conversación ya no existe.",
