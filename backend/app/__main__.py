@@ -97,6 +97,15 @@ def main(argv: list[str] | None = None) -> int:
                 "No password is set, so anyone on this network can read your conversations.",
                 "Put EVERMIND_GATE_PASSWORD in .env to be asked for one.",
             )
+    if env.get("SEMANTIC") == "true" and not config.semantic_installed():
+        python = r".venv\Scripts\python" if sys.platform == "win32" else ".venv/bin/python"
+        say(
+            "SEMANTIC=true is set, but semantic memory is not installed: memory recalls the most "
+            "recent facts.",
+            "To build it into the image, from the folder of the source: docker compose up -d --build"
+            if kind == "built" else
+            f'To install it, from the backend folder: {python} -m pip install -e ".[semantic]"',
+        )
 
     import uvicorn
 
