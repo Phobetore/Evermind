@@ -1,6 +1,6 @@
 import type {
-  ChatEvent, Character, Connection, Conversation, Kind, LibraryItem, LoreEntry, LoreEntryDraft,
-  Memory, Message, Persona, ProviderType, Settings, TurnState, UpdateStatus,
+  ChatEvent, Character, Connection, Conversation, Installation, Kind, LibraryItem, LoreEntry,
+  LoreEntryDraft, Memory, Message, Persona, ProviderType, Settings, TurnState,
 } from "@/types";
 
 /** Everything the interface asks of its server, and nothing about how the
@@ -79,7 +79,7 @@ export interface DataSource {
     test(input: ConnectionInput & { id?: string }): Promise<ConnectionTestResult>;
     benchmark(id: string): Promise<BenchmarkResult>;
   };
-  updates?: { check(refresh?: boolean): Promise<UpdateStatus> };
+  updates?: { get(): Promise<Installation> };
   access?: {
     status(): Promise<{ enabled: boolean; authenticated: boolean }>;
     login(password: string): Promise<void>;

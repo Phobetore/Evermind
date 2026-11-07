@@ -8,7 +8,8 @@ import { Tag } from "@/components/ui/Tag";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import type { Connection, Settings, UpdateStatus } from "@/types";
+import { isNewer, latestRelease, type Release } from "@/lib/releases";
+import type { Connection, Installation, Settings } from "@/types";
 import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -234,7 +235,13 @@ export function SettingsPage() {
 
       {data.access && accessStatus?.enabled && <Access />}
 
-      {data.updates && <About updates={data.updates} />}
+      {data.updates && settings && (
+        <About
+          updates={data.updates}
+          asks={settings.update_check}
+          onAsksChange={(update_check) => saveSettings({ update_check })}
+        />
+      )}
 
       {editing && data.connections && (
         <ConnectionForm
@@ -329,63 +336,72 @@ function Access() {
  *  running it could tell what they were on, report a bug against it, or find
  *  where it comes from. It also says when a newer release exists, since a
  *  self-hosted app has no other way of telling you. */
-function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
+function About({
+  updates,
+  asks,
+  onAsksChange,
+}: {
+  updates: NonNullable<DataSource["updates"]>;
+  /** Whether the page asks GitHub on its own when it opens. */
+  asks: boolean;
+  onAsksChange: (asks: boolean) => void;
+}) {
   const t = useT();
-  const [status, setStatus] = useState<UpdateStatus | null>(null);
+  const [installed, setInstalled] = useState<Installation | null>(null);
+  const [latest, setLatest] = useState<Release | null>(null);
   const [checking, setChecking] = useState(false);
   // What the last press of the button came back with. Null until pressed, so
   // an ordinary page load says nothing at all.
   const [verdict, setVerdict] = useState<"current" | "unreachable" | null>(null);
 
   useEffect(() => {
-    updates.check().then(setStatus).catch(() => setStatus(null));
+    updates.get().then(setInstalled).catch(() => {});
   }, [updates]);
+
+  // Not reaching GitHub is no news here: only the button owes an answer.
+  useEffect(() => {
+    if (asks) latestRelease().then(setLatest).catch(() => {});
+  }, [asks]);
 
   async function checkNow() {
     setChecking(true);
     setVerdict(null);
     try {
-      const fresh = await updates.check(true);
-      setStatus(fresh);
+      const release = await latestRelease();
+      setLatest(release);
       // Nothing to say when there is an update: the notice above says it.
-      if (!fresh.update_available) setVerdict(fresh.reachable ? "current" : "unreachable");
+      if (!isNewer(release.version, installed?.current ?? "")) setVerdict("current");
     } catch {
       setVerdict("unreachable");
     }
     setChecking(false);
   }
 
-  async function setDailyCheck(enabled: boolean) {
-    // Answer the click straight away; the release lookup behind it can take a
-    // few seconds and must not make the checkbox feel stuck.
-    setStatus((prev) => (prev ? { ...prev, enabled } : prev));
-    await data.settings.update({ update_check: enabled });
-    updates.check().then(setStatus).catch(() => {});
-  }
+  const update = latest && installed && isNewer(latest.version, installed.current) ? latest : null;
 
   return (
     <section className="mt-10">
       <h2 className="ui-label mb-2">{t("settings.about.title")}</h2>
       <div className="panel px-5 py-4">
         <p className="text-sm text-mist">
-          Evermind {status?.current ?? "—"}
+          Evermind {installed?.current ?? "—"}
         </p>
 
-        {status?.update_available && (
+        {update && (
           <div className="mt-3 rounded-xl border border-ember-500/40 bg-ember-glow px-4 py-3">
             <p className="text-sm font-semibold text-ember-300">
-              {t("settings.about.updateAvailable").replace("{version}", status.latest ?? "")}
+              {t("settings.about.updateAvailable").replace("{version}", update.version)}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-mist">
               {t("settings.about.updateHint")}
             </p>
             <code className="mt-2 block overflow-x-auto rounded-lg border border-ink-600 bg-ink-950/60 px-3 py-2 text-xs text-parchment-dim">
-              {status.command}
+              {installed?.command}
             </code>
-            {status.url && (
+            {update.url && (
               <a
                 className="mt-2 inline-block text-sm text-ember-400 hover:text-ember-300"
-                href={status.url}
+                href={update.url}
                 target="_blank"
                 rel="noreferrer noopener"
               >
@@ -421,8 +437,8 @@ function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
           <label className="touch-target flex cursor-pointer items-start gap-3 text-sm text-mist">
             <input
               type="checkbox"
-              checked={status?.enabled ?? false}
-              onChange={(e) => setDailyCheck(e.target.checked)}
+              checked={asks}
+              onChange={(e) => onAsksChange(e.target.checked)}
               className="mt-0.5 h-4 w-4 accent-[#e29a3e]"
             />
             <span>{t("settings.about.checkHint")}</span>
@@ -433,7 +449,7 @@ function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
               type="button"
               className="btn btn-ghost !py-1.5 text-sm"
               onClick={checkNow}
-              disabled={checking}
+              disabled={checking || !installed}
             >
               {checking ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

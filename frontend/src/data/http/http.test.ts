@@ -142,12 +142,6 @@ describe("request building", () => {
   test("library avatar names are encoded", () => {
     expect(http.library.avatarUrl("a b.png")).toBe("api/library/a%20b.png/avatar");
   });
-
-  test("the update check only asks to refresh when told to", async () => {
-    await http.updates.check();
-    await http.updates.check(true);
-    expect(calls.map((c) => c.url)).toEqual(["api/update", "api/update?refresh=true"]);
-  });
 });
 
 // One row per call the interface makes today, so that a route or a verb that
@@ -244,7 +238,7 @@ describe("routes", () => {
       "POST", "api/connections/test", { ...connection, id: "k1" },
     ],
     ["connections.benchmark", () => http.connections.benchmark("k1"), "POST", "api/connections/k1/benchmark"],
-    ["updates.check", () => http.updates.check(), "GET", "api/update"],
+    ["updates.get", () => http.updates.get(), "GET", "api/update"],
     ["access.status", () => http.access.status(), "GET", "api/gate"],
     ["access.login", () => http.access.login("open sesame"), "POST", "api/gate", { password: "open sesame" }],
     ["access.logout", () => http.access.logout(), "DELETE", "api/gate"],

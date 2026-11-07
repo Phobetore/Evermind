@@ -1,6 +1,6 @@
 import type {
-  Character, Connection, Conversation, LibraryItem, LoreEntry, Memory, Message, Persona,
-  Settings, TurnState, UpdateStatus,
+  Character, Connection, Conversation, Installation, LibraryItem, LoreEntry, Memory, Message,
+  Persona, Settings, TurnState,
 } from "@/types";
 import type {
   BenchmarkResult, ConnectionTestResult, ConsolidateResult, DataSource, ExtractResult,
@@ -173,7 +173,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
     },
 
     updates: {
-      check: (refresh) => get<UpdateStatus>(`api/update${refresh ? "?refresh=true" : ""}`),
+      get: () => get<Installation>("api/update"),
     },
 
     access: {
