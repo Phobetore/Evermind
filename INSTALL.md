@@ -394,10 +394,11 @@ To back it up, copy that folder. To start fresh, delete it.
 ## Updating
 
 When a new release is out, Settings says so under **About**, with the command that
-updates your installation, or a link back here if you downloaded a ZIP. Read the
-release's notes first, behind **What changed**: a release can ask for a step before
-the command. 3.0.2 asked everyone on Docker to download `docker-compose.yml` again.
-[docs/UPGRADING.md](docs/UPGRADING.md) keeps those steps, release by release.
+updates your installation, or a link back here if you run a downloaded ZIP without
+Docker. Read the release's notes first, behind **What changed**: a release can ask
+for a step before the command. 3.0.2 asked everyone on Docker to download
+`docker-compose.yml` again. [docs/UPGRADING.md](docs/UPGRADING.md) keeps those
+steps, release by release.
 
 With Docker, from the folder that holds your `docker-compose.yml`:
 
