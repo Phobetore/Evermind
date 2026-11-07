@@ -162,7 +162,7 @@ test that passes either way is worse than none, because it reads like cover.
 - CRUD on `characters`, `personas`, `connections`, `conversations`, `memories`, `lore`
 - `POST /api/characters/import`, `GET /api/characters/{id}/export?format=json|png`
 - `POST /api/characters/assist`: drafts a card from a free-form brief
-- `POST /api/conversations/{id}/summarize`, `.../memories/extract`, `.../memories/consolidate`
+- `POST /api/conversations/{id}/memories/extract`, `.../memories/consolidate`
 - `GET /api/library`, `POST /api/library/{filename}/install`
 - `GET /api/gate`: whether a password is set and whether this device is past it;
   `POST /api/gate` signs in and sets the session cookie; `DELETE /api/gate` signs
