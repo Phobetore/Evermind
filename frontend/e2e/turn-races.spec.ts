@@ -215,6 +215,38 @@ test.describe("what is asked of a connection that does not answer", () => {
       "the ending is there twice").toBe(1);
     await expect(retryButton(page)).toHaveCount(0);
   });
+
+  test("an edit saved while the reply's ending is on its way leaves the reply on screen", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    await page.goto(`/#/chat/${convo.id}`);
+    await send(page, "Vas-y.");
+    await expect(writing(page)).toBeVisible();
+    const earlier = page.locator(`[data-message-id="${convo.messages[1].id}"]`);
+    await earlier.getByTitle("Edit").click();
+    await earlier.locator("textarea").fill("Corrigé.");
+
+    // The conversation read as the reply ends is slow to come, as on a phone's link.
+    let release = () => {};
+    const released = new Promise<void>((resolve) => { release = resolve; });
+    let reading = () => {};
+    const read = new Promise<void>((resolve) => { reading = resolve; });
+    await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+      if (route.request().method() === "GET") {
+        reading();
+        await released;
+      }
+      await route.continue();
+    });
+    await stopTurn(request, convo.id);
+    await read;
+    await earlier.getByRole("button", { name: "Save" }).click();
+    await expect(earlier).toContainText("Corrigé.");
+    release();
+
+    const reply = (await conversation(request, convo.id)).messages.at(-1);
+    await expect(page.locator(`[data-message-id="${reply.id}"]`), "the reply never reached the screen").toBeVisible();
+    await expect(report(page)).toHaveCount(0);
+  });
 });
 
 test.describe("a failure, once something else is written", () => {

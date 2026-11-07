@@ -42,8 +42,9 @@ export class LiveText {
 const asked = new Set<string>();
 
 /** The reply being written: ask the server how it stands, read, follow the words until that ends
- *  for any reason, ask again. `read` fetches the conversation and hands back what shows it. */
-export function useTurn(id: string, read: () => Promise<() => void>) {
+ *  for any reason, ask again. `read` fetches the conversation and hands back what shows it, which
+ *  says whether it did. */
+export function useTurn(id: string, read: () => Promise<() => boolean>) {
   // The message being written, "" until the server says which.
   const [writing, setWriting] = useState<string | null>(null);
   const [lost, setLost] = useState<unknown>(null);
@@ -66,7 +67,8 @@ export function useTurn(id: string, read: () => Promise<() => void>) {
         if (shown.current.behind || (state.running ? state.message_id : null) !== shown.current.writing) {
           const show = await inTime(read());
           if (signal.aborted) return;
-          show();
+          // Older than a change made by hand meanwhile, it is not shown, and another is sent.
+          if (!show()) continue;
           shown.current.behind = false;
         }
         setLost(null);

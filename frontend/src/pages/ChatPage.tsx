@@ -120,9 +120,10 @@ function ChatView({ id }: { id: string }) {
     const convo = await data.conversations.get(id);
     return () => {
       if (settleSending(id, convo.messages ?? [])) setRefused(null);
-      if (changesByHand.current !== changes) return;
+      if (changesByHand.current !== changes) return false;
       setConversation((shown) => (shown ? { ...shown, title: convo.title } : convo));
       setMessages(convo.messages ?? []);
+      return true;
     };
   }, [id]);
 
