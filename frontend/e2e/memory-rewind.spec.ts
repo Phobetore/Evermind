@@ -196,8 +196,7 @@ test("a summary a pass wrote meanwhile shows when the person comes back to the w
   await expect(summary).toHaveValue(/woke the character in a crypt/);
 });
 
-// On a laptop the panel stays beside the conversation and the window keeps its focus, so
-// nothing else reads what a pass wrote before the person starts editing the summary.
+// On a laptop nothing else reads what a pass wrote before the person edits the summary.
 test("the summary box shows what a pass wrote when it is entered", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await makeConversation(request);
   await request.post(`${API}/api/chat`, {
@@ -222,9 +221,7 @@ test("the summary box shows what a pass wrote when it is entered", { tag: "@desk
   await expect(summary).toHaveValue(/woke the character in a crypt/);
 });
 
-// Moving from the directive to the summary sends the directive's save (on blur) and a read
-// of the conversation (on focus) together. A read answered from before the save, arriving
-// after it, put the old directive back on screen, and the next edit started from it.
+// The directive's save and the summary's read go out together; the read must not undo the save.
 test("a read sent with the directive's save does not put the old directive back", async ({ page, request }) => {
   const convo = await makeConversation(request);
   await request.post(`${API}/api/chat`, {
@@ -317,8 +314,7 @@ test("an older read that lands last does not put back the summary a newer one br
   await expect(summary).toHaveValue(brought);
 });
 
-// On a phone the panel beside the conversation is there but hidden, and the one over it is
-// a second copy. Each read on both events of a wake, and a read is the whole story.
+// A read is the whole story; a phone has a hidden panel too, and a wake fires two events.
 test("a phone waking reads the conversation once, and only for the panel it shows", async ({ page, request, isMobile }) => {
   test.skip(!isMobile, "a wide screen has neither a hidden panel nor one over the conversation");
   const convo = await makeConversation(request);
@@ -349,8 +345,7 @@ test("a phone waking reads the conversation once, and only for the panel it show
   expect(await wake(), "reads for the panel over the conversation").toBe(1);
 });
 
-// A pass of its own that failed is told in the panel until a pass works, Remember included,
-// even one that finds nothing to write in the summary.
+// A failed pass is told until one works, even a Remember that finds nothing to summarize.
 test("a Remember that works takes away the error of a pass that failed before it", async ({ page, request }) => {
   const convo = await makeConversation(request);
   // How the conversation reports the failed pass, until one works.
