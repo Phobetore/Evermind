@@ -1,9 +1,9 @@
 """A model that answers nothing at all, and the one retry that saves it.
 
 Several popular roleplay finetunes ship a chat template that refuses a
-conversation whose first message is the assistant's. They do not error: they
-stream zero tokens. Evermind opens a conversation on the character's greeting
-when it has one, so on those models the first message of a first conversation
+conversation whose first message is the assistant's. They stream zero tokens, or
+an error inside a stream already begun. Evermind opens a conversation on the
+character's greeting when it has one, so on those models the first message of a first conversation
 dies in silence, which reads as "this application is broken" rather than "this
 model is picky".
 """
@@ -192,3 +192,23 @@ async def test_a_refusal_inside_the_stream_is_retried_and_an_error_status_is_not
 
     assert asked == openings
     assert events[-1]["type"] == last
+
+
+async def test_a_refusal_with_no_greeting_to_blame_is_the_error_the_server_gave(
+        client, monkeypatch):
+    refusal = json.dumps({"error": {"message": "Error rendering prompt with jinja template"}})
+    asked = []
+
+    def server(request: httpx.Request) -> httpx.Response:
+        asked.append(request)
+        return httpx.Response(200, content=sse([refusal]))
+
+    for module in ("chat_service", "memory_service"):
+        monkeypatch.setattr(f"app.services.{module}.get_provider",
+                            lambda connection: oai_provider(server))
+    convo = await setup_conversation(client, greeting="")
+
+    events = await send(client, convo["id"])
+
+    assert len(asked) == 1
+    assert events[-1]["kind"] == "model_error"
