@@ -8,7 +8,7 @@ import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 import { Link } from "react-router";
 
 type Where = "connection" | "directive" | "summary" | "memory";
@@ -41,7 +41,20 @@ export function ChatSidePanel({
   const [directiveDraft, setDirectiveDraft] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Where, string>>>({});
-  const [memories, setMemories] = useState<Memory[]>([]);
+  const [memories, setFacts] = useState<Memory[]>([]);
+  // Each read of the facts, and each change made here, outdates the reads sent before it.
+  const listed = useRef(0);
+  const setMemories = (change: SetStateAction<Memory[]>) => {
+    listed.current++;
+    setFacts(change);
+  };
+  const readFacts = useCallback(() => {
+    const sent = ++listed.current;
+    data.memories
+      .list(conversation.id)
+      .then((facts) => sent === listed.current && setFacts(facts))
+      .catch(() => {});
+  }, [conversation.id]);
   const [newFact, setNewFact] = useState("");
   const [memorizing, setMemorizing] = useState(false);
   const [memoryNote, setMemoryNote] = useState<string | null>(null);
@@ -85,11 +98,8 @@ export function ChatSidePanel({
     data.connections?.list().then(setConnections).catch(() => {});
   }, [conversation.id]);
   useEffect(() => {
-    data.memories
-      .list(conversation.id)
-      .then(setMemories)
-      .catch(() => {});
-  }, [conversation.id, storyCuts]);
+    readFacts();
+  }, [readFacts, storyCuts]);
 
   // Read again on opening, after a cut and on return: a pass writes the summary on its own.
   const latest = useRef({ conversation, onConversationChange });
@@ -185,19 +195,15 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
-      if (!result.skipped) write({ memory_error: null });
+      write({ memory_error: null });
       if (result.summary) {
         write({ summary: result.summary });
         setSummaryDraft(null);
       }
-      const said = describeExtraction(result, t, conversation.summary);
-      if (result.skipped) fail("memory", said);
-      else {
-        setMemoryNote(said);
-        setTimeout(() => setMemoryNote(null), 4000);
-      }
+      setMemoryNote(describeExtraction(result, t, conversation.summary));
+      setTimeout(() => setMemoryNote(null), 4000);
     } catch (e) {
-      fail("memory", describeError(e, t, t("chat.panel.facts.extractError")));
+      failedMemory(e, t("chat.panel.facts.extractError"));
     }
     setMemorizing(false);
   }
@@ -209,14 +215,10 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.consolidate(conversation.id);
       setMemories(result.memories);
-      const said = describeConsolidation(result, t);
-      if (result.skipped) fail("memory", said);
-      else {
-        setMemoryNote(said);
-        setTimeout(() => setMemoryNote(null), 5000);
-      }
+      setMemoryNote(describeConsolidation(result, t));
+      setTimeout(() => setMemoryNote(null), 5000);
     } catch (e) {
-      fail("memory", describeError(e, t, t("chat.panel.facts.consolidateError")));
+      failedMemory(e, t("chat.panel.facts.consolidateError"));
     }
     setConsolidating(false);
   }
@@ -230,16 +232,14 @@ export function ChatSidePanel({
       setMemories((prev) => [saved, ...prev]);
       setNewFact("");
     } catch (e) {
-      fail("memory", describeError(e, t, t("chat.panel.facts.addError")));
+      failedMemory(e, t("chat.panel.facts.addError"));
     }
   }
 
-  // A change to a fact that the server refuses says why, in the same place as the
-  // failure to add one. The fact may be gone already, taken out by a cut in the story
-  // or by a pass of the memory, so the list is read again rather than left as it was.
-  function failedFactChange(error: unknown) {
-    fail("memory", describeError(error, t));
-    data.memories.list(conversation.id).then(setMemories).catch(() => {});
+  // A pass, a merge or a cut in the story may have changed the facts meanwhile.
+  function failedMemory(error: unknown, fallback?: string) {
+    fail("memory", describeError(error, t, fallback));
+    readFacts();
   }
 
   async function togglePin(memory: Memory) {
@@ -248,7 +248,7 @@ export function ChatSidePanel({
       const updated = await data.memories.update(memory.id, { is_pinned: !memory.is_pinned });
       setMemories((prev) => prev.map((m) => (m.id === memory.id ? updated : m)));
     } catch (e) {
-      failedFactChange(e);
+      failedMemory(e);
     }
   }
 
@@ -258,7 +258,7 @@ export function ChatSidePanel({
       await data.memories.remove(memory.id);
       setMemories((prev) => prev.filter((m) => m.id !== memory.id));
     } catch (e) {
-      failedFactChange(e);
+      failedMemory(e);
     }
   }
 

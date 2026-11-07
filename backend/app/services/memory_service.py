@@ -17,8 +17,12 @@ import aiosqlite
 
 from ..db import _connect, write_transaction
 from ..errors import (
+    CONVERSATION_CHANGED,
+    FACTS_CHANGED,
+    MEMORY_BUSY,
     MODEL_UNREADABLE,
     NO_CONNECTION,
+    TOO_FEW_FACTS,
     AppError,
     NotFoundError,
     error_body,
@@ -26,7 +30,7 @@ from ..errors import (
 )
 from ..prompting import embeddings
 from ..prompting.engine import active_content
-from ..prompting.memory_changes import is_movable, plan_consolidation, plan_memory_changes
+from ..prompting.memory_changes import answer_texts, plan_consolidation, plan_memory_changes
 from ..prompting.payloads import (
     MIN_FACTS_TO_CONSOLIDATE,
     build_consolidation_payload,
@@ -93,28 +97,27 @@ def schedule_if_due(convo_id: str) -> None:
         try:
             if await is_due(db, convo_id):
                 await run_maintenance(db, convo_id)
-        except Exception as exc:
+        except AppError as exc:
+            if exc.kind in (MEMORY_BUSY, CONVERSATION_CHANGED):
+                return  # the next reply asks again
+            logger.warning("memory maintenance failed for %s: %s", convo_id, exc.message)
+            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1, "error": error_body(exc)}
+        except Exception:
             logger.exception("memory maintenance failed for %s", convo_id)
-            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1, "error": _error_body(exc)}
+            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1,
+                                 "error": {"error": "The memory pass failed.", "kind": "internal"}}
         finally:
             await db.close()
 
     asyncio.get_running_loop().create_task(_task())
 
 
-def _error_body(exc: Exception) -> dict:
-    if not isinstance(exc, AppError):
-        return {"error": "The memory pass failed.", "kind": "internal"}
-    return error_body(exc)
-
-
-async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
-                        busy: Callable[[], Awaitable[dict]]) -> dict:
-    """Run ``work``, or answer ``busy`` when another memory task is running for this
-    conversation. A pass and a consolidation each read the memory, wait for a model, and
-    write what it said, so that the two would cross."""
+async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]]) -> dict:
+    """Run ``work``, unless another memory task is running for this conversation. A pass and a
+    consolidation each read the memory, wait for a model, and write what it said, so that the
+    two would cross."""
     if convo_id in _running:
-        return await busy()
+        raise AppError("Another memory task is running.", 409, kind=MEMORY_BUSY)
     _running.add(convo_id)
     try:
         return await work()
@@ -125,21 +128,13 @@ async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
 async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
                           hold_back: int = HOLD_BACK) -> dict:
     """One extraction+summary pass, which leaves the ``hold_back`` newest messages for the
-    next. Returns {"facts_added": [...], "summary": str}, with
-    "skipped" set to "busy" and nothing looked at when another memory task was running,
-    and to "changed" and nothing kept when the turns it read were not the story's any more
-    when it came to write what it learned, the memory's position had moved, or a person had
-    edited or forgotten a fact it was sent."""
-    async def busy() -> dict:
-        return {"facts_added": [], "summary": None, "skipped": "busy"}
-
+    next. Returns {"facts_added": [...], "summary": str}."""
     async def work() -> dict:
         result = await _run(db, convo_id, hold_back)
-        if "skipped" not in result:
-            _failed.pop(convo_id, None)
+        _failed.pop(convo_id, None)
         return result
 
-    return await one_at_a_time(convo_id, work, busy)
+    return await one_at_a_time(convo_id, work)
 
 
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
@@ -153,15 +148,8 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
 
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Merge non-pinned facts into a shorter, denser set (pinned untouched).
-    Returns {"before": n, "after": n, "memories": [...]}, with "skipped" set and nothing
-    changed when there were too few facts, or when one of those sent to the model was
-    changed, pinned or deleted while it answered ("changed"), or another memory task was
-    running ("busy")."""
-    async def busy() -> dict:
-        facts = await memories_repo.list_for_conversation(db, convo_id)
-        return {"before": len(facts), "after": len(facts), "memories": facts, "skipped": "busy"}
-
-    return await one_at_a_time(convo_id, lambda: _consolidate(db, convo_id), busy)
+    Returns {"before": n, "after": n, "memories": [...]}."""
+    return await one_at_a_time(convo_id, lambda: _consolidate(db, convo_id))
 
 
 async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
@@ -175,8 +163,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     all_facts = await memories_repo.list_for_conversation(db, convo_id)
     movable = movable_facts(all_facts)
     if len(movable) < MIN_FACTS_TO_CONSOLIDATE:
-        return {"before": len(all_facts), "after": len(all_facts),
-                "memories": all_facts, "skipped": "too_few"}
+        raise AppError("Too few facts to consolidate.", 409, kind=TOO_FEW_FACTS)
 
     payload = build_consolidation_payload(character, persona, movable)
     chunks: list[str] = []
@@ -190,7 +177,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     if merged is None:
         raise AppError("Unreadable consolidation — try again.", 502, kind=MODEL_UNREADABLE)
 
-    vectors = await _vectors_of(f["content"] for f in merged["facts"])
+    vectors = await _vectors_of(merged["facts"])
 
     # The memory as it is now rather than before the model was asked. The merge was
     # written from all the facts that were sent: if one of them was edited, pinned or
@@ -203,14 +190,15 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
         now = await memories_repo.list_for_conversation(db, convo_id)
         still = {(m["id"], m["content"], m["source_position"]) for m in movable_facts(now)}
         if any((m["id"], m["content"], m["source_position"]) not in still for m in movable):
-            return {"before": len(now), "after": len(now), "memories": now, "skipped": "changed"}
+            raise AppError("The facts changed while the model merged them.", 409,
+                           kind=FACTS_CHANGED)
 
         # A fact that the merge repeats stays as it is, since adding it again is refused
         # as a double.
-        for f in merged["facts"]:
-            await memories_repo.add_with_vector(db, convo_id, f["content"], f["kind"],
-                                                merged["source_position"], vectors.get(f["content"]))
-        kept = {f["content"] for f in merged["facts"]}
+        for content in merged["facts"]:
+            await memories_repo.add_with_vector(db, convo_id, content, merged["source_position"],
+                                                vectors.get(content))
+        kept = set(merged["facts"])
         for m in movable:
             if m["content"] not in kept:
                 await memories_repo.remove(db, m["id"])
@@ -220,35 +208,27 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
 
 async def _vectors_of(texts: Iterable[str]) -> dict[str, bytes]:
     """The vectors of these texts, for those that have one: nothing without the semantic
-    model, and the backfill gives them one later. Working them out takes a while, so it
+    model, and the next start gives them one. Working them out takes a while, so it
     comes before the database is held."""
     unique = list(dict.fromkeys(texts))
     vectors = await embeddings.embed(unique, kind="passage")
     return {text: embeddings.pack(vector) for text, vector in zip(unique, vectors or [], strict=False)}
 
 
-async def _apply(db: aiosqlite.Connection, convo_id: str, ops: list[dict],
-                 vectors: dict[str, bytes]) -> list[dict]:
-    """Make the changes of ``plan_memory_changes`` one after the other, and return the
-    facts that were added. The plan was made from the facts as they were read, and a
-    person can pin one while the vectors are worked out: one that is no longer the model's
-    to move is left alone, as one that cannot be found any more is. The caller commits."""
+async def _apply(db: aiosqlite.Connection, convo_id: str, changes: dict,
+                 vectors: dict[str, bytes], top_position: int) -> list[dict]:
+    """Make the changes of ``plan_memory_changes``, and return the facts that were added.
+    The caller commits."""
+    for fact_id in changes["delete"]:
+        await memories_repo.remove(db, fact_id)
+    for fact_id, content in changes["update"].items():
+        await memories_repo.rewrite(db, fact_id, content, vectors.get(content), top_position)
     added = []
-    for op in ops:
-        if op["op"] == "add":
-            saved = await memories_repo.add_with_vector(
-                db, convo_id, op["content"], op["kind"], op["source_position"],
-                vectors.get(op["content"]), source=op["source"])
-            if saved:
-                added.append(saved)
-            continue
-        target = await memories_repo.find_by_content(db, convo_id, op["target"])
-        if target is None or not is_movable(target):
-            continue
-        if op["op"] == "update":
-            await memories_repo.rewrite(db, target["id"], op["content"], vectors.get(op["content"]))
-        else:
-            await memories_repo.remove(db, target["id"])
+    for fact in changes["add"]:
+        saved = await memories_repo.add_with_vector(
+            db, convo_id, fact["content"], fact["source_position"], vectors.get(fact["content"]))
+        if saved:
+            added.append(saved)
     return added
 
 
@@ -282,84 +262,42 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     if parsed is None:
         raise AppError("Unreadable memory response (JSON expected).", 502,
                        kind=MODEL_UNREADABLE)
+    vectors = await _vectors_of(answer_texts(parsed))
 
-    # What the memory holds now rather than before the model was asked: a fact
-    # pinned in the meantime is no longer one to correct or drop.
-    changes = plan_memory_changes(
-        parsed, await memories_repo.list_in_lookup_order(db, convo_id), top_position)
-    vectors = await _vectors_of(op["content"] for op in changes["ops"] if op["op"] != "delete")
-
-    # All of what it learned, or none of it. The model and the vectors can take a while. A
-    # person can cut the story back meanwhile: what it learned is then from turns that are
-    # gone, and a memory read up to a position the story no longer reaches would take the
-    # turns that come next for ones it has read. A person can also edit or forget a fact it
-    # was sent: what it decided was decided on the fact as it was, and a correction of a
-    # fact just forgotten would bring it back in other words. Nothing is kept then, and the
-    # next pass starts again. So too if the memory's position moved: the conversation and its
-    # messages are two reads, and a cut between them, with new turns after it, leaves a story
-    # that checks out and a position that does not, from which the turns it passed over would
-    # count as read. A pin stops only what would have moved that fact.
+    # Nothing is kept of turns cut, or of facts edited or forgotten, while the model answered.
     async with write_transaction(db):
         current = await convo_repo.get(db, convo_id, with_messages=False)
         now = await memories_repo.list_for_conversation(db, convo_id)
         if (await convo_repo.message_ids_through(db, convo_id, top_position) != read
-                or not sent <= {(m["id"], m["content"]) for m in now}
-                or current["memory_position"] != convo["memory_position"]):
-            return {"facts_added": [], "summary": None, "skipped": "changed"}
-        # A summary a person typed meanwhile is theirs, and the model wrote from the one
-        # before it. The rest of what it learned stands, and the checkpoint holds the summary
-        # before as if this pass had written none, so that the typed one still reads as typed.
+                or not sent <= {(m["id"], m["content"]) for m in now}):
+            raise AppError("The conversation changed while the model read it.", 409,
+                           kind=CONVERSATION_CHANGED)
+        changes = plan_memory_changes(parsed, now, top_position)
+        # A summary a person typed meanwhile is theirs, and the model wrote from the one before.
         written = changes["summary"] if current["summary"] == convo["summary"] else None
-        added = await _apply(db, convo_id, changes["ops"], vectors)
+        added = await _apply(db, convo_id, changes, vectors, top_position)
         await convo_repo.remember(db, convo_id, top_position, written)
 
     return {"facts_added": added, "summary": written or current["summary"] or ""}
 
 
-async def backfill_embeddings(db: aiosqlite.Connection) -> int:
-    """Encode facts still missing a vector. Best-effort: returns how many were
-    filled (0 if the model is unavailable). A fact rewritten while its vector was
-    worked out is not filled with it: the next pass does it again. Never raises."""
-    missing = await memories_repo.list_missing_embeddings(db)
-    filled = 0
-    for fact in missing:
-        vectors = await embeddings.embed([fact["content"]], kind="passage")
-        if vectors and await memories_repo.set_embedding(
-                db, fact["id"], fact["content"], embeddings.pack(vectors[0])):
-            filled += 1
-    if filled:
-        logger.info("semantic memory: backfilled %d fact embeddings", filled)
-    return filled
-
-
-async def backfill_message_embeddings(db: aiosqlite.Connection) -> int:
-    """Encode messages still missing a vector (their ACTIVE variant). Best-effort:
-    returns how many were filled (0 if the model is unavailable). A message changed
-    while its vector was worked out is not filled with it: the next pass does it
-    again. Never raises."""
-    missing = await convo_repo.list_messages_missing_embeddings(db)
-    filled = 0
-    for msg in missing:
-        content = active_content(msg)
-        vectors = await embeddings.embed([content], kind="passage")
-        if vectors and await convo_repo.set_message_embedding(
-                db, msg["id"], content, embeddings.pack(vectors[0])):
-            filled += 1
-    if filled:
-        logger.info("semantic memory: backfilled %d message embeddings", filled)
-    return filled
-
-
-async def warmup_and_backfill() -> None:
-    """Startup task: load the model (the only place a download can happen),
-    then backfill existing facts and messages. Own DB connection. Never blocks."""
+async def fill_vectors() -> None:
+    """Startup task: load the model, the only place a download can happen, then give every
+    fact and message that has no vector its own. Own connection; never raises."""
     if not await embeddings.warmup():
         return
     db = await _connect()
     try:
-        await backfill_embeddings(db)
-        await backfill_message_embeddings(db)
+        for fact in await memories_repo.list_missing_embeddings(db):
+            vectors = await embeddings.embed([fact["content"]], kind="passage")
+            if vectors:
+                await memories_repo.set_embedding(db, fact["id"], fact["content"],
+                                                  embeddings.pack(vectors[0]))
+        for message in await convo_repo.list_messages_missing_embeddings(db):
+            vectors = await embeddings.embed([active_content(message)], kind="passage")
+            if vectors:
+                await convo_repo.set_message_embedding(db, message["id"], embeddings.pack(vectors[0]))
     except Exception:
-        logger.exception("semantic memory backfill failed")
+        logger.exception("semantic memory: filling the missing vectors failed")
     finally:
         await db.close()

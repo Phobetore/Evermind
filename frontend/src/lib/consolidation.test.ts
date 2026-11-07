@@ -14,7 +14,6 @@ const lookup = (key: string) =>
 const fact: Memory = {
   id: "m1",
   conversation_id: "c1",
-  kind: "fact",
   content: "A fact.",
   source_position: 2,
   is_pinned: false,
@@ -29,31 +28,8 @@ describe("what a consolidation says it did", () => {
     );
   });
 
-  test("that there were too few facts, when it was skipped for that", () => {
-    expect(describeConsolidation({ before: 5, after: 5, memories: [], skipped: "too_few" }, t)).toBe(
-      "chat.panel.facts.tooFewToConsolidate",
-    );
-  });
-
-  test("that the facts changed meanwhile, and nothing was altered, when it was skipped for that", () => {
-    expect(describeConsolidation({ before: 8, after: 8, memories: [], skipped: "changed" }, t)).toBe(
-      "chat.panel.facts.changedWhileConsolidating",
-    );
-  });
-
-  test("that another memory task is running, and nothing was altered, when it was skipped for that", () => {
-    expect(describeConsolidation({ before: 8, after: 8, memories: [], skipped: "busy" }, t)).toBe(
-      "chat.panel.facts.memoryTaskRunning",
-    );
-  });
-
-  test.each([
-    "chat.panel.facts.consolidated",
-    "chat.panel.facts.tooFewToConsolidate",
-    "chat.panel.facts.changedWhileConsolidating",
-    "chat.panel.facts.memoryTaskRunning",
-  ])("%s is a sentence of the interface", (key) => {
-    expect(typeof lookup(key)).toBe("string");
+  test("chat.panel.facts.consolidated is a sentence of the interface", () => {
+    expect(typeof lookup("chat.panel.facts.consolidated")).toBe("string");
   });
 });
 
@@ -76,23 +52,10 @@ describe("what an extraction says it did", () => {
     );
   });
 
-  test("that another memory task is running, and not that there was nothing new, when it did not look", () => {
-    expect(
-      describeExtraction({ facts_added: [], summary: null, memories: [], skipped: "busy" }, t, ""),
-    ).toBe("chat.panel.facts.memoryTaskRunning");
-  });
-
-  test("that the conversation changed, and nothing was kept, when the turns it read were removed", () => {
-    expect(
-      describeExtraction({ facts_added: [], summary: null, memories: [], skipped: "changed" }, t, ""),
-    ).toBe("chat.panel.facts.conversationChangedWhileReading");
-  });
-
   test.each([
     "chat.panel.facts.addedCount",
     "chat.panel.facts.noneNew",
     "chat.panel.facts.summaryOnly",
-    "chat.panel.facts.conversationChangedWhileReading",
   ])(
     "%s is a sentence of the interface",
     (key) => {

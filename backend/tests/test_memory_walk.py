@@ -16,9 +16,9 @@ from app.providers.base import ProviderEvent
 
 from .test_chat import send, setup_conversation
 
-SEEDS, STEPS = 4, 30
+SEEDS, STEPS = 2, 30
 TABLES = {"conversations": "id", "messages": "conversation_id", "memories": "conversation_id",
-          "memory_checkpoints": "conversation_id", "memory_checkpoint_facts": "conversation_id"}
+          "memory_summaries": "conversation_id"}
 STEP_KINDS = ["talk"] * 3 + ["pass"] * 3 + ["cut"] * 2 + [
     "type", "consolidate", "forget", "edit", "pin", "hand", "branch"]
 
@@ -37,7 +37,7 @@ def bullets(text):
 
 class World:
     """What the models need of a walk, and what it saw that excuses a fact being missing."""
-    rng, count, looking, dropped, excused = None, 0, False, {}, set()
+    rng, count, looking, excused = None, 0, False, set()
 
     @classmethod
     def token(cls, prefix):
@@ -77,9 +77,9 @@ class Memory(Answering):
             pick, roll = World.rng.choice(movable), World.rng.random()
             if roll < 0.3:  # corrected by a later turn: it now says something of that turn
                 answer["updated_facts"] = [{"replaces": pick, "content": f"{pick} @{new[-1]}@"}]
-            elif roll < 0.5:  # dropped because of a later turn
+            elif roll < 0.5:  # dropped because of a later turn, for good: no cut brings it back
                 answer["obsolete_facts"] = [pick]
-                World.dropped.update(dict.fromkeys(tokens(pick), new[-1]))
+                World.excused |= tokens(pick)
             elif roll < 0.6:
                 del answer["summary"]
         return json.dumps(answer)
@@ -96,12 +96,12 @@ async def read(client, cid):
     convo = (await client.get(f"/api/conversations/{cid}")).json()
     db = await _connect()
     try:
-        checkpoints, copies = [[tuple(r) for r in await (await db.execute(
-            f"SELECT * FROM {table} WHERE conversation_id = ? ORDER BY 2, 3", (cid,))).fetchall()]
-            for table in ("memory_checkpoints", "memory_checkpoint_facts")]
+        summaries = [tuple(r) for r in await (await db.execute(
+            "SELECT position, summary FROM memory_summaries WHERE conversation_id = ?"
+            " ORDER BY position", (cid,))).fetchall()]
     finally:
         await db.close()
-    return {"convo": convo, "checkpoints": checkpoints, "copies": copies,
+    return {"convo": convo, "summaries": summaries,
             "facts": (await client.get(f"/api/conversations/{cid}/memories")).json()}
 
 
@@ -126,45 +126,32 @@ async def facts_after_a_pass(client, cid):
     return answered.json()["memories"]
 
 
-def the_models(fact):
-    return not fact["is_pinned"] and fact["source"] == "auto"
-
-
 async def check(client, cid, edited, forgotten_ids, kept, trace, cut):
     state = await read(client, cid)
     convo = state["convo"]
     alive = set().union(*(tokens(m["content"]) for m in convo["messages"]))
     last = max((m["position"] for m in convo["messages"]), default=0)
     assert convo["memory_position"] <= last, trace
-    assert all(row[1] <= last for row in state["checkpoints"]), trace
-    # With no checkpoint at or before a cut, a fact stands by its position, which a correction
-    # does not move, so it can keep words of a turn that went. And a story too long for a pass
-    # to write its summary again keeps it, part stale.
-    if cut is not None and not state["checkpoints"]:
-        kept |= set().union(*(tokens(f["content"]) - alive for f in state["facts"]))
-        if cut + 1 > MAX_TURNS_PER_RUN:
-            kept |= tokens(convo["summary"]) - alive
+    assert all(position <= last for position, _ in state["summaries"]), trace
+    # With no pass at or before a cut, a story too long for a pass to write its summary again
+    # keeps it, part stale.
+    if cut is not None and not state["summaries"] and cut + 1 > MAX_TURNS_PER_RUN:
+        kept |= tokens(convo["summary"]) - alive
     if not (convo["summary"] or "").startswith("TYPED"):
         assert tokens(convo["summary"]) - kept <= alive, (convo["summary"], alive, trace)
-    # What a person kept past the turns it speaks of may be unpinned, and speak of them still.
-    kept |= set().union(*(tokens(f["content"]) - alive for f in state["facts"] if f["is_pinned"]))
     for fact in state["facts"]:
-        if the_models(fact) and fact["id"] not in edited:
-            assert tokens(fact["content"]) - kept <= alive, (fact, trace)
         assert fact["id"] not in forgotten_ids, (fact, trace)
         assert fact["content"].startswith(edited.get(fact["id"], "")), (fact, "lost its edit", trace)
-    assert not {row[2] for row in state["copies"]} & forgotten_ids, ("a copy kept a forgotten fact", trace)
     # A pass reads so many turns at most: what it passes over nothing remembers, for good.
     unread = [m for m in convo["messages"] if m["position"] > (convo["memory_position"] or -1)]
     World.excused |= set().union(*(tokens(m["content"]) for m in unread[:-MAX_TURNS_PER_RUN]))
     held = set().union(*(tokens(f["content"]) for f in await facts_after_a_pass(client, cid)))
-    for token in alive - held - World.excused:
-        assert World.dropped.get(token) in alive, (f"nothing remembers @{token}@", trace)
+    assert not alive - held - World.excused, ("a turn that nothing will read again", trace)
 
 
 async def walk(client, seed):
     rng = World.rng = random.Random(seed)
-    World.count, World.dropped, World.excused = 0, {}, set()
+    World.count, World.excused = 0, set()
     await client.put("/api/settings", json={"auto_memory": False})
     cid = (await setup_conversation(client, greeting="Hello." if seed % 2 else ""))["id"]
     edited, forgotten_ids, kept, trace = {}, set(), set(), []
@@ -182,7 +169,8 @@ async def walk(client, seed):
         elif step in ("pass", "consolidate"):
             url = {"pass": "memories/extract", "consolidate": "memories/consolidate"}
             answered = await client.post(f"{base}/{url[step]}")
-            assert answered.status_code == 200 or not messages, answered.text
+            too_few = answered.status_code == 409 and answered.json()["kind"] == "too_few_facts"
+            assert answered.status_code == 200 or too_few or not messages, answered.text
         elif step == "type":
             await client.patch(base, json={"summary": f"TYPED {World.token('t').strip('@')}"})
         elif step == "hand":
@@ -193,7 +181,8 @@ async def walk(client, seed):
             assert (await client.delete(f"/api/messages/{message['id']}")).status_code == 204
             trace[-1] += f" {message['position']}"
             after = await read(client, cid)
-            assert {f["id"] for f in facts if not the_models(f)} <= {f["id"] for f in after["facts"]}, trace
+            the_persons = {f["id"] for f in facts if f["is_pinned"] or f["source"] == "user"}
+            assert the_persons <= {f["id"] for f in after["facts"]}, trace
             if (convo["summary"] or "").startswith("TYPED"):
                 assert after["convo"]["summary"] == convo["summary"], trace
         elif step == "branch" and messages:

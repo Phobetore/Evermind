@@ -29,8 +29,8 @@ async def add_memory(convo_id: str, payload: MemoryIn,
         raise NotFoundError("Conversation not found.", "conversation")
     if not payload.content.strip():
         raise _no_text()
-    saved = await repo.add(db, convo_id, content=payload.content, kind=payload.kind,
-                           is_pinned=payload.is_pinned, source="user")
+    saved = await repo.add(db, convo_id, content=payload.content, is_pinned=payload.is_pinned,
+                           source="user")
     if not saved:
         raise AppError("This fact already exists.", kind="fact_exists")
     return saved

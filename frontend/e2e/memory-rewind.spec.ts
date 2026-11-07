@@ -5,19 +5,23 @@ import { API } from "../playwright.config";
 import { makeConversation } from "./fixtures";
 
 /**
- * Taking the story back from a message takes what was remembered of it back too, to what
- * it was at that point: the facts as they stood, and the summary of the turns that stay.
+ * Taking the story back from a message takes what was remembered of it back too: the facts
+ * drawn from the turns that went, and the summary, to the one of the turns that stay.
  * The panel beside the conversation showed what it had read when it opened, so the
  * summary of a story that no longer existed stayed on screen, and saving it wrote it back.
  */
 
-const panelText = JSON.parse(
+const en = JSON.parse(
   readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", "en.json"), "utf8"),
-).chat.panel as {
+);
+const panelText = en.chat.panel as {
   closeAriaLabel: string;
   directive: { placeholder: string; applyButton: string };
   summary: { placeholder: string; saveButton: string };
-  facts: { extractButton: string; pinTitle: string; forgetAriaLabel: string };
+  facts: {
+    extractButton: string; consolidateButton: string; pinTitle: string; unpinTitle: string;
+    forgetAriaLabel: string;
+  };
 };
 
 test("cutting the story back empties the summary and the facts of what went", async ({ page, request }) => {
@@ -61,7 +65,7 @@ test("cutting the story back empties the summary and the facts of what went", as
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(read.messages).toHaveLength(3);
   expect(read.summary).toBe("");
-  // The pass was the first, so there is no earlier checkpoint to go back to.
+  // The pass was the first, so there is no earlier summary to go back to.
   expect(read.memory_position).toBe(0);
 });
 
@@ -439,6 +443,66 @@ test("a memory pass that fails says so in the colour of an error, and keeps sayi
   await expect(error).toBeVisible();
   await page.waitForTimeout(4500);
   await expect(error).toBeVisible();
+});
+
+test("a read of the facts that a pin overtook does not unpin it", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/conversations/${convo.id}/memories`, { data: { content: "She keeps the key." } });
+  await page.route("**/memories/extract", (route) =>
+    route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Cannot reach the model.", kind: "unreachable" }),
+    }),
+  );
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  await expect(panel).toContainText("She keeps the key.");
+
+  // The read that follows the failed Remember is answered as the facts were, and delivered after the pin.
+  let fetched = () => {};
+  const answered = new Promise<void>((resolve) => { fetched = resolve; });
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(`**/api/conversations/${convo.id}/memories`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const old = await route.fetch();
+    fetched();
+    await released;
+    await route.fulfill({ response: old });
+  });
+  await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+  await answered;
+  await panel.getByTitle(panelText.facts.pinTitle).click();
+  await expect(panel.getByTitle(panelText.facts.unpinTitle)).toBeVisible();
+
+  const late = page.waitForResponse((r) => r.url().endsWith(`/api/conversations/${convo.id}/memories`));
+  release();
+  await (await late).finished();
+  await page.waitForTimeout(500);
+  await expect(panel.getByTitle(panelText.facts.unpinTitle)).toBeVisible();
+});
+
+test("a merge with too few facts says why, in the colour of an error", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/conversations/${convo.id}/memories`, { data: { content: "She keeps the key." } });
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+
+  await panel.getByRole("button", { name: panelText.facts.consolidateButton, exact: true }).click();
+
+  await expect(panel.locator("p.text-blood")).toHaveText(en.errors.tooFewFacts);
+  await expect(panel).toContainText("She keeps the key.");
 });
 
 test("a fact that is gone says so when it is pinned, and leaves the list", async ({ page, request }) => {

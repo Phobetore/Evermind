@@ -21,6 +21,11 @@ NOT_FOUND = "not_found"
 TURN_RUNNING = "turn_running"
 # A fact was given with no text in it, to add or to be rewritten as.
 FACT_EMPTY = "fact_empty"
+# A memory task that kept nothing: another ran, what it read changed, or too few facts to merge.
+MEMORY_BUSY = "memory_busy"
+FACTS_CHANGED = "facts_changed"
+CONVERSATION_CHANGED = "conversation_changed"
+TOO_FEW_FACTS = "too_few_facts"
 
 # What a model's server said when it answered with an error, and with which
 # status, and the address that could not be reached. The words are its own,

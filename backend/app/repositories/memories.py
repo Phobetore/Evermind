@@ -1,7 +1,6 @@
 import aiosqlite
 
 from ..prompting import embeddings
-from ..prompting.memory_changes import ALLOWED_KINDS
 from .base import new_id, now_iso
 
 
@@ -15,7 +14,7 @@ def to_out(row) -> dict:
 async def list_for_conversation(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
     rows = await (await db.execute(
         "SELECT * FROM memories WHERE conversation_id = ?"
-        " ORDER BY is_pinned DESC, source_position ASC, created_at ASC",
+        " ORDER BY is_pinned DESC, source_position ASC, created_at ASC, rowid ASC",
         (convo_id,))).fetchall()
     return [to_out(r) for r in rows]
 
@@ -28,20 +27,20 @@ async def _says(db: aiosqlite.Connection, convo_id: str, content: str) -> bool:
 
 
 async def add(db: aiosqlite.Connection, convo_id: str, content: str,
-              kind: str = "fact", source_position: int = 0,
-              is_pinned: bool = False, source: str = "auto") -> dict | None:
+              source_position: int = 0, is_pinned: bool = False,
+              source: str = "auto") -> dict | None:
     content = (content or "").strip()
     if not content or await _says(db, convo_id, content):
         return None
     vectors = await embeddings.embed([content], kind="passage")
-    saved = await add_with_vector(db, convo_id, content, kind, source_position,
+    saved = await add_with_vector(db, convo_id, content, source_position,
                                   embeddings.pack(vectors[0]) if vectors else None,
                                   is_pinned=is_pinned, source=source)
     await db.commit()
     return saved
 
 
-async def add_with_vector(db: aiosqlite.Connection, convo_id: str, content: str, kind: str,
+async def add_with_vector(db: aiosqlite.Connection, convo_id: str, content: str,
                           source_position: int, blob: bytes | None, *,
                           is_pinned: bool = False, source: str = "auto") -> dict | None:
     """``add`` for what is written with other things: the vector was worked out before, and
@@ -50,34 +49,11 @@ async def add_with_vector(db: aiosqlite.Connection, convo_id: str, content: str,
         return None
     memory_id = new_id()
     await db.execute(
-        "INSERT INTO memories (id, conversation_id, kind, content, source_position,"
-        " is_pinned, source, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (memory_id, convo_id, kind if kind in ALLOWED_KINDS else "fact", content,
-         source_position, int(is_pinned), source, now_iso(), blob),
+        "INSERT INTO memories (id, conversation_id, content, source_position,"
+        " is_pinned, source, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (memory_id, convo_id, content, source_position, int(is_pinned), source, now_iso(), blob),
     )
     return await get(db, memory_id)
-
-
-# A person can edit a fact into what another already says, so that a text may name
-# several facts. The one a lookup by content gives is the first in this order:
-# the pinned ones, then the oldest. It is the order in which idx_memories_conversation
-# is walked, so the lookup always gave that one; it is written out so that
-# plan_memory_changes, which is given the facts in this order, chooses the same.
-async def list_in_lookup_order(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
-    rows = await (await db.execute(
-        "SELECT * FROM memories WHERE conversation_id = ?"
-        " ORDER BY is_pinned DESC, created_at ASC, rowid ASC",
-        (convo_id,))).fetchall()
-    return [to_out(r) for r in rows]
-
-
-async def find_by_content(db: aiosqlite.Connection, convo_id: str,
-                          content: str) -> dict | None:
-    row = await (await db.execute(
-        "SELECT * FROM memories WHERE conversation_id = ? AND content = ?"
-        " ORDER BY is_pinned DESC, created_at ASC, rowid ASC LIMIT 1",
-        (convo_id, (content or "").strip()))).fetchone()
-    return to_out(row) if row else None
 
 
 async def get(db: aiosqlite.Connection, memory_id: str) -> dict | None:
@@ -88,19 +64,17 @@ async def get(db: aiosqlite.Connection, memory_id: str) -> dict | None:
 
 async def update(db: aiosqlite.Connection, memory_id: str,
                  content: str | None = None, is_pinned: bool | None = None) -> dict | None:
-    """What a person changes in a fact. What they write reaches the copies the checkpoints
-    hold of this fact, under its id, so that a rewind does not bring back the words they
-    replaced. A pass may have dropped those words and written them again under another id:
-    that is another fact, and its copies keep them. Pinning leaves the copies as they are."""
+    """What a person changes in a fact. What they write is theirs: a cut does not take it
+    back to what the model had written before."""
     if not await get(db, memory_id):
         return None
     sets, params = [], []
     if content is not None and content.strip():
         new_content = content.strip()
-        sets.append("content = ?")
+        sets += ["content = ?", "previous_content = NULL", "corrected_at = NULL"]
         params.append(new_content)
         # the stored vector describes the OLD text now; recompute it (or NULL it
-        # so the startup backfill re-fills it) — never leave a stale embedding
+        # so that the next start fills it) — never leave a stale embedding
         vectors = await embeddings.embed([new_content], kind="passage")
         sets.append("embedding = ?")
         params.append(embeddings.pack(vectors[0]) if vectors else None)
@@ -110,37 +84,26 @@ async def update(db: aiosqlite.Connection, memory_id: str,
     if sets:
         params.append(memory_id)
         await db.execute(f"UPDATE memories SET {', '.join(sets)} WHERE id = ?", params)
-        if content is not None and content.strip():
-            await db.execute(
-                "UPDATE memory_checkpoint_facts SET content = ? WHERE fact_id = ? AND"
-                " conversation_id = (SELECT conversation_id FROM memories WHERE id = ?)",
-                (content.strip(), memory_id, memory_id))
         await db.commit()
     return await get(db, memory_id)
 
 
 async def rewrite(db: aiosqlite.Connection, memory_id: str, content: str,
-                  blob: bytes | None) -> None:
-    """The model corrects a fact: the copies keep what it said, which is what a cut back
-    before the correction restores. The caller commits."""
-    await db.execute("UPDATE memories SET content = ?, embedding = ? WHERE id = ?",
-                     (content, blob, memory_id))
+                  blob: bytes | None, at: int) -> None:
+    """The model corrects a fact, in a pass that read up to ``at``: what it said is kept, for
+    a cut back before that pass to restore. A fact it restates word for word keeps its vector,
+    and what it said before an earlier correction. The caller commits."""
+    await db.execute(
+        "UPDATE memories SET previous_content = content, corrected_at = ?, content = ?,"
+        " embedding = ? WHERE id = ? AND content <> ?", (at, content, blob, memory_id, content))
 
 
 async def remove(db: aiosqlite.Connection, memory_id: str) -> None:
-    """The model drops or merges a fact, and the copies keep it. The caller commits."""
+    """The model drops or merges a fact. The caller commits."""
     await db.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
 
 
 async def delete(db: aiosqlite.Connection, memory_id: str) -> bool:
-    """A person forgets a fact: it goes from the copies the checkpoints hold of it too, as it
-    read at any time, and so does any copy that says what it says now, which a pass may have
-    dropped and written again under another id. A rewind cannot bring it back."""
-    await db.execute(
-        "DELETE FROM memory_checkpoint_facts"
-        " WHERE conversation_id = (SELECT conversation_id FROM memories WHERE id = :id)"
-        " AND (fact_id = :id OR content = (SELECT content FROM memories WHERE id = :id))",
-        {"id": memory_id})
     cursor = await db.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
     await db.commit()
     return cursor.rowcount > 0
@@ -156,7 +119,7 @@ async def list_embeddings(db: aiosqlite.Connection, convo_id: str) -> dict[str, 
 
 
 async def list_missing_embeddings(db: aiosqlite.Connection) -> list[dict]:
-    """Facts with no vector yet, across all conversations (for backfill)."""
+    """Facts with no vector yet, across all conversations (for fill_vectors)."""
     rows = await (await db.execute(
         "SELECT id, content FROM memories WHERE embedding IS NULL")).fetchall()
     return [dict(r) for r in rows]

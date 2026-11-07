@@ -157,7 +157,6 @@ export interface Installation {
 export interface Memory {
   id: string;
   conversation_id: string;
-  kind: "fact" | "event" | "relationship" | "promise" | "state";
   content: string;
   source_position: number;
   is_pinned: boolean;

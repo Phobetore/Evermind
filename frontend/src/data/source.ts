@@ -133,26 +133,17 @@ export interface ConversationPatch {
 }
 
 /** What "memorize now" found: the facts it added, a new summary if the
- *  conversation earned one, and the whole list as it stands afterwards. `skipped`
- *  is set, and nothing was looked at, when another memory task was running (`busy`);
- *  and nothing was kept when the turns it read were removed or replaced, or a fact it
- *  was sent was edited or forgotten, before it could write what it learned (`changed`). */
+ *  conversation earned one, and the whole list as it stands afterwards. */
 export interface ExtractResult {
   facts_added: Memory[];
   summary: string | null;
   memories: Memory[];
-  skipped?: "busy" | "changed";
 }
 
-/** `skipped` is set, and nothing changed, when there were too few facts to be
- *  worth merging (`too_few`), when one of the facts the model was given was
- *  edited, pinned or deleted while it answered (`changed`), or when another memory
- *  task was running (`busy`). */
 export interface ConsolidateResult {
   before: number;
   after: number;
   memories: Memory[];
-  skipped?: "too_few" | "changed" | "busy";
 }
 
 export interface TurnRequest {
