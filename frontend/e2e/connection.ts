@@ -98,16 +98,14 @@ export const writing = (page: Page) => page.locator(".stream-caret");
 export const endingOf = (content: string) =>
   content.trim().split(" ").slice(-3).join(" ").replaceAll("*", "");
 
-function countingRequests(page: Page, ending: string, method?: string) {
+function countingRequests(page: Page, ending: string) {
   let count = 0;
   page.on("request", (sent) => {
-    if (new URL(sent.url()).pathname.endsWith(ending) && (!method || sent.method() === method)) count += 1;
+    if (new URL(sent.url()).pathname.endsWith(ending)) count += 1;
   });
   return () => count;
 }
 
-/** How many times the page has asked about the turn since this was called. */
-export const countingTurnQuestions = (page: Page) => countingRequests(page, "/turn", "GET");
 /** How many times the page has started reading a turn's stream. */
 export const countingStreams = (page: Page) => countingRequests(page, "/turn/stream");
 /** How many times the page has asked for a turn. */
