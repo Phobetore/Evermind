@@ -214,7 +214,8 @@ def test_the_help_says_what_it_starts_in_plain_words(capsys):
     with pytest.raises(SystemExit):
         launch.main(["--help"])
     help_text = capsys.readouterr().out
-    assert "Start Evermind: the interface and the API on one port." in help_text
+    # argparse wraps it to the width of the terminal.
+    assert "Start Evermind: the interface and the API on one port." in " ".join(help_text.split())
     assert "`" not in help_text
 
 
