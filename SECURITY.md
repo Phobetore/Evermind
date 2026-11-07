@@ -59,16 +59,17 @@ changed; and of each session only an HMAC of its token keyed by the password. So
 reading the database does not hand anyone a way in. The password is compared
 after Unicode normalisation, so an accent typed on a phone keyboard is the same
 password as the one in `.env` however each wrote it. Wrong guesses are limited to
-10 per 15 minutes for each address, and for each /64 network over IPv6, where one
+10 per 15 minutes for each address, and over IPv6 for each /64 network, since one
 device can take any address of its network.
 
-That limit has a cost when every device reaches Evermind from one address, as
-behind Docker Desktop, or behind a reverse proxy that `FORWARDED_ALLOW_IPS` does
-not name (see below). The limit is then shared: ten wrong passwords, from anyone
-who can reach Evermind, lock everyone out of signing in for 15 minutes, the right
-password included, and a new burst of ten does it again as soon as those 15
-minutes are over. Devices already signed in go on working. Restarting Evermind
-lifts the lock at once.
+That limit has a cost when devices share what it counts. Every device does when
+they all reach Evermind from one address, as behind Docker Desktop, or behind a
+reverse proxy that `FORWARDED_ALLOW_IPS` does not name (see below); and over
+IPv6, every device of one network does, since a home network is a single /64.
+Ten wrong passwords from anyone who can reach Evermind that way then lock all of
+them out of signing in for 15 minutes, the right password included, and a new
+burst of ten does it again as soon as those 15 minutes are over. Devices already
+signed in go on working. Restarting Evermind lifts the lock at once.
 
 ## Requests from other sites
 
@@ -102,9 +103,10 @@ those headers, so Evermind believes them only from the addresses listed in
 (with Docker, the address the proxy reaches the container from, which starts each
 request's line in `docker compose logs`). The session cookie is then marked
 `Secure`, at sign-in and each time it is renewed, so the browser never sends it
-over plain HTTP, and wrong passwords are counted for each device rather than for
-the proxy. Anything else that reaches Evermind from that address is believed just
-as much, so let only the proxy reach it from there.
+over plain HTTP, and wrong passwords are counted for each device, or over IPv6
+for each network, rather than for the proxy. Anything else that reaches Evermind
+from that address is believed just as much, so let only the proxy reach it from
+there.
 [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an nginx
 example.
 

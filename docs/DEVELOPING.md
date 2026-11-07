@@ -251,7 +251,8 @@ Evermind believes those last two headers only from the addresses listed in
 from. With Docker, set it to the address the proxy reaches the container from
 instead, which starts each request's line in Evermind's log (`docker compose
 logs`). Once it is set, the session cookie is `Secure` for a browser that came over
-https, and wrong passwords are counted for each device rather than for the proxy.
+https, and wrong passwords are counted for each device, or over IPv6 for each
+network, rather than for the proxy.
 Without it, both headers are ignored whoever sends them, so that no client can
 claim a new address for each guess. Whatever reaches Evermind from a listed
 address is believed as the proxy is: behind Docker Desktop that is every
