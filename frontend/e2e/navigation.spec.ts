@@ -77,3 +77,15 @@ test("what cannot be read is said, and read again when asked", async ({ page, re
   await expect(library.locator("h3").first()).toBeVisible();
   await expect(library.getByRole("alert")).toHaveCount(0);
 });
+
+test("the language is chosen in the sidebar, or in the settings where there is none", { tag: "@desktop" }, async ({ page, isMobile }) => {
+  await page.goto("/#/settings");
+  const inSettings = page.locator("main").getByLabel("Language");
+  const inSidebar = page.locator("aside").getByLabel("Language");
+  const [shown, other] = isMobile ? [inSettings, inSidebar] : [inSidebar, inSettings];
+  await expect(other, "two of them on one screen").toBeHidden();
+  // Not under 16px on a phone: iOS zooms into a box that is.
+  if (isMobile) expect(parseFloat(await shown.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+  await shown.selectOption({ label: "Français" });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres");
+});

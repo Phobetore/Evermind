@@ -1,5 +1,6 @@
 import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
+import { LanguageSelect } from "@/components/layout/LanguageSelect";
 import { ConnectionForm } from "@/components/settings/ConnectionForm";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
@@ -124,6 +125,13 @@ export function SettingsPage() {
           <LoadFailure error={loadFailure.error} onRetry={load} />
         </div>
       )}
+
+      {/* Where the sidebar, and the choice in it, is not shown. */}
+      <section className="mb-10 grid gap-4 sm:grid-cols-2 md:hidden">
+        <Field label={t("nav.language")}>
+          <LanguageSelect />
+        </Field>
+      </section>
 
       {/* Connections: only an edition that keeps its own models has them. */}
       {data.connections && (

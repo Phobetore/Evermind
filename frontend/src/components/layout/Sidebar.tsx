@@ -46,7 +46,7 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto flex flex-col gap-3 px-5 pb-5">
-        <LanguageSelect />
+        <LanguageSelect compact />
         <p className="text-xs leading-relaxed text-mist-dim">{t("nav.tagline")}</p>
       </div>
     </aside>
