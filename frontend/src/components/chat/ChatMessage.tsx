@@ -32,13 +32,14 @@ export function ChatMessage({
   onSwipe: (index: number) => void;
   onRegenerate: () => void;
   onContinue: () => void;
-  /** Whether the server took it: if not, the rewrite stays open. */
-  onEdit: (content: string) => Promise<boolean>;
+  /** Whether the server took it: if not, the rewrite stays open. `index` is the version it was opened on. */
+  onEdit: (content: string, index: number) => Promise<boolean>;
   onDeleteFrom: () => void;
   onBranch: () => void;
 }) {
   const t = useT();
-  const [editing, setEditing] = useState(false);
+  // The version being rewritten: a swipe that lands meanwhile changes the one shown, not this.
+  const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -110,7 +111,7 @@ export function ChatMessage({
                 title={t("chat.message.editTitle")}
                 onClick={() => {
                   setDraft(message.content);
-                  setEditing(true);
+                  setEditing(message.active_index);
                 }}
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -131,7 +132,7 @@ export function ChatMessage({
         </div>
 
         <div className="mt-1">
-          {editing ? (
+          {editing !== null ? (
             <div className="flex flex-col gap-2">
               <textarea
                 className="field min-h-28"
@@ -143,12 +144,12 @@ export function ChatMessage({
                 <button
                   className="btn btn-primary !py-1.5 text-xs"
                   onClick={async () => {
-                    if (await onEdit(draft)) setEditing(false);
+                    if (await onEdit(draft, editing)) setEditing(null);
                   }}
                 >
                   <Check className="h-3.5 w-3.5" /> {t("common.save")}
                 </button>
-                <button className="btn btn-ghost !py-1.5 text-xs" onClick={() => setEditing(false)}>
+                <button className="btn btn-ghost !py-1.5 text-xs" onClick={() => setEditing(null)}>
                   <X className="h-3.5 w-3.5" /> {t("common.cancel")}
                 </button>
               </div>
@@ -167,7 +168,7 @@ export function ChatMessage({
         </div>
 
         {/* Swipes. 44px buttons on a touch screen, and the row gives the height back. */}
-        {canSwipe && !editing && (
+        {canSwipe && editing === null && (
           <div className="mt-1.5 flex items-center gap-1.5 text-mist-dim pointer-coarse:mt-0 pointer-coarse:-mb-2.5 pointer-coarse:gap-0">
             <button
               className="rounded p-1.5 transition-colors hover:text-parchment disabled:opacity-30 md:p-0.5 pointer-coarse:p-3.5 md:pointer-coarse:p-3.5"

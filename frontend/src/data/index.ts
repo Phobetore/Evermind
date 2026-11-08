@@ -74,6 +74,7 @@ export const data = {
   },
 
   messages: {
+    /** With `content`, `active_index` names the version the words go into, which is then shown. */
     update: (id: string, changes: { content?: string; active_index?: number }) =>
       patch<Message>(`api/messages/${seg(id)}`, changes),
     branch: (id: string) => post<Conversation>(`api/messages/${seg(id)}/branch`),

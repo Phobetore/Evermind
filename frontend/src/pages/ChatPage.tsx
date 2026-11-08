@@ -249,8 +249,8 @@ function ChatView({ id }: { id: string }) {
     if (message.id === last?.id) memoryTakenBack();
   }
 
-  async function edit(message: Message, content: string) {
-    const updated = await data.messages.update(message.id, { content });
+  async function edit(message: Message, content: string, index: number) {
+    const updated = await data.messages.update(message.id, { content, active_index: index });
     changesByHand.current += 1;
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
   }
@@ -424,7 +424,7 @@ function ChatView({ id }: { id: string }) {
                 onSwipe={(index) => write(() => swipe(message, index))}
                 onRegenerate={() => ask({ mode: "regenerate" })}
                 onContinue={() => ask({ mode: "continue" })}
-                onEdit={(content) => write(() => edit(message, content))}
+                onEdit={(content, index) => write(() => edit(message, content, index))}
                 onDeleteFrom={() => write(() => deleteFrom(message))}
                 onBranch={() => write(() => branchFrom(message))}
               />
