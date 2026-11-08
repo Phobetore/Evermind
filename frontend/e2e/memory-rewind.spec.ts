@@ -379,9 +379,9 @@ test("an older read, given up once a newer one is sent, does not put back the su
   await expect(summary).toHaveValue(brought);
 });
 
-// A read is the whole story; a phone has a hidden panel too, and a wake fires two events.
+// A read is the whole story, and a wake fires two events.
 test("a phone waking reads the conversation once, and only for the panel it shows", async ({ page, request, isMobile }) => {
-  test.skip(!isMobile, "a wide screen has neither a hidden panel nor one over the conversation");
+  test.skip(!isMobile, "a wide screen's panel is open from the start");
   const convo = await makeConversation(request);
   const isRead = (r: Request) => r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`);
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
