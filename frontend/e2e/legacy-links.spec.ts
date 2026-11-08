@@ -1,11 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { makeConversation } from "./fixtures";
 
-/**
- * Before the interface moved to hash routes a page was an address of its own,
- * and people bookmarked them, phones included. The server sends those old
- * addresses to the new ones.
- */
+/** The server sends the addresses of the 2.x pages, which phones still have as bookmarks, to the routes after "#". */
 test("an old conversation bookmark still opens the conversation", async ({ page, request }) => {
   const convo = await makeConversation(request);
   await page.goto(`/chat/${convo.id}`);

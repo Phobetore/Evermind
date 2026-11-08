@@ -28,11 +28,8 @@ test("a new page starts at the top", async ({ page, request }, testInfo) => {
   const main = page.locator("main");
   await expect(main.locator("a:has(h2)").nth(11)).toBeVisible();
 
-  // The page scrolls inside <main>, which stays where it is from one route to
-  // the next, so it is <main> that has to be sent back to the top. Scrolled a
-  // little, not to the bottom: the link to the next page is at the top of
-  // this one, and the browser scrolls a link that is out of sight into view
-  // before clicking it, which would do the resetting being tested.
+  // Scrolled a little, not to the bottom: the link to the next page is at the top of this one, and
+  // a click scrolls a link that is out of sight into view, which would do the reset being tested.
   await main.evaluate((el) => el.scrollTo(0, 60));
   expect(await main.evaluate((el) => el.scrollTop), "the list did not scroll").toBeGreaterThan(0);
   const create = page.getByRole("link", { name: /^create$/i });

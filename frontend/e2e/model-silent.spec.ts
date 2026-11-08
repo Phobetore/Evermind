@@ -2,12 +2,6 @@ import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
 import { conversationWithReply } from "./fixtures";
 
-/**
- * Reported: with the AI server not running, asking for a suggested message did
- * nothing at all — no result and no sign of why. It was in fact being reported,
- * in eleven grey pixels for four seconds, in the slot where the keyboard tip
- * lives. Which is to say: not reported.
- */
 /** A conversation with something already in it, then pointed at an address
  *  where nothing is listening — which is what a stopped AI server looks like.
  *  The exchange comes first because asking for a suggestion on an empty

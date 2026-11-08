@@ -3,15 +3,10 @@ import { API } from "../playwright.config";
 import { chat, conversationWithReply, makeConversation } from "./fixtures";
 
 /**
- * Small controls on a touch screen. The owner uses Evermind from his phone, and
- * two things went wrong there that a mouse never shows: a control that only
- * appears on hover never appears, and a control drawn 14px across is a control
- * a thumb misses. The first is a question of opacity; the second is answered by
- * asking the page what is under a finger at the edge of the 44px square around
- * each control, which is what "reachable" means, rather than by measuring the
- * picture. And the area added to a control must not end up over its neighbour:
- * a title that was wider than the box it was in once covered the button next
- * to it, which no measuring of that button could have shown.
+ * Small controls on a touch screen, which has no hover to show them, and a thumb that misses a
+ * control 14px across.
+ * "Reachable" is what the page says is under a finger at the edge of the 44px square around a
+ * control, not the size of its picture; and that area must not end up over a neighbour's.
  */
 
 const FACTS = ["Mira keeps the key.", "The ferry runs on Tuesdays only.", "She does not take sugar."];
@@ -176,8 +171,7 @@ test.describe("on a touch screen", () => {
       expect((await rows.nth(i).boundingBox())!.height, "a fact row is shorter than a thumb").toBeGreaterThanOrEqual(43.5);
     }
 
-    // Every button in the panel, and as wide as it is tall: the "+" beside the
-    // text box for a new fact was 38 across.
+    // Every button in the panel, and the "+" beside the text box for a new fact as wide as a thumb.
     await expectAllReachable(panel.getByRole("button"), "a button in the panel", 60);
     expect((await panel.getByRole("button", { name: "Add fact" }).boundingBox())!.width, "the button for a new fact is narrower than a thumb").toBeGreaterThanOrEqual(43.5);
     await expectInsideTheirParents(panel, "in the panel");
@@ -309,7 +303,7 @@ test.describe("with a mouse", () => {
     await page.mouse.move(2, 2);
     await expect(forget).toHaveCSS("opacity", "0");
 
-    // The cross still changes colour over it, with a transition, as it did.
+    // The cross still changes colour over it, with a transition.
     expect(await forget.evaluate((el) => getComputedStyle(el).transitionProperty), "no colour transition on the cross").toContain("color");
 
     // No reachable area added where a pointer is precise, and no taller rows.

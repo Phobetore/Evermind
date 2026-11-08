@@ -3,15 +3,9 @@ import { API } from "../playwright.config";
 import { conversationWithReply } from "./fixtures";
 
 /**
- * Reported from a phone: regenerate, the screen goes off mid-reply, come back
- * and the reply being replaced is on screen with its replacement arriving
- * underneath, as though a second reply were being added. The stored data was
- * right all along — one message, two variants — so this is about what a page
- * arriving in the middle of a turn is able to know about it.
- *
- * The turn is started over the API rather than by driving a first browser and
- * closing it: what matters here is a page that arrives mid-regeneration, and
- * everything else was only a way of producing one.
+ * A page that arrives in the middle of a regeneration does not show the reply being replaced with
+ * its replacement arriving underneath, as though a second reply were being added. The turn is
+ * started over the API: the page arriving mid-regeneration is all that matters here.
  */
 // The reply here is deliberately slow, so the window this test looks through is
 // wide enough to survive a loaded machine.

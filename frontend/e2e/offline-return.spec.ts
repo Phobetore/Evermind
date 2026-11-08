@@ -7,11 +7,6 @@ import {
 import { chat, conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
 
 /**
- * Reported: close the tab, leave it a while, come back, and there is an error
- * to dismiss by reloading before the reply shows up. The reply had landed
- * perfectly well — the page had a request that failed while it was away and no
- * way to tell that from Evermind being gone.
- *
  * The server answers as soon as it has the message, and the reply is its own from
  * then on: a page follows it, and whatever breaks that is only a reason to ask the
  * server again how it stands. A message the server never had stays in the box.

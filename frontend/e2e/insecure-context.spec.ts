@@ -4,8 +4,7 @@ import { conversationWithReply } from "./fixtures";
 /**
  * The suite's servers listen on this computer's address on the network, so the
  * page is what a phone gets over plain HTTP: the browser withholds a handful of
- * APIs that exist on localhost (crypto.randomUUID, the clipboard). Two of them
- * were being called, and both threw.
+ * APIs that exist on localhost (crypto.randomUUID, the clipboard).
  */
 test.describe("on a page that is not a secure context", () => {
   test.beforeEach(async ({ page }) => {

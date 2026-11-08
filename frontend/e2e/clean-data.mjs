@@ -2,10 +2,9 @@
 //
 //   node e2e/clean-data.mjs
 //
-// The two copies of the server keep what the tests make in folders of their own,
-// and tests only ever add to them. Run after run on one machine, the home page came
-// to have thousands of characters to draw, and tests about something else entirely
-// began to fail on it. Only these two folders are ever touched, by name.
+// The two copies of the server keep what the tests make in folders of their own, which tests only
+// add to: run after run, thousands of cards make tests about something else fail. Only these two
+// folders are ever touched, by name.
 //
 // A copy that is already running is left alone, its data is in use: the suite
 // will refuse to start on a port that is taken.
