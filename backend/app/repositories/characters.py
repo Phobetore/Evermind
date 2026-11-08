@@ -45,17 +45,6 @@ async def get(db: aiosqlite.Connection, char_id: str) -> dict | None:
     return to_out(row) if row else None
 
 
-async def get_raw(db: aiosqlite.Connection, char_id: str) -> dict | None:
-    """Internal shape (avatar_path kept, JSON parsed) for prompt/export code."""
-    row = await (await db.execute("SELECT * FROM characters WHERE id = ?", (char_id,))).fetchone()
-    if not row:
-        return None
-    out = dict(row)
-    for f in _JSON_FIELDS:
-        out[f] = loads(out.get(f), [])
-    return out
-
-
 async def list_all(db: aiosqlite.Connection) -> list[dict]:
     rows = await (await db.execute(
         "SELECT * FROM characters ORDER BY is_favorite DESC, updated_at DESC")).fetchall()

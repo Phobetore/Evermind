@@ -403,7 +403,7 @@ function About({
               </>
             ) : (
               <p className="mt-1 text-sm leading-relaxed text-mist">
-                {t("settings.about.zipHint.before")}{" "}
+                {t(installed?.kind === "built" ? "settings.about.builtHint" : "settings.about.zipHint.before")}{" "}
                 <a
                   className="text-ember-400 hover:text-ember-300"
                   href="https://github.com/Phobetore/Evermind/blob/main/INSTALL.md#updating"

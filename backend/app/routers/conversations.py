@@ -108,7 +108,9 @@ async def patch_message(message_id: str, payload: MessagePatch,
         if payload.active_index >= len(message["variants"]):
             raise AppError("Variant index out of range.", kind="variant_out_of_range")
         active_index = payload.active_index
-    return await repo.update_message(db, message_id, variants=variants, active_index=active_index)
+    # A swipe shows other words; not an edit, where a typo put right would undo every pass since.
+    return await repo.update_message(db, message_id, variants=variants, active_index=active_index,
+                                     reread=active_index not in (None, message["active_index"]))
 
 
 @router.post("/messages/{message_id}/branch", status_code=201)

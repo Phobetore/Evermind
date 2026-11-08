@@ -135,7 +135,9 @@ export interface Settings {
 /** What only the server knows for the notice of a newer release. */
 export interface Installation {
   current: string;
-  /** Null for a copy downloaded as a ZIP, which no command updates. */
+  /** "built": an image built from the source, which the published one would replace. */
+  kind: "docker" | "built" | "clone" | "zip";
+  /** Null for a copy downloaded as a ZIP or an image built from the source, which no command updates. */
   command: string | null;
 }
 

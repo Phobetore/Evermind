@@ -156,7 +156,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
-    character = await characters_repo.get_raw(db, convo["character_id"]) or {}
+    character = await characters_repo.get(db, convo["character_id"]) or {}
     connection = await _resolve_connection(db, convo)
     persona = await personas_repo.for_conversation(db, convo)
 
@@ -231,7 +231,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
-    character = await characters_repo.get_raw(db, convo["character_id"]) or {}
+    character = await characters_repo.get(db, convo["character_id"]) or {}
     persona = await personas_repo.for_conversation(db, convo)
 
     connection = await _resolve_connection(db, convo)
@@ -270,13 +270,14 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
             raise AppError("A fact changed while the model read the story.", 409, kind=FACTS_CHANGED)
         changes = plan_memory_changes(parsed, now, top_position)
         added = await _apply(db, convo_id, changes, vectors, top_position)
-        # A summary typed meanwhile stays, and holds none of these turns: the next pass reads them.
-        typed = current["summary"] != convo["summary"]
-        if not typed:
+        # A summary typed meanwhile stays where it put the memory: the next pass reads these turns.
+        moved = (current["summary"], current["memory_position"]) != (
+            convo["summary"], convo["memory_position"])
+        if not moved:
             await convo_repo.remember(db, convo_id, top_position, changes["summary"])
 
     return {"facts_added": added,
-            "summary": current["summary"] if typed else changes["summary"] or current["summary"]}
+            "summary": current["summary"] if moved else changes["summary"] or current["summary"]}
 
 
 async def fill_vectors() -> None:

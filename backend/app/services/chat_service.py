@@ -76,7 +76,7 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
-    character = await characters_repo.get_raw(db, convo["character_id"])
+    character = await characters_repo.get(db, convo["character_id"])
     if not character:
         raise NotFoundError("Character not found.", "character")
     persona = await personas_repo.for_conversation(db, convo)
@@ -254,7 +254,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             else:
                 variants.append(body)
             await convo_repo.update_message(db, target["id"], variants=variants, active_index=index,
-                                            meta=meta)
+                                            meta=meta, reread=True)
         elif written:
             await convo_repo.update_message(db, turn.message_id, variants=[body], meta=meta)
         else:

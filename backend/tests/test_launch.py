@@ -30,7 +30,7 @@ def clean_env(tmp_path, monkeypatch):
     default settings file is a file that does not exist, so that a test that
     forgets ``--no-env-file`` still cannot pick up the real ``.env``."""
     for name in list(os.environ):
-        if name in ("PORT", "BIND", "FORWARDED_ALLOW_IPS") or name.startswith("EVERMIND_"):
+        if name in ("PORT", "BIND", "FORWARDED_ALLOW_IPS", "SEMANTIC") or name.startswith("EVERMIND_"):
             monkeypatch.delenv(name)
     monkeypatch.setattr(os, "environ", dict(os.environ))
     monkeypatch.setattr(config, "default_env_file", lambda: tmp_path / "no-such.env")
@@ -364,14 +364,40 @@ def test_windows_gets_the_firewall_command_on_stderr_for_a_network_start(
     assert (rule in err) is prints
 
 
-def test_a_container_prints_no_addresses_and_no_warning(clean_env, ui_built, monkeypatch, capsys):
+@pytest.mark.parametrize("kind", ["docker", "built"])
+def test_a_container_prints_no_addresses_and_no_warning(
+    clean_env, ui_built, monkeypatch, capsys, kind
+):
     # docker-compose.yml decides what is exposed; from inside, 0.0.0.0 is simply
     # how the published port reaches the process.
-    monkeypatch.setattr(config, "install_kind", lambda: "docker")
+    monkeypatch.setattr(config, "install_kind", lambda: kind)
     monkeypatch.setattr(sys, "platform", "win32")
     assert start(monkeypatch, BIND="0.0.0.0") == 0
     captured = capsys.readouterr()
     assert (captured.out, captured.err) == ("", "")
+
+
+@pytest.mark.parametrize(("kind", "platform", "semantic", "installed", "fix"), [
+    # A pull put the published image in place of one built from the source.
+    ("built", "win32", "true", False, "docker compose up -d --build"),
+    ("clone", "win32", "true", False, r'.venv\Scripts\python -m pip install -e ".[semantic]"'),
+    ("zip", "linux", "true", False, '.venv/bin/python -m pip install -e ".[semantic]"'),
+    ("built", "linux", "true", True, None),
+    ("docker", "linux", "false", False, None),
+])
+def test_semantic_memory_asked_for_and_missing_is_said_at_start_with_the_fix(
+    clean_env, ui_built, monkeypatch, capsys, kind, platform, semantic, installed, fix
+):
+    """Without it memory recalls the newest facts, which nothing else on screen tells."""
+    monkeypatch.setattr(config, "install_kind", lambda: kind)
+    monkeypatch.setattr(config, "semantic_installed", lambda: installed)
+    monkeypatch.setattr(sys, "platform", platform)
+    assert start(monkeypatch, SEMANTIC=semantic) == 0
+    err = capsys.readouterr().err
+    if fix:
+        assert "SEMANTIC=true" in err and fix in err
+    else:
+        assert "SEMANTIC" not in err
 
 
 # --- the settings file, through the command ------------------------------------

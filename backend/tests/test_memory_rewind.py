@@ -1380,6 +1380,204 @@ async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merg
         (f"Fact {n}.", 4, False, "auto") for n in range(8)]
 
 
+# ---------- a reply the memory read, written again ----------
+
+GUARD_DIES = "The guard falls dead at your feet."
+
+
+async def remember_the_guard_dies(client, convo_id):
+    """A pass reads to 4. The reply at 8 has a version where the guard surrenders, then one where
+    he dies, which Remember reads."""
+    await talk(client, convo_id, 2)  # positions 0 to 4
+    await extract(client, convo_id, {"facts": [{"content": "Alex reached the gate."}],
+                                     "summary": "To 4."})
+    await talk(client, convo_id, 1, first=3)  # 5 and 6
+    Replies.text = "The guard surrenders."
+    await send(client, convo_id, content="I strike the guard.")  # 7 and 8
+    Replies.text = GUARD_DIES
+    await send(client, convo_id, content=None, mode="regenerate")
+    await extract(client, convo_id, {"facts": [{"content": "Alex killed the guard."}],
+                                     "summary": "To 8: the guard is dead."})
+    Replies.text = "Reply."
+
+
+@pytest.mark.parametrize(("mode", "now"), [
+    ("regenerate", "The guard drops his sword."),
+    ("swipe", "The guard surrenders."),
+    ("continue", f"{GUARD_DIES} Behind him, the queen steps out."),
+], ids=["regenerated", "swiped", "continued"])
+async def test_a_reply_the_memory_read_written_again_takes_the_memory_back_before_it(
+        client, fake_provider, mode, now):
+    """What was drawn from it is of words no longer on screen: the memory goes back as a cut
+    before the reply would take it, and the next pass reads the reply as it stands."""
+    convo_id = (await setup_conversation(client))["id"]
+    await remember_the_guard_dies(client, convo_id)
+
+    if mode == "swipe":
+        reply = await at_position(client, convo_id, 8)
+        resp = await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0})
+        assert resp.status_code == 200, resp.text
+    else:
+        Replies.text = now.removeprefix(GUARD_DIES).strip()
+        assert await send(client, convo_id, content=None, mode=mode) is None
+
+    assert (await at_position(client, convo_id, 8))["content"] == now
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (4, "To 4.")
+    assert await summaries_of(convo_id) == [(4, "To 4.")]
+    assert await names(client, convo_id) == {"Alex reached the gate."}
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [], "summary": "Again."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "CURRENT SUMMARY:\nTo 4.\n" in shown
+    assert "(turn 5)" in shown and f"(turn 8): {now}" in shown and "(turn 4)" not in shown
+
+
+async def test_a_swipe_of_an_older_reply_leaves_the_memory_as_an_edit_does(client, fake_provider):
+    """Going back before it would undo every pass since, and the next pass reads the newest 40
+    turns only: in a long story the turns between would never be read again."""
+    convo_id = (await setup_conversation(client))["id"]
+    await remember_the_guard_dies(client, convo_id)
+    await talk(client, convo_id, 2, first=5)  # 9 to 12
+    await extract(client, convo_id, {"facts": [{"content": "The gate is open."}],
+                                     "summary": "To 12."})
+    reply = await at_position(client, convo_id, 8)
+
+    resp = await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0})
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["content"] == "The guard surrenders."
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (12, "To 12.")
+    assert await summaries_of(convo_id) == [
+        (4, "To 4."), (8, "To 8: the guard is dead."), (12, "To 12.")]
+    assert await names(client, convo_id) == {
+        "Alex reached the gate.", "Alex killed the guard.", "The gate is open."}
+
+
+@pytest.mark.parametrize("swiped", [2, 30], ids=["before the first pass", "between passes"])
+async def test_a_swipe_of_an_older_reply_in_a_long_story_keeps_what_every_pass_read(
+        client, fake_provider, swiped):
+    """Taken back before it, the memory would lose ten passes, or eight, and the next one would
+    read turns 83 to 122 only, then say the story read to 122."""
+    convo_id = (await setup_conversation(client))["id"]
+    tops = range(14, 123, 12)
+    db = await _connect()
+    try:
+        await db.executemany(
+            "INSERT INTO messages (id, conversation_id, role, variants, active_index,"
+            " position, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, '{}', 'then')",
+            [(f"m{n:04d}", convo_id, "user" if n % 2 else "assistant",
+              json.dumps(([f"Turn {n}, once."] if n in (2, 30) else []) + [f"Turn {n}."]),
+              int(n in (2, 30)), n) for n in range(1, 123)])
+        for top in tops:
+            await convo_repo.remember(db, convo_id, top, f"To {top}.")
+        await db.commit()
+    finally:
+        await db.close()
+    for top in tops:
+        await put_fact(convo_id, f"Read at {top}.", at=top)
+    reply = await at_position(client, convo_id, swiped)
+
+    resp = await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0})
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["content"] == f"Turn {swiped}, once."
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (122, "To 122.")
+    assert await summaries_of(convo_id) == [(top, f"To {top}.") for top in tops]
+    assert await names(client, convo_id) == {f"Read at {top}." for top in tops}
+
+
+async def test_a_swipe_of_an_older_reply_while_a_pass_reads_later_turns_leaves_the_pass_to_write(
+        client, fake_provider, monkeypatch):
+    """The swiped reply is not among the turns the pass was told, and the memory keeps it as it
+    read it: the pass records its turns, with nothing of the swipe to undo."""
+    convo_id = (await setup_conversation(client))["id"]
+    await talk(client, convo_id, 2)  # 0 to 4
+    await extract(client, convo_id, {"facts": [{"content": "Alex reached the gate."}],
+                                     "summary": "To 4."})
+    await talk(client, convo_id, 1, first=3)
+    Replies.text = "The guard surrenders."
+    await send(client, convo_id, content="I strike the guard.")  # 7 and 8
+    Replies.text = GUARD_DIES
+    await send(client, convo_id, content=None, mode="regenerate")
+    Replies.text = "Reply."
+    await extract(client, convo_id, {"facts": [], "summary": "To 8."})
+    await client.patch(f"/api/conversations/{convo_id}", json={"summary": "Typed."})
+    await talk(client, convo_id, 2, first=5)  # 9 to 12
+    reply = await at_position(client, convo_id, 8)
+
+    async def swipes():
+        await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0})
+
+    while_the_model_answers(monkeypatch, swipes)
+    await extract(client, convo_id, {"facts": [{"content": "The gate is open."}],
+                                     "summary": "Typed, then to 12."})
+
+    assert (await at_position(client, convo_id, 8))["content"] == "The guard surrenders."
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (12, "Typed, then to 12.")
+    assert await summaries_of(convo_id) == [(4, "To 4."), (8, "Typed."), (12, "Typed, then to 12.")]
+    assert await names(client, convo_id) == {"Alex reached the gate.", "The gate is open."}
+
+
+@pytest.mark.parametrize("change", [
+    "edited", "greeting swiped", "an older reply swiped", "swiped under a message unanswered",
+    "regenerated with nothing to show", "a later reply regenerated"])
+async def test_the_memory_stays_when_no_reply_it_read_shows_other_words(
+        client, fake_provider, change):
+    """An edit is left out on purpose: a typo put right in an old turn would throw away every pass
+    since, and so is a swipe of any reply but the newest. No pass reads the greeting, nor a reply
+    past the memory, and a version that never came replaces nothing."""
+    convo_id = (await setup_conversation(client))["id"]
+    await remember_the_guard_dies(client, convo_id)
+
+    if change == "edited":
+        reply = await at_position(client, convo_id, 8)
+        resp = await client.patch(f"/api/messages/{reply['id']}", json={"content": "The guard dies."})
+        assert resp.status_code == 200, resp.text
+    elif change == "greeting swiped":
+        greeting = await at_position(client, convo_id, 0)
+        await set_message(greeting["id"], "variants", [greeting["content"], "*She wakes.* Hello."])
+        resp = await client.patch(f"/api/messages/{greeting['id']}", json={"active_index": 1})
+        assert resp.status_code == 200, resp.text
+    elif change in ("an older reply swiped", "swiped under a message unanswered"):
+        if change == "an older reply swiped":
+            await talk(client, convo_id, 1, first=5)  # 9 and 10, which no pass read
+        else:  # Regenerate and Continue no longer reach it either
+            Replies.text = ""
+            assert (await send(client, convo_id, content="I flee."))["kind"] == "model_empty"
+        reply = await at_position(client, convo_id, 8)
+        resp = await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0})
+        assert resp.json()["content"] == "The guard surrenders."
+    elif change == "regenerated with nothing to show":
+        Replies.text = ""
+        assert (await send(client, convo_id, content=None, mode="regenerate"))["kind"] == "model_empty"
+    else:
+        await talk(client, convo_id, 1, first=5)  # 9 and 10, which no pass read
+        assert await send(client, convo_id, content=None, mode="regenerate") is None
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (8, "To 8: the guard is dead.")
+    assert await summaries_of(convo_id) == [(4, "To 4."), (8, "To 8: the guard is dead.")]
+    assert await names(client, convo_id) == {"Alex reached the gate.", "Alex killed the guard."}
+
+
+async def test_a_swipe_of_the_greeting_alone_leaves_the_memory_as_it_is(client, fake_provider):
+    """The newest message, but no pass reads it: a fact of the model's kept at 0, as one pinned
+    then unpinned after a cut back to the greeting is, stays."""
+    convo_id = (await setup_conversation(client))["id"]
+    greeting = await at_position(client, convo_id, 0)
+    await set_message(greeting["id"], "variants", [greeting["content"], "*She wakes.* Hello."])
+    await put_fact(convo_id, "Alex trusts no one.", at=0)
+
+    resp = await client.patch(f"/api/messages/{greeting['id']}", json={"active_index": 1})
+
+    assert resp.json()["content"] == "*She wakes.* Hello."
+    assert await names(client, convo_id) == {"Alex trusts no one."}
+
+
 # ---------- a long story keeps its summary ----------
 
 async def a_story_read_once(client, last=500, read=492):

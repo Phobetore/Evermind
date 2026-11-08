@@ -150,6 +150,7 @@
         "link": "los pasos están en INSTALL.md",
         "after": "."
       },
+      "builtHint": "Construida desde el código fuente, esta imagen se actualiza volviendo a construirla desde el código nuevo:",
       "releaseNotes": "Qué ha cambiado",
       "checkHint": "Preguntar a GitHub, cada vez que se abre esta página, si hay una versión más nueva. La consulta no lleva nada de lo que has escrito, pero GitHub ve lo que cualquier sitio web ve de un navegador, incluida la dirección en la que has abierto Evermind. Sin la casilla no sale nada por su cuenta, y el botón de abajo sigue funcionando cuando lo pulsas.",
       "checkNow": "Comprobar ahora",
