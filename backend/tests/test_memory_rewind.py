@@ -1430,6 +1430,27 @@ async def test_a_reply_the_memory_read_written_again_takes_the_memory_back_befor
     assert "(turn 5)" in shown and f"(turn 8): {now}" in shown and "(turn 4)" not in shown
 
 
+@pytest.mark.parametrize(("edited", "position", "summary", "facts"), [
+    (1, 8, "To 8: the guard is dead.", {"Alex reached the gate.", "Alex killed the guard."}),
+    (0, 4, "To 4.", {"Alex reached the gate."}),
+], ids=["the version shown", "another version"])
+async def test_an_edit_of_the_newest_reply_takes_the_memory_back_only_when_it_shows_another_version(
+        client, fake_provider, edited, position, summary, facts):
+    """A typo put right keeps every pass; words put into another version, then shown, are a swipe."""
+    convo_id = (await setup_conversation(client))["id"]
+    await remember_the_guard_dies(client, convo_id)
+    reply = await at_position(client, convo_id, 8)
+
+    resp = await client.patch(f"/api/messages/{reply['id']}",
+                              json={"content": "Edited.", "active_index": edited})
+
+    assert resp.status_code == 200, resp.text
+    assert (resp.json()["active_index"], resp.json()["content"]) == (edited, "Edited.")
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (position, summary)
+    assert await names(client, convo_id) == facts
+
+
 async def test_a_swipe_of_an_older_reply_leaves_the_memory_as_an_edit_does(client, fake_provider):
     """Going back before it would undo every pass since, and the next pass reads the newest 40
     turns only: in a long story the turns between would never be read again."""
