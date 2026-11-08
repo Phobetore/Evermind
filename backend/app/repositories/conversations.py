@@ -153,7 +153,8 @@ async def update_message(db: aiosqlite.Connection, message_id: str,
                          active_index: int | None = None,
                          meta: dict | None = None, reread: bool = False) -> dict | None:
     """``reread``: other words of the message are shown, and a memory that read it goes back to
-    before it, in the same write."""
+    before it, in the same write, if it is the story's newest. Not an older one, as not an edit:
+    every pass since would go, and the next would read only the newest 40 turns."""
     current = await get_message(db, message_id)
     if not current:
         return None
@@ -175,10 +176,13 @@ async def update_message(db: aiosqlite.Connection, message_id: str,
         async with write_transaction(db):
             if reread:
                 memory = await (await db.execute(
-                    "SELECT memory_position FROM conversations WHERE id = ?",
+                    "SELECT memory_position, (SELECT MAX(position) FROM messages"
+                    " WHERE conversation_id = c.id) AS newest FROM conversations c WHERE c.id = ?",
                     (current["conversation_id"],))).fetchone()
-                if 0 < current["position"] <= memory["memory_position"]:  # no pass reads the greeting
-                    await _rewind_memory(db, current["conversation_id"], current["position"] - 1)
+                position = current["position"]
+                # No pass reads the greeting, at 0.
+                if position == memory["newest"] and 0 < position <= memory["memory_position"]:
+                    await _rewind_memory(db, current["conversation_id"], position - 1)
             await db.execute(f"UPDATE messages SET {', '.join(sets)} WHERE id = ?", params)
     return await get_message(db, message_id)
 

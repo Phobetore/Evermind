@@ -270,8 +270,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
             raise AppError("A fact changed while the model read the story.", 409, kind=FACTS_CHANGED)
         changes = plan_memory_changes(parsed, now, top_position)
         added = await _apply(db, convo_id, changes, vectors, top_position)
-        # A summary typed meanwhile stays, and so does the memory a swipe took back meanwhile: the
-        # summary holds none of these turns, and the next pass reads them.
+        # A summary typed meanwhile stays where it put the memory: the next pass reads these turns.
         moved = (current["summary"], current["memory_position"]) != (
             convo["summary"], convo["memory_position"])
         if not moved:
