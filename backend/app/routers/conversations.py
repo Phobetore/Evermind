@@ -16,8 +16,7 @@ from ..services import media, memory_service, turns
 
 router = APIRouter(prefix="/api", tags=["conversations"])
 
-# What a page asked for under an id of its own, while the server runs: asked for again, as when the
-# answer was lost on the way, it is the conversation made the first time.
+# A start or a branch asked for again under its id is the one made, while the server runs.
 _made: dict[str, str] = {}
 _making: dict[str, asyncio.Event] = {}
 
