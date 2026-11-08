@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { makeCharacter } from "./fixtures";
+import { conversationWithReply, makeCharacter } from "./fixtures";
 
 /** Whether a page fits a phone's screen is something no type check or build sees. */
 test.describe("the main page fits the screen it is on", () => {
@@ -42,4 +42,22 @@ test.describe("the main page fits the screen it is on", () => {
 
     expect(small, `under 44px: ${small}`).toEqual([]);
   });
+});
+
+/** The side panel beside the story takes 320px of it, and the sidebar 224 more: on a tablet, or a
+ *  window half a screen wide, opening on it would leave a sliver of a box to write in. */
+test.describe("a conversation opens with room to write in", () => {
+  for (const width of [768, 834, 1024, 1280]) {
+    test(`at ${width}px`, async ({ page, request }) => {
+      const convo = await conversationWithReply(request);
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`/#/chat/${convo.id}`);
+
+      const box = page.getByPlaceholder(/^Write to Vane/);
+      await expect(box).toBeVisible();
+      expect((await box.boundingBox())!.width, "the message box is crushed").toBeGreaterThanOrEqual(240);
+      // Where there is room for it, it is open beside the story.
+      await expect(page.locator("aside:has(textarea)")).toHaveCount(width >= 1024 ? 1 : 0);
+    });
+  }
 });

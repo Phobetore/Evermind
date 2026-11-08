@@ -19,6 +19,8 @@ import { Link, useNavigate, useParams } from "react-router";
 const DRAWN = 100;
 /** Tailwind's `md`, from which the side panel sits beside the conversation rather than over it. */
 const WIDE = "(min-width: 48rem)";
+/** From which it opens there by default: narrower, beside the sidebar, it leaves the story a sliver. */
+const ROOMY = "(min-width: 64rem)";
 
 /** Keyed by the id, so that a branch starts from its own messages, not from those it was cut from. */
 export function ChatPage() {
@@ -63,7 +65,7 @@ function ChatView({ id }: { id: string }) {
   const [persona, setPersona] = useState<Persona | null>(null);
   // Over the conversation on a phone, so open there only once asked for, and closed if the screen narrows.
   const [wide, setWide] = useState(() => window.matchMedia(WIDE).matches);
-  const [panelOpen, setPanelOpen] = useState(wide);
+  const [panelOpen, setPanelOpen] = useState(() => window.matchMedia(ROOMY).matches);
   useEffect(() => {
     const query = window.matchMedia(WIDE);
     const changed = () => {
