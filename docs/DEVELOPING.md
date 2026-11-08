@@ -130,7 +130,10 @@ rules are deleted (`wf.msc`, Inbound Rules).
 Each test in `e2e/` is written against a fault that typecheck and build cannot
 see, such as a button off the side of a phone or an API the browser withholds
 outside a secure context, and should be checked to fail when that fault is put
-back: a test that passes either way reads like cover.
+back: a test that passes either way reads like cover. A test that clicks a
+message's button with `force` waits for the page to settle first
+(`page.waitForLoadState("networkidle")`): the persona's name is drawn late, and
+can move the buttons from under the click.
 
 ## Main API surface
 
