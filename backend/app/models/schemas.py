@@ -10,6 +10,15 @@ Kind = Literal["character", "scenario"]
 ProviderType = Literal["openai-compatible", "anthropic"]
 
 
+def _texts(value) -> list[str]:
+    """The texts in a value, at any depth of lists and JSON objects, their keys included."""
+    if isinstance(value, dict):
+        value = [*value, *value.values()]
+    if isinstance(value, list):
+        return [text for item in value for text in _texts(item)]
+    return [value] if isinstance(value, str) else []
+
+
 class Input(BaseModel):
     """What a request holds. Half of an emoji (a lone surrogate) comes as a JSON escape and can be
     neither stored nor sent: the field that holds one is refused, rather than a 500 once written."""
@@ -17,8 +26,7 @@ class Input(BaseModel):
     @field_validator("*")
     @classmethod
     def _writable(cls, value):
-        texts = value if isinstance(value, list) else [value]
-        if any(isinstance(text, str) and not is_writable(text) for text in texts):
+        if not all(is_writable(text) for text in _texts(value)):
             raise ValueError("half of a character, such as a broken emoji, cannot be stored")
         return value
 

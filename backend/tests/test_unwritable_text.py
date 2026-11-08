@@ -52,6 +52,10 @@ ROUTES = [
     ("POST", "/api/conversations/{conversation}/memories", {"content": BROKEN}, ["content"]),
     ("POST", "/api/chat", {"conversation_id": "{conversation}", "content": BROKEN}, ["content"]),
     ("POST", "/api/characters/assist", {"prompt": f"A {BROKEN}"}, ["prompt"]),
+    ("POST", "/api/characters/assist",
+     {"prompt": "A brave knight", "existing": {"description": BROKEN}}, ["existing"]),
+    ("POST", "/api/characters/assist",
+     {"prompt": "A brave knight", "existing": {"tags": ["ok", BROKEN]}}, ["existing"]),
 ]
 
 
