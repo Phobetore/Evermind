@@ -245,6 +245,8 @@ test("the panel beside the story closes when the screen narrows under it", { tag
   const convo = await makeConversation(request);
   await page.goto(`/#/chat/${convo.id}`);
   const panel = page.locator("aside:visible:has(textarea)");
+  // Not open there on its own: beside the sidebar, it would leave the story too little room.
+  await page.locator("header button:has(svg.lucide-sliders-horizontal)").click();
   await expect(panel).toBeVisible();
 
   await page.setViewportSize({ width: 412, height: 915 });
