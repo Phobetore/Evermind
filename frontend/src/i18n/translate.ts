@@ -16,13 +16,21 @@ function lookup(dict: Dict, key: string): string | undefined {
   return typeof current === "string" ? current : undefined;
 }
 
-function interpolate(str: string, vars?: Record<string, string | number>): string {
-  if (!vars) return str;
-  return str.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
-}
-
 // Made once a language: made for each sentence, they would cost more than the sentence.
 const plurals: Partial<Record<Locale, Intl.PluralRules>> = {};
+const numbers: Partial<Record<Locale, Intl.NumberFormat>> = {};
+
+/** A number as the language writes it: "54,1" in French. Not grouped, as before: "16384 tokens". */
+function interpolate(locale: Locale, str: string, vars?: Record<string, string | number>): string {
+  if (!vars) return str;
+  return str.replace(/\{(\w+)\}/g, (_, k) => {
+    if (!(k in vars)) return `{${k}}`;
+    const value = vars[k];
+    return typeof value === "number"
+      ? (numbers[locale] ??= new Intl.NumberFormat(locale, { useGrouping: false })).format(value)
+      : value;
+  });
+}
 
 /** A key's sentence in a language, with its {words} filled in. A count takes the form its number
  *  takes in the language where the dictionary has one, under `<key>_one` and the like: "1 message". */
@@ -32,5 +40,5 @@ export function translate(locale: Locale, key: string, vars?: Record<string, str
     ? lookup(DICTS[locale], `${key}_${(plurals[locale] ??= new Intl.PluralRules(locale)).select(count)}`)
     : undefined;
   const raw = form ?? lookup(DICTS[locale], key) ?? lookup(DICTS[DEFAULT_LOCALE], key) ?? key;
-  return interpolate(raw, vars);
+  return interpolate(locale, raw, vars);
 }

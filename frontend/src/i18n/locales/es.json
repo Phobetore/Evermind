@@ -174,7 +174,7 @@
     "testButton": "Probar la conexión",
     "benchmarkButton": "Medir la velocidad",
     "benchmarkHint": "Una pequeña generación real para medir latencia y rendimiento",
-    "benchmarkResult": "{tokensPerSecond} t/s · primer token en {firstTokenSeconds}s",
+    "benchmarkResult": "{tokensPerSecond} t/s · primer token en {firstTokenSeconds}\u00a0s",
     "testFailed": "La prueba ha fallado",
     "modelsFound": "Conectado. Modelos encontrados: {count}",
     "benchmarkFailed": "La medición ha fallado",
@@ -184,7 +184,7 @@
     "maxTokensLabel": "Respuesta máx. (tokens)",
     "maxTokensHint": "Un techo, no un objetivo: el estilo se define en Ajustes → Longitud de las respuestas.",
     "temperatureLabel": "Temperatura",
-    "temperatureHint": "Más baja = más coherente. 0.8 es un buen equilibrio para el rol.",
+    "temperatureHint": "Más baja = más coherente. 0,8 es un buen equilibrio para el rol.",
     "topPLabel": "Top-p",
     "frequencyPenaltyLabel": "Penalización de frecuencia",
     "presencePenaltyLabel": "Penalización de presencia",
@@ -207,7 +207,7 @@
       "tooltipMessages": "{included}/{total} mensajes en el contexto",
       "tooltipOlderInMemory": "(los más antiguos están cubiertos por la memoria)",
       "tooltipLore": "{count} entradas de lorebook activas",
-      "percent": "{pct} %",
+      "percent": "{pct}\u00a0%",
       "perSecond": "{tps} t/s"
     },
     "stream": {

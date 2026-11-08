@@ -174,7 +174,7 @@
     "testButton": "Verbindung testen",
     "benchmarkButton": "Geschwindigkeit messen",
     "benchmarkHint": "Eine kleine echte Generierung, um Latenz und Durchsatz zu messen",
-    "benchmarkResult": "{tokensPerSecond} T/s · erstes Token in {firstTokenSeconds}s",
+    "benchmarkResult": "{tokensPerSecond} T/s · erstes Token in {firstTokenSeconds}\u00a0s",
     "testFailed": "Test fehlgeschlagen",
     "modelsFound": "Verbunden. Gefundene Modelle: {count}",
     "benchmarkFailed": "Messung fehlgeschlagen",
@@ -184,7 +184,7 @@
     "maxTokensLabel": "Max. Antwort (Tokens)",
     "maxTokensHint": "Eine Obergrenze, kein Ziel: Der Stil wird unter Einstellungen → Antwortlänge festgelegt.",
     "temperatureLabel": "Temperatur",
-    "temperatureHint": "Niedriger = kohärenter. 0.8 ist eine gute Balance fürs Rollenspiel.",
+    "temperatureHint": "Niedriger = kohärenter. 0,8 ist eine gute Balance fürs Rollenspiel.",
     "topPLabel": "Top-p",
     "frequencyPenaltyLabel": "Frequenz-Strafe",
     "presencePenaltyLabel": "Präsenz-Strafe",
@@ -207,7 +207,7 @@
       "tooltipMessages": "{included}/{total} Nachrichten im Kontext",
       "tooltipOlderInMemory": "(ältere sind durch das Gedächtnis abgedeckt)",
       "tooltipLore": "{count} aktive Lorebook-Einträge",
-      "percent": "{pct} %",
+      "percent": "{pct}\u00a0%",
       "perSecond": "{tps} T/s"
     },
     "stream": {

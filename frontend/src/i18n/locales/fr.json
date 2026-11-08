@@ -174,7 +174,7 @@
     "testButton": "Tester la connexion",
     "benchmarkButton": "Mesurer la vitesse",
     "benchmarkHint": "Petite génération réelle pour mesurer la latence et le débit",
-    "benchmarkResult": "{tokensPerSecond} t/s · 1er token en {firstTokenSeconds}s",
+    "benchmarkResult": "{tokensPerSecond} t/s · 1er token en {firstTokenSeconds}\u202fs",
     "testFailed": "Test impossible",
     "modelsFound": "Connecté. Modèles trouvés : {count}",
     "benchmarkFailed": "Mesure impossible",
@@ -207,7 +207,7 @@
       "tooltipMessages": "{included}/{total} messages dans le contexte",
       "tooltipOlderInMemory": "(les plus anciens sont couverts par la mémoire)",
       "tooltipLore": "{count} entrée(s) de lorebook active(s)",
-      "percent": "{pct}%",
+      "percent": "{pct}\u00a0%",
       "perSecond": "{tps} t/s"
     },
     "stream": {
