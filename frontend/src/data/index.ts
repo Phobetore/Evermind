@@ -64,6 +64,9 @@ export const data = {
         "api/conversations" + (query?.character_id ? `?character_id=${seg(query.character_id)}` : ""),
       ),
     get: (id: string, asking?: Asking) => fresh<Conversation>(`api/conversations/${seg(id)}`, asking),
+    /** All but the messages, which make a long story megabytes, for a read of what goes with them. */
+    withoutMessages: (id: string, asking?: Asking) =>
+      fresh<Conversation>(`api/conversations/${seg(id)}?messages=false`, asking),
     create: (input: ConversationInput) => post<Conversation>("api/conversations", input),
     update: (id: string, changes: ConversationPatch) =>
       patch<Conversation>(`api/conversations/${seg(id)}`, changes),

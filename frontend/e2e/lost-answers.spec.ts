@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page, type Route } from "@playwright/test";
 import { API } from "../playwright.config";
-import { chat, conversation, conversationWithReply, makeCharacter } from "./fixtures";
+import { chat, conversation, conversationWithReply, makeCharacter, readOf } from "./fixtures";
 
 /**
  * A phone on a home Wi-Fi, where what was asked for reaches Evermind and its answer is lost on the
@@ -231,14 +231,17 @@ test("Remember on a phone that went offline ends, once it is back, with what the
   await expectWhatThePassWrote(panel, request, convo.id);
 });
 
-test("Remember that met a pass under way ends, once that pass is done, with what it wrote", async ({ page, request }) => {
+test("Remember that met a pass under way ends, once that pass is done, with what it wrote, and reads no story meanwhile", async ({ page, request }) => {
   const { convo, panel } = await withThePanel(page, request);
   // The server says a pass is running for as long as the one below is not done.
   let running = true;
-  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+  let stories = 0;
+  await page.route(readOf(convo.id), async (route) => {
     if (route.request().method() !== "GET") return route.fallback();
     const response = await route.fetch();
-    await route.fulfill({ response, json: { ...(await response.json()), memory_running: running } });
+    const read = await response.json();
+    if (read.messages) stories += 1;
+    await route.fulfill({ response, json: { ...read, memory_running: running } });
   });
 
   await page.route("**/memories/extract", (route) => route.fulfill({
@@ -250,4 +253,5 @@ test("Remember that met a pass under way ends, once that pass is done, with what
   running = false;
 
   await expectWhatThePassWrote(panel, request, convo.id);
+  expect(stories, "the whole story downloaded to learn whether a pass runs").toBe(0);
 });

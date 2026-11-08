@@ -125,7 +125,7 @@ export function ChatSidePanel({
     reading.current?.abort();
     reading.current = new AbortController();
     return data.conversations
-      .get(conversation.id, { signal: reading.current.signal, within: PATIENCE_MS })
+      .withoutMessages(conversation.id, { signal: reading.current.signal, within: PATIENCE_MS })
       .then((answer) => {
         if (sent !== reads.current) return answer; // a later read knows more
         const shown = latest.current.conversation;

@@ -225,7 +225,7 @@ function ChatView({ id }: { id: string }) {
     summaryRead.current?.abort();
     const reading = (summaryRead.current = new AbortController());
     const takeSummary = summaryTaker();
-    data.conversations.get(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
+    data.conversations.withoutMessages(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
   }, [id, summaryTaker]);
 
   // A reply asked for again or carried on takes back a memory that read it: an open panel reads it at the turn's end.

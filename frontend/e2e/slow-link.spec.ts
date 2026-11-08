@@ -3,7 +3,7 @@ import { API } from "../playwright.config";
 import {
   goWithinThePage, homeWifi, listen, phoneComesBack, report, retryButton, stopButton, writing,
 } from "./connection";
-import { chat, conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
+import { chat, conversation, conversationWithReply, readOf, stopTurn, turnRunning } from "./fixtures";
 
 /**
  * A phone on the home Wi-Fi, which can be slow, drop, or take seconds to come back after the
@@ -372,8 +372,8 @@ test.describe("an answer that never comes", () => {
     await expect(box(page)).toBeVisible();
     await openPanel(page);
     await page.waitForLoadState("networkidle");
-    const isRead = (r: Request) => r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`);
-    await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    const isRead = (r: Request) => r.method() === "GET" && readOf(convo.id)(r.url());
+    await page.route(readOf(convo.id), async (route) => {
       if (route.request().method() !== "GET") return route.continue();
       await route.fetch().catch(() => {}); // read, and the answer never comes back
     });
