@@ -1,9 +1,4 @@
-"""Taking an uploaded image and keeping it.
-
-Three routers need this — a character's portrait, a persona's, and a
-conversation's backdrop — and until the third came along personas was reaching
-into the characters router for its private helpers to get it.
-"""
+"""Taking an uploaded image and keeping it: a portrait, a persona's, or a backdrop."""
 
 from fastapi import UploadFile
 

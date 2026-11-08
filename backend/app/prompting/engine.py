@@ -1,15 +1,8 @@
 """Builds the provider-agnostic chat payload for one turn, and trims the reply that comes back.
 
-Output contract:
-- `system`: single structured system prompt (card, persona, summary, examples, rules).
-  If it alone takes too much of the budget, the example dialogue is the first
-  thing dropped; the card identity never is.
-- `messages`: real user/assistant turns, oldest first, trimmed to the context
-  budget (system is never trimmed; the latest message always survives).
-- `stop`: anti-impersonation stop sequences.
-- `post_history`: the closing block each provider places after the history: the
-  card's `post_history_instructions`, the pinned facts, the scene directive and
-  a short reminder.
+The history is trimmed oldest first, and its latest message always stays. The system prompt is
+not trimmed: it drops its example dialogue when it takes too much of the budget. ``post_history``
+is the closing block each provider places after the history.
 """
 
 from dataclasses import dataclass, field
@@ -21,9 +14,6 @@ from .tokens import estimate_tokens
 # Enough for what someone marked, without another wall of text.
 _MAX_PINNED_RESTATED = 8
 
-# Re-stated at generation time because rule adherence decays with distance:
-# on a long chat the system prompt is thousands of tokens away, drowned out
-# by the model's own recent output.
 _POST_HISTORY_REMINDER = (
     "[Stay in character as {{char}}. Write only {{char}}'s next turn. Every line "
     "of dialogue and every action must be a COMPLETE sentence — never leave "
@@ -35,15 +25,11 @@ _POST_HISTORY_REMINDER = (
 )
 
 _BUDGET_MARGIN = 200
-# If the system prompt alone eats more than this share of the budget, the
-# example-dialogue block is dropped first (card identity is never dropped).
 _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6
-# Pinned first, then by relevance if scored, else newest; capped so a long story cannot crowd out the card.
-_MAX_FACTS = 60
+_MAX_FACTS = 60  # so that a long story cannot crowd out the card
 _FACTS_TOKEN_BUDGET = 700       # floor, used on tiny contexts
 _MAX_FACTS_TOKEN_BUDGET = 2000  # cap, so facts never dominate the window
 _FACTS_BUDGET_SHARE = 0.12      # of the budget, between the two
-# Lorebook: keyword-triggered world knowledge, scanned over the recent turns.
 _LORE_SCAN_MESSAGES = 6
 _LORE_TOKEN_BUDGET = 800
 
@@ -249,20 +235,11 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     if length_override:
         global_instructions = (global_instructions + "\n\n" + length_override).strip()
 
-    # Post-history block: what the model reads LAST, right before generating,
-    # so it carries the most weight when the system prompt is far away up top.
-    # Order: the card's own note, the pinned facts, then the player's live scene
-    # directive, then a compact reminder of the guardrails models most often
-    # drift on.
+    # What the model reads last carries the most weight.
     post_bits = []
     card_note = (character.get("post_history_instructions") or "").strip()
     if card_note:
         post_bits.append(card_note)
-    # Pinned facts, said again down here. Pinning is someone marking a thing as
-    # the one that must never be dropped, and it used to buy only an exemption
-    # from the fact budget — which is worth nothing when the block sits
-    # thousands of tokens above the model's own recent output. Same reasoning as
-    # the reminder below: the last thing read is the thing that carries.
     pinned = [m for m in (memories or []) if m.get("is_pinned")]
     if pinned:
         lines = "\n".join(f"- {(m.get('content') or '').strip()}" for m in pinned[:_MAX_PINNED_RESTATED])
@@ -276,14 +253,9 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     post_history = substitute("\n\n".join(post_bits),
                               char_name=char_name, user_name=user_name)
 
-    # Established facts scale with the context window (≈12%, capped): 700 tokens
-    # was starving long stories on a 16k context. Pinned facts bypass this.
     facts_budget = min(_MAX_FACTS_TOKEN_BUDGET,
                        max(_FACTS_TOKEN_BUDGET, int(budget * _FACTS_BUDGET_SHARE)))
 
-    # History cap: past this many raw turns the model is mostly imitating its
-    # own recent output (tics included) instead of listening to instructions —
-    # the story beyond the window lives in the summary and established facts.
     def render_turns(remaining: int) -> list[dict]:
         ordered = sorted(messages, key=lambda m: m.get("position", 0))
         turns: list[dict] = []
@@ -305,10 +277,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         turns.reverse()
         return turns
 
-    # Estimate the history window with a provisional (worst-case) fact block, so
-    # we know which turns stay visible. Facts covering a still-visible turn are
-    # then dropped: re-stating a message the model already sees is pure echo and
-    # a top cause of repetition loops on long chats.
+    # A fact the model drew from a turn it still sees is left out unless pinned: an echo feeds
+    # repetition loops. Which turns stay is first estimated with every fact in the system prompt.
     static = _build_system(character, persona, summary, global_instructions,
                            include_examples=True, char_name=char_name, user_name=user_name,
                            memories=memories, lore=lore, facts_budget=facts_budget,
@@ -333,22 +303,14 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                                relevance_scores=relevance_scores, passages=retrieved_passages)
 
     turns = render_turns(budget - estimate_tokens(system) - estimate_tokens(post_history))
-    # The TRUE visible window: the oldest turn actually rendered. The provisional
-    # `oldest_visible` (used above for the fact anti-echo filter) is computed from
-    # a worst-case system with all memories, so it can under-count the window.
-    # Consumers that need an exact boundary (passage dedup) must use this value.
+    # The oldest turn actually sent: the estimate above, with every fact, may leave out older ones.
     visible_oldest = min((t["position"] for t in turns), default=oldest_visible)
     for t in turns:
         t.pop("position", None)
 
-    # Some chat templates refuse a conversation whose first message is the
-    # assistant's, and answer with nothing at all rather than an error. Evermind
-    # opens a conversation on the character's greeting when it has one, so those
-    # models look broken on the very first reply. Folding the leading assistant
-    # turns into the system prompt keeps every word of them and leaves a list
-    # that starts with the player. Only ever done as a retry, since it is the
-    # weaker shape: the model reads the opening as instruction rather than as its
-    # own voice.
+    # Some chat templates answer nothing to a conversation that opens on the assistant, as one with
+    # a greeting does. Folded into the system prompt, those turns keep every word; only ever as a
+    # retry, since the model then reads the opening as instruction rather than as its own voice.
     if fold_leading_assistant and any(t["role"] != "assistant" for t in turns):
         spoken = []
         while turns and turns[0]["role"] == "assistant":

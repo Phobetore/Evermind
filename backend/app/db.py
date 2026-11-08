@@ -34,8 +34,7 @@ async def _connect() -> aiosqlite.Connection:
     return conn
 
 
-# For code that runs outside a request handler, such as a middleware, and so
-# cannot be given a connection by the `get_db` dependency.
+# For code outside a request handler, such as the middleware, which `get_db` cannot serve.
 connect = _connect
 
 

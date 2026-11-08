@@ -102,8 +102,6 @@ async def delete(db: aiosqlite.Connection, convo_id: str) -> bool:
     return cursor.rowcount > 0
 
 
-# ---------- messages ----------
-
 async def list_messages(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
     rows = await (await db.execute(
         "SELECT * FROM messages WHERE conversation_id = ? ORDER BY position ASC",
@@ -188,10 +186,7 @@ async def update_message(db: aiosqlite.Connection, message_id: str,
 
 
 def _meta_for_branch(raw: str | None) -> str:
-    """A message's mark as still waiting for a reply says something about the turn
-    that was asked for in the conversation it comes from, not about a branch, where
-    ending on that message is what the person has just chosen. So does the id it was
-    sent under: nothing was sent to the branch."""
+    """A message's meta in a branch: nothing was sent there, so nothing waits for a reply."""
     meta = loads(raw, {})
     meta.pop("unanswered", None)
     meta.pop("client_id", None)
@@ -213,9 +208,7 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
 
         branch_id = new_id()
         now = now_iso()
-        # The backdrop follows, like the persona and the connection: a branch is the
-        # same scene carried on differently, and losing the picture behind it would
-        # read as something having gone wrong rather than as a fresh start.
+        # A branch is the same scene carried on differently: its directive and backdrop follow.
         await db.execute(
             "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
             " summary, author_note, memory_position, forked_from, wallpaper_path,"
@@ -223,8 +216,6 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (branch_id, source["character_id"], source["persona_id"],
              source["connection_id"], source["title"], source["summary"],
-             # The scene directive is the strongest lever there is on a reply, and
-             # it was the one piece of the setup a branch dropped.
              source["author_note"] or "", source["memory_position"],
              source["id"], source["wallpaper_path"],
              source["wallpaper_opacity"], now, now),

@@ -11,9 +11,8 @@ DEFAULTS = {
     "history_limit": 24,
     # Token budget for verbatim past passages retrieved by relevance. 0 = off.
     "passage_budget": 1500,
-    # Whether Settings asks GitHub for a newer release each time it opens. On by
-    # default so security fixes are not missed by people who never think to
-    # look; off is one checkbox away, in About.
+    # Whether Settings asks GitHub for a newer release each time it opens: on, so that nobody
+    # misses a security fix; off in About.
     "update_check": True,
 }
 

@@ -88,8 +88,7 @@ async def update(db: aiosqlite.Connection, memory_id: str,
         new_content = content.strip()
         sets += ["content = ?", "source = 'user'", "previous_content = NULL", "corrected_at = NULL"]
         params.append(new_content)
-        # the stored vector describes the OLD text now; recompute it (or NULL it
-        # so that the next start fills it) — never leave a stale embedding
+        # The stored vector is of the old text: a new one, or none for the next start to fill.
         vectors = await embeddings.embed([new_content], kind="passage")
         sets.append("embedding = ?")
         params.append(embeddings.pack(vectors[0]) if vectors else None)
