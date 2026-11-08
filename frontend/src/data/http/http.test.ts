@@ -678,6 +678,13 @@ describe("patience", () => {
     expect(calls[0].url).toBe("api/conversations/v1/turn");
     expect(calls[0].init.cache).toBe("no-store");
   });
+
+  test("so is the conversation, which the side panel reads too", async () => {
+    reply(json({ id: "v1" }));
+    await http.conversations.get("v1");
+    expect(calls[0].url).toBe("api/conversations/v1");
+    expect(calls[0].init.cache).toBe("no-store");
+  });
 });
 
 // The interface can be served from under a path (`/evermind/`, behind a reverse

@@ -1,4 +1,6 @@
 import { expect, type Page } from "@playwright/test";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 
 /**
  * What a phone going to sleep does to a reply being read: the request rejects part
@@ -73,6 +75,36 @@ export async function connectionBack(page: Page) {
 
 export async function cutConnection(page: Page) {
   await page.evaluate(() => (window as unknown as Record<string, () => void>).__cutConnection());
+}
+
+/**
+ * The home Wi-Fi, as a proxy between the browser and Evermind: it can lose the answer to a
+ * request while keeping its connection open. Unlike a route, it leaves the browser's cache on,
+ * where a request to the same address can wait behind the one left hanging.
+ */
+export async function homeWifi() {
+  const losing = new Set<string>();
+  const proxy = http.createServer((asked, answer) => {
+    const url = new URL(asked.url!);
+    const passed = http.request(url, { method: asked.method, headers: asked.headers }, (served) => {
+      if (asked.method === "GET" && losing.delete(url.pathname)) return void served.resume();
+      answer.writeHead(served.statusCode!, served.headers);
+      served.pipe(answer);
+    });
+    passed.on("error", () => answer.destroy());
+    answer.on("close", () => passed.destroy());
+    asked.pipe(passed);
+  });
+  await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+  return {
+    server: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`,
+    /** The answer to the next GET of this path is lost on the way back. */
+    loseAnswerTo: (path: string) => losing.add(path),
+    close: () => new Promise<void>((resolve) => {
+      proxy.closeAllConnections();
+      proxy.close(() => resolve());
+    }),
+  };
 }
 
 /** Says what a phone coming back says. The page waits a moment before acting on it. */

@@ -1,7 +1,9 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { goWithinThePage, phoneComesBack, report, retryButton, stopButton, writing } from "./connection";
-import { conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
+import {
+  goWithinThePage, homeWifi, phoneComesBack, report, retryButton, stopButton, writing,
+} from "./connection";
+import { chat, conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
 
 /**
  * A phone on the home Wi-Fi, which can be slow, drop, or take seconds to come back after the
@@ -19,6 +21,11 @@ const said = async (request: APIRequestContext, id: string, text: string) =>
   (await conversation(request, id)).messages.filter((m: { content: string }) => m.content === text).length;
 const notSent = (page: Page) => report(page).filter({ hasText: "was not sent" });
 const notAnswering = (page: Page) => report(page).filter({ hasText: "Evermind is not answering" });
+/** The side panel: over the conversation on a phone, once asked for; beside it on a wide screen. */
+const openPanel = async (page: Page) => {
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+};
 
 /** The page's request for a turn waits until `release` is called, then goes on in the way given. */
 async function held(where: Page | BrowserContext, then: "continue" | "arrive and hang" = "continue") {
@@ -258,6 +265,39 @@ test.describe("an answer that never comes", () => {
     await stopTurn(request, convo.id);
     const reply = (await conversation(request, convo.id)).messages.at(-1);
     await expect(page.locator(`[data-message-id="${reply.id}"]`)).toBeVisible();
+    await expect(report(page)).toHaveCount(0);
+  });
+});
+
+test.describe("over a Wi-Fi that loses an answer and keeps its connection", () => {
+  const overWifi = test.extend<{ wifi: Awaited<ReturnType<typeof homeWifi>> }>({
+    wifi: async ({}, give) => {
+      const wifi = await homeWifi();
+      await give(wifi);
+      await wifi.close();
+    },
+    proxy: async ({ wifi }, give) => give({ server: wifi.server }),
+    // The other device's requests go straight to Evermind.
+    request: async ({ playwright }, give) => {
+      const direct = await playwright.request.newContext({ proxy: undefined });
+      await give(direct);
+      await direct.dispose();
+    },
+  });
+
+  overWifi("the side panel's read holds no read of the page", { tag: "@desktop" }, async ({ page, request, wifi }) => {
+    const convo = await conversationWithReply(request);
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(box(page)).toBeVisible();
+    await openPanel(page);
+    await page.waitForLoadState("networkidle");
+    await chat(request, { conversation_id: convo.id, mode: "send", content: "Depuis le PC." });
+    wifi.loseAnswerTo(`/api/conversations/${convo.id}`); // the panel's, which reads first on waking
+
+    await phoneComesBack(page);
+
+    await expect(page.locator("[data-message-id]"), "the page's read waited behind the panel's")
+      .toHaveCount(convo.messages.length + 2, { timeout: 15_000 });
     await expect(report(page)).toHaveCount(0);
   });
 });

@@ -32,6 +32,8 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
   const call = <T>(path: string, init?: RequestInit, asking?: Asking) =>
     request<T>(path, asking?.signal ? { ...init, signal: asking.signal } : init, fetchImpl, asking?.within);
   const get = <T>(path: string, asking?: Asking) => call<T>(path, undefined, asking);
+  // Past the cache, where a request to the same address left hanging would hold it.
+  const fresh = <T>(path: string, asking?: Asking) => call<T>(path, { cache: "no-store" }, asking);
   const post = <T = void>(path: string, body?: unknown) =>
     call<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
   const put = <T>(path: string, body: unknown) =>
@@ -69,7 +71,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
     conversations: {
       list: (query) =>
         get<Conversation[]>(`api/conversations${queryString({ character_id: query?.character_id })}`),
-      get: (id, asking) => get<Conversation>(`api/conversations/${seg(id)}`, asking),
+      get: (id, asking) => fresh<Conversation>(`api/conversations/${seg(id)}`, asking),
       create: (input) => post<Conversation>("api/conversations", input),
       update: (id, changes) => patch<Conversation>(`api/conversations/${seg(id)}`, changes),
       remove: (id) => del(`api/conversations/${seg(id)}`),
@@ -105,9 +107,7 @@ export function createHttpSource(fetchImpl: typeof fetch = lazyFetch): DataSourc
           onEvent,
         ),
       stop: (conversationId, asking) => del(`api/conversations/${seg(conversationId)}/turn`, asking),
-      // Past the cache, where a request to the same address left hanging would hold it.
-      state: (conversationId, asking) =>
-        call<TurnState>(`api/conversations/${seg(conversationId)}/turn`, { cache: "no-store" }, asking),
+      state: (conversationId, asking) => fresh<TurnState>(`api/conversations/${seg(conversationId)}/turn`, asking),
       impersonate: (conversationId) =>
         post<{ text: string }>(`api/conversations/${seg(conversationId)}/impersonate`),
     },
