@@ -391,7 +391,8 @@ function About({
                 <p className="mt-1 text-sm leading-relaxed text-mist">
                   {t("settings.about.updateHint")}
                 </p>
-                <code className="mt-2 block overflow-x-auto rounded-lg border border-ink-600 bg-ink-950/60 px-3 py-2 text-xs text-parchment-dim">
+                {/* On one line, scrolled if need be: broken after "--", the command reads as another. */}
+                <code className="mt-2 block overflow-x-auto whitespace-pre rounded-lg border border-ink-600 bg-ink-950/60 px-3 py-2 text-xs text-parchment-dim">
                   {installed.command}
                 </code>
               </>

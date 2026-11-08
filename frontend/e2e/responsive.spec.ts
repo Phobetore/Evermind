@@ -109,3 +109,27 @@ test.describe("a card's pages and the personas fit a phone in every language", (
     });
   }
 });
+
+// Typed by hand from a phone, "--pull" broken across two lines reads as "-- pull", which fails.
+test("the update command stays on one line, to be read and typed as it is", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.route("**/api/update", (route) => route.fulfill({
+    json: { current: "3.0.0", kind: "docker", command: "docker compose up -d --pull always" },
+  }));
+  await page.route("https://api.github.com/repos/Phobetore/Evermind/releases/latest", (route) => route.fulfill({
+    json: { tag_name: "v99.0.0", html_url: "https://github.com/Phobetore/Evermind/releases/tag/v99.0.0" },
+    headers: { "access-control-allow-origin": "*" },
+  }));
+  await page.goto("/#/settings");
+  const command = page.locator("main code");
+  await expect(command).toHaveText("docker compose up -d --pull always");
+
+  const lines = await command.evaluate((el) => {
+    const text = document.createRange();
+    text.selectNodeContents(el);
+    return text.getClientRects().length;
+  });
+
+  expect(lines, "the command breaks across lines").toBe(1);
+  expect((await pastTheEdge(page, 320)).page).toBeLessThanOrEqual(320);
+});
