@@ -66,17 +66,19 @@ function ChatView({ id }: { id: string }) {
   // Over the conversation on a phone, so open there only once asked for, and closed if the screen narrows.
   const [wide, setWide] = useState(() => window.matchMedia(WIDE).matches);
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia(ROOMY).matches);
+  // Opened or closed by hand, the panel takes the focus, and gives it back to what opens it.
+  const [panelByHand, setPanelByHand] = useState(false);
   useEffect(() => {
     const query = window.matchMedia(WIDE);
     const changed = () => {
       setWide(query.matches);
-      if (!query.matches) setPanelOpen(false);
+      if (query.matches) return;
+      setPanelOpen(false);
+      setPanelByHand(false); // not by hand: the focus stays where it is, in a sentence being typed say
     };
     query.addEventListener("change", changed);
     return () => query.removeEventListener("change", changed);
   }, []);
-  // Opened or closed by hand, the panel takes the focus, and gives it back to what opens it.
-  const [panelByHand, setPanelByHand] = useState(false);
   function showPanel(open: boolean) {
     setPanelByHand(true);
     setPanelOpen(open);
