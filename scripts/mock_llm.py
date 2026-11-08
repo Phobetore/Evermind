@@ -20,10 +20,8 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 5599
 # default: nearly all of its tests only need a reply to exist, and wait for it
 # in their setup.
 WORD_DELAY = float(os.environ.get("EVERMIND_MOCK_DELAY", "0.045"))
-# Seconds between words in a conversation that says SLOWLY. A fixed pace, not a
-# multiple of the one above: how slow is slow enough depends on how long a browser
-# takes to close one page and open another, and that has nothing to do with how
-# quickly the other replies are wanted.
+# Seconds between words in a conversation that says SLOWLY: a fixed pace, as slow enough depends on
+# how long a browser takes to close one page and open another.
 SLOW_WORD_DELAY = 0.6
 # Seconds a conversation that says MOCK_FAILS waits before the model refuses, which
 # gives a test a turn it can watch before it fails.
@@ -139,10 +137,6 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         if "MOCK_QUIET" in json.dumps(payload):
             time.sleep(QUIET_FOR)
-        # A test that is about what happens *during* a reply needs the
-        # reply to still be going when it looks. Rather than tune sleeps
-        # against whatever machine is running, it says so in the
-        # conversation and this slows right down.
         delay = SLOW_WORD_DELAY if "SLOWLY" in json.dumps(payload) else WORD_DELAY
         for number, word in enumerate(reply.split(" ") if reply else []):
             if midway and number == MIDWAY_AFTER:
@@ -168,12 +162,8 @@ class Handler(BaseHTTPRequestHandler):
 
 class Server(ThreadingHTTPServer):
     def handle_error(self, request, client_address):
-        # The reader went away, mid-reply or between two requests on a
-        # connection it had kept open. Tests do that on purpose (one of them
-        # is about what an interrupted reply leaves behind), so it is no error
-        # here, and a traceback for each buries a real failure in noise. The
-        # system words it differently (broken pipe, connection reset, and on
-        # Windows connection aborted), all of them a ConnectionError.
+        # A reader going away, which tests do on purpose, is no error here: a traceback for each
+        # would bury a real failure. Broken pipe, reset or aborted, it is a ConnectionError.
         if isinstance(sys.exc_info()[1], ConnectionError):
             return
         super().handle_error(request, client_address)
