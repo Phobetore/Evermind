@@ -109,6 +109,8 @@ def main(argv: list[str] | None = None) -> int:
 
     import uvicorn
 
+    from .server import Protocol
+
     uvicorn.run(
         "app.main:app", host=host, port=port, reload=args.dev,
         reload_dirs=[str(Path(__file__).resolve().parent)] if args.dev else None,
@@ -117,6 +119,8 @@ def main(argv: list[str] | None = None) -> int:
         timeout_graceful_shutdown=5,
         # Who the client is and whether it came over https, only from a proxy the owner names.
         proxy_headers=bool(env.get("FORWARDED_ALLOW_IPS")),
+        # Not uvicorn's pick, whatever is installed: a request's head is capped and timed.
+        http=Protocol,
     )
     return 0
 

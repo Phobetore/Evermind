@@ -17,7 +17,7 @@ import pytest
 import uvicorn
 
 from app import __main__ as launch
-from app import config
+from app import config, server
 from app.config import gate_password, load_env_file
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -287,7 +287,7 @@ def test_it_starts_uvicorn_on_the_loopback_with_the_resolved_values(clean_env, u
     assert start(monkeypatch, PORT=str(port)) == 0
     assert served == [("app.main:app", {
         "host": "127.0.0.1", "port": port, "reload": False, "reload_dirs": None,
-        "timeout_graceful_shutdown": 5, "proxy_headers": False,
+        "timeout_graceful_shutdown": 5, "proxy_headers": False, "http": server.Protocol,
     })]
     captured = capsys.readouterr()
     assert (captured.out, captured.err) == (f"Evermind -> http://localhost:{port}\n", "")
