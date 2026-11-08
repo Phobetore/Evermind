@@ -46,7 +46,7 @@ if (Changed "$root\backend\pyproject.toml" $pyStamp) {
 
 # However what follows ends, Ctrl+C included, the window goes back to the folder it started in.
 try {
-    # Asked before anything is installed or built: the likeliest reason for a taken
+    # Asked before the interface is installed or built: the likeliest reason for a taken
     # port is Evermind itself, still running while it is updated.
     Set-Location "$root\backend"
     & $python -m app --check @appArgs | Out-Null

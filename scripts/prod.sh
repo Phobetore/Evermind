@@ -25,7 +25,7 @@ if ! cmp -s "$ROOT/backend/pyproject.toml" "$PY_STAMP"; then
     cp "$ROOT/backend/pyproject.toml" "$PY_STAMP"
 fi
 
-# Asked before anything is installed or built: the likeliest reason for a taken
+# Asked before the interface is installed or built: the likeliest reason for a taken
 # port is Evermind itself, still running while it is updated.
 cd "$ROOT/backend"
 "$PYTHON" -m app --check "$@" > /dev/null || { echo "Nothing was started." >&2; exit 1; }
