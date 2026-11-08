@@ -87,11 +87,3 @@ async def benchmark_connection(draft: ConnectionDraft, db: aiosqlite.Connection 
         "tokens_per_s": round(tokens / gen_time, 1),
         "tokens": tokens,
     }
-
-
-@router.get("/{conn_id}/models")
-async def list_models(conn_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    connection = await repo.get_raw(db, conn_id)
-    if not connection:
-        raise NotFoundError("Connection not found.", "connection")
-    return {"models": await get_provider(connection).list_models()}

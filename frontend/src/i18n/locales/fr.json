@@ -34,7 +34,6 @@
     "importTitle": "Importer une carte (JSON / PNG)",
     "import": "Importer",
     "create": "Créer",
-    "loadError": "Erreur de chargement",
     "importError": "Import impossible",
     "emptyState": {
       "title": "La scène est vide",
@@ -100,10 +99,7 @@
     "noModel": "modèle non défini",
     "keyHint": "clé {hint}",
     "noKey": "sans clé",
-    "defaultPersonaLabel": "Persona par défaut",
-    "noneOption": "Aucun",
     "defaultConnectionLabel": "Connexion par défaut",
-    "firstAvailableOption": "Première disponible",
     "replyLengthLabel": "Longueur des réponses",
     "replyLengthHint": "S'applique à toutes les conversations. Pensez à monter le « Réponse max (tokens) » de votre connexion pour les réponses longues.",
     "replyLengthOptions": {
@@ -203,8 +199,7 @@
     "header": {
       "backAriaLabel": "Retour aux conversations",
       "renameTitle": "Renommer la conversation",
-      "memorySettingsAriaLabel": "Mémoire et réglages de la conversation",
-      "openPanelAriaLabel": "Ouvrir le panneau"
+      "memorySettingsAriaLabel": "Mémoire et réglages de la conversation"
     },
     "context": {
       "tooltipUsage": "Contexte : {used} / {budget} tokens (fenêtre {size})",
@@ -280,13 +275,9 @@
       },
       "summary": {
         "title": "Résumé de l'histoire",
-        "generateTitle": "Demander au modèle de résumer la conversation",
-        "generateButton": "Résumer",
         "placeholder": "Mis à jour automatiquement par la mémoire ; éditable librement. Injecté dans chaque tour.",
         "saveButton": "Enregistrer le résumé",
-        "saved": "Résumé enregistré.",
-        "generated": "Résumé généré par le modèle.",
-        "generateError": "Échec du résumé"
+        "saved": "Résumé enregistré."
       },
       "facts": {
         "title": "Faits établis",
@@ -295,8 +286,6 @@
         "extractTitle": "Lire maintenant les derniers tours : retenir les faits nouveaux et mettre le résumé à jour",
         "extractButton": "Mémoriser",
         "description": "Canon que le personnage ne doit pas contredire. Les faits épinglés sont toujours envoyés au modèle ; les autres seulement une fois leur tour sorti des derniers messages, et dans la limite d'un budget. Extraction automatique en cours d'histoire.",
-        "dormantWarning": "{count} fait(s) hors budget (grisé(s) ci-dessous) : couvert par le résumé, mais plus injecté tel quel. Épinglez les cruciaux, ou « {consolidateLabel} ».",
-        "dormantTitle": "Dormant : hors budget d'injection",
         "pinTitle": "Épingler (toujours injecté)",
         "unpinTitle": "Désépingler",
         "turnBadge": "t.{turn}",
@@ -308,10 +297,6 @@
         "noneNew": "Rien de nouveau à retenir.",
         "summaryOnly": "Aucun fait nouveau ; le résumé a été mis à jour.",
         "extractError": "Échec de la mémorisation",
-        "tooFewToConsolidate": "Trop peu de faits pour consolider.",
-        "changedWhileConsolidating": "Les faits ont changé pendant que le modèle les fusionnait. Rien n'a été modifié ; réessayez.",
-        "memoryTaskRunning": "Une autre tâche de mémoire est en cours. Rien n'a été modifié ; réessayez dans un instant.",
-        "conversationChangedWhileReading": "La conversation a changé pendant que le modèle la lisait. Rien n'a été conservé ; réessayez.",
         "consolidated": "Mémoire condensée : {before} → {after} faits.",
         "consolidateError": "Échec de la consolidation",
         "addError": "Ajout impossible"
@@ -431,8 +416,7 @@
     "keysPlaceholder": "Mots-clés déclencheurs puis Entrée",
     "contentPlaceholder": "Ce que le modèle doit savoir quand ces mots apparaissent…",
     "addEntryButton": "Ajouter l'entrée",
-    "entryRequiredError": "Une entrée demande au moins un mot-clé et un contenu.",
-    "addFailedError": "Ajout impossible"
+    "entryRequiredError": "Une entrée demande au moins un mot-clé et un contenu."
   },
   "cards": {
     "startChatModal": {
@@ -440,8 +424,6 @@
       "personaHint": "Gérez vos identités dans l'onglet Personas.",
       "noPersonaOption": "Sans persona",
       "noConnectionOption": "Aucune connexion configurée",
-      "mainGreetingOption": "Principale",
-      "alternateGreetingOption": "Alternative {index}",
       "noConnectionWarning": "Configurez d'abord une connexion LLM dans Paramètres (Ollama, LM Studio, OpenRouter, Anthropic…). C'est vous qui choisissez.",
       "startError": "Impossible de démarrer",
       "enterButton": "Entrer dans l'histoire"
@@ -463,7 +445,6 @@
   },
   "errors": {
     "unexpected": "Une erreur est survenue.",
-    "pageLoad": "Cette page n'a pas pu être chargée. Evermind a peut-être été mis à jour depuis que vous l'avez ouvert, ou la connexion a été coupée.",
     "server": "Evermind a répondu par une erreur (HTTP {status}).",
     "unreachable": "Evermind ne répond pas. Est-il toujours lancé ?",
     "offline": "Cet appareil est hors ligne.",
@@ -481,16 +462,12 @@
       "message": "Ce message n'existe plus.",
       "persona": "Ce persona n'existe plus.",
       "connection": "Cette connexion n'existe plus.",
-      "loreEntry": "Cette entrée du lorebook n'existe plus.",
       "fact": "Ce fait n'existe plus.",
-      "libraryCard": "Cette fiche n'est pas dans la bibliothèque.",
       "other": "Cet élément n'existe plus."
     },
     "pngWithoutCard": "Cette image PNG ne contient pas de fiche de personnage.",
     "unrecognizedCardFile": "Ce fichier n'est pas une fiche. Choisissez une fiche JSON ou une fiche PNG.",
     "variantOutOfRange": "Cette variante de la réponse n'existe pas.",
-    "alreadyInstalled": "Cette fiche est déjà installée.",
-    "loreEntryIncomplete": "Une entrée du lorebook a besoin d'au moins un mot-clé et d'un contenu.",
     "factExists": "Ce fait existe déjà.",
     "factEmpty": "Un fait doit contenir du texte.",
     "memoryBusy": "Une autre tâche de mémoire est en cours. Rien n'a été modifié ; réessayez dans un instant.",
@@ -503,21 +480,14 @@
     "noConnection": "Aucune connexion LLM n'est configurée. Ajoutez-en une dans Paramètres → Connexions LLM.",
     "modelError": "Le modèle a signalé une erreur : {message}",
     "modelUnreachable": "Evermind n'arrive pas à joindre le serveur du modèle à l'adresse {message}. Vérifiez qu'il est lancé et que l'adresse de la connexion est correcte.",
-    "modelUnreachableNoAddress": "Le serveur du modèle ne répond pas. Vérifiez qu'il est lancé et que l'adresse de la connexion est correcte.",
     "turnRunning": "Une réponse est déjà en cours d'écriture : ceci n'a pas été envoyé.",
     "modelEmpty": "Le modèle a renvoyé une réponse vide. Réessayez ou changez de modèle.",
-    "modelEmptyRetried": "Le modèle n'a rien renvoyé à deux reprises, même en écartant la phrase d'ouverture. Son gabarit de conversation n'est probablement pas utilisable ici pour le jeu de rôle ; essayez un autre modèle.",
     "modelUnreadable": "La réponse du modèle n'a pas pu être lue. Réessayez.",
     "modelAuthRefused": "Le serveur du modèle a refusé la clé d'API. Vérifiez la clé dans la connexion. Le serveur a indiqué : {message}",
     "modelNotFound": "Le serveur du modèle ne connaît ni cette adresse ni ce modèle. Vérifiez l'URL et le nom du modèle dans la connexion. Le serveur a indiqué : {message}",
     "modelRateLimited": "Le serveur du modèle a atteint sa limite de requêtes. Réessayez dans un instant. Le serveur a indiqué : {message}",
-    "modelHttpError": "Le serveur du modèle a répondu par une erreur (HTTP {status}).",
-    "modelTimeout": "Le modèle a mis trop de temps à répondre.",
     "modelNetworkError": "Le modèle a mis trop de temps à répondre, ou la connexion à son serveur a été coupée.",
-    "modelUnexpectedResponse": "Le serveur du modèle a répondu d'une façon qu'Evermind ne comprend pas. Vérifiez l'URL de la connexion.",
-    "modelUnknownType": "Cette connexion est d'un type qu'Evermind ne connaît pas. Modifiez-la ou recréez-la.",
     "modelNoText": "Le modèle n'a produit aucun texte.",
-    "upstream": "Le serveur a indiqué : {text}",
     "emptyMessage": "Écrivez d'abord un message.",
     "nothingToRegenerate": "Il n'y a pas encore de réponse à régénérer. Envoyez d'abord un message.",
     "nothingToContinue": "Le dernier message n'est pas une réponse : il n'y a rien à prolonger.",

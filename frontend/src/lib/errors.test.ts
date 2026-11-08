@@ -21,8 +21,6 @@ describe("an error the server named", () => {
     ["png_without_card", "errors.pngWithoutCard"],
     ["unrecognized_card_file", "errors.unrecognizedCardFile"],
     ["variant_out_of_range", "errors.variantOutOfRange"],
-    ["already_installed", "errors.alreadyInstalled"],
-    ["lore_entry_incomplete", "errors.loreEntryIncomplete"],
     ["fact_exists", "errors.factExists"],
     ["fact_empty", "errors.factEmpty"],
     ["memory_busy", "errors.memoryBusy"],
@@ -78,9 +76,7 @@ describe("a missing thing", () => {
     ["message", "errors.notFound.message"],
     ["persona", "errors.notFound.persona"],
     ["connection", "errors.notFound.connection"],
-    ["lore_entry", "errors.notFound.loreEntry"],
     ["fact", "errors.notFound.fact"],
-    ["library_card", "errors.notFound.libraryCard"],
   ])("a %s is said as %s", (resource, key) => {
     const error = new DataError("English words", { kind: "not_found", resource, status: 404 });
     expect(describeError(error, t)).toBe(key);
@@ -199,9 +195,9 @@ describe("the sentences exist", () => {
   };
   const kinds = [
     "locked", "wrong_password", "too_large", "rate_limited", "cross_origin", "unknown_host",
-    "png_without_card", "unrecognized_card_file", "variant_out_of_range", "already_installed",
-    "lore_entry_incomplete", "fact_exists", "fact_empty", "memory_busy", "facts_changed",
-    "conversation_changed", "too_few_facts", "file_too_large", "unsupported_image",
+    "png_without_card", "unrecognized_card_file", "variant_out_of_range", "fact_exists",
+    "fact_empty", "memory_busy", "facts_changed", "conversation_changed", "too_few_facts",
+    "file_too_large", "unsupported_image",
     "conversation_empty", "no_connection", "unreachable", "model_connection_lost",
     "model_auth_refused", "model_not_found", "model_rate_limited", "model_error", "model_no_text",
     "model_empty", "model_unreadable", "empty_message", "nothing_to_regenerate",
@@ -209,8 +205,7 @@ describe("the sentences exist", () => {
     "not_found",
   ];
   const resources = [
-    "character", "conversation", "message", "persona", "connection", "lore_entry", "fact",
-    "library_card", "illustration", "file",
+    "character", "conversation", "message", "persona", "connection", "fact", "illustration", "file",
   ];
 
   test("in English, which every other language is checked against", () => {

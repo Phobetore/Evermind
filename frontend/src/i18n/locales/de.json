@@ -34,7 +34,6 @@
     "importTitle": "Karte importieren (JSON / PNG)",
     "import": "Importieren",
     "create": "Erstellen",
-    "loadError": "Laden fehlgeschlagen",
     "importError": "Import fehlgeschlagen",
     "emptyState": {
       "title": "Die Bühne ist leer",
@@ -100,10 +99,7 @@
     "noModel": "kein Modell gesetzt",
     "keyHint": "Schlüssel {hint}",
     "noKey": "kein Schlüssel",
-    "defaultPersonaLabel": "Standard-Persona",
-    "noneOption": "Keine",
     "defaultConnectionLabel": "Standardverbindung",
-    "firstAvailableOption": "Erste verfügbare",
     "replyLengthLabel": "Antwortlänge",
     "replyLengthHint": "Gilt für alle Unterhaltungen. Denke daran, „Max. Antwort (Tokens)“ deiner Verbindung für lange Antworten zu erhöhen.",
     "replyLengthOptions": {
@@ -203,8 +199,7 @@
     "header": {
       "backAriaLabel": "Zurück zu den Unterhaltungen",
       "renameTitle": "Unterhaltung umbenennen",
-      "memorySettingsAriaLabel": "Gedächtnis und Einstellungen der Unterhaltung",
-      "openPanelAriaLabel": "Panel öffnen"
+      "memorySettingsAriaLabel": "Gedächtnis und Einstellungen der Unterhaltung"
     },
     "context": {
       "tooltipUsage": "Kontext: {used} / {budget} Tokens (Fenster {size})",
@@ -280,13 +275,9 @@
       },
       "summary": {
         "title": "Zusammenfassung der Geschichte",
-        "generateTitle": "Das Modell bitten, die Unterhaltung zusammenzufassen",
-        "generateButton": "Zusammenfassen",
         "placeholder": "Wird vom Gedächtnis automatisch aktualisiert; frei bearbeitbar. Wird in jeden Zug eingefügt.",
         "saveButton": "Zusammenfassung speichern",
-        "saved": "Zusammenfassung gespeichert.",
-        "generated": "Zusammenfassung vom Modell erstellt.",
-        "generateError": "Zusammenfassung fehlgeschlagen"
+        "saved": "Zusammenfassung gespeichert."
       },
       "facts": {
         "title": "Etablierte Fakten",
@@ -295,8 +286,6 @@
         "extractTitle": "Jetzt die letzten Züge lesen: neue Fakten festhalten und die Zusammenfassung aktualisieren",
         "extractButton": "Merken",
         "description": "Kanon, dem die Figur nicht widersprechen darf. Angeheftete Fakten gehen immer an das Modell; die übrigen erst, wenn ihr Zug nicht mehr in den letzten Nachrichten steht, und im Rahmen eines Budgets. Wird im Verlauf der Geschichte automatisch extrahiert.",
-        "dormantWarning": "{count} Fakt(en) über dem Budget (unten abgeblendet): von der Zusammenfassung abgedeckt, aber nicht mehr wörtlich eingefügt. Hefte die entscheidenden an oder nutze „{consolidateLabel}“.",
-        "dormantTitle": "Ruhend: über dem Einfüge-Budget",
         "pinTitle": "Anheften (immer eingefügt)",
         "unpinTitle": "Lösen",
         "turnBadge": "Z.{turn}",
@@ -308,10 +297,6 @@
         "noneNew": "Nichts Neues zu merken.",
         "summaryOnly": "Keine neuen Fakten; die Zusammenfassung wurde aktualisiert.",
         "extractError": "Gedächtnis-Extraktion fehlgeschlagen",
-        "tooFewToConsolidate": "Zu wenige Fakten zum Verdichten.",
-        "changedWhileConsolidating": "Die Fakten haben sich geändert, während das Modell sie zusammenführte. Nichts wurde verändert; versuche es noch einmal.",
-        "memoryTaskRunning": "Eine andere Gedächtnisaufgabe läuft gerade. Nichts wurde verändert; versuche es gleich noch einmal.",
-        "conversationChangedWhileReading": "Die Unterhaltung hat sich geändert, während das Modell sie las. Nichts wurde übernommen; versuche es noch einmal.",
         "consolidated": "Gedächtnis verdichtet: {before} → {after} Fakten.",
         "consolidateError": "Verdichtung fehlgeschlagen",
         "addError": "Fakt konnte nicht hinzugefügt werden"
@@ -431,8 +416,7 @@
     "keysPlaceholder": "Auslösende Stichwörter, dann Enter",
     "contentPlaceholder": "Was das Modell wissen soll, wenn diese Wörter auftauchen…",
     "addEntryButton": "Eintrag hinzufügen",
-    "entryRequiredError": "Ein Eintrag braucht mindestens ein Stichwort und etwas Inhalt.",
-    "addFailedError": "Eintrag konnte nicht hinzugefügt werden"
+    "entryRequiredError": "Ein Eintrag braucht mindestens ein Stichwort und etwas Inhalt."
   },
   "cards": {
     "startChatModal": {
@@ -440,8 +424,6 @@
       "personaHint": "Verwalte deine Identitäten im Tab „Personas“.",
       "noPersonaOption": "Keine Persona",
       "noConnectionOption": "Keine Verbindung konfiguriert",
-      "mainGreetingOption": "Haupt",
-      "alternateGreetingOption": "Alternative {index}",
       "noConnectionWarning": "Richte zuerst in den Einstellungen eine LLM-Verbindung ein (Ollama, LM Studio, OpenRouter, Anthropic…). Du entscheidest.",
       "startError": "Konnte nicht gestartet werden",
       "enterButton": "Die Geschichte betreten"
@@ -463,7 +445,6 @@
   },
   "errors": {
     "unexpected": "Etwas ist schiefgelaufen.",
-    "pageLoad": "Diese Seite ließ sich nicht laden. Vielleicht wurde Evermind aktualisiert, seit du es geöffnet hast, oder die Verbindung ist abgebrochen.",
     "server": "Evermind hat mit einem Fehler geantwortet (HTTP {status}).",
     "unreachable": "Evermind antwortet nicht. Läuft es noch?",
     "offline": "Dieses Gerät ist offline.",
@@ -481,16 +462,12 @@
       "message": "Diese Nachricht gibt es nicht mehr.",
       "persona": "Diese Persona gibt es nicht mehr.",
       "connection": "Diese Verbindung gibt es nicht mehr.",
-      "loreEntry": "Diesen Lorebook-Eintrag gibt es nicht mehr.",
       "fact": "Diesen Fakt gibt es nicht mehr.",
-      "libraryCard": "Diese Karte ist nicht in der Bibliothek.",
       "other": "Dieses Element gibt es nicht mehr."
     },
     "pngWithoutCard": "Dieses PNG-Bild enthält keine Charakterkarte.",
     "unrecognizedCardFile": "Diese Datei ist keine Karte. Wähle eine JSON-Karte oder eine PNG-Karte.",
     "variantOutOfRange": "Diese Variante der Antwort gibt es nicht.",
-    "alreadyInstalled": "Diese Karte ist bereits installiert.",
-    "loreEntryIncomplete": "Ein Lorebook-Eintrag braucht mindestens ein Stichwort und einen Inhalt.",
     "factExists": "Diesen Fakt gibt es schon.",
     "factEmpty": "Ein Fakt braucht etwas Text.",
     "memoryBusy": "Eine andere Gedächtnisaufgabe läuft gerade. Nichts wurde verändert; versuche es gleich noch einmal.",
@@ -503,21 +480,14 @@
     "noConnection": "Es ist keine LLM-Verbindung eingerichtet. Füge in den Einstellungen unter LLM-Verbindungen eine hinzu.",
     "modelError": "Das Modell hat einen Fehler gemeldet: {message}",
     "modelUnreachable": "Evermind erreicht den Server des Modells unter {message} nicht. Prüfe, ob er läuft und ob die Adresse in der Verbindung stimmt.",
-    "modelUnreachableNoAddress": "Der Server des Modells antwortet nicht. Prüfe, ob er läuft und ob die Adresse in der Verbindung stimmt.",
     "turnRunning": "Es wird bereits eine Antwort geschrieben, deshalb wurde das nicht gesendet.",
     "modelEmpty": "Das Modell hat eine leere Antwort geliefert. Versuch es noch einmal oder wechsle das Modell.",
-    "modelEmptyRetried": "Das Modell hat zweimal nichts geliefert, auch nachdem die Eröffnungszeile aus dem Verlauf genommen wurde. Das Chat-Template des Modells eignet sich hier wahrscheinlich nicht für Rollenspiele; probiere ein anderes Modell.",
     "modelUnreadable": "Die Antwort des Modells ließ sich nicht lesen. Versuch es noch einmal.",
     "modelAuthRefused": "Der Server des Modells hat den API-Schlüssel abgelehnt. Prüfe den Schlüssel in der Verbindung. Der Server meldet: {message}",
     "modelNotFound": "Der Server des Modells kennt diese Adresse oder dieses Modell nicht. Prüfe die URL und den Modellnamen in der Verbindung. Der Server meldet: {message}",
     "modelRateLimited": "Der Server des Modells hat sein Anfragelimit erreicht. Versuch es gleich noch einmal. Der Server meldet: {message}",
-    "modelHttpError": "Der Server des Modells hat mit einem Fehler geantwortet (HTTP {status}).",
-    "modelTimeout": "Das Modell hat zu lange für die Antwort gebraucht.",
     "modelNetworkError": "Das Modell hat zu lange für die Antwort gebraucht, oder die Verbindung zu seinem Server ist abgebrochen.",
-    "modelUnexpectedResponse": "Der Server des Modells hat so geantwortet, dass Evermind es nicht versteht. Prüfe die URL der Verbindung.",
-    "modelUnknownType": "Diese Verbindung hat einen Typ, den Evermind nicht kennt. Bearbeite sie oder lege sie neu an.",
     "modelNoText": "Das Modell hat keinen Text erzeugt.",
-    "upstream": "Der Server meldet: {text}",
     "emptyMessage": "Schreib zuerst eine Nachricht.",
     "nothingToRegenerate": "Es gibt noch keine Antwort, die neu generiert werden könnte. Sende zuerst eine Nachricht.",
     "nothingToContinue": "Die letzte Nachricht ist keine Antwort, also gibt es nichts fortzusetzen.",
