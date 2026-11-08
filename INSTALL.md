@@ -133,8 +133,8 @@ from the labs (Claude, GPT, Gemini) write beautifully and arrive with their
 provider's rules attached. OpenRouter also carries the same community
 storytelling finetunes you would otherwise run at home, in sizes no home machine
 can hold. That is the practical way to get good prose and a free hand at the same
-time without buying hardware. Evermind shows you the full list once the connection is
-tested, so you can try several and keep the one you like.
+time without buying hardware. Any model there can be named in your connection, so
+you can try several and keep the one you like.
 
 ---
 
@@ -248,12 +248,13 @@ In Evermind, go to **Settings**, then **LLM connections**, then **Add**.
    `host.docker.internal`.
 3. If you chose an online service, paste your API key. For a local model, leave
    the key empty.
-4. Click **Test connection**. If it works, the list of available models appears
-   just below. Click the one you want.
-5. Set **Context (tokens)** to match what your AI actually offers. LM Studio
-   shows this when you load a model; 16384 is a common, comfortable value. This
-   one matters: set it too high and your conversations get cut off without
-   warning.
+4. Click **Test connection**. If it works, it says how many models it found and
+   shows the first few just below. Click the one you want, or type its name in
+   **Model**.
+5. Open **Generation settings** and set **Context (tokens)** to match what your
+   AI actually offers. LM Studio shows this when you load a model; 16384 is a
+   common, comfortable value. This one matters: set it too high and your
+   conversations get cut off without warning.
 6. Save.
 
 ---
@@ -366,7 +367,7 @@ program that starts Evermind, which always writes in English.
 | Replies are cut off mid-sentence | The **Max response (tokens)** value on your connection is too low. Raise it. |
 | The character forgets things, or repeats itself | Your **Context (tokens)** is probably set higher than your AI really offers. Match it to the real value. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
 | Replies are very slow | Normal for a large model on a modest machine. Try a smaller one, or an online service. |
-| "The model returned nothing, twice" | That model's chat template will not work for roleplay here, whatever you write. Nothing you can configure fixes it; pick another model. |
+| "The model returned an empty reply" | Try again. If every reply comes back empty, that model's chat template does not work for roleplay here, whatever you write: pick another model. |
 | `docker compose` complains about `env_file`, a variable that "contains whitespaces", "invalid utf8", "Invalid template" or "unexpected character" | Write that line of `.env` as `NAME=value`, with no `export` and no spaces around `=`, and save the file as UTF-8 (Windows PowerShell 5.1 writes UTF-16 with `>`). A value holding `${` with no `}` after it cannot be used with Docker: pick another. Otherwise your Docker is older than November 2024: update it; on Debian or Ubuntu, install Docker from Docker's own packages rather than the distribution's. |
 | "Port 3000 is already in use", or Docker says the port is already allocated | Something else on your computer already uses that port, and often it is Evermind itself, still running. Stop it first. Otherwise set `PORT` to a free one, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
 | "error while attempting to bind on address", with "Permission denied" or "forbidden by its access permissions" | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Set `PORT` to a number above 1024, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
