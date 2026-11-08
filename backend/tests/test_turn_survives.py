@@ -266,26 +266,30 @@ async def test_a_regeneration_asked_again_joins_the_one_being_written(client, mo
     assert len((await messages_of(client, convo["id"]))[-1]["variants"]) == 2
 
 
-@pytest.mark.parametrize("asked", [
-    {"mode": "send", "content": "Aussi"},
-    {"mode": "send", "content": "Aussi", "client_id": "un-autre"},
-    {"mode": "continue"},
+@pytest.mark.parametrize(("running", "asked"), [
+    ({"mode": "regenerate"}, {"mode": "send", "content": "Aussi"}),
+    ({"mode": "regenerate"}, {"mode": "continue"}),
+    # Two devices, each sending a message.
+    ({"mode": "send", "content": "Vas-y", "client_id": "un-message"},
+     {"mode": "send", "content": "Aussi", "client_id": "un-autre"}),
+    ({"mode": "send", "content": "Vas-y"}, {"mode": "send", "content": "Aussi"}),
 ])
 async def test_something_else_is_refused_while_a_reply_is_written_and_nothing_is_saved(
-        client, monkeypatch, asked):
+        client, monkeypatch, running, asked):
     convo = await setup_conversation(client)
     await _answered(client, monkeypatch, convo["id"])
-    running = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], **running))
     before = await messages_of(client, convo["id"])
 
     refused = await client.post("/api/chat", json={"conversation_id": convo["id"], **asked})
 
     assert refused.status_code == 409
     assert refused.json()["kind"] == "turn_running"
-    await _stopped_after_four_words(running)
+    await _stopped_after_four_words(turn)
     after = await messages_of(client, convo["id"])
-    assert [m["id"] for m in after] == [m["id"] for m in before], "something was saved of it"
-    assert len(after[-1]["variants"]) == 2, "it was acted on as well"
+    assert [m["id"] for m in after] == [m["id"] for m in before if m["id"] != turn.message_id] + [
+        turn.message_id], "something was saved of it"
+    assert after[-1]["content"] == "mot0 mot1 mot2 mot3", "it was acted on as well"
 
 
 async def test_a_stop_keeps_every_word_ends_the_request_at_once_and_the_next_message_goes(
