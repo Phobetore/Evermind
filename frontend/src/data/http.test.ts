@@ -237,10 +237,10 @@ function answering() {
 describe("patience", () => {
   test("a question whose answer has not begun in time is given up on, as unanswered", async () => {
     const server = answering();
-    const failure = await data.turns.state("v1", { within: 20 }).catch((e) => e);
-    expect(failure).toBeInstanceOf(DataError);
-    expect(failure.kind).toBe("network");
-    expect(server.given[0].aborted, "it is left hanging on a connection").toBe(true);
+    for (const asked of [data.turns.state("v1", { within: 20 }), data.turns.stop("v1", { within: 20 })]) {
+      expect(await asked.catch((e) => e)).toMatchObject({ name: "DataError", kind: "network" });
+    }
+    expect(server.given.map((signal) => signal.aborted), "they are left hanging on a connection").toEqual([true, true]);
   });
 
   test("is for the answer to begin, not for all of it to arrive", async () => {
