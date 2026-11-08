@@ -12,6 +12,8 @@ test("a Continue that adds nothing says the model had nothing to add", async ({ 
   await page.goto(`/#/chat/${convo.id}`);
   const reply = page.locator(`[data-message-id="${before.id}"]`);
   await expect(reply).toBeVisible();
+  // Once the page has settled: a name arriving moves the button from under a click.
+  await page.waitForLoadState("networkidle");
 
   await reply.locator('button[title="Continue the reply"]').click({ force: true });
 

@@ -264,6 +264,7 @@ test.describe("what is asked of a connection that does not answer", () => {
     const streams = countingStreams(page);
     await page.goto(`/#/chat/${convo.id}`);
     await expect(page.locator(`[data-message-id="${target.id}"]`)).toBeVisible();
+    await page.waitForLoadState("networkidle");
 
     await page.locator('button[title="Continue the reply"]').first().click({ force: true });
     await expectPickedUp(page, expect.poll(streams).toBeGreaterThan(1));
@@ -410,6 +411,8 @@ test.describe("a message that does not go", () => {
     await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
       { timeout: 30_000 }).toBe(convo.messages.length + 2);
     await expect(box(page)).toHaveValue("");
+    await expect(page.locator("[data-message-id]"), "the reply never reached the screen").toHaveCount(convo.messages.length + 2);
+    await expect(report(page), "still reported once sent").toHaveCount(0);
   });
 
   test("turned away by something in between, it is in the box as what it was meant as, and Send sends it", async ({ page, request }) => {

@@ -217,13 +217,16 @@ describe("a message whose answer was lost, and which had arrived after all", () 
     close();
   });
 
-  test("once changed it is another message, and stays", () => {
+  test.each([
+    ["changed", "Arrived, and changed."],
+    ["added to on the same line", "Arrived. And then this."],
+  ])("once %s it is another message, and stays", (_how, typed) => {
     const id = aConversation();
     const clientId = sent(id, "Arrived.");
-    const box = aBox("Arrived, and changed.");
+    const box = aBox(typed);
     const close = openBox(id, box);
     expect(settleSending(id, inConversation(clientId))).toBe(true);
-    expect(box.shown).toBe("Arrived, and changed.");
+    expect(box.shown).toBe(typed);
     close();
   });
 

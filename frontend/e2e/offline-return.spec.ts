@@ -88,7 +88,7 @@ async function streamBreaks(page: Page, id: string, trouble: { closes?: boolean 
 }
 
 test("a connection lost in the middle of a reply is picked back up", async ({ page, request }) => {
-  const convo = await conversationWithReply(request, { slowly: true });
+  const convo = await conversationWithReply(request, { slowly: true, says: "halfway" });
   await streamBreaks(page, convo.id);
   // Read from where it stands again, which must not show anything twice.
   await expect(page.getByText("Coupe."), "the message was added again").toHaveCount(1);
@@ -225,7 +225,7 @@ test("a reply cut off comes back by itself with the connection", async ({ page, 
   await expectPickedUp(page, expect.poll(streams, { timeout: 15_000 }).toBeGreaterThan(0));
   await expect(report, "the report stayed once the connection was back").toBeHidden();
 
-  await expect.poll(() => turnRunning(request, convo.id), { timeout: 60_000 }).toBe(false);
+  await stopTurn(request, convo.id);
   const reply = (await conversation(request, convo.id)).messages.at(-1);
   await expect(page.locator(`[data-message-id="${reply.id}"]`)).toContainText(endingOf(reply.content));
   await expect(page.getByText("Coupe."), "the message was added again").toHaveCount(1);

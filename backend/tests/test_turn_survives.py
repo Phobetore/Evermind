@@ -74,12 +74,16 @@ async def _ended(turn):
     await asyncio.wait_for(turn.finished.wait(), timeout=15)
 
 
-async def _stopped_after_four_words(turn):
-    async def four_words():
-        while turn.text.count("mot") < 4:
+async def _written(turn, words):
+    async def enough():
+        while turn.text.count("mot") < words:
             await asyncio.sleep(0.01)
 
-    await asyncio.wait_for(four_words(), timeout=10)
+    await asyncio.wait_for(enough(), timeout=10)
+
+
+async def _stopped_after_four_words(turn):
+    await _written(turn, 4)
     await turns.stop(turn.conversation_id)
 
 
@@ -104,9 +108,10 @@ async def test_following_is_the_message_so_far_then_the_rest(client, unhurried):
     convo = await setup_conversation(client)
     turn = await turns.start(_sending(convo["id"]))
     await turns.follow(turn).asend(None)  # one reader that has gone, another that comes back
+    await _written(turn, 3)
 
     events = [event async for event in turns.follow(turn)]
-    assert "text" in events[0]
+    assert events[0]["text"].startswith("mot0 mot1 mot2"), "the words written before it came back were lost"
     text = events[0]["text"] + "".join(event["delta"] for event in events[1:])
     assert text == (await messages_of(client, convo["id"]))[-1]["content"] + " "
 
@@ -261,26 +266,30 @@ async def test_a_regeneration_asked_again_joins_the_one_being_written(client, mo
     assert len((await messages_of(client, convo["id"]))[-1]["variants"]) == 2
 
 
-@pytest.mark.parametrize("asked", [
-    {"mode": "send", "content": "Aussi"},
-    {"mode": "send", "content": "Aussi", "client_id": "un-autre"},
-    {"mode": "continue"},
+@pytest.mark.parametrize(("running", "asked"), [
+    ({"mode": "regenerate"}, {"mode": "send", "content": "Aussi"}),
+    ({"mode": "regenerate"}, {"mode": "continue"}),
+    # Two devices, each sending a message.
+    ({"mode": "send", "content": "Vas-y", "client_id": "un-message"},
+     {"mode": "send", "content": "Aussi", "client_id": "un-autre"}),
+    ({"mode": "send", "content": "Vas-y"}, {"mode": "send", "content": "Aussi"}),
 ])
 async def test_something_else_is_refused_while_a_reply_is_written_and_nothing_is_saved(
-        client, monkeypatch, asked):
+        client, monkeypatch, running, asked):
     convo = await setup_conversation(client)
     await _answered(client, monkeypatch, convo["id"])
-    running = await turns.start(ChatRequest(conversation_id=convo["id"], mode="regenerate"))
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], **running))
     before = await messages_of(client, convo["id"])
 
     refused = await client.post("/api/chat", json={"conversation_id": convo["id"], **asked})
 
     assert refused.status_code == 409
     assert refused.json()["kind"] == "turn_running"
-    await _stopped_after_four_words(running)
+    await _stopped_after_four_words(turn)
     after = await messages_of(client, convo["id"])
-    assert [m["id"] for m in after] == [m["id"] for m in before], "something was saved of it"
-    assert len(after[-1]["variants"]) == 2, "it was acted on as well"
+    assert [m["id"] for m in after] == [m["id"] for m in before if m["id"] != turn.message_id] + [
+        turn.message_id], "something was saved of it"
+    assert after[-1]["content"] == "mot0 mot1 mot2 mot3", "it was acted on as well"
 
 
 async def test_a_stop_keeps_every_word_ends_the_request_at_once_and_the_next_message_goes(
@@ -291,11 +300,7 @@ async def test_a_stop_keeps_every_word_ends_the_request_at_once_and_the_next_mes
     convo = await setup_conversation(client)
     turn = await turns.start(_sending(convo["id"]))
 
-    async def four_words():
-        while turn.text.count("mot") < 4:
-            await asyncio.sleep(0.01)
-
-    await asyncio.wait_for(four_words(), timeout=10)
+    await _written(turn, 4)
     stopped = await client.delete(f"/api/conversations/{convo['id']}/turn")
 
     assert stopped.status_code == 204
