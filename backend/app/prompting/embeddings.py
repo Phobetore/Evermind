@@ -1,6 +1,5 @@
 """Local sentence embeddings for semantic memory. The model needs the ``semantic`` extra; numpy is
-a core dependency, so packing and comparing vectors always work. ``warmup`` and ``embed`` never
-raise: without the model, ``embed`` returns None and memory falls back to recency."""
+a core dependency, so packing and comparing vectors always work."""
 
 import asyncio
 import logging
