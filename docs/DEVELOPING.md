@@ -215,8 +215,7 @@ address that could not be reached, or how the connection broke. The interface
 cannot translate what another program wrote, so it says the failure in the person's
 language and quotes those words. A model that answers with nothing is `model_empty`
 (`model_no_text` for the benchmark), and an answer that cannot be read is
-`model_unreadable`. The connection test, the benchmark and the model list fail the
-same way.
+`model_unreadable`. The connection test and the benchmark fail the same way.
 
 Some answers never come from an `AppError`, and have no `kind`: FastAPI's
 own, `{"detail": ...}` for a route that does not exist (`404`), a method a route

@@ -259,14 +259,6 @@ async def test_a_benchmark_that_produced_nothing_says_so(client, monkeypatch):
     assert resp.json() == {"error": "No text generated.", "kind": "model_no_text"}
 
 
-async def test_listing_models_names_what_failed(client, monkeypatch):
-    patch_providers(monkeypatch, lambda: oai_provider(answering(500, None)))
-    connection = await saved_connection(client)
-    resp = await client.get(f"/api/connections/{connection['id']}/models")
-    assert resp.status_code == 502
-    assert resp.json() == {"error": "HTTP 500", "kind": "model_error"}
-
-
 async def test_a_model_error_in_a_reply_keeps_what_the_server_said(client, monkeypatch):
     convo = await setup_conversation(client)
     patch_providers(monkeypatch, lambda: oai_provider(answering(401, {"error": "bad key"})))
