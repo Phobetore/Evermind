@@ -9,7 +9,7 @@ import json
 import re
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
-_TRAILING_COMMA_RE = re.compile(r",\s*([}\]])")
+_CLOSER_RE = re.compile(r"\s*[}\]]")
 
 
 def parse_llm_json(text: str) -> dict | None:
@@ -54,11 +54,11 @@ def _try_decode(text: str) -> dict | None:
 
 
 def _repair(text: str) -> str:
-    """Escape literal control characters inside strings, drop trailing commas."""
+    """Escape literal control characters inside strings, drop trailing commas outside them."""
     out: list[str] = []
     in_string = False
     escaped = False
-    for ch in text:
+    for i, ch in enumerate(text):
         if in_string:
             if escaped:
                 escaped = False
@@ -77,8 +77,7 @@ def _repair(text: str) -> str:
                 out.append("\\t")
             else:
                 out.append(ch)
-        else:
-            if ch == '"':
-                in_string = True
+        elif ch != "," or not _CLOSER_RE.match(text, i + 1):
+            in_string = ch == '"'
             out.append(ch)
-    return _TRAILING_COMMA_RE.sub(r"\1", "".join(out))
+    return "".join(out)

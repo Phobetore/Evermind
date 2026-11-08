@@ -35,6 +35,11 @@ def test_trailing_commas():
     assert parse_llm_json(text) == {"name": "Kenji", "tags": ["a", "b"]}
 
 
+def test_a_repair_drops_a_trailing_comma_only_outside_a_string():
+    assert parse_llm_json('{"a": "x, }\n", }') == {"a": "x, }\n"}
+    assert parse_llm_json('{"a": ["y, ]\n",]}') == {"a": ["y, ]\n"]}
+
+
 def test_fence_with_newlines_and_trailing_comma():
     text = '```json\n{\n  "name": "Kenji",\n  "greeting": "Ligne 1\nLigne 2",\n}\n```'
     parsed = parse_llm_json(text)
