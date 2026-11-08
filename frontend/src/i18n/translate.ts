@@ -32,8 +32,7 @@ function interpolate(locale: Locale, str: string, vars?: Record<string, string |
   });
 }
 
-/** A key's sentence in a language, with its {words} filled in. A count takes the form its number
- *  takes in the language where the dictionary has one, under `<key>_one` and the like: "1 message". */
+/** A key's sentence with its {words} filled in, in the form its count takes where there is one: `<key>_one`. */
 export function translate(locale: Locale, key: string, vars?: Record<string, string | number>): string {
   const count = vars?.count;
   const form = typeof count === "number"

@@ -2,9 +2,7 @@ import { useT } from "@/i18n/useT";
 import { X } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 
-/** The browser's own modal dialog: the focus starts in it and stays there, the page behind is out
- *  of reach for the keyboard and a screen reader, and however it closes, the focus goes back to
- *  what opened it. */
+/** The browser's own modal dialog: it holds the focus, puts the page out of reach, and gives the focus back. */
 export function Modal({
   title,
   onClose,

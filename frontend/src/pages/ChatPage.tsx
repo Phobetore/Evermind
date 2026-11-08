@@ -107,9 +107,7 @@ function ChatView({ id }: { id: string }) {
   // does not undo it.
   const changesByHand = useRef(0);
 
-  /** A change made by hand, and whether the server took it. One whose answer was lost, or that
-   *  found its message gone, may have been made all the same: given `landed`, told the messages the
-   *  server holds, the conversation is read and shown, and nothing said unless that read fails too. */
+  /** Whether the server took a change; given `landed`, a lost answer or a message gone shows what it holds. */
   async function write(change: () => Promise<unknown>, landed?: (messages: Message[]) => void) {
     setWriteError(null);
     try {
