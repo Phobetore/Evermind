@@ -346,8 +346,9 @@ one: it renders as nothing at all rather than as an error.
 
 ## Docker
 
-There is one image, built from the **repository root** as context (it needs
-`frontend/`, `backend/` and `library/`). Only the root `.dockerignore` applies.
+There is one image, `ghcr.io/phobetore/evermind`, built from the **repository
+root** as context (it needs `frontend/`, `backend/` and `library/`). Only the root
+`.dockerignore` applies.
 A Node stage compiles the interface and only the finished files are copied into
 the Python image that runs, so neither Node nor the npm tree ships. The container
 serves the interface and the API on port 8000, and `docker-compose.yml` publishes
@@ -357,14 +358,6 @@ The image is configured through its environment (it starts with `--no-env-file`,
 and `.dockerignore` keeps every `.env*` file out of it), so
 `EVERMIND_GATE_PASSWORD` is read when the container starts and the password can
 be changed without rebuilding.
-
-It is published as `ghcr.io/phobetore/evermind`, and under that name only. The
-two images of 2.x, `evermind-backend` and `evermind-frontend`, are no longer
-updated, so a 2.x `docker-compose.yml` keeps running 2.1.6 until its owner
-switches to the new file. The new image must not take the old backend name: that
-file's interface container would call it as `backend:8000`, a host name it
-refuses without a password, and pass on the browser's `Origin`, which does not
-match that `Host`. [UPGRADING.md](UPGRADING.md) walks people through the move.
 
 ## Cutting a release
 
