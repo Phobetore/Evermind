@@ -25,7 +25,8 @@ def unpack(blob: bytes):
 
 
 async def warmup() -> bool:
-    """Load the model once, in a thread. The ONLY place a download can start.
+    """Load the model once, in a thread. The ONLY place a download can start: from the cache when
+    the model is there, which asks huggingface.co nothing, else from huggingface.co into the cache.
     Returns True if the model is ready. Safe to call repeatedly."""
     global _model, _load_attempted
     if _model is not None:
@@ -36,7 +37,10 @@ async def warmup() -> bool:
     try:
         def _load():
             from sentence_transformers import SentenceTransformer
-            return SentenceTransformer(MODEL_NAME)
+            try:
+                return SentenceTransformer(MODEL_NAME, local_files_only=True)
+            except OSError:  # not downloaded yet, or not all of it
+                return SentenceTransformer(MODEL_NAME)
         _model = await asyncio.to_thread(_load)
         logger.info("semantic memory enabled: loaded %s", MODEL_NAME)
         return True

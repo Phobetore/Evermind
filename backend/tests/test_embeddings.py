@@ -1,6 +1,63 @@
 """Embedding module: serialization + graceful-degradation contract."""
 
+import sys
+import types
+
 from app.prompting import embeddings
+
+
+class Hub:
+    """sentence-transformers as Evermind sees it, never the real one: what it was asked for, and
+    the cache, which holds the model once it has been downloaded."""
+
+    def __init__(self, cached=False, broken=False):
+        self.cached, self.broken, self.asked = cached, broken, []
+
+    def module(self):
+        hub = self
+
+        class SentenceTransformer:
+            def __init__(self, name, local_files_only=False):
+                hub.asked.append("cache" if local_files_only else "huggingface.co")
+                if hub.broken:
+                    raise RuntimeError("this torch does not run here")
+                if local_files_only and not hub.cached:
+                    raise OSError("couldn't find them in the cached files")
+                hub.cached = True
+
+        module = types.ModuleType("sentence_transformers")
+        module.SentenceTransformer = SentenceTransformer
+        return module
+
+
+async def start(monkeypatch, hub) -> bool:
+    """One start of Evermind, which loads the model once."""
+    monkeypatch.setitem(sys.modules, "sentence_transformers", hub.module())
+    monkeypatch.setattr(embeddings, "_model", None)
+    monkeypatch.setattr(embeddings, "_load_attempted", False)
+    return await embeddings.warmup()
+
+
+async def test_a_model_in_the_cache_loads_without_asking_huggingface(monkeypatch):
+    hub = Hub(cached=True)
+
+    assert await start(monkeypatch, hub)
+    assert hub.asked == ["cache"]
+
+
+async def test_the_model_is_downloaded_once_then_read_from_the_cache(monkeypatch):
+    hub = Hub()
+
+    assert await start(monkeypatch, hub)
+    assert await start(monkeypatch, hub)
+    assert hub.asked == ["cache", "huggingface.co", "cache"]
+
+
+async def test_a_model_that_fails_for_another_reason_is_not_downloaded(monkeypatch):
+    hub = Hub(cached=True, broken=True)
+
+    assert not await start(monkeypatch, hub)
+    assert hub.asked == ["cache"]
 
 
 def test_pack_unpack_round_trip():
