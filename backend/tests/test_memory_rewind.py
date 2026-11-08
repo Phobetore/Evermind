@@ -1388,8 +1388,8 @@ async def test_a_swipe_of_an_older_reply_while_a_pass_reads_later_turns_leaves_t
 
 
 @pytest.mark.parametrize("change", [
-    "edited", "greeting swiped", "an older reply swiped", "regenerated with nothing to show",
-    "a later reply regenerated"])
+    "edited", "greeting swiped", "an older reply swiped", "swiped under a message unanswered",
+    "regenerated with nothing to show", "a later reply regenerated"])
 async def test_the_memory_stays_when_no_reply_it_read_shows_other_words(
         client, fake_provider, change):
     """An edit is left out on purpose: a typo put right in an old turn would throw away every pass
@@ -1407,8 +1407,12 @@ async def test_the_memory_stays_when_no_reply_it_read_shows_other_words(
         await set_message(greeting["id"], "variants", [greeting["content"], "*She wakes.* Hello."])
         resp = await client.patch(f"/api/messages/{greeting['id']}", json={"active_index": 1})
         assert resp.status_code == 200, resp.text
-    elif change == "an older reply swiped":
-        await talk(client, convo_id, 1, first=5)  # 9 and 10, which no pass read
+    elif change in ("an older reply swiped", "swiped under a message unanswered"):
+        if change == "an older reply swiped":
+            await talk(client, convo_id, 1, first=5)  # 9 and 10, which no pass read
+        else:  # Regenerate and Continue no longer reach it either
+            Replies.text = ""
+            assert (await send(client, convo_id, content="I flee."))["kind"] == "model_empty"
         reply = await at_position(client, convo_id, 8)
         resp = await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0})
         assert resp.json()["content"] == "The guard surrenders."
