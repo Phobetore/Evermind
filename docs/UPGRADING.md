@@ -10,17 +10,23 @@ instead. Coming from further back, read every section from your version up.
 
 ## From 3.0.x to 3.1.0
 
-From 3.0.0 or 3.0.1, the steps for 3.0.2 below apply too: with Docker, download
-`docker-compose.yml` again; remove the quotes around values in `.env`; and from
-the source, Python must use SQLite 3.35 or newer.
+From 3.0.0 or 3.0.1, every step of
+[the 3.0.2 section](#from-300-or-301-to-302) below applies too.
 
-- **If you built the image yourself, for semantic memory, do not run the command
-  that Settings shows in 3.0.x.** It would replace your image with the published
-  one, which has no semantic memory. Bring the source up to date and run
-  `docker compose up -d --build` from it instead, as
-  [Updating](../INSTALL.md#updating) says; that also builds semantic memory back
-  into an image already replaced. From 3.1.0 on, Settings links to those steps
-  rather than showing the command.
+- **If you built the image yourself, for semantic memory, or run a downloaded
+  ZIP, do not run the command that Settings shows in 3.0.x.** It would replace a
+  built image with the published one, which has no semantic memory, and a ZIP's
+  folder has nothing for its `git pull` to update: on Windows, the old version
+  then starts again. Follow [Updating](../INSTALL.md#updating) instead; for an
+  image, that also builds semantic memory back into one already replaced. From
+  3.1.0 on, Settings links to those steps rather than showing a command.
+- **With semantic memory in Docker, the first start downloads its model once
+  more** (about 470 MB), into the data volume this time, under `huggingface`,
+  where every later container finds it.
+- **Reload Evermind on every device that had it open**, a phone above all. A page
+  left open from 3.0.x goes on running until then and misreads some of the new
+  answers: after a Regenerate that worked, it may say "The reply did not
+  arrive.", and its **Retry** makes yet another version.
 - **Every device signs in once more**, if you set a password: the sessions kept
   by 3.0.x end with the update. A device then stays signed in until it is signed
   out in **Settings** or the password changes. There is no 30-day limit any more:
@@ -56,17 +62,29 @@ the source, Python must use SQLite 3.35 or newer.
   connection; what the lists named stays the default. **Retry** on a message that
   did not go: it stays in the box, and **Send** sends it. The choice of greeting
   when a conversation starts: the arrows on the first message go through them.
+- **A conversation without a persona of its own keeps the one 3.0.x played it
+  as**: one begun before you made a persona, begun with **No persona**, or
+  played as a persona you deleted since. That is the persona ticked **Use by
+  default in new conversations**, or your oldest if none was, and the
+  conversation now shows it. Its first message may still say "User", or the name
+  of the persona you deleted.
 - **The memory follows the story back.** Removing messages takes it back to the
   last memory pass before them, and so does regenerating, continuing or swiping
   the last reply once the memory has read it; what you wrote, pinned or typed
   stays. A summary carried over from 3.0.x counts as one you typed: a cut keeps
-  it, partly stale, until a memory pass writes the next one. A story you cut back
-  under 3.0.x, behind what its memory had read, keeps its old summary and the
-  model's facts from the removed turns (clear them in the side panel if they no
-  longer fit); unless it has grown back that far since, its memory reads its last
-  40 turns again.
+  it, partly stale, until a memory pass writes the next one. After that, a cut
+  back past where its memory had read before the update goes back to that
+  summary when more than 40 turns are left; with fewer, the next pass reads them
+  all and writes it again. A story you cut back under 3.0.x, behind what its
+  memory had read, keeps its old summary and the model's facts from the removed
+  turns (clear them in the side panel if they no longer fit); unless it has grown
+  back that far since, its memory reads its last 40 turns again.
 - **When you edit a card, lorebook changes wait for Save**, like the rest of the
   form, and **Cancel** drops them.
+- **Lorebook entries match whatever the case, and follow the order the card lists
+  them in.** Case-sensitive keys and priorities are gone, so an entry whose key
+  is a common word, such as a sexton named Will, now also wakes on "will": check
+  the cards you imported.
 - **A long conversation shows its newest hundred messages.** **Show earlier
   messages** brings back a hundred more each time.
 - **The check for a newer release goes from your browser**, each time Settings
