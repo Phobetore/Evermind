@@ -1,14 +1,7 @@
 import { clsx } from "clsx";
-import { Flame, MessagesSquare, Settings, UserRound } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { useT } from "@/i18n/useT";
-
-const LINKS = [
-  { href: "/", key: "nav.discover", icon: Flame, exact: true },
-  { href: "/chat", key: "nav.conversations", icon: MessagesSquare },
-  { href: "/personas", key: "nav.personas", icon: UserRound },
-  { href: "/settings", key: "nav.settings", icon: Settings },
-];
+import { LINKS } from "./Sidebar";
 
 /** Thumb-reach navigation for small screens. Hidden inside a conversation:
     there the keyboard and the input own the bottom of the screen. */
