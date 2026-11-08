@@ -179,15 +179,12 @@ interface's page.
 
 Password or not, a request under `/api/` other than `GET` or `HEAD` whose
 `Origin` does not name the `Host` it arrived with answers `403` with
-`"kind": "cross_origin"`. The scheme is left out, so a reverse proxy that ends
-HTTPS works as long as it preserves `Host`. A request without `Origin`, from curl
-or a script, is let through.
-
-Without a password, anything under `/api/` whose `Host` is not an address or
-`localhost` answers `403` with `"kind": "unknown_host"`: a page whose own name was
-pointed at 127.0.0.1 (DNS rebinding) looks same-origin in every other header.
-With a password the name is not checked. The Vite dev server checks `Host` by its
-own default, which lets addresses and `localhost` through.
+`"kind": "cross_origin"`; one without `Origin`, from curl or a script, goes
+through. Without a password, a `Host` that is not an address or `localhost`
+answers `403` with `"kind": "unknown_host"`.
+[SECURITY.md](../SECURITY.md#requests-from-other-sites) says why. The Vite dev
+server checks `Host` by its own default, which lets addresses and `localhost`
+through.
 
 Responses are plain dicts shaped by the repositories; Pydantic is used for input
 validation only.
@@ -243,31 +240,16 @@ location /evermind/ {
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header X-Forwarded-Proto $scheme;
     # An address of its own, since a browser on this computer connects from
-    # 127.0.0.1. Only for a proxy_pass to this computer, as here.
+    # 127.0.0.1. Only for a proxy_pass to this computer, as here. macOS needs
+    # "sudo ifconfig lo0 alias 127.0.0.2" first, until it restarts.
     proxy_bind 127.0.0.2;
 }
 ```
 
-Evermind believes `X-Forwarded-For` and `X-Forwarded-Proto` only from the
-addresses listed in `FORWARDED_ALLOW_IPS`, in its `.env`: here `127.0.0.2`, which
-`proxy_bind` has this proxy connect from. Once it is set, the session cookie is
-`Secure` for a browser that came over https, and wrong passwords are counted for
-each device, or over IPv6 for each network, rather than for the proxy. Without
-it, both headers are ignored whoever sends them, so that no client can claim a
-new address for each guess.
-
-Whatever reaches Evermind from a listed address is believed as the proxy is. A
-browser on this computer connects from `127.0.0.1`: with that address named, a
-page open in it could claim a new address for each guess. A program running on
-this computer still can, from `127.0.0.2`. On Linux and Windows every address of
-`127.0.0.0/8` is this computer's own; macOS needs this one added first, with
-`sudo ifconfig lo0 alias 127.0.0.2`, which lasts until the Mac restarts.
-
-With Docker, a proxy outside the container reaches Evermind from the same address
-as every program and browser on that computer, Docker Desktop included. Leave
-`FORWARDED_ALLOW_IPS` empty there, unless the proxy runs in a container of its own
-on Evermind's network with a fixed address (`ipv4_address` in Compose): name that
-address, which starts each of its requests' lines in `docker compose logs`.
+Evermind's `.env` then names that address, `FORWARDED_ALLOW_IPS=127.0.0.2`, the
+only one it believes those two headers from.
+[SECURITY.md](../SECURITY.md#behind-a-reverse-proxy) says why, and what to name
+in other setups, Docker's among them.
 
 The prefix needs nothing more: the page, its files, every call and every image
 stay under it, because none of them is addressed from the root of the host:
