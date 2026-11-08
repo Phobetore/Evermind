@@ -36,9 +36,9 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
 ```
 
 CI also drives a real browser through the app (`cd frontend && npm run
-test:e2e`, which [docs/DEVELOPING.md](docs/DEVELOPING.md) explains), builds the
-Docker image on every pull request without publishing it, so a broken `COPY`
-fails there rather than at release time, and refuses a pull request that
+test:e2e`, which [docs/DEVELOPING.md](docs/DEVELOPING.md) explains), builds and
+starts the Docker image on every pull request without publishing it, so a broken
+`COPY` fails there rather than at release time, and refuses a pull request that
 introduces a dependency with a known high-severity vulnerability. Separately,
 CodeQL reads the source weekly and Trivy scans the published image for what its
 base layers picked up since.
@@ -95,8 +95,10 @@ they contradict what Evermind is for:
 - **Content filtering, moderation layers or refusal behaviour.** What a character
   will and will not say is decided by the person running Evermind and the model
   they chose. The application does not get a vote.
-- **Telemetry, analytics, crash reporting or any other call home.** What people
-  write here is nobody's business, including mine.
+- **Telemetry, analytics, crash reporting or anything else that reports on the
+  people using it.** What people write here is nobody's business, including
+  mine. The update check, on by default, only asks GitHub for the newest release
+  number, with nothing anyone wrote, and a checkbox in Settings turns it off.
 - **Hosted accounts, licence keys, or a paid tier.** Evermind runs on your
   machine and stays that way.
 - **Bundling a specific model or provider as a requirement.** Every provider is
