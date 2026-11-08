@@ -64,6 +64,7 @@
     "deletedCharacter": "Deleted character",
     "newConversationFallback": "New conversation",
     "messageCount": "{count} messages",
+    "messageCount_one": "{count} message",
     "renameLabel": "Rename",
     "confirmDelete": "Delete the conversation \"{title}\"?",
     "untitled": "Untitled"
@@ -140,7 +141,7 @@
       "projectLink": "The project on GitHub",
       "reportLink": "Report a problem",
       "updateAvailable": "Evermind {version} is out.",
-      "updateHint": "Stop Evermind, run this from the folder you installed it in, then start it again.",
+      "updateHint": "Stop Evermind, then run this from the folder you installed it in.",
       "zipHint": {
         "before": "Downloaded as a ZIP, this copy is updated by hand:",
         "link": "the steps are in INSTALL.md",
@@ -210,7 +211,8 @@
       "perSecond": "{tps} t/s"
     },
     "stream": {
-      "assistantTyping": "{name} is typing…"
+      "assistantTyping": "{name} is typing…",
+      "replied": "{name} replied."
     },
     "errors": {
       "connectionFailed": "Server connection error.",

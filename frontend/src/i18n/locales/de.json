@@ -64,6 +64,7 @@
     "deletedCharacter": "Gelöschter Charakter",
     "newConversationFallback": "Neue Unterhaltung",
     "messageCount": "{count} Nachrichten",
+    "messageCount_one": "{count} Nachricht",
     "renameLabel": "Umbenennen",
     "confirmDelete": "Unterhaltung „{title}“ löschen?",
     "untitled": "Ohne Titel"
@@ -110,7 +111,7 @@
     "historyLimitLabel": "Aktuelle Nachrichten an das Modell",
     "historyLimitHint": "Darüber hinaus leben ältere Züge nur noch in der Zusammenfassung und den etablierten Fakten weiter. Kleines Fenster (16–30): Das Modell bleibt auf die Anweisungen konzentriert, statt seine eigenen Antworten nachzuahmen. Großes Fenster: mehr ungefilterter Verlauf, aber kleine Modelle fangen an zu schwafeln.",
     "passageBudgetLabel": "Passagen-Erinnerung (Tokens)",
-    "passageBudgetHint": "Holt wörtliche Auszüge aus älteren Nachrichten hervor, die inhaltlich zur aktuellen Szene passen (erfordert das Extra „semantic“). ~1500 ≈ 10 % eines 16k-Kontexts. 0 zum Deaktivieren. Jedes Token für Erinnerungen fehlt dem aktuellen Verlauf.",
+    "passageBudgetHint": "Holt wörtliche Auszüge aus älteren Nachrichten hervor, die inhaltlich zur aktuellen Szene passen (erfordert das Extra „semantic“). ~1500 ≈ 10 % eines 16k-Kontexts. 0 zum Deaktivieren. Jedes Token für Erinnerungen fehlt dem aktuellen Verlauf.",
     "autoMemoryTitle": "Automatisches Gedächtnis",
     "autoMemoryHint": {
       "before": "Das Modell extrahiert automatisch",
@@ -140,7 +141,7 @@
       "projectLink": "Das Projekt auf GitHub",
       "reportLink": "Ein Problem melden",
       "updateAvailable": "Evermind {version} ist da.",
-      "updateHint": "Halte Evermind an, führe das hier in dem Ordner aus, in dem du es installiert hast, und starte es wieder.",
+      "updateHint": "Halte Evermind an und führe dann das hier in dem Ordner aus, in dem du es installiert hast.",
       "zipHint": {
         "before": "Als ZIP heruntergeladen, wird diese Kopie von Hand aktualisiert:",
         "link": "Die Schritte stehen in INSTALL.md",
@@ -173,7 +174,7 @@
     "testButton": "Verbindung testen",
     "benchmarkButton": "Geschwindigkeit messen",
     "benchmarkHint": "Eine kleine echte Generierung, um Latenz und Durchsatz zu messen",
-    "benchmarkResult": "{tokensPerSecond} T/s · erstes Token in {firstTokenSeconds}s",
+    "benchmarkResult": "{tokensPerSecond} T/s · erstes Token in {firstTokenSeconds}\u00a0s",
     "testFailed": "Test fehlgeschlagen",
     "modelsFound": "Verbunden. Gefundene Modelle: {count}",
     "benchmarkFailed": "Messung fehlgeschlagen",
@@ -183,7 +184,7 @@
     "maxTokensLabel": "Max. Antwort (Tokens)",
     "maxTokensHint": "Eine Obergrenze, kein Ziel: Der Stil wird unter Einstellungen → Antwortlänge festgelegt.",
     "temperatureLabel": "Temperatur",
-    "temperatureHint": "Niedriger = kohärenter. 0.8 ist eine gute Balance fürs Rollenspiel.",
+    "temperatureHint": "Niedriger = kohärenter. 0,8 ist eine gute Balance fürs Rollenspiel.",
     "topPLabel": "Top-p",
     "frequencyPenaltyLabel": "Frequenz-Strafe",
     "presencePenaltyLabel": "Präsenz-Strafe",
@@ -206,11 +207,12 @@
       "tooltipMessages": "{included}/{total} Nachrichten im Kontext",
       "tooltipOlderInMemory": "(ältere sind durch das Gedächtnis abgedeckt)",
       "tooltipLore": "{count} aktive Lorebook-Einträge",
-      "percent": "{pct} %",
+      "percent": "{pct}\u00a0%",
       "perSecond": "{tps} T/s"
     },
     "stream": {
-      "assistantTyping": "{name} schreibt…"
+      "assistantTyping": "{name} schreibt…",
+      "replied": "{name} hat geantwortet."
     },
     "errors": {
       "connectionFailed": "Fehler bei der Serververbindung.",
@@ -420,7 +422,7 @@
   },
   "cards": {
     "startChatModal": {
-      "title": "{name} beitreten",
+      "title": "Mit {name} spielen",
       "personaHint": "Verwalte deine Identitäten im Tab „Personas“.",
       "noPersonaOption": "Keine Persona",
       "noConnectionOption": "Keine Verbindung konfiguriert",
@@ -448,7 +450,7 @@
     "server": "Evermind hat mit einem Fehler geantwortet (HTTP {status}).",
     "unreachable": "Evermind antwortet nicht. Läuft es noch?",
     "offline": "Dieses Gerät ist offline.",
-    "notSent": "Diese Nachricht wurde nicht gesendet. Tippe auf Senden, um sie noch einmal zu schicken.",
+    "notSent": "Diese Nachricht wurde nicht gesendet. Drücke auf Senden, um sie noch einmal zu schicken.",
     "invalid": "Evermind konnte diese Anfrage nicht verarbeiten: Es fehlen Angaben, oder sie sind ungültig.",
     "locked": "Deine Sitzung ist beendet. Melde dich erneut an.",
     "wrongPassword": "Zugriff verweigert.",

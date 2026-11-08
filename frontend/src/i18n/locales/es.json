@@ -64,6 +64,7 @@
     "deletedCharacter": "Personaje eliminado",
     "newConversationFallback": "Nueva conversación",
     "messageCount": "{count} mensajes",
+    "messageCount_one": "{count} mensaje",
     "renameLabel": "Renombrar",
     "confirmDelete": "¿Eliminar la conversación «{title}»?",
     "untitled": "Sin título"
@@ -110,7 +111,7 @@
     "historyLimitLabel": "Mensajes recientes enviados al modelo",
     "historyLimitHint": "Más allá de eso, los turnos antiguos solo perviven en el resumen y en los hechos establecidos. Ventana corta (16–30): el modelo sigue atento a las instrucciones en vez de imitar sus propias respuestas. Ventana larga: más historial sin filtrar, pero los modelos pequeños empiezan a divagar.",
     "passageBudgetLabel": "Recuerdo de pasajes (tokens)",
-    "passageBudgetHint": "Recupera extractos literales de mensajes antiguos relacionados semánticamente con la escena actual (requiere el extra «semantic»). ~1500 ≈ 10 % de un contexto de 16k. Pon 0 para desactivarlo. Cada token de recuerdo es un token menos de historial reciente.",
+    "passageBudgetHint": "Recupera extractos literales de mensajes antiguos relacionados semánticamente con la escena actual (requiere el extra «semantic»). ~1500 ≈ 10 % de un contexto de 16k. Pon 0 para desactivarlo. Cada token de recuerdo es un token menos de historial reciente.",
     "autoMemoryTitle": "Memoria automática",
     "autoMemoryHint": {
       "before": "El modelo extrae automáticamente los",
@@ -139,8 +140,8 @@
       "starHint": "Si Evermind te resulta útil, una estrella en el repositorio es lo que hace que otras personas lo encuentren.",
       "projectLink": "El proyecto en GitHub",
       "reportLink": "Informar de un problema",
-      "updateAvailable": "Evermind {version} ya está.",
-      "updateHint": "Detén Evermind, ejecuta esto en la carpeta donde lo instalaste y vuelve a arrancarlo.",
+      "updateAvailable": "Evermind {version} ya está disponible.",
+      "updateHint": "Detén Evermind y luego ejecuta esto en la carpeta donde lo instalaste.",
       "zipHint": {
         "before": "Descargada como ZIP, esta copia se actualiza a mano:",
         "link": "los pasos están en INSTALL.md",
@@ -173,7 +174,7 @@
     "testButton": "Probar la conexión",
     "benchmarkButton": "Medir la velocidad",
     "benchmarkHint": "Una pequeña generación real para medir latencia y rendimiento",
-    "benchmarkResult": "{tokensPerSecond} t/s · primer token en {firstTokenSeconds}s",
+    "benchmarkResult": "{tokensPerSecond} t/s · primer token en {firstTokenSeconds}\u00a0s",
     "testFailed": "La prueba ha fallado",
     "modelsFound": "Conectado. Modelos encontrados: {count}",
     "benchmarkFailed": "La medición ha fallado",
@@ -183,7 +184,7 @@
     "maxTokensLabel": "Respuesta máx. (tokens)",
     "maxTokensHint": "Un techo, no un objetivo: el estilo se define en Ajustes → Longitud de las respuestas.",
     "temperatureLabel": "Temperatura",
-    "temperatureHint": "Más baja = más coherente. 0.8 es un buen equilibrio para el rol.",
+    "temperatureHint": "Más baja = más coherente. 0,8 es un buen equilibrio para el rol.",
     "topPLabel": "Top-p",
     "frequencyPenaltyLabel": "Penalización de frecuencia",
     "presencePenaltyLabel": "Penalización de presencia",
@@ -206,11 +207,12 @@
       "tooltipMessages": "{included}/{total} mensajes en el contexto",
       "tooltipOlderInMemory": "(los más antiguos están cubiertos por la memoria)",
       "tooltipLore": "{count} entradas de lorebook activas",
-      "percent": "{pct} %",
+      "percent": "{pct}\u00a0%",
       "perSecond": "{tps} t/s"
     },
     "stream": {
-      "assistantTyping": "{name} está escribiendo…"
+      "assistantTyping": "{name} está escribiendo…",
+      "replied": "{name} ha respondido."
     },
     "errors": {
       "connectionFailed": "Error de conexión con el servidor.",

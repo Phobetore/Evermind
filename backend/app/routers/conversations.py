@@ -1,9 +1,12 @@
+import asyncio
+from collections.abc import Awaitable, Callable
+
 import aiosqlite
 from fastapi import APIRouter, Depends, UploadFile
 
 from ..db import get_db
 from ..errors import AppError, NotFoundError
-from ..models.schemas import ConversationIn, ConversationPatch, MessagePatch
+from ..models.schemas import BranchIn, ConversationIn, ConversationPatch, MessagePatch
 from ..prompting.macros import substitute
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
@@ -12,6 +15,30 @@ from ..repositories import personas as personas_repo
 from ..services import media, memory_service, turns
 
 router = APIRouter(prefix="/api", tags=["conversations"])
+
+# A start or a branch asked for again under its id is the one made, while the server runs.
+_made: dict[str, str] = {}
+_making: dict[str, asyncio.Event] = {}
+
+
+async def _once(db: aiosqlite.Connection, client_id: str | None,
+                make: Callable[[], Awaitable[dict | None]]) -> dict | None:
+    if client_id is None:
+        return await make()
+    while client_id in _making:
+        await _making[client_id].wait()
+    if client_id in _made and (made := await repo.get(db, _made[client_id])):
+        return made
+    _making[client_id] = asyncio.Event()
+    try:
+        made = await make()
+        if made:
+            _made[client_id] = made["id"]
+            while len(_made) > 100:
+                del _made[next(iter(_made))]
+        return made
+    finally:
+        _making.pop(client_id).set()
 
 
 @router.get("/conversations")
@@ -23,6 +50,10 @@ async def list_conversations(character_id: str | None = None,
 @router.post("/conversations", status_code=201)
 async def create_conversation(payload: ConversationIn,
                               db: aiosqlite.Connection = Depends(get_db)):
+    return await _once(db, payload.client_id, lambda: _create_conversation(db, payload))
+
+
+async def _create_conversation(db: aiosqlite.Connection, payload: ConversationIn) -> dict | None:
     character = await characters_repo.get(db, payload.character_id)
     if not character:
         raise NotFoundError("Character not found.", "character")
@@ -49,14 +80,16 @@ async def create_conversation(payload: ConversationIn,
 
 
 @router.get("/conversations/{convo_id}")
-async def get_conversation(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def get_conversation(convo_id: str, messages: bool = True,
+                           db: aiosqlite.Connection = Depends(get_db)):
     # One snapshot: the revision it carries is that of the messages it holds.
     await db.execute("BEGIN")
-    convo = await repo.get(db, convo_id)
+    convo = await repo.get(db, convo_id, with_messages=messages)
     await db.commit()
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
-    return {**convo, "memory_error": memory_service.failure_of(convo_id)}
+    return {**convo, "memory_error": memory_service.failure_of(convo_id),
+            "memory_running": memory_service.is_running(convo_id)}
 
 
 @router.patch("/conversations/{convo_id}")
@@ -100,23 +133,25 @@ async def patch_message(message_id: str, payload: MessagePatch,
     message = await repo.get_message(db, message_id)
     if not message:
         raise NotFoundError("Message not found.", "message")
+    # The version shown, and the one an edit names: the page's, which a lost swipe can leave behind.
+    index = message["active_index"] if payload.active_index is None else payload.active_index
+    if index >= len(message["variants"]):
+        raise AppError("Variant index out of range.", kind="variant_out_of_range")
     variants = None
-    active_index = None
     if payload.content is not None:
         variants = list(message["variants"])
-        variants[message["active_index"]] = payload.content
-    if payload.active_index is not None:
-        if payload.active_index >= len(message["variants"]):
-            raise AppError("Variant index out of range.", kind="variant_out_of_range")
-        active_index = payload.active_index
+        variants[index] = payload.content
     # A swipe shows other words; not an edit, where a typo put right would undo every pass since.
-    return await repo.update_message(db, message_id, variants=variants, active_index=active_index,
-                                     reread=active_index not in (None, message["active_index"]))
+    return await repo.update_message(db, message_id, variants=variants,
+                                     active_index=payload.active_index,
+                                     reread=index != message["active_index"])
 
 
 @router.post("/messages/{message_id}/branch", status_code=201)
-async def branch_conversation(message_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    branch = await repo.branch_from_message(db, message_id)
+async def branch_conversation(message_id: str, payload: BranchIn | None = None,
+                              db: aiosqlite.Connection = Depends(get_db)):
+    branch = await _once(db, payload and payload.client_id,
+                         lambda: repo.branch_from_message(db, message_id))
     if not branch:
         raise NotFoundError("Message not found.", "message")
     return branch

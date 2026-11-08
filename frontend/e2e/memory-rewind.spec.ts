@@ -2,7 +2,7 @@ import { expect, test, type Request } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
-import { chat, makeConversation } from "./fixtures";
+import { chat, makeConversation, readOf } from "./fixtures";
 
 /**
  * Taking the story back from a message takes what was remembered of it back too: the facts
@@ -91,14 +91,14 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
 
   // Reopened on a phone, the panel's own read never lands: the cut must be on the page already.
   let reopened = false;
-  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+  await page.route(readOf(convo.id), async (route) => {
     if (!reopened || route.request().method() !== "GET") await route.continue();
   });
   // greeting, then two questions and their replies: the second question is the fourth message.
   if (covers) await panel.getByLabel(panelText.closeAriaLabel).click();
   // Read again after the cut by the panel beside the story, or by the page while the panel is closed.
   const cut = page.waitForResponse((r) => r.request().method() === "GET"
-    && r.url().endsWith(`/api/conversations/${convo.id}`));
+    && readOf(convo.id)(r.url()));
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByTitle("Delete from here").nth(3).click();
   await cut;
@@ -142,7 +142,7 @@ test("the page's read of a cut, landing once a summary is saved in the panel, do
   let release = () => {};
   const released = new Promise<void>((resolve) => { release = resolve; });
   let reads = 0;
-  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+  await page.route(readOf(convo.id), async (route) => {
     if (route.request().method() !== "GET" || ++reads > 1) return route.continue();
     const old = await route.fetch();
     fetched();
@@ -369,7 +369,7 @@ test("a reply asked for again with the panel closed reads the story once at its 
   });
   const reads: string[] = [];
   page.on("request", (r) => {
-    if (ended && r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`)) reads.push(r.url());
+    if (ended && r.method() === "GET" && readOf(convo.id)(r.url())) reads.push(r.url());
   });
   const reply = page.locator("[data-message-id]").last();
   await reply.getByTitle(en.chat.message.regenerateTitle).click();
@@ -378,7 +378,7 @@ test("a reply asked for again with the panel closed reads the story once at its 
   expect(reads, "the story read again once the read that ended the reply was shown").toHaveLength(1);
 
   // The panel's own read never lands: the summary must be on the page already.
-  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+  await page.route(readOf(convo.id), async (route) => {
     if (route.request().method() !== "GET") await route.continue();
   });
   await opener.click();
@@ -413,12 +413,12 @@ test("a swipe answered once the panel is closed brings it the summary the memory
     await route.continue();
   });
   let reopened = false;
-  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+  await page.route(readOf(convo.id), async (route) => {
     if (!reopened || route.request().method() !== "GET") await route.continue();
   });
   const reads: string[] = [];
   page.on("requestfinished", (r) => {
-    if (r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`)) reads.push(r.url());
+    if (r.method() === "GET" && readOf(convo.id)(r.url())) reads.push(r.url());
   });
   const reply = page.locator("[data-message-id]").last();
   await reply.hover();
@@ -455,7 +455,7 @@ test("a read sent with the directive's save does not put the old directive back"
   const answered = new Promise<void>((resolve) => { readAnswered = resolve; });
   let saveShown = () => {};
   const shown = new Promise<void>((resolve) => { saveShown = resolve; });
-  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+  await page.route(readOf(convo.id), async (route) => {
     if (route.request().method() === "PATCH") {
       await answered;
       await route.continue();
@@ -498,7 +498,7 @@ test("an older read, given up once a newer one is sent, does not put back the su
   let release = () => {};
   const released = new Promise<void>((resolve) => { release = resolve; });
   let reads = 0;
-  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+  await page.route(readOf(convo.id), async (route) => {
     if (route.request().method() !== "GET" || ++reads > 1) return route.continue();
     const old = await route.fetch();
     fetched();
@@ -509,7 +509,7 @@ test("an older read, given up once a newer one is sent, does not put back the su
   await answered;
   await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
   const givenUp = page.waitForEvent("requestfailed", {
-    predicate: (r) => r.url().endsWith(`/api/conversations/${convo.id}`),
+    predicate: (r) => readOf(convo.id)(r.url()),
   });
   await summary.click();
   await expect(summary).toHaveValue(/woke the character in a crypt/);
@@ -521,11 +521,11 @@ test("an older read, given up once a newer one is sent, does not put back the su
   await expect(summary).toHaveValue(brought);
 });
 
-// A read is the whole story, and a wake fires two events.
+// A wake fires two events.
 test("a phone waking reads the conversation once, and only for the panel it shows", async ({ page, request, isMobile }) => {
   test.skip(!isMobile, "a wide screen's panel is open from the start");
   const convo = await makeConversation(request);
-  const isRead = (r: Request) => r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`);
+  const isRead = (r: Request) => r.method() === "GET" && readOf(convo.id)(r.url());
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
   await page.goto(`/#/chat/${convo.id}`);
   await expect(page.locator("textarea").first()).toBeVisible();
@@ -557,7 +557,7 @@ test("a Remember that works takes away the error of a pass that failed before it
   const convo = await makeConversation(request);
   // How the conversation reports the failed pass, until one works.
   let failing = true;
-  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+  await page.route(readOf(convo.id), async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
       return;

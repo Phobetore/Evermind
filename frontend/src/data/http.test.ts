@@ -73,8 +73,10 @@ describe("what is sent", () => {
   test("the turn's state and the conversation are asked past any cache, where a request left hanging would hold them", async () => {
     await data.turns.state("v1");
     await data.conversations.get("v1");
+    await data.conversations.withoutMessages("v1");
     expect(calls.map((c) => [c.url, c.init.cache])).toEqual([
       ["api/conversations/v1/turn", "no-store"], ["api/conversations/v1", "no-store"],
+      ["api/conversations/v1?messages=false", "no-store"],
     ]);
   });
 

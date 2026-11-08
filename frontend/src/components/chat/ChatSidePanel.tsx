@@ -1,14 +1,15 @@
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
-import { data } from "@/data";
+import { data, DataError } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
-import { describeError, describeFailure } from "@/lib/errors";
+import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
+import { PATIENCE_MS } from "@/lib/useTurn";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type SetStateAction } from "react";
 import { Link } from "react-router";
 
 type Where = "connection" | "directive" | "summary" | "memory";
@@ -17,6 +18,7 @@ export function ChatSidePanel({
   conversation,
   persona,
   storyCuts = 0,
+  takeFocus = false,
   onClose,
   onConversationChange,
   onAdjustWallpaper,
@@ -25,6 +27,8 @@ export function ChatSidePanel({
   persona: Persona | null;
   /** Changes when the server takes the memory back, with a cut or a reply written over. */
   storyCuts?: number;
+  /** Opened by hand: the focus starts on its close button. */
+  takeFocus?: boolean;
   onClose: () => void;
   onConversationChange: (patch: Partial<Conversation>) => void;
   onAdjustWallpaper: () => void;
@@ -55,9 +59,14 @@ export function ChatSidePanel({
   const [memorizing, setMemorizing] = useState(false);
   const [memoryNote, setMemoryNote] = useState<string | null>(null);
   const [consolidating, setConsolidating] = useState(false);
+  // A Remember or a Condense that got no answer, or met a pass under way, and what was said of it.
+  const [unsettled, setUnsettled] = useState<{ line: string; unanswered: boolean } | null>(null);
   const summary = summaryDraft?.text ?? conversation.summary;
   const directive = directiveDraft ?? conversation.author_note ?? "";
   const wallpaperInput = useRef<HTMLInputElement>(null);
+  // The boxes are named by their titles: their placeholders are examples, not names.
+  const directiveTitle = useId();
+  const summaryTitle = useId();
   const [wallpaperBusy, setWallpaperBusy] = useState(false);
   const [wallpaperError, setWallpaperError] = useState<string | null>(null);
 
@@ -110,14 +119,15 @@ export function ChatSidePanel({
     for (const key of Object.keys(patch)) written.current[key as keyof Conversation] = reads.current;
     onConversationChange(patch);
   }
+  /** Its answer, or null if none came. */
   const read = useCallback(() => {
     const sent = ++reads.current;
     reading.current?.abort();
     reading.current = new AbortController();
-    data.conversations
-      .get(conversation.id, { signal: reading.current.signal })
+    return data.conversations
+      .withoutMessages(conversation.id, { signal: reading.current.signal, within: PATIENCE_MS })
       .then((answer) => {
-        if (sent !== reads.current) return; // a later read knows more
+        if (sent !== reads.current) return answer; // a later read knows more
         const shown = latest.current.conversation;
         const patch: Partial<Conversation> = {};
         for (const key of ["summary", "author_note", "memory_error"] as const) {
@@ -127,8 +137,9 @@ export function ChatSidePanel({
         }
         // A patch re-renders the whole story, so it is made only for a change.
         if (Object.keys(patch).length) latest.current.onConversationChange(patch);
+        return answer;
       })
-      .catch(() => {});
+      .catch(() => null);
   }, [conversation.id]);
   useEffect(() => {
     // A phone waking fires both events, and they make one read.
@@ -136,18 +147,47 @@ export function ChatSidePanel({
     const wake = () => {
       if (document.visibilityState !== "visible") return;
       clearTimeout(waking);
-      waking = setTimeout(read, 100);
+      waking = setTimeout(() => {
+        read();
+        readFacts();
+      }, 100);
     };
     read();
     window.addEventListener("focus", wake);
+    window.addEventListener("online", wake);
     document.addEventListener("visibilitychange", wake);
     return () => {
       clearTimeout(waking);
       reading.current?.abort();
       window.removeEventListener("focus", wake);
+      window.removeEventListener("online", wake);
       document.removeEventListener("visibilitychange", wake);
     };
-  }, [read, storyCuts]);
+  }, [read, readFacts, storyCuts]);
+
+  // Read until the server answers and runs no pass: what it holds then is shown, and what was said goes.
+  useEffect(() => {
+    if (!unsettled) return;
+    let next: ReturnType<typeof setTimeout> | undefined;
+    let gone = false;
+    const unsay = () =>
+      setErrors((said) => (said.memory === unsettled.line ? { ...said, memory: undefined } : said));
+    const look = async () => {
+      const answer = await read();
+      if (gone) return;
+      if (answer && unsettled.unanswered) unsay();
+      if (answer && !answer.memory_running) {
+        unsay();
+        readFacts();
+        setUnsettled(null);
+      } else next = setTimeout(look, 2000);
+    };
+    void look();
+    return () => {
+      gone = true;
+      clearTimeout(next);
+    };
+  }, [unsettled, read, readFacts]);
 
   // A pass of its own that failed is told here until one succeeds.
   const failed = conversation.memory_error;
@@ -176,6 +216,7 @@ export function ChatSidePanel({
   async function memorizeNow() {
     setMemorizing(true);
     setMemoryNote(null);
+    setUnsettled(null);
     fail("memory", null);
     try {
       const result = await data.memories.extract(conversation.id);
@@ -186,7 +227,7 @@ export function ChatSidePanel({
       setMemoryNote(describeExtraction(result, t, conversation.summary));
       setTimeout(() => setMemoryNote(null), 4000);
     } catch (e) {
-      failedMemory(e, t("chat.panel.facts.extractError"));
+      failedMemory(e, t("chat.panel.facts.extractError"), true);
     }
     setMemorizing(false);
   }
@@ -194,6 +235,7 @@ export function ChatSidePanel({
   async function consolidateMemory() {
     setConsolidating(true);
     setMemoryNote(null);
+    setUnsettled(null);
     fail("memory", null);
     try {
       const result = await data.memories.consolidate(conversation.id);
@@ -201,7 +243,7 @@ export function ChatSidePanel({
       setMemoryNote(describeConsolidation(result, t));
       setTimeout(() => setMemoryNote(null), 5000);
     } catch (e) {
-      failedMemory(e, t("chat.panel.facts.consolidateError"));
+      failedMemory(e, t("chat.panel.facts.consolidateError"), true);
     }
     setConsolidating(false);
   }
@@ -221,9 +263,15 @@ export function ChatSidePanel({
   }
 
   // A pass, a merge or a cut in the story may have changed the facts meanwhile.
-  function failedMemory(error: unknown, fallback?: string) {
-    fail("memory", describeError(error, t, fallback));
+  function failedMemory(error: unknown, fallback?: string, aPass = false) {
+    const line = describeError(error, t, fallback);
+    fail("memory", line);
     readFacts();
+    // One that got no answer, or met another, may change the memory yet.
+    const unanswered = isUnanswered(error);
+    if (aPass && (unanswered || (error instanceof DataError && error.kind === "memory_busy"))) {
+      setUnsettled({ line, unanswered });
+    }
   }
 
   async function togglePin(memory: Memory) {
@@ -276,6 +324,8 @@ export function ChatSidePanel({
       // Opaque over the conversation on a phone, where blur is unreliable; a column beside it from md.
       className="fixed inset-0 z-40 flex flex-col gap-5 overflow-y-auto border-ink-700 bg-ink-900 p-5 animate-rise md:static md:w-80 md:shrink-0 md:border-l md:bg-ink-900/70 md:animate-fade"
       style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
+      // Not from a box being typed in, whose words would go with the panel.
+      onKeyDown={(e) => e.key === "Escape" && !(e.target as Element).matches("input, textarea") && onClose()}
     >
       <div className="flex items-start justify-between gap-2">
         {/* min-w-0 down the chain, and the name allowed to break anywhere: a name
@@ -295,6 +345,7 @@ export function ChatSidePanel({
         </Link>
         <button
           onClick={onClose}
+          autoFocus={takeFocus}
           className="touch-target shrink-0 rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment"
           aria-label={t("chat.panel.closeAriaLabel")}
         >
@@ -434,7 +485,7 @@ export function ChatSidePanel({
       <div>
         <div className="mb-1.5 flex items-center gap-2">
           <Megaphone className="h-3.5 w-3.5 text-ember-400" />
-          <span className="ui-label">{t("chat.panel.directive.title")}</span>
+          <span id={directiveTitle} className="ui-label">{t("chat.panel.directive.title")}</span>
         </div>
         <p className="mb-2 text-xs leading-relaxed text-mist-dim">
           {t("chat.panel.directive.description")}
@@ -444,6 +495,7 @@ export function ChatSidePanel({
           value={directive}
           onChange={(e) => setDirectiveDraft(e.target.value)}
           onBlur={saveDirective}
+          aria-labelledby={directiveTitle}
           placeholder={t("chat.panel.directive.placeholder")}
         />
         {directive.trim() !== (conversation.author_note ?? "") && (
@@ -455,7 +507,7 @@ export function ChatSidePanel({
       </div>
 
       <div>
-        <span className="ui-label mb-1.5 block">{t("chat.panel.summary.title")}</span>
+        <span id={summaryTitle} className="ui-label mb-1.5 block">{t("chat.panel.summary.title")}</span>
         <textarea
           className="field min-h-32 text-sm"
           value={summary}
@@ -464,6 +516,7 @@ export function ChatSidePanel({
             setSummaryDraft((draft) => ({ text, over: draft?.over ?? conversation.summary }));
           }}
           onFocus={() => summaryDraft === null && read()}
+          aria-labelledby={summaryTitle}
           placeholder={t("chat.panel.summary.placeholder")}
         />
         {summary !== conversation.summary && (

@@ -34,7 +34,7 @@ export function PersonasPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
-      <header className="mb-8 flex items-center justify-between animate-rise">
+      <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
         <div>
           <h1 className="font-display text-3xl font-semibold">{t("nav.personas")}</h1>
           <p className="mt-1 text-mist">{t("personas.subtitle")}</p>
@@ -53,7 +53,7 @@ export function PersonasPage() {
           {t("personas.emptyState.body")}
         </EmptyState>
       ) : (
-        <div className="stagger grid gap-4 sm:grid-cols-2">
+        <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2">
           {personas.map((p) => (
             <button
               key={p.id}
@@ -63,8 +63,8 @@ export function PersonasPage() {
               <Avatar name={p.name} src={p.avatar_url} className="h-14 w-14 shrink-0 text-xl" />
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-display text-lg font-semibold">{p.name}</h2>
-                  {p.is_default && <Tag tone="ember">{t("personas.defaultTag")}</Tag>}
+                  <h2 className="min-w-0 break-words font-display text-lg font-semibold">{p.name}</h2>
+                  {p.is_default && <Tag tone="ember" className="shrink-0 whitespace-nowrap">{t("personas.defaultTag")}</Tag>}
                 </div>
                 <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-mist">
                   {p.description || t("personas.noDescription")}

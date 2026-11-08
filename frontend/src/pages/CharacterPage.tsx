@@ -76,7 +76,7 @@ function CharacterDetail({ id }: { id: string }) {
           <Tag tone={isScenario ? "arcane" : "ember"}>
             {isScenario ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}
           </Tag>
-          <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight">
+          <h1 className="mt-2 break-words font-display text-4xl font-semibold tracking-tight">
             {character.name}
           </h1>
           {character.tagline && (

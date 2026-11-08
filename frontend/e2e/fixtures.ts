@@ -87,6 +87,10 @@ export async function conversation(request: APIRequestContext, id: string) {
   return (await request.get(`${API}/api/conversations/${id}`)).json();
 }
 
+/** Whether an address reads the conversation, with its messages or without, as the side panel does. */
+export const readOf = (id: string) => (url: string | URL) =>
+  new URL(url).pathname.endsWith(`/api/conversations/${id}`);
+
 /** The server's own account of whether a reply is being written. */
 export async function turnRunning(request: APIRequestContext, id: string): Promise<boolean> {
   return (await (await request.get(`${API}/api/conversations/${id}/turn`)).json()).running;

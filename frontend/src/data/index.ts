@@ -64,6 +64,9 @@ export const data = {
         "api/conversations" + (query?.character_id ? `?character_id=${seg(query.character_id)}` : ""),
       ),
     get: (id: string, asking?: Asking) => fresh<Conversation>(`api/conversations/${seg(id)}`, asking),
+    /** All but the messages, which make a long story megabytes, for a read of what goes with them. */
+    withoutMessages: (id: string, asking?: Asking) =>
+      fresh<Conversation>(`api/conversations/${seg(id)}?messages=false`, asking),
     create: (input: ConversationInput) => post<Conversation>("api/conversations", input),
     update: (id: string, changes: ConversationPatch) =>
       patch<Conversation>(`api/conversations/${seg(id)}`, changes),
@@ -74,9 +77,12 @@ export const data = {
   },
 
   messages: {
+    /** With `content`, `active_index` names the version the words go into, which is then shown. */
     update: (id: string, changes: { content?: string; active_index?: number }) =>
       patch<Message>(`api/messages/${seg(id)}`, changes),
-    branch: (id: string) => post<Conversation>(`api/messages/${seg(id)}/branch`),
+    /** Asked for again under the same `clientId`, it is the branch made the first time. */
+    branch: (id: string, clientId?: string) =>
+      post<Conversation>(`api/messages/${seg(id)}/branch`, { client_id: clientId }),
     /** The message and everything after it. */
     removeFrom: (id: string) => del(`api/messages/${seg(id)}`),
   },

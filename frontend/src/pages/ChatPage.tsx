@@ -7,8 +7,9 @@ import { Avatar } from "@/components/ui/Avatar";
 import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
 import { beginSending, type MessageMode } from "@/lib/drafts";
-import { describeError, describeFailure } from "@/lib/errors";
-import { useTurn, type LiveText } from "@/lib/useTurn";
+import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
+import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
+import { newId, nothingFocused } from "@/lib/utils";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -18,6 +19,8 @@ import { Link, useNavigate, useParams } from "react-router";
 const DRAWN = 100;
 /** Tailwind's `md`, from which the side panel sits beside the conversation rather than over it. */
 const WIDE = "(min-width: 48rem)";
+/** From which it opens there by default: narrower, beside the sidebar, it leaves the story a sliver. */
+const ROOMY = "(min-width: 64rem)";
 
 /** Keyed by the id, so that a branch starts from its own messages, not from those it was cut from. */
 export function ChatPage() {
@@ -61,22 +64,42 @@ function ChatView({ id }: { id: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [persona, setPersona] = useState<Persona | null>(null);
   // Over the conversation on a phone, so open there only once asked for, and closed if the screen narrows.
-  const [panelOpen, setPanelOpen] = useState(() => window.matchMedia(WIDE).matches);
+  const [wide, setWide] = useState(() => window.matchMedia(WIDE).matches);
+  const [panelOpen, setPanelOpen] = useState(() => window.matchMedia(ROOMY).matches);
+  // Opened or closed by hand, the panel takes the focus, and gives it back to what opens it.
+  const [panelByHand, setPanelByHand] = useState(false);
   useEffect(() => {
-    const wide = window.matchMedia(WIDE);
-    const narrowed = () => {
-      if (!wide.matches) setPanelOpen(false);
+    const query = window.matchMedia(WIDE);
+    const changed = () => {
+      setWide(query.matches);
+      if (query.matches) return;
+      setPanelOpen(false);
+      setPanelByHand(false); // not by hand: the focus stays where it is, in a sentence being typed say
     };
-    wide.addEventListener("change", narrowed);
-    return () => wide.removeEventListener("change", narrowed);
+    query.addEventListener("change", changed);
+    return () => query.removeEventListener("change", changed);
   }, []);
+  function showPanel(open: boolean) {
+    setPanelByHand(true);
+    setPanelOpen(open);
+  }
   // The backdrop's strength is set under the conversation, where it can be judged.
   const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
+  // What the strength was asked for from, which Done gives the focus back to while it is there.
+  const adjustedFrom = useRef<Element | null>(null);
+  const panelButton = useRef<HTMLButtonElement>(null);
   const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
   const opacityHeld = useRef<number | undefined>(undefined); // what the server holds
   // Counts the times the server took the memory back, for the side panel to read it again.
   const [storyCuts, setStoryCuts] = useState(0);
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
+  // Renamed or not, the keyboard is left on the title rather than on the page.
+  const titleButton = useRef<HTMLButtonElement>(null);
+  const renaming = useRef(false);
+  useEffect(() => {
+    if (renaming.current && titleDraft === null && nothingFocused()) titleButton.current?.focus();
+    renaming.current = titleDraft !== null;
+  }, [titleDraft]);
   // Until the next thing is asked for. Not the reply's banner: its Retry asks for a reply.
   const [writeError, setWriteError] = useState<{ error: unknown } | null>(null);
   const [drawn, setDrawn] = useState(DRAWN);
@@ -84,13 +107,24 @@ function ChatView({ id }: { id: string }) {
   // does not undo it.
   const changesByHand = useRef(0);
 
-  /** A change made by hand, and whether the server took it. */
-  async function write(change: () => Promise<unknown>) {
+  /** Whether the server took a change; given `landed`, a lost answer or a message gone shows what it holds. */
+  async function write(change: () => Promise<unknown>, landed?: (messages: Message[]) => void) {
     setWriteError(null);
     try {
       await change();
       return true;
     } catch (error) {
+      if (landed && (isUnanswered(error) || (error instanceof DataError && error.kind === "not_found"))) {
+        changesByHand.current += 1; // a read sent before this one does not undo it
+        const now = await read({ within: PATIENCE_MS }).then(
+          ({ conversation, show }) => (show() ? conversation.messages ?? [] : null),
+          () => null,
+        );
+        if (now) {
+          landed(now);
+          return false;
+        }
+      }
       setWriteError({ error });
       return false;
     }
@@ -165,6 +199,23 @@ function ChatView({ id }: { id: string }) {
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
 
+  // A screen reader hears nothing of the words arriving: it is told a reply is being written, then that it is in.
+  const [heard, setHeard] = useState<{ writing: string | null; said: "" | "typing" | "replied" }>({ writing, said: "" });
+  if (heard.writing !== writing) {
+    setHeard({ writing, said: writing !== null ? "typing" : heard.said && !outcome ? "replied" : "" });
+  }
+
+  // The focus a reply's button lost goes to Stop, then to the reply, leaving the story where it is read.
+  const stopButton = useRef<HTMLButtonElement>(null);
+  const replyButton = useRef<HTMLButtonElement>(null);
+  const keepFocus = useRef(false);
+  useEffect(() => {
+    if (keepFocus.current && nothingFocused()) {
+      (busy ? stopButton : replyButton).current?.focus({ preventScroll: true });
+    }
+    if (!busy) keepFocus.current = false;
+  }, [busy]);
+
   // A closed panel reads nothing, and no read follows a cut or a swipe: the summary is read here then.
   const summaryRead = useRef<AbortController | null>(null);
   useEffect(() => () => summaryRead.current?.abort(), []);
@@ -175,7 +226,7 @@ function ChatView({ id }: { id: string }) {
     summaryRead.current?.abort();
     const reading = (summaryRead.current = new AbortController());
     const takeSummary = summaryTaker();
-    data.conversations.get(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
+    data.conversations.withoutMessages(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
   }, [id, summaryTaker]);
 
   // A reply asked for again or carried on takes back a memory that read it: an open panel reads it at the turn's end.
@@ -218,6 +269,7 @@ function ChatView({ id }: { id: string }) {
 
   /** Settles at the server's answer or at patience's end; either way the page then finds out how things stand. */
   function ask(request: Omit<TurnRequest, "conversation_id">) {
+    keepFocus.current = true;
     setWriteError(null);
     stickToBottom.current = true;
     if (request.mode !== "send") rewriting.current = true;
@@ -245,12 +297,16 @@ function ChatView({ id }: { id: string }) {
     const updated = await data.messages.update(message.id, { active_index: index });
     changesByHand.current += 1;
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
-    // Other words for the newest reply take back a memory that read it.
-    if (message.id === last?.id) memoryTakenBack();
+    swiped(message, updated);
   }
 
-  async function edit(message: Message, content: string) {
-    const updated = await data.messages.update(message.id, { content });
+  /** Other words for the newest reply take back a memory that read it. */
+  function swiped(message: Message, now: Message | undefined) {
+    if (message.id === last?.id && now && now.active_index !== message.active_index) memoryTakenBack();
+  }
+
+  async function edit(message: Message, content: string, index: number) {
+    const updated = await data.messages.update(message.id, { content, active_index: index });
     changesByHand.current += 1;
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
   }
@@ -261,15 +317,23 @@ function ChatView({ id }: { id: string }) {
     await data.messages.removeFrom(message.id);
     changesByHand.current += 1;
     setMessages((prev) => prev.filter((m) => m.position < message.position));
+    cut();
+  }
+
+  function cut() {
     // The server takes the memory back with the story.
     memoryTakenBack();
     // Whatever was being reported was about what has just gone.
     forget();
   }
 
+  // Each message's branch keeps its id, so that one asked for again after its answer was lost is the one made.
+  const branchIds = useRef(new Map<string, string>());
   async function branchFrom(message: Message) {
     if (!confirm(t("chat.message.confirmBranch"))) return;
-    const branch = await data.messages.branch(message.id);
+    const clientId = branchIds.current.get(message.id) ?? newId();
+    branchIds.current.set(message.id, clientId);
+    const branch = await data.messages.branch(message.id, clientId);
     navigate(`/chat/${branch.id}`);
   }
 
@@ -316,7 +380,8 @@ function ChatView({ id }: { id: string }) {
 
   return (
     <div className="flex h-full">
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Under the panel, which covers it below md, out of the keyboard's reach. */}
+      <div className="flex min-w-0 flex-1 flex-col" inert={panelOpen && !wide}>
         <header className="flex items-center gap-3 border-b border-ink-700 bg-ink-900 px-4 py-3 pointer-coarse:py-[13px] md:bg-ink-900/80 md:backdrop-blur">
           <Link
             to="/chat"
@@ -337,12 +402,17 @@ function ChatView({ id }: { id: string }) {
                 onChange={(e) => setTitleDraft(e.target.value)}
                 onBlur={saveTitle}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") saveTitle();
+                  // Or the same press would open the title again, focused once it is back.
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    saveTitle();
+                  }
                   if (e.key === "Escape") setTitleDraft(null);
                 }}
               />
             ) : (
               <button
+                ref={titleButton}
                 className="touch-target block w-full max-w-64 text-left text-xs text-mist transition-colors hover:text-parchment"
                 onClick={() => setTitleDraft(conversation.title || "")}
                 title={t("chat.header.renameTitle")}
@@ -384,7 +454,9 @@ function ChatView({ id }: { id: string }) {
             )}
             {!panelOpen && (
               <button
-                onClick={() => setPanelOpen(true)}
+                ref={panelButton}
+                autoFocus={panelByHand}
+                onClick={() => showPanel(true)}
                 className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
                 aria-label={t("chat.header.memorySettingsAriaLabel")}
               >
@@ -421,11 +493,15 @@ function ChatView({ id }: { id: string }) {
                 persona={persona}
                 isLast={message.id === last?.id}
                 busy={busy}
-                onSwipe={(index) => write(() => swipe(message, index))}
+                replyRef={message.id === last?.id ? replyButton : undefined}
+                onSwipe={(index) => write(() => swipe(message, index),
+                  (now) => swiped(message, now.find((m) => m.id === message.id)))}
                 onRegenerate={() => ask({ mode: "regenerate" })}
                 onContinue={() => ask({ mode: "continue" })}
-                onEdit={(content) => write(() => edit(message, content))}
-                onDeleteFrom={() => write(() => deleteFrom(message))}
+                onEdit={(content, index) => write(() => edit(message, content, index))}
+                onDeleteFrom={() => write(() => deleteFrom(message), (now) => {
+                  if (!now.some((m) => m.id === message.id)) cut();
+                })}
                 onBranch={() => write(() => branchFrom(message))}
               />
             ))}
@@ -440,7 +516,7 @@ function ChatView({ id }: { id: string }) {
 
             {problem && (
               <div className="mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 bg-blood/10 px-4 py-3">
-                <p className="text-sm text-blood">{problem}</p>
+                <p role="alert" className="text-sm text-blood">{problem}</p>
                 {!busy && !lost && !refusal && (
                   <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
                     {t("chat.errors.retryButton")}
@@ -451,6 +527,9 @@ function ChatView({ id }: { id: string }) {
           </div>
         </div>
 
+        <p role="status" className="sr-only">
+          {heard.said && t(heard.said === "typing" ? "chat.stream.assistantTyping" : "chat.stream.replied", { name: character.name })}
+        </p>
         {/* Out of the scrolling: what failed may be far above, or in the header. */}
         {writeError && (
           <p role="alert" className="border-t border-ink-700 bg-ink-900 px-4 py-2 text-center text-sm text-blood">
@@ -466,6 +545,7 @@ function ChatView({ id }: { id: string }) {
               </div>
               <input
                 type="range"
+                autoFocus
                 min={0}
                 max={100}
                 value={strength}
@@ -476,7 +556,11 @@ function ChatView({ id }: { id: string }) {
               <button
                 type="button"
                 className="btn btn-primary mt-3 w-full"
-                onClick={() => setAdjustingWallpaper(false)}
+                onClick={() => {
+                  setAdjustingWallpaper(false);
+                  const from = adjustedFrom.current;
+                  (from instanceof HTMLElement && from.isConnected ? from : panelButton.current)?.focus();
+                }}
               >
                 {t("chat.wallpaper.done")}
               </button>
@@ -489,6 +573,7 @@ function ChatView({ id }: { id: string }) {
           onStop={stop}
           busy={busy && !lost}
           characterName={character.name}
+          stopRef={stopButton}
         />
       </div>
 
@@ -497,14 +582,19 @@ function ChatView({ id }: { id: string }) {
           conversation={conversation}
           persona={persona}
           storyCuts={storyCuts}
-          onClose={() => setPanelOpen(false)}
+          takeFocus={panelByHand}
+          onClose={() => showPanel(false)}
           onConversationChange={(patch) => {
             if ("summary" in patch) summaries.current += 1;
             setConversation((c) => (c ? { ...c, ...patch } : c));
           }}
           onAdjustWallpaper={() => {
+            adjustedFrom.current = document.activeElement;
             // Over the conversation, it would hide what is being judged.
-            if (!window.matchMedia(WIDE).matches) setPanelOpen(false);
+            if (!wide) {
+              setPanelByHand(false);
+              setPanelOpen(false);
+            }
             setAdjustingWallpaper(true);
           }}
         />

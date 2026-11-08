@@ -205,7 +205,8 @@ input, textarea, select, button {
 }
 
 .field::placeholder { color: var(--color-mist-dim); }
-.field:focus {
+/* Within: the tag box is a field around the line typed in, which has no ring of its own. */
+.field:focus-within {
   outline: none;
   border-color: var(--color-ember-500);
   box-shadow: 0 0 0 3px var(--color-ember-glow);

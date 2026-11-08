@@ -10,7 +10,7 @@ export function ModelSilent({ onRetry }: { onRetry?: () => void }) {
   return (
     <div className="mx-auto flex max-w-3xl items-start gap-2.5 rounded-xl border border-ember-500/30 bg-ember-glow px-3.5 py-2.5 text-sm">
       <Unplug className="mt-0.5 h-4 w-4 shrink-0 text-ember-400" />
-      <p className="min-w-0 flex-1 leading-relaxed text-parchment-dim">
+      <p role="alert" className="min-w-0 flex-1 leading-relaxed text-parchment-dim">
         {t("chat.modelSilent.title")}{" "}
         <span className="text-mist">{t("chat.modelSilent.hint")}</span>{" "}
         <Link to="/settings" className="whitespace-nowrap text-ember-400 hover:text-ember-300">

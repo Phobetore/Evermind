@@ -45,6 +45,9 @@ export function newId(): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+/** Whether the focus is on the page itself, as when what held it has gone: a keyboard is then nowhere. */
+export const nothingFocused = () => !document.activeElement || document.activeElement === document.body;
+
 /** Whether it was copied. Not `navigator.clipboard`, which a page over plain HTTP lacks too. */
 export function copyText(text: string): boolean {
   const active = document.activeElement as HTMLElement | null; // which selecting the text takes

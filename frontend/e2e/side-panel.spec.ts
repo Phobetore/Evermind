@@ -240,14 +240,20 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
 });
 
 // A phone turned upright, or a window made narrow: beside the story there, the panel would cover it.
-test("the panel beside the story closes when the screen narrows under it", { tag: "@desktop" }, async ({ page, request }) => {
+test("the panel beside the story closes when the screen narrows under it, and leaves the focus where it is", { tag: "@desktop" }, async ({ page, request }) => {
   await page.setViewportSize({ width: 915, height: 412 });
   const convo = await makeConversation(request);
   await page.goto(`/#/chat/${convo.id}`);
   const panel = page.locator("aside:visible:has(textarea)");
+  // Not open there on its own: beside the sidebar, it would leave the story too little room.
+  await page.locator("header button:has(svg.lucide-sliders-horizontal)").click();
   await expect(panel).toBeVisible();
+  const box = page.getByPlaceholder(/^Write to /);
+  await box.click();
+  await page.keyboard.type("Half a sentence");
 
   await page.setViewportSize({ width: 412, height: 915 });
   await expect(panel).toHaveCount(0);
   await expect(page.locator("header button:has(svg.lucide-sliders-horizontal)")).toBeVisible();
+  await expect(box, "a phone's keyboard closed on a sentence being typed").toBeFocused();
 });
