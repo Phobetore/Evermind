@@ -62,9 +62,7 @@ test("a page arriving mid-regeneration hides the reply being replaced", async ({
     return "hidden";
   }, { timeout: 40_000 }).toBe("hidden");
 
-  await expect.poll(async () =>
-    (await (await request.get(`${API}/api/conversations/${convo.id}/turn`)).json()).running,
-    { timeout: 60_000 }).toBe(false);
+  await stopTurn(request, convo.id);
 
   // And it replaced rather than appended.
   const after = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).messages;
