@@ -23,7 +23,7 @@ export function ChatSidePanel({
 }: {
   conversation: Conversation;
   persona: Persona | null;
-  /** Changes when the story is cut back, which takes facts with it. */
+  /** Changes when the server takes the memory back, with a cut or a reply written over. */
   storyCuts?: number;
   onClose: () => void;
   onConversationChange: (patch: Partial<Conversation>) => void;
