@@ -56,7 +56,8 @@ function stored(conversationId: string): Sending | null {
   }
 }
 
-const loadSending = (conversationId: string) => sending.get(conversationId) ?? stored(conversationId);
+/** The message on its way for a conversation, until the server is known to have it. */
+export const loadSending = (conversationId: string) => sending.get(conversationId) ?? stored(conversationId);
 
 /** Writes a message down before it goes: the same words keep the id they were sent under. */
 export function beginSending(conversationId: string, text: string, mode: MessageMode): string {

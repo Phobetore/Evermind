@@ -1,5 +1,5 @@
 import { data, DataError, type Asking, type TurnRequest } from "@/data";
-import { arrived, settleSending } from "@/lib/drafts";
+import { arrived, loadSending, settleSending } from "@/lib/drafts";
 import type { Conversation, Message, TurnState } from "@/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -59,6 +59,8 @@ function askFor(id: string, request: TurnRequest): Promise<void> {
   let answered = false;
   let gaveUp = false;
   const tell = (answer: Answer) => pages.get(id)?.(answer);
+  // A read found its message: it got there, whatever becomes of the request.
+  const found = () => !!request.client_id && loadSending(id)?.clientId !== request.client_id;
   const answer = data.turns.start(request).then(
     ({ user_message }) => {
       if (request.client_id) arrived(id, request.client_id);
@@ -72,10 +74,10 @@ function askFor(id: string, request: TurnRequest): Promise<void> {
     if (left) waiting.set(id, left);
     else waiting.delete(id);
     // Unanswered still: no more is known than when patience ran out.
-    if (!(gaveUp && "error" in answer && unanswered(answer.error))) tell(answer);
+    if (!("error" in answer && (found() || (gaveUp && unanswered(answer.error))))) tell(answer);
   });
   const patience = pause(PATIENCE_MS).then(() => {
-    if (answered) return;
+    if (answered || found()) return;
     gaveUp = true;
     tell({ request, error: new DataError("No answer in time.", { kind: "network" }) });
   });

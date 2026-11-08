@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Page, type Request } from "@playwright/test";
 import { API } from "../playwright.config";
 import {
-  goWithinThePage, homeWifi, phoneComesBack, report, retryButton, stopButton, writing,
+  goWithinThePage, homeWifi, listen, phoneComesBack, report, retryButton, stopButton, writing,
 } from "./connection";
 import { chat, conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
 
@@ -96,6 +96,39 @@ test.describe("a message that reaches Evermind late", () => {
     await expect(box(page), "still offered for sending").toHaveValue("", { timeout: 15_000 });
     await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
   });
+
+  for (const then of ["breaks", "never comes"] as const) {
+    test(`found by a read, is not said to be unsent when its answer ${then}`, async ({ page, request }) => {
+      const convo = await conversationWithReply(request, { slowly: true });
+      await page.goto(`/#/chat/${convo.id}`);
+      await expect(box(page)).toBeVisible();
+      const told = await listen(page);
+      let lose = () => {};
+      const lost = new Promise<void>((resolve) => { lose = resolve; });
+      await page.route("**/api/chat", async (route) => {
+        await route.fetch(); // Evermind has it
+        await lost;
+        if (then === "breaks") await route.abort("connectionreset");
+      });
+      const failed = then === "breaks"
+        && page.waitForEvent("requestfailed", { predicate: (r) => r.url().endsWith("/api/chat") });
+
+      const sentAt = Date.now();
+      await send(page, "Arrivé quand même.");
+      await expect.poll(() => turnRunning(request, convo.id)).toBe(true);
+      await phoneComesBack(page);
+      await expect(box(page), "a read did not find it").toHaveValue("", { timeout: 10_000 });
+      lose();
+      if (failed) await failed;
+      // Long enough for the page to say something of it: past its patience, when it never comes.
+      await page.waitForTimeout(failed ? 1_500 : Math.max(0, sentAt + 11_500 - Date.now()));
+
+      await stopTurn(request, convo.id);
+      await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+      expect(await told(), "said of a message on screen with its reply").toEqual([]);
+      expect(await said(request, convo.id, "Arrivé quand même.")).toBe(1);
+    });
+  }
 
   test("as a Regenerate, is followed once it gets there", async ({ page, request }) => {
     const convo = await conversationWithReply(request);
@@ -355,13 +388,7 @@ test("a phone waking on a quiet conversation while its network comes back raises
   const convo = await conversationWithReply(request);
   await page.goto(`/#/chat/${convo.id}`);
   await page.waitForLoadState("networkidle");
-  await page.evaluate(() => {
-    const seen: string[] = [];
-    (window as unknown as { __said: string[] }).__said = seen;
-    new MutationObserver(() => {
-      for (const p of document.querySelectorAll("p.text-blood")) seen.push(p.textContent ?? "");
-    }).observe(document, { subtree: true, childList: true, characterData: true });
-  });
+  const told = await listen(page);
 
   await context.setOffline(true);
   await phoneComesBack(page);
@@ -370,7 +397,7 @@ test("a phone waking on a quiet conversation while its network comes back raises
   await phoneComesBack(page);
   await page.waitForTimeout(3000);
 
-  expect(await page.evaluate(() => (window as unknown as { __said: string[] }).__said)).toEqual([]);
+  expect(await told()).toEqual([]);
 
   await context.setOffline(true);
   await phoneComesBack(page);

@@ -107,6 +107,18 @@ export async function homeWifi() {
   };
 }
 
+/** Everything the page says in red from now on, however briefly. */
+export async function listen(page: Page) {
+  await page.evaluate(() => {
+    const said: string[] = [];
+    (window as unknown as { __said: string[] }).__said = said;
+    new MutationObserver(() => {
+      for (const p of document.querySelectorAll("p.text-blood")) said.push(p.textContent ?? "");
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+  return () => page.evaluate(() => (window as unknown as { __said: string[] }).__said);
+}
+
 /** Says what a phone coming back says. The page waits a moment before acting on it. */
 export async function phoneComesBack(page: Page) {
   await page.evaluate(() => {
