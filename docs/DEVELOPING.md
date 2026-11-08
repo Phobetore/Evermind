@@ -124,8 +124,8 @@ rules are deleted (`wf.msc`, Inbound Rules).
 
 Each test in `e2e/` is written against a fault that typecheck and build cannot
 see, such as a button off the side of a phone or an API the browser withholds
-over plain HTTP, and should be checked to fail when that fault is put back: a
-test that passes either way reads like cover.
+outside a secure context, and should be checked to fail when that fault is put
+back: a test that passes either way reads like cover.
 
 ## Main API surface
 
