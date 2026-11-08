@@ -61,8 +61,16 @@ function ChatView({ id }: { id: string }) {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [persona, setPersona] = useState<Persona | null>(null);
-  // Over the conversation on a phone, so open there only once asked for.
+  // Over the conversation on a phone, so open there only once asked for, and closed if the screen narrows.
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia(WIDE).matches);
+  useEffect(() => {
+    const wide = window.matchMedia(WIDE);
+    const narrowed = () => {
+      if (!wide.matches) setPanelOpen(false);
+    };
+    wide.addEventListener("change", narrowed);
+    return () => wide.removeEventListener("change", narrowed);
+  }, []);
   // The backdrop's strength is set under the conversation, where it can be judged.
   const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
   const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
