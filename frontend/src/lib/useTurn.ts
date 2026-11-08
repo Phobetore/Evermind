@@ -59,7 +59,7 @@ function askFor(id: string, request: TurnRequest): Promise<void> {
   let answered = false;
   let gaveUp = false;
   const tell = (answer: Answer) => pages.get(id)?.(answer);
-  // A read found its message: it got there, whatever becomes of the request.
+  // The message on its way is no longer this one: a read found it, or a newer send replaced it.
   const found = () => !!request.client_id && loadSending(id)?.clientId !== request.client_id;
   const answer = data.turns.start(request).then(
     ({ user_message }) => {
