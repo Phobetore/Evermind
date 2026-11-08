@@ -20,7 +20,7 @@ export function timeAgo(
 
 /** Resolve {{char}}/{{user}} macros for display (outside the chat flow,
     where the backend already substitutes them). */
-export function previewMacros(text: string, charName: string, userName = "vous"): string {
+export function previewMacros(text: string, charName: string, userName: string): string {
   if (!text) return "";
   return text
     .replace(/\{\{\s*char\s*\}\}/gi, charName)
