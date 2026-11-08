@@ -19,7 +19,7 @@
 <img src="docs/demo.gif" alt="Opening a character and sending the first message, with the reply arriving word by word" width="100%">
 
 <div align="center">
-<sub>Recorded as it happened, against a 15B model running on the same laptop. Nothing sped up.</sub>
+<sub>Recorded as it happened with Evermind 2.0, against a 15B model running on the same laptop. Nothing sped up. Two of its controls have changed since: the opening is now chosen with the arrows on the first message, and Remember writes the summary.</sub>
 </div>
 
 <br>
