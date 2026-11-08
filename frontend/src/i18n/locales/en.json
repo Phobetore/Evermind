@@ -64,6 +64,7 @@
     "deletedCharacter": "Deleted character",
     "newConversationFallback": "New conversation",
     "messageCount": "{count} messages",
+    "messageCount_one": "{count} message",
     "renameLabel": "Rename",
     "confirmDelete": "Delete the conversation \"{title}\"?",
     "untitled": "Untitled"

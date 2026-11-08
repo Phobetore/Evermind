@@ -64,6 +64,7 @@
     "deletedCharacter": "Gelöschter Charakter",
     "newConversationFallback": "Neue Unterhaltung",
     "messageCount": "{count} Nachrichten",
+    "messageCount_one": "{count} Nachricht",
     "renameLabel": "Umbenennen",
     "confirmDelete": "Unterhaltung „{title}“ löschen?",
     "untitled": "Ohne Titel"

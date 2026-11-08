@@ -64,6 +64,7 @@
     "deletedCharacter": "Personnage supprimé",
     "newConversationFallback": "Nouvelle conversation",
     "messageCount": "{count} messages",
+    "messageCount_one": "{count} message",
     "renameLabel": "Renommer",
     "confirmDelete": "Supprimer la conversation « {title} » ?",
     "untitled": "Sans titre"
