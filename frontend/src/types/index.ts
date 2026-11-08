@@ -76,6 +76,8 @@ export interface Conversation {
   author_note?: string;
   /** Why the last automatic pass of the memory failed, until one succeeds. */
   memory_error?: { error: string; kind?: string } | null;
+  /** Whether a memory pass or a consolidation is under way. */
+  memory_running?: boolean;
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
   forked_from?: string | null;

@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page, type Route } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page, type Route } from "@playwright/test";
 import { API } from "../playwright.config";
 import { chat, conversation, conversationWithReply, makeCharacter } from "./fixtures";
 
@@ -174,4 +174,80 @@ test("Enter the story whose answer was lost, tried again, makes one conversation
   await expect(page).toHaveURL(/#\/chat\//);
   const made = await (await request.get(`${API}/api/conversations?character_id=${character.id}`)).json();
   expect(made).toHaveLength(1);
+});
+
+const SUMMARY = "Updated automatically by memory; freely editable. Injected into every turn.";
+
+/** A conversation open with its side panel showing, and a summary from before any pass. */
+async function withThePanel(page: Page, request: APIRequestContext) {
+  const convo = await conversationWithReply(request);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { summary: "Old summary from last week." } });
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("[data-message-id]").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  await expect(panel.getByPlaceholder(SUMMARY)).toHaveValue("Old summary from last week.");
+  return { convo, panel };
+}
+
+/** The panel shows what the server holds once the pass is done, and says nothing in red. */
+async function expectWhatThePassWrote(panel: Locator, request: APIRequestContext, id: string) {
+  const facts = await (await request.get(`${API}/api/conversations/${id}/memories`)).json();
+  const { summary } = await conversation(request, id);
+  expect(summary, "no pass was made").not.toBe("Old summary from last week.");
+  await expect(panel.getByPlaceholder(SUMMARY)).toHaveValue(summary);
+  await expect(panel).toContainText(`(${facts.length})`);
+  await expect(panel.locator(".text-blood"), "a pass that worked said to have failed").toHaveCount(0);
+}
+
+test("Remember whose answer was lost ends with what the pass wrote, and says nothing once Evermind answers", async ({ page, request }) => {
+  const { convo, panel } = await withThePanel(page, request);
+  let lost = () => {};
+  const passDone = new Promise<void>((resolve) => (lost = resolve));
+
+  await page.route("**/memories/extract", async (route) => {
+    await answerLost(route);
+    lost();
+  }, { times: 1 });
+  await panel.getByRole("button", { name: "Remember" }).click();
+  await passDone;
+
+  await expectWhatThePassWrote(panel, request, convo.id);
+});
+
+test("Remember on a phone that went offline ends, once it is back, with what the pass wrote", async ({ page, request }) => {
+  const { convo, panel } = await withThePanel(page, request);
+
+  await page.route("**/memories/extract", async (route) => {
+    await route.fetch();
+    await page.context().setOffline(true);
+    await route.abort("internetdisconnected");
+  }, { times: 1 });
+  await panel.getByRole("button", { name: "Remember" }).click();
+  await expect(panel).toContainText("This device is offline.");
+  await page.context().setOffline(false);
+
+  await expectWhatThePassWrote(panel, request, convo.id);
+});
+
+test("Remember that met a pass under way ends, once that pass is done, with what it wrote", async ({ page, request }) => {
+  const { convo, panel } = await withThePanel(page, request);
+  // The server says a pass is running for as long as the one below is not done.
+  let running = true;
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...(await response.json()), memory_running: running } });
+  });
+
+  await page.route("**/memories/extract", (route) => route.fulfill({
+    status: 409, json: { error: "Another memory task is running.", kind: "memory_busy" },
+  }), { times: 1 });
+  await panel.getByRole("button", { name: "Remember" }).click();
+  await expect(panel).toContainText("Another memory task is running.");
+  expect((await request.post(`${API}/api/conversations/${convo.id}/memories/extract`)).ok()).toBe(true);
+  running = false;
+
+  await expectWhatThePassWrote(panel, request, convo.id);
 });

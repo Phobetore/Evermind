@@ -1,9 +1,10 @@
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
-import { data } from "@/data";
+import { data, DataError } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
-import { describeError, describeFailure } from "@/lib/errors";
+import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
+import { PATIENCE_MS } from "@/lib/useTurn";
 import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
@@ -55,6 +56,8 @@ export function ChatSidePanel({
   const [memorizing, setMemorizing] = useState(false);
   const [memoryNote, setMemoryNote] = useState<string | null>(null);
   const [consolidating, setConsolidating] = useState(false);
+  // A Remember or a Condense that got no answer, or met a pass under way, and what was said of it.
+  const [unsettled, setUnsettled] = useState<{ line: string; unanswered: boolean } | null>(null);
   const summary = summaryDraft?.text ?? conversation.summary;
   const directive = directiveDraft ?? conversation.author_note ?? "";
   const wallpaperInput = useRef<HTMLInputElement>(null);
@@ -110,14 +113,15 @@ export function ChatSidePanel({
     for (const key of Object.keys(patch)) written.current[key as keyof Conversation] = reads.current;
     onConversationChange(patch);
   }
+  /** Its answer, or null if none came. */
   const read = useCallback(() => {
     const sent = ++reads.current;
     reading.current?.abort();
     reading.current = new AbortController();
-    data.conversations
-      .get(conversation.id, { signal: reading.current.signal })
+    return data.conversations
+      .get(conversation.id, { signal: reading.current.signal, within: PATIENCE_MS })
       .then((answer) => {
-        if (sent !== reads.current) return; // a later read knows more
+        if (sent !== reads.current) return answer; // a later read knows more
         const shown = latest.current.conversation;
         const patch: Partial<Conversation> = {};
         for (const key of ["summary", "author_note", "memory_error"] as const) {
@@ -127,8 +131,9 @@ export function ChatSidePanel({
         }
         // A patch re-renders the whole story, so it is made only for a change.
         if (Object.keys(patch).length) latest.current.onConversationChange(patch);
+        return answer;
       })
-      .catch(() => {});
+      .catch(() => null);
   }, [conversation.id]);
   useEffect(() => {
     // A phone waking fires both events, and they make one read.
@@ -136,18 +141,47 @@ export function ChatSidePanel({
     const wake = () => {
       if (document.visibilityState !== "visible") return;
       clearTimeout(waking);
-      waking = setTimeout(read, 100);
+      waking = setTimeout(() => {
+        read();
+        readFacts();
+      }, 100);
     };
     read();
     window.addEventListener("focus", wake);
+    window.addEventListener("online", wake);
     document.addEventListener("visibilitychange", wake);
     return () => {
       clearTimeout(waking);
       reading.current?.abort();
       window.removeEventListener("focus", wake);
+      window.removeEventListener("online", wake);
       document.removeEventListener("visibilitychange", wake);
     };
-  }, [read, storyCuts]);
+  }, [read, readFacts, storyCuts]);
+
+  // Read until the server answers and runs no pass: what it holds then is shown, and what was said goes.
+  useEffect(() => {
+    if (!unsettled) return;
+    let next: ReturnType<typeof setTimeout> | undefined;
+    let gone = false;
+    const unsay = () =>
+      setErrors((said) => (said.memory === unsettled.line ? { ...said, memory: undefined } : said));
+    const look = async () => {
+      const answer = await read();
+      if (gone) return;
+      if (answer && unsettled.unanswered) unsay();
+      if (answer && !answer.memory_running) {
+        unsay();
+        readFacts();
+        setUnsettled(null);
+      } else next = setTimeout(look, 2000);
+    };
+    void look();
+    return () => {
+      gone = true;
+      clearTimeout(next);
+    };
+  }, [unsettled, read, readFacts]);
 
   // A pass of its own that failed is told here until one succeeds.
   const failed = conversation.memory_error;
@@ -176,6 +210,7 @@ export function ChatSidePanel({
   async function memorizeNow() {
     setMemorizing(true);
     setMemoryNote(null);
+    setUnsettled(null);
     fail("memory", null);
     try {
       const result = await data.memories.extract(conversation.id);
@@ -186,7 +221,7 @@ export function ChatSidePanel({
       setMemoryNote(describeExtraction(result, t, conversation.summary));
       setTimeout(() => setMemoryNote(null), 4000);
     } catch (e) {
-      failedMemory(e, t("chat.panel.facts.extractError"));
+      failedMemory(e, t("chat.panel.facts.extractError"), true);
     }
     setMemorizing(false);
   }
@@ -194,6 +229,7 @@ export function ChatSidePanel({
   async function consolidateMemory() {
     setConsolidating(true);
     setMemoryNote(null);
+    setUnsettled(null);
     fail("memory", null);
     try {
       const result = await data.memories.consolidate(conversation.id);
@@ -201,7 +237,7 @@ export function ChatSidePanel({
       setMemoryNote(describeConsolidation(result, t));
       setTimeout(() => setMemoryNote(null), 5000);
     } catch (e) {
-      failedMemory(e, t("chat.panel.facts.consolidateError"));
+      failedMemory(e, t("chat.panel.facts.consolidateError"), true);
     }
     setConsolidating(false);
   }
@@ -221,9 +257,15 @@ export function ChatSidePanel({
   }
 
   // A pass, a merge or a cut in the story may have changed the facts meanwhile.
-  function failedMemory(error: unknown, fallback?: string) {
-    fail("memory", describeError(error, t, fallback));
+  function failedMemory(error: unknown, fallback?: string, aPass = false) {
+    const line = describeError(error, t, fallback);
+    fail("memory", line);
     readFacts();
+    // One that got no answer, or met another, may change the memory yet.
+    const unanswered = isUnanswered(error);
+    if (aPass && (unanswered || (error instanceof DataError && error.kind === "memory_busy"))) {
+      setUnsettled({ line, unanswered });
+    }
   }
 
   async function togglePin(memory: Memory) {
