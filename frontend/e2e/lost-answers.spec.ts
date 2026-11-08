@@ -117,3 +117,26 @@ test("Delete from here on a message already gone shows the story as it is, and s
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toHaveCount(0);
   await expect(page.getByRole("alert"), "a message on screen said to be gone").toHaveCount(0);
 });
+
+const branchesOf = async (request: APIRequestContext, id: string) =>
+  ((await (await request.get(`${API}/api/conversations`)).json()) as { forked_from: string | null }[])
+    .filter((c) => c.forked_from === id).length;
+
+test("Branch shows that it is under way, and a second tap makes no second branch", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(reply).toBeVisible();
+  page.on("dialog", (dialog) => dialog.accept());
+
+  const letGo = await held(page, "**/api/messages/*/branch", "POST");
+  const branch = reply.getByTitle("Branch the story from here");
+  await branch.click();
+  await expect(branch, "nothing shows the branch is being made").toBeDisabled();
+  await branch.click({ force: true });
+  letGo();
+
+  await expect(page).not.toHaveURL(new RegExp(convo.id));
+  await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length);
+  expect(await branchesOf(request, convo.id)).toBe(1);
+});

@@ -6,7 +6,7 @@ import { copyText } from "@/lib/utils";
 import type { Character, Message, Persona } from "@/types";
 import { clsx } from "clsx";
 import {
-  Check, ChevronLeft, ChevronRight, Copy, GitBranch, Pencil, RefreshCcw, StepForward,
+  Check, ChevronLeft, ChevronRight, Copy, GitBranch, Loader2, Pencil, RefreshCcw, StepForward,
   Trash2, X,
 } from "lucide-react";
 import { useState } from "react";
@@ -34,14 +34,25 @@ export function ChatMessage({
   onContinue: () => void;
   /** Whether the server took it: if not, the rewrite stays open. `index` is the version it was opened on. */
   onEdit: (content: string, index: number) => Promise<boolean>;
-  onDeleteFrom: () => void;
-  onBranch: () => void;
+  onDeleteFrom: () => Promise<unknown>;
+  onBranch: () => Promise<unknown>;
 }) {
   const t = useT();
   // The version being rewritten: a swipe that lands meanwhile changes the one shown, not this.
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [copied, setCopied] = useState(false);
+  // A branch or a cut on its way: seen to be, and not asked for a second time meanwhile.
+  const [working, setWorking] = useState<"branch" | "delete" | null>(null);
+
+  async function act(what: "branch" | "delete", action: () => Promise<unknown>) {
+    setWorking(what);
+    try {
+      await action();
+    } finally {
+      setWorking(null);
+    }
+  }
 
   const isUser = message.role === "user";
   const name = isUser ? (persona?.name ?? t("chat.message.youFallback")) : character.name;
@@ -120,12 +131,25 @@ export function ChatMessage({
                 {copied ? <Check className="h-3.5 w-3.5 text-moss" /> : <Copy className="h-3.5 w-3.5" />}
               </IconButton>
               {!busy && (
-                <IconButton title={t("chat.message.branchTitle")} onClick={onBranch}>
-                  <GitBranch className="h-3.5 w-3.5" />
+                <IconButton
+                  title={t("chat.message.branchTitle")}
+                  onClick={() => act("branch", onBranch)}
+                  disabled={working !== null}
+                >
+                  {working === "branch"
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <GitBranch className="h-3.5 w-3.5" />}
                 </IconButton>
               )}
-              <IconButton title={t("chat.message.deleteFromTitle")} onClick={onDeleteFrom} danger>
-                <Trash2 className="h-3.5 w-3.5" />
+              <IconButton
+                title={t("chat.message.deleteFromTitle")}
+                onClick={() => act("delete", onDeleteFrom)}
+                disabled={working !== null}
+                danger
+              >
+                {working === "delete"
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Trash2 className="h-3.5 w-3.5" />}
               </IconButton>
             </div>
           </div>
@@ -204,18 +228,21 @@ function IconButton({
   title,
   onClick,
   danger = false,
+  disabled = false,
 }: {
   children: React.ReactNode;
   title: string;
   onClick: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       title={title}
       onClick={onClick}
+      disabled={disabled}
       className={clsx(
-        "rounded-md p-1.5 text-mist-dim transition-colors pointer-coarse:p-[15px]",
+        "rounded-md p-1.5 text-mist-dim transition-colors disabled:cursor-wait pointer-coarse:p-[15px]",
         danger ? "hover:bg-blood/15 hover:text-blood" : "hover:bg-ink-700 hover:text-parchment",
       )}
     >
