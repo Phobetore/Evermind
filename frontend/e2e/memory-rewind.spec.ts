@@ -387,6 +387,53 @@ test("a reply asked for again with the panel closed reads the story once at its 
   await expect(panel.getByPlaceholder(panelText.summary.placeholder)).toHaveValue(first.summary);
 });
 
+// Whether the panel is open is asked once the server has answered the swipe, not when it was asked for.
+test("a swipe answered once the panel is closed brings it the summary the memory went back to", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+  test.skip(isMobile, "a phone's panel covers the reply");
+  const convo = await makeConversation(request);
+  const pass = () =>
+    request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "First question." });
+  await pass();
+  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "Second question." });
+  await chat(request, { conversation_id: convo.id, mode: "regenerate" });
+  await pass();
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await expect(summary).toHaveValue(/Read to turn 4/);
+  await page.waitForLoadState("networkidle");
+
+  // The swipe is answered once the panel is closed; reopened, the panel's own read never lands.
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/messages/*", async (route) => {
+    if (route.request().method() === "PATCH") await released;
+    await route.continue();
+  });
+  let reopened = false;
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (!reopened || route.request().method() !== "GET") await route.continue();
+  });
+  const reads: string[] = [];
+  page.on("requestfinished", (r) => {
+    if (r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`)) reads.push(r.url());
+  });
+  const reply = page.locator("[data-message-id]").last();
+  await reply.hover();
+  await reply.getByLabel(en.chat.message.prevVariantAriaLabel).click();
+  await panel.getByLabel(panelText.closeAriaLabel).click();
+  release();
+  await expect.poll(() => reads.length, { message: "the summary read for the closed panel" }).toBe(1);
+
+  reopened = true;
+  await page.locator("header button:has(svg.lucide-sliders-horizontal)").click();
+  await expect(summary).toHaveValue(first.summary);
+});
+
 // The directive's save and the summary's read go out together; the read must not undo the save.
 test("a read sent with the directive's save does not put the old directive back", async ({ page, request }) => {
   const convo = await makeConversation(request);

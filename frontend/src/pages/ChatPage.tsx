@@ -173,12 +173,12 @@ function ChatView({ id }: { id: string }) {
   /** The server took the memory back: an open panel reads it again. */
   const memoryTakenBack = useCallback(() => {
     setStoryCuts((n) => n + 1);
-    if (panelOpen) return;
+    if (panelShown.current) return;
     summaryRead.current?.abort();
     const reading = (summaryRead.current = new AbortController());
     const takeSummary = summaryTaker();
     data.conversations.get(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
-  }, [id, panelOpen, summaryTaker]);
+  }, [id, summaryTaker]);
 
   // A reply asked for again or carried on takes back a memory that read it: an open panel reads it at the turn's end.
   const rewriting = useRef(false);
