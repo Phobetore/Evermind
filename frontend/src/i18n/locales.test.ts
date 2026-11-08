@@ -40,6 +40,11 @@ describe("a sentence reads right where it is shown", () => {
     expect(loose.map(([k]) => k)).toEqual([]);
   });
 
+  it.each([["fr", fr], ["de", de], ["es", es]])("in %s, with no line starting on %", (_name, locale) => {
+    const loose = flatten(locale).filter(([, v]) => typeof v === "string" && / %/.test(v));
+    expect(loose.map(([k]) => k)).toEqual([]);
+  });
+
   it.each([
     ["es", "settings.about.updateAvailable", "Evermind {version} ya está disponible."],
     ["de", "cards.startChatModal.title", "Mit {name} spielen"],

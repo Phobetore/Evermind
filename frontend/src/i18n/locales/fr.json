@@ -111,7 +111,7 @@
     "historyLimitLabel": "Messages récents envoyés au modèle",
     "historyLimitHint": "Au-delà, les tours ne vivent plus que dans le résumé et les faits établis. Fenêtre courte (16–30)\u00a0: le modèle reste attentif aux consignes au lieu d'imiter ses propres réponses. Fenêtre longue\u00a0: plus de continuité brute, mais les petits modèles se mettent à radoter.",
     "passageBudgetLabel": "Rappel de passages (tokens)",
-    "passageBudgetHint": "Repêche des extraits verbatim d'anciens messages sémantiquement liés à la scène en cours (nécessite l'extra «\u00a0semantic\u00a0»). ~1500 ≈ 10 % d'un contexte 16k. Mettez 0 pour désactiver. Chaque token de rappel est un token d'historique récent en moins.",
+    "passageBudgetHint": "Repêche des extraits verbatim d'anciens messages sémantiquement liés à la scène en cours (nécessite l'extra «\u00a0semantic\u00a0»). ~1500 ≈ 10 % d'un contexte 16k. Mettez 0 pour désactiver. Chaque token de rappel est un token d'historique récent en moins.",
     "autoMemoryTitle": "Mémoire automatique",
     "autoMemoryHint": {
       "before": "Le modèle extrait automatiquement les",

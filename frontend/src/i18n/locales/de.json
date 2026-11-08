@@ -111,7 +111,7 @@
     "historyLimitLabel": "Aktuelle Nachrichten an das Modell",
     "historyLimitHint": "Darüber hinaus leben ältere Züge nur noch in der Zusammenfassung und den etablierten Fakten weiter. Kleines Fenster (16–30): Das Modell bleibt auf die Anweisungen konzentriert, statt seine eigenen Antworten nachzuahmen. Großes Fenster: mehr ungefilterter Verlauf, aber kleine Modelle fangen an zu schwafeln.",
     "passageBudgetLabel": "Passagen-Erinnerung (Tokens)",
-    "passageBudgetHint": "Holt wörtliche Auszüge aus älteren Nachrichten hervor, die inhaltlich zur aktuellen Szene passen (erfordert das Extra „semantic“). ~1500 ≈ 10 % eines 16k-Kontexts. 0 zum Deaktivieren. Jedes Token für Erinnerungen fehlt dem aktuellen Verlauf.",
+    "passageBudgetHint": "Holt wörtliche Auszüge aus älteren Nachrichten hervor, die inhaltlich zur aktuellen Szene passen (erfordert das Extra „semantic“). ~1500 ≈ 10 % eines 16k-Kontexts. 0 zum Deaktivieren. Jedes Token für Erinnerungen fehlt dem aktuellen Verlauf.",
     "autoMemoryTitle": "Automatisches Gedächtnis",
     "autoMemoryHint": {
       "before": "Das Modell extrahiert automatisch",

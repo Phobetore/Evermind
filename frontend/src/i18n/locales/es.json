@@ -111,7 +111,7 @@
     "historyLimitLabel": "Mensajes recientes enviados al modelo",
     "historyLimitHint": "Más allá de eso, los turnos antiguos solo perviven en el resumen y en los hechos establecidos. Ventana corta (16–30): el modelo sigue atento a las instrucciones en vez de imitar sus propias respuestas. Ventana larga: más historial sin filtrar, pero los modelos pequeños empiezan a divagar.",
     "passageBudgetLabel": "Recuerdo de pasajes (tokens)",
-    "passageBudgetHint": "Recupera extractos literales de mensajes antiguos relacionados semánticamente con la escena actual (requiere el extra «semantic»). ~1500 ≈ 10 % de un contexto de 16k. Pon 0 para desactivarlo. Cada token de recuerdo es un token menos de historial reciente.",
+    "passageBudgetHint": "Recupera extractos literales de mensajes antiguos relacionados semánticamente con la escena actual (requiere el extra «semantic»). ~1500 ≈ 10 % de un contexto de 16k. Pon 0 para desactivarlo. Cada token de recuerdo es un token menos de historial reciente.",
     "autoMemoryTitle": "Memoria automática",
     "autoMemoryHint": {
       "before": "El modelo extrae automáticamente los",
