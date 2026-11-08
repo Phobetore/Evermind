@@ -128,6 +128,16 @@ function ChatView({ id }: { id: string }) {
   const stickToBottom = useRef(true);
   const fromBottom = useRef<number | null>(null);
 
+  // Counts the reads of the summary a closed panel opens on, and the summaries the panel shows.
+  const summaries = useRef(0);
+  /** For a read about to be sent: what takes its summary, unless another came since. */
+  const summaryTaker = useCallback(() => {
+    const sent = ++summaries.current;
+    return (summary: string) => {
+      if (sent === summaries.current) setConversation((c) => (c ? { ...c, summary } : c));
+    };
+  }, []);
+
   // The title too, which the server gives a new conversation; the side panel reads the rest itself.
   const read = useCallback(async (asking: Asking) => {
     const changes = changesByHand.current;
@@ -159,9 +169,9 @@ function ChatView({ id }: { id: string }) {
     if (panelOpen) return;
     summaryRead.current?.abort();
     const reading = (summaryRead.current = new AbortController());
-    data.conversations.get(id, { signal: reading.signal })
-      .then(({ summary }) => setConversation((c) => (c ? { ...c, summary } : c)), () => {});
-  }, [id, panelOpen]);
+    const takeSummary = summaryTaker();
+    data.conversations.get(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
+  }, [id, panelOpen, summaryTaker]);
 
   // A reply asked for again or carried on takes back a memory that read it, by the end of its turn.
   const rewriting = useRef(false);
@@ -495,9 +505,10 @@ function ChatView({ id }: { id: string }) {
           persona={persona}
           storyCuts={storyCuts}
           onClose={() => setPanelOpen(false)}
-          onConversationChange={(patch) =>
-            setConversation((c) => (c ? { ...c, ...patch } : c))
-          }
+          onConversationChange={(patch) => {
+            if ("summary" in patch) summaries.current += 1;
+            setConversation((c) => (c ? { ...c, ...patch } : c));
+          }}
           onAdjustWallpaper={() => {
             // Over the conversation, it would hide what is being judged.
             if (!window.matchMedia(WIDE).matches) setPanelOpen(false);

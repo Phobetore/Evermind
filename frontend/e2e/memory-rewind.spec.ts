@@ -116,6 +116,56 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
   expect(read.memory_position).toBe(2);
 });
 
+// Typing over the summary it put back would send one no pass holds, and take the memory back to 0.
+test("the page's read of a cut, landing once a summary is saved in the panel, does not put the old one back", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
+  const pass = () =>
+    request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await say("First question.");
+  await pass();
+  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  await say("Second question.");
+  await pass();
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  // Closed, as on a phone, for the page to read the summary after the cut.
+  if (!(await opener.isVisible())) await panel.getByLabel(panelText.closeAriaLabel).click();
+  await page.waitForLoadState("networkidle");
+
+  // That read is answered, and its answer held until the summary is saved.
+  let fetched = () => {};
+  const answered = new Promise<void>((resolve) => { fetched = resolve; });
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  let reads = 0;
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() !== "GET" || ++reads > 1) return route.continue();
+    const old = await route.fetch();
+    fetched();
+    await released;
+    await route.fulfill({ response: old }).catch(() => {});
+  });
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByTitle("Delete from here").nth(3).click();
+  await answered;
+
+  await opener.click();
+  await expect(summary).toHaveValue(first.summary);
+  await summary.fill("Typed once the story was cut.");
+  await panel.getByRole("button", { name: panelText.summary.saveButton }).click();
+  await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
+
+  release();
+  await page.waitForTimeout(500);
+  await expect(summary).toHaveValue("Typed once the story was cut.");
+});
+
 // A slow model can take minutes: what is typed meanwhile is typed over the summary from before.
 test("the summary box can be typed in while the memory reads the story", async ({ page, request }) => {
   const convo = await makeConversation(request);
