@@ -1,26 +1,11 @@
-# Evermind - self-hosted immersive AI roleplay.
-#   docker compose up -d
-# Then open http://localhost:3000.
-#
-# No .env is needed to start. Make one next to this file only to change the port,
-# reach Evermind from another device, or turn on semantic memory: start from
-# env.example, which the release page has, or from .env.example in a copy of the
-# project, and name the file .env.
-#
-# Starting pulls a ready-made image and takes seconds. To compile from source
-# instead, add --build. You need --build if you want SEMANTIC=true, because
-# the published image is the light one.
-#
-# Your LLM (LM Studio / Ollama / ...) runs on the HOST, not in a container:
-# in the app's LLM connection use http://host.docker.internal:PORT/v1
-# (e.g. LM Studio -> http://host.docker.internal:1234/v1).
+# Evermind: docker compose up -d, then http://localhost:3000.
+# A .env beside this file changes the port, opens it to other devices, or turns on semantic memory
+# (that one needs the source folder and --build): see env.example on the release page.
+# A model on this computer: http://host.docker.internal:PORT/v1 in the app's connection.
 services:
   evermind:
     image: ghcr.io/phobetore/evermind:${EVERMIND_VERSION:-latest}
-    # Explicit: fetch the published image, and only fall back to the build
-    # section when asked with --build. Left to the default, a service that
-    # declares both image and build can decide to compile instead, which is a
-    # very long first run for someone who just unzipped this.
+    # The published image, built only with --build: by default, Compose may compile it instead.
     pull_policy: missing
     build:
       context: .
@@ -38,17 +23,12 @@ services:
       PORT: "8000"
       EVERMIND_DATA_DIR: /data
     volumes:
-      # The name the data had when Evermind was two containers, so an install
-      # that is upgraded picks up its conversations where it left them.
+      # Do not rename: an install that is upgraded finds its conversations under this name.
       - evermind-data:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      # Localhost only unless BIND says otherwise. Publishing a port binds every
-      # interface by default, so without this a fresh install would be sitting on
-      # the Wi-Fi from its first run, which is not something anyone asked for.
-      # PORT is the number on this machine; inside the container the server
-      # always listens on 8000.
+      # Localhost only unless BIND says otherwise; PORT is this machine's, the container's is 8000.
       - "${BIND:-127.0.0.1}:${PORT:-3000}:8000"
     restart: unless-stopped
 
