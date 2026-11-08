@@ -1,9 +1,12 @@
+import asyncio
+from collections.abc import Awaitable, Callable
+
 import aiosqlite
 from fastapi import APIRouter, Depends, UploadFile
 
 from ..db import get_db
 from ..errors import AppError, NotFoundError
-from ..models.schemas import ConversationIn, ConversationPatch, MessagePatch
+from ..models.schemas import BranchIn, ConversationIn, ConversationPatch, MessagePatch
 from ..prompting.macros import substitute
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
@@ -12,6 +15,31 @@ from ..repositories import personas as personas_repo
 from ..services import media, memory_service, turns
 
 router = APIRouter(prefix="/api", tags=["conversations"])
+
+# What a page asked for under an id of its own, while the server runs: asked for again, as when the
+# answer was lost on the way, it is the conversation made the first time.
+_made: dict[str, str] = {}
+_making: dict[str, asyncio.Event] = {}
+
+
+async def _once(db: aiosqlite.Connection, client_id: str | None,
+                make: Callable[[], Awaitable[dict | None]]) -> dict | None:
+    if client_id is None:
+        return await make()
+    while client_id in _making:
+        await _making[client_id].wait()
+    if client_id in _made and (made := await repo.get(db, _made[client_id])):
+        return made
+    _making[client_id] = asyncio.Event()
+    try:
+        made = await make()
+        if made:
+            _made[client_id] = made["id"]
+            while len(_made) > 100:
+                del _made[next(iter(_made))]
+        return made
+    finally:
+        _making.pop(client_id).set()
 
 
 @router.get("/conversations")
@@ -23,6 +51,10 @@ async def list_conversations(character_id: str | None = None,
 @router.post("/conversations", status_code=201)
 async def create_conversation(payload: ConversationIn,
                               db: aiosqlite.Connection = Depends(get_db)):
+    return await _once(db, payload.client_id, lambda: _create_conversation(db, payload))
+
+
+async def _create_conversation(db: aiosqlite.Connection, payload: ConversationIn) -> dict | None:
     character = await characters_repo.get(db, payload.character_id)
     if not character:
         raise NotFoundError("Character not found.", "character")
@@ -115,8 +147,10 @@ async def patch_message(message_id: str, payload: MessagePatch,
 
 
 @router.post("/messages/{message_id}/branch", status_code=201)
-async def branch_conversation(message_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    branch = await repo.branch_from_message(db, message_id)
+async def branch_conversation(message_id: str, payload: BranchIn | None = None,
+                              db: aiosqlite.Connection = Depends(get_db)):
+    branch = await _once(db, payload and payload.client_id,
+                         lambda: repo.branch_from_message(db, message_id))
     if not branch:
         raise NotFoundError("Message not found.", "message")
     return branch

@@ -100,6 +100,12 @@ class ConversationIn(BaseModel):
     character_id: str
     persona_id: str | None = None
     connection_id: str | None = None
+    # Chosen by the page, as a message's: asked for again under it, it is the conversation made.
+    client_id: str | None = Field(default=None, min_length=1, max_length=64)
+
+
+class BranchIn(BaseModel):
+    client_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class ConversationPatch(BaseModel):
