@@ -140,8 +140,8 @@
       "starHint": "Si Evermind te resulta útil, una estrella en el repositorio es lo que hace que otras personas lo encuentren.",
       "projectLink": "El proyecto en GitHub",
       "reportLink": "Informar de un problema",
-      "updateAvailable": "Evermind {version} ya está.",
-      "updateHint": "Detén Evermind, ejecuta esto en la carpeta donde lo instalaste y vuelve a arrancarlo.",
+      "updateAvailable": "Evermind {version} ya está disponible.",
+      "updateHint": "Detén Evermind y luego ejecuta esto en la carpeta donde lo instalaste.",
       "zipHint": {
         "before": "Descargada como ZIP, esta copia se actualiza a mano:",
         "link": "los pasos están en INSTALL.md",

@@ -141,7 +141,7 @@
       "projectLink": "Das Projekt auf GitHub",
       "reportLink": "Ein Problem melden",
       "updateAvailable": "Evermind {version} ist da.",
-      "updateHint": "Halte Evermind an, führe das hier in dem Ordner aus, in dem du es installiert hast, und starte es wieder.",
+      "updateHint": "Halte Evermind an und führe dann das hier in dem Ordner aus, in dem du es installiert hast.",
       "zipHint": {
         "before": "Als ZIP heruntergeladen, wird diese Kopie von Hand aktualisiert:",
         "link": "Die Schritte stehen in INSTALL.md",
@@ -421,7 +421,7 @@
   },
   "cards": {
     "startChatModal": {
-      "title": "{name} beitreten",
+      "title": "Mit {name} spielen",
       "personaHint": "Verwalte deine Identitäten im Tab „Personas“.",
       "noPersonaOption": "Keine Persona",
       "noConnectionOption": "Keine Verbindung konfiguriert",
@@ -449,7 +449,7 @@
     "server": "Evermind hat mit einem Fehler geantwortet (HTTP {status}).",
     "unreachable": "Evermind antwortet nicht. Läuft es noch?",
     "offline": "Dieses Gerät ist offline.",
-    "notSent": "Diese Nachricht wurde nicht gesendet. Tippe auf Senden, um sie noch einmal zu schicken.",
+    "notSent": "Diese Nachricht wurde nicht gesendet. Drücke auf Senden, um sie noch einmal zu schicken.",
     "invalid": "Evermind konnte diese Anfrage nicht verarbeiten: Es fehlen Angaben, oder sie sind ungültig.",
     "locked": "Deine Sitzung ist beendet. Melde dich erneut an.",
     "wrongPassword": "Zugriff verweigert.",

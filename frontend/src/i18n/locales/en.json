@@ -141,7 +141,7 @@
       "projectLink": "The project on GitHub",
       "reportLink": "Report a problem",
       "updateAvailable": "Evermind {version} is out.",
-      "updateHint": "Stop Evermind, run this from the folder you installed it in, then start it again.",
+      "updateHint": "Stop Evermind, then run this from the folder you installed it in.",
       "zipHint": {
         "before": "Downloaded as a ZIP, this copy is updated by hand:",
         "link": "the steps are in INSTALL.md",
