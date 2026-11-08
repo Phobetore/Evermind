@@ -174,11 +174,11 @@ When a model's server is what failed (a `ProviderError`, `502`), the kind says h
 `model_auth_refused`, `model_not_found` or `model_rate_limited` (an error status
 401, 404 or 429), or `model_error` (any other error status, or an error inside its
 stream). The `error` is then what that server said (`HTTP <status>` when it said
-nothing), the address that could not be reached, or how the connection broke,
-which the interface quotes after its own sentence. A model that answers with
-nothing is `model_empty` (`model_no_text` for the benchmark), and an answer that
-cannot be read is `model_unreadable`. The connection test and the benchmark fail
-the same way.
+nothing), the address that could not be reached, or how the connection broke.
+The interface frames the first two in a sentence of its own, and does not show
+the third. A model that answers with nothing is `model_empty` (`model_no_text`
+for the benchmark), and an answer that cannot be read is `model_unreadable`. The
+connection test and the benchmark fail the same way.
 
 FastAPI's own answers have no `kind`: `{"detail": ...}` for a route that does not
 exist (`404`), a method a route does not take (`405`) or a body that does not
