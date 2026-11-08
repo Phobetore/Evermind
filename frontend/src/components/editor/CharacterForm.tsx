@@ -490,7 +490,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           </p>
         )}
 
-        <div className="flex items-center justify-between border-t border-ink-700 pt-5">
+        {/* Wrapping: three buttons in German or French are wider than a phone. */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-700 pt-5">
           {editing ? (
             <button className="btn btn-danger" onClick={remove}>
               <Trash2 className="h-4 w-4" /> {t("common.delete")}
@@ -498,7 +499,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           ) : (
             <span />
           )}
-          <div className="flex gap-2">
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
             <button className="btn btn-ghost" onClick={() => navigate(-1)}>
               {t("common.cancel")}
             </button>

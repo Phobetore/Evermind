@@ -97,3 +97,15 @@ test("a one-word name breaks rather than pushing a page off the side of a phone"
 
   await expectTheCardPagesFit(page, card.id, [320, 375, 412]);
 });
+
+// Buttons that sit side by side in English may not in French or German.
+test.describe("a card's pages and the personas fit a phone in every language", () => {
+  for (const locale of ["en", "fr", "de", "es"]) {
+    test(`in ${locale}`, async ({ page, request }) => {
+      const card = await makeCharacter(request);
+      await page.addInitScript((chosen) => localStorage.setItem("evermind:locale", chosen), locale);
+
+      await expectTheCardPagesFit(page, card.id, [320, 360]);
+    });
+  }
+});
