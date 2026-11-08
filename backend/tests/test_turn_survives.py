@@ -74,12 +74,16 @@ async def _ended(turn):
     await asyncio.wait_for(turn.finished.wait(), timeout=15)
 
 
-async def _stopped_after_four_words(turn):
-    async def four_words():
-        while turn.text.count("mot") < 4:
+async def _written(turn, words):
+    async def enough():
+        while turn.text.count("mot") < words:
             await asyncio.sleep(0.01)
 
-    await asyncio.wait_for(four_words(), timeout=10)
+    await asyncio.wait_for(enough(), timeout=10)
+
+
+async def _stopped_after_four_words(turn):
+    await _written(turn, 4)
     await turns.stop(turn.conversation_id)
 
 
@@ -104,9 +108,10 @@ async def test_following_is_the_message_so_far_then_the_rest(client, unhurried):
     convo = await setup_conversation(client)
     turn = await turns.start(_sending(convo["id"]))
     await turns.follow(turn).asend(None)  # one reader that has gone, another that comes back
+    await _written(turn, 3)
 
     events = [event async for event in turns.follow(turn)]
-    assert "text" in events[0]
+    assert events[0]["text"].startswith("mot0 mot1 mot2"), "the words written before it came back were lost"
     text = events[0]["text"] + "".join(event["delta"] for event in events[1:])
     assert text == (await messages_of(client, convo["id"]))[-1]["content"] + " "
 
@@ -291,11 +296,7 @@ async def test_a_stop_keeps_every_word_ends_the_request_at_once_and_the_next_mes
     convo = await setup_conversation(client)
     turn = await turns.start(_sending(convo["id"]))
 
-    async def four_words():
-        while turn.text.count("mot") < 4:
-            await asyncio.sleep(0.01)
-
-    await asyncio.wait_for(four_words(), timeout=10)
+    await _written(turn, 4)
     stopped = await client.delete(f"/api/conversations/{convo['id']}/turn")
 
     assert stopped.status_code == 204
