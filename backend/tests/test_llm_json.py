@@ -63,8 +63,7 @@ def test_garbage_returns_none():
 
 
 def test_a_reply_nested_beyond_what_the_decoder_follows_is_hopeless_not_a_crash():
-    # Far deeper than the decoder's recursion allows on any build: it raises
-    # RecursionError, which is not a ValueError and would end the turn uncaught.
+    # Far deeper than the decoder's recursion allows on any build.
     depth = 100_000
     assert parse_llm_json("[" * depth) is None
     assert parse_llm_json("[" * depth + "]" * depth) is None
