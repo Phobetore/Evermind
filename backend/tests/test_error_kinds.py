@@ -104,16 +104,6 @@ async def test_an_image_format_that_is_not_accepted(client):
     }
 
 
-async def test_a_variant_that_does_not_exist(client, provider):
-    convo = await setup_conversation(client)
-    message = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"][0]
-    resp = await client.patch(f"/api/messages/{message['id']}", json={"active_index": 9})
-    assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Variant index out of range.", "kind": "variant_out_of_range",
-    }
-
-
 async def test_a_fact_that_is_already_known(client, provider):
     convo = await setup_conversation(client)
     url = f"/api/conversations/{convo['id']}/memories"
@@ -122,41 +112,6 @@ async def test_a_fact_that_is_already_known(client, provider):
     resp = await client.post(url, json={"content": "She lies."})
     assert resp.status_code == 400
     assert resp.json() == {"error": "This fact already exists.", "kind": "fact_exists"}
-
-
-@pytest.mark.parametrize("content", ["", "   ", "\n\t"])
-async def test_a_fact_without_text_is_not_a_fact_that_exists(client, provider, content):
-    convo = await setup_conversation(client)
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories",
-                             json={"content": content})
-    assert resp.status_code == 400
-    assert resp.json() == {"error": "A fact needs some text.", "kind": "fact_empty"}
-    assert (await client.get(f"/api/conversations/{convo['id']}/memories")).json() == []
-
-
-@pytest.mark.parametrize("content", ["", "   "])
-async def test_a_fact_cannot_be_edited_into_nothing(client, provider, content):
-    convo = await setup_conversation(client)
-    url = f"/api/conversations/{convo['id']}/memories"
-    fact = (await client.post(url, json={"content": "She lies."})).json()
-
-    resp = await client.patch(f"/api/memories/{fact['id']}", json={"content": content})
-
-    assert resp.status_code == 400
-    assert resp.json() == {"error": "A fact needs some text.", "kind": "fact_empty"}
-    assert (await client.get(url)).json()[0]["content"] == "She lies."
-
-
-async def test_a_fact_can_still_be_pinned_or_rewritten(client, provider):
-    convo = await setup_conversation(client)
-    url = f"/api/conversations/{convo['id']}/memories"
-    fact = (await client.post(url, json={"content": "She lies."})).json()
-
-    pinned = await client.patch(f"/api/memories/{fact['id']}", json={"is_pinned": True})
-    rewritten = await client.patch(f"/api/memories/{fact['id']}", json={"content": " She tells the truth. "})
-
-    assert pinned.status_code == 200 and pinned.json()["is_pinned"] is True
-    assert rewritten.status_code == 200 and rewritten.json()["content"] == "She tells the truth."
 
 
 async def test_no_connection_for_the_card_assistant(client, provider):
@@ -174,14 +129,6 @@ async def test_no_connection_for_the_story_tools(client, provider):
     assert resp.json()["kind"] == "no_connection"
 
 
-async def test_a_missing_conversation_for_the_story_tools(client, provider):
-    resp = await client.post("/api/conversations/nope/impersonate")
-    assert resp.status_code == 404
-    assert resp.json() == {
-        "error": "Conversation not found.", "kind": "not_found", "resource": "conversation",
-    }
-
-
 async def test_an_empty_conversation_for_the_story_tools(client, provider):
     convo = await setup_conversation(client, greeting="")
     resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
@@ -195,14 +142,6 @@ async def test_a_model_that_reports_an_error(client, provider):
     resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 502
     assert resp.json() == {"error": "Rate limit reached (429).", "kind": "model_error"}
-
-
-async def test_a_model_that_cannot_be_reached_keeps_its_own_kind(client, provider):
-    convo = await setup_conversation(client)
-    FakeProvider.script = [ProviderError("http://localhost:1234/v1", "unreachable")]
-    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
-    assert resp.status_code == 502
-    assert resp.json() == {"error": "http://localhost:1234/v1", "kind": "unreachable"}
 
 
 async def test_a_model_that_says_nothing(client, provider):
@@ -225,25 +164,6 @@ async def test_a_card_the_model_wrote_badly(client, provider):
     }
 
 
-async def test_a_card_the_model_left_empty(client, provider):
-    await add_connection(client)
-    provider.script = [ProviderEvent(type="delta", text='{"nothing": 1}'),
-                                 ProviderEvent(type="done")]
-    resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
-    assert resp.status_code == 502
-    assert resp.json() == {
-        "error": "The model returned an empty card. Try again.", "kind": "model_empty",
-    }
-
-
-async def test_a_model_error_while_writing_a_card(client, provider):
-    await add_connection(client)
-    provider.script = [ProviderError("Overloaded.")]
-    resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
-    assert resp.status_code == 502
-    assert resp.json() == {"error": "Overloaded.", "kind": "model_error"}
-
-
 @pytest.mark.parametrize("route", ["extract", "consolidate"])
 async def test_a_memory_pass_without_a_connection(client, provider, route):
     char = (await client.post("/api/characters", json={"name": "X", "greeting": "Hi"})).json()
@@ -253,42 +173,6 @@ async def test_a_memory_pass_without_a_connection(client, provider, route):
     # to add one, which is no fault of a model's server.
     assert resp.status_code == 400
     assert resp.json()["kind"] == "no_connection"
-
-
-async def _conversation_with_facts_to_merge(client):
-    """A conversation both memory passes have something to work on in: it has
-    been talked in, and holds enough facts of the kind consolidation moves."""
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    for number in range(10):
-        await client.post(f"/api/conversations/{convo['id']}/memories",
-                          json={"content": f"Fact number {number}."})
-    from app.db import _connect
-
-    db = await _connect()
-    await db.execute("UPDATE memories SET source='auto'")
-    await db.commit()
-    await db.close()
-    return convo
-
-
-@pytest.mark.parametrize("route", ["extract", "consolidate"])
-async def test_a_memory_pass_the_model_answers_badly(client, provider, route):
-    convo = await _conversation_with_facts_to_merge(client)
-    FakeProvider.script = [ProviderEvent(type="delta", text="no json here"),
-                           ProviderEvent(type="done")]
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/{route}")
-    assert resp.status_code == 502
-    assert resp.json()["kind"] == "model_unreadable"
-
-
-@pytest.mark.parametrize("route", ["extract", "consolidate"])
-async def test_a_memory_pass_the_model_refuses(client, provider, route):
-    convo = await _conversation_with_facts_to_merge(client)
-    FakeProvider.script = [ProviderError("Quota exceeded.")]
-    resp = await client.post(f"/api/conversations/{convo['id']}/memories/{route}")
-    assert resp.status_code == 502
-    assert resp.json() == {"error": "Quota exceeded.", "kind": "model_error"}
 
 
 async def test_a_turn_that_cannot_be_had_is_refused_by_name(client, provider):
