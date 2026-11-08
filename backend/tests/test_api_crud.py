@@ -15,8 +15,6 @@ async def create_character(client, **overrides):
     return resp.json()
 
 
-# ---------- characters ----------
-
 async def test_character_crud(client):
     a = await create_character(client, tags=["fantasy"], kind="character")
     await create_character(client, name="The Drowned City", kind="scenario", tags=["mystery"])
@@ -71,8 +69,6 @@ async def test_avatar_upload(client):
     assert resp.json()["avatar_url"]
 
 
-# ---------- personas ----------
-
 async def test_persona_crud_and_default(client):
     p1 = (await client.post("/api/personas", json={"name": "Alex"})).json()
     assert p1["is_default"] is True  # first persona becomes default
@@ -84,8 +80,6 @@ async def test_persona_crud_and_default(client):
     deleted = await client.delete(f"/api/personas/{p1['id']}")
     assert deleted.status_code == 204
 
-
-# ---------- connections ----------
 
 async def test_connection_key_masking_and_update(client):
     resp = await client.post("/api/connections", json={
@@ -175,8 +169,6 @@ async def test_connection_test_endpoint_unreachable(client):
     assert (resp.status_code, resp.json()["kind"]) == (502, "unreachable")
 
 
-# ---------- conversations ----------
-
 async def test_conversation_created_with_greeting_variants(client):
     char = await create_character(client, alternate_greetings=["Alt greeting"])
     persona = (await client.post("/api/personas", json={"name": "Alex"})).json()
@@ -226,8 +218,6 @@ async def test_conversation_without_greeting_has_no_messages(client):
     convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
     assert convo["messages"] == []
 
-
-# ---------- settings ----------
 
 async def test_settings_roundtrip(client):
     initial = (await client.get("/api/settings")).json()
