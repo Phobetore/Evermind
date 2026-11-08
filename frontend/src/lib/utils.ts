@@ -47,6 +47,7 @@ export function newId(): string {
 
 /** Whether it was copied. Not `navigator.clipboard`, which a page over plain HTTP lacks too. */
 export function copyText(text: string): boolean {
+  const active = document.activeElement as HTMLElement | null; // which selecting the text takes
   const area = document.createElement("textarea");
   area.value = text;
   area.setAttribute("readonly", "");
@@ -62,5 +63,6 @@ export function copyText(text: string): boolean {
     return false;
   } finally {
     area.remove();
+    active?.focus();
   }
 }
