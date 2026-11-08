@@ -410,8 +410,10 @@ def seed_conversations(execute, *persona_ids):
     ((("alex", True),), None, "alex"),
     ((("alex", False),), None, "alex"),
     ((("alex", True, 1), ("sam", False, 2)), "sam", "alex"),
+    ((("sam", False, 1), ("alex", True, 2)), "sam", "alex"),
     ((("alex", False, 1), ("sam", False, 2)), "sam", "alex"),
-], ids=["no persona", "one", "one unticked", "the list and the mark disagree", "the list, no mark"])
+], ids=["no persona", "one", "one unticked", "the list and the mark disagree",
+        "the list on an older one than the mark", "the list, no mark"])
 async def test_a_conversation_without_a_persona_keeps_the_one_it_was_played_as(
         old_database, personas, setting, played):
     """3.0.x played it as the marked persona, else the oldest, whatever the Settings list named.
