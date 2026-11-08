@@ -88,7 +88,8 @@ async def get_conversation(convo_id: str, db: aiosqlite.Connection = Depends(get
     await db.commit()
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
-    return {**convo, "memory_error": memory_service.failure_of(convo_id)}
+    return {**convo, "memory_error": memory_service.failure_of(convo_id),
+            "memory_running": memory_service.is_running(convo_id)}
 
 
 @router.patch("/conversations/{convo_id}")

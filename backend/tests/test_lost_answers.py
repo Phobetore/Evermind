@@ -2,8 +2,11 @@
 over a home Wi-Fi: asked for again, nothing is made twice, and what it reads says how things stand."""
 
 import asyncio
+import json
 
-from .conftest import setup_conversation
+from app.providers.base import ProviderEvent
+
+from .conftest import FakeProvider, send, setup_conversation, waiting_provider, within
 
 
 async def test_an_edit_writes_the_version_it_was_typed_over(client):
@@ -55,3 +58,27 @@ async def test_a_branch_asked_for_again_under_its_id_is_the_one_made(client):
     assert (await client.post(url)).status_code == 201  # with no id, one more each time, as before
     branches = [c for c in (await client.get("/api/conversations")).json() if c["forked_from"]]
     assert len(branches) == 2
+
+
+async def test_the_conversation_says_while_a_memory_pass_runs(client, monkeypatch):
+    """A page whose Remember got no answer reads how it ended once no pass is running."""
+    monkeypatch.setattr("app.services.chat_service.get_provider", FakeProvider)
+    FakeProvider.script = [ProviderEvent(type="delta", text="Reply."), ProviderEvent(type="done")]
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+    started, release, _ = waiting_provider(monkeypatch)
+    FakeProvider.script = [ProviderEvent(type="delta", text=json.dumps({"facts": [], "summary": "Read."})),
+                           ProviderEvent(type="done")]
+    url = f"/api/conversations/{convo['id']}"
+
+    remembering = asyncio.create_task(client.post(f"{url}/memories/extract"))
+    try:
+        await within(5, started.wait())
+        during = (await client.get(url)).json()
+    finally:
+        release.set()
+    assert (await within(5, remembering)).status_code == 200
+    after = (await client.get(url)).json()
+
+    assert (during["memory_running"], after["memory_running"]) == (True, False)
+    assert after["summary"] == "Read."

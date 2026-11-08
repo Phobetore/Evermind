@@ -57,6 +57,11 @@ _running: set[str] = set()
 _failed: dict[str, dict] = {}
 
 
+def is_running(convo_id: str) -> bool:
+    """Whether a pass or a consolidation is under way for the conversation."""
+    return convo_id in _running
+
+
 def failure_of(convo_id: str) -> dict | None:
     """Why the last automatic pass failed, shaped as an error response, until one succeeds."""
     failed = _failed.get(convo_id)
