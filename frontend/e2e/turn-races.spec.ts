@@ -208,6 +208,18 @@ test.describe("what another device did", () => {
     await expect(page.getByText("Depuis le PC.")).toBeVisible();
   });
 
+  test("is on screen once the window, visible all along, is come back to", { tag: "@desktop" }, async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await page.goto(`/#/chat/${convo.id}`);
+    await page.waitForLoadState("networkidle");
+    await chat(request, { conversation_id: convo.id, mode: "send", content: "Depuis le téléphone." });
+
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    await expect(page.getByText("Depuis le téléphone.")).toBeVisible();
+  });
+
   test("beginning between the page's question and its read is followed", async ({ page, request }) => {
     const convo = await conversationWithReply(request, { slowly: true });
     let first = true;

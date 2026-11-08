@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const PATIENCE_MS = 10_000;
 const AFTER_A_FAILURE_MS = 2_000;
 const AFTER_A_CLOSE_MS = 1_000;
-/** `online` and `visibilitychange` tend to arrive together as a phone wakes. */
+/** `online`, `visibilitychange` and `focus` tend to arrive together as a phone wakes. */
 const WAKING_MS = 200;
 /** Failures kept quiet on waking with nothing under way, while the network comes back. */
 const QUIET_FAILURES = 2;
@@ -230,11 +230,14 @@ export function useTurn(
       waking = setTimeout(() => watch(shown.current.writing === null && !waiting.has(id)), WAKING_MS);
     };
     window.addEventListener("online", comingBack);
+    // A window that stayed visible, which the person comes back to, is told only this.
+    window.addEventListener("focus", comingBack);
     document.addEventListener("visibilitychange", comingBack);
     return () => {
       clearTimeout(waking);
       watching.current?.abort();
       window.removeEventListener("online", comingBack);
+      window.removeEventListener("focus", comingBack);
       document.removeEventListener("visibilitychange", comingBack);
     };
   }, [id, watch]);
