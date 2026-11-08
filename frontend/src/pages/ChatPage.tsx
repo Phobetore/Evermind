@@ -205,13 +205,14 @@ function ChatView({ id }: { id: string }) {
     setHeard({ writing, said: writing !== null ? "typing" : heard.said && !outcome ? "replied" : "" });
   }
 
-  // A reply asked for here may take away the button that asked: Stop holds the focus while it is
-  // written, and the reply's own button after, unless the focus is somewhere already.
+  // The focus a reply's button lost goes to Stop, then to the reply, leaving the story where it is read.
   const stopButton = useRef<HTMLButtonElement>(null);
   const replyButton = useRef<HTMLButtonElement>(null);
   const keepFocus = useRef(false);
   useEffect(() => {
-    if (keepFocus.current && nothingFocused()) (busy ? stopButton : replyButton).current?.focus();
+    if (keepFocus.current && nothingFocused()) {
+      (busy ? stopButton : replyButton).current?.focus({ preventScroll: true });
+    }
     if (!busy) keepFocus.current = false;
   }, [busy]);
 
