@@ -100,6 +100,17 @@ async def test_legacy_links_redirect(ui_client, old, new):
     assert r.status_code == 302 and r.headers["location"] == new
 
 
+async def test_what_is_long_goes_out_compressed(ui_client, ui_dir):
+    # A long conversation is a long answer, and a phone on a weak link is who reads it.
+    (ui_dir / "assets" / "long-1f2e3d.js").write_text("console.log('a');\n" * 200, encoding="utf-8")
+    long = "Terse. " * 200
+    card = (await ui_client.post("/api/characters", json={"name": "Vane", "description": long})).json()
+    for path in ("/assets/long-1f2e3d.js", f"/api/characters/{card['id']}"):
+        r = await ui_client.get(path, headers={"Accept-Encoding": "gzip"})
+        assert r.status_code == 200 and r.headers.get("content-encoding") == "gzip", path
+    assert r.json()["description"] == long
+
+
 async def test_a_file_named_like_a_legacy_page_is_served(ui_client, ui_dir):
     (ui_dir / "settings").write_text("a file", encoding="utf-8")
     assert (await ui_client.get("/settings")).text == "a file"

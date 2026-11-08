@@ -3,6 +3,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.middleware.gzip import GZipMiddleware
 
 from . import __version__, config, gate
 from .db import init_db
@@ -28,6 +29,8 @@ def create_app() -> FastAPI:
                   docs_url=None, redoc_url=None, openapi_url=None)
     # No CORS: the interface is never on another origin, and other origins' writes are refused here.
     app.add_middleware(gate.GateMiddleware)
+    # Starlette leaves out the event stream, and pictures that are compressed already.
+    app.add_middleware(GZipMiddleware)
     register_error_handlers(app)
 
     from .routers import register_routers

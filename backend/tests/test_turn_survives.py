@@ -130,6 +130,15 @@ async def test_the_stream_says_when_the_turn_ended_so_that_the_page_asks_at_once
     assert text.strip() == (await messages_of(client, convo["id"]))[-1]["content"]
 
 
+async def test_the_stream_is_not_compressed(client, unhurried):
+    convo = await setup_conversation(client)
+    await turns.start(_sending(convo["id"]))
+    r = await client.get(f"/api/conversations/{convo['id']}/turn/stream",
+                         headers={"Accept-Encoding": "gzip"})
+    assert r.headers["content-type"].startswith("text/event-stream")
+    assert "content-encoding" not in r.headers
+
+
 async def test_the_state_holds_all_of_it_and_never_goes_back(client, unhurried):
     convo = await setup_conversation(client)
     await client.post("/api/chat", json={"conversation_id": convo["id"], "content": "Vas-y"})
