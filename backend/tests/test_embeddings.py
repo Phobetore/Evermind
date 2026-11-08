@@ -1,9 +1,13 @@
 """Embedding module: serialization + graceful-degradation contract."""
 
+import re
 import sys
 import types
+from pathlib import Path
 
 from app.prompting import embeddings
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class Hub:
@@ -58,6 +62,16 @@ async def test_a_model_that_fails_for_another_reason_is_not_downloaded(monkeypat
 
     assert not await start(monkeypatch, hub)
     assert hub.asked == ["cache"]
+
+
+def test_the_image_keeps_the_model_in_the_data_volume():
+    """Each update makes a new container: one that finds the model downloads nothing."""
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    data = re.search(r"EVERMIND_DATA_DIR=(\S+)", dockerfile)[1]
+    cache = re.search(r"HF_HUB_CACHE=(\S+)", dockerfile)
+
+    assert cache and cache[1].startswith(f"{data}/")
+    assert f"evermind-data:{data}" in (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
 
 
 def test_pack_unpack_round_trip():
