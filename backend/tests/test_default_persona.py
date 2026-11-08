@@ -223,28 +223,33 @@ async def test_a_null_does_not_reset_a_setting_that_has_a_value_of_its_own_by_de
 
 BEFORE = "009_gate.sql"
 THIS = "010_default_persona.sql"
+# What each release had applied past 009.
+SHIPPED = {"3.0.1": (), "3.0.2": ("012_connection_sampling.sql",)}
 
 
 @pytest.fixture()
-def old_database(tmp_path, monkeypatch):
-    """A database from before this migration: 001 to 009 applied, and nothing else.
+def old_database(request, tmp_path, monkeypatch):
+    """A database from before this migration, as 3.0.1 left it: 001 to 009 applied, and
+    nothing else; or as 3.0.2 did, 012 too, for a test that asks for "3.0.2" (``indirect``).
 
     Returns ``(execute, start_before, upgrade)``: the first runs SQL on it and
     returns the rows, the second creates it, and the third starts the
     application on it with this migration and none after, as an update does.
     """
     monkeypatch.setenv("EVERMIND_DATA_DIR", str(tmp_path / "data"))
+    shipped = SHIPPED[getattr(request, "param", "3.0.1")]
 
-    def migrations_up_to(last):
-        folder = tmp_path / f"migrations-up-to-{last}"
+    def migrations(folder, *names):
+        folder = tmp_path / folder
         folder.mkdir()
         for path in app_db.MIGRATIONS_DIR.glob("*.sql"):
-            if path.name <= last:
+            if path.name <= BEFORE or path.name in names:
                 shutil.copy(path, folder / path.name)
-        assert (folder / last).exists(), f"{last} is not among the migrations"
+        missing = [name for name in names if not (folder / name).exists()]
+        assert not missing, f"{missing} not among the migrations"
         return folder
 
-    before, after = migrations_up_to(BEFORE), migrations_up_to(THIS)
+    before, after = migrations("before", *shipped), migrations("after", *shipped, THIS)
 
     def execute(sql, *params):
         from app.config import db_path
@@ -388,3 +393,38 @@ async def test_a_setting_that_is_not_a_persona_id_is_dropped_and_marks_nothing(
 
     assert marks(execute) == ["aaa"]
     assert stored(execute) == []
+
+
+def seed_conversations(execute, *persona_ids):
+    """One conversation as each of these personas, by its id, and one as none, "none"."""
+    execute("INSERT INTO characters (id, name, created_at, updated_at)"
+            " VALUES ('bram', 'Bram', 'then', 'then')")
+    for persona_id in (None, *persona_ids):
+        execute("INSERT INTO conversations (id, character_id, persona_id, created_at, updated_at)"
+                " VALUES (?, 'bram', ?, 'then', 'then')", persona_id or "none", persona_id)
+
+
+@pytest.mark.parametrize("old_database", ["3.0.1", "3.0.2"], indirect=True)
+@pytest.mark.parametrize(("personas", "setting", "played"), [
+    ((), None, None),
+    ((("alex", True),), None, "alex"),
+    ((("alex", False),), None, "alex"),
+    ((("alex", True, 1), ("sam", False, 2)), "sam", "alex"),
+    ((("alex", False, 1), ("sam", False, 2)), "sam", "alex"),
+], ids=["no persona", "one", "one unticked", "the list and the mark disagree", "the list, no mark"])
+async def test_a_conversation_without_a_persona_keeps_the_one_it_was_played_as(
+        old_database, personas, setting, played):
+    """3.0.x played it as the marked persona, else the oldest, whatever the Settings list named.
+    It keeps that one as its own: the list's choice, now the mark, is for the conversations to come."""
+    execute, start_before, upgrade = old_database
+    await start_before()
+    seed_personas(execute, *personas)
+    if setting:
+        execute("INSERT INTO settings (key, value) VALUES (?, ?)", SETTING, dumps(setting))
+    seed_conversations(execute, *[persona[0] for persona in personas])
+
+    await upgrade()
+
+    own = dict(execute("SELECT id, persona_id FROM conversations"))
+    assert own.pop("none") == played
+    assert all(convo_id == persona_id for convo_id, persona_id in own.items())

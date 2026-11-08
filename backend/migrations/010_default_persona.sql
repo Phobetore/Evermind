@@ -2,7 +2,12 @@
 -- on the persona itself, and a setting of its own. They could disagree, and a
 -- greeting then named one while the turns after it named the other. The mark is
 -- the only one from now on.
---
+
+-- A conversation with no persona was played as the marked one, else the oldest: it keeps it.
+UPDATE conversations SET persona_id = (
+    SELECT id FROM personas ORDER BY is_default DESC, created_at, rowid LIMIT 1)
+WHERE persona_id IS NULL;
+
 -- The setting is where the choice was made in Settings, so where it names a
 -- persona that still exists, that persona gets the mark and the others lose it.
 -- The setting holds the id as JSON, which for the ids this application makes
