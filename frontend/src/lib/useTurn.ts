@@ -22,14 +22,20 @@ const unanswered = (error: unknown) =>
 /** A message that got no answer, and that the server, answering since, does not have. */
 const NOT_SENT = new DataError("This message was not sent.", { kind: "not_sent" });
 
+/** What a model thinks before it answers, which some send in the reply: unended, all that follows. */
+const THOUGHT = /<think>[\s\S]*?(?:<\/think>\s*|$)/g;
+
 /** The words of the reply being written, for the one thing on screen that follows them. */
 export class LiveText {
   private text = "";
   private listeners = new Set<() => void>();
-  get = () => this.text;
+  get = () => this.text.replace(THOUGHT, "");
   set(text: string) {
     this.text = text;
     this.listeners.forEach((listener) => listener());
+  }
+  add(delta: string) {
+    this.set(this.text + delta);
   }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -168,7 +174,8 @@ export function useTurn(
         // A stream that breaks is no failure: whether the server can be reached is asked next.
         await data.turns.follow(id, (event) => {
           if ("end" in event) ended = true;
-          else text.set("text" in event ? event.text : text.get() + event.delta);
+          else if ("text" in event) text.set(event.text);
+          else text.add(event.delta);
         }, signal).catch(() => {});
         if (signal.aborted) return;
         // Given up on by something between here and the server, which is no end to the turn.
