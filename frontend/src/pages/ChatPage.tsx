@@ -73,6 +73,9 @@ function ChatView({ id }: { id: string }) {
   }, []);
   // The backdrop's strength is set under the conversation, where it can be judged.
   const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
+  // What the strength was asked for from, which Done gives the focus back to while it is there.
+  const adjustedFrom = useRef<Element | null>(null);
+  const panelButton = useRef<HTMLButtonElement>(null);
   const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
   const opacityHeld = useRef<number | undefined>(undefined); // what the server holds
   // Counts the times the server took the memory back, for the side panel to read it again.
@@ -410,6 +413,7 @@ function ChatView({ id }: { id: string }) {
             )}
             {!panelOpen && (
               <button
+                ref={panelButton}
                 onClick={() => setPanelOpen(true)}
                 className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
                 aria-label={t("chat.header.memorySettingsAriaLabel")}
@@ -495,6 +499,7 @@ function ChatView({ id }: { id: string }) {
               </div>
               <input
                 type="range"
+                autoFocus
                 min={0}
                 max={100}
                 value={strength}
@@ -505,7 +510,11 @@ function ChatView({ id }: { id: string }) {
               <button
                 type="button"
                 className="btn btn-primary mt-3 w-full"
-                onClick={() => setAdjustingWallpaper(false)}
+                onClick={() => {
+                  setAdjustingWallpaper(false);
+                  const from = adjustedFrom.current;
+                  (from instanceof HTMLElement && from.isConnected ? from : panelButton.current)?.focus();
+                }}
               >
                 {t("chat.wallpaper.done")}
               </button>
@@ -532,6 +541,7 @@ function ChatView({ id }: { id: string }) {
             setConversation((c) => (c ? { ...c, ...patch } : c));
           }}
           onAdjustWallpaper={() => {
+            adjustedFrom.current = document.activeElement;
             // Over the conversation, it would hide what is being judged.
             if (!window.matchMedia(WIDE).matches) setPanelOpen(false);
             setAdjustingWallpaper(true);
