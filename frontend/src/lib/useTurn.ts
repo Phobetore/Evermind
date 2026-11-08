@@ -146,7 +146,10 @@ export function useTurn(
         }
         quiet = 0;
         setLost(null);
-        setRefused((refusal: unknown) => (unanswered(refusal) ? NOT_SENT : refusal));
+        // Not sent while it is still on its way; once it is not, it got there, whoever found it.
+        setRefused((refusal: unknown) => (unanswered(refusal) || refusal === NOT_SENT
+          ? (loadSending(id) ? NOT_SENT : null)
+          : refusal));
         if (!state.running) {
           shown.current.writing = null;
           setWriting(null);

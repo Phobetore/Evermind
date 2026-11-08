@@ -128,6 +128,33 @@ test.describe("a message that reaches Evermind late", () => {
     });
   }
 
+  test("said not to be sent, then found by another tab, is no longer said so", async ({ page, context, request }) => {
+    const convo = await conversationWithReply(request);
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(box(page)).toBeVisible();
+    const release = await held(page, "arrive and hang");
+    await send(page, "Trouvé par l'autre onglet.");
+    await expect(notSent(page)).toBeVisible({ timeout: 20_000 });
+    let readAgain = () => {};
+    const readsBack = new Promise<void>((resolve) => { readAgain = resolve; });
+    await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+      if (route.request().method() === "GET") await readsBack; // the other tab reads first
+      await route.continue().catch(() => {});
+    });
+
+    release();
+    await expect.poll(() => said(request, convo.id, "Trouvé par l'autre onglet.")).toBe(1);
+    const other = await context.newPage();
+    await other.goto(`/#/chat/${convo.id}`);
+    await expect(box(other)).toHaveValue("");
+    readAgain();
+
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    await expect(notSent(page), "said of a message on screen").toHaveCount(0);
+    await expect(box(page)).toHaveValue("");
+  });
+
   test("as a Regenerate, is followed once it gets there", async ({ page, request }) => {
     const convo = await conversationWithReply(request);
     const reply = convo.messages.at(-1);
