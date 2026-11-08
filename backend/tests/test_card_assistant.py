@@ -155,10 +155,10 @@ async def test_assist_lists_only_text_and_whole_numbers_as_lore_keywords(client,
     assert "EXISTING LOREBOOK KEYWORDS" not in content
 
 
-async def test_assist_reads_lore_entries_and_their_keys_only_when_they_are_lists(
+async def test_assist_reads_lore_entries_from_a_list_only_and_their_keys_as_a_drafts(
         client, fake_provider):
-    """A string is not a list of letters, and a number is not a list: neither
-    gives a keyword, and neither fails the request."""
+    """A lorebook that is no list holds no entry, and fails no request. The keys of an entry
+    are read as a draft's are: a bare string is one keyword, a number or an object none."""
     await add_connection(client)
     for existing in ({"lore_entries": 5}, {"lore_entries": "Kabukicho"},
                      {"lore_entries": {"keys": ["Kabukicho"], "content": "c"}},
@@ -178,7 +178,7 @@ async def test_assist_reads_lore_entries_and_their_keys_only_when_they_are_lists
     })
     assert resp.status_code == 200, resp.text
     content = fake_provider.captured["payload"].messages[0]["content"]
-    assert "EXISTING LOREBOOK KEYWORDS (cover other subjects):\nclan\n" in content
+    assert "EXISTING LOREBOOK KEYWORDS (cover other subjects):\nKabukicho, clan\n" in content
 
 
 async def assist_with(client, fake_provider, reply):
