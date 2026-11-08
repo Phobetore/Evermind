@@ -225,9 +225,9 @@ Follow the part that matches how you run Evermind, then read
    yourself, there is nothing to download: `git pull` brings the new file. Do
    it after the step above: pulling is what replaces the old file.
 
-   One exception. If it has a line such as `EVERMIND_VERSION=2.1.6`, change it
-   to `3.0.0`, or delete the line. The new image starts at 3.0.0 and has no 2.x
-   versions to pin to.
+   One exception. If it has a line such as `EVERMIND_VERSION=2.1.6`, delete it,
+   or set it to `latest`. The new image starts at 3.0.0 and has no 2.x versions
+   to pin to, and a pin to a 3.x version would hold you there.
 
 3. Start it:
 
