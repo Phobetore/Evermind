@@ -21,7 +21,6 @@ export function ChatSidePanel({
   onConversationChange,
   onWallpaperOpacity,
   onAdjustWallpaper,
-  className,
 }: {
   conversation: Conversation;
   persona: Persona | null;
@@ -31,7 +30,6 @@ export function ChatSidePanel({
   onConversationChange: (patch: Partial<Conversation>) => void;
   onWallpaperOpacity: (value: number) => void;
   onAdjustWallpaper: () => void;
-  className?: string;
 }) {
   const t = useT();
   const character = conversation.character!;
@@ -106,7 +104,6 @@ export function ChatSidePanel({
   useEffect(() => {
     latest.current = { conversation, onConversationChange };
   });
-  const aside = useRef<HTMLElement>(null);
   // A field this panel writes keeps the number of the last read sent, whose answer may be older.
   const reads = useRef(0);
   const written = useRef<Partial<Record<keyof Conversation, number>>>({});
@@ -116,9 +113,7 @@ export function ChatSidePanel({
     for (const key of Object.keys(patch)) written.current[key as keyof Conversation] = reads.current;
     onConversationChange(patch);
   }
-  const read = useCallback((evenHidden = false) => {
-    // Hidden (the inline panel on a phone), it reads only after a cut: nothing else brings that.
-    if (!evenHidden && !aside.current?.offsetParent) return;
+  const read = useCallback(() => {
     const sent = ++reads.current;
     reading.current?.abort();
     reading.current = new AbortController();
@@ -144,9 +139,9 @@ export function ChatSidePanel({
     const wake = () => {
       if (document.visibilityState !== "visible") return;
       clearTimeout(waking);
-      waking = setTimeout(() => read(), 100);
+      waking = setTimeout(read, 100);
     };
-    read(storyCuts > 0);
+    read();
     window.addEventListener("focus", wake);
     document.addEventListener("visibilitychange", wake);
     return () => {
@@ -281,13 +276,8 @@ export function ChatSidePanel({
 
   return (
     <aside
-      ref={aside}
-      className={clsx(
-        // No translucency here: as a mobile overlay this sits on top of the
-        // conversation, and blur support is unreliable on phones.
-        "flex shrink-0 flex-col gap-5 overflow-y-auto border-ink-700 bg-ink-900 p-5 animate-fade md:bg-ink-900/70",
-        className ?? "w-80 border-l",
-      )}
+      // Opaque over the conversation on a phone, where blur is unreliable; a column beside it from md.
+      className="fixed inset-0 z-40 flex flex-col gap-5 overflow-y-auto border-ink-700 bg-ink-900 p-5 animate-rise md:static md:w-80 md:shrink-0 md:border-l md:bg-ink-900/70 md:animate-fade"
       style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
     >
       <div className="flex items-start justify-between gap-2">

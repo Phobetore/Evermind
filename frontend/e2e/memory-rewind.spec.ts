@@ -98,8 +98,9 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
   });
   // greeting, then two questions and their replies: the second question is the fourth message.
   if (covers) await panel.getByLabel(panelText.closeAriaLabel).click();
-  // The facts are read again in the same breath as the reads that follow the cut.
-  const cut = page.waitForResponse((r) => r.url().endsWith(`/api/conversations/${convo.id}/memories`));
+  // Read again after the cut by the panel beside the story, or by the page while the panel is closed.
+  const cut = page.waitForResponse((r) => r.request().method() === "GET"
+    && r.url().endsWith(`/api/conversations/${convo.id}`));
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByTitle("Delete from here").nth(3).click();
   await cut;

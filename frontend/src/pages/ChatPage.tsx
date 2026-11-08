@@ -10,12 +10,14 @@ import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeError, describeFailure } from "@/lib/errors";
 import { useTurn, type LiveText } from "@/lib/useTurn";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
-import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
 /** How many messages are drawn at first, and more each time more are asked for. */
 const DRAWN = 100;
+/** Tailwind's `md`, from which the side panel sits beside the conversation rather than over it. */
+const WIDE = "(min-width: 48rem)";
 
 /** Keyed by the id, so that a branch, which opens at an address of its own,
  *  starts from its own messages rather than from the ones it was cut from. */
@@ -59,15 +61,18 @@ function ChatView({ id }: { id: string }) {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [persona, setPersona] = useState<Persona | null>(null);
-  const [panelOpen, setPanelOpen] = useState(true); // desktop, inline column
+  // Over the conversation on a phone, so open there only once asked for.
+  const [panelOpen, setPanelOpen] = useState(() => window.matchMedia(WIDE).matches);
   // Phones: the panel covers the conversation, so a backdrop cannot be judged
   // from inside it. Adjusting closes the panel and leaves a bar over the real
   // thing instead.
   const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
   const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [mobilePanelOpen, setMobilePanelOpen] = useState(false); // phone, overlay
   // Counts the times the story was cut back, for the side panel to read the facts again.
   const [storyCuts, setStoryCuts] = useState(0);
+  // A closed panel reads nothing, so the summary a cut leaves is read here, for it to open on.
+  const summaryRead = useRef<AbortController | null>(null);
+  useEffect(() => () => summaryRead.current?.abort(), []);
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   // Until the next thing is asked for. Not the reply's banner: its Retry asks for a reply.
   const [writeError, setWriteError] = useState<{ error: unknown } | null>(null);
@@ -197,14 +202,24 @@ function ChatView({ id }: { id: string }) {
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
   }
 
+  /** The server took the memory back: an open panel reads it again. */
+  function memoryTakenBack() {
+    setStoryCuts((n) => n + 1);
+    if (panelOpen) return;
+    summaryRead.current?.abort();
+    const reading = (summaryRead.current = new AbortController());
+    data.conversations.get(id, { signal: reading.signal })
+      .then(({ summary }) => setConversation((c) => (c ? { ...c, summary } : c)), () => {});
+  }
+
   /** The server ends a reply being written before it cuts the story. */
   async function deleteFrom(message: Message) {
     if (!confirm(t("chat.message.confirmDeleteFrom"))) return;
     await data.messages.removeFrom(message.id);
     changesByHand.current += 1;
     setMessages((prev) => prev.filter((m) => m.position < message.position));
-    // The server takes the memory back with the story; the panel reads it again.
-    setStoryCuts((n) => n + 1);
+    // The server takes the memory back with the story.
+    memoryTakenBack();
     // Whatever was being reported was about what has just gone.
     forget();
   }
@@ -332,20 +347,13 @@ function ChatView({ id }: { id: string }) {
                 </span>
               </div>
             )}
-            <button
-              onClick={() => setMobilePanelOpen(true)}
-              className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3 md:hidden"
-              aria-label={t("chat.header.memorySettingsAriaLabel")}
-            >
-              <SlidersHorizontal className="h-5 w-5" />
-            </button>
             {!panelOpen && (
               <button
                 onClick={() => setPanelOpen(true)}
-                className="hidden rounded-lg p-1.5 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3 md:block"
-                aria-label={t("chat.header.openPanelAriaLabel")}
+                className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
+                aria-label={t("chat.header.memorySettingsAriaLabel")}
               >
-                <PanelRightOpen className="h-5 w-5" />
+                <SlidersHorizontal className="h-5 w-5" />
               </button>
             )}
           </div>
@@ -426,7 +434,6 @@ function ChatView({ id }: { id: string }) {
         />
       </div>
 
-      {/* Desktop: inline right column */}
       {panelOpen && (
         <ChatSidePanel
           conversation={conversation}
@@ -438,32 +445,10 @@ function ChatView({ id }: { id: string }) {
           }
           onWallpaperOpacity={setWallpaperOpacity}
           onAdjustWallpaper={() => {
-            setMobilePanelOpen(false);
+            setPanelOpen(false);
             setAdjustingWallpaper(true);
           }}
-          className="hidden w-80 border-l md:flex"
         />
-      )}
-
-      {/* Phone: full-screen overlay */}
-      {mobilePanelOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <ChatSidePanel
-            conversation={conversation}
-            persona={persona}
-            storyCuts={storyCuts}
-            onClose={() => setMobilePanelOpen(false)}
-            onConversationChange={(patch) =>
-              setConversation((c) => (c ? { ...c, ...patch } : c))
-            }
-            onWallpaperOpacity={setWallpaperOpacity}
-            onAdjustWallpaper={() => {
-              setMobilePanelOpen(false);
-              setAdjustingWallpaper(true);
-            }}
-            className="h-full w-full animate-rise"
-          />
-        </div>
       )}
 
       {/* Phone: judging a backdrop means seeing what sits on it, so the panel
