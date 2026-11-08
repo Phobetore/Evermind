@@ -48,6 +48,7 @@ export function ChatInput({
   onStop,
   busy,
   characterName,
+  stopRef,
 }: {
   conversationId: string;
   /** Settles at the server's answer, which takes the message out of whichever box shows it, or at patience's end. */
@@ -55,6 +56,7 @@ export function ChatInput({
   onStop: () => void;
   busy: boolean;
   characterName: string;
+  stopRef?: React.Ref<HTMLButtonElement>;
 }) {
   const t = useT();
   // The page is keyed by conversation: the unsent draft is read once, as the input appears.
@@ -215,6 +217,7 @@ export function ChatInput({
         />
         {busy ? (
           <button
+            ref={stopRef}
             className="btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
             onClick={onStop}
             title={t("chat.input.stopTitle")}

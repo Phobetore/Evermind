@@ -9,7 +9,7 @@ import { useT } from "@/i18n/useT";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
-import { newId } from "@/lib/utils";
+import { newId, nothingFocused } from "@/lib/utils";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -91,6 +91,13 @@ function ChatView({ id }: { id: string }) {
   // Counts the times the server took the memory back, for the side panel to read it again.
   const [storyCuts, setStoryCuts] = useState(0);
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
+  // Renamed or not, the keyboard is left on the title rather than on the page.
+  const titleButton = useRef<HTMLButtonElement>(null);
+  const renaming = useRef(false);
+  useEffect(() => {
+    if (renaming.current && titleDraft === null && nothingFocused()) titleButton.current?.focus();
+    renaming.current = titleDraft !== null;
+  }, [titleDraft]);
   // Until the next thing is asked for. Not the reply's banner: its Retry asks for a reply.
   const [writeError, setWriteError] = useState<{ error: unknown } | null>(null);
   const [drawn, setDrawn] = useState(DRAWN);
@@ -192,6 +199,16 @@ function ChatView({ id }: { id: string }) {
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
 
+  // A reply asked for here may take away the button that asked: Stop holds the focus while it is
+  // written, and the reply's own button after, unless the focus is somewhere already.
+  const stopButton = useRef<HTMLButtonElement>(null);
+  const replyButton = useRef<HTMLButtonElement>(null);
+  const keepFocus = useRef(false);
+  useEffect(() => {
+    if (keepFocus.current && nothingFocused()) (busy ? stopButton : replyButton).current?.focus();
+    if (!busy) keepFocus.current = false;
+  }, [busy]);
+
   // A closed panel reads nothing, and no read follows a cut or a swipe: the summary is read here then.
   const summaryRead = useRef<AbortController | null>(null);
   useEffect(() => () => summaryRead.current?.abort(), []);
@@ -245,6 +262,7 @@ function ChatView({ id }: { id: string }) {
 
   /** Settles at the server's answer or at patience's end; either way the page then finds out how things stand. */
   function ask(request: Omit<TurnRequest, "conversation_id">) {
+    keepFocus.current = true;
     setWriteError(null);
     stickToBottom.current = true;
     if (request.mode !== "send") rewriting.current = true;
@@ -377,12 +395,17 @@ function ChatView({ id }: { id: string }) {
                 onChange={(e) => setTitleDraft(e.target.value)}
                 onBlur={saveTitle}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") saveTitle();
+                  // Or the same press would open the title again, focused once it is back.
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    saveTitle();
+                  }
                   if (e.key === "Escape") setTitleDraft(null);
                 }}
               />
             ) : (
               <button
+                ref={titleButton}
                 className="touch-target block w-full max-w-64 text-left text-xs text-mist transition-colors hover:text-parchment"
                 onClick={() => setTitleDraft(conversation.title || "")}
                 title={t("chat.header.renameTitle")}
@@ -463,6 +486,7 @@ function ChatView({ id }: { id: string }) {
                 persona={persona}
                 isLast={message.id === last?.id}
                 busy={busy}
+                replyRef={message.id === last?.id ? replyButton : undefined}
                 onSwipe={(index) => write(() => swipe(message, index),
                   (now) => swiped(message, now.find((m) => m.id === message.id)))}
                 onRegenerate={() => ask({ mode: "regenerate" })}
@@ -539,6 +563,7 @@ function ChatView({ id }: { id: string }) {
           onStop={stop}
           busy={busy && !lost}
           characterName={character.name}
+          stopRef={stopButton}
         />
       </div>
 

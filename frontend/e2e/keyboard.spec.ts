@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversation, conversationWithReply, PNG } from "./fixtures";
+import { conversation, conversationWithReply, makeConversation, PNG } from "./fixtures";
 
 /**
  * Everything here is done from the keyboard, as on a computer: wherever a key press sends the
@@ -84,4 +84,70 @@ test("over the story, the side panel keeps Tab to itself", { tag: "@desktop" }, 
     });
     expect(under, `Tab ${i + 1} went under the panel, to ${await focusIn(page)}`).toBe(false);
   }
+});
+
+test("Regenerate from the keyboard leaves the focus on Stop while the reply is written, then back on Regenerate", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { says: "again", slowly: true });
+  const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
+  await page.goto(`/#/chat/${convo.id}`);
+
+  await pressOn(reply.getByTitle("Regenerate"));
+
+  await expect(page.getByTitle("Stop generation"), `the focus is on ${await focusIn(page)}`).toBeFocused();
+  await expect(reply).toContainText("endagain", { timeout: 30_000 });
+  await expect(reply.getByTitle("Regenerate"), `the focus is on ${await focusIn(page)}`).toBeFocused();
+});
+
+test("an arrow that its swipe disables hands the focus to the other", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await makeConversation(request, { alternate_greetings: ["The lamp was still warm."] });
+  const opening = page.locator(`[data-message-id="${convo.messages[0].id}"]`);
+  await page.goto(`/#/chat/${convo.id}`);
+
+  await pressOn(opening.getByRole("button", { name: "Next variant or regenerate" }));
+  await expect(opening).toContainText("2/2");
+  await expect(opening.getByRole("button", { name: "Previous variant" }), `the focus is on ${await focusIn(page)}`).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(opening).toContainText("1/2");
+  await expect(opening.getByRole("button", { name: "Next variant or regenerate" }), `the focus is on ${await focusIn(page)}`).toBeFocused();
+});
+
+test("a message's rewrite is left with Escape or saved with Ctrl+Enter, and the focus goes back to Edit", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const said = convo.messages.at(-1);
+  const reply = page.locator(`[data-message-id="${said.id}"]`);
+  const editor = reply.locator("textarea");
+  await page.goto(`/#/chat/${convo.id}`);
+
+  await pressOn(reply.getByTitle("Edit"));
+  await expect(editor).toBeFocused();
+  await page.keyboard.type(" Not kept.");
+  await page.keyboard.press("Escape");
+  await expect(editor).toHaveCount(0);
+  await expect(reply.getByTitle("Edit"), `the focus is on ${await focusIn(page)}`).toBeFocused();
+
+  await page.keyboard.press("Enter");
+  await expect(editor).toBeFocused();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type(" Kept.");
+  await page.keyboard.press("Control+Enter");
+  await expect(editor).toHaveCount(0);
+  await expect(reply.getByTitle("Edit"), `the focus is on ${await focusIn(page)}`).toBeFocused();
+  expect((await conversation(request, convo.id)).messages.at(-1).content).toBe(`${said.content} Kept.`);
+});
+
+test("renaming the conversation from the keyboard leaves the focus on its title", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  await page.goto(`/#/chat/${convo.id}`);
+  const title = page.getByTitle("Rename conversation");
+
+  await pressOn(title);
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("Renamed by keyboard");
+  await page.keyboard.press("Enter");
+  await expect(title).toHaveText("Renamed by keyboard");
+  await expect(title, `the focus is on ${await focusIn(page)}`).toBeFocused();
+
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Escape");
+  await expect(title, `the focus is on ${await focusIn(page)}`).toBeFocused();
 });
