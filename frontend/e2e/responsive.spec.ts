@@ -1,5 +1,24 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { conversationWithReply, makeCharacter } from "./fixtures";
+
+/** What runs off the right edge of a page this wide: elements past it, the page's own width, and how far
+ *  what is in <main>, which scrolls, slides it sideways. */
+function pastTheEdge(page: Page, width: number) {
+  return page.evaluate((seen) => {
+    const guilty: string[] = [];
+    for (const el of document.querySelectorAll("body *")) {
+      const box = el.getBoundingClientRect();
+      const inARail = el.closest(".overflow-x-auto");
+      if (box.width > 0 && box.right > seen + 1 && !inARail
+          && getComputedStyle(el).position !== "fixed") {
+        guilty.push(el.tagName.toLowerCase() + "." + String(el.className).split(" ")[0]);
+      }
+    }
+    const main = document.querySelector("main");
+    const sideways = main ? main.scrollWidth - main.clientWidth : 0;
+    return { page: document.documentElement.scrollWidth, guilty: [...new Set(guilty)], sideways };
+  }, width);
+}
 
 /** Whether a page fits a phone's screen is something no type check or build sees. */
 test.describe("the main page fits the screen it is on", () => {
@@ -10,18 +29,7 @@ test.describe("the main page fits the screen it is on", () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
 
-      const overflow = await page.evaluate((seen) => {
-        const guilty: string[] = [];
-        for (const el of document.querySelectorAll("body *")) {
-          const box = el.getBoundingClientRect();
-          const inARail = el.closest(".overflow-x-auto");
-          if (box.width > 0 && box.right > seen + 1 && !inARail
-              && getComputedStyle(el).position !== "fixed") {
-            guilty.push(el.tagName.toLowerCase() + "." + String(el.className).split(" ")[0]);
-          }
-        }
-        return { page: document.documentElement.scrollWidth, guilty: [...new Set(guilty)] };
-      }, width);
+      const overflow = await pastTheEdge(page, width);
 
       expect(overflow.guilty, `elements past the right edge: ${overflow.guilty}`).toEqual([]);
       expect(overflow.page).toBeLessThanOrEqual(width);
@@ -60,4 +68,32 @@ test.describe("a conversation opens with room to write in", () => {
       await expect(page.locator("aside:has(textarea)")).toHaveCount(width >= 1024 ? 1 : 0);
     });
   }
+});
+
+/** A card's pages and the personas at the widths phones have, in a language. */
+async function expectTheCardPagesFit(page: Page, cardId: string, widths: number[]) {
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 800 });
+    for (const route of [`/characters/${cardId}`, `/characters/${cardId}/edit`, "/personas"]) {
+      await page.goto(`/#${route}`);
+      await expect(page.locator("main h1")).toBeVisible();
+      await page.waitForLoadState("networkidle");
+
+      const overflow = await pastTheEdge(page, width);
+
+      expect.soft(overflow.guilty, `${route} at ${width}px: elements past the right edge`).toEqual([]);
+      expect.soft(overflow.page, `${route} at ${width}px`).toBeLessThanOrEqual(width);
+      expect.soft(overflow.sideways, `${route} at ${width}px slides sideways`).toBeLessThanOrEqual(1);
+    }
+  }
+}
+
+// A name is whatever its owner typed: a handle, or a German compound, is one long word.
+test("a one-word name breaks rather than pushing a page off the side of a phone", async ({ page, request }) => {
+  const card = await makeCharacter(request, { name: "Nachtigallenkoniginnenthron" });
+  await page.route("**/api/personas", (route) => route.fulfill({
+    json: [{ id: "long", name: "xX_DarkLordOfShadowsAndMore_Xx", description: "", is_default: true, avatar_url: null }],
+  }));
+
+  await expectTheCardPagesFit(page, card.id, [320, 375, 412]);
 });

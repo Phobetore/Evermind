@@ -168,7 +168,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
-        <h1 className="font-display text-3xl font-semibold">
+        <h1 className="min-w-0 break-words font-display text-3xl font-semibold">
           {editing ? t("characters.form.editCardTitle", { name: initial!.name }) : t("characters.form.newCardTitle")}
         </h1>
         {editing && (

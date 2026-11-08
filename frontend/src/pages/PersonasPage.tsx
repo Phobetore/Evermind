@@ -53,7 +53,7 @@ export function PersonasPage() {
           {t("personas.emptyState.body")}
         </EmptyState>
       ) : (
-        <div className="stagger grid gap-4 sm:grid-cols-2">
+        <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2">
           {personas.map((p) => (
             <button
               key={p.id}
@@ -63,7 +63,7 @@ export function PersonasPage() {
               <Avatar name={p.name} src={p.avatar_url} className="h-14 w-14 shrink-0 text-xl" />
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-display text-lg font-semibold">{p.name}</h2>
+                  <h2 className="min-w-0 break-words font-display text-lg font-semibold">{p.name}</h2>
                   {p.is_default && <Tag tone="ember">{t("personas.defaultTag")}</Tag>}
                 </div>
                 <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-mist">
