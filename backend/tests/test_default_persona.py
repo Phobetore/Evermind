@@ -1,10 +1,5 @@
-"""The persona a conversation is played as when it names none.
-
-There is one notion of it: the persona marked on the Personas page. It used to
-be two (that mark, and a setting of its own), so a greeting could call the
-player "User" while the turns that followed called them by a name; and nothing
-the person chose could be undone, since a setting could not be cleared.
-"""
+"""The persona a conversation is played as when it names none: the one marked on the Personas page,
+in the greeting as in the turns."""
 
 import shutil
 import sqlite3
@@ -62,8 +57,6 @@ async def start(client, **fields):
 def greeting(convo) -> str:
     return convo["messages"][0]["content"]
 
-
-# ---------- who the player is ----------
 
 async def test_the_greeting_and_the_turns_name_the_marked_persona(client, fake_provider):
     alex = await make_persona(client, "Alex")
@@ -181,8 +174,6 @@ async def test_a_conversation_whose_persona_is_gone_is_played_as_the_marked_one(
     assert "\nAlex:" in fake_provider.captured["payload"].stop
 
 
-# ---------- the settings are gone ----------
-
 GONE = pytest.mark.parametrize("setting", [SETTING, "default_connection_id"])
 
 
@@ -213,8 +204,6 @@ async def test_a_stored_default_persona_or_connection_does_not_come_back(client,
     assert setting not in (await client.put("/api/settings", json={"auto_memory": False})).json()
 
 
-# ---------- a null changes no setting ----------
-
 async def test_a_null_does_not_reset_a_setting_that_has_a_value_of_its_own_by_default(client):
     await client.put("/api/settings", json={
         "global_instructions": "In English.", "reply_length": "long", "auto_memory": False,
@@ -232,16 +221,13 @@ async def test_a_null_does_not_reset_a_setting_that_has_a_value_of_its_own_by_de
     assert kept["update_check"] is False
 
 
-# ---------- the migration ----------
-
 BEFORE = "009_gate.sql"
 THIS = "010_default_persona.sql"
 
 
 @pytest.fixture()
 def old_database(tmp_path, monkeypatch):
-    """A database as the last release left it, before the default persona was
-    one notion: migrations 001 to 009 applied, and nothing else.
+    """A database from before this migration: 001 to 009 applied, and nothing else.
 
     Returns ``(execute, start_before, upgrade)``: the first runs SQL on it and
     returns the rows, the second creates it, and the third starts the

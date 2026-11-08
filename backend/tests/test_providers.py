@@ -39,8 +39,6 @@ async def body_sent(provider_class, connection: dict, payload=PAYLOAD) -> dict:
     return sent
 
 
-# ---------- openai-compatible ----------
-
 async def test_openai_stream_deltas_and_done():
     captured = {}
 
@@ -166,8 +164,6 @@ async def test_openai_itself_is_sent_no_stop(base_url, stop):
     assert body.get("stop") == stop
 
 
-# ---------- anthropic ----------
-
 async def test_anthropic_stream_and_message_shaping():
     captured = {}
 
@@ -242,8 +238,6 @@ async def test_anthropic_never_ends_on_the_models_own_turn():
     body = await body_sent(AnthropicProvider, ANTH_CONN, payload)
     assert body["messages"][-1] == {"role": "user", "content": "[Continue.]\n\n[Note.]"}
 
-
-# ---------- factory ----------
 
 def test_get_provider_dispatch():
     assert isinstance(get_provider(OAI_CONN), OpenAICompatProvider)

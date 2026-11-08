@@ -1,4 +1,4 @@
-"""Wave 3 tests: lorebooks, branches, memory maintenance, starter library."""
+"""Lorebooks, branches, memory maintenance, starter library."""
 
 import json
 
@@ -22,8 +22,6 @@ def fake_provider(monkeypatch):
 def make_msg(text, position):
     return {"role": "user", "variants": [text], "active_index": 0, "position": position}
 
-
-# ---------- lore matching (pure) ----------
 
 def test_match_lore_case_and_enabled_and_window():
     entries = [
@@ -51,8 +49,6 @@ def test_match_lore_order_and_budget():
     assert [e["content"] for e in matched] == [big, "Small."]
 
 
-# ---------- lore injection ----------
-
 async def test_lore_reaches_the_prompt_until_it_is_switched_off(client, fake_provider):
     convo = await setup_conversation(client)
     url = f"/api/characters/{convo['character_id']}"
@@ -70,8 +66,6 @@ async def test_lore_reaches_the_prompt_until_it_is_switched_off(client, fake_pro
     await send(client, convo["id"], content="Encore something else.")
     assert "blood seal" not in fake_provider.captured["payload"].system
 
-
-# ---------- branches ----------
 
 async def test_branch_copies_up_to_message_and_filters_memories(client, fake_provider):
     convo = await setup_conversation(client)
@@ -139,8 +133,6 @@ async def test_a_new_branch_comes_first_in_the_list(client):
     assert listed == [branch["id"], later["id"], story["id"]]
 
 
-# ---------- memory maintenance v2 ----------
-
 async def test_memory_updates_and_obsoletes_respect_pins(client, fake_provider):
     convo = await setup_conversation(client)
     await send(client, convo["id"])
@@ -176,8 +168,6 @@ async def test_memory_updates_and_obsoletes_respect_pins(client, fake_provider):
     assert "Fact added for want of a target." in contents        # fallback add
 
 
-# ---------- starter library ----------
-
 async def test_the_library_lists_its_cards_and_serves_their_jpeg_portraits(client, tmp_path,
                                                                             monkeypatch):
     card = {"spec": "chara_card_v2", "spec_version": "2.0", "data": {"name": "Demo card"}}
@@ -199,8 +189,6 @@ async def test_the_library_lists_its_cards_and_serves_their_jpeg_portraits(clien
     assert portrait.content == b"JPEG bytes"
     assert (await client.get("/api/library/other.json/avatar")).status_code == 404
 
-
-# ---------- message embeddings (phase 2 storage layer) ----------
 
 async def test_message_embedding_stored_and_excluded(client, fake_provider, monkeypatch):
     from app.db import _connect

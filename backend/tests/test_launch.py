@@ -86,9 +86,6 @@ def start(monkeypatch, *argv, **env):
     return launch.main(["--no-env-file", *argv])
 
 
-# --- the settings file -----------------------------------------------------
-
-
 def test_the_default_env_file_sits_at_the_repository_root():
     assert Path(__file__).resolve().parents[2] / ".env" == config.default_env_file()
 
@@ -171,9 +168,6 @@ def test_the_password_is_trimmed(clean_env, monkeypatch):
     assert gate_password() == ""
     monkeypatch.setenv("EVERMIND_GATE_PASSWORD", "  secret \n")
     assert gate_password() == "secret"
-
-
-# --- the port --------------------------------------------------------------
 
 
 def test_port_taken(busy_port):
@@ -280,9 +274,6 @@ def test_check_builds_no_interface(port):
         "print('app.main' in sys.modules)"
     ), port=port)
     assert done.stdout.split() == [str(port), "False"]
-
-
-# --- starting ----------------------------------------------------------------
 
 
 def test_it_refuses_to_start_without_the_built_interface(clean_env, tmp_path, monkeypatch, served, capsys):
@@ -398,9 +389,6 @@ def test_semantic_memory_asked_for_and_missing_is_said_at_start_with_the_fix(
         assert "SEMANTIC=true" in err and fix in err
     else:
         assert "SEMANTIC" not in err
-
-
-# --- the settings file, through the command ------------------------------------
 
 
 def test_the_file_decides_where_to_listen(clean_env, tmp_path, monkeypatch, capsys, port):

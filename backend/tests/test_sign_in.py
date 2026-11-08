@@ -140,7 +140,7 @@ def test_the_count_of_wrong_passwords_stays_small(monkeypatch):
     [(b"content-length", b"22"), (b"transfer-encoding", b"chunked")],
 ])
 async def test_a_long_sign_in_or_one_of_unknown_length_is_refused_unread(make_client, headers):
-    # 200 MiB of password once took 600 MB of memory to be told it was wrong.
+    # Read whole, a body of 200 MiB would hold that much memory only to be told it is wrong.
     async def past_the_gate(*_):
         raise AssertionError("the body was read, or the request let through")
 
@@ -176,7 +176,7 @@ async def test_a_sign_in_that_does_not_say_its_length_is_refused(make_client):
 
 @pytest.mark.parametrize("password", [b"[" * 2000 + b"]" * 2000, b'{"typed": "hunter2"}', b"12345"])
 async def test_a_password_that_is_not_text_is_refused_and_not_echoed(make_client, password):
-    # Nested two thousand deep, it once made a 500 of the answer it was echoed back in.
+    # Nested two thousand deep, and echoed back, it would make a 500 of the answer.
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         r = await c.post("/api/gate", content=b'{"password": ' + password + b"}",
                          headers={"content-type": "application/json"})

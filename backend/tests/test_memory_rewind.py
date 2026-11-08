@@ -147,8 +147,6 @@ async def told_then_corrected(client, convo_id):
         "summary": "To 16."})
 
 
-# ---------- removing messages from a point on ----------
-
 async def test_facts_born_of_removed_turns_go_with_them(client, fake_provider):
     convo = await setup_conversation(client)
     await talk(client, convo["id"], 4)  # positions 0 (greeting) to 8
@@ -864,8 +862,6 @@ async def test_a_pass_that_was_reading_is_kept_when_only_later_turns_were_added(
     assert (await conversation(client, convo["id"]))["memory_position"] == 4
 
 
-# ---------- what a cut does to a fact ----------
-
 async def test_a_fact_a_later_pass_corrected_is_back_as_it_was(client, fake_provider):
     convo = await setup_conversation(client)
     await told_then_corrected(client, convo["id"])
@@ -1084,8 +1080,6 @@ async def test_a_pinned_fact_drawn_from_removed_turns_stays_at_the_end_of_the_st
     assert await stored_facts(client, convo["id"]) == [("Late, and pinned.", 0, True, "auto")]
 
 
-# ---------- a branch is a cut too ----------
-
 async def test_a_branch_keeps_the_facts_of_turns_up_to_its_message_and_what_a_person_made_theirs(
         client, fake_provider):
     """What a person pinned from after the fork stays with the conversation it came from,
@@ -1167,8 +1161,6 @@ async def test_a_cut_in_a_branch_goes_back_through_the_passes_it_was_given(clien
     read = await conversation(client, branch["id"])
     assert (read["memory_position"], read["summary"]) == (4, "To 4.")
 
-
-# ---------- a pass is written whole, or not at all ----------
 
 async def a_memory_to_change(client, convo_id):
     """Facts for an answer to correct and to drop, and turns for it to read."""
@@ -1387,8 +1379,6 @@ async def test_a_fact_the_story_moved_back_while_the_model_merges_stops_the_merg
         (f"Fact {n}.", 4, False, "auto") for n in range(8)]
 
 
-# ---------- a reply the memory read, written again ----------
-
 GUARD_DIES = "The guard falls dead at your feet."
 
 
@@ -1585,8 +1575,6 @@ async def test_a_swipe_of_the_greeting_alone_leaves_the_memory_as_it_is(client, 
     assert await names(client, convo_id) == {"Alex trusts no one."}
 
 
-# ---------- a long story keeps its summary ----------
-
 async def a_story_read_once(client, last=500, read=492):
     """Turns 1 to ``last``, read once by a pass: a summary the model wrote, and no pass before it."""
     convo = await setup_conversation(client)
@@ -1706,8 +1694,6 @@ async def test_a_summary_goes_only_if_the_next_pass_can_write_it_again(
     read = await conversation(client, convo_id)
     assert (read["memory_position"], read["summary"]) == (0, summary)
 
-
-# ---------- what a person changed while a pass was reading ----------
 
 def while_the_model_answers(monkeypatch, action):
     class Acting(FakeProvider):

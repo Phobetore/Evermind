@@ -141,8 +141,6 @@ async def test_a_failure_that_is_not_a_model_event_keeps_what_arrived_too(client
     assert reply["meta"].get("interrupted") == [0]
 
 
-# ---------- which version of a reply was cut short ----------
-
 async def active_label(client, convo_id):
     """The version on screen, and whether the page labels it: what is read from the
     marks is in frontend/src/lib/cutShort.ts."""

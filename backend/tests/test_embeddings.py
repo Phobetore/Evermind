@@ -41,7 +41,6 @@ async def test_embed_query_prefix(monkeypatch):
 
     monkeypatch.setattr(embeddings, "_model", FakeModel())
     await embeddings.embed(["where is he"], kind="query")
-    # query prefix is applied — verified indirectly via no exception + shape
 
 
 async def test_embed_empty_input_returns_none(monkeypatch):
