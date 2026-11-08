@@ -302,6 +302,15 @@ render as nothing at all rather than as an error. Interpolation placeholders
 (`{count}`, `{name}`) and card macros (`{{char}}`, `{{user}}`) must survive
 translation untouched.
 
+A sentence given a number as `{count}` can have a form for each plural category
+of its language, as `Intl.PluralRules` names them, under `<key>_one` and the like
+(`chatList.messageCount_one`): every locale then carries that key, and the plain
+one serves the other numbers. A number given to a sentence is written the
+language's way, `54,1` in French. French puts a no-break space (U+00A0) before :
+and inside « », and a narrow one (U+202F) before ; ! and ?; French, German and
+Spanish put a no-break space between a number and %. `npm test` fails on a plain
+space in those places.
+
 ## Docker
 
 There is one image, `ghcr.io/phobetore/evermind`, built from the **repository

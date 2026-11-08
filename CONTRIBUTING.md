@@ -54,12 +54,12 @@ with a mid-sized local model rather than only with a frontier one.
 ## Translations
 
 The interface speaks English, French, German and Spanish;
-[Translations](docs/DEVELOPING.md#translations) says where the dictionaries are
-and what `npm test` checks. Translate meaning rather than words: where a string
-only makes sense as an English idiom, write the sentence a native speaker would
-actually use. A new language is welcome as a new locale file, an entry in the
-language picker, and a genuine pass over all of it, not a machine translation
-dropped in wholesale.
+[Translations](docs/DEVELOPING.md#translations) says where the dictionaries are,
+how counts, numbers and French spacing are written, and what `npm test` checks.
+Translate meaning rather than words: where a string only makes sense as an
+English idiom, write the sentence a native speaker would actually use. A new
+language is welcome as a new locale file, an entry in the language picker, and a
+genuine pass over all of it, not a machine translation dropped in wholesale.
 
 ## What this project will not accept
 
