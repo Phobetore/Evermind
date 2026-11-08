@@ -91,13 +91,13 @@ recycling its own phrasing back at you.
 
 Evermind keeps a running memory of the story instead. While you play, it writes
 down what actually happened: the promise made in chapter two, the wound that
-never properly healed, who stopped trusting whom and why. All of that goes back
-to the model on every single reply, so a character will not quietly forget the
-worst thing you ever did to it.
+never properly healed, who stopped trusting whom and why. A summary of the story
+and as many of those facts as fit go back to the model with every reply, so a
+character will not quietly forget the worst thing you ever did to it.
 
 None of it is hidden from you either. That panel on the right is the memory
-itself. You can edit any line of it, pin the ones that must never be dropped, or
-throw out the rest.
+itself. You can rewrite the summary, pin the facts that must never be dropped,
+throw out the rest, or add your own.
 
 <img src="docs/screenshots/04-memory.png" alt="A conversation with the memory panel open" width="100%">
 
@@ -168,12 +168,12 @@ around the community work here, and anything you build can be taken elsewhere.
 </tr>
 </table>
 
-Other things you get along the way. Swipe for a different take on any reply, or
-branch the story at a message and keep both versions running. Rewind and rewrite
-anything you like. When you have no idea what your own character would say, the
-app will draft the line for you to edit. Lorebook entries stay out of the way
-until something in the scene mentions them. The interface is in English, French,
-German and Spanish.
+Other things you get along the way. Swipe for a different take on the latest
+reply, or branch the story at any message and keep both versions running. Rewind
+and rewrite anything you like. When you have no idea what your own character
+would say, the app will draft the line for you to edit. Lorebook entries stay out
+of the way until something in the scene mentions them. The interface is in
+English, French, German and Spanish.
 
 <br>
 

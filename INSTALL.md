@@ -281,9 +281,10 @@ asterisks* and they appear in italics.
 Two things worth knowing early:
 
 - **The panel on the right is the memory.** Evermind writes down the important
-  facts of your story by itself as you play. You can read them, correct them,
-  pin the ones that must never be dropped, or add your own. Nothing is hidden
-  from you.
+  facts of your story, and a summary of it, by itself as you play. You can read
+  them, pin the facts that must never be dropped, forget the wrong ones, add your
+  own and rewrite the summary. On a phone or a narrow window the panel starts
+  closed: the sliders button at the top right opens it.
 - **Settings, then General roleplay instructions** is where you set your own
   rules: language, length, tone, what you do and do not want. Evermind imposes
   nothing; whatever you write there applies to every conversation.
