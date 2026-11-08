@@ -32,10 +32,8 @@ const upload = <T>(path: string, file: File) => {
   return request<T>(path, { method: "POST", body: form });
 };
 
-/** Everything the interface asks of its server: components talk to this and never to `fetch`.
- *  No address starts with a slash, so that each resolves against the page, whose address is always
- *  the root of the app (its routes live after the "#"): Evermind works under a path such as
- *  `/evermind/` as well as at the root of a host. */
+/** Everything the interface asks of its server. No address starts with a slash: each resolves against
+ *  the page, always the root of the app (its routes live after the "#"), even under `/evermind/`. */
 export const data = {
   characters: {
     list: () => get<Character[]>("api/characters"),
