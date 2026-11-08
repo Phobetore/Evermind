@@ -242,9 +242,8 @@ async def test_impersonate_prompt_holds_the_persona_and_the_story_so_far(client,
     ]
 
 
-async def test_impersonate_cuts_the_chat_to_make_room_for_the_facts(client, fake_provider):
-    """The facts are not in the prompt that ghost-writes the message, but the
-    window of the chat is cut as it is for a turn: they take their share of it."""
+async def test_impersonate_gives_no_share_of_the_chat_to_the_facts(client, fake_provider):
+    """The facts are not in the prompt that ghost-writes the message: they take none of its window."""
     convo = await setup_conversation(client)
     connection = (await client.get("/api/connections")).json()[0]
     await client.put(f"/api/connections/{connection['id']}",
@@ -265,7 +264,7 @@ async def test_impersonate_cuts_the_chat_to_make_room_for_the_facts(client, fake
     assert whole_chat == 9  # the greeting and four turns
     await client.post(f"/api/conversations/{convo['id']}/memories",
                       json={"content": "Serana owes Alex a boot. " * 30, "is_pinned": True})
-    assert await messages_read() < whole_chat
+    assert await messages_read() == whole_chat
 
 
 async def test_narrate_and_ooc_modes(client, fake_provider):

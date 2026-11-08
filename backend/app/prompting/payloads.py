@@ -27,13 +27,12 @@ LIST_FIELDS = ("alternate_greetings", "tags")
 
 
 def build_impersonate_payload(character: dict, persona: dict | None, conversation: dict,
-                              messages: list[dict], connection: dict,
-                              memories: list[dict] | None = None) -> PromptPayload:
+                              messages: list[dict], connection: dict) -> PromptPayload:
     """The prompt that ghost-writes the player's next message."""
     char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
     base = build_chat_payload(character=character, persona=persona, conversation=conversation,
-                              messages=messages, connection=connection, memories=memories)
+                              messages=messages, connection=connection)
 
     context_bits = []
     if (persona or {}).get("description"):

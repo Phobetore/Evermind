@@ -335,8 +335,7 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
     if not messages:
         raise AppError("Nothing to write: the conversation is empty.", kind="conversation_empty")
 
-    memories = await memories_repo.list_for_conversation(db, convo_id)
-    payload = build_impersonate_payload(character, persona, convo, messages, connection, memories)
+    payload = build_impersonate_payload(character, persona, convo, messages, connection)
     text = trim_reply(await complete(get_provider(connection), payload),
                       char_name=user_name, user_name=char_name)
     if not text:
