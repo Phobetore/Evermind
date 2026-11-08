@@ -959,9 +959,11 @@ async def test_passage_budget_setting(client, fake_provider):
     assert too_big.status_code == 422  # bounded 0..4000
 
 
-async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, monkeypatch):
+@pytest.mark.parametrize(("mode", "recalled"), [("say", True), ("ooc", False)])
+async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, monkeypatch,
+                                                      mode, recalled):
     """An old, out-of-window message that matches the current scene is injected
-    verbatim under RELEVANT PAST."""
+    verbatim under RELEVANT PAST, unless it was said out of character."""
     from app.prompting import embeddings
 
     async def fake_embed(texts, kind):
@@ -971,7 +973,7 @@ async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, mon
     await client.put("/api/settings", json={"auto_memory": False, "history_limit": 6,
                                             "passage_budget": 1500})
     convo = await setup_conversation(client)
-    await send(client, convo["id"], content="We sealed the crypt that night.")
+    await send(client, convo["id"], content="We sealed the crypt that night.", message_mode=mode)
     for _ in range(8):
         fake_provider.script = [ProviderEvent(type="delta", text="ok"),
                                 ProviderEvent(type="done")]
@@ -981,7 +983,7 @@ async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, mon
     await send(client, convo["id"], content="Tell me about the crypt again.")
     system = fake_provider.captured["payload"].system
     assert "### RELEVANT PAST" in system
-    assert "crypt that night" in system  # the old message resurfaced verbatim
+    assert ("crypt that night" in system) == recalled  # the old message resurfaced verbatim
 
 
 async def test_passages_off_when_budget_zero(client, fake_provider, monkeypatch):

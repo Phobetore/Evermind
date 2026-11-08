@@ -1,8 +1,7 @@
 """What the prompt engine promises, said directly where no recorded case says it."""
 
 from app.prompting.defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
-from app.prompting.engine import build_chat_payload, match_lore, select_facts
-from app.prompting.turn import passage_candidates, trim_reply
+from app.prompting.engine import build_chat_payload, match_lore, select_facts, trim_reply
 
 CHARACTER = {"name": "Mira", "description": "A ferrywoman."}
 SMALL = {"context_size": 600, "max_tokens": 50}
@@ -57,15 +56,3 @@ def test_no_more_facts_than_the_cap_and_the_history_leaves_a_margin_below_the_wi
     assert len(select_facts([fact(str(i), "f", i) for i in range(80)], 1000)) == 60
     stats = build_chat_payload(CHARACTER, None, {}, [message(1, "Hi.")], {"context_size": 2000}).stats
     assert stats["budget"] == 776  # 2000 - 1024 default reply - 200 margin
-
-
-def test_recall_never_draws_on_a_message_out_of_character():
-    history = [
-        {"id": "a", "role": "user", "position": 1, "meta": {"mode": "ooc"}},
-        {"id": "b", "role": "assistant", "position": 2, "meta": {}},
-        {"id": "c", "role": "user", "position": 9, "meta": {}},
-    ]
-
-    candidates, _ = passage_candidates(history, {"oldest_visible": 5})
-
-    assert [m["id"] for m in candidates] == ["b"]

@@ -1,4 +1,4 @@
-"""Builds the provider-agnostic chat payload for one turn.
+"""Builds the provider-agnostic chat payload for one turn, and trims the reply that comes back.
 
 Output contract:
 - `system`: single structured system prompt (card, persona, summary, examples, rules).
@@ -63,6 +63,10 @@ def active_content(message: dict) -> str:
     if not 0 <= index < len(variants):
         index = len(variants) - 1
     return variants[index]
+
+
+def is_out_of_character(message: dict) -> bool:
+    return (message.get("meta") or {}).get("mode") == "ooc"
 
 
 def select_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
@@ -370,3 +374,18 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     }
     return PromptPayload(system=system, messages=turns, stop=stop,
                          post_history=post_history, stats=stats)
+
+
+def trim_reply(text: str, char_name: str, user_name: str) -> str:
+    """Post-generation cleanup: drop anything the model wrote for the player,
+    and a leading "Name:" speaker tag if present."""
+    for marker in (f"\n{user_name}:", f"\n{user_name} :"):
+        index = text.find(marker)
+        if index != -1:
+            text = text[:index]
+    stripped = text.lstrip()
+    for prefix in (f"{char_name}:", f"{char_name} :"):
+        if stripped.startswith(prefix):
+            text = stripped[len(prefix):].lstrip()
+            break
+    return text.rstrip()

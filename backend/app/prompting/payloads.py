@@ -13,11 +13,10 @@ from .defaults import (
     MEMORY_CONSOLIDATION_PROMPT,
     MEMORY_EXTRACTION_PROMPT,
 )
-from .engine import PromptPayload, active_content, build_chat_payload
+from .engine import PromptPayload, active_content, build_chat_payload, is_out_of_character
 from .macros import substitute
 from .memory_changes import MAX_TURNS_PER_RUN, is_movable
 from .text import is_writable
-from .turn import is_out_of_character
 
 MIN_FACTS_TO_CONSOLIDATE = 8  # fewer than this and merging them is not worth a call
 
