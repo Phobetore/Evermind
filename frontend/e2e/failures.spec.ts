@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { API } from "../playwright.config";
-import { makeCharacter, makeConversation } from "./fixtures";
+import { makeCharacter, makeConversation, PNG } from "./fixtures";
 
 /** What does not go through is said where it was asked for, and what is shown is what
  *  the server holds. */
@@ -246,4 +246,34 @@ test("a favourite that is not saved on a card's page says so by its button, whic
   await expect(page.getByRole("button", { name: "Favorited" }), "the button is not what the server holds").toBeVisible();
   await expect(said).toContainText("HTTP 500");
   expect(await favourite(request, card.id)).toBe(true);
+});
+
+test("a backdrop's strength that is not saved says so, and its slider goes back to what is stored", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await request.post(`${API}/api/conversations/${convo.id}/wallpaper`, {
+    multipart: { file: { name: "backdrop.png", mimeType: "image/png", buffer: PNG } },
+  });
+  const held = async () => (await (await stored(request, convo.id)).json()).wallpaper_opacity;
+  await page.goto(`/#/chat/${convo.id}`);
+  // Beside the conversation on a wide screen; behind this button on a phone.
+  const opener = page.getByRole("button", { name: "Conversation memory and settings" });
+  const adjust = page.getByRole("button", { name: "Adjust strength" });
+  await expect(opener.or(adjust).first()).toBeVisible();
+  if (await opener.isVisible()) await opener.click();
+  await adjust.click();
+  const strength = page.getByRole("slider", { name: "Strength" });
+  const said = page.getByRole("alert");
+
+  await failing(page, "PATCH", `/api/conversations/${convo.id}`, offline);
+  await strength.fill("60");
+  await expect(said).toContainText("Evermind is not answering");
+  await expect(said).toBeInViewport();
+  await expect(strength, "the slider is not what the server holds").toHaveValue("25");
+  expect(await held()).toBe(0.25);
+
+  await page.unrouteAll();
+  await strength.fill("60");
+  await expect.poll(held).toBe(0.6);
+  await expect(said).toHaveCount(0);
+  await expect(strength).toHaveValue("60");
 });

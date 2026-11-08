@@ -19,7 +19,6 @@ export function ChatSidePanel({
   storyCuts = 0,
   onClose,
   onConversationChange,
-  onWallpaperOpacity,
   onAdjustWallpaper,
 }: {
   conversation: Conversation;
@@ -28,7 +27,6 @@ export function ChatSidePanel({
   storyCuts?: number;
   onClose: () => void;
   onConversationChange: (patch: Partial<Conversation>) => void;
-  onWallpaperOpacity: (value: number) => void;
   onAdjustWallpaper: () => void;
 }) {
   const t = useT();
@@ -360,10 +358,7 @@ export function ChatSidePanel({
         </p>
       </div>
 
-      {/* Backdrop. The opacity slider sits here on a wide screen, where the
-          conversation is beside the panel and the change can be seen as it is
-          made. On a phone the panel covers the conversation, so the button
-          hands the job over to a bar that sits on top of the real thing. */}
+      {/* Backdrop. Its strength is set in a bar under the conversation, where the change can be seen. */}
       <div>
         <div className="mb-1.5 flex items-center gap-2">
           <ImageIcon className="h-3.5 w-3.5 text-arcane-300" />
@@ -402,27 +397,9 @@ export function ChatSidePanel({
               </div>
             </div>
 
-            <div className="mt-3 hidden md:block">
-              <div className="mb-1 flex items-center justify-between text-xs text-mist">
-                <span>{t("chat.wallpaper.opacity")}</span>
-                <span className="tabular-nums text-parchment-dim">
-                  {Math.round((conversation.wallpaper_opacity ?? 0.25) * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round((conversation.wallpaper_opacity ?? 0.25) * 100)}
-                onChange={(e) => onWallpaperOpacity(Number(e.target.value) / 100)}
-                className="w-full accent-[#e29a3e]"
-                aria-label={t("chat.wallpaper.opacity")}
-              />
-            </div>
-
             <button
               type="button"
-              className="btn btn-ghost mt-3 w-full !py-1.5 text-xs md:hidden"
+              className="btn btn-ghost mt-3 w-full !py-1.5 text-xs"
               onClick={onAdjustWallpaper}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />

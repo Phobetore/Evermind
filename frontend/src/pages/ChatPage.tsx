@@ -63,11 +63,10 @@ function ChatView({ id }: { id: string }) {
   const [persona, setPersona] = useState<Persona | null>(null);
   // Over the conversation on a phone, so open there only once asked for.
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia(WIDE).matches);
-  // Phones: the panel covers the conversation, so a backdrop cannot be judged
-  // from inside it. Adjusting closes the panel and leaves a bar over the real
-  // thing instead.
+  // The backdrop's strength is set under the conversation, where it can be judged.
   const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
   const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const opacityHeld = useRef<number | undefined>(undefined); // what the server holds
   // Counts the times the story was cut back, for the side panel to read the facts again.
   const [storyCuts, setStoryCuts] = useState(0);
   // A closed panel reads nothing, so the summary a cut leaves is read here, for it to open on.
@@ -104,12 +103,19 @@ function ChatView({ id }: { id: string }) {
   }
 
   /** Live on every pixel of the drag, written once it settles: a range input
-   *  fires continuously and each of those would otherwise be a write. */
+   *  fires continuously and each of those would otherwise be a write. One the
+   *  server does not take goes back to what it holds, unless moved since. */
   function setWallpaperOpacity(value: number) {
+    opacityHeld.current ??= conversation?.wallpaper_opacity;
     setConversation((c) => (c ? { ...c, wallpaper_opacity: value } : c));
     if (opacityWrite.current) clearTimeout(opacityWrite.current);
-    opacityWrite.current = setTimeout(() => {
-      data.conversations.update(id, { wallpaper_opacity: value }).catch(() => {});
+    opacityWrite.current = setTimeout(async () => {
+      if (await write(() => data.conversations.update(id, { wallpaper_opacity: value }))) {
+        opacityHeld.current = value;
+      } else {
+        const held = opacityHeld.current;
+        setConversation((c) => (c?.wallpaper_opacity === value ? { ...c, wallpaper_opacity: held } : c));
+      }
     }, 350);
   }
 
@@ -251,6 +257,7 @@ function ChatView({ id }: { id: string }) {
   }
 
   const character = conversation.character;
+  const strength = Math.round((conversation.wallpaper_opacity ?? 0.25) * 100);
   // A model that never answered is not a fault to raise the alarm about; usually
   // the server behind it is simply not running.
   const silent = failure?.kind === "unreachable";
@@ -425,6 +432,32 @@ function ChatView({ id }: { id: string }) {
             {describeError(writeError.error, t)}
           </p>
         )}
+        {adjustingWallpaper && conversation.wallpaper_url && (
+          <div className="border-t border-ink-700 bg-ink-900 px-4 py-3">
+            <div className="mx-auto max-w-3xl">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="text-mist">{t("chat.wallpaper.opacity")}</span>
+                <span className="tabular-nums text-parchment-dim">{strength}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={strength}
+                onChange={(e) => setWallpaperOpacity(Number(e.target.value) / 100)}
+                className="w-full accent-[#e29a3e]"
+                aria-label={t("chat.wallpaper.opacity")}
+              />
+              <button
+                type="button"
+                className="btn btn-primary mt-3 w-full"
+                onClick={() => setAdjustingWallpaper(false)}
+              >
+                {t("chat.wallpaper.done")}
+              </button>
+            </div>
+          </div>
+        )}
         <ChatInput
           conversationId={conversation.id}
           onSend={sendMessage}
@@ -443,44 +476,12 @@ function ChatView({ id }: { id: string }) {
           onConversationChange={(patch) =>
             setConversation((c) => (c ? { ...c, ...patch } : c))
           }
-          onWallpaperOpacity={setWallpaperOpacity}
           onAdjustWallpaper={() => {
-            setPanelOpen(false);
+            // Over the conversation, it would hide what is being judged.
+            if (!window.matchMedia(WIDE).matches) setPanelOpen(false);
             setAdjustingWallpaper(true);
           }}
         />
-      )}
-
-      {/* Phone: judging a backdrop means seeing what sits on it, so the panel
-          gets out of the way and only this stays. */}
-      {adjustingWallpaper && conversation.wallpaper_url && (
-        <div
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-700 bg-ink-950/90 px-4 pt-4 backdrop-blur md:hidden"
-          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-        >
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-mist">{t("chat.wallpaper.opacity")}</span>
-            <span className="tabular-nums text-parchment-dim">
-              {Math.round((conversation.wallpaper_opacity ?? 0.25) * 100)}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round((conversation.wallpaper_opacity ?? 0.25) * 100)}
-            onChange={(e) => setWallpaperOpacity(Number(e.target.value) / 100)}
-            className="w-full accent-[#e29a3e]"
-            aria-label={t("chat.wallpaper.opacity")}
-          />
-          <button
-            type="button"
-            className="btn btn-primary mt-3 w-full"
-            onClick={() => setAdjustingWallpaper(false)}
-          >
-            {t("chat.wallpaper.done")}
-          </button>
-        </div>
       )}
     </div>
   );
