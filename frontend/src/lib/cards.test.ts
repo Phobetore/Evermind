@@ -80,6 +80,17 @@ describe("a card file", () => {
     expect(await readCardFile(file)).toMatchObject({ character: { name: "Vane" }, portrait: null });
   });
 
+  test("half of an emoji, where a card site cut one, reads as the replacement character", async () => {
+    // The escapes as the file holds them: a high surrogate with no partner, and a low one alone.
+    const file = new File([String.raw`{"spec":"chara_card_v2","data":{"name":"Broken \ud83d",
+      "description":"She smiles \ud83d","first_mes":"Hello \uD83D\uDE00","tags":["\ude00"],
+      "character_book":{"entries":[{"keys":["k\ud83d"],"content":"\ud83d"}]}}}`], "broken-emoji.json");
+    expect((await readCardFile(file)).character).toMatchObject({
+      name: "Broken \uFFFD", description: "She smiles \uFFFD", greeting: "Hello \u{1F600}", tags: ["\uFFFD"],
+      lore_entries: [{ keys: ["k\uFFFD"], content: "\uFFFD", enabled: true }],
+    });
+  });
+
   test("what is no card says so, and so does a file too large, before it is read", async () => {
     expect(await kindOf(new File(["[1]"], "a.json"))).toBe("unrecognized_card_file");
     expect(await kindOf(new File([new Uint8Array([0xff, 0xd8, 0xff])], "a.jpg"))).toBe("unrecognized_card_file");
