@@ -20,16 +20,14 @@ import aiosqlite
 from ..errors import MODEL_EMPTY, MODEL_ERROR, NO_CONNECTION, AppError, NotFoundError
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval
-from ..prompting.engine import active_content, build_chat_payload
-from ..prompting.payloads import build_impersonate_payload
-from ..prompting.tokens import estimate_tokens
-from ..prompting.turn import (
-    continue_history,
-    passage_candidates,
-    passage_infos,
-    scene_of,
+from ..prompting.engine import (
+    active_content,
+    build_chat_payload,
+    is_out_of_character,
     trim_reply,
 )
+from ..prompting.payloads import build_impersonate_payload
+from ..prompting.tokens import estimate_tokens
 from ..providers import ProviderError, complete, get_provider
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
@@ -48,6 +46,10 @@ _FLUSH_SECONDS = 1.0
 # What the context bar above the conversation shows of the last reply's prompt.
 _CONTEXT_SHOWN = ("used_tokens", "budget", "context_size", "messages_included", "messages_total",
                   "lore_matched")
+_CONTINUE_INSTRUCTION = (
+    "[Continue your previous reply exactly where it stopped. Do not repeat anything, "
+    "do not start over — just keep going seamlessly.]"
+)
 
 
 def message_sent_as(messages: list[dict], client_id: str | None) -> dict | None:
@@ -139,7 +141,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             raise AppError("Nothing to continue: the last message is not a reply.",
                            kind="nothing_to_continue")
         target = messages[-1]
-        history = continue_history(messages)
+        history = messages + [{"role": "user", "variants": [_CONTINUE_INSTRUCTION],
+                               "position": target["position"] + 1}]
 
     async def say_unanswered(why) -> None:
         """Whether the person's message still waits for its reply, and why, for a later page."""
@@ -163,7 +166,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 
     # Semantic recall: rank out-of-window facts by relevance to the live scene
     # (the last couple of turns). Falls back to recency when embeddings are off.
-    scene = scene_of(history)
+    scene = "\n".join(active_content(m) for m in history[-2:])
     embedding_map = await memories_repo.list_embeddings(db, convo["id"])
     relevance_scores = await retrieval.rank(scene, embedding_map)
 
@@ -188,7 +191,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     passages = None
     passage_budget = int(settings.get("passage_budget") or 0)
     if passage_budget and scene:
-        candidates, fact_positions = passage_candidates(history, payload.stats)
+        candidates = [m for m in history if m["position"] < payload.stats["oldest_visible"]
+                      and not is_out_of_character(m)]
         if candidates:
             msg_emb = await convo_repo.list_message_embeddings(db, convo["id"])
             for m in candidates:  # lazy-fill vectors for newly out-of-window messages
@@ -206,9 +210,9 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             cand_map = {m["id"]: msg_emb[m["id"]] for m in candidates if m["id"] in msg_emb}
             scores = None if turn.stopped else await retrieval.rank(scene, cand_map)
             if scores:
-                infos = passage_infos(candidates, cand_map)
-                passages = retrieval.select_passages(scores, infos, passage_budget,
-                                                     exclude_positions=fact_positions)
+                passages = retrieval.select_passages(
+                    scores, candidates, passage_budget,
+                    exclude_positions=set(payload.stats["fact_positions"]))
                 if passages:
                     payload = _build(passages)  # pass 2 — inject RELEVANT PAST
 
@@ -335,8 +339,7 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
     if not messages:
         raise AppError("Nothing to write: the conversation is empty.", kind="conversation_empty")
 
-    memories = await memories_repo.list_for_conversation(db, convo_id)
-    payload = build_impersonate_payload(character, persona, convo, messages, connection, memories)
+    payload = build_impersonate_payload(character, persona, convo, messages, connection)
     text = trim_reply(await complete(get_provider(connection), payload),
                       char_name=user_name, user_name=char_name)
     if not text:

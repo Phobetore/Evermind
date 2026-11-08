@@ -339,8 +339,7 @@ async def test_facts_budget_scales_with_context(client, fake_provider):
         conversation={"summary": ""}, messages=recent,
         connection={"context_size": 32768, "max_tokens": 1024}, memories=memories,
     )
-    assert big.stats["facts_injected"] > small.stats["facts_injected"]
-    assert big.stats["facts_total"] == 40
+    assert big.system.count("Fait ") > small.system.count("Fait ") > 0
 
 
 async def test_history_limit_setting_flows_into_chat(client, fake_provider):
@@ -962,10 +961,15 @@ async def test_passage_budget_setting(client, fake_provider):
     assert too_big.status_code == 422  # bounded 0..4000
 
 
-async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, monkeypatch):
+@pytest.mark.parametrize(("mode", "covered", "recalled"), [
+    ("say", False, True), ("ooc", False, False), ("say", True, False)])
+async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, monkeypatch,
+                                                      mode, covered, recalled):
     """An old, out-of-window message that matches the current scene is injected
-    verbatim under RELEVANT PAST."""
+    verbatim under RELEVANT PAST, unless it was said out of character or a fact the
+    prompt shows was drawn from its turn."""
     from app.prompting import embeddings
+    from app.repositories import memories as mem_repo
 
     async def fake_embed(texts, kind):
         return [[1.0, 0.0] if "crypt" in t.lower() else [0.0, 1.0] for t in texts]
@@ -974,7 +978,13 @@ async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, mon
     await client.put("/api/settings", json={"auto_memory": False, "history_limit": 6,
                                             "passage_budget": 1500})
     convo = await setup_conversation(client)
-    await send(client, convo["id"], content="We sealed the crypt that night.")
+    await send(client, convo["id"], content="We sealed the crypt that night.", message_mode=mode)
+    if covered:
+        db = await get_db_for_test(client)
+        try:
+            await mem_repo.add(db, convo["id"], "Alex and Serana sealed a crypt.", source_position=1)
+        finally:
+            await db.close()
     for _ in range(8):
         fake_provider.script = [ProviderEvent(type="delta", text="ok"),
                                 ProviderEvent(type="done")]
@@ -984,7 +994,8 @@ async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, mon
     await send(client, convo["id"], content="Tell me about the crypt again.")
     system = fake_provider.captured["payload"].system
     assert "### RELEVANT PAST" in system
-    assert "crypt that night" in system  # the old message resurfaced verbatim
+    assert ("crypt that night" in system) == recalled  # the old message resurfaced verbatim
+    assert "(turn 14)" not in system  # the oldest of the six the window holds: no echo of it
 
 
 async def test_passages_off_when_budget_zero(client, fake_provider, monkeypatch):
