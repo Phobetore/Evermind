@@ -378,9 +378,11 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
 
 def strip_thought(text: str) -> str:
     """What a model says after the thinking some write first between <think> tags: nothing
-    until that is closed."""
+    until that is closed, nor while the opening tag is still arriving."""
     head = text.lstrip()
-    return head.partition("</think>")[2].lstrip() if head.startswith("<think>") else text
+    if head.startswith("<think>"):
+        return head.partition("</think>")[2].lstrip()
+    return "" if head and "<think>".startswith(head) else text
 
 
 def trim_reply(text: str, char_name: str, user_name: str) -> str:

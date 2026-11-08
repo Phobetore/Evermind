@@ -31,6 +31,8 @@ def test_a_reply_is_cut_where_it_speaks_for_the_player_and_loses_its_name_tag():
 def test_a_reply_loses_the_thinking_written_before_it_and_is_nothing_until_that_ends():
     assert trim_reply("<think>She waves.\nAlex: hi?</think>\n\nMira: Hello.", "Mira", "Alex") == "Hello."
     assert trim_reply("\n<think>Still weighing it", "Mira", "Alex") == ""
+    assert trim_reply("<thi", "Mira", "Alex") == ""
+    assert trim_reply("<3", "Mira", "Alex") == "<3"
 
 
 def test_the_last_message_survives_however_long_it_is():
