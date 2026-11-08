@@ -82,3 +82,17 @@ async def test_the_conversation_says_while_a_memory_pass_runs(client, monkeypatc
 
     assert (during["memory_running"], after["memory_running"]) == (True, False)
     assert after["summary"] == "Read."
+
+
+async def test_a_conversation_read_without_its_messages_carries_all_the_rest(client):
+    """What the side panel reads, every 2 s while a pass runs, of a story however long."""
+    convo = await setup_conversation(client)
+    url = f"/api/conversations/{convo['id']}"
+    await client.patch(url, json={"summary": "So far.", "author_note": "Slowly."})
+
+    light = (await client.get(url, params={"messages": "false"})).json()
+
+    assert "messages" not in light
+    assert (light["summary"], light["author_note"]) == ("So far.", "Slowly.")
+    assert (light["memory_running"], light["memory_error"]) == (False, None)
+    assert len((await client.get(url)).json()["messages"]) == len(convo["messages"]) == 1

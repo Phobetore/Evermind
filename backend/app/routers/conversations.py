@@ -81,10 +81,11 @@ async def _create_conversation(db: aiosqlite.Connection, payload: ConversationIn
 
 
 @router.get("/conversations/{convo_id}")
-async def get_conversation(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def get_conversation(convo_id: str, messages: bool = True,
+                           db: aiosqlite.Connection = Depends(get_db)):
     # One snapshot: the revision it carries is that of the messages it holds.
     await db.execute("BEGIN")
-    convo = await repo.get(db, convo_id)
+    convo = await repo.get(db, convo_id, with_messages=messages)
     await db.commit()
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
