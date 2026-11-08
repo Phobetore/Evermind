@@ -82,8 +82,15 @@ the source, Python must use SQLite 3.35 or newer.
     `POST /api/conversations/{id}/summarize`, `POST /api/connections/{id}/test`
     and `/benchmark`, `GET /api/connections/{id}/models`, and `/docs`, `/redoc`
     and `/openapi.json`.
-  - `POST /api/chat` answers in JSON once the message is saved, and
-    `GET /api/conversations/{id}/turn/stream` follows the reply.
+  - `POST /api/chat` answers in JSON once the message is saved.
+    `GET /api/conversations/{id}/turn` no longer has `mode` or
+    `ended_recently`: it gives the `message_id` and `text` of the reply being
+    written, or, when there is none, an `outcome` that says how the last turn
+    failed or added nothing (`kind`, `message`, `mode`), or is `null`.
+    `.../turn/stream` sends the reply so far as `{"text": ...}`, each piece
+    after it as `{"delta": ...}`, then `{"end": true}`, which is all it sends
+    when no reply is being written. The reply is then read from the
+    conversation, and the `outcome` from `.../turn`.
     `DELETE /api/messages/{id}` always removes the messages after it too.
     `POST /api/connections/test` and `/benchmark` take the connection as the
     form holds it, with `id` to use its saved key, and `PUT /api/connections/{id}`
@@ -109,10 +116,15 @@ the source, Python must use SQLite 3.35 or newer.
     `default_persona_id` or `default_connection_id`. A conversation has no
     `forked_at_position`, and it and the state of its turn carry `revision`. A
     message's `meta.interrupted` lists its versions cut short instead of being
-    `true`, `meta.streaming` is gone, and `meta.perf` has no `finish_reason`. A
-    fact has no `kind` and gains `previous_content` and `corrected_at`; adding
-    one the model already holds makes it yours (`201`, not `400` `fact_exists`),
-    and so does changing its text. `GET /api/update` answers only `current`,
+    `true`, `meta.unanswered` can hold how the model failed instead of `true`,
+    and `meta.streaming` and `meta.finish_reason` are gone. A fact has no `kind`
+    and gains `previous_content` and `corrected_at`; adding one the model
+    already holds makes it yours (`201`, not `400` `fact_exists`), and so does
+    changing its text, while a text left blank is `400` `fact_empty`.
+    `avatar_url` and `wallpaper_url` are relative, `api/media/<file>`.
+    `GET /api/library` gives each card whole, as `card`, beside `filename` and
+    `has_avatar`, and `GET /api/connections` reports the oldest connection as
+    `is_default` when none is marked. `GET /api/update` answers only `current`,
     `kind` and `command`.
 - **A copy of the database is kept** as `evermind.before-3.1.0.db`, beside it.
   To go back to 3.0.x, see
