@@ -959,12 +959,15 @@ async def test_passage_budget_setting(client, fake_provider):
     assert too_big.status_code == 422  # bounded 0..4000
 
 
-@pytest.mark.parametrize(("mode", "recalled"), [("say", True), ("ooc", False)])
+@pytest.mark.parametrize(("mode", "covered", "recalled"), [
+    ("say", False, True), ("ooc", False, False), ("say", True, False)])
 async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, monkeypatch,
-                                                      mode, recalled):
+                                                      mode, covered, recalled):
     """An old, out-of-window message that matches the current scene is injected
-    verbatim under RELEVANT PAST, unless it was said out of character."""
+    verbatim under RELEVANT PAST, unless it was said out of character or a fact the
+    prompt shows was drawn from its turn."""
     from app.prompting import embeddings
+    from app.repositories import memories as mem_repo
 
     async def fake_embed(texts, kind):
         return [[1.0, 0.0] if "crypt" in t.lower() else [0.0, 1.0] for t in texts]
@@ -974,6 +977,12 @@ async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, mon
                                             "passage_budget": 1500})
     convo = await setup_conversation(client)
     await send(client, convo["id"], content="We sealed the crypt that night.", message_mode=mode)
+    if covered:
+        db = await get_db_for_test(client)
+        try:
+            await mem_repo.add(db, convo["id"], "Alex and Serana sealed a crypt.", source_position=1)
+        finally:
+            await db.close()
     for _ in range(8):
         fake_provider.script = [ProviderEvent(type="delta", text="ok"),
                                 ProviderEvent(type="done")]
