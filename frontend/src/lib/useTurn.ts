@@ -22,14 +22,19 @@ const unanswered = (error: unknown) =>
 /** A message that got no answer, and that the server, answering since, does not have. */
 const NOT_SENT = new DataError("This message was not sent.", { kind: "not_sent" });
 
-/** What a model thinks before it answers, which some send in the reply: unended, all that follows. */
-const THOUGHT = /<think>[\s\S]*?(?:<\/think>\s*|$)/g;
-
 /** The words of the reply being written, for the one thing on screen that follows them. */
 export class LiveText {
   private text = "";
   private listeners = new Set<() => void>();
-  get = () => this.text.replace(THOUGHT, "");
+  /** As the server saves them: not what some models think first, until that ends, nor its tag arriving. */
+  get = () => {
+    const head = this.text.trimStart();
+    if (head.startsWith("<think>")) {
+      const end = head.indexOf("</think>");
+      return end < 0 ? "" : head.slice(end + "</think>".length).trimStart();
+    }
+    return head && "<think>".startsWith(head) ? "" : this.text;
+  };
   set(text: string) {
     this.text = text;
     this.listeners.forEach((listener) => listener());
