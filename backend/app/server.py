@@ -31,6 +31,12 @@ class Protocol(H11Protocol):
             self._deadline.cancel()
         super().connection_lost(exc)
 
+    def send_400_response(self, msg):
+        if self.conn.our_state in (h11.IDLE, h11.SEND_RESPONSE):
+            super().send_400_response(msg)
+        else:  # an answer has started and h11 takes no 400: raising would leave the connection open
+            self.transport.close()
+
     def _watch(self):
         waiting = self.conn.their_state is h11.IDLE or self.conn.our_state is h11.DONE
         if waiting and self._deadline is None:

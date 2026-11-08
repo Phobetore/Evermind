@@ -20,7 +20,13 @@ DEADLINE = 0.5
 
 
 async def echo(scope, receive, send):
-    """Answers with the body it was sent, or at once on /early, the body left unread."""
+    """Answers with the body it was sent, or at once on /early, the body left unread, or on /stream
+    with an answer that goes on until the client leaves, as a turn's does."""
+    if scope["path"] == "/stream":
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        while (await receive())["type"] != "http.disconnect":
+            pass
+        return
     body = b""
     while scope["path"] != "/early":
         message = await receive()
@@ -157,3 +163,15 @@ def test_a_body_still_coming_after_the_answer_is_cut_off(address):
         send(sock, b"POST /early HTTP/1.1\r\nHost: x\r\nContent-Length: 1000\r\n\r\n")
         assert response(sock) == b"HTTP/1.1 200 OK"
         assert not send(sock, *[b"a"] * 40, pause=0.1)
+
+
+@pytest.mark.parametrize("path", ["/early", "/stream"], ids=["answered", "answering"])
+def test_a_body_refused_once_answered_closes_the_connection(address, caplog, path):
+    """A chunk size that is no number, where a 400 can no longer go out: h11 would go on taking
+    all that comes, unbounded and with a traceback each time, as the final review found."""
+    with connect(address) as sock:
+        send(sock, f"POST {path} HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n".encode())
+        assert response(sock) == b"HTTP/1.1 200 OK"
+        send(sock, b"zz\r\n")
+        assert closed(sock) < DEADLINE
+    assert [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR] == []
