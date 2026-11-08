@@ -466,6 +466,8 @@
     "pageLoad": "No se ha podido cargar esta página. Puede que Evermind se haya actualizado desde que la abriste, o que se haya cortado la conexión.",
     "server": "Evermind ha respondido con un error (HTTP {status}).",
     "unreachable": "Evermind no responde. ¿Sigue en marcha?",
+    "offline": "Este dispositivo no tiene conexión.",
+    "notSent": "Este mensaje no se ha enviado. Pulsa Enviar para volver a enviarlo.",
     "invalid": "Evermind no ha podido procesar la petición: falta información o algún dato no es válido.",
     "locked": "Tu sesión ha terminado. Vuelve a iniciar sesión.",
     "wrongPassword": "Acceso denegado.",

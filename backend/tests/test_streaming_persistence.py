@@ -6,9 +6,15 @@ the last write says it is whole.
 """
 
 import asyncio
+import json
+import shutil
+import sqlite3
+from contextlib import closing
 
 import pytest
 
+from app import db
+from app.config import db_path
 from app.models.schemas import ChatRequest
 from app.providers.base import ProviderEvent
 from app.services import turns
@@ -74,3 +80,33 @@ async def test_a_reply_says_it_is_unfinished_until_it_is_whole(client, held_back
     assert [m["role"] for m in messages] == ["assistant", "user", "assistant"], "a write added a message"
     assert messages[-1]["content"] == "mot0 mot1 mot2 mot3 mot4 fin"
     assert "interrupted" not in messages[-1]["meta"]
+
+
+async def test_a_reply_3_0_x_marked_is_cut_on_its_first_version(tmp_path, monkeypatch):
+    """3.0.x marked a reply only while it had a single version, so one regenerated since, which shows
+    its whole second version, was cut on its first."""
+    monkeypatch.setenv("EVERMIND_DATA_DIR", str(tmp_path / "data"))
+    every, released = db.MIGRATIONS_DIR, tmp_path / "released"
+    released.mkdir()
+    for path in every.glob("*.sql"):
+        if path.name < "016":
+            shutil.copy(path, released / path.name)
+    monkeypatch.setattr(db, "MIGRATIONS_DIR", released)
+    await db.init_db()
+    with closing(sqlite3.connect(db_path())) as conn, conn:
+        conn.executescript("""
+            INSERT INTO characters (id, name, created_at, updated_at) VALUES ('c', 'C', '', '');
+            INSERT INTO conversations (id, character_id, created_at, updated_at) VALUES ('v', 'c', '', '');
+            INSERT INTO messages (id, conversation_id, role, variants, active_index, position, meta,
+                                  created_at) VALUES
+              ('regenerated', 'v', 'assistant', '["cut", "whole"]', 1, 0, '{"interrupted": true}', ''),
+              ('left', 'v', 'assistant', '["cut"]', 0, 1, '{"streaming": true}', '');
+        """)
+
+    monkeypatch.setattr(db, "MIGRATIONS_DIR", every)
+    await db.init_db()
+
+    with closing(sqlite3.connect(db_path())) as conn:
+        marks = dict(conn.execute("SELECT id, meta FROM messages").fetchall())
+    assert json.loads(marks["regenerated"]) == {"interrupted": [0]}, "the whole version is marked"
+    assert json.loads(marks["left"]) == {"interrupted": [0]}

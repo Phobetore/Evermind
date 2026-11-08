@@ -30,7 +30,7 @@ export interface DataSource {
   };
   conversations: {
     list(query?: { character_id?: string }): Promise<Conversation[]>;
-    get(id: string): Promise<Conversation>;
+    get(id: string, asking?: Asking): Promise<Conversation>;
     create(input: ConversationInput): Promise<Conversation>;
     update(id: string, patch: ConversationPatch): Promise<Conversation>;
     remove(id: string): Promise<void>;
@@ -54,10 +54,10 @@ export interface DataSource {
     /** Answers once the server has the message, with the message as it was saved. */
     start(request: TurnRequest): Promise<{ user_message: Message | null }>;
     follow(conversationId: string, onEvent: (event: TurnEvent) => void, signal?: AbortSignal): Promise<void>;
-    stop(conversationId: string): Promise<void>;
+    stop(conversationId: string, asking?: Asking): Promise<void>;
     /** The reply being written for this conversation right now, asked for from this page or
      *  from another device. */
-    state(conversationId: string): Promise<TurnState>;
+    state(conversationId: string, asking?: Asking): Promise<TurnState>;
     impersonate(conversationId: string): Promise<{ text: string }>;
   };
   library: {
@@ -84,6 +84,12 @@ export interface DataSource {
     logout(): Promise<void>;
     logoutEverywhere(): Promise<void>;
   };
+}
+
+/** Given up on with `signal`, or as unanswered when no answer has begun within `within` ms. */
+export interface Asking {
+  signal?: AbortSignal;
+  within?: number;
 }
 
 /** A card as the editor holds it: every field a person fills in, and none that

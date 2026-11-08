@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
-  beginSending, clearDraft, forgetSending, loadDraft, openBox, pruneDrafts, saveDraft, settleSending, type MessageMode,
+  arrived, beginSending, clearDraft, forgetSending, loadDraft, openBox, pruneDrafts, saveDraft, settleSending,
+  type MessageMode,
 } from "./drafts";
 
 /** Kept items are own properties, the methods are not, so `Object.keys` lists
@@ -244,5 +245,40 @@ describe("a message whose answer was lost, and which had arrived after all", () 
     expect(next.settleSending(id, inConversation(clientId))).toBe(true);
     expect(next.loadDraft(id)).toBe("And then this.");
     expect(next.settleSending(id, inConversation(clientId)), "once is enough").toBe(false);
+  });
+});
+
+describe("a message the server has taken", () => {
+  beforeEach(() => useStorage(new MemoryStorage()));
+
+  test("leaves the box open for its conversation now, not the one it was sent from", () => {
+    const id = aConversation();
+    const clientId = sent(id, "Taken.", "narrate");
+    openBox(id, aBox("Taken."))(); // the page it was sent from, left
+    const now = aBox("Taken.");
+    const close = openBox(id, now);
+    expect(arrived(id, clientId)).toBe(true);
+    expect(now.shown).toBe("");
+    expect(now.mode).toBe("say");
+    expect(loadDraft(id)).toBe("");
+    close();
+  });
+
+  test("leaves the draft when no box is open", () => {
+    const id = aConversation();
+    const clientId = sent(id, "Taken.");
+    expect(arrived(id, clientId)).toBe(true);
+    expect(loadDraft(id)).toBe("");
+  });
+
+  test("does so once: the same words typed again after it stay", () => {
+    const id = aConversation();
+    const clientId = sent(id, "Taken.");
+    arrived(id, clientId);
+    const box = aBox("Taken.");
+    const close = openBox(id, box);
+    expect(arrived(id, clientId), "answered twice").toBe(false);
+    expect(box.shown).toBe("Taken.");
+    close();
   });
 });

@@ -466,6 +466,8 @@
     "pageLoad": "Diese Seite ließ sich nicht laden. Vielleicht wurde Evermind aktualisiert, seit du es geöffnet hast, oder die Verbindung ist abgebrochen.",
     "server": "Evermind hat mit einem Fehler geantwortet (HTTP {status}).",
     "unreachable": "Evermind antwortet nicht. Läuft es noch?",
+    "offline": "Dieses Gerät ist offline.",
+    "notSent": "Diese Nachricht wurde nicht gesendet. Tippe auf Senden, um sie noch einmal zu schicken.",
     "invalid": "Evermind konnte diese Anfrage nicht verarbeiten: Es fehlen Angaben, oder sie sind ungültig.",
     "locked": "Deine Sitzung ist beendet. Melde dich erneut an.",
     "wrongPassword": "Zugriff verweigert.",

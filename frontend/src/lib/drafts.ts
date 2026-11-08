@@ -42,17 +42,22 @@ export function clearDraft(conversationId: string): void {
   saveDraft(conversationId, "");
 }
 
+function parsed(json: string | null): Sending | null {
+  const kept = JSON.parse(json ?? "null");
+  if (typeof kept?.clientId !== "string" || typeof kept?.text !== "string") return null;
+  return { clientId: kept.clientId, text: kept.text, mode: MODES.includes(kept.mode) ? kept.mode : "say" };
+}
+
 function stored(conversationId: string): Sending | null {
   try {
-    const kept = JSON.parse(localStorage.getItem(SENDING + conversationId) ?? "null");
-    if (typeof kept?.clientId !== "string" || typeof kept?.text !== "string") return null;
-    return { clientId: kept.clientId, text: kept.text, mode: MODES.includes(kept.mode) ? kept.mode : "say" };
+    return parsed(localStorage.getItem(SENDING + conversationId));
   } catch {
     return null; // nothing readable was kept, or storage this site may not use
   }
 }
 
-const loadSending = (conversationId: string) => sending.get(conversationId) ?? stored(conversationId);
+/** The message on its way for a conversation, until the server is known to have it. */
+export const loadSending = (conversationId: string) => sending.get(conversationId) ?? stored(conversationId);
 
 /** Writes a message down before it goes: the same words keep the id they were sent under. */
 export function beginSending(conversationId: string, text: string, mode: MessageMode): string {
@@ -101,15 +106,11 @@ export function openBox(conversationId: string, box: Box): () => void {
   };
 }
 
-/** A message whose answer was lost and that arrived after all leaves the head of the box, or the
- *  draft, and what was typed under it stays. Says whether it had arrived. */
-export function settleSending(
-  conversationId: string,
-  messages: { meta?: Record<string, unknown> }[],
-): boolean {
+/** The server has it: it leaves the head of the box open for its conversation now, or of the draft, once. */
+export function arrived(conversationId: string, clientId: string): boolean {
   const message = loadSending(conversationId);
-  if (!message || !messages.some((m) => m.meta?.client_id === message.clientId)) return false;
-  forgetSending(conversationId, message.clientId);
+  if (message?.clientId !== clientId) return false;
+  forgetSending(conversationId, clientId);
   const box = boxes.get(conversationId);
   const rest = box ? without(box.read(), message.text) : null;
   if (box && rest !== null) {
@@ -121,6 +122,33 @@ export function settleSending(
   }
   return true;
 }
+
+/** A message whose answer was lost, and that is among these after all, has arrived. */
+export function settleSending(
+  conversationId: string,
+  messages: { meta?: Record<string, unknown> }[],
+): boolean {
+  const message = loadSending(conversationId);
+  return !!message && messages.some((m) => m.meta?.client_id === message.clientId)
+    && arrived(conversationId, message.clientId);
+}
+
+// Another tab's message that arrived leaves the box of this tab too.
+globalThis.addEventListener?.("storage", (event) => {
+  if (!event.key?.startsWith(SENDING) || event.newValue !== null) return;
+  let message: Sending | null = null;
+  try {
+    message = parsed(event.oldValue);
+  } catch {
+    /* nothing readable was kept */
+  }
+  if (!message) return;
+  const conversationId = event.key.slice(SENDING.length);
+  if (sending.get(conversationId)?.clientId === message.clientId) sending.delete(conversationId);
+  const box = boxes.get(conversationId);
+  const rest = box ? without(box.read(), message.text) : null;
+  if (box && rest !== null) box.write(rest, rest.trim() ? undefined : "say");
+});
 
 /** Ids that currently hold a draft, restricted to conversations that still
     exist; drafts of deleted conversations are removed along the way. */

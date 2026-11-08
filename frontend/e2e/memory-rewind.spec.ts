@@ -297,7 +297,7 @@ test("a read sent with the directive's save does not put the old directive back"
   expect(read.author_note).toBe("Fog, lamplight, nothing resolved tonight.");
 });
 
-test("an older read that lands last does not put back the summary a newer one brought", async ({ page, request }) => {
+test("an older read, given up once a newer one is sent, does not put back the summary that one brought", async ({ page, request }) => {
   const convo = await makeConversation(request);
   await chat(request, { conversation_id: convo.id, mode: "send", content: "First question." });
 
@@ -311,7 +311,7 @@ test("an older read that lands last does not put back the summary a newer one br
   await expect(summary).toHaveValue("");
   await page.waitForLoadState("networkidle");
 
-  // The read of a wake is answered before the pass, and delivered after the summary box's read.
+  // The read of a wake is answered before the pass, and its answer held until after the summary box's read.
   let fetched = () => {};
   const answered = new Promise<void>((resolve) => { fetched = resolve; });
   let release = () => {};
@@ -322,18 +322,20 @@ test("an older read that lands last does not put back the summary a newer one br
     const old = await route.fetch();
     fetched();
     await released;
-    await route.fulfill({ response: old });
+    await route.fulfill({ response: old }).catch(() => {}); // given up on by then
   });
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await answered;
   await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  const givenUp = page.waitForEvent("requestfailed", {
+    predicate: (r) => r.url().endsWith(`/api/conversations/${convo.id}`),
+  });
   await summary.click();
   await expect(summary).toHaveValue(/woke the character in a crypt/);
   const brought = await summary.inputValue();
+  await givenUp;
 
-  const late = page.waitForResponse((r) => r.url().endsWith(`/api/conversations/${convo.id}`));
   release();
-  await (await late).finished();
   await page.waitForTimeout(500);
   await expect(summary).toHaveValue(brought);
 });

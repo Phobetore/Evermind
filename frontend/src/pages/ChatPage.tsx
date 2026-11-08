@@ -4,11 +4,11 @@ import { ModelSilent } from "@/components/chat/ModelSilent";
 import { ChatSidePanel } from "@/components/chat/ChatSidePanel";
 import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
-import { DataError, data, type TurnRequest } from "@/data";
+import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
-import { beginSending, forgetSending, settleSending, type MessageMode } from "@/lib/drafts";
+import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeError, describeFailure } from "@/lib/errors";
-import { inTime, useTurn, type LiveText } from "@/lib/useTurn";
+import { useTurn, type LiveText } from "@/lib/useTurn";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, PanelRightOpen, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -71,8 +71,6 @@ function ChatView({ id }: { id: string }) {
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   // Until the next thing is asked for. Not the reply's banner: its Retry asks for a reply.
   const [writeError, setWriteError] = useState<{ error: unknown } | null>(null);
-  // What the server said no to, or could not be reached for, when a turn was last asked for.
-  const [refused, setRefused] = useState<unknown>(null);
   const [drawn, setDrawn] = useState(DRAWN);
   // Counts what the person has done to the messages, so that a read sent before one of those
   // does not undo it.
@@ -115,19 +113,25 @@ function ChatView({ id }: { id: string }) {
   const fromBottom = useRef<number | null>(null);
 
   // The title too, which the server gives a new conversation; the side panel reads the rest itself.
-  const read = useCallback(async () => {
+  const read = useCallback(async (asking: Asking) => {
     const changes = changesByHand.current;
-    const convo = await data.conversations.get(id);
-    return () => {
-      if (settleSending(id, convo.messages ?? [])) setRefused(null);
+    const conversation = await data.conversations.get(id, asking);
+    const show = () => {
       if (changesByHand.current !== changes) return false;
-      setConversation((shown) => (shown ? { ...shown, title: convo.title } : convo));
-      setMessages(convo.messages ?? []);
+      setConversation((shown) => (shown ? { ...shown, title: conversation.title } : conversation));
+      setMessages(conversation.messages ?? []);
       return true;
     };
+    return { conversation, show };
   }, [id]);
 
-  const { writing, text, lost, outcome, watch, began, recheck, noAnswer, forget } = useTurn(id, read);
+  // The person's message as the server saved it, before the conversation is read again.
+  const add = useCallback((sent: Message) => {
+    setMessages((now) => [...now.filter((m) => m.id !== sent.id), sent].sort((a, b) => a.position - b.position));
+  }, []);
+
+  const turn = useTurn(id, read, add);
+  const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
 
   useEffect(() => {
@@ -157,46 +161,16 @@ function ChatView({ id }: { id: string }) {
     stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   }, []);
 
-  /** Says whether the server has it. Whatever happened, the page then finds out how things stand. */
-  async function ask(request: Omit<TurnRequest, "conversation_id">) {
-    setRefused(null);
+  /** Settles at the server's answer or at patience's end; either way the page then finds out how things stand. */
+  function ask(request: Omit<TurnRequest, "conversation_id">) {
     setWriteError(null);
-    forget();
     stickToBottom.current = true;
-    try {
-      const { user_message: sent } = await inTime(data.turns.start({ conversation_id: id, ...request }));
-      if (sent) {
-        setMessages((now) => [...now.filter((m) => m.id !== sent.id), sent].sort((a, b) => a.position - b.position));
-      }
-      began();
-      return true;
-    } catch (error) {
-      // A message stays refused until it is found; anything else that got no answer may be under way.
-      if (request.mode !== "send" && error instanceof DataError && error.kind === "network") noAnswer(error);
-      else {
-        setRefused(error);
-        recheck();
-      }
-      return false;
-    }
+    return turn.ask(request);
   }
 
-  async function sendMessage(content: string, messageMode: MessageMode) {
+  function sendMessage(content: string, messageMode: MessageMode) {
     const clientId = beginSending(id, content, messageMode);
-    const sent = await ask({ mode: "send", content, message_mode: messageMode, client_id: clientId });
-    if (sent) forgetSending(id, clientId);
-    return sent;
-  }
-
-  /** The server answers once what arrived is saved. */
-  async function stop() {
-    setRefused(null);
-    try {
-      await inTime(data.turns.stop(id));
-      void watch();
-    } catch (error) {
-      noAnswer(error);
-    }
+    return ask({ mode: "send", content, message_mode: messageMode, client_id: clientId });
   }
 
   const last = messages.at(-1);
@@ -232,7 +206,6 @@ function ChatView({ id }: { id: string }) {
     // The server takes the memory back with the story; the panel reads it again.
     setStoryCuts((n) => n + 1);
     // Whatever was being reported was about what has just gone.
-    setRefused(null);
     forget();
   }
 

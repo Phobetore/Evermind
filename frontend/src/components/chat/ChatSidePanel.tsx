@@ -110,6 +110,8 @@ export function ChatSidePanel({
   // A field this panel writes keeps the number of the last read sent, whose answer may be older.
   const reads = useRef(0);
   const written = useRef<Partial<Record<keyof Conversation, number>>>({});
+  // The read waited for, which one sent after it, or the panel going, gives up on.
+  const reading = useRef<AbortController | null>(null);
   function write(patch: Partial<Conversation>) {
     for (const key of Object.keys(patch)) written.current[key as keyof Conversation] = reads.current;
     onConversationChange(patch);
@@ -118,8 +120,10 @@ export function ChatSidePanel({
     // Hidden (the inline panel on a phone), it reads only after a cut: nothing else brings that.
     if (!evenHidden && !aside.current?.offsetParent) return;
     const sent = ++reads.current;
+    reading.current?.abort();
+    reading.current = new AbortController();
     data.conversations
-      .get(conversation.id)
+      .get(conversation.id, { signal: reading.current.signal })
       .then((answer) => {
         if (sent !== reads.current) return; // a later read knows more
         const shown = latest.current.conversation;
@@ -147,6 +151,7 @@ export function ChatSidePanel({
     document.addEventListener("visibilitychange", wake);
     return () => {
       clearTimeout(waking);
+      reading.current?.abort();
       window.removeEventListener("focus", wake);
       document.removeEventListener("visibilitychange", wake);
     };

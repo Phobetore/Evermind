@@ -15,6 +15,8 @@ from app import db
 from app.models.schemas import ChatRequest
 from app.prompting import embeddings
 from app.providers.base import CONNECTION_LOST, ProviderError, ProviderEvent
+from app.repositories import characters as characters_repo
+from app.repositories import conversations as convo_repo
 from app.services import turns
 from tests.test_chat import messages_of, send, setup_conversation
 
@@ -136,9 +138,84 @@ async def test_the_state_holds_all_of_it_and_never_goes_back(client, unhurried):
         assert state["text"].startswith(seen), "the text went backwards"
         seen = state["text"]
         await asyncio.sleep(0.1)
-    assert state == {"running": False, "outcome": None}
+    assert (state["running"], state["outcome"]) == (False, None)
     reply = (await messages_of(client, convo["id"]))[-1]
     assert reply["content"].startswith(seen.strip())
+
+
+async def test_the_state_says_whether_the_story_changed_as_its_read_does(client, counting):
+    """A page that wakes reads the conversation only when it changed, an edit that keeps the
+    length included, and knows a read newer than the state it asked before it."""
+    convo = await setup_conversation(client)
+
+    async def revision():
+        state = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()
+        read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+        assert state["revision"] == read["revision"]
+        return state["revision"]
+
+    seen = [await revision()]
+    assert await revision() == seen[0], "asking changed it"
+    await send(client, convo["id"], content="Vas-y")
+    seen.append(await revision())
+    reply = (await messages_of(client, convo["id"]))[-1]
+    for change in (
+        lambda: client.patch(f"/api/messages/{reply['id']}", json={"content": "Une réponsE."}),
+        lambda: send(client, convo["id"], content=None, mode="regenerate"),
+        lambda: client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0}),
+        lambda: send(client, convo["id"], content=None, mode="continue"),
+        lambda: client.delete(f"/api/messages/{reply['id']}"),
+    ):
+        await change()
+        seen.append(await revision())
+    assert len(set(seen)) == len(seen), f"a change went unseen: {seen}"
+
+
+async def _another_device_sends(convo_id):
+    other = await db.connect()
+    try:
+        await convo_repo.add_message(other, convo_id, "user", ["Depuis le PC."], meta={"unanswered": True})
+    finally:
+        await other.close()
+
+
+async def test_a_message_landing_as_the_state_is_asked_makes_the_read_after_it_newer(client, monkeypatch):
+    """The state says how things stood before the turn it may have missed, so that a page does not
+    take the new message, unanswered, for a reply that did not arrive."""
+    convo = await setup_conversation(client)
+    running_for = turns.running_for
+
+    async def landing_first(convo_id):
+        await _another_device_sends(convo_id)
+        return await running_for(convo_id)
+
+    monkeypatch.setattr(turns, "running_for", landing_first)
+    state = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()
+    monkeypatch.setattr(turns, "running_for", running_for)
+    read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+
+    assert not state["running"]
+    assert state["revision"] != read["revision"], "the read looks no newer than the state"
+
+
+async def test_a_read_carries_the_revision_of_the_messages_it_holds(client, monkeypatch):
+    """A message saved in the middle of a read is in both, or in neither."""
+    convo = await setup_conversation(client)
+    before = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()["revision"]
+    character = characters_repo.get
+
+    async def a_message_lands_meanwhile(conn, character_id):
+        monkeypatch.setattr(characters_repo, "get", character)
+        await _another_device_sends(convo["id"])
+        return await character(conn, character_id)
+
+    monkeypatch.setattr(characters_repo, "get", a_message_lands_meanwhile)
+    read = (await client.get(f"/api/conversations/{convo['id']}")).json()
+    after = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()["revision"]
+
+    assert after != before, "nothing landed"
+    landed = any(m["content"] == "Depuis le PC." for m in read["messages"])
+    assert read["revision"] == (after if landed else before), f"landed: {landed}"
 
 
 async def test_a_continuation_or_a_regeneration_is_the_whole_of_the_message_being_written(
@@ -223,8 +300,8 @@ async def test_a_stop_keeps_every_word_ends_the_request_at_once_and_the_next_mes
     reply = (await messages_of(client, convo["id"]))[-1]
     assert reply["content"] == "mot0 mot1 mot2 mot3"
     assert reply["meta"] == {"interrupted": [0]}, "a stopped reply is a reply cut short"
-    assert (await client.get(f"/api/conversations/{convo['id']}/turn")).json() == {
-        "running": False, "outcome": None}
+    state = (await client.get(f"/api/conversations/{convo['id']}/turn")).json()
+    assert (state["running"], state["outcome"]) == (False, None)
 
     monkeypatch.setattr("app.services.chat_service.get_provider", UnhurriedProvider)
     assert await send(client, convo["id"], content="Suite") is None

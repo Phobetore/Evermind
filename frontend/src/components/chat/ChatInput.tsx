@@ -1,8 +1,9 @@
 import { ModelSilent } from "@/components/chat/ModelSilent";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { clearDraft, loadDraft, openBox, saveDraft, type MessageMode } from "@/lib/drafts";
+import { loadDraft, openBox, saveDraft, type MessageMode } from "@/lib/drafts";
 import { describeError } from "@/lib/errors";
+import { onItsWay } from "@/lib/useTurn";
 import { clsx } from "clsx";
 import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Send, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -49,8 +50,8 @@ export function ChatInput({
   characterName,
 }: {
   conversationId: string;
-  /** Whether the server has the message, which leaves the box only then. */
-  onSend: (content: string, messageMode: MessageMode) => Promise<boolean>;
+  /** Settles at the server's answer, which takes the message out of whichever box shows it, or at patience's end. */
+  onSend: (content: string, messageMode: MessageMode) => Promise<unknown>;
   onStop: () => void;
   busy: boolean;
   characterName: string;
@@ -60,7 +61,9 @@ export function ChatInput({
   // own and its unsent draft is read once, as the input appears.
   const [value, setValue] = useState(() => loadDraft(conversationId));
   const [mode, setMode] = useState<MessageMode>("say");
-  const [sending, setSending] = useState(false);
+  // Sent from this page before it was left and come back to, it may be on its way still.
+  const [onTheWay] = useState(() => onItsWay(conversationId));
+  const [sending, setSending] = useState(onTheWay !== undefined);
   const [ghostwriting, setGhostwriting] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   // Stays until the next attempt, rather than fading: something has to be
@@ -88,6 +91,16 @@ export function ChatInput({
     }),
     [conversationId],
   );
+
+  useEffect(() => {
+    let open = true;
+    void onTheWay?.then(() => {
+      if (open) setSending(false);
+    });
+    return () => {
+      open = false;
+    };
+  }, [onTheWay]);
 
   useEffect(() => {
     const el = ref.current;
@@ -119,13 +132,8 @@ export function ChatInput({
     change(content);
     suggested.current = ""; // sent, it is the person's message, refused or not
     setSending(true);
-    const sent = await onSend(content, mode);
+    await onSend(content, mode);
     setSending(false);
-    if (!sent) return;
-    setValue("");
-    clearDraft(conversationId);
-    setMode("say"); // narration and OOC are one-shot by nature
-    held.current = { value: "", mode: "say" };
   }
 
   async function ghostwrite() {

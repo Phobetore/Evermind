@@ -4,7 +4,7 @@ import {
   connectionBack, connectionDiesDuring, countingPosts, countingStreams, expectPickedUp, goWithinThePage,
   phoneComesBack, report, retryButton, stopButton, writing,
 } from "./connection";
-import { conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
+import { chat, conversation, conversationWithReply, stopTurn, turnRunning } from "./fixtures";
 
 /**
  * What happens when two things meant for the same turn, or for two turns, arrive in
@@ -195,6 +195,52 @@ test.describe("two conversations", () => {
   });
 });
 
+test.describe("what another device did", () => {
+  test("is on screen once the phone wakes", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await page.goto(`/#/chat/${convo.id}`);
+    await page.waitForLoadState("networkidle");
+    await chat(request, { conversation_id: convo.id, mode: "send", content: "Depuis le PC." });
+
+    await phoneComesBack(page);
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    await expect(page.getByText("Depuis le PC.")).toBeVisible();
+  });
+
+  test("is on screen once the window, visible all along, is come back to", { tag: "@desktop" }, async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await page.goto(`/#/chat/${convo.id}`);
+    await page.waitForLoadState("networkidle");
+    await chat(request, { conversation_id: convo.id, mode: "send", content: "Depuis le téléphone." });
+
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    await expect(page.getByText("Depuis le téléphone.")).toBeVisible();
+  });
+
+  test("beginning between the page's question and its read is followed", async ({ page, request }) => {
+    const convo = await conversationWithReply(request, { slowly: true });
+    let first = true;
+    await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+      if (route.request().method() !== "GET" || !first) return route.continue();
+      first = false;
+      void elsewhere(request, convo.id, { mode: "send", content: "Envoyé d'ailleurs." });
+      await expect.poll(() => turnRunning(request, convo.id)).toBe(true);
+      await route.continue();
+    });
+
+    await page.goto(`/#/chat/${convo.id}`);
+
+    await expect(writing(page), "the page did not follow it").toBeVisible({ timeout: 15_000 });
+    await expect(report(page), "said not to have arrived").toHaveCount(0);
+    await stopTurn(request, convo.id);
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    await expect(report(page)).toHaveCount(0);
+  });
+});
+
 test.describe("leaving and coming back", () => {
   test("a model failing while away is reported on coming back", async ({ page, request }) => {
     const convo = await conversationWithReply(request, { failing: true });
@@ -296,6 +342,17 @@ test.describe("a failure, once something else is written", () => {
     await expect(retryButton(page)).toHaveCount(0);
   });
 
+  test("is not said again under a reply written elsewhere while the page slept", async ({ page, request }) => {
+    const convo = await regenerateFailed(page, request);
+    await chat(request, { conversation_id: convo.id, mode: "send", content: "Depuis ailleurs." });
+
+    await phoneComesBack(page);
+
+    await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    await expect(report(page), "the failure came back under the reply").toHaveCount(0);
+    await expect(retryButton(page)).toHaveCount(0);
+  });
+
   test("is not said again under the reply to a message whose answer was lost", async ({ page, request }) => {
     const convo = await regenerateFailed(page, request);
     await answerLost(page);
@@ -338,7 +395,7 @@ test.describe("a message that does not go", () => {
 
     await context.setOffline(true);
     await send(page, "Hors ligne.");
-    await expect(report(page).first()).toContainText("Evermind is not answering", { timeout: 20_000 });
+    await expect(report(page).first()).toContainText("This device is offline", { timeout: 20_000 });
     await expect(box(page), "the message was lost").toHaveValue("Hors ligne.");
 
     await goWithinThePage(page, "/chat");

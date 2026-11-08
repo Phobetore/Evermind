@@ -255,6 +255,8 @@ async def test_an_automatic_pass_that_a_change_overtook_is_no_failure(client, mo
     fact = (await client.post(f"/api/conversations/{convo['id']}/memories",
                               json={"content": "Written by hand."})).json()
     for n in range(memory_service.MAINTENANCE_EVERY):
+        # Each reply's check for a pass is over before the next: a late one would find the pass due too.
+        await asyncio.gather(*[t for t in asyncio.all_tasks() if "schedule_if_due" in repr(t)])
         await send(client, convo["id"], content=f"exchange {n}")
     try:
         await within(5, started.wait())
