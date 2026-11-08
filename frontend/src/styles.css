@@ -1,8 +1,5 @@
 @import "tailwindcss";
 
-/* ————— Evermind « Velvet & Ember » design system —————
-   Deep warm ink darkness, candlelight copper, literary serifs.       */
-
 @theme {
   /* Surfaces — warm aubergine-black, never neutral gray */
   --color-ink-950: #0f0d12;
@@ -17,10 +14,7 @@
   --color-parchment: #ece5da;
   --color-parchment-dim: #c9bfb2;
   --color-mist: #9d92ab;
-  /* Was #6e6480, which sat at 3.2:1 on the darker panels and failed WCAG AA on
-     every helper line in the app. Same hue and saturation, lifted until it
-     clears 4.5:1 on all four surface colours while staying visibly quieter
-     than --color-mist. */
+  /* 4.5:1 at least on all four surface colours (WCAG AA), and still quieter than --color-mist. */
   --color-mist-dim: #857b98;
 
   /* Ember — candlelight copper accent */
@@ -84,9 +78,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Candlelight atmosphere: faint ember halo top-left, arcane breath
-   bottom-right. A fixed pseudo-element rather than background-attachment:
-   fixed, which iOS Safari does not support. */
+/* A fixed pseudo-element rather than background-attachment: fixed, which iOS Safari does not support. */
 body::after {
   content: "";
   position: fixed;
@@ -113,7 +105,6 @@ body::before {
   background: rgba(226, 154, 62, 0.32);
 }
 
-/* Scrollbars that belong to the night */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-ink-600) transparent;
@@ -187,12 +178,9 @@ input, textarea, select, button {
   opacity: 1;
 }
 
-/* A control that is small to look at and still has to be hit with a thumb. On a
-   touch screen the picture stays the size it is and the part that answers a
-   touch grows to 44px each way around its centre, without moving anything
-   else. Two of them side by side are spaced so that their areas meet and do not
-   overlap; where that takes room, the markup says so (pointer-coarse:...).
-   Anything already positioned keeps its own positioning. */
+/* .touch-target: small to look at, still hit with a thumb. On a touch screen the part that answers
+   a touch grows to 44px each way around its centre, moving nothing; side by side, the markup spaces
+   them so that those areas meet without overlapping (pointer-coarse:...). */
 @media (pointer: coarse) {
   /* A text box or a menu is something to hit with a thumb too. Textareas are
      tall already, and the two editors that replace a title in place say so. */
@@ -208,11 +196,8 @@ input, textarea, select, button {
     transform: translate(-50%, -50%);
   }
 }
-/* Without this, links and buttons fall back to the browser ring, which is drawn
-   from the element's own colour: on the logo that came out near-black on a
-   near-black background, so keyboard users lost track of where they were.
-   :focus-visible rather than :focus, so a mouse click does not draw it.
-   .field keeps its own ember ring below, on higher specificity. */
+/* The browser's own ring would take the element's colour, near-black on the logo. :focus-visible, so
+   that a click draws none; .field keeps its own ring below. */
 :focus-visible {
   outline: 2px solid var(--color-ember-400);
   outline-offset: 2px;
@@ -245,8 +230,7 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   white-space: nowrap;
 }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-/* A finger is a blunter instrument than a cursor: 0.55rem of padding leaves a
-   38px target, which is under what a thumb reliably hits. */
+/* 0.55rem of padding leaves a 38px target, under what a thumb reliably hits. */
 @media (max-width: 767px) {
   .btn { min-height: 2.75rem; }
 }
@@ -283,7 +267,6 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   box-shadow: var(--shadow-card);
 }
 
-/* Roleplay text rendering */
 .rp-prose { font-size: 1.05rem; }
 /* Lines as they were typed. A hard break ends its line too, so its <br> would add a second. */
 .rp-prose p { margin: 0 0 0.65em; white-space: pre-line; }
@@ -308,7 +291,6 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   margin: 0.65em 0;
 }
 
-/* Streaming caret: the writing quill */
 .stream-caret::after {
   content: "▋";
   color: var(--color-ember-400);
@@ -316,7 +298,6 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   margin-left: 1px;
 }
 
-/* Staggered card entrance */
 .stagger > * { animation: var(--animate-rise); }
 .stagger > *:nth-child(1) { animation-delay: 0.02s; }
 .stagger > *:nth-child(2) { animation-delay: 0.06s; }
@@ -330,10 +311,8 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 
 } /* end @layer components */
 
-/* For whoever has asked their system for less motion: nothing here moves, and
-   what rose into place, pulsed or spun is simply there. Animations are cut to
-   an instant rather than removed, so that what they end on is still what is
-   drawn (the entry animations hold their last frame). */
+/* Less motion: animations are cut to an instant rather than removed, so that what they end on is
+   still drawn (the entry animations hold their last frame). */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -34,9 +34,7 @@ export function LoginPage() {
       await access.login(password);
       const fresh = await refresh();
       if (fresh.enabled && !fresh.authenticated) {
-        // The server took the password and this browser did not keep the
-        // session it gave back, as one set to refuse cookies does. Going on
-        // would land on this very page again, silently.
+        // The password was taken and the session cookie refused: going on would land here again, silently.
         setError(t("login.cookieRefused"));
         setChecking(false);
         return;

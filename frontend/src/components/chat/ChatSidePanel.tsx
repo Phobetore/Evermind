@@ -88,8 +88,7 @@ export function ChatSidePanel({
     setWallpaperBusy(false);
   }
 
-  // Caught: offline, these reject, and an unhandled rejection is noise in a
-  // console that a real fault has to be found in.
+  // Caught: offline it rejects, and an unhandled rejection is noise in the console.
   useEffect(() => {
     data.connections?.list().then(setConnections).catch(() => {});
   }, [conversation.id]);
@@ -329,9 +328,7 @@ export function ChatSidePanel({
         </Field>
       )}
 
-      {/* What the text box actually understands. Everything listed is something
-          this app renders or does — nothing aspirational, and nothing carried
-          over from another tool's conventions. */}
+      {/* What the text box understands: only what this app renders or does. */}
       <div>
         <div className="mb-1.5 flex items-center gap-2">
           <Type className="h-3.5 w-3.5 text-arcane-300" />
@@ -358,7 +355,6 @@ export function ChatSidePanel({
         </p>
       </div>
 
-      {/* Backdrop. Its strength is set in a bar under the conversation, where the change can be seen. */}
       <div>
         <div className="mb-1.5 flex items-center gap-2">
           <ImageIcon className="h-3.5 w-3.5 text-arcane-300" />
@@ -435,8 +431,6 @@ export function ChatSidePanel({
         {wallpaperError && <p className="mt-2 break-words text-xs text-blood">{wallpaperError}</p>}
       </div>
 
-      {/* Scene directive: reaches the model at the most influential position
-          (right before generation), so it holds even on long chats. */}
       <div>
         <div className="mb-1.5 flex items-center gap-2">
           <Megaphone className="h-3.5 w-3.5 text-ember-400" />

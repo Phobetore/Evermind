@@ -249,7 +249,6 @@ export function ConnectionForm({
           </Field>
         </div>
 
-        {/* Test row */}
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" className="btn btn-ghost" onClick={test} disabled={testing || !draft.base_url.trim()}>
             {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : t("connections.testButton")}

@@ -50,11 +50,8 @@ export async function readEvents(
     }
     if (buffer.trim()) flush(buffer);
   } finally {
-    // A handler that threw leaves the rest of the answer unread. Letting go of
-    // it tells the server nobody is listening, instead of leaving the
-    // connection open until it ends. Once the stream is finished there is
-    // nothing left to cancel, and one that failed refuses to be cancelled,
-    // which is no news.
+    // After a handler threw, letting go tells the server nobody is listening. A finished stream
+    // has nothing to cancel, and a failed one refuses: no news.
     reader.cancel().catch(() => {});
   }
 }

@@ -19,8 +19,7 @@ const DRAWN = 100;
 /** Tailwind's `md`, from which the side panel sits beside the conversation rather than over it. */
 const WIDE = "(min-width: 48rem)";
 
-/** Keyed by the id, so that a branch, which opens at an address of its own,
- *  starts from its own messages rather than from the ones it was cut from. */
+/** Keyed by the id, so that a branch starts from its own messages, not from those it was cut from. */
 export function ChatPage() {
   const { id = "" } = useParams();
   return <ChatView key={id} id={id} />;
@@ -107,9 +106,8 @@ function ChatView({ id }: { id: string }) {
     }
   }
 
-  /** Live on every pixel of the drag, written once it settles: a range input
-   *  fires continuously and each of those would otherwise be a write. One the
-   *  server does not take goes back to what it holds, unless moved since. */
+  /** Live on every pixel of the drag, written once it settles. One the server does not take
+   *  goes back to what it holds, unless moved since. */
   function setWallpaperOpacity(value: number) {
     opacityHeld.current ??= conversation?.wallpaper_opacity;
     setConversation((c) => (c ? { ...c, wallpaper_opacity: value } : c));
@@ -143,7 +141,7 @@ function ChatView({ id }: { id: string }) {
     };
   }, []);
 
-  // The title too, which the server gives a new conversation, and the summary for a closed panel.
+  // The messages, the title, which the server gives a new conversation, and the summary for a closed panel.
   const read = useCallback(async (asking: Asking) => {
     const changes = changesByHand.current;
     const takeSummary = summaryTaker();
@@ -297,8 +295,6 @@ function ChatView({ id }: { id: string }) {
 
   const character = conversation.character;
   const strength = Math.round((conversation.wallpaper_opacity ?? 0.25) * 100);
-  // A model that never answered is not a fault to raise the alarm about; usually
-  // the server behind it is simply not running.
   const silent = failure?.kind === "unreachable";
   // That another reply is being written, only as long as it is.
   const refusal = refused instanceof DataError && refused.kind === "turn_running" && !busy ? null : refused;
@@ -321,13 +317,10 @@ function ChatView({ id }: { id: string }) {
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Header */}
         <header className="flex items-center gap-3 border-b border-ink-700 bg-ink-900 px-4 py-3 pointer-coarse:py-[13px] md:bg-ink-900/80 md:backdrop-blur">
           <Link
             to="/chat"
-            // 44px to hit on a touch screen, which the header does not grow for:
-            // the button stands over its padding. The title below the name needs
-            // 14px beyond it to be reached, hence 13px of padding there.
+            // 44px on a touch screen, over the header's padding; the title below the name needs 14px beyond it, hence 13px there.
             className="rounded-lg p-1.5 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
             aria-label={t("chat.header.backAriaLabel")}
           >
@@ -354,12 +347,8 @@ function ChatView({ id }: { id: string }) {
                 onClick={() => setTitleDraft(conversation.title || "")}
                 title={t("chat.header.renameTitle")}
               >
-                {/* w-full above, so that the button is no wider than the box
-                    it is in and the text, which does not wrap, is cut here:
-                    a button that is wider spreads its area over what is next
-                    to it. And the text is cut inside, because a button that
-                    clips its text clips the area added to it for a touch
-                    screen too. */}
+                {/* No wider than its box (w-full above), with the text cut inside: a wider button spreads its
+                    area over what is next to it, and one that clips its text clips its touch area too. */}
                 <span className="block truncate">
                   {conversation.title || t("chatList.newConversationFallback")}
                 </span>
@@ -405,12 +394,9 @@ function ChatView({ id }: { id: string }) {
           </div>
         </header>
 
-        {/* Messages */}
         <div ref={scrollRef} onScroll={onScroll} className="relative flex-1 overflow-y-auto">
           {conversation.wallpaper_url && (
-            // Pinned to the column rather than scrolled with the text: a
-            // backdrop that slides past is a picture in the conversation, not
-            // behind it. aria-hidden — it says nothing a reader needs.
+            // Pinned to the column: a backdrop that scrolls with the text is a picture in the conversation, not behind it.
             <div aria-hidden className="pointer-events-none sticky top-0 h-0 w-full">
               <div
                 className="h-[100dvh] w-full bg-cover bg-center bg-no-repeat"

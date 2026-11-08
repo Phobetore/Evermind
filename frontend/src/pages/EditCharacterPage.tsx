@@ -16,8 +16,7 @@ export function EditCharacterPage() {
 function EditCharacter({ id }: { id: string }) {
   const t = useT();
   const [character, setCharacter] = useState<CharacterWithLore | null>(null);
-  // The error itself, described when drawn, so that a change of language
-  // reaches the sentence too.
+  // The error, not its sentence: described when drawn, it follows a change of language.
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
   useEffect(() => {

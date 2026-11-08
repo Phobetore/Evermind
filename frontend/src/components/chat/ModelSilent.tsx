@@ -2,15 +2,9 @@ import { useT } from "@/i18n/useT";
 import { Unplug } from "lucide-react";
 import { Link } from "react-router";
 
-/** Said when the model did not answer at all — most often because the AI
- *  server behind it is simply not running.
- *
- *  Deliberately not the red banner used for a fault: nothing is broken and
- *  nothing was lost, something just is not switched on, and a warning that
- *  looks like damage sends people looking for damage. Deliberately not the
- *  hint line either, which is where the keyboard tip lives — a failure that
- *  appears there in eleven grey pixels for four seconds is a failure nobody
- *  sees, which is how this came to be reported as dying silently. */
+/** Said when the model did not answer at all, most often because the AI server behind it is not
+ *  running. Not the red banner of a fault: nothing is broken, and a warning that looks like damage
+ *  sends people looking for damage. Not the hint line either, where it would go unseen. */
 export function ModelSilent({ onRetry }: { onRetry?: () => void }) {
   const t = useT();
   return (

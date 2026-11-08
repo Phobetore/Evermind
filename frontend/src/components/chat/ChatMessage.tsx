@@ -87,11 +87,8 @@ export function ChatMessage({
             <span className="text-[0.68rem] uppercase tracking-wide text-mist-dim">{t("chat.message.interrupted")}</span>
           )}
 
-          {/* Revealed on hover (desktop), always visible on touch. There each
-              button is 44px across, the row gives back the height it takes, and
-              where six of them do not fit on a line they break between the two
-              that concern the reply and the four that concern the message: two
-              lines of two and four, not one of five and one that is alone. */}
+          {/* Always shown on touch, each button 44px across and the row giving back the height it takes;
+              six that do not fit on a line break between the reply's two and the message's four. */}
           <div className="hover-actions ml-auto flex items-center gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:flex-wrap pointer-coarse:justify-end pointer-coarse:gap-0">
             {isLast && !busy && (
               <div className="flex items-center gap-0.5 pointer-coarse:gap-0">

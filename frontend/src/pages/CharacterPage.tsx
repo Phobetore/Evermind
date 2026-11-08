@@ -19,8 +19,7 @@ function CharacterDetail({ id }: { id: string }) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showStart, setShowStart] = useState(false);
-  // The error itself, described when drawn, so that a change of language
-  // reaches the sentence too.
+  // The error, not its sentence: described when drawn, it follows a change of language.
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   const [conversationsFailure, setConversationsFailure] = useState<{ error: unknown } | null>(null);
   const [favoriteFailure, setFavoriteFailure] = useState<{ error: unknown } | null>(null);
@@ -62,7 +61,6 @@ function CharacterDetail({ id }: { id: string }) {
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
       <div className="flex flex-col gap-8 lg:flex-row animate-rise">
-        {/* Portrait */}
         <div className="shrink-0">
           <div className="relative mx-auto w-56 overflow-hidden rounded-2xl border border-ink-700 shadow-card lg:mx-0">
             <Avatar
@@ -74,7 +72,6 @@ function CharacterDetail({ id }: { id: string }) {
           </div>
         </div>
 
-        {/* Identity */}
         <div className="min-w-0 flex-1">
           <Tag tone={isScenario ? "arcane" : "ember"}>
             {isScenario ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}

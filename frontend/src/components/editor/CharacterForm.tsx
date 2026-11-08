@@ -192,7 +192,6 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
       </header>
 
       <div className="flex flex-col gap-5">
-        {/* Kind switch */}
         <div className="flex gap-2">
           {(
             [
@@ -218,7 +217,6 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           ))}
         </div>
 
-        {/* AI assistant */}
         <div className="rounded-xl border border-ember-600/35 bg-ember-glow/40 p-4">
           <div className="mb-2 flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-ember-400" />
@@ -284,7 +282,6 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           )}
         </div>
 
-        {/* Identity row */}
         <div className="flex gap-5">
           <button
             type="button"
@@ -369,7 +366,6 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           />
         </Field>
 
-        {/* Alternate greetings */}
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <span className="ui-label">{t("characters.form.alternateGreetingsLabel")}</span>
@@ -430,10 +426,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           />
         </Field>
 
-        {/* Lorebook */}
         <LorebookSection entries={loreEntries} onChange={setLoreEntries} />
 
-        {/* Advanced */}
         <button
           type="button"
           onClick={() => setAdvanced(!advanced)}
