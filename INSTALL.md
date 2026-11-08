@@ -199,6 +199,11 @@ your computer, until you stop it with `docker compose down`.
 > box itself. So in Step 3, wherever this guide says `localhost`, type
 > `host.docker.internal` instead. For LM Studio that means
 > `http://host.docker.internal:1234/v1`.
+>
+> On Linux, if Evermind still cannot reach it, your AI is listening for this
+> computer alone, which leaves the box out: let it listen on the network
+> (**Serve on Local Network** in LM Studio's server settings, `OLLAMA_HOST=0.0.0.0`
+> for Ollama), and let your firewall allow its port.
 
 ### The other way: run it directly
 
@@ -367,7 +372,7 @@ program that starts Evermind, which always writes in English.
 
 | What you see | What it usually means |
 |---|---|
-| "Evermind cannot reach the model's server at http://localhost:1234/v1" | Your AI is not running. Go back to LM Studio and check the server is started. On Docker, check you used `host.docker.internal` instead of `localhost`. |
+| "Evermind cannot reach the model's server at http://localhost:1234/v1" | Your AI is not running. Go back to LM Studio and check the server is started. On Docker, check you used `host.docker.internal` instead of `localhost`, and on Linux read **One thing to remember with Docker**, in Step 2. |
 | "No LLM connection is set up" | Step 3 has not been done, or the connection was not saved. |
 | Replies are cut off mid-sentence | The **Max response (tokens)** value on your connection is too low. Raise it. |
 | The character forgets things, or repeats itself | Your **Context (tokens)** is probably set higher than your AI really offers. Match it to the real value. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
