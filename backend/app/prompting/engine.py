@@ -376,9 +376,17 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                          post_history=post_history, stats=stats)
 
 
+def strip_thought(text: str) -> str:
+    """What a model says after the thinking some write first between <think> tags: nothing
+    until that is closed."""
+    head = text.lstrip()
+    return head.partition("</think>")[2].lstrip() if head.startswith("<think>") else text
+
+
 def trim_reply(text: str, char_name: str, user_name: str) -> str:
-    """Post-generation cleanup: drop anything the model wrote for the player,
+    """Post-generation cleanup: drop the model's thinking, anything it wrote for the player,
     and a leading "Name:" speaker tag if present."""
+    text = strip_thought(text)
     for marker in (f"\n{user_name}:", f"\n{user_name} :"):
         index = text.find(marker)
         if index != -1:

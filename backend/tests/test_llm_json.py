@@ -35,6 +35,12 @@ def test_trailing_commas():
     assert parse_llm_json(text) == {"name": "Kenji", "tags": ["a", "b"]}
 
 
+def test_the_thinking_before_the_answer_is_not_read_as_it():
+    assert parse_llm_json('<think>{"facts": ["draft"]}?</think>\n{"facts": ["kept"]}') == {
+        "facts": ["kept"]}
+    assert parse_llm_json('<think>{"facts": ["draft"]}') is None
+
+
 def test_a_repair_drops_a_trailing_comma_only_outside_a_string():
     assert parse_llm_json('{"a": "x, }\n", }') == {"a": "x, }\n"}
     assert parse_llm_json('{"a": ["y, ]\n",]}') == {"a": ["y, ]\n"]}

@@ -8,12 +8,15 @@ newlines inside string values. This module repairs those failure modes.
 import json
 import re
 
+from ..prompting.engine import strip_thought
+
 _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 _CLOSER_RE = re.compile(r"\s*[}\]]")
 
 
 def parse_llm_json(text: str) -> dict | None:
     """Best-effort extraction of one JSON object; None if hopeless."""
+    text = strip_thought(text)
     if not text:
         return None
     candidates = [text]

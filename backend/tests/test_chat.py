@@ -168,6 +168,17 @@ async def test_impersonation_trimmed(client, fake_provider):
     assert (await messages_of(client, convo["id"]))[-1]["content"] == "Fine."
 
 
+async def test_the_thinking_a_model_writes_before_its_reply_is_not_saved(client, fake_provider):
+    convo = await setup_conversation(client)
+    fake_provider.script = [
+        ProviderEvent(type="delta", text="<think>She should "),
+        ProviderEvent(type="delta", text="smile.</think>\n\n*She smiles.*"),
+        ProviderEvent(type="done"),
+    ]
+    await send(client, convo["id"])
+    assert (await messages_of(client, convo["id"]))[-1]["content"] == "*She smiles.*"
+
+
 async def test_auto_title_strips_rp_markup(client, fake_provider):
     convo = await setup_conversation(client)
     await send(client, convo["id"], content="*I step back, torch raised.* Easy, I'm Aymeric.")
