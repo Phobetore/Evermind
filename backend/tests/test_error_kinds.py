@@ -10,7 +10,7 @@ import pytest
 import app as app_package
 from app.providers.base import ProviderError, ProviderEvent
 
-from .test_chat import FakeProvider, send, setup_conversation
+from .conftest import FakeProvider, send, setup_conversation
 
 
 @pytest.fixture()

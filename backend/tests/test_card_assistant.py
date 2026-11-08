@@ -6,7 +6,7 @@ import pytest
 
 from app.providers.base import ProviderEvent
 
-from .test_chat import FakeProvider
+from .conftest import FakeProvider
 
 CARD_JSON = json.dumps({
     "name": "Nyra",

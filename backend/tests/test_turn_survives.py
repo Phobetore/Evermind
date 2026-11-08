@@ -18,7 +18,7 @@ from app.providers.base import CONNECTION_LOST, ProviderError, ProviderEvent
 from app.repositories import characters as characters_repo
 from app.repositories import conversations as convo_repo
 from app.services import turns
-from tests.test_chat import messages_of, send, setup_conversation
+from tests.conftest import messages_of, send, setup_conversation
 
 
 class UnhurriedProvider:

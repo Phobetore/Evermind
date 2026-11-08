@@ -16,9 +16,17 @@ import pytest
 
 from app.prompting.engine import build_chat_payload
 from app.providers.base import ProviderEvent
-from tests.test_chat import messages_of, send, setup_conversation
-from tests.test_prompting import PERSONA, make_character, make_connection, make_message
-from tests.test_providers import oai_provider, sse
+from tests.conftest import (
+    PERSONA,
+    make_character,
+    make_connection,
+    make_message,
+    messages_of,
+    oai_provider,
+    send,
+    setup_conversation,
+    sse,
+)
 
 
 def build(messages, **kwargs):

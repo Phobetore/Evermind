@@ -1,30 +1,11 @@
 """Chat service tests with a mocked provider (no network)."""
 
-from typing import ClassVar
-
 import pytest
 
 from app.providers.base import ProviderError, ProviderEvent
 from app.services import turns
 
-
-class FakeProvider:
-    """Yields scripted events, and raises a scripted error; records the payload it received."""
-
-    # Shared on the class on purpose: the service instantiates the provider
-    # itself, so the tests have nowhere else to read the captured payload from.
-    captured: ClassVar[dict] = {}
-
-    def __init__(self, connection):
-        self.connection = connection
-
-    async def stream_chat(self, payload):
-        FakeProvider.captured["payload"] = payload
-        FakeProvider.captured["connection"] = self.connection
-        for event in FakeProvider.script:
-            if isinstance(event, Exception):
-                raise event
-            yield event
+from .conftest import FakeProvider, messages_of, send, setup_conversation
 
 
 @pytest.fixture()
@@ -37,33 +18,6 @@ def fake_provider(monkeypatch):
     FakeProvider.captured = {}
     monkeypatch.setattr("app.services.chat_service.get_provider", FakeProvider)
     return FakeProvider
-
-
-async def setup_conversation(client, greeting="*She stirs.* Hi {{user}}."):
-    char = (await client.post("/api/characters", json={"name": "Serana", "greeting": greeting})).json()
-    (await client.post("/api/personas", json={"name": "Alex"})).json()
-    (await client.post("/api/connections", json={
-        "name": "Local", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test",
-    })).json()
-    convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
-    return convo
-
-
-async def send(client, convo_id, content="Hello there", mode="send", **fields) -> dict | None:
-    """A turn, from asking for it to its end, and how it ended when it failed or added nothing."""
-    resp = await client.post("/api/chat", json={
-        "conversation_id": convo_id, "mode": mode, "content": content, **fields,
-    })
-    assert resp.status_code == 200, resp.text
-    turn = await turns.running_for(convo_id)
-    if turn:
-        await turn.finished.wait()
-    return (await client.get(f"/api/conversations/{convo_id}/turn")).json()["outcome"]
-
-
-async def messages_of(client, convo_id) -> list[dict]:
-    return (await client.get(f"/api/conversations/{convo_id}")).json()["messages"]
 
 
 async def test_send_persists_the_message_and_its_reply(client, fake_provider):

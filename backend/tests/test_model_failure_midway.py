@@ -10,7 +10,7 @@ import pytest
 
 from app.providers.base import ProviderError, ProviderEvent
 
-from .test_chat import FakeProvider, send, setup_conversation
+from .conftest import FakeProvider, send, setup_conversation
 
 FAILS_AFTER_TWO_WORDS = [
     ProviderEvent(type="delta", text="The door "),

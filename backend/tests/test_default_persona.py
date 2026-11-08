@@ -15,7 +15,7 @@ from app import db as app_db
 from app.providers.base import ProviderEvent
 from app.repositories.base import dumps
 
-from .test_chat import FakeProvider, send
+from .conftest import FakeProvider, send
 
 SETTING = "default_persona_id"
 

@@ -8,7 +8,15 @@ import pytest
 from app.providers.base import ProviderError, ProviderEvent
 from app.services import memory_service
 
-from .test_chat import FakeProvider, send, setup_conversation
+from .conftest import (
+    FakeProvider,
+    extract,
+    send,
+    setup_conversation,
+    stored_facts,
+    waiting_provider,
+    within,
+)
 
 EXTRACTION_JSON = json.dumps({
     "facts": [
@@ -504,28 +512,6 @@ async def test_nothing_is_written_when_a_fact_sent_to_the_model_changed_meanwhil
         row for row in map(as_left, before) if row)
 
 
-def waiting_provider(monkeypatch):
-    """A provider for the memory passes that does not answer until ``release`` is set,
-    and says when it was asked and with what."""
-    started, release, asked = asyncio.Event(), asyncio.Event(), []
-
-    class Waiting(FakeProvider):
-        async def stream_chat(self, payload):
-            asked.append(payload)
-            started.set()
-            await release.wait()
-            async for event in super().stream_chat(payload):
-                yield event
-
-    monkeypatch.setattr("app.services.memory_service.get_provider", Waiting)
-    return started, release, asked
-
-
-async def within(seconds, awaitable):
-    """So that a pass that waits for another fails the test instead of hanging it."""
-    return await asyncio.wait_for(awaitable, seconds)
-
-
 async def test_a_second_pass_while_a_consolidation_runs_changes_nothing_and_asks_nothing(
         client, fake_provider, monkeypatch):
     convo = await setup_conversation(client)
@@ -626,21 +612,6 @@ async def test_extraction_prompt_holds_the_facts_the_turns_and_the_default_perso
     assert "Alex (turn 1): I broke the seal." in content
     assert "Serana (turn 2): *She smiles.* Hello." in content
     assert "between Alex (the player) and Serana" in payload.system
-
-
-async def extract(client, convo_id, reply):
-    FakeProvider.script = [ProviderEvent(type="delta", text=json.dumps(reply)),
-                           ProviderEvent(type="done")]
-    resp = await client.post(f"/api/conversations/{convo_id}/memories/extract")
-    assert resp.status_code == 200, resp.text
-    return resp.json()
-
-
-async def stored_facts(client, convo_id):
-    """What the conversation remembers, as one comparable list."""
-    rows = (await client.get(f"/api/conversations/{convo_id}/memories")).json()
-    return sorted((m["content"], m["source_position"], m["is_pinned"], m["source"])
-                  for m in rows)
 
 
 async def test_a_messy_extraction_reply_leaves_the_facts_a_person_would_expect(

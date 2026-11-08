@@ -2,8 +2,7 @@
 
 import pytest
 
-from tests.conftest import PNG
-from tests.test_chat import setup_conversation
+from tests.conftest import PNG, setup_conversation
 
 
 async def test_setting_and_clearing_a_backdrop(client):
