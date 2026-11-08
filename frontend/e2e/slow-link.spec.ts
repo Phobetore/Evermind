@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type BrowserContext, type Page, type Request } from "@playwright/test";
 import { API } from "../playwright.config";
 import {
   goWithinThePage, homeWifi, phoneComesBack, report, retryButton, stopButton, writing,
@@ -266,6 +266,33 @@ test.describe("an answer that never comes", () => {
     const reply = (await conversation(request, convo.id)).messages.at(-1);
     await expect(page.locator(`[data-message-id="${reply.id}"]`)).toBeVisible();
     await expect(report(page)).toHaveCount(0);
+  });
+
+  test("to the side panel's read is given up on when it reads again, and when it goes", { tag: "@desktop" }, async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(box(page)).toBeVisible();
+    await openPanel(page);
+    await page.waitForLoadState("networkidle");
+    const isRead = (r: Request) => r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`);
+    await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      await route.fetch().catch(() => {}); // read, and the answer never comes back
+    });
+    const wake = async () => {
+      const sent = page.waitForRequest(isRead);
+      await phoneComesBack(page);
+      await sent;
+    };
+    await wake();
+
+    const givenUp = page.waitForEvent("requestfailed", { predicate: isRead, timeout: 5_000 });
+    await wake();
+    await givenUp;
+
+    const left = page.waitForEvent("requestfailed", { predicate: isRead, timeout: 5_000 });
+    await goWithinThePage(page, "/chat");
+    await left;
   });
 });
 
