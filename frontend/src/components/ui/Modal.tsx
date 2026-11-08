@@ -32,6 +32,8 @@ export function Modal({
   return (
     <dialog
       ref={dialog}
+      // Its own role, written out as before: what finds a dialog by the attribute still does.
+      role="dialog"
       aria-label={title}
       onCancel={(e) => {
         e.preventDefault();
