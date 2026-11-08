@@ -56,6 +56,14 @@ the source, Python must use SQLite 3.35 or newer.
   connection; what the lists named stays the default. **Retry** on a message that
   did not go: it stays in the box, and **Send** sends it. The choice of greeting
   when a conversation starts: the arrows on the first message go through them.
+- **The memory follows the story back.** Removing messages takes it back to the
+  last memory pass before them, and so does regenerating, continuing or swiping
+  the last reply once the memory has read it; what you wrote, pinned or typed
+  stays. A summary carried over from 3.0.x counts as one you typed: a cut keeps
+  it, partly stale, until a memory pass writes the next one. A story you cut back
+  under 3.0.x keeps its old summary and the model's facts from the removed turns
+  (clear them in the side panel if they no longer fit), and its memory reads its
+  last 40 turns again.
 - **When you edit a card, lorebook changes wait for Save**, like the rest of the
   form, and **Cancel** drops them.
 - **A long conversation shows its newest hundred messages.** **Show earlier
