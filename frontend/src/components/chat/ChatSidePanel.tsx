@@ -9,7 +9,7 @@ import { previewMacros } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type SetStateAction } from "react";
 import { Link } from "react-router";
 
 type Where = "connection" | "directive" | "summary" | "memory";
@@ -64,6 +64,9 @@ export function ChatSidePanel({
   const summary = summaryDraft?.text ?? conversation.summary;
   const directive = directiveDraft ?? conversation.author_note ?? "";
   const wallpaperInput = useRef<HTMLInputElement>(null);
+  // The boxes are named by their titles: their placeholders are examples, not names.
+  const directiveTitle = useId();
+  const summaryTitle = useId();
   const [wallpaperBusy, setWallpaperBusy] = useState(false);
   const [wallpaperError, setWallpaperError] = useState<string | null>(null);
 
@@ -482,7 +485,7 @@ export function ChatSidePanel({
       <div>
         <div className="mb-1.5 flex items-center gap-2">
           <Megaphone className="h-3.5 w-3.5 text-ember-400" />
-          <span className="ui-label">{t("chat.panel.directive.title")}</span>
+          <span id={directiveTitle} className="ui-label">{t("chat.panel.directive.title")}</span>
         </div>
         <p className="mb-2 text-xs leading-relaxed text-mist-dim">
           {t("chat.panel.directive.description")}
@@ -492,6 +495,7 @@ export function ChatSidePanel({
           value={directive}
           onChange={(e) => setDirectiveDraft(e.target.value)}
           onBlur={saveDirective}
+          aria-labelledby={directiveTitle}
           placeholder={t("chat.panel.directive.placeholder")}
         />
         {directive.trim() !== (conversation.author_note ?? "") && (
@@ -503,7 +507,7 @@ export function ChatSidePanel({
       </div>
 
       <div>
-        <span className="ui-label mb-1.5 block">{t("chat.panel.summary.title")}</span>
+        <span id={summaryTitle} className="ui-label mb-1.5 block">{t("chat.panel.summary.title")}</span>
         <textarea
           className="field min-h-32 text-sm"
           value={summary}
@@ -512,6 +516,7 @@ export function ChatSidePanel({
             setSummaryDraft((draft) => ({ text, over: draft?.over ?? conversation.summary }));
           }}
           onFocus={() => summaryDraft === null && read()}
+          aria-labelledby={summaryTitle}
           placeholder={t("chat.panel.summary.placeholder")}
         />
         {summary !== conversation.summary && (

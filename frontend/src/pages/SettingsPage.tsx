@@ -469,12 +469,11 @@ function About({
               )}
               {t("settings.about.checkNow")}
             </button>
-            {verdict === "current" && (
-              <span className="text-sm text-moss">{t("settings.about.upToDate")}</span>
-            )}
-            {verdict === "unreachable" && (
-              <span className="text-sm text-mist-dim">{t("settings.about.unreachable")}</span>
-            )}
+            {/* There before it has anything to say, as a screen reader only hears a change. */}
+            <span role="status" className={verdict === "current" ? "text-sm text-moss" : "text-sm text-mist-dim"}>
+              {verdict === "current" && t("settings.about.upToDate")}
+              {verdict === "unreachable" && t("settings.about.unreachable")}
+            </span>
           </div>
         </div>
       </div>

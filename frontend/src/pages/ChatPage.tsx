@@ -199,6 +199,12 @@ function ChatView({ id }: { id: string }) {
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
 
+  // A screen reader hears nothing of the words arriving: it is told a reply is being written, then that it is in.
+  const [heard, setHeard] = useState<{ writing: string | null; said: "" | "typing" | "replied" }>({ writing, said: "" });
+  if (heard.writing !== writing) {
+    setHeard({ writing, said: writing !== null ? "typing" : heard.said && !outcome ? "replied" : "" });
+  }
+
   // A reply asked for here may take away the button that asked: Stop holds the focus while it is
   // written, and the reply's own button after, unless the focus is somewhere already.
   const stopButton = useRef<HTMLButtonElement>(null);
@@ -509,7 +515,7 @@ function ChatView({ id }: { id: string }) {
 
             {problem && (
               <div className="mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 bg-blood/10 px-4 py-3">
-                <p className="text-sm text-blood">{problem}</p>
+                <p role="alert" className="text-sm text-blood">{problem}</p>
                 {!busy && !lost && !refusal && (
                   <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
                     {t("chat.errors.retryButton")}
@@ -520,6 +526,9 @@ function ChatView({ id }: { id: string }) {
           </div>
         </div>
 
+        <p role="status" className="sr-only">
+          {heard.said && t(heard.said === "typing" ? "chat.stream.assistantTyping" : "chat.stream.replied", { name: character.name })}
+        </p>
         {/* Out of the scrolling: what failed may be far above, or in the header. */}
         {writeError && (
           <p role="alert" className="border-t border-ink-700 bg-ink-900 px-4 py-2 text-center text-sm text-blood">

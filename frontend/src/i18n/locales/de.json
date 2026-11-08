@@ -211,7 +211,8 @@
       "perSecond": "{tps} T/s"
     },
     "stream": {
-      "assistantTyping": "{name} schreibt…"
+      "assistantTyping": "{name} schreibt…",
+      "replied": "{name} hat geantwortet."
     },
     "errors": {
       "connectionFailed": "Fehler bei der Serververbindung.",
