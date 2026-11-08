@@ -40,6 +40,8 @@ export interface ConversationInput {
   character_id: string;
   persona_id: string | null;
   connection_id: string | null;
+  /** Asked for again under the same one, it is the conversation made the first time. */
+  client_id?: string;
 }
 
 export interface ConversationPatch {

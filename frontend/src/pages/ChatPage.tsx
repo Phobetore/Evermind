@@ -9,6 +9,7 @@ import { useT } from "@/i18n/useT";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
+import { newId } from "@/lib/utils";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -288,9 +289,13 @@ function ChatView({ id }: { id: string }) {
     forget();
   }
 
+  // Each message's branch keeps its id, so that one asked for again after its answer was lost is the one made.
+  const branchIds = useRef(new Map<string, string>());
   async function branchFrom(message: Message) {
     if (!confirm(t("chat.message.confirmBranch"))) return;
-    const branch = await data.messages.branch(message.id);
+    const clientId = branchIds.current.get(message.id) ?? newId();
+    branchIds.current.set(message.id, clientId);
+    const branch = await data.messages.branch(message.id, clientId);
     navigate(`/chat/${branch.id}`);
   }
 

@@ -4,6 +4,7 @@ import { Modal } from "@/components/ui/Modal";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
+import { newId } from "@/lib/utils";
 import type { Character, Connection, Persona } from "@/types";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -26,6 +27,8 @@ export function StartChatModal({
   const [error, setError] = useState<string | null>(null);
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // Entered again after its answer was lost, it is the conversation made; another choice, another.
+  const [clientId, setClientId] = useState(newId);
 
   useEffect(() => {
     Promise.all([
@@ -56,6 +59,7 @@ export function StartChatModal({
         character_id: character.id,
         persona_id: personaId || null,
         connection_id: connectionId || null,
+        client_id: clientId,
       });
       navigate(`/chat/${convo.id}`);
     } catch (e) {
@@ -76,7 +80,10 @@ export function StartChatModal({
                 className="field"
                 disabled={personas === null}
                 value={personaId}
-                onChange={(e) => setPersonaId(e.target.value)}
+                onChange={(e) => {
+                  setPersonaId(e.target.value);
+                  setClientId(newId());
+                }}
               >
                 {personas === null && <option value="">{t("common.loading")}</option>}
                 {/* With a persona marked, asking for none gets that persona all the same. */}
@@ -96,7 +103,10 @@ export function StartChatModal({
                 <select
                   className="field"
                   value={connectionId}
-                  onChange={(e) => setConnectionId(e.target.value)}
+                  onChange={(e) => {
+                    setConnectionId(e.target.value);
+                    setClientId(newId());
+                  }}
                 >
                   {/* The connections come with the personas: null personas is loading. */}
                   {connections.length === 0 && (

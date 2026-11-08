@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page, type Route } from "@playwright/test";
 import { API } from "../playwright.config";
-import { chat, conversation, conversationWithReply } from "./fixtures";
+import { chat, conversation, conversationWithReply, makeCharacter } from "./fixtures";
 
 /**
  * A phone on a home Wi-Fi, where what was asked for reaches Evermind and its answer is lost on the
@@ -139,4 +139,39 @@ test("Branch shows that it is under way, and a second tap makes no second branch
   await expect(page).not.toHaveURL(new RegExp(convo.id));
   await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length);
   expect(await branchesOf(request, convo.id)).toBe(1);
+});
+
+test("Branch whose answer was lost, tried again, makes one branch", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(reply).toBeVisible();
+  page.on("dialog", (dialog) => dialog.accept());
+
+  await page.route("**/api/messages/*/branch", answerLost, { times: 1 });
+  await reply.getByTitle("Branch the story from here").click();
+  await expect(page.getByRole("alert")).toContainText("Evermind is not answering");
+  await reply.getByTitle("Branch the story from here").click();
+
+  await expect(page).not.toHaveURL(new RegExp(convo.id));
+  expect(await branchesOf(request, convo.id)).toBe(1);
+});
+
+test("Enter the story whose answer was lost, tried again, makes one conversation", async ({ page, request }) => {
+  const character = await makeCharacter(request);
+  await page.goto(`/#/characters/${character.id}`);
+  await page.getByRole("button", { name: "Start a conversation" }).click();
+  const dialog = page.getByRole("dialog");
+  const enter = dialog.getByRole("button", { name: "Enter the story" });
+  await expect(enter).toBeEnabled();
+
+  await page.route("**/api/conversations", (route) =>
+    route.request().method() === "POST" ? answerLost(route) : route.fallback(), { times: 1 });
+  await enter.click();
+  await expect(dialog).toContainText("Evermind is not answering");
+  await enter.click();
+
+  await expect(page).toHaveURL(/#\/chat\//);
+  const made = await (await request.get(`${API}/api/conversations?character_id=${character.id}`)).json();
+  expect(made).toHaveLength(1);
 });
