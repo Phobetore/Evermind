@@ -62,7 +62,8 @@ export function ChatInput({
   const [value, setValue] = useState(() => loadDraft(conversationId));
   const [mode, setMode] = useState<MessageMode>("say");
   // Sent from this page before it was left and come back to, it may be on its way still.
-  const [sending, setSending] = useState(() => onItsWay(conversationId) !== undefined);
+  const [onTheWay] = useState(() => onItsWay(conversationId));
+  const [sending, setSending] = useState(onTheWay !== undefined);
   const [ghostwriting, setGhostwriting] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   // Stays until the next attempt, rather than fading: something has to be
@@ -93,13 +94,13 @@ export function ChatInput({
 
   useEffect(() => {
     let open = true;
-    void onItsWay(conversationId)?.then(() => {
+    void onTheWay?.then(() => {
       if (open) setSending(false);
     });
     return () => {
       open = false;
     };
-  }, [conversationId]);
+  }, [onTheWay]);
 
   useEffect(() => {
     const el = ref.current;

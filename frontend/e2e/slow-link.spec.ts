@@ -188,6 +188,46 @@ test.describe("a message on its way", () => {
     await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
     expect(await said(request, convo.id, "Depuis l'onglet A.")).toBe(1);
   });
+
+  test("whose answer comes as its box is put back, leaves that box to be used", async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    // The answer to the page's request for a turn, once Evermind has it, is held until released.
+    await page.addInitScript(() => {
+      const real = window.fetch;
+      const page_ = window as unknown as { __hold?: boolean; __release?: () => void };
+      window.fetch = async (input, init) => {
+        if (!page_.__hold || !String(input).endsWith("api/chat")) return real(input, init);
+        page_.__hold = false;
+        const answer = await real(input, init);
+        const body = await answer.text();
+        await new Promise<void>((resolve) => { page_.__release = resolve; });
+        return new Response(body, { status: answer.status, headers: answer.headers });
+      };
+    });
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(box(page)).toBeVisible();
+    await page.evaluate(() => { (window as unknown as { __hold: boolean }).__hold = true; });
+    await send(page, "Tenu.");
+    await page.waitForFunction(() => "__release" in window);
+    await goWithinThePage(page, "/chat");
+    await expect(page.locator("textarea")).toHaveCount(0);
+
+    // As soon as the box is back in the page, before the page has run anything else.
+    await page.evaluate(() => {
+      new MutationObserver((_, observer) => {
+        if (!document.querySelector("textarea")) return;
+        observer.disconnect();
+        (window as unknown as { __release: () => void }).__release();
+      }).observe(document, { subtree: true, childList: true });
+    });
+    await goWithinThePage(page, `/chat/${convo.id}`);
+
+    await expect(box(page)).toHaveValue("", { timeout: 15_000 });
+    await expect(box(page), "still shown as sending").toBeEditable();
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+    await box(page).fill("La suite.");
+    await expect(page.locator('button[title="Send"]')).toBeEnabled();
+  });
 });
 
 test.describe("a message that does not get there", () => {
