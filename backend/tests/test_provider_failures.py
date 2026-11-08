@@ -164,9 +164,6 @@ async def test_a_list_of_models_that_cannot_be_read_is_unreadable(name, make, co
     assert error.kind == "model_unreadable"
 
 
-# --- as the API reports them ---------------------------------------------------
-
-
 def patch_providers(monkeypatch, make):
     """Every service that talks to a model talks to one built by ``make``."""
     for module in ("chat_service", "card_assistant", "memory_service"):
