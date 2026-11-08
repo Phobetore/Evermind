@@ -12,7 +12,6 @@ backend/   FastAPI + SQLite (aiosqlite, plain SQL migrations)
                    redirects the old paths
   app/gate.py      a middleware: the access password (one session per device),
                    the refusal of writes from other origins, the host names
-  app/cards/       Character Card V2 codec (JSON + PNG "chara" chunk)
   app/prompting/   prompt engine ({{char}}/{{user}} macros, context budget, RP rules)
                    embeddings.py + retrieval.py: optional semantic memory
   app/providers/   LLM connectors (openai-compatible, anthropic), normalized SSE
@@ -20,9 +19,10 @@ backend/   FastAPI + SQLite (aiosqlite, plain SQL migrations)
                    memory_service: fact extraction, rolling summary, consolidation
   migrations/      NNN_name.sql, applied in filename order
 frontend/  Vite + React 19 + Tailwind v4, a single-page app routed by hash
-  src/pages/       one page per route, fetched when it is first opened
+  src/pages/       one page per route
   src/router.tsx   the routes, which live after the "#" of the address
-  src/data/        the typed DataSource the interface talks to; http/ implements it
+  src/data/        index.ts: `data`, every call the interface makes to the server
+  src/lib/cards.ts Character Card V2 codec (JSON + PNG "chara" chunk), in the browser
   src/components/  layout/Access.tsx keeps the pages behind the access password
   src/i18n/        homemade i18n: JSON dictionaries + useT() hook (en, fr, de, es)
   e2e/             Playwright tests, run against the real server
@@ -38,17 +38,16 @@ scripts\prod.ps1 [-Lan]        # Windows
 ./scripts/prod.sh [--lan]      # macOS / Linux
 ```
 
-The scripts only get everything ready: they create the Python environment when
-`backend/.venv` has no working pip (so a creation that was interrupted is done
-again, not mistaken for a finished one), install the dependencies again when
+The scripts get everything ready, then start `python -m app`. They create the
+Python environment when `backend/.venv` has no working pip (an interrupted
+creation is done again), install the dependencies again when
 `backend/pyproject.toml` or `frontend/package-lock.json` has changed (the backend
-without its test tools: run `pip install -e "backend[dev]"` in the environment
-once to run the tests), build the interface (Vite 8 needs **Node.js 22.12 or
-newer**), and start `python -m app`. Once Python's side is installed, and before
-the interface is installed or built, they ask `python -m app --check` about the
-port, and do not go on if it is taken. For a restart without the build, run
-`python -m app` yourself from `backend/`, with the environment's own Python
-(`.venv/Scripts/python` on Windows, `.venv/bin/python` elsewhere).
+without its test tools: `pip install -e "backend[dev]"` once, to run the tests),
+ask `python -m app --check` whether the port is free before the interface is
+installed or built, and build it (Vite 8 needs **Node.js 22.12 or newer**). For a
+restart without the build, run `python -m app` from `backend/` with the
+environment's own Python (`.venv/Scripts/python` on Windows, `.venv/bin/python`
+elsewhere).
 
 For development, with hot reload, run these in two terminals:
 
@@ -57,56 +56,52 @@ cd backend && .venv/Scripts/python -m app --dev   # the API, restarted on every 
 cd frontend && npm run dev                        # the interface (npm run dev:lan: on the network)
 ```
 
-`python -m app` is the one way Evermind is started, whoever starts it: the
-scripts, the container, the end-to-end suite. From `backend/`, with the
-virtualenv the scripts create:
+`python -m app` is the one way Evermind is started, by the scripts, the container
+and the end-to-end suite alike:
 
 ```bash
 .venv/Scripts/python -m app [--lan] [--dev] [--check] [--no-env-file]
 ```
 
 It reads `.env` at the repository root, then the environment, and **the
-environment wins** over the file. The file may have been saved by Notepad or
-PowerShell (a byte order mark, CRLF line endings, even UTF-16 with its mark); it
-reads the same as a plain one, and values are read as written, quotes included.
-`BIND` (default `127.0.0.1`) and `PORT` (default `3000`) say where to listen,
-and `--lan` is `BIND=0.0.0.0`; the data folder is `EVERMIND_DATA_DIR`. Before
-anything else it checks that the port is free; `--check` stops right after that
-and prints the port, so the scripts can ask once Python is installed and before
-the interface is installed or built, and `--no-env-file` keeps a `.env` out of
-the picture (the container and the end-to-end suite use it). Once it starts, it
-prints the local address and, when it listens on the network, that one too, with
-a warning if no password is set and, on Windows, the firewall rule other devices
-need. Inside the container it prints none of this, since `docker-compose.yml` is
-what decides what is exposed there.
+environment wins** over the file. A file saved by Notepad or PowerShell (a byte
+order mark, CRLF line endings, UTF-16 with its mark) reads the same as a plain
+one, and values are read as written, quotes included. `BIND` (default
+`127.0.0.1`) and `PORT` (default `3000`) say where to listen, `--lan` is
+`BIND=0.0.0.0`, and the data folder is `EVERMIND_DATA_DIR`. It first checks that
+the port is free; `--check` stops right after that and prints the port, and
+`--no-env-file` leaves `.env` out (the container and the end-to-end suite use
+it). Once started, it prints the local address, and the network one when it
+listens there, with a warning if no password is set and, on Windows, the firewall
+rule other devices need. Inside the container it prints none of this:
+`docker-compose.yml` decides what is exposed there.
 
 **In production there is one process and one port.** FastAPI answers `/api/` and
-serves the built interface (`frontend/dist`, or wherever `EVERMIND_UI_DIR`
-points) for everything else. The interface is a single page whose routes live
-after the `#` (`/#/chat/<id>`), so the server has one file to hand out whatever
-the route, and the same build works wherever it is put. The paths the previous
-interface used (`/chat/<id>`, `/characters/...`, `/personas`, `/settings`,
-`/login`) redirect to their hash form, which keeps old bookmarks working. Files
-under `/assets/` carry a hash in their name and are cached for good; `index.html`
-is always revalidated, which is how a phone picks up a new build.
+serves the built interface (`frontend/dist`, or `EVERMIND_UI_DIR`) for everything
+else. Its routes live after the `#` (`/#/chat/<id>`), so the server has one page
+to hand out whatever the route, and the same build works wherever it is put. The
+paths of the 2.x interface (`/chat/<id>`, `/characters/...`, `/personas`,
+`/settings`, `/login`) redirect to their hash form, for old bookmarks. Files under
+`/assets/` carry a hash in their name and are cached for good; `index.html` is
+always revalidated, which is how a phone picks up a new build.
 
 **In development there are two.** `python -m app --dev` serves the API alone, on
-`EVERMIND_BACKEND_PORT` (default `8000`), on the loopback only, and restarts
-whenever `backend/app` changes. The Vite dev server serves the interface on
-`PORT` (default `3000`) with hot reload and relays `/api` to the API, so the
-browser still sees one origin, as it does in production. The relay leaves the
-`Host` header as the browser sent it (`changeOrigin: false` in
-`vite.config.ts`), which the API needs to recognise the interface's writes as
-its own (see below). With `npm run dev:lan` it is Vite that listens on the network and the
-API stays behind it (`python -m app --dev --lan` then warns if no password is set). `EVERMIND_BACKEND_PORT` means nothing outside this mode.
+the loopback, on `EVERMIND_BACKEND_PORT` (default `8000`, which means nothing
+outside this mode), and restarts whenever `backend/app` changes. Vite serves the
+interface on `PORT` with hot reload and relays `/api` to the API, so the browser
+sees one origin, as in production. The relay leaves the `Host` header as the
+browser sent it (`changeOrigin: false` in `vite.config.ts`), which the API needs
+to recognise the interface's writes as its own (see below). With
+`npm run dev:lan`, Vite listens on the network and the API stays behind it
+(`python -m app --dev --lan` then warns if no password is set).
 
 Components never call `fetch`. Everything the interface asks of the server goes
-through `src/data/`, a typed `DataSource` with an HTTP implementation, so the
-calls and their error handling live in one place.
+through `data` in `src/data/index.ts`, whose type is `DataSource`, so the calls
+and their error handling live in one place.
 
-The backend deliberately runs a **single uvicorn worker**: the memory-maintenance
-lock, the SQLite writes and the count of wrong passwords are per-process, so
-multiple workers would race.
+The backend deliberately runs a **single uvicorn worker**: the replies being
+written, the memory-maintenance lock and the count of wrong passwords are
+per-process, so multiple workers would race.
 
 No real model to hand? `python scripts/mock_llm.py` serves an OpenAI-compatible
 endpoint on `http://localhost:5599/v1` that streams placeholder roleplay text,
@@ -115,7 +110,7 @@ plus valid JSON for the memory and card-assistant prompts.
 ## Tests
 
 ```bash
-cd backend && .venv/Scripts/python -m pytest    # 800+ tests
+cd backend && .venv/Scripts/python -m pytest
 cd backend && .venv/Scripts/python -m ruff check app tests
 cd frontend && npx tsc --noEmit
 cd frontend && npm run lint
@@ -161,11 +156,13 @@ test that passes either way is worse than none, because it reads like cover.
 - `POST /api/chat`: modes `send` / `regenerate` / `continue`, answered once the message is saved;
   `GET /api/conversations/{id}/turn` says how the reply stands and the messages' `revision`, which
   the conversation carries too, `.../turn/stream` follows it (SSE) and `DELETE .../turn` stops it
-- CRUD on `characters`, `personas`, `connections`, `conversations`, `memories`, `lore`
-- `POST /api/characters/import`, `GET /api/characters/{id}/export?format=json|png`
+- CRUD on `characters` (each with its whole lorebook), `personas`, `connections`,
+  `conversations`, `memories`
 - `POST /api/characters/assist`: drafts a card from a free-form brief
 - `POST /api/conversations/{id}/memories/extract`, `.../memories/consolidate`
-- `GET /api/library`, `POST /api/library/{filename}/install`
+- `GET /api/library`: the cards in `library/`. The browser reads and writes card
+  files itself (`frontend/src/lib/cards.ts`), and installs or imports a card by
+  creating a character
 - `GET /api/gate`: whether a password is set and whether this device is past it,
   and if it is, its cookie again for another 400 days; `POST /api/gate` signs in
   and sets the session cookie; `DELETE /api/gate` signs this device out;
@@ -197,12 +194,12 @@ validation only.
 
 An error is `{"error": "<English sentence>", "kind": "<name>"}`, and a `not_found`
 adds `"resource"` (`character`, `conversation`, `message`, `persona`,
-`connection`, `lore_entry`, `fact`, `library_card`, `illustration`, `file`). The
-sentence is for whoever reads the API; the interface reads `kind` and shows its
-own text for it, in the language the person chose (`frontend/src/lib/errors.ts`,
-sentences under `errors` in `frontend/src/i18n/locales/`). The same goes for how
-a reply failed, which `GET /api/conversations/{id}/turn` tells. A new `AppError`
-needs a `kind`, and a test fails without one.
+`connection`, `fact`, `illustration`, `file`). The sentence is for whoever reads
+the API; the interface reads `kind` and shows its own text for it, in the
+language the person chose (`frontend/src/lib/errors.ts`, sentences under `errors`
+in `frontend/src/i18n/locales/`). The same goes for how a reply failed, which
+`GET /api/conversations/{id}/turn` tells. A new `AppError` needs a `kind`, and a
+test fails without one.
 
 When a model's server is what failed (a `ProviderError`, `502`), the kind says how:
 `unreachable` (nothing answered at its address, or the address is not one),
@@ -272,26 +269,23 @@ as every program and browser on that computer, Docker Desktop included. Leave
 on Evermind's network with a fixed address (`ipv4_address` in Compose): name that
 address, which starts each of its requests' lines in `docker compose logs`.
 
-The prefix needs nothing more. The pages, every call and every image work
-under the prefix. The one thing that does not follow it is the redirect of an old
-2.x bookmark such as `/chat/<id>`, which goes to `/#/chat/<id>` at the root of
-the host.
-
-The page, its files, every call and every image stay under the prefix because none
-of them is addressed from the root of the host:
+The prefix needs nothing more: the page, its files, every call and every image
+stay under it, because none of them is addressed from the root of the host:
 
 - the build uses relative asset paths (`base: "./"`) and its routes live after
   the `#`, so the address of the page, without the fragment, is always the root of
   the app;
-- every request in `frontend/src/data/http/` is for `api/...`, without a leading
+- every call in `frontend/src/data/index.ts` is for `api/...`, without a leading
   slash, and is resolved against that address;
 - the server writes the addresses of images the same way, `api/media/<file>`, so
   that no component has to know.
 
-So new code that calls the API goes through the data layer, and an address written
-there never starts with a slash (a test resolves the calls under a prefix). The
-Vite dev server and the end-to-end servers run at the root of their host, where
-`api/...` is `/api/...`.
+So new code that calls the API goes through `data`, and an address written there
+never starts with a slash (a test checks that each one is relative). The one thing
+that does not follow the prefix is the redirect of an old 2.x bookmark such as
+`/chat/<id>`, which goes to `/#/chat/<id>` at the root of the host. The Vite dev
+server and the end-to-end servers run at the root of their host, where `api/...`
+is `/api/...`.
 
 ## How a turn is built
 
