@@ -70,7 +70,7 @@ test("coming back shows the reply still arriving", async ({ browser, request }) 
 
 /** A page opening asks whether a reply is being written, reads the conversation, then follows the words. */
 test("a reply ending while the page follows it is shown whole", async ({ page, request }) => {
-  const convo = await conversationWithReply(request, { slowly: true });
+  const convo = await conversationWithReply(request, { slowly: true, says: "whole" });
   await request.post(`${API}/api/chat`, {
     data: { conversation_id: convo.id, mode: "send", content: "Ecris longuement.", message_mode: "say" },
   });
