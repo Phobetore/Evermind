@@ -78,7 +78,7 @@ the source, Python must use SQLite 3.35 or newer.
   - Gone: `POST /api/characters/import` and `GET /api/characters/{id}/export`
     (cards are read and written in the browser now),
     `POST /api/library/{filename}/install`, the lorebook routes (a character's
-    `lore_entries`, in its `POST` or `PUT`, is its whole lorebook),
+    `lore_entries`, in its `GET`, `POST` or `PUT`, is its whole lorebook),
     `POST /api/conversations/{id}/summarize`, `POST /api/connections/{id}/test`
     and `/benchmark`, `GET /api/connections/{id}/models`, and `/docs`, `/redoc`
     and `/openapi.json`.
@@ -89,12 +89,13 @@ the source, Python must use SQLite 3.35 or newer.
     form holds it, with `id` to use its saved key, and `PUT /api/connections/{id}`
     takes the whole connection.
   - A model's failure is a `502` with `error` and `kind` only, `error` being what
-    its server said. `model_http_error` is now `model_error`; `model_timeout`
-    and `model_network_error` are `model_connection_lost`, or `unreachable`
-    when no connection could be made; `model_unexpected_response` is
-    `model_unreadable`; `model_empty_retried` is `model_empty`; and
-    `model_unknown_type` is gone. The connection test and the benchmark fail
-    that way too, instead of answering `200` with `"ok": false`.
+    its server said, the address it could not reach, or how the connection
+    broke. `model_http_error` is now `model_error`; `model_timeout` and
+    `model_network_error` are `model_connection_lost`, or `unreachable` when no
+    connection could be made; `model_unexpected_response` is `model_unreadable`;
+    `model_empty_retried` is `model_empty`; and `model_unknown_type` is gone. The
+    connection test and the benchmark fail that way too, instead of answering
+    `200` with `"ok": false`.
   - A turn that cannot be had is refused by `POST /api/chat` with an error
     status before anything is saved, `400` `no_connection` among them. A memory
     pass that keeps nothing answers `409` (`memory_busy`, `too_few_facts`,
@@ -102,6 +103,17 @@ the source, Python must use SQLite 3.35 or newer.
     and one without a connection `400` rather than `502`. A sign-in over 4096
     bytes, or without its length, is `413` `too_large`, and a `422` no longer
     repeats what was sent.
+  - `GET /api/characters` takes no filter, and lorebook entries have no
+    `case_sensitive` or `priority`. `POST /api/conversations` takes no
+    `greeting_index`, its `PATCH` no `persona_id`, and the settings have no
+    `default_persona_id` or `default_connection_id`. A conversation has no
+    `forked_at_position`, and it and the state of its turn carry `revision`. A
+    message's `meta.interrupted` lists its versions cut short instead of being
+    `true`, `meta.streaming` is gone, and `meta.perf` has no `finish_reason`. A
+    fact has no `kind` and gains `previous_content` and `corrected_at`; adding
+    one the model already holds makes it yours (`201`, not `400` `fact_exists`),
+    and so does changing its text. `GET /api/update` answers only `current`,
+    `kind` and `command`.
 - **A copy of the database is kept** as `evermind.before-3.1.0.db`, beside it.
   To go back to 3.0.x, see
   [Going back after an update](../INSTALL.md#going-back-after-an-update). An
