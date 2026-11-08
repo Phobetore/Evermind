@@ -113,6 +113,32 @@ test("over the story, the side panel keeps Tab to itself", { tag: "@desktop" }, 
   }
 });
 
+test("a card's Start button is seen when the keyboard reaches it", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+  test.skip(isMobile, "a phone has no Start button on a card, which opens the card");
+  const character = await makeCharacter(request, { name: "Reached By Keyboard" });
+  await page.goto("/");
+  const card = page.locator(`a[href$="/characters/${character.id}"]`);
+  await card.focus();
+  const start = card.getByRole("button", { name: "Start" });
+  // The star comes first, then Start.
+  for (let i = 0; i < 2; i++) await page.keyboard.press("Tab");
+
+  await expect(start).toBeFocused();
+  await expect.poll(() => start.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+});
+
+test("the tag box shows when the keyboard is in it", { tag: "@desktop" }, async ({ page }) => {
+  await page.goto("/#/characters/new");
+  const box = page.getByPlaceholder("Add a tag, then Enter");
+  const field = box.locator("xpath=..");
+  const ring = () => field.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(await ring()).toBe("none");
+
+  await box.focus();
+
+  await expect.poll(ring, "nothing shows where the keyboard is").not.toBe("none");
+});
+
 test("Regenerate from the keyboard leaves the focus on Stop while the reply is written, then back on Regenerate", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await conversationWithReply(request, { says: "again", slowly: true });
   const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
