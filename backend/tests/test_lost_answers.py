@@ -1,5 +1,4 @@
-"""What a page can count on when the answer to what it asked for was lost on the way, as on a phone
-over a home Wi-Fi: asked for again, nothing is made twice, and what it reads says how things stand."""
+"""An answer lost on the way: asked again, nothing is made twice; a read says how things stand."""
 
 import asyncio
 import json
@@ -10,8 +9,7 @@ from .conftest import FakeProvider, send, setup_conversation, waiting_provider, 
 
 
 async def test_an_edit_writes_the_version_it_was_typed_over(client):
-    """A swipe whose answer was lost leaves the page on another version than the server's: what is
-    typed over the version on screen goes into that one, which is then the one shown."""
+    """After a lost swipe, what is typed over the version on screen goes into it, then shown."""
     char = (await client.post("/api/characters", json={
         "name": "Serana", "greeting": "First.", "alternate_greetings": ["Second."]})).json()
     convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()

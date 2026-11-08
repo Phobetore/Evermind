@@ -1,8 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { conversationWithReply, makeCharacter } from "./fixtures";
 
-/** What runs off the right edge of a page this wide: elements past it, the page's own width, and how far
- *  what is in <main>, which scrolls, slides it sideways. */
+/** What runs off the right edge of a page this wide: elements past it, the page's width, how far <main> slides. */
 function pastTheEdge(page: Page, width: number) {
   return page.evaluate((seen) => {
     const guilty: string[] = [];
@@ -52,8 +51,7 @@ test.describe("the main page fits the screen it is on", () => {
   });
 });
 
-/** The side panel beside the story takes 320px of it, and the sidebar 224 more: on a tablet, or a
- *  window half a screen wide, opening on it would leave a sliver of a box to write in. */
+/** Beside the story the panel takes 320px and the sidebar 224: open from the start on a tablet, it leaves a sliver. */
 test.describe("a conversation opens with room to write in", () => {
   for (const width of [768, 834, 1024, 1280]) {
     test(`at ${width}px`, async ({ page, request }) => {

@@ -2,10 +2,7 @@ import { expect, test, type APIRequestContext, type Locator, type Page, type Rou
 import { API } from "../playwright.config";
 import { chat, conversation, conversationWithReply, makeCharacter, readOf } from "./fixtures";
 
-/**
- * A phone on a home Wi-Fi, where what was asked for reaches Evermind and its answer is lost on the
- * way back, or comes late: the page ends with what the server holds, and makes nothing twice.
- */
+/** An answer lost or late on a phone's Wi-Fi: the page ends with what the server holds, and makes nothing twice. */
 
 /** What Evermind does with the request, before its answer is lost on the way back. */
 const answerLost = async (route: Route) => {

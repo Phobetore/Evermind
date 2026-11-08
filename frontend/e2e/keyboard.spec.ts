@@ -2,11 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
 import { conversation, conversationWithReply, makeCharacter, makeConversation, PNG } from "./fixtures";
 
-/**
- * Everything here is done from the keyboard, as on a computer: wherever a key press sends the
- * focus, it lands on what the next press is meant for, in sight, and never on the page itself,
- * which a screen reader reads as nothing.
- */
+/** From the keyboard: each press leaves the focus on what the next is for, never on the page itself. */
 
 const panelButton = (page: Page) => page.getByRole("button", { name: "Conversation memory and settings" });
 
