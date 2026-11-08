@@ -26,9 +26,11 @@ const FIELDS = {
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** A field as text: anything but a string or a number counts as absent. */
+/** A field as text: anything but a string or a number counts as absent. Half of an emoji, which
+ *  Evermind cannot store, becomes the replacement character. */
 const text = (value: unknown) =>
-  typeof value === "string" ? value : typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+  typeof value === "string" ? value.toWellFormed()
+    : typeof value === "number" && Number.isFinite(value) ? String(value) : "";
 
 /** A list of texts, blank ones left out: one text alone is a list of one. */
 const texts = (value: unknown) =>

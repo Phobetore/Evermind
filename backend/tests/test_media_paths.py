@@ -1,15 +1,20 @@
-"""The media route hands a caller-supplied name to the filesystem.
+r"""The media route serves a file the caller names.
 
-CodeQL flags it, and the containment check that makes it safe is one line that
-somebody could delete without noticing. These tests are what makes that deletion
-show up as a failure rather than as a directory traversal.
+Only a name Evermind gives what it stores reaches the file system. On Windows a
+name such as \\host\share\x.png is a network path: a single path call opens an
+SMB connection to that host, offering it the account's credentials, and holds the
+server for about 20 s. A containment check after the call comes too late.
 """
 
+import os
 import urllib.parse
+import uuid
+from pathlib import Path
 
 import pytest
 
 from app.config import media_dir
+from app.services import media
 
 from .conftest import PNG
 
@@ -22,6 +27,21 @@ ESCAPES = [
     "..\\..\\..\\Windows\\win.ini",
     "%2e%2e%2f%2e%2e%2fetc%2fpasswd",
     "subdir/../../outside.png",
+]
+
+# What the security review sent: network paths, devices, drives, and names no file could have.
+WINDOWS_NAMES = [
+    "\\\\192.0.2.77\\share\\x.png",
+    "\\\\192.0.2.77\\s\\x.png",
+    "\\\\?\\UNC\\192.0.2.77\\share\\x.png",
+    "\\\\.\\pipe\\x.png",
+    "\\\\?\\C:\\Windows\\win.ini",
+    "C:..\\x.png",
+    "C:\\Windows\\win.ini",
+    "NUL",
+    "CON.png",
+    "x.png\0",
+    "a" * 300 + ".png",
 ]
 
 
@@ -38,12 +58,45 @@ async def test_media_refuses_to_leave_its_directory(client, attempt, tmp_path):
     assert b"secret" not in resp.content
 
 
+@pytest.mark.parametrize("attempt", WINDOWS_NAMES)
+async def test_a_name_evermind_never_gives_reaches_no_path_call(client, monkeypatch, attempt):
+    """A network path is opened by the first call that looks at it, so none may be made."""
+    reached = []
+
+    def refuse(*args, **kwargs):
+        reached.append(args)
+        raise AssertionError(f"a path call was made: {args!r}")
+
+    with monkeypatch.context() as patch:
+        for owner, name in [(Path, "resolve"), (Path, "is_file"), (Path, "exists"), (os, "stat"),
+                            (os, "lstat"), (os.path, "realpath"), (os.path, "isfile")]:
+            patch.setattr(owner, name, refuse)
+        resp = await client.get(f"/api/media/{urllib.parse.quote(attempt, safe='')}")
+
+    assert (resp.status_code, reached) == (404, [])
+    assert resp.json() == {"error": "File not found.", "kind": "not_found", "resource": "file"}
+
+
+@pytest.mark.parametrize("spelling", [
+    pytest.param(lambda name: name + "::$DATA", id="stream"),
+    pytest.param(lambda name: name + ".", id="trailing dot"),
+    pytest.param(lambda name: name + " ", id="trailing space"),
+    pytest.param(str.upper, id="upper case"),
+])
+async def test_only_the_name_evermind_gave_serves_the_file(client, spelling):
+    """Windows opens the same file under these spellings, which Evermind never gives."""
+    name = media.save(PNG, ".png")
+    other = urllib.parse.quote(spelling(name), safe="")
+
+    assert (await client.get(f"/api/media/{other}")).status_code == 404
+    assert (await client.get(f"/api/media/{name}")).status_code == 200
+
+
 async def test_media_serves_a_file_that_is_actually_in_there(client):
     """The guard rejects traversal without rejecting the legitimate case."""
-    media_dir().mkdir(parents=True, exist_ok=True)
-    (media_dir() / "portrait.png").write_bytes(b"\x89PNG\r\n\x1a\n fine")
+    name = media.save(b"\x89PNG\r\n\x1a\n fine", ".png")
 
-    resp = await client.get("/api/media/portrait.png")
+    resp = await client.get(f"/api/media/{name}")
 
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("image/png")
@@ -52,25 +105,24 @@ async def test_media_serves_a_file_that_is_actually_in_there(client):
 
 async def test_media_refuses_a_symlink_pointing_out_of_the_directory(client, tmp_path):
     """resolve() follows symlinks, so the parent check has to be done after it."""
-    media_dir().mkdir(parents=True, exist_ok=True)
     target = tmp_path / "elsewhere.png"
     target.write_bytes(b"\x89PNG\r\n\x1a\n secret")
-    link = media_dir() / "innocent.png"
+    link = media_dir() / f"{uuid.uuid4().hex}.png"
     try:
         link.symlink_to(target)
     except (OSError, NotImplementedError):
         pytest.skip("this platform will not let the test create a symlink")
 
-    resp = await client.get("/api/media/innocent.png")
+    resp = await client.get(f"/api/media/{link.name}")
 
     assert resp.status_code == 404
     assert b"secret" not in resp.content
 
 
 async def test_an_image_is_kept_by_the_browser_alone(client):
-    (media_dir() / "portrait.png").write_bytes(PNG)
+    name = media.save(PNG, ".png")
 
-    resp = await client.get("/api/media/portrait.png")
+    resp = await client.get(f"/api/media/{name}")
 
     assert resp.headers["cache-control"] == "private, max-age=31536000, immutable"
 

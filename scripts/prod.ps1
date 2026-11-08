@@ -1,6 +1,7 @@
-# Build the interface once and serve it with the API, on one port.
-#   .\scripts\prod.ps1        local only
-#   .\scripts\prod.ps1 -Lan   also reachable from the local network
+# Build the interface once and serve it with the API, on one port. A stock Windows runs no
+# script unless it is told to, hence the Bypass:
+#   powershell -ExecutionPolicy Bypass -File .\scripts\prod.ps1        local only
+#   powershell -ExecutionPolicy Bypass -File .\scripts\prod.ps1 -Lan   also reachable from the local network
 # Fast restart, without the build: backend\.venv\Scripts\python -m app, from backend\.
 # The port, the password and the other settings come from .env or the environment
 # (see .env.example); `python -m app` reads them.

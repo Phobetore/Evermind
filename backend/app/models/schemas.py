@@ -2,19 +2,42 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from ..prompting.text import is_writable
 
 Kind = Literal["character", "scenario"]
 ProviderType = Literal["openai-compatible", "anthropic"]
 
 
-class LoreEntryIn(BaseModel):
+def _texts(value) -> list[str]:
+    """The texts in a value, at any depth of lists and JSON objects, their keys included."""
+    if isinstance(value, dict):
+        value = [*value, *value.values()]
+    if isinstance(value, list):
+        return [text for item in value for text in _texts(item)]
+    return [value] if isinstance(value, str) else []
+
+
+class Input(BaseModel):
+    """What a request holds. Half of an emoji (a lone surrogate) comes as a JSON escape and can be
+    neither stored nor sent: the field that holds one is refused, rather than a 500 once written."""
+
+    @field_validator("*")
+    @classmethod
+    def _writable(cls, value):
+        if not all(is_writable(text) for text in _texts(value)):
+            raise ValueError("half of a character, such as a broken emoji, cannot be stored")
+        return value
+
+
+class LoreEntryIn(Input):
     keys: list[str]
     content: str
     enabled: bool = True
 
 
-class CharacterIn(BaseModel):
+class CharacterIn(Input):
     kind: Kind = "character"
     name: str = Field(min_length=1, max_length=200)
     tagline: str = ""
@@ -33,7 +56,7 @@ class CharacterIn(BaseModel):
     lore_entries: list[LoreEntryIn] = []
 
 
-class CharacterUpdate(BaseModel):
+class CharacterUpdate(Input):
     kind: Kind | None = None
     name: str | None = Field(default=None, min_length=1, max_length=200)
     tagline: str | None = None
@@ -53,26 +76,26 @@ class CharacterUpdate(BaseModel):
     lore_entries: list[LoreEntryIn] | None = None  # the whole lorebook, in order
 
 
-class CardAssistRequest(BaseModel):
+class CardAssistRequest(Input):
     prompt: str = Field(min_length=3, max_length=8000)
     kind: Kind = "character"
     connection_id: str | None = None
     existing: dict = {}
 
 
-class PersonaIn(BaseModel):
+class PersonaIn(Input):
     name: str = Field(min_length=1, max_length=200)
     description: str = ""
     is_default: bool = False
 
 
-class PersonaUpdate(BaseModel):
+class PersonaUpdate(Input):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     is_default: bool | None = None
 
 
-class ConnectionIn(BaseModel):
+class ConnectionIn(Input):
     name: str = Field(min_length=1, max_length=200)
     provider: ProviderType = "openai-compatible"
     base_url: str = ""
@@ -96,13 +119,13 @@ class ConnectionDraft(ConnectionUpdate):
     id: str | None = None  # the saved connection whose key is used when none is typed
 
 
-class ConversationIn(BaseModel):
+class ConversationIn(Input):
     character_id: str
     persona_id: str | None = None
     connection_id: str | None = None
 
 
-class ConversationPatch(BaseModel):
+class ConversationPatch(Input):
     title: str | None = None
     summary: str | None = None
     summary_was: str | None = None  # the summary the new one was typed over
@@ -111,12 +134,12 @@ class ConversationPatch(BaseModel):
     wallpaper_opacity: float | None = Field(default=None, ge=0, le=1)
 
 
-class MessagePatch(BaseModel):
+class MessagePatch(Input):
     content: str | None = None
     active_index: int | None = Field(default=None, ge=0)
 
 
-class SettingsIn(BaseModel):
+class SettingsIn(Input):
     global_instructions: str | None = None
     auto_memory: bool | None = None
     reply_length: Literal["short", "medium", "long"] | None = None
@@ -125,17 +148,17 @@ class SettingsIn(BaseModel):
     update_check: bool | None = None
 
 
-class MemoryIn(BaseModel):
+class MemoryIn(Input):
     content: str = Field(max_length=2000)
     is_pinned: bool = False
 
 
-class MemoryPatch(BaseModel):
+class MemoryPatch(Input):
     content: str | None = Field(default=None, max_length=2000)
     is_pinned: bool | None = None
 
 
-class ChatRequest(BaseModel):
+class ChatRequest(Input):
     conversation_id: str
     mode: Literal["send", "regenerate", "continue"] = "send"
     content: str | None = None

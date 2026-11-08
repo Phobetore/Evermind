@@ -48,6 +48,8 @@ ENV EVERMIND_DATA_DIR=/data \
     EVERMIND_UI_DIR=/app/ui \
     BIND=0.0.0.0 \
     PORT=8000
+# Semantic memory's model, with the data: a new container finds it there instead of downloading it.
+ENV HF_HUB_CACHE=/data/huggingface
 EXPOSE 8000
 # No settings file: .dockerignore keeps .env out of the image, and a container
 # is configured through the environment that docker-compose.yml hands it.
