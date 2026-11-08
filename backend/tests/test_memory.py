@@ -993,6 +993,7 @@ async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, mon
     system = fake_provider.captured["payload"].system
     assert "### RELEVANT PAST" in system
     assert ("crypt that night" in system) == recalled  # the old message resurfaced verbatim
+    assert "(turn 14)" not in system  # the oldest of the six the window holds: no echo of it
 
 
 async def test_passages_off_when_budget_zero(client, fake_provider, monkeypatch):
