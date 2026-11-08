@@ -7,8 +7,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
 import { beginSending, type MessageMode } from "@/lib/drafts";
-import { describeError, describeFailure } from "@/lib/errors";
-import { useTurn, type LiveText } from "@/lib/useTurn";
+import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
+import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -84,13 +84,26 @@ function ChatView({ id }: { id: string }) {
   // does not undo it.
   const changesByHand = useRef(0);
 
-  /** A change made by hand, and whether the server took it. */
-  async function write(change: () => Promise<unknown>) {
+  /** A change made by hand, and whether the server took it. One whose answer was lost, or that
+   *  found its message gone, may have been made all the same: given `landed`, told the messages the
+   *  server holds, the conversation is read and shown, and nothing said unless that read fails too. */
+  async function write(change: () => Promise<unknown>, landed?: (messages: Message[]) => void) {
     setWriteError(null);
     try {
       await change();
       return true;
     } catch (error) {
+      if (landed && (isUnanswered(error) || (error instanceof DataError && error.kind === "not_found"))) {
+        changesByHand.current += 1; // a read sent before this one does not undo it
+        const now = await read({ within: PATIENCE_MS }).then(
+          ({ conversation, show }) => (show() ? conversation.messages ?? [] : null),
+          () => null,
+        );
+        if (now) {
+          landed(now);
+          return false;
+        }
+      }
       setWriteError({ error });
       return false;
     }
@@ -245,8 +258,12 @@ function ChatView({ id }: { id: string }) {
     const updated = await data.messages.update(message.id, { active_index: index });
     changesByHand.current += 1;
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
-    // Other words for the newest reply take back a memory that read it.
-    if (message.id === last?.id) memoryTakenBack();
+    swiped(message, updated);
+  }
+
+  /** Other words for the newest reply take back a memory that read it. */
+  function swiped(message: Message, now: Message | undefined) {
+    if (message.id === last?.id && now && now.active_index !== message.active_index) memoryTakenBack();
   }
 
   async function edit(message: Message, content: string, index: number) {
@@ -261,6 +278,10 @@ function ChatView({ id }: { id: string }) {
     await data.messages.removeFrom(message.id);
     changesByHand.current += 1;
     setMessages((prev) => prev.filter((m) => m.position < message.position));
+    cut();
+  }
+
+  function cut() {
     // The server takes the memory back with the story.
     memoryTakenBack();
     // Whatever was being reported was about what has just gone.
@@ -421,11 +442,14 @@ function ChatView({ id }: { id: string }) {
                 persona={persona}
                 isLast={message.id === last?.id}
                 busy={busy}
-                onSwipe={(index) => write(() => swipe(message, index))}
+                onSwipe={(index) => write(() => swipe(message, index),
+                  (now) => swiped(message, now.find((m) => m.id === message.id)))}
                 onRegenerate={() => ask({ mode: "regenerate" })}
                 onContinue={() => ask({ mode: "continue" })}
                 onEdit={(content, index) => write(() => edit(message, content, index))}
-                onDeleteFrom={() => write(() => deleteFrom(message))}
+                onDeleteFrom={() => write(() => deleteFrom(message), (now) => {
+                  if (!now.some((m) => m.id === message.id)) cut();
+                })}
                 onBranch={() => write(() => branchFrom(message))}
               />
             ))}

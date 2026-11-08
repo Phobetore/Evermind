@@ -92,6 +92,10 @@ export function describeFailure(failure: Failure, t: Translate): string {
   return message || t("errors.unexpected");
 }
 
+/** No answer came, which says nothing of whether what was asked for arrived. */
+export const isUnanswered = (error: unknown) =>
+  error instanceof DataError && (error.kind === "network" || error.kind === "offline");
+
 /** The sentence to show for whatever a call to the server threw.
  *
  *  Anything but a `DataError` is a fault in the interface or the browser, in

@@ -1,9 +1,10 @@
 import { data, DataError, type Asking, type TurnRequest } from "@/data";
 import { arrived, loadSending, settleSending } from "@/lib/drafts";
+import { isUnanswered } from "@/lib/errors";
 import type { Conversation, Message, TurnState } from "@/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const PATIENCE_MS = 10_000;
+export const PATIENCE_MS = 10_000;
 const AFTER_A_FAILURE_MS = 2_000;
 const AFTER_A_CLOSE_MS = 1_000;
 /** `online`, `visibilitychange` and `focus` tend to arrive together as a phone wakes. */
@@ -14,10 +15,6 @@ const QUIET_FAILURES = 2;
 export type Outcome = Extract<TurnState, { running: false }>["outcome"];
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** No answer came, which says nothing of whether what was asked for arrived. */
-const unanswered = (error: unknown) =>
-  error instanceof DataError && (error.kind === "network" || error.kind === "offline");
 
 /** A message that got no answer, and that the server, answering since, does not have. */
 const NOT_SENT = new DataError("This message was not sent.", { kind: "not_sent" });
@@ -85,7 +82,7 @@ function askFor(id: string, request: TurnRequest): Promise<void> {
     if (left) waiting.set(id, left);
     else waiting.delete(id);
     // Unanswered still: no more is known than when patience ran out.
-    if (!("error" in answer && (found() || (gaveUp && unanswered(answer.error))))) tell(answer);
+    if (!("error" in answer && (found() || (gaveUp && isUnanswered(answer.error))))) tell(answer);
   });
   const patience = pause(PATIENCE_MS).then(() => {
     if (answered || found()) return;
@@ -158,7 +155,7 @@ export function useTurn(
         quiet = 0;
         setLost(null);
         // Not sent while it is still on its way; once it is not, it got there, whoever found it.
-        setRefused((refusal: unknown) => (unanswered(refusal) || refusal === NOT_SENT
+        setRefused((refusal: unknown) => (isUnanswered(refusal) || refusal === NOT_SENT
           ? (loadSending(id) ? NOT_SENT : null)
           : refusal));
         if (!state.running) {
@@ -224,7 +221,7 @@ export function useTurn(
         setRefused(null);
         if (answer.message) adding.current(answer.message);
         began();
-      } else if (answer.request.mode !== "send" && unanswered(answer.error)) noAnswer(answer.error);
+      } else if (answer.request.mode !== "send" && isUnanswered(answer.error)) noAnswer(answer.error);
       else {
         setRefused(answer.error);
         recheck();
