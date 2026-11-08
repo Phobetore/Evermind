@@ -1,4 +1,4 @@
-"""Builds the provider-agnostic chat payload for one turn.
+"""Builds the provider-agnostic chat payload for one turn, and trims the reply that comes back.
 
 Output contract:
 - `system`: single structured system prompt (card, persona, summary, examples, rules).
@@ -63,6 +63,10 @@ def active_content(message: dict) -> str:
     if not 0 <= index < len(variants):
         index = len(variants) - 1
     return variants[index]
+
+
+def is_out_of_character(message: dict) -> bool:
+    return (message.get("meta") or {}).get("mode") == "ooc"
 
 
 def select_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
@@ -345,13 +349,11 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     # that starts with the player. Only ever done as a retry, since it is the
     # weaker shape: the model reads the opening as instruction rather than as its
     # own voice.
-    folded = 0
     if fold_leading_assistant and any(t["role"] != "assistant" for t in turns):
         spoken = []
         while turns and turns[0]["role"] == "assistant":
             spoken.append(turns.pop(0)["content"])
         if spoken:
-            folded = len(spoken)
             block = "\n\n".join(f"{char_name}: {s}" for s in spoken)
             system = (f"{system}\n\n### THE SCENE SO FAR "
                       f"({char_name} has already said this aloud; carry on from it "
@@ -367,12 +369,33 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         "messages_included": len(turns),
         "messages_total": len(messages),
         "lore_matched": len(lore),
-        "facts_injected": len(facts_shown),
-        "facts_total": len(memories or []),
         "oldest_visible": visible_oldest,
         "fact_positions": [m.get("source_position") for m in facts_shown],
-        "passages_injected": len(retrieved_passages or []),
-        "leading_assistant_folded": folded,
     }
     return PromptPayload(system=system, messages=turns, stop=stop,
                          post_history=post_history, stats=stats)
+
+
+def strip_thought(text: str) -> str:
+    """What a model says after the thinking some write first between <think> tags: nothing
+    until that is closed, nor while the opening tag is still arriving."""
+    head = text.lstrip()
+    if head.startswith("<think>"):
+        return head.partition("</think>")[2].lstrip()
+    return "" if head and "<think>".startswith(head) else text
+
+
+def trim_reply(text: str, char_name: str, user_name: str) -> str:
+    """Post-generation cleanup: drop the model's thinking, anything it wrote for the player,
+    and a leading "Name:" speaker tag if present."""
+    text = strip_thought(text)
+    for marker in (f"\n{user_name}:", f"\n{user_name} :"):
+        index = text.find(marker)
+        if index != -1:
+            text = text[:index]
+    stripped = text.lstrip()
+    for prefix in (f"{char_name}:", f"{char_name} :"):
+        if stripped.startswith(prefix):
+            text = stripped[len(prefix):].lstrip()
+            break
+    return text.rstrip()

@@ -30,13 +30,14 @@ def build(messages, **kwargs):
 
 GREETING = make_message("assistant", "*She looks up.* You came.", 0)
 ASKED = make_message("user", "I did.", 1)
+FOLDED = "### THE SCENE SO FAR"
 
 
 def test_leading_assistant_turn_moves_into_the_system_prompt():
     payload = build([GREETING, ASKED], fold_leading_assistant=True)
 
     assert payload.messages[0]["role"] == "user"
-    assert payload.stats["leading_assistant_folded"] == 1
+    assert FOLDED in payload.system
     assert "You came." in payload.system
     assert not any(m["content"] == "*She looks up.* You came." for m in payload.messages)
 
@@ -50,7 +51,6 @@ def test_every_leading_assistant_turn_folds_not_only_the_first():
     payload = build(messages, fold_leading_assistant=True)
 
     assert [m["role"] for m in payload.messages] == ["user"]
-    assert payload.stats["leading_assistant_folded"] == 2
     assert "First line." in payload.system
     assert "Second line." in payload.system
 
@@ -60,21 +60,21 @@ def test_folding_never_empties_the_message_list():
     payload = build([GREETING], fold_leading_assistant=True)
 
     assert payload.messages, "an assistant-only history must be left alone"
-    assert payload.stats["leading_assistant_folded"] == 0
+    assert FOLDED not in payload.system
 
 
 def test_nothing_folds_unless_asked():
     payload = build([GREETING, ASKED])
 
     assert payload.messages[0]["role"] == "assistant"
-    assert payload.stats["leading_assistant_folded"] == 0
+    assert FOLDED not in payload.system
 
 
 def test_folding_leaves_a_user_led_conversation_untouched():
     messages = [ASKED, make_message("assistant", "So you did.", 2)]
     payload = build(messages, fold_leading_assistant=True)
 
-    assert payload.stats["leading_assistant_folded"] == 0
+    assert FOLDED not in payload.system
     assert [m["role"] for m in payload.messages] == ["user", "assistant"]
 
 
@@ -119,7 +119,7 @@ async def test_silence_is_retried_once_with_the_greeting_folded(client, scripted
     assert len(scripted.payloads) == 2, "one silent answer should buy exactly one retry"
     assert scripted.payloads[0].messages[0]["role"] == "assistant"
     assert scripted.payloads[1].messages[0]["role"] == "user"
-    assert scripted.payloads[1].stats["leading_assistant_folded"] == 1
+    assert FOLDED in scripted.payloads[1].system
     assert outcome is None
     assert (await messages_of(client, convo["id"]))[-1]["content"] == "She answers after all."
 

@@ -12,9 +12,9 @@ from ..prompting.payloads import (
     TEXT_FIELDS,
     build_card_payload,
     existing_fields,
-    lore_keyword,
+    words,
 )
-from ..prompting.text import is_writable, text_of
+from ..prompting.text import text_of
 from ..providers import complete, get_provider
 from ..repositories import connections as connections_repo
 from .llm_json import parse_llm_json
@@ -31,18 +31,6 @@ async def _resolve_connection(db: aiosqlite.Connection, connection_id: str | Non
     return connection
 
 
-def _words(value: object) -> list[str]:
-    """The words in what the model gave for a list: the text of each element that
-    is text or a whole number, and a bare string is a list of one. Anything else is
-    not a word, and a value that is no list holds none: a string is not a row of
-    letters, which lore matching would find in nearly every message. A text that cannot
-    be written back (a lone surrogate) is no word either."""
-    if isinstance(value, str):
-        value = [value]
-    words = map(lore_keyword, value if isinstance(value, list) else [])
-    return [word for word in words if word and is_writable(word)]
-
-
 def clean_card_draft(draft: dict) -> dict:
     """Whitelist and normalize what the model returned."""
     out: dict = {}
@@ -51,7 +39,7 @@ def clean_card_draft(draft: dict) -> dict:
         if value:
             out[field] = value
     for field in LIST_FIELDS:
-        items = _words(draft.get(field))
+        items = words(draft.get(field))
         if items:
             out[field] = items
     if "tags" in out:
@@ -62,7 +50,7 @@ def clean_card_draft(draft: dict) -> dict:
     for raw in (lore if isinstance(lore, list) else [])[:_MAX_LORE_ENTRIES]:
         if not isinstance(raw, dict):
             continue
-        keys = _words(raw.get("keys"))
+        keys = words(raw.get("keys"))
         content = text_of(raw.get("content"))
         if keys and content:
             entries.append({"keys": keys[:6], "content": content})

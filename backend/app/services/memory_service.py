@@ -271,13 +271,12 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
         changes = plan_memory_changes(parsed, now, top_position)
         added = await _apply(db, convo_id, changes, vectors, top_position)
         # A summary typed meanwhile stays where it put the memory: the next pass reads these turns.
-        moved = (current["summary"], current["memory_position"]) != (
-            convo["summary"], convo["memory_position"])
-        if not moved:
+        typed = current["summary"] != convo["summary"]
+        if not typed:
             await convo_repo.remember(db, convo_id, top_position, changes["summary"])
 
     return {"facts_added": added,
-            "summary": current["summary"] if moved else changes["summary"] or current["summary"]}
+            "summary": current["summary"] if typed else changes["summary"] or current["summary"]}
 
 
 async def fill_vectors() -> None:

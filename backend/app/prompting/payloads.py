@@ -13,10 +13,10 @@ from .defaults import (
     MEMORY_CONSOLIDATION_PROMPT,
     MEMORY_EXTRACTION_PROMPT,
 )
-from .engine import PromptPayload, active_content, build_chat_payload
+from .engine import PromptPayload, active_content, build_chat_payload, is_out_of_character
 from .macros import substitute
 from .memory_changes import MAX_TURNS_PER_RUN, is_movable
-from .turn import is_out_of_character
+from .text import is_writable
 
 MIN_FACTS_TO_CONSOLIDATE = 8  # fewer than this and merging them is not worth a call
 
@@ -26,13 +26,12 @@ LIST_FIELDS = ("alternate_greetings", "tags")
 
 
 def build_impersonate_payload(character: dict, persona: dict | None, conversation: dict,
-                              messages: list[dict], connection: dict,
-                              memories: list[dict] | None = None) -> PromptPayload:
+                              messages: list[dict], connection: dict) -> PromptPayload:
     """The prompt that ghost-writes the player's next message."""
     char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
     base = build_chat_payload(character=character, persona=persona, conversation=conversation,
-                              messages=messages, connection=connection, memories=memories)
+                              messages=messages, connection=connection)
 
     context_bits = []
     if (persona or {}).get("description"):
@@ -123,15 +122,11 @@ def existing_fields(existing: dict | None) -> dict:
             if isinstance(v, (str, list)) and v and k in TEXT_FIELDS + LIST_FIELDS}
 
 
-def lore_keyword(key: object) -> str:
-    """The text of a keyword of an existing lorebook entry, "" when it is none. A
-    string, or a whole number written out. Anything else is not a keyword:
-    ``str()`` of it would hand the model "None" or "True" as a subject to avoid."""
-    if isinstance(key, str):
-        return key.strip()
-    if isinstance(key, int) and not isinstance(key, bool):
-        return str(key)
-    return ""
+def words(value: object) -> list[str]:
+    """The words of what stands for a list: each element that is text or a whole number,
+    stripped, a bare string being a list of one. A lone surrogate cannot be written back: no word."""
+    items = value if isinstance(value, list) else [value] if isinstance(value, str) else []
+    return [w for x in items if type(x) in (str, int) and (w := str(x).strip()) and is_writable(w)]
 
 
 def build_card_payload(prompt: str, kind: str, existing: dict | None) -> PromptPayload:
@@ -147,15 +142,9 @@ def build_card_payload(prompt: str, kind: str, existing: dict | None) -> PromptP
         parts.append("EXISTING FIELDS (keep their content, fill the rest):\n"
                      + json.dumps(existing_filled, ensure_ascii=False, indent=2))
 
-    # A lorebook, or the keys of an entry, that is not a list holds nothing,
-    # whatever it is: a string is not a list of letters.
-    known_keys = []
     entries = (existing or {}).get("lore_entries")
-    for raw in entries if isinstance(entries, list) else []:
-        if isinstance(raw, dict):
-            keys = raw.get("keys")
-            known_keys += [text for text in map(lore_keyword, keys if isinstance(keys, list) else [])
-                           if text]
+    known_keys = [key for raw in (entries if isinstance(entries, list) else [])
+                  if isinstance(raw, dict) for key in words(raw.get("keys"))]
     if known_keys:
         parts.append("EXISTING LOREBOOK KEYWORDS (cover other subjects):\n"
                      + ", ".join(dict.fromkeys(known_keys)))

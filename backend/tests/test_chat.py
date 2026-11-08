@@ -168,6 +168,17 @@ async def test_impersonation_trimmed(client, fake_provider):
     assert (await messages_of(client, convo["id"]))[-1]["content"] == "Fine."
 
 
+async def test_the_thinking_a_model_writes_before_its_reply_is_not_saved(client, fake_provider):
+    convo = await setup_conversation(client)
+    fake_provider.script = [
+        ProviderEvent(type="delta", text="<think>She should "),
+        ProviderEvent(type="delta", text="smile.</think>\n\n*She smiles.*"),
+        ProviderEvent(type="done"),
+    ]
+    await send(client, convo["id"])
+    assert (await messages_of(client, convo["id"]))[-1]["content"] == "*She smiles.*"
+
+
 async def test_auto_title_strips_rp_markup(client, fake_provider):
     convo = await setup_conversation(client)
     await send(client, convo["id"], content="*I step back, torch raised.* Easy, I'm Aymeric.")
@@ -242,9 +253,8 @@ async def test_impersonate_prompt_holds_the_persona_and_the_story_so_far(client,
     ]
 
 
-async def test_impersonate_cuts_the_chat_to_make_room_for_the_facts(client, fake_provider):
-    """The facts are not in the prompt that ghost-writes the message, but the
-    window of the chat is cut as it is for a turn: they take their share of it."""
+async def test_impersonate_gives_no_share_of_the_chat_to_the_facts(client, fake_provider):
+    """The facts are not in the prompt that ghost-writes the message: they take none of its window."""
     convo = await setup_conversation(client)
     connection = (await client.get("/api/connections")).json()[0]
     await client.put(f"/api/connections/{connection['id']}",
@@ -265,7 +275,7 @@ async def test_impersonate_cuts_the_chat_to_make_room_for_the_facts(client, fake
     assert whole_chat == 9  # the greeting and four turns
     await client.post(f"/api/conversations/{convo['id']}/memories",
                       json={"content": "Serana owes Alex a boot. " * 30, "is_pinned": True})
-    assert await messages_read() < whole_chat
+    assert await messages_read() == whole_chat
 
 
 async def test_narrate_and_ooc_modes(client, fake_provider):
