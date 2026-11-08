@@ -34,7 +34,6 @@
     "importTitle": "Importar una ficha (JSON / PNG)",
     "import": "Importar",
     "create": "Crear",
-    "loadError": "Error al cargar",
     "importError": "Error al importar",
     "emptyState": {
       "title": "El teatro está vacío",
@@ -100,10 +99,7 @@
     "noModel": "sin modelo definido",
     "keyHint": "clave {hint}",
     "noKey": "sin clave",
-    "defaultPersonaLabel": "Persona predeterminada",
-    "noneOption": "Ninguna",
     "defaultConnectionLabel": "Conexión predeterminada",
-    "firstAvailableOption": "La primera disponible",
     "replyLengthLabel": "Longitud de las respuestas",
     "replyLengthHint": "Se aplica a todas las conversaciones. Recuerda subir el «Respuesta máx. (tokens)» de tu conexión para respuestas largas.",
     "replyLengthOptions": {
@@ -203,8 +199,7 @@
     "header": {
       "backAriaLabel": "Volver a las conversaciones",
       "renameTitle": "Renombrar la conversación",
-      "memorySettingsAriaLabel": "Memoria y ajustes de la conversación",
-      "openPanelAriaLabel": "Abrir el panel"
+      "memorySettingsAriaLabel": "Memoria y ajustes de la conversación"
     },
     "context": {
       "tooltipUsage": "Contexto: {used} / {budget} tokens (ventana {size})",
@@ -280,13 +275,9 @@
       },
       "summary": {
         "title": "Resumen de la historia",
-        "generateTitle": "Pedir al modelo que resuma la conversación",
-        "generateButton": "Resumir",
         "placeholder": "Actualizado automáticamente por la memoria; editable libremente. Se inyecta en cada turno.",
         "saveButton": "Guardar el resumen",
-        "saved": "Resumen guardado.",
-        "generated": "Resumen generado por el modelo.",
-        "generateError": "Error al resumir"
+        "saved": "Resumen guardado."
       },
       "facts": {
         "title": "Hechos establecidos",
@@ -295,8 +286,6 @@
         "extractTitle": "Leer ahora los últimos turnos: registrar los hechos nuevos y actualizar el resumen",
         "extractButton": "Recordar",
         "description": "Canon que el personaje no debe contradecir. Los hechos fijados se envían siempre al modelo; los demás solo cuando su turno ya no aparece en los últimos mensajes, y dentro de un presupuesto. Se extraen automáticamente a medida que avanza la historia.",
-        "dormantWarning": "{count} hecho(s) fuera de presupuesto (atenuados abajo): cubiertos por el resumen, pero ya no se inyectan literalmente. Fija los cruciales o usa «{consolidateLabel}».",
-        "dormantTitle": "Latente: fuera del presupuesto de inyección",
         "pinTitle": "Fijar (siempre inyectado)",
         "unpinTitle": "Dejar de fijar",
         "turnBadge": "t.{turn}",
@@ -308,10 +297,6 @@
         "noneNew": "Nada nuevo que recordar.",
         "summaryOnly": "Ningún hecho nuevo; el resumen se actualizó.",
         "extractError": "Error en la extracción de memoria",
-        "tooFewToConsolidate": "Hay muy pocos hechos para condensar.",
-        "changedWhileConsolidating": "Los hechos han cambiado mientras el modelo los fusionaba. No se ha modificado nada; inténtalo de nuevo.",
-        "memoryTaskRunning": "Hay otra tarea de memoria en curso. No se ha modificado nada; inténtalo de nuevo en un momento.",
-        "conversationChangedWhileReading": "La conversación ha cambiado mientras el modelo la leía. No se ha conservado nada; inténtalo de nuevo.",
         "consolidated": "Memoria condensada: {before} → {after} hechos.",
         "consolidateError": "Error al condensar",
         "addError": "No se ha podido añadir el hecho"
@@ -431,8 +416,7 @@
     "keysPlaceholder": "Palabras clave que la activan, luego Enter",
     "contentPlaceholder": "Lo que el modelo debe saber cuando aparecen estas palabras…",
     "addEntryButton": "Añadir entrada",
-    "entryRequiredError": "Una entrada necesita al menos una palabra clave y algo de contenido.",
-    "addFailedError": "No se ha podido añadir la entrada"
+    "entryRequiredError": "Una entrada necesita al menos una palabra clave y algo de contenido."
   },
   "cards": {
     "startChatModal": {
@@ -440,8 +424,6 @@
       "personaHint": "Gestiona tus identidades en la pestaña Personas.",
       "noPersonaOption": "Sin persona",
       "noConnectionOption": "Ninguna conexión configurada",
-      "mainGreetingOption": "Principal",
-      "alternateGreetingOption": "Alternativa {index}",
       "noConnectionWarning": "Configura primero una conexión LLM en Ajustes (Ollama, LM Studio, OpenRouter, Anthropic…). Tú decides.",
       "startError": "No se ha podido empezar",
       "enterButton": "Entrar en la historia"
@@ -463,7 +445,6 @@
   },
   "errors": {
     "unexpected": "Algo ha salido mal.",
-    "pageLoad": "No se ha podido cargar esta página. Puede que Evermind se haya actualizado desde que la abriste, o que se haya cortado la conexión.",
     "server": "Evermind ha respondido con un error (HTTP {status}).",
     "unreachable": "Evermind no responde. ¿Sigue en marcha?",
     "offline": "Este dispositivo no tiene conexión.",
@@ -481,16 +462,12 @@
       "message": "Este mensaje ya no existe.",
       "persona": "Esta persona ya no existe.",
       "connection": "Esta conexión ya no existe.",
-      "loreEntry": "Esta entrada del lorebook ya no existe.",
       "fact": "Este hecho ya no existe.",
-      "libraryCard": "Esta ficha no está en la biblioteca.",
       "other": "Este elemento ya no existe."
     },
     "pngWithoutCard": "Esta imagen PNG no contiene una ficha de personaje.",
     "unrecognizedCardFile": "Este archivo no es una ficha. Elige una ficha JSON o una ficha PNG.",
     "variantOutOfRange": "Esa variante de la respuesta no existe.",
-    "alreadyInstalled": "Esta ficha ya está instalada.",
-    "loreEntryIncomplete": "Una entrada del lorebook necesita al menos una palabra clave y algo de contenido.",
     "factExists": "Este hecho ya existe.",
     "factEmpty": "Un hecho necesita algo de texto.",
     "memoryBusy": "Hay otra tarea de memoria en curso. No se ha modificado nada; inténtalo de nuevo en un momento.",
@@ -503,21 +480,14 @@
     "noConnection": "No hay ninguna conexión LLM configurada. Añade una en Ajustes → Conexiones LLM.",
     "modelError": "El modelo ha devuelto un error: {message}",
     "modelUnreachable": "Evermind no puede conectar con el servidor del modelo en {message}. Comprueba que está en marcha y que la dirección de la conexión es correcta.",
-    "modelUnreachableNoAddress": "El servidor del modelo no responde. Comprueba que está en marcha y que la dirección de la conexión es correcta.",
     "turnRunning": "Ya se está escribiendo una respuesta, así que esto no se ha enviado.",
     "modelEmpty": "El modelo ha devuelto una respuesta vacía. Inténtalo de nuevo o cambia de modelo.",
-    "modelEmptyRetried": "El modelo no ha devuelto nada en dos intentos, ni siquiera dejando aparte la línea de apertura. Es probable que su plantilla de chat no sirva aquí para el rol; prueba con otro modelo.",
     "modelUnreadable": "No se ha podido leer la respuesta del modelo. Inténtalo de nuevo.",
     "modelAuthRefused": "El servidor del modelo ha rechazado la clave de API. Comprueba la clave en la conexión. El servidor indicó: {message}",
     "modelNotFound": "El servidor del modelo no reconoce esta dirección o este modelo. Comprueba la URL y el nombre del modelo en la conexión. El servidor indicó: {message}",
     "modelRateLimited": "El servidor del modelo ha alcanzado su límite de peticiones. Inténtalo de nuevo en un momento. El servidor indicó: {message}",
-    "modelHttpError": "El servidor del modelo ha respondido con un error (HTTP {status}).",
-    "modelTimeout": "El modelo ha tardado demasiado en responder.",
     "modelNetworkError": "El modelo ha tardado demasiado en responder o se ha cortado la conexión con su servidor.",
-    "modelUnexpectedResponse": "El servidor del modelo ha respondido de un modo que Evermind no entiende. Comprueba la URL de la conexión.",
-    "modelUnknownType": "Esta conexión es de un tipo que Evermind no conoce. Edítala o créala de nuevo.",
     "modelNoText": "El modelo no ha generado ningún texto.",
-    "upstream": "El servidor indicó: {text}",
     "emptyMessage": "Escribe primero un mensaje.",
     "nothingToRegenerate": "Todavía no hay ninguna respuesta que regenerar. Envía primero un mensaje.",
     "nothingToContinue": "El último mensaje no es una respuesta, así que no hay nada que continuar.",
