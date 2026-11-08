@@ -67,11 +67,8 @@ function ChatView({ id }: { id: string }) {
   const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
   const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
   const opacityHeld = useRef<number | undefined>(undefined); // what the server holds
-  // Counts the times the story was cut back, for the side panel to read the facts again.
+  // Counts the times the server took the memory back, for the side panel to read it again.
   const [storyCuts, setStoryCuts] = useState(0);
-  // A closed panel reads nothing, so the summary a cut leaves is read here, for it to open on.
-  const summaryRead = useRef<AbortController | null>(null);
-  useEffect(() => () => summaryRead.current?.abort(), []);
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   // Until the next thing is asked for. Not the reply's banner: its Retry asks for a reply.
   const [writeError, setWriteError] = useState<{ error: unknown } | null>(null);
@@ -145,6 +142,30 @@ function ChatView({ id }: { id: string }) {
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
 
+  // A closed panel reads nothing: the summary the memory went back to is read here, for it to open on.
+  const summaryRead = useRef<AbortController | null>(null);
+  useEffect(() => () => summaryRead.current?.abort(), []);
+  /** The server took the memory back: an open panel reads it again. */
+  const memoryTakenBack = useCallback(() => {
+    setStoryCuts((n) => n + 1);
+    if (panelOpen) return;
+    summaryRead.current?.abort();
+    const reading = (summaryRead.current = new AbortController());
+    data.conversations.get(id, { signal: reading.signal })
+      .then(({ summary }) => setConversation((c) => (c ? { ...c, summary } : c)), () => {});
+  }, [id, panelOpen]);
+
+  // A reply asked for again or carried on takes back a memory that read it, by the end of its turn.
+  const rewriting = useRef(false);
+  const wasWriting = useRef(writing);
+  useEffect(() => {
+    if (wasWriting.current !== null && writing === null && rewriting.current) {
+      rewriting.current = false;
+      memoryTakenBack();
+    }
+    wasWriting.current = writing;
+  }, [writing, memoryTakenBack]);
+
   useEffect(() => {
     const personaId = conversation?.persona_id;
     if (!personaId) return;
@@ -176,6 +197,7 @@ function ChatView({ id }: { id: string }) {
   function ask(request: Omit<TurnRequest, "conversation_id">) {
     setWriteError(null);
     stickToBottom.current = true;
+    if (request.mode !== "send") rewriting.current = true;
     return turn.ask(request);
   }
 
@@ -200,22 +222,14 @@ function ChatView({ id }: { id: string }) {
     const updated = await data.messages.update(message.id, { active_index: index });
     changesByHand.current += 1;
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
+    // Other words for the newest reply take back a memory that read it.
+    if (message.id === last?.id) memoryTakenBack();
   }
 
   async function edit(message: Message, content: string) {
     const updated = await data.messages.update(message.id, { content });
     changesByHand.current += 1;
     setMessages((prev) => prev.map((m) => (m.id === message.id ? updated : m)));
-  }
-
-  /** The server took the memory back: an open panel reads it again. */
-  function memoryTakenBack() {
-    setStoryCuts((n) => n + 1);
-    if (panelOpen) return;
-    summaryRead.current?.abort();
-    const reading = (summaryRead.current = new AbortController());
-    data.conversations.get(id, { signal: reading.signal })
-      .then(({ summary }) => setConversation((c) => (c ? { ...c, summary } : c)), () => {});
   }
 
   /** The server ends a reply being written before it cuts the story. */

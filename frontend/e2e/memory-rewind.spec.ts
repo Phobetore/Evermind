@@ -252,6 +252,44 @@ test("the summary box shows what a pass wrote when it is entered", { tag: "@desk
   await expect(summary).toHaveValue(/woke the character in a crypt/);
 });
 
+// On a wide screen the panel stays beside the story while its newest reply is written over.
+test("the panel beside the story reads the memory again once a reply written over takes it back", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+  test.skip(isMobile, "a phone's panel is closed to reach the reply, and reads on opening");
+  const convo = await makeConversation(request);
+  const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
+  await say("First question.");
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  await say("Second question.");
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await expect(summary).toHaveValue(first.summary);
+  const reply = page.locator("[data-message-id]").last();
+  const writtenOver = {
+    regenerated: () => reply.getByTitle(en.chat.message.regenerateTitle).click(),
+    "carried on": () => reply.getByTitle(en.chat.message.continueTitle).click(),
+    "swiped back": () => reply.getByLabel(en.chat.message.prevVariantAriaLabel).click(),
+  };
+  for (const [how, act] of Object.entries(writtenOver)) {
+    // Remember reads the newest reply, so that writing it over takes the memory back to the first pass.
+    await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+    await expect(summary).not.toHaveValue(first.summary);
+    await reply.hover();
+    await act();
+    await expect(summary, `the summary once the reply is ${how}`).toHaveValue(first.summary);
+  }
+
+  // Typed over the summary the memory holds, which keeps its place.
+  await summary.fill(`${first.summary} Typed.`);
+  await panel.getByRole("button", { name: panelText.summary.saveButton }).click();
+  await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
+  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(read.memory_position).toBe(2);
+});
+
 // The directive's save and the summary's read go out together; the read must not undo the save.
 test("a read sent with the directive's save does not put the old directive back", async ({ page, request }) => {
   const convo = await makeConversation(request);
