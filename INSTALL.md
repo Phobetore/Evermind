@@ -367,8 +367,9 @@ of existing cards work; use **Import** on the Discover page.
 ## If something goes wrong
 
 The interface shows its messages in the language you chose, and they are quoted
-here in English. The ones about ports are the exception: they come from the
-program that starts Evermind, which always writes in English.
+here in English. The ones about ports come from the program that starts Evermind,
+which writes in English, but the reason your system gives for refusing a port is
+in its own words and language.
 
 | What you see | What it usually means |
 |---|---|
@@ -381,7 +382,7 @@ program that starts Evermind, which always writes in English.
 | `docker compose` complains about `env_file`, a variable that "contains whitespaces", "invalid utf8", "Invalid template" or "unexpected character" | Write that line of `.env` as `NAME=value`, with no `export` and no spaces around `=`, and save the file as UTF-8 (Windows PowerShell 5.1 writes UTF-16 with `>`). A value holding `${` with no `}` after it cannot be used with Docker: pick another. Otherwise your Docker is older than November 2024: update it; on Debian or Ubuntu, install Docker from Docker's own packages rather than the distribution's. |
 | PowerShell says the script "cannot be loaded" (in your system's language) | Windows runs no script unless it is told to. Start Evermind with the command Step 2 gives, the one that begins with `powershell -ExecutionPolicy Bypass`. |
 | "Port 3000 is already in use", or Docker says the port is already allocated | Something else on your computer already uses that port, and often it is Evermind itself, still running. Stop it first. Otherwise set `PORT` to a free one, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
-| "error while attempting to bind on address", with "Permission denied" or "forbidden by its access permissions" | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Set `PORT` to a number above 1024, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
+| "error while attempting to bind on address", then your system's reason | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Set `PORT` to a number above 1024, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
 | Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you ran `docker compose up -d` again afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. Started from the source, Evermind prints the exact command each time it starts on the network. With Docker, run it yourself once, in an administrator PowerShell, with your port if it is not 3000: `New-NetFirewallRule -DisplayName 'Evermind (3000)' -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow`. If Windows once asked whether to let Python, or Docker, accept connections and got Cancel, the rules it made to block that program win over the command: delete them in `wf.msc`, under Inbound Rules. |
 | "Without a password, Evermind does not answer to this name" | You opened Evermind by a name, such as the computer's own or `nas.local`, and no password is set. Open it by its address (`http://192.168.1.42:3000`) or by `localhost`, or set a password: with one, any name is accepted. With Docker, after changing `.env`, run `docker compose up -d` again (`docker compose restart` keeps the settings the container started with); otherwise start Evermind again. |
 | "Evermind refused this request because it seems to come from another address" | Evermind turns away changes that a page from another website sends. If you reach it through a reverse proxy, the proxy has to pass the browser's original `Host` header on unchanged. [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an example. |
