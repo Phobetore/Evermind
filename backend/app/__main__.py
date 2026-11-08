@@ -70,9 +70,12 @@ def main(argv: list[str] | None = None) -> int:
         print(port, flush=True)
         return 0
     if not args.dev and not (config.ui_dir() / "index.html").is_file():
+        # A stock Windows runs no script unless it is told to.
+        script = (r"powershell -ExecutionPolicy Bypass -File .\scripts\prod.ps1"
+                  if sys.platform == "win32" else "./scripts/prod.sh")
         return fail(
             f"The interface has not been built ({config.ui_dir()} has no index.html).",
-            'Run scripts/prod.ps1 or scripts/prod.sh, or "npm run build" in frontend/.',
+            f'From the folder of the source, run {script}, or "npm run build" in frontend.',
         )
 
     kind = config.install_kind()

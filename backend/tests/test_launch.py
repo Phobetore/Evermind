@@ -276,10 +276,19 @@ def test_check_builds_no_interface(port):
     assert done.stdout.split() == [str(port), "False"]
 
 
-def test_it_refuses_to_start_without_the_built_interface(clean_env, tmp_path, monkeypatch, served, capsys):
+@pytest.mark.parametrize(("platform", "script"), [
+    # A stock Windows runs no script unless it is told to.
+    ("win32", r"powershell -ExecutionPolicy Bypass -File .\scripts\prod.ps1"),
+    ("linux", "./scripts/prod.sh"),
+])
+def test_it_refuses_to_start_without_the_built_interface(
+    clean_env, tmp_path, monkeypatch, served, capsys, platform, script
+):
     monkeypatch.setenv("EVERMIND_UI_DIR", str(tmp_path / "empty"))
+    monkeypatch.setattr(sys, "platform", platform)
     assert start(monkeypatch) == 1
-    assert "The interface has not been built" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "The interface has not been built" in err and f"run {script}," in err
     assert served == []
 
 

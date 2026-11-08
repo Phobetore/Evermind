@@ -16,8 +16,9 @@ from app import __version__, config
     # an image built from the source to INSTALL.md, which says how to build the new one.
     ("docker, semantic memory", "linux", "built", None),
     ("docker, SEMANTIC=true", "linux", "built", None),
-    # Windows PowerShell has no && operator: it is a parse error there.
-    ("clone", "win32", "clone", r"git pull; .\scripts\prod.ps1"),
+    # Windows PowerShell has no && operator: it is a parse error there. And a stock Windows runs
+    # no script unless it is told to.
+    ("clone", "win32", "clone", r"git pull; powershell -ExecutionPolicy Bypass -File .\scripts\prod.ps1"),
     ("clone", "linux", "clone", "git pull && ./scripts/prod.sh"),
     ("worktree", "linux", "clone", "git pull && ./scripts/prod.sh"),
     # An unzipped folder has nothing for git to pull: Settings sends to INSTALL.md instead.

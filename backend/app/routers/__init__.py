@@ -21,7 +21,8 @@ async def update() -> dict:
     elif kind in ("zip", "built"):
         command = None  # Settings links to INSTALL.md: what to copy across, or how to build again
     elif sys.platform == "win32":
-        command = r"git pull; .\scripts\prod.ps1"  # Windows PowerShell has no &&
+        # Windows PowerShell has no &&, and a stock Windows runs no script unless it is told to.
+        command = r"git pull; powershell -ExecutionPolicy Bypass -File .\scripts\prod.ps1"
     else:
         command = "git pull && ./scripts/prod.sh"
     return {"current": __version__, "kind": kind, "command": command}
