@@ -1,96 +1,70 @@
 # Contributing to Evermind
 
-Thanks for being here. This document covers how to get a change accepted, and
-what the project will and will not take.
-
 Evermind is maintained by one person, so expect replies to take days rather than
 hours. Nothing is being ignored on purpose.
 
 ## Before you write code
 
-For anything larger than a bug fix, open an issue first and describe what you
-want to do. It costs you five minutes and can save you a weekend, especially for
-changes that touch the prompt engine or the memory pipeline, where the reasons
-behind the current design are not always visible from the code.
-
-Small and obvious fixes need no ceremony. Open the pull request.
+For anything larger than a bug fix, open an issue first and say what you want to
+do, especially for the prompt engine or the memory pipeline, where the reasons
+behind the design are not always visible from the code. Small and obvious fixes
+need no ceremony: open the pull request.
 
 ## Getting set up
 
-[docs/DEVELOPING.md](docs/DEVELOPING.md) has the layout, how to run it for
-development and as built, the API surface, and how a turn is actually assembled
-before it reaches the model. Read the section on the prompt engine before
-changing anything that ends up in a prompt.
-
-You do not need a real model to work on Evermind. `python scripts/mock_llm.py`
-serves placeholder roleplay text on `http://localhost:5599/v1`, which is enough
-for everything except judging the quality of a reply.
+[docs/DEVELOPING.md](docs/DEVELOPING.md) has the layout, how to run Evermind, a
+mock model for working without a real one, and how a turn is assembled before it
+reaches the model: read that part before changing anything that ends up in a
+prompt.
 
 ## What has to pass
 
-The same checks CI runs, and it is faster to run them yourself:
-
-```bash
-cd backend && ruff check app tests && pytest -q
-cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
-```
-
-CI also drives a real browser through the app (`cd frontend && npm run
-test:e2e`, which [docs/DEVELOPING.md](docs/DEVELOPING.md) explains), builds and
-starts the Docker image on every pull request without publishing it, so a broken
-`COPY` fails there rather than at release time, and refuses a pull request that
-introduces a dependency with a known high-severity vulnerability. Separately,
-CodeQL reads the source weekly and Trivy scans the published image for what its
-base layers picked up since.
+The checks listed under [Tests](docs/DEVELOPING.md#tests), end-to-end suite
+included. CI runs them on every pull request, and also builds and starts the
+Docker image without publishing it and refuses a dependency with a known
+high-severity vulnerability. Separately, CodeQL reads the source weekly and Trivy
+scans the published image.
 
 New behaviour in the backend comes with tests. The prompt engine
-(`backend/app/prompting/`, all but the embedding model in `embeddings.py`) is pure,
-with no I/O, precisely so that it can be tested exhaustively, so there is no excuse
-there. Some of its tests are recorded cases that a change regenerates:
-[Recorded cases](docs/DEVELOPING.md#recorded-cases) says how. In the frontend,
-logic that needs no browser gets a unit test (`npm test`), and anything that only
-shows up on a screen, such as a layout on a phone, gets an end-to-end one.
+(`backend/app/prompting/`, all but the embedding model in `embeddings.py`) has no
+I/O precisely so that it can be tested exhaustively; some of its tests are
+[recorded cases](docs/DEVELOPING.md#recorded-cases) that a change regenerates. In
+the frontend, logic that needs no browser gets a unit test (`npm test`), and
+anything that only shows up on a screen, such as a layout on a phone, gets an
+end-to-end one.
 
-If a change alters what gets sent to a model, say so explicitly in the pull
-request. Those are the changes that break stories quietly, weeks later, in ways
-no test catches.
+If a change alters what gets sent to a model, say so in the pull request. Those
+are the changes that break stories quietly, weeks later, in ways no test catches.
 
 ## Commits and pull requests
 
 Commit messages in English, present tense, explaining *why* when the diff does
-not already say it. One logical change per pull request. A pull request that
-fixes a bug and reformats four other files is a pull request nobody can review.
-
-Pull requests are squashed on merge, so the title becomes the commit subject.
-Make it a sentence that will still mean something in a year.
+not already say it. One logical change per pull request: one that fixes a bug and
+reformats four other files is a pull request nobody can review. Pull requests are
+squashed on merge, so the title becomes the commit subject: make it a sentence
+that will still mean something in a year.
 
 ## Adding cards to the library
 
-Cards in `library/` are Character Card V2 JSON. Anything you add should be
-original writing, not a copy of a character owned by someone else, and it should
-work with a mid-sized local model rather than only with a frontier one.
-
-Write them in English: the library is shared by every language the interface
-speaks, and the cards themselves are not translated.
+Cards in `library/` are Character Card V2 JSON, in English: the library is shared
+by every language the interface speaks, and cards are not translated. They should
+be original writing, not a copy of a character owned by someone else, and work
+with a mid-sized local model rather than only with a frontier one.
 
 ## Translations
 
-The interface speaks English, French, German and Spanish, from JSON dictionaries
-in `frontend/src/i18n/locales/`. Every key must exist in all four files, which
-`npm test` verifies.
-
-Translate meaning rather than words. If a string only makes sense as an English
-idiom, write the sentence a native speaker would actually use, even when that
-means departing from the original.
-
-New languages are welcome. Adding one means a new locale file, an entry in the
-language picker, and a genuine pass over all of it rather than a machine
-translation dropped in wholesale.
+The interface speaks English, French, German and Spanish;
+[Translations](docs/DEVELOPING.md#translations) says where the dictionaries are
+and what `npm test` checks. Translate meaning rather than words: where a string
+only makes sense as an English idiom, write the sentence a native speaker would
+actually use. A new language is welcome as a new locale file, an entry in the
+language picker, and a genuine pass over all of it, not a machine translation
+dropped in wholesale.
 
 ## What this project will not accept
 
-Some contributions are declined regardless of how well they are written, because
-they contradict what Evermind is for:
+Some contributions are declined however well they are written, because they
+contradict what Evermind is for:
 
 - **Content filtering, moderation layers or refusal behaviour.** What a character
   will and will not say is decided by the person running Evermind and the model
