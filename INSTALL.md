@@ -395,10 +395,10 @@ in its own words and language.
 ## Where your things are kept
 
 Everything you create, including characters, conversations, personas and API
-keys, stays on your own machine, in the `data` folder next to the app (or in a Docker volume if
-you used Docker). Nothing you write is sent anywhere except to the AI service you
-chose yourself. If you run the AI locally too, nothing you write leaves your
-computer at all.
+keys, stays on your own machine, in the `data` folder next to the app (or in a
+Docker volume if you used Docker). Nothing you write is sent anywhere except to
+the AI service you chose yourself. If you run the AI locally too, nothing you
+write leaves your computer at all.
 
 One thing does go out. Each time you open Settings, your browser asks GitHub
 whether a newer release exists, so that you hear about fixes without having to go
@@ -411,7 +411,21 @@ on its own, except semantic memory's model if you set it up (see **Optional
 extras**): the first start downloads it from huggingface.co, and every later start
 loads it from your disk and asks nothing.
 
-To back it up, copy that folder. To start fresh, delete it.
+To back it up, stop Evermind and copy that folder. To start fresh, delete it.
+
+With Docker there is no such folder of yours: the volume holds it all. To back it
+up, run this from the folder that holds your `docker-compose.yml`. It stops
+Evermind, copies the volume into a new folder beside it, `evermind-backup`, and
+starts Evermind again:
+
+```bash
+docker compose stop
+docker compose cp evermind:/data evermind-backup
+docker compose up -d
+```
+
+To start fresh, `docker compose down -v` deletes the volume and everything in it,
+for good, and `docker compose up -d` then starts an empty Evermind.
 
 ## Updating
 
@@ -431,7 +445,9 @@ docker compose up -d --pull always
 The command keeps the `docker-compose.yml` you have. When the notes ask for a new
 one, download
 **[docker-compose.yml](https://github.com/Phobetore/Evermind/releases/latest/download/docker-compose.yml)**
-again first and put it over the old one. Your `.env` stays as it is.
+again first and put it over the old one. Your `.env` stays as it is, but if it
+pins a version, with a line such as `EVERMIND_VERSION=3.0.2`, the command keeps
+that version: delete the line first.
 
 If you built the image yourself, for semantic memory, that command would replace
 it with the published image, which has none. Bring the folder you built from up
@@ -469,7 +485,7 @@ order: stop Evermind; replace `evermind.db` in the data folder with the copy, an
 delete `evermind.db-wal` and `evermind.db-shm` there if they exist; put back the
 version you had; start Evermind. With Docker the data is in a volume: stop
 Evermind with `docker compose down`, put the version you had in your `.env` (such
-as `EVERMIND_VERSION=3.0.1`), and list the copies:
+as `EVERMIND_VERSION=3.0.2`), and list the copies:
 
 ```bash
 docker compose run --rm --no-deps --entrypoint ls evermind -lt /data
@@ -484,4 +500,9 @@ docker compose run --rm --no-deps --entrypoint sh evermind -c 'cd /data && cp NA
 Then start Evermind with `docker compose up -d`.
 
 Everything written since the update is lost. Once the new version works, delete
-the copy: it holds your stories and API keys as they were.
+the copy: it holds your stories and API keys as they were. With Docker, `NAME`
+being its name in the list above:
+
+```bash
+docker compose run --rm --no-deps --entrypoint rm evermind /data/NAME
+```
