@@ -34,8 +34,8 @@ data/      SQLite database + uploaded media (created at first run, never committ
 
 ```bash
 # production: build the interface, then one server for the interface and the API
-scripts\prod.ps1 [-Lan]        # Windows
-./scripts/prod.sh [--lan]      # macOS / Linux
+powershell -ExecutionPolicy Bypass -File scripts/prod.ps1 [-Lan]   # Windows
+./scripts/prod.sh [--lan]                                          # macOS / Linux
 
 # development, with hot reload, in two terminals
 cd backend && .venv/Scripts/python -m app --dev   # the API, restarted on every change
@@ -43,11 +43,12 @@ cd frontend && npm run dev                        # the interface (npm run dev:l
 ```
 
 The environment's Python is `.venv/Scripts/python` on Windows, as written here,
-and `.venv/bin/python` elsewhere. The scripts create `backend/.venv` when it has
-no working pip, install the dependencies again when `backend/pyproject.toml` or
-`frontend/package-lock.json` has changed (the backend without its test tools:
-`pip install -e "backend[dev]"` once, to run the tests), ask
-`python -m app --check` whether the port is free before the interface is
+and `.venv/bin/python` elsewhere. `-ExecutionPolicy Bypass` runs the script where
+a stock Windows refuses scripts, without changing its policy. The scripts create
+`backend/.venv` when it has no working pip, install the dependencies again when
+`backend/pyproject.toml` or `frontend/package-lock.json` has changed (the backend
+without its test tools: `pip install -e "backend[dev]"` once, to run the tests),
+ask `python -m app --check` whether the port is free before the interface is
 installed or built, build it (Vite 8 needs **Node.js 22.12 or newer**), and start
 `python -m app`, which is all a restart without the build needs, from `backend/`.
 
