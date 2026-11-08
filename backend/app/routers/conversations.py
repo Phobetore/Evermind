@@ -100,18 +100,18 @@ async def patch_message(message_id: str, payload: MessagePatch,
     message = await repo.get_message(db, message_id)
     if not message:
         raise NotFoundError("Message not found.", "message")
+    # The version shown, and the one an edit names: the page's, which a lost swipe can leave behind.
+    index = message["active_index"] if payload.active_index is None else payload.active_index
+    if index >= len(message["variants"]):
+        raise AppError("Variant index out of range.", kind="variant_out_of_range")
     variants = None
-    active_index = None
     if payload.content is not None:
         variants = list(message["variants"])
-        variants[message["active_index"]] = payload.content
-    if payload.active_index is not None:
-        if payload.active_index >= len(message["variants"]):
-            raise AppError("Variant index out of range.", kind="variant_out_of_range")
-        active_index = payload.active_index
+        variants[index] = payload.content
     # A swipe shows other words; not an edit, where a typo put right would undo every pass since.
-    return await repo.update_message(db, message_id, variants=variants, active_index=active_index,
-                                     reread=active_index not in (None, message["active_index"]))
+    return await repo.update_message(db, message_id, variants=variants,
+                                     active_index=payload.active_index,
+                                     reread=index != message["active_index"])
 
 
 @router.post("/messages/{message_id}/branch", status_code=201)
