@@ -1,13 +1,8 @@
 """What a model's answer changes in the memory of a conversation: the facts to add,
 to correct and to drop, and the summary to keep, decided from the answer alone.
 
-Pure: no database, no model. The callers read what these functions read, and apply what they return.
-
-Only a string is text. A ``content`` or a ``replaces`` that is a number,
-a list or ``null`` is absent, where ``str()`` of it used to be saved as a memory
-("12", "['a']"); and what is not a list is no list, where a string used to be read
-letter by letter. A string that cannot be written (a lone surrogate) is absent too:
-it would fail in the database, after the changes before it were saved.
+Pure: no database, no model. Only a string is text (``text_of``): a ``content`` or a ``replaces``
+that is a number, a list or ``null`` is absent. And only a list is a list.
 """
 
 from .text import text_of
@@ -20,8 +15,7 @@ def _items(value: object) -> list:
 
 
 def is_movable(fact: dict) -> bool:
-    """Whether the model may correct, drop or merge a fact: it wrote it and nobody pinned
-    it. What a person typed or pinned is left alone."""
+    """Whether the model may correct, drop or merge a fact: it wrote it and nobody pinned it."""
     return not fact["is_pinned"] and fact["source"] == "auto"
 
 
@@ -74,7 +68,6 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
         if isinstance(fact, dict):
             add(text_of(fact.get("content")))
 
-    # Corrections and merges.
     for update in _items(parsed.get("updated_facts")):
         new_content = text_of(update.get("content")) if isinstance(update, dict) else ""
         if not new_content:
@@ -98,13 +91,10 @@ def plan_memory_changes(parsed: dict, existing: list[dict], top_position: int) -
 
 
 def plan_consolidation(parsed: dict | None, movable: list[dict]) -> dict | None:
-    """The facts that replace ``movable`` once the model has merged them, or None
-    when its answer holds none that can be read. The merged facts take the oldest
-    position of the ones they replace: consolidation makes long-term memory, and a
-    recent position would make the engine treat it as covered by the visible
-    history and mute it for dozens of turns.
-
-    Two of them may say the same thing: adding them is what drops the second."""
+    """The facts that replace ``movable`` once the model has merged them, or None when its answer
+    holds none that can be read. They take the oldest position of those they replace: a recent
+    one would read as covered by the visible history, and keep them from the model for dozens of
+    turns. Two may say the same thing: adding them drops the second."""
     facts = [text for item in _items((parsed or {}).get("facts"))
              if isinstance(item, dict) and (text := text_of(item.get("content")))]
     if not facts:

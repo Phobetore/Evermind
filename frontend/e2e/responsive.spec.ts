@@ -1,11 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { makeCharacter } from "./fixtures";
 
-/**
- * The page fitted its screen on a laptop and not on a phone, and neither the
- * typechecker nor the build has anything to say about that. Every number here
- * is one that was wrong at some point.
- */
+/** Whether a page fits a phone's screen is something no type check or build sees. */
 test.describe("the main page fits the screen it is on", () => {
   for (const width of [320, 390, 414, 768, 1280]) {
     test(`nothing runs off the side at ${width}px`, async ({ page, request }) => {

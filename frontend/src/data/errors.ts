@@ -1,14 +1,9 @@
-/** What went wrong when the server could not do what was asked.
- *
- *  `kind` is a name for the failure, which `describeError` turns into a
- *  sentence in the person's language. The server names its own ("not_found",
- *  "unreachable" for a model that never answered...); the request layer adds
- *  two for what it sees without the server's help: "http_error", an answer
- *  with nothing readable in it, and "network", no answer at all. `resource` is
- *  what a "not_found" did not find. `status` is the HTTP status, and
- *  `retryAfter` is how many seconds to wait before trying again when the server
- *  said so (a rate limit does). When a model's server failed, the message is
- *  what it said, or the address it could not be reached at. */
+/** What went wrong when the server could not do what was asked. `kind` names the failure, which
+ *  `describeError` turns into a sentence: the server names its own, and the request layer adds
+ *  "http_error", an answer with nothing readable in it, and "network" or "offline", no answer at
+ *  all. `resource` is what a "not_found" did not find; `retryAfter`, the seconds the server asked to
+ *  wait. When a model's server failed, the message is what it said, or the address it could not be
+ *  reached at. */
 export class DataError extends Error {
   kind?: string;
   resource?: string;

@@ -3,10 +3,9 @@ import { API } from "../playwright.config";
 import { chat, conversationWithReply } from "./fixtures";
 
 /**
- * A model whose connection breaks after four words. What had arrived is the reply as
- * far as it goes: it stays, through the failure and through a reload, and says it was
- * cut short. The mock sends a length it does not keep (scripts/mock_llm.py), which is
- * what makes the client see the connection break rather than the reply end.
+ * A model whose connection breaks after four words (see scripts/mock_llm.py). What had
+ * arrived is the reply as far as it goes: it stays, through the failure and through a
+ * reload, and says it was cut short.
  *
  * The sentence about the failure belongs to the page that asked for the reply. A page
  * that opens afterwards finds the reply and its label and no sentence, so the label is

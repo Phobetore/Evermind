@@ -5,14 +5,9 @@ import { API } from "../playwright.config";
 import { makeCharacter, makeConversation, PNG } from "./fixtures";
 
 /**
- * The panel beside a conversation is a fixed 320px column (the whole screen on
- * a phone), and what goes in it is longer in some languages than in others. The
- * button row under "Established facts" was a few pixels wider than that column
- * in English: the second button ran past the edge, was clipped by the screen,
- * and the panel could be dragged sideways to find it. Nothing in the typechecker
- * or the build knows about that, and it only showed in the languages whose words
- * are long enough, so every language is looked at, with the panel as full as it
- * gets.
+ * The panel beside a conversation is a fixed 320px column (the whole screen on a phone), and what
+ * goes in it is longer in some languages than in others. No type check or build sees a button
+ * pushed past its edge, so every language is looked at, with the panel as full as it gets.
  */
 
 const LOCALES = ["en", "fr", "de", "es"] as const;

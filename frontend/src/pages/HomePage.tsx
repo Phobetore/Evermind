@@ -12,8 +12,7 @@ import { FileUp, LibraryBig, Plus, Search, Sparkles, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
-/** These three lose their labels on a phone, but kept 1.1rem of side padding
- *  around a 16px icon: 53px each, which shoved Create off a 320px screen. */
+/** These three lose their labels on a phone, and their side padding: at 53px each, Create would not fit at 320px. */
 const SQUARE_ON_PHONE = "max-sm:w-11 max-sm:!px-0";
 
 const TABS: { value: Kind | "all"; labelKey: string }[] = [
@@ -67,7 +66,6 @@ export function HomePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
-      {/* Hero */}
       <header className="mb-6 animate-rise sm:mb-8">
         <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[2.75rem]">
           {t("home.hero.title")}<span className="text-ember-400">.</span>
@@ -75,10 +73,7 @@ export function HomePage() {
         <p className="mt-2 max-w-xl text-mist">{t("home.hero.subtitle")}</p>
       </header>
 
-      {/* Toolbar. One wrapping row is fine once there is room for it; on a
-          phone it dealt the six controls into ragged rows and left Import
-          stranded beside Create. Below sm it is three deliberate rows
-          instead: tabs, search, then the actions. */}
+      {/* One wrapping row where there is room; below sm, three: tabs, search, then the actions. */}
       <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex rounded-xl border border-ink-700 bg-ink-900 p-1">
           {TABS.map(({ value, labelKey }) => (
@@ -97,8 +92,7 @@ export function HomePage() {
           ))}
         </div>
 
-        {/* 208px of floor here left the row 6px short of fitting at 1280, which
-            bumped Create onto a line of its own. 192px fits. */}
+        {/* A floor over 192px pushes Create onto a line of its own at 1280px. */}
         <div className="relative sm:min-w-48 sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mist-dim" />
           <input
@@ -148,10 +142,8 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Tag rail. On a touch screen the chips are reached 7px beyond what is
-          drawn, which a rail that scrolls sideways would clip, so it has that much
-          padding there; and where they wrap, rows are far enough apart for those
-          areas not to meet. */}
+      {/* On a touch screen a chip answers 7px beyond what is drawn: the rail has that much padding, which
+          its scrolling would clip otherwise, and wrapped rows are far enough apart for those areas not to meet. */}
       {allTags.length > 0 && (
         <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 pointer-coarse:gap-y-5 pointer-coarse:py-2 sm:mx-0 sm:mb-6 sm:flex-wrap sm:overflow-x-visible sm:px-0 sm:pb-0">
           {allTags.map((tag) => (
@@ -171,7 +163,6 @@ export function HomePage() {
         </div>
       )}
 
-      {/* Grid */}
       {failure ? (
         <LoadFailure error={failure.error} onRetry={load} />
       ) : shown === null ? (

@@ -1,6 +1,4 @@
-/** Unsent message drafts, kept per conversation in the browser.
-    Local on purpose: instant, no request per keystroke, and a half-written
-    message is personal and ephemeral by nature. */
+/** What is typed and not yet known to the server, kept per conversation in the browser. */
 
 import { newId } from "@/lib/utils";
 

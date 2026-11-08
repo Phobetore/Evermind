@@ -5,8 +5,7 @@ conversation's own connection) extracts new durable facts and rewrites the runni
 cover what it read. An automatic pass leaves the newest HOLD_BACK messages unread, and the
 replies among them count toward the next one: with the player and the character taking turns,
 the first pass comes after MAINTENANCE_EVERY replies and each later one HOLD_BACK / 2 replies
-earlier, after 8 and then every 6. Runs as a background task with its own SQLite connection; a
-per-conversation guard prevents overlapping runs.
+earlier, after 8 and then every 6.
 """
 
 import asyncio
@@ -147,7 +146,7 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
 
 
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
-    """Merge non-pinned facts into a shorter, denser set (pinned untouched).
+    """Merge the model's unpinned facts into a shorter, denser set.
     Returns {"before": n, "after": n, "memories": [...]}."""
     return await one_at_a_time(convo_id, lambda: _consolidate(db, convo_id))
 
@@ -174,13 +173,8 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
 
     vectors = await _vectors_of(merged["facts"])
 
-    # The memory as it is now rather than before the model was asked. The merge was
-    # written from all the facts that were sent: if one of them was edited, pinned or
-    # deleted since, by a person or by a cut in the story, its old text may be inside a
-    # merged fact, and removing only the others would keep both. A merged fact takes the
-    # oldest position of those it replaces, so with them all still where they were it is not
-    # past the end of the story. One pinned, kept past a cut and unpinned again says the same
-    # at another position.
+    # Refused when a fact sent changed since: its old text may be inside a merged one. Its position
+    # counts too, as a merged fact takes the oldest of those it replaces, which a cut may have moved.
     async with write_transaction(db):
         now = await memories_repo.list_for_conversation(db, convo_id)
         still = {(m["id"], m["content"], m["source_position"]) for m in movable_facts(now)}
@@ -188,8 +182,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
             raise AppError("The facts changed while the model merged them.", 409,
                            kind=FACTS_CHANGED)
 
-        # A fact that the merge repeats stays as it is, since adding it again is refused
-        # as a double.
+        # A fact the merge repeats stays as it is: adding it again is refused as a double.
         for content in merged["facts"]:
             await memories_repo.add_with_vector(db, convo_id, content, merged["source_position"],
                                                 vectors.get(content))

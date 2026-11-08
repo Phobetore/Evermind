@@ -24,10 +24,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-dvh overflow-hidden">
-      {/* Off-screen until focused. Without it, reaching the page content from
-          the keyboard means tabbing through the whole sidebar on every
-          navigation. The address after "#" is the route, so following the
-          link would leave the page: it moves the focus itself instead. */}
+      {/* Off-screen until focused, so the keyboard need not cross the sidebar. The route is after "#",
+          so following the link would leave the page: it moves the focus itself. */}
       <a
         href="#main"
         onClick={(event) => {

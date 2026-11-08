@@ -57,8 +57,7 @@ export function ChatInput({
   characterName: string;
 }) {
   const t = useT();
-  // The page keys this by conversation, so each conversation gets an input of its
-  // own and its unsent draft is read once, as the input appears.
+  // The page is keyed by conversation: the unsent draft is read once, as the input appears.
   const [value, setValue] = useState(() => loadDraft(conversationId));
   const [mode, setMode] = useState<MessageMode>("say");
   // Sent from this page before it was left and come back to, it may be on its way still.
@@ -125,9 +124,7 @@ export function ChatInput({
   async function submit() {
     const content = value.trim();
     if (!content || busy || sending) return;
-    // The reply about to be asked for reports its own silence, in the
-    // conversation. Two of these on screen at once is the fuss this was
-    // supposed to avoid.
+    // The reply about to be asked for reports its own silence, in the conversation: one notice at a time.
     setSilent(false);
     change(content);
     suggested.current = ""; // sent, it is the person's message, refused or not
@@ -151,8 +148,6 @@ export function ChatInput({
       change(kept.trim() ? `${kept}\n${result.text}` : result.text);
       ref.current?.focus();
     } catch (e) {
-      // The model saying nothing is not the same as a mistake, and it used to
-      // land in the hint line for four seconds, where the keyboard tip lives.
       if (e instanceof DataError && e.kind === "unreachable") {
         setSilent(true);
       } else {

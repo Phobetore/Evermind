@@ -8,7 +8,7 @@ import { chat, conversation, conversationWithReply, stopTurn, turnRunning } from
 
 /**
  * What happens when two things meant for the same turn, or for two turns, arrive in
- * the wrong order. Each of these was found by making it happen.
+ * the wrong order.
  */
 test.setTimeout(120_000);
 

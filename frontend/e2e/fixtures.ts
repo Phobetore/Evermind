@@ -45,13 +45,9 @@ export async function makeConversation(request: APIRequestContext, fields: Recor
   })).json();
 }
 
-/** A conversation with one exchange already in it, so a test that needs a
- *  reply to act on does not have to wait for the model twice.
- *
- *  `slowly` puts a marker in the conversation that the mock model reads and
- *  answers at a crawl. Tests about what happens *during* a reply need one that
- *  is still going when they look, and tuning sleeps against whatever machine is
- *  running is how a suite comes to pass here and fail on a CI runner. */
+/** A conversation with one exchange already in it. `slowly` puts a marker in it that the mock model
+ *  answers at a crawl: a test about what happens during a reply needs one still going when it looks,
+ *  and sleeps tuned to one machine fail on another. */
 export async function conversationWithReply(
   request: APIRequestContext,
   { slowly = false, failing = false, failsMidway = false, silent = false, quiet = false, says }: {

@@ -40,9 +40,8 @@ def load_env_file(path: Path) -> None:
 
 
 def data_dir() -> Path:
-    """Where the database and media live. An empty variable means the default,
-    like ``ui_dir``: ``EVERMIND_DATA_DIR=`` left in a settings file would
-    otherwise start Evermind on a fresh database in the current directory."""
+    """Where the database and media live. An empty variable means the default, as for
+    ``ui_dir``, not the current directory, which is what ``Path("")`` would turn it into."""
     d = Path(os.environ.get("EVERMIND_DATA_DIR") or _REPO_ROOT / "data")
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -64,8 +63,7 @@ def library_dir() -> Path:
 
 
 def ui_dir() -> Path:
-    """The built interface. An empty variable means the default, not the current
-    directory, which is what ``Path("")`` would silently turn it into."""
+    """The built interface."""
     return Path(os.environ.get("EVERMIND_UI_DIR") or _REPO_ROOT / "frontend" / "dist")
 
 

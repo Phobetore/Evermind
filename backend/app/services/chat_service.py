@@ -7,7 +7,8 @@ Modes:
   continue    — extend the version of the last reply that is on screen.
 
 A version is cut short (``meta.interrupted``) from its first write until its last says it is whole;
-the person's message is ``unanswered`` (``true``, or how the model failed) until its reply exists.
+the person's message is ``unanswered`` (``true``, or how the model failed) until its reply exists
+or the person stops the turn.
 """
 
 import asyncio
@@ -39,9 +40,7 @@ from ..repositories import settings as settings_repo
 from ..repositories.base import new_id
 from . import memory_service
 
-# How often a reply in progress is written to the database. Often enough that a
-# server going down loses at most a second of text, rarely enough that a long reply
-# costs a handful of writes rather than one per token.
+# A reply in progress is saved this often: a server going down loses a second of it at most.
 _FLUSH_SECONDS = 1.0
 # What the context bar above the conversation shows of the last reply's prompt.
 _CONTEXT_SHOWN = ("used_tokens", "budget", "context_size", "messages_included", "messages_total",
@@ -53,7 +52,6 @@ _CONTINUE_INSTRUCTION = (
 
 
 def message_sent_as(messages: list[dict], client_id: str | None) -> dict | None:
-    """The message that a page sent under this id, if it is among these."""
     if not client_id:
         return None
     return next((m for m in messages if (m.get("meta") or {}).get("client_id") == client_id), None)
@@ -61,9 +59,7 @@ def message_sent_as(messages: list[dict], client_id: str | None) -> dict | None:
 
 def _auto_title(content: str) -> str:
     """Conversation title from the first user message, RP markup stripped."""
-    # Bounded before any regex sees it. These patterns are quadratic on a long
-    # run of unclosed brackets, and the result is sixty characters, so there is
-    # nothing to gain from scanning a message that opens with an essay.
+    # Bounded first: these patterns are quadratic on a long run of unclosed brackets.
     content = content[:1000]
     text = re.sub(r"\*[^*]*\*", " ", content)
     text = re.sub(r"\[[^\]]*\]", " ", text)
@@ -96,7 +92,8 @@ def _cut_short(message: dict) -> list[int]:
 
 
 async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict | None:
-    """Writes one reply, says how it ended if it failed or added nothing, raises before saving."""
+    """Writes one reply, and says how it ended if it failed or added nothing. A request it cannot
+    run raises before anything is saved."""
     convo, character, persona, connection, settings = await _resolve(db, request.conversation_id)
     char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
@@ -164,8 +161,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     memories = await memories_repo.list_for_conversation(db, convo["id"])
     lore_entries = await lore_repo.list_for_character(db, character["id"])
 
-    # Semantic recall: rank out-of-window facts by relevance to the live scene
-    # (the last couple of turns). Falls back to recency when embeddings are off.
+    # Facts ranked by relevance to the last two turns; without semantic memory, by recency.
     scene = "\n".join(active_content(m) for m in history[-2:])
     embedding_map = await memories_repo.list_embeddings(db, convo["id"])
     relevance_scores = await retrieval.rank(scene, embedding_map)
@@ -185,9 +181,6 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 
     payload = _build()  # pass 1 — exposes oldest_visible / fact_positions
 
-    # Bound here rather than only inside the branch below: a retry has to rebuild
-    # with whatever passages this turn settled on, and semantic recall being off
-    # must not leave the name undefined.
     passages = None
     passage_budget = int(settings.get("passage_budget") or 0)
     if passage_budget and scene:
@@ -196,8 +189,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         if candidates:
             msg_emb = await convo_repo.list_message_embeddings(db, convo["id"])
             for m in candidates:  # lazy-fill vectors for newly out-of-window messages
-                # There can be hundreds of these, each one a request of its own, and
-                # a stop should not have to wait for them.
+                # Hundreds of them can each be a request: a stop does not wait for them.
                 if turn.stopped:
                     break
                 if m["id"] not in msg_emb:
@@ -252,7 +244,6 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         if target:
             variants = list(target["variants"])
             if continue_mode:
-                # Nothing to add adds nothing: not the space that would have joined it.
                 joiner = "" if not existing or existing[-1].isspace() or body[0].isspace() else " "
                 variants[index] = existing + joiner + body
             else:
@@ -268,12 +259,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
                 await say_unanswered(None)
         written = True
 
-    # At most two passes. A model whose chat template rejects a conversation
-    # opening on the assistant's turn streams nothing at all, or an error, rather
-    # than a reply, and Evermind opens a conversation on the character's greeting
-    # when it has one, so the first message of a first conversation would die.
-    # Rather than hand that to someone as "try another model", fold the greeting
-    # into the system prompt and ask once more.
+    # At most two passes: a model that answers nothing to a story opening on the greeting is asked
+    # again with it folded into the system prompt (see build_chat_payload).
     error = None
     for attempt in (0, 1):
         if turn.stopped:

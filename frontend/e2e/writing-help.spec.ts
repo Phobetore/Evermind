@@ -7,9 +7,8 @@ test("the reminder lists syntax the app actually renders", async ({ page, reques
   const convo = await conversationWithReply(request);
   await page.goto(`/#/chat/${convo.id}`);
 
-  // On a phone the panel is behind this button; on a laptop it is already open
-  // beside the conversation, and the two asides are the nav and the panel.
-  // By accessible name: this one carries an aria-label, not a title.
+  // On a phone the panel is behind this button; on a laptop it is already open beside the
+  // conversation. By accessible name: this one carries an aria-label, not a title.
   const opener = page.getByRole("button", { name: /memory and settings/i });
   // By what it holds rather than where it sits: the other aside is the navigation.
   const help = page.locator("aside:visible").filter({ hasText: "*text*" });

@@ -40,7 +40,6 @@ def fake_provider(monkeypatch):
 
 
 async def get_db_for_test(client):
-    """Open a DB connection on the test's temp database."""
     from app.db import _connect
 
     return await _connect()
@@ -329,10 +328,9 @@ async def test_memory_crud(client, fake_provider):
 
 
 async def test_facts_budget_scales_with_context(client, fake_provider):
-    """700-token budget was starving 16k-context chats; it now scales up."""
+    """Past its 700-token floor, the facts' budget grows with the context."""
     from app.prompting.engine import build_chat_payload
-    # 40 facts of ~30 tokens each ≈ 1200 tokens: over the old 700 floor,
-    # under the scaled budget on a large context.
+    # 40 facts of ~30 tokens each ≈ 1200 tokens: over the 700 floor, under a large context's budget.
     memories = [{"content": "Fait " + "mot " * 25, "source_position": i, "is_pinned": False}
                 for i in range(40)]
     # recent turn (100) so every fact's turn is outside the visible window
@@ -395,8 +393,7 @@ async def test_consolidate_merges_facts(client, fake_provider):
     contents = {m["content"] for m in body["memories"]}
     assert "Crucial pinned fact." in contents  # pinned survived
     assert "Three facts merged into a single dense one." in contents
-    # merged facts inherit the OLDEST source position (long-term memory must
-    # not look recent, or the visible-window filter would mute it)
+    # merged facts take the oldest source position of those they replace
     merged_rows = [m for m in body["memories"] if m["source"] == "auto"]
     assert merged_rows and all(m["source_position"] == 5 for m in merged_rows)
 

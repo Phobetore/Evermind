@@ -39,7 +39,7 @@ def _try_decode(text: str) -> dict | None:
     if not text:
         return None
     # A RecursionError is no ValueError: a reply nested past what the decoder
-    # follows is one that cannot be read, not a turn that ends.
+    # follows is one that cannot be read, not an error that escapes.
     try:
         obj = json.loads(text)
         return obj if isinstance(obj, dict) else None

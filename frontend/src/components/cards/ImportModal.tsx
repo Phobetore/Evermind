@@ -10,9 +10,7 @@ interface Result {
   error?: string;
 }
 
-/** Clicking Import used to open the system file picker straight away, which
- *  asks people to already know what Evermind takes. This says so first, and
- *  takes a file either by drop or by click. */
+/** Says what Evermind takes before asking for a file, which comes by drop or by click. */
 export function ImportModal({
   onClose,
   onImported,

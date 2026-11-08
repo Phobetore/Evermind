@@ -1,10 +1,5 @@
-"""Local sentence embeddings for semantic memory retrieval.
-
-Optional feature: the model load needs the `semantic` extra
-(sentence-transformers). numpy is a core dependency, so vector packing and
-similarity always work. When the model is unavailable, embed() returns None and
-callers fall back to recency-based memory — this module never raises.
-"""
+"""Local sentence embeddings for semantic memory. The model needs the ``semantic`` extra; numpy is
+a core dependency, so packing and comparing vectors always work."""
 
 import asyncio
 import logging
@@ -45,9 +40,7 @@ async def warmup() -> bool:
         _model = await asyncio.to_thread(_load)
         logger.info("semantic memory enabled: loaded %s", MODEL_NAME)
         return True
-    # Deliberately blind: the extra is optional, so a missing package, a failed
-    # download or an incompatible torch build all mean the same thing here, which
-    # is that the feature stays off and the app runs on recency.
+    # A missing package, a failed download or a torch build that does not fit: all leave it off.
     except Exception:  # noqa: BLE001
         logger.info("semantic memory disabled: could not load %s", MODEL_NAME)
         return False

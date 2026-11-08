@@ -25,7 +25,6 @@ export function CharacterCard({
       to={`/characters/${character.id}`}
       className="group relative flex aspect-[3/4] flex-col justify-end overflow-hidden rounded-2xl border border-ink-700 bg-ink-850 shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:border-ember-600/50 hover:shadow-lift"
     >
-      {/* Portrait */}
       <div className="absolute inset-0">
         <Avatar
           name={character.name}
@@ -36,7 +35,6 @@ export function CharacterCard({
         <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/45 to-transparent" />
       </div>
 
-      {/* Favorite star */}
       {onToggleFavorite && (
         <button
           onClick={(e) => {
@@ -66,8 +64,7 @@ export function CharacterCard({
         </p>
       )}
 
-      {/* Kind badge. Opaque backdrop: the tone glows are translucent, and this
-          badge sits on the portrait — light artwork made the label unreadable. */}
+      {/* Opaque: the tone glows are translucent, and on light artwork the label would not read. */}
       <div className="absolute left-3 top-3">
         <Tag
           tone={isScenario ? "arcane" : "ember"}
@@ -83,12 +80,8 @@ export function CharacterCard({
         </Tag>
       </div>
 
-      {/* Poster caption. Two columns on a phone leave a card about 154px wide and
-          205px tall, and the full caption wanted 255 to 305px of that: the block
-          overflowed upward past justify-end and the clipped box took the name
-          with it, so a card showed everything except whose it was. Below sm the
-          caption is the name and the kind badge, which is all a browsing grid
-          needs at that size. */}
+      {/* Below sm the caption is the name alone: on a card about 154 by 205px, the whole caption would
+          push the name out of it. */}
       <div className="relative z-10 flex flex-col gap-1.5 p-3 sm:p-4">
         <h2 className="font-display text-base font-semibold leading-tight text-parchment drop-shadow sm:text-xl">
           {character.name}

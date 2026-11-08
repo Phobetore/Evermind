@@ -138,7 +138,6 @@ export function SettingsPage() {
         </section>
       )}
 
-      {/* Reply length + history window */}
       {settings && (
         <section className="mb-10 grid gap-4 sm:grid-cols-2">
           <Field
@@ -194,7 +193,6 @@ export function SettingsPage() {
         </section>
       )}
 
-      {/* Memory */}
       {settings && (
         <section className="mb-10">
           <h2 className="ui-label mb-2">{t("settings.autoMemoryTitle")}</h2>
@@ -214,7 +212,6 @@ export function SettingsPage() {
         </section>
       )}
 
-      {/* Global instructions */}
       {settings && (
         <section>
           <h2 className="ui-label mb-2">{t("settings.globalInstructionsTitle")}</h2>
@@ -332,10 +329,8 @@ function Access() {
   );
 }
 
-/** Version, and a way back to the project. The app had neither, so nobody
- *  running it could tell what they were on, report a bug against it, or find
- *  where it comes from. It also says when a newer release exists, since a
- *  self-hosted app has no other way of telling you. */
+/** Version, a way back to the project, and whether a newer release exists: a self-hosted app has
+ *  no other way of telling. */
 function About({
   updates,
   asks,
@@ -350,8 +345,7 @@ function About({
   const [installed, setInstalled] = useState<Installation | null>(null);
   const [latest, setLatest] = useState<Release | null>(null);
   const [checking, setChecking] = useState(false);
-  // What the last press of the button came back with. Null until pressed, so
-  // an ordinary page load says nothing at all.
+  // What the last press of the button came back with: nothing until it is pressed.
   const [verdict, setVerdict] = useState<"current" | "unreachable" | null>(null);
 
   useEffect(() => {

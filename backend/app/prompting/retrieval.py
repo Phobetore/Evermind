@@ -1,9 +1,4 @@
-"""Rank established facts by semantic relevance to the current scene.
-
-Pure comparison lives in `_cosine_scores`; `rank` wires it to the query
-embedding. Returns None whenever embeddings are unavailable so callers fall
-back to recency-based selection.
-"""
+"""Ranks facts, or past messages, by semantic relevance to the current scene."""
 
 import numpy as np
 
@@ -21,9 +16,8 @@ def _cosine_scores(query_vec, matrix) -> list[float]:
 
 
 async def rank(query_text: str, embedding_map: dict[str, bytes]) -> dict[str, float] | None:
-    """Map memory id -> relevance score for the current scene.
-    `embedding_map` is {memory_id: blob}. Returns None if there is nothing to
-    rank or the query cannot be embedded (caller falls back to recency)."""
+    """Each id's relevance to ``query_text``, from its vector in ``embedding_map``; None when there
+    is nothing to rank or no vector for the query, and callers fall back to recency."""
     if not embedding_map or not query_text.strip():
         return None
     query = await embeddings.embed([query_text], kind="query")
@@ -34,8 +28,7 @@ async def rank(query_text: str, embedding_map: dict[str, bytes]) -> dict[str, fl
         matrix = np.vstack([embeddings.unpack(embedding_map[i]) for i in ids])
         scores = _cosine_scores(query[0], matrix)
         return {i: s for i, s in zip(ids, scores)}
-    # Deliberately blind: a corrupt or mismatched blob degrades to recency
-    # ranking. Ranking is an optimisation, and it must never break the turn.
+    # A corrupt or mismatched blob falls back to recency: ranking must never break a turn.
     except Exception:  # noqa: BLE001
         return None
 

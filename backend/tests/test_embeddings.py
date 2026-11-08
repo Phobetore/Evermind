@@ -34,14 +34,17 @@ async def test_embed_prefixes_and_returns_vectors(monkeypatch):
 
 
 async def test_embed_query_prefix(monkeypatch):
+    captured = {}
+
     class FakeModel:
         def encode(self, texts, normalize_embeddings=False):
+            captured["texts"] = texts
             import numpy as np
             return np.zeros((len(texts), 2), dtype=np.float32)
 
     monkeypatch.setattr(embeddings, "_model", FakeModel())
     await embeddings.embed(["where is he"], kind="query")
-    # query prefix is applied — verified indirectly via no exception + shape
+    assert captured["texts"] == ["query: where is he"]
 
 
 async def test_embed_empty_input_returns_none(monkeypatch):

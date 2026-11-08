@@ -1,8 +1,5 @@
 """The prompts that are not a chat turn's: ghost-writing the player's next message,
-extracting and consolidating the memory, and drafting a card.
-
-Pure: no database, no model. The services fetch what these read, send what they return,
-and say what went wrong.
+extracting and consolidating the memory, and drafting a card. Pure: no database, no model.
 """
 
 import json

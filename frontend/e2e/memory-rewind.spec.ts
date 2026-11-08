@@ -7,8 +7,6 @@ import { chat, makeConversation } from "./fixtures";
 /**
  * Taking the story back from a message takes what was remembered of it back too: the facts
  * drawn from the turns that went, and the summary, to the one of the turns that stay.
- * The panel beside the conversation showed what it had read when it opened, so the
- * summary of a story that no longer existed stayed on screen, and saving it wrote it back.
  */
 
 const en = JSON.parse(

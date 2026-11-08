@@ -28,13 +28,11 @@ async def create_conversation(payload: ConversationIn,
         raise NotFoundError("Character not found.", "character")
 
     fields = payload.model_dump()
-    # The persona asked for may be gone (a stale listing in the interface); the
-    # conversation is then played as it would be had none been asked for.
+    # A persona or a connection gone since the page listed it counts as none asked for, rather
+    # than failing the insert on its foreign key.
     persona = await personas_repo.for_conversation(db, fields)
     fields["persona_id"] = persona["id"] if persona else None
 
-    # The connection may point at a row that no longer exists (a stale listing in
-    # the interface). Drop it rather than let the insert fail on the foreign key.
     if fields.get("connection_id") and not await connections_repo.get(db, fields["connection_id"]):
         fields["connection_id"] = None
 

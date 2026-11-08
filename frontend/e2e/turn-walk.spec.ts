@@ -4,9 +4,9 @@ import { looseWords, phoneComesBack, report, stopButton } from "./connection";
 import { chat, conversation, conversationWithReply, makeConversation, stopTurn, turnRunning } from "./fixtures";
 
 /**
- * A walk through what a phone does to a reply, as the design was first tried on one: the
- * page asks how the reply stands, reads, follows the words, and asks again whenever anything
- * may have broken that. Each step says what it checks.
+ * A walk through what a phone does to a reply: the page asks how the reply stands, reads,
+ * follows the words, and asks again whenever anything may have broken that. Each step says
+ * what it checks.
  */
 test.setTimeout(120_000);
 

@@ -71,10 +71,7 @@ export function LibraryModal({
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((item) => (
-            // Avatar, blurb and button held one row at every width. On a phone
-            // that left the middle column nothing: the tagline came out as a
-            // fifteen-line ribbon. The button now drops to its own full-width
-            // line and the artwork shrinks, so the words get the space.
+            // On a phone the button drops to its own line and the artwork shrinks, so the words get the space.
             <div
               key={item.filename}
               className="flex flex-wrap items-start gap-3 rounded-xl border border-ink-700 bg-ink-900/60 p-3 sm:flex-nowrap sm:justify-between sm:gap-4 sm:p-4"

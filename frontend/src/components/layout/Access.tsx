@@ -38,10 +38,8 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // A server that cannot be asked opens onto the pages, which then say for
-    // themselves that it cannot be reached. Waiting instead would leave a
-    // blank screen; and if the password was what stood in the way, the first
-    // refused call below still brings the login up.
+    // A server that cannot be asked opens onto the pages, which say so themselves, not a blank
+    // screen; a password in the way still brings the login up at the first refused call.
     data.access?.status().then(setStatus, () => setStatus(OPEN));
   }, []);
 
