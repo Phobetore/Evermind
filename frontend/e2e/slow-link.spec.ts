@@ -77,7 +77,7 @@ test.describe("a message that reaches Evermind late", () => {
     await expect(report(page)).toHaveCount(0);
   });
 
-  test("across a reload, is found when the phone wakes", async ({ page, context, request }) => {
+  test("across a reload, is found as it gets there", async ({ page, context, request }) => {
     const convo = await conversationWithReply(request);
     await page.goto(`/#/chat/${convo.id}`);
     await expect(box(page)).toBeVisible();
@@ -88,13 +88,11 @@ test.describe("a message that reaches Evermind late", () => {
     await page.waitForLoadState("networkidle");
 
     release();
-    await expect.poll(async () => (await conversation(request, convo.id)).messages.length,
-      { timeout: 15_000 }).toBe(convo.messages.length + 2);
-    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
-    await phoneComesBack(page);
 
     await expect(box(page), "still offered for sending").toHaveValue("", { timeout: 15_000 });
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
     await expect(page.locator("[data-message-id]")).toHaveCount(convo.messages.length + 2);
+    expect(await said(request, convo.id, "Parti avant le rechargement.")).toBe(1);
   });
 
   for (const then of ["breaks", "never comes"] as const) {

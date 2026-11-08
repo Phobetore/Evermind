@@ -109,6 +109,8 @@ export function useTurn(
   const watching = useRef<AbortController | null>(null);
   // The same, the revision of what is on screen, and whether it may be behind the server.
   const shown = useRef({ writing: null as string | null, revision: null as number | null, behind: true });
+  // Until when a message on its way that no request here waits for, sent before a reload say, may land.
+  const unsure = useRef(0);
   const adding = useRef(add);
   useEffect(() => {
     adding.current = add;
@@ -151,7 +153,7 @@ export function useTurn(
           text.set("");
           // How the turn this page asked for ended, while the server keeps it: a newer turn ends that.
           if (asked.delete(id) || !state.outcome) setOutcome(state.outcome);
-          if (!waiting.has(id)) return;
+          if (!waiting.has(id) && !(Date.now() < unsure.current && loadSending(id))) return;
           await pause(AFTER_A_FAILURE_MS); // what was asked for may arrive yet
           continue;
         }
@@ -220,6 +222,7 @@ export function useTurn(
   }, [id, began, noAnswer, recheck]);
 
   useEffect(() => {
+    unsure.current = loadSending(id) ? Date.now() + PATIENCE_MS : 0;
     let waking = setTimeout(watch);
     const comingBack = () => {
       if (document.visibilityState !== "visible") return;
