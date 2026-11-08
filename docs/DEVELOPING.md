@@ -263,7 +263,7 @@ stay under it, because none of them is addressed from the root of the host:
   that no component has to know.
 
 So new code that calls the API goes through `data`, and an address written there
-never starts with a slash (a test checks that each one is relative). The one thing
+never starts with a slash. The one thing
 that does not follow the prefix is the redirect of an old 2.x bookmark such as
 `/chat/<id>`, which goes to `/#/chat/<id>` at the root of the host. The Vite dev
 server and the end-to-end servers run at the root of their host, where `api/...`
