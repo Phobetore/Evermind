@@ -61,9 +61,10 @@ the source, Python must use SQLite 3.35 or newer.
   the last reply once the memory has read it; what you wrote, pinned or typed
   stays. A summary carried over from 3.0.x counts as one you typed: a cut keeps
   it, partly stale, until a memory pass writes the next one. A story you cut back
-  under 3.0.x keeps its old summary and the model's facts from the removed turns
-  (clear them in the side panel if they no longer fit), and its memory reads its
-  last 40 turns again.
+  under 3.0.x, behind what its memory had read, keeps its old summary and the
+  model's facts from the removed turns (clear them in the side panel if they no
+  longer fit); unless it has grown back that far since, its memory reads its last
+  40 turns again.
 - **When you edit a card, lorebook changes wait for Save**, like the rest of the
   form, and **Cancel** drops them.
 - **A long conversation shows its newest hundred messages.** **Show earlier
