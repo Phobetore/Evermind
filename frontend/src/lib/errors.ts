@@ -21,8 +21,6 @@ const KIND_KEYS: Record<string, string> = {
   png_without_card: "errors.pngWithoutCard",
   unrecognized_card_file: "errors.unrecognizedCardFile",
   variant_out_of_range: "errors.variantOutOfRange",
-  already_installed: "errors.alreadyInstalled",
-  lore_entry_incomplete: "errors.loreEntryIncomplete",
   fact_exists: "errors.factExists",
   fact_empty: "errors.factEmpty",
   memory_busy: "errors.memoryBusy",
@@ -63,9 +61,7 @@ const NOT_FOUND_KEYS: Record<string, string> = {
   message: "errors.notFound.message",
   persona: "errors.notFound.persona",
   connection: "errors.notFound.connection",
-  lore_entry: "errors.notFound.loreEntry",
   fact: "errors.notFound.fact",
-  library_card: "errors.notFound.libraryCard",
 };
 
 /** The sentence to show for a failure, in the person's language. */
