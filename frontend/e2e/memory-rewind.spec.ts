@@ -340,6 +340,53 @@ test("the panel beside the story reads the memory again once a reply written ove
   expect(read.memory_position).toBe(2);
 });
 
+// A read is the whole story: the one that ends the turn brings the summary a closed panel opens on.
+test("a reply asked for again with the panel closed reads the story once at its end", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
+  const pass = () =>
+    request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await say("First question.");
+  await pass();
+  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  await say("Second question.");
+  // Read to the newest reply, which asking for again takes back to the first pass.
+  await pass();
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  const panel = page.locator("aside:visible:has(textarea)");
+  if (!(await opener.isVisible())) await panel.getByLabel(panelText.closeAriaLabel).click();
+  await page.waitForLoadState("networkidle");
+
+  // Reads sent once the server has said the reply is written.
+  let ended = false;
+  await page.route(`**/api/conversations/${convo.id}/turn`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const state = await route.fetch();
+    if (!(await state.json()).running) ended = true;
+    await route.fulfill({ response: state });
+  });
+  const reads: string[] = [];
+  page.on("request", (r) => {
+    if (ended && r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`)) reads.push(r.url());
+  });
+  const reply = page.locator("[data-message-id]").last();
+  await reply.getByTitle(en.chat.message.regenerateTitle).click();
+  await expect(reply.getByText("2/2")).toBeVisible();
+  await page.waitForTimeout(1000);
+  expect(reads, "the story read again once the read that ended the reply was shown").toHaveLength(1);
+
+  // The panel's own read never lands: the summary must be on the page already.
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() !== "GET") await route.continue();
+  });
+  await opener.click();
+  await expect(panel.getByPlaceholder(panelText.summary.placeholder)).toHaveValue(first.summary);
+});
+
 // The directive's save and the summary's read go out together; the read must not undo the save.
 test("a read sent with the directive's save does not put the old directive back", async ({ page, request }) => {
   const convo = await makeConversation(request);

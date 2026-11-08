@@ -130,26 +130,33 @@ function ChatView({ id }: { id: string }) {
 
   // Counts the reads of the summary a closed panel opens on, and the summaries the panel shows.
   const summaries = useRef(0);
+  const panelShown = useRef(panelOpen);
+  useEffect(() => {
+    panelShown.current = panelOpen;
+  }, [panelOpen]);
   /** For a read about to be sent: what takes its summary, unless another came since. */
   const summaryTaker = useCallback(() => {
-    const sent = ++summaries.current;
+    // Sent with the panel open, it is left to the panel, whose own reads it knows nothing of.
+    const sent = panelShown.current ? null : ++summaries.current;
     return (summary: string) => {
       if (sent === summaries.current) setConversation((c) => (c ? { ...c, summary } : c));
     };
   }, []);
 
-  // The title too, which the server gives a new conversation; the side panel reads the rest itself.
+  // The title too, which the server gives a new conversation, and the summary for a closed panel.
   const read = useCallback(async (asking: Asking) => {
     const changes = changesByHand.current;
+    const takeSummary = summaryTaker();
     const conversation = await data.conversations.get(id, asking);
     const show = () => {
       if (changesByHand.current !== changes) return false;
+      takeSummary(conversation.summary);
       setConversation((shown) => (shown ? { ...shown, title: conversation.title } : conversation));
       setMessages(conversation.messages ?? []);
       return true;
     };
     return { conversation, show };
-  }, [id]);
+  }, [id, summaryTaker]);
 
   // The person's message as the server saved it, before the conversation is read again.
   const add = useCallback((sent: Message) => {
@@ -160,7 +167,7 @@ function ChatView({ id }: { id: string }) {
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
 
-  // A closed panel reads nothing: the summary the memory went back to is read here, for it to open on.
+  // A closed panel reads nothing, and no read follows a cut or a swipe: the summary is read here then.
   const summaryRead = useRef<AbortController | null>(null);
   useEffect(() => () => summaryRead.current?.abort(), []);
   /** The server took the memory back: an open panel reads it again. */
@@ -173,16 +180,16 @@ function ChatView({ id }: { id: string }) {
     data.conversations.get(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
   }, [id, panelOpen, summaryTaker]);
 
-  // A reply asked for again or carried on takes back a memory that read it, by the end of its turn.
+  // A reply asked for again or carried on takes back a memory that read it: an open panel reads it at the turn's end.
   const rewriting = useRef(false);
   const wasWriting = useRef(writing);
   useEffect(() => {
     if (wasWriting.current !== null && writing === null && rewriting.current) {
       rewriting.current = false;
-      memoryTakenBack();
+      setStoryCuts((n) => n + 1);
     }
     wasWriting.current = writing;
-  }, [writing, memoryTakenBack]);
+  }, [writing]);
 
   useEffect(() => {
     const personaId = conversation?.persona_id;
