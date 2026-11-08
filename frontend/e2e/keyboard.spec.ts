@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversation, conversationWithReply, makeConversation, PNG } from "./fixtures";
+import { conversation, conversationWithReply, makeCharacter, makeConversation, PNG } from "./fixtures";
 
 /**
  * Everything here is done from the keyboard, as on a computer: wherever a key press sends the
@@ -47,6 +47,33 @@ test("the backdrop's strength is reached at once from the button that shows it, 
   // Beside the story, back to what opened it; over it, where the panel is opened from.
   const back = beside ? page.getByRole("button", { name: "Adjust strength" }) : opener;
   await expect(back, `the focus is on ${await focusIn(page)}`).toBeFocused();
+});
+
+test("a dialog takes the focus, keeps it, and gives it back to what opened it", { tag: "@desktop" }, async ({ page, request }) => {
+  await makeCharacter(request);
+  await page.goto("/");
+  const opener = page.getByTitle("Starter library");
+  const dialog = page.getByRole("dialog");
+  // Past its last control, Tab may leave for the browser's own, never for the page behind.
+  const where = () => dialog.evaluate((box) => box.contains(document.activeElement) ? "dialog"
+    : document.activeElement === document.body ? "browser" : "page");
+
+  for (const close of ["the X", "Escape"]) {
+    await pressOn(opener);
+    await expect(dialog.locator("h3").first()).toBeVisible();
+    expect(await where(), `opened, the focus is on ${await focusIn(page)}`).toBe("dialog");
+    const seen = new Set<string>();
+    for (let i = 0; i < 30; i++) {
+      await page.keyboard.press("Tab");
+      seen.add(await where());
+      expect(seen, `after ${i + 1} Tabs the focus is on ${await focusIn(page)}`).not.toContain("page");
+    }
+    expect(seen, "Tab never came back into the dialog").toContain("dialog");
+    if (close === "the X") await pressOn(dialog.getByRole("button", { name: "Close" }));
+    else await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(opener, `closed with ${close}, the focus is on ${await focusIn(page)}`).toBeFocused();
+  }
 });
 
 test("the side panel opened from the keyboard takes the focus, and gives it back when it closes", { tag: "@desktop" }, async ({ page, request }) => {
