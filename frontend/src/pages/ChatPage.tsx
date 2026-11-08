@@ -62,15 +62,23 @@ function ChatView({ id }: { id: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [persona, setPersona] = useState<Persona | null>(null);
   // Over the conversation on a phone, so open there only once asked for, and closed if the screen narrows.
-  const [panelOpen, setPanelOpen] = useState(() => window.matchMedia(WIDE).matches);
+  const [wide, setWide] = useState(() => window.matchMedia(WIDE).matches);
+  const [panelOpen, setPanelOpen] = useState(wide);
   useEffect(() => {
-    const wide = window.matchMedia(WIDE);
-    const narrowed = () => {
-      if (!wide.matches) setPanelOpen(false);
+    const query = window.matchMedia(WIDE);
+    const changed = () => {
+      setWide(query.matches);
+      if (!query.matches) setPanelOpen(false);
     };
-    wide.addEventListener("change", narrowed);
-    return () => wide.removeEventListener("change", narrowed);
+    query.addEventListener("change", changed);
+    return () => query.removeEventListener("change", changed);
   }, []);
+  // Opened or closed by hand, the panel takes the focus, and gives it back to what opens it.
+  const [panelByHand, setPanelByHand] = useState(false);
+  function showPanel(open: boolean) {
+    setPanelByHand(true);
+    setPanelOpen(open);
+  }
   // The backdrop's strength is set under the conversation, where it can be judged.
   const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
   // What the strength was asked for from, which Done gives the focus back to while it is there.
@@ -345,7 +353,8 @@ function ChatView({ id }: { id: string }) {
 
   return (
     <div className="flex h-full">
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Under the panel, which covers it below md, out of the keyboard's reach. */}
+      <div className="flex min-w-0 flex-1 flex-col" inert={panelOpen && !wide}>
         <header className="flex items-center gap-3 border-b border-ink-700 bg-ink-900 px-4 py-3 pointer-coarse:py-[13px] md:bg-ink-900/80 md:backdrop-blur">
           <Link
             to="/chat"
@@ -414,7 +423,8 @@ function ChatView({ id }: { id: string }) {
             {!panelOpen && (
               <button
                 ref={panelButton}
-                onClick={() => setPanelOpen(true)}
+                autoFocus={panelByHand}
+                onClick={() => showPanel(true)}
                 className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
                 aria-label={t("chat.header.memorySettingsAriaLabel")}
               >
@@ -535,7 +545,8 @@ function ChatView({ id }: { id: string }) {
           conversation={conversation}
           persona={persona}
           storyCuts={storyCuts}
-          onClose={() => setPanelOpen(false)}
+          takeFocus={panelByHand}
+          onClose={() => showPanel(false)}
           onConversationChange={(patch) => {
             if ("summary" in patch) summaries.current += 1;
             setConversation((c) => (c ? { ...c, ...patch } : c));
@@ -543,7 +554,10 @@ function ChatView({ id }: { id: string }) {
           onAdjustWallpaper={() => {
             adjustedFrom.current = document.activeElement;
             // Over the conversation, it would hide what is being judged.
-            if (!window.matchMedia(WIDE).matches) setPanelOpen(false);
+            if (!wide) {
+              setPanelByHand(false);
+              setPanelOpen(false);
+            }
             setAdjustingWallpaper(true);
           }}
         />

@@ -18,6 +18,7 @@ export function ChatSidePanel({
   conversation,
   persona,
   storyCuts = 0,
+  takeFocus = false,
   onClose,
   onConversationChange,
   onAdjustWallpaper,
@@ -26,6 +27,8 @@ export function ChatSidePanel({
   persona: Persona | null;
   /** Changes when the server takes the memory back, with a cut or a reply written over. */
   storyCuts?: number;
+  /** Opened by hand: the focus starts on its close button. */
+  takeFocus?: boolean;
   onClose: () => void;
   onConversationChange: (patch: Partial<Conversation>) => void;
   onAdjustWallpaper: () => void;
@@ -318,6 +321,8 @@ export function ChatSidePanel({
       // Opaque over the conversation on a phone, where blur is unreliable; a column beside it from md.
       className="fixed inset-0 z-40 flex flex-col gap-5 overflow-y-auto border-ink-700 bg-ink-900 p-5 animate-rise md:static md:w-80 md:shrink-0 md:border-l md:bg-ink-900/70 md:animate-fade"
       style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
+      // Not from a box being typed in, whose words would go with the panel.
+      onKeyDown={(e) => e.key === "Escape" && !(e.target as Element).matches("input, textarea") && onClose()}
     >
       <div className="flex items-start justify-between gap-2">
         {/* min-w-0 down the chain, and the name allowed to break anywhere: a name
@@ -337,6 +342,7 @@ export function ChatSidePanel({
         </Link>
         <button
           onClick={onClose}
+          autoFocus={takeFocus}
           className="touch-target shrink-0 rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment"
           aria-label={t("chat.panel.closeAriaLabel")}
         >
