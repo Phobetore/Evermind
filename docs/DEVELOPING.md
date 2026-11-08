@@ -8,6 +8,7 @@ Evermind, read [INSTALL.md](../INSTALL.md) instead.
 ```
 backend/   FastAPI + SQLite (aiosqlite, plain SQL migrations)
   app/__main__.py  python -m app: reads .env, checks the port, starts the server
+  app/server.py    how that server reads a request: a capped head, a deadline
   app/ui.py        serves the built interface wherever no route answers, and
                    redirects the old paths
   app/gate.py      a middleware: the access password (one session per device),
@@ -62,7 +63,10 @@ first checks that the port is free: `--check` stops there and prints the port.
 `--no-env-file` leaves `.env` out (the container and the end-to-end suite use
 it). Outside a container it then prints its addresses and, when it listens beyond
 this computer, warns if no password is set and, on Windows, prints the firewall
-rule other devices need.
+rule other devices need. It runs uvicorn with Evermind's own HTTP protocol,
+`app/server.py`: h11, which holds at most 16 KB of an unfinished request head,
+with a 20 s deadline on a client that keeps the server waiting. Uvicorn started
+by hand picks httptools instead, and has neither limit.
 
 **In production there is one process and one port.** FastAPI answers `/api/` and
 serves the built interface (`frontend/dist`, or `EVERMIND_UI_DIR`) for everything
