@@ -114,6 +114,13 @@ From 3.0.0 or 3.0.1, every step of
     `POST /api/connections/test` and `/benchmark` take the connection as the
     form holds it, with `id` to use its saved key, and `PUT /api/connections/{id}`
     takes the whole connection.
+  - `PATCH /api/messages/{id}` with `content` and `active_index` writes the
+    words into that version and shows it, where it wrote them into the version
+    shown before switching. `POST /api/conversations` and
+    `POST /api/messages/{id}/branch` take a `client_id`: asked again under the
+    same one, while Evermind runs, they answer with what the first made.
+    `GET /api/conversations/{id}` says whether a memory pass is running
+    (`memory_running`), and leaves the messages out with `messages=false`.
   - A model's failure is a `502` with `error` and `kind` only, `error` being what
     its server said, the address it could not reach, or how the connection
     broke. `model_http_error` is now `model_error`; `model_timeout` and
@@ -128,7 +135,10 @@ From 3.0.0 or 3.0.1, every step of
     `facts_changed` or `conversation_changed`) rather than `200` with `skipped`,
     and one without a connection `400` rather than `502`. A sign-in over 4096
     bytes, or without its length, is `413` `too_large`, and a `422` no longer
-    repeats what was sent.
+    repeats what was sent. A text holding half of an emoji (a lone surrogate,
+    such as an unpaired `\ud83d` escape) is a `422` naming its field, wherever
+    it sits in that field, the form sent to the card assistant (`existing`)
+    included, where several routes answered `500`.
   - `GET /api/characters` takes no filter, and lorebook entries have no
     `case_sensitive` or `priority`. `POST /api/conversations` takes no
     `greeting_index`, its `PATCH` no `persona_id`, and the settings have no
