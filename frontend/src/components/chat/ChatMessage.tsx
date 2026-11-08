@@ -51,11 +51,9 @@ export function ChatMessage({
   const messageMode = message.meta?.mode as "narrate" | "ooc" | undefined;
 
   function copy() {
-    copyText(message.content).then((ok) => {
-      if (!ok) return;
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    });
+    if (!copyText(message.content)) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
   }
 
   return (

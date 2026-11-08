@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext, type Locator, type Page, type Rou
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
-import { makeCharacter, PNG } from "./fixtures";
+import { makeCharacter, makeConversation, PNG } from "./fixtures";
 
 /**
  * The panel beside a conversation is a fixed 320px column (the whole screen on
@@ -242,4 +242,17 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
       await expectItFits(panel, 320);
     });
   }
+});
+
+// A phone turned upright, or a window made narrow: beside the story there, the panel would cover it.
+test("the panel beside the story closes when the screen narrows under it", { tag: "@desktop" }, async ({ page, request }) => {
+  await page.setViewportSize({ width: 915, height: 412 });
+  const convo = await makeConversation(request);
+  await page.goto(`/#/chat/${convo.id}`);
+  const panel = page.locator("aside:visible:has(textarea)");
+  await expect(panel).toBeVisible();
+
+  await page.setViewportSize({ width: 412, height: 915 });
+  await expect(panel).toHaveCount(0);
+  await expect(page.locator("header button:has(svg.lucide-sliders-horizontal)")).toBeVisible();
 });

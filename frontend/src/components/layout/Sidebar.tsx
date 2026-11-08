@@ -4,7 +4,8 @@ import { Link, useLocation } from "react-router";
 import { useT } from "@/i18n/useT";
 import { LanguageSelect } from "./LanguageSelect";
 
-const LINKS = [
+/** The pages, for this and for the phone's bar. */
+export const LINKS = [
   { href: "/", key: "nav.discover", icon: Flame, exact: true },
   { href: "/chat", key: "nav.conversations", icon: MessagesSquare },
   { href: "/personas", key: "nav.personas", icon: UserRound },

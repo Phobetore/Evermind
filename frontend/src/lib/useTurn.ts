@@ -26,10 +26,21 @@ const NOT_SENT = new DataError("This message was not sent.", { kind: "not_sent" 
 export class LiveText {
   private text = "";
   private listeners = new Set<() => void>();
-  get = () => this.text;
+  /** As the server saves them: not what some models think first, until that ends, nor its tag arriving. */
+  get = () => {
+    const head = this.text.trimStart();
+    if (head.startsWith("<think>")) {
+      const end = head.indexOf("</think>");
+      return end < 0 ? "" : head.slice(end + "</think>".length).trimStart();
+    }
+    return head && "<think>".startsWith(head) ? "" : this.text;
+  };
   set(text: string) {
     this.text = text;
     this.listeners.forEach((listener) => listener());
+  }
+  add(delta: string) {
+    this.set(this.text + delta);
   }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -168,7 +179,8 @@ export function useTurn(
         // A stream that breaks is no failure: whether the server can be reached is asked next.
         await data.turns.follow(id, (event) => {
           if ("end" in event) ended = true;
-          else text.set("text" in event ? event.text : text.get() + event.delta);
+          else if ("text" in event) text.set(event.text);
+          else text.add(event.delta);
         }, signal).catch(() => {});
         if (signal.aborted) return;
         // Given up on by something between here and the server, which is no end to the turn.

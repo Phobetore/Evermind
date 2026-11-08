@@ -11,9 +11,7 @@ test("the reminder lists syntax the app actually renders", async ({ page, reques
   // beside the conversation, and the two asides are the nav and the panel.
   // By accessible name: this one carries an aria-label, not a title.
   const opener = page.getByRole("button", { name: /memory and settings/i });
-  // Visible, and by what it holds rather than where it sits. The laptop panel
-  // stays in the page on a phone, hidden by CSS, so matching on content alone
-  // finds that one and then waits forever for it to appear.
+  // By what it holds rather than where it sits: the other aside is the navigation.
   const help = page.locator("aside:visible").filter({ hasText: "*text*" });
   // isVisible() does not wait, and until the conversation has loaded there is
   // neither the button nor the panel: it would answer false, and the button

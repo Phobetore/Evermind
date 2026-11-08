@@ -43,4 +43,16 @@ test.describe("on a page that is not a secure context", () => {
     // the fallback having run rather than the call having thrown.
     await expect(page.locator("svg.lucide-check").first()).toBeVisible();
   });
+
+  // Copying selects a box of its own. Left there, the focus fell to the page: the row, shown
+  // while one of its buttons has it, faded with its tick, and the next Tab began at the top.
+  test("copying a message from the keyboard leaves the focus on its button", { tag: "@desktop" }, async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await page.goto(`/#/chat/${convo.id}`);
+    const reply = page.locator("[data-message-id]").last();
+    await reply.getByTitle("Copy", { exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(reply.getByTitle("Copied!", { exact: true })).toBeFocused();
+    await expect(reply.locator(".hover-actions")).toHaveCSS("opacity", "1");
+  });
 });

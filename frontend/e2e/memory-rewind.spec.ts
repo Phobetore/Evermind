@@ -98,8 +98,9 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
   });
   // greeting, then two questions and their replies: the second question is the fourth message.
   if (covers) await panel.getByLabel(panelText.closeAriaLabel).click();
-  // The facts are read again in the same breath as the reads that follow the cut.
-  const cut = page.waitForResponse((r) => r.url().endsWith(`/api/conversations/${convo.id}/memories`));
+  // Read again after the cut by the panel beside the story, or by the page while the panel is closed.
+  const cut = page.waitForResponse((r) => r.request().method() === "GET"
+    && r.url().endsWith(`/api/conversations/${convo.id}`));
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByTitle("Delete from here").nth(3).click();
   await cut;
@@ -113,6 +114,56 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(read.summary).toBe(first.summary);
   expect(read.memory_position).toBe(2);
+});
+
+// Typing over the summary it put back would send one no pass holds, and take the memory back to 0.
+test("the page's read of a cut, landing once a summary is saved in the panel, does not put the old one back", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
+  const pass = () =>
+    request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await say("First question.");
+  await pass();
+  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  await say("Second question.");
+  await pass();
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  // Closed, as on a phone, for the page to read the summary after the cut.
+  if (!(await opener.isVisible())) await panel.getByLabel(panelText.closeAriaLabel).click();
+  await page.waitForLoadState("networkidle");
+
+  // That read is answered, and its answer held until the summary is saved.
+  let fetched = () => {};
+  const answered = new Promise<void>((resolve) => { fetched = resolve; });
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  let reads = 0;
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() !== "GET" || ++reads > 1) return route.continue();
+    const old = await route.fetch();
+    fetched();
+    await released;
+    await route.fulfill({ response: old }).catch(() => {});
+  });
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByTitle("Delete from here").nth(3).click();
+  await answered;
+
+  await opener.click();
+  await expect(summary).toHaveValue(first.summary);
+  await summary.fill("Typed once the story was cut.");
+  await panel.getByRole("button", { name: panelText.summary.saveButton }).click();
+  await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
+
+  release();
+  await page.waitForTimeout(500);
+  await expect(summary).toHaveValue("Typed once the story was cut.");
 });
 
 // A slow model can take minutes: what is typed meanwhile is typed over the summary from before.
@@ -251,6 +302,138 @@ test("the summary box shows what a pass wrote when it is entered", { tag: "@desk
   await expect(summary).toHaveValue(/woke the character in a crypt/);
 });
 
+// On a wide screen the panel stays beside the story while its newest reply is written over.
+test("the panel beside the story reads the memory again once a reply written over takes it back", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+  test.skip(isMobile, "a phone's panel is closed to reach the reply, and reads on opening");
+  const convo = await makeConversation(request);
+  const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
+  await say("First question.");
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  await say("Second question.");
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await expect(summary).toHaveValue(first.summary);
+  const reply = page.locator("[data-message-id]").last();
+  const writtenOver = {
+    regenerated: () => reply.getByTitle(en.chat.message.regenerateTitle).click(),
+    "carried on": () => reply.getByTitle(en.chat.message.continueTitle).click(),
+    "swiped back": () => reply.getByLabel(en.chat.message.prevVariantAriaLabel).click(),
+  };
+  for (const [how, act] of Object.entries(writtenOver)) {
+    // Remember reads the newest reply, so that writing it over takes the memory back to the first pass.
+    await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+    await expect(summary).not.toHaveValue(first.summary);
+    await reply.hover();
+    await act();
+    await expect(summary, `the summary once the reply is ${how}`).toHaveValue(first.summary);
+  }
+
+  // Typed over the summary the memory holds, which keeps its place.
+  await summary.fill(`${first.summary} Typed.`);
+  await panel.getByRole("button", { name: panelText.summary.saveButton }).click();
+  await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
+  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(read.memory_position).toBe(2);
+});
+
+// A read is the whole story: the one that ends the turn brings the summary a closed panel opens on.
+test("a reply asked for again with the panel closed reads the story once at its end", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
+  const pass = () =>
+    request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await say("First question.");
+  await pass();
+  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  await say("Second question.");
+  // Read to the newest reply, which asking for again takes back to the first pass.
+  await pass();
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  const panel = page.locator("aside:visible:has(textarea)");
+  if (!(await opener.isVisible())) await panel.getByLabel(panelText.closeAriaLabel).click();
+  await page.waitForLoadState("networkidle");
+
+  // Reads sent once the server has said the reply is written.
+  let ended = false;
+  await page.route(`**/api/conversations/${convo.id}/turn`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const state = await route.fetch();
+    if (!(await state.json()).running) ended = true;
+    await route.fulfill({ response: state });
+  });
+  const reads: string[] = [];
+  page.on("request", (r) => {
+    if (ended && r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`)) reads.push(r.url());
+  });
+  const reply = page.locator("[data-message-id]").last();
+  await reply.getByTitle(en.chat.message.regenerateTitle).click();
+  await expect(reply.getByText("2/2")).toBeVisible();
+  await page.waitForTimeout(1000);
+  expect(reads, "the story read again once the read that ended the reply was shown").toHaveLength(1);
+
+  // The panel's own read never lands: the summary must be on the page already.
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() !== "GET") await route.continue();
+  });
+  await opener.click();
+  await expect(panel.getByPlaceholder(panelText.summary.placeholder)).toHaveValue(first.summary);
+});
+
+// Whether the panel is open is asked once the server has answered the swipe, not when it was asked for.
+test("a swipe answered once the panel is closed brings it the summary the memory went back to", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+  test.skip(isMobile, "a phone's panel covers the reply");
+  const convo = await makeConversation(request);
+  const pass = () =>
+    request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "First question." });
+  await pass();
+  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "Second question." });
+  await chat(request, { conversation_id: convo.id, mode: "regenerate" });
+  await pass();
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await expect(summary).toHaveValue(/Read to turn 4/);
+  await page.waitForLoadState("networkidle");
+
+  // The swipe is answered once the panel is closed; reopened, the panel's own read never lands.
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/messages/*", async (route) => {
+    if (route.request().method() === "PATCH") await released;
+    await route.continue();
+  });
+  let reopened = false;
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (!reopened || route.request().method() !== "GET") await route.continue();
+  });
+  const reads: string[] = [];
+  page.on("requestfinished", (r) => {
+    if (r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`)) reads.push(r.url());
+  });
+  const reply = page.locator("[data-message-id]").last();
+  await reply.hover();
+  await reply.getByLabel(en.chat.message.prevVariantAriaLabel).click();
+  await panel.getByLabel(panelText.closeAriaLabel).click();
+  release();
+  await expect.poll(() => reads.length, { message: "the summary read for the closed panel" }).toBe(1);
+
+  reopened = true;
+  await page.locator("header button:has(svg.lucide-sliders-horizontal)").click();
+  await expect(summary).toHaveValue(first.summary);
+});
+
 // The directive's save and the summary's read go out together; the read must not undo the save.
 test("a read sent with the directive's save does not put the old directive back", async ({ page, request }) => {
   const convo = await makeConversation(request);
@@ -340,9 +523,9 @@ test("an older read, given up once a newer one is sent, does not put back the su
   await expect(summary).toHaveValue(brought);
 });
 
-// A read is the whole story; a phone has a hidden panel too, and a wake fires two events.
+// A read is the whole story, and a wake fires two events.
 test("a phone waking reads the conversation once, and only for the panel it shows", async ({ page, request, isMobile }) => {
-  test.skip(!isMobile, "a wide screen has neither a hidden panel nor one over the conversation");
+  test.skip(!isMobile, "a wide screen's panel is open from the start");
   const convo = await makeConversation(request);
   const isRead = (r: Request) => r.method() === "GET" && r.url().endsWith(`/api/conversations/${convo.id}`);
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
