@@ -5,9 +5,7 @@ import pytest
 
 from app.providers.base import ProviderEvent
 
-from .conftest import PNG
-from .test_chat import FakeProvider, send
-from .test_providers import SAMPLING
+from .conftest import PNG, SAMPLING, FakeProvider, send
 
 
 async def create_character(client, **overrides):

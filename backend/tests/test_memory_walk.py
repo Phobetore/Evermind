@@ -14,7 +14,7 @@ from app.db import _connect
 from app.prompting.memory_changes import MAX_TURNS_PER_RUN
 from app.providers.base import ProviderEvent
 
-from .test_chat import send, setup_conversation
+from .conftest import send, setup_conversation
 
 SEEDS, STEPS = 2, 30
 TABLES = {"conversations": "id", "messages": "conversation_id", "memories": "conversation_id",

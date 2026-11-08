@@ -26,8 +26,15 @@ from app.repositories import conversations as convo_repo
 from app.repositories import memories as memories_repo
 from app.services import memory_service
 
-from .test_chat import FakeProvider, send, setup_conversation
-from .test_memory import extract, stored_facts, waiting_provider, within
+from .conftest import (
+    FakeProvider,
+    extract,
+    send,
+    setup_conversation,
+    stored_facts,
+    waiting_provider,
+    within,
+)
 
 
 class Replies:

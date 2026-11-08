@@ -1,30 +1,15 @@
-import { DataError } from "../errors";
+import { DataError } from "./errors";
+import type { Asking } from "./types";
 
-const lockedHandlers = new Set<() => void>();
-
-/** `fetch`, looked up when a call is made and not when this is imported: a page
- *  that replaces it later (to watch or to fake the network) is still heard. */
-export const lazyFetch: typeof fetch = (input, init) => fetch(input, init);
+let lockedHandler = () => {};
 
 /** Run `handler` whenever the server answers that the access password is
  *  needed (a 401 of kind "locked"), which is how a session that has ended
  *  shows up in the middle of a conversation. The call that met the 401 still
- *  rejects afterwards. Returns the function that takes the handler off again. */
-export function onLocked(handler: () => void): () => void {
-  lockedHandlers.add(handler);
-  return () => {
-    lockedHandlers.delete(handler);
-  };
-}
-
-function retryAfterOf(resp: Response): number | undefined {
-  const header = resp.headers.get("Retry-After")?.trim();
-  if (!header) return undefined;
-  // The server counts seconds. A date, which the header also allows, is not
-  // something to wait out here, so it counts as no advice.
-  const seconds = Number(header);
-  return Number.isFinite(seconds) && seconds >= 0 ? seconds : undefined;
-}
+ *  rejects afterwards. */
+export const onLocked = (handler: () => void) => {
+  lockedHandler = handler;
+};
 
 /** Throw the error a failed response stands for. Nothing in the body is
  *  trusted to be there: a proxy in front of the server answers with HTML.
@@ -49,19 +34,9 @@ async function raiseFor(resp: Response): Promise<never> {
     message = `HTTP ${resp.status}`;
     kind ??= "http_error";
   }
-  if (resp.status === 401 && kind === "locked") {
-    // Each in its own try: a handler that throws must neither stand in for the
-    // error below nor stop the ones registered after it from hearing about it.
-    // Nothing else is left to hear it, so it goes to the console.
-    for (const handler of lockedHandlers) {
-      try {
-        handler();
-      } catch (error) {
-        console.error("A handler of onLocked threw:", error);
-      }
-    }
-  }
-  throw new DataError(message, { kind, resource, status: resp.status, retryAfter: retryAfterOf(resp) });
+  if (resp.status === 401 && kind === "locked") lockedHandler();
+  const retryAfter = Number(resp.headers.get("Retry-After")) || undefined;
+  throw new DataError(message, { kind, resource, status: resp.status, retryAfter });
 }
 
 /** What a call that got no answer at all is: the browser's own failure, whose
@@ -69,30 +44,23 @@ async function raiseFor(resp: Response): Promise<never> {
  *  "network", or "offline" when the browser knows it has no network. Giving up
  *  on purpose (an abort) is the caller's doing and stays as it is. */
 export function networkFailure(error: unknown): unknown {
-  if (error instanceof DataError) return error;
   if ((error as { name?: string } | null)?.name === "AbortError") return error;
   const offline = globalThis.navigator?.onLine === false;
   return new DataError("Network error", { kind: offline ? "offline" : "network", cause: error });
 }
 
 /** The response to a request, once it is known to have succeeded; one not begun within `within` ms is unanswered. */
-export async function send(
-  path: string,
-  init?: RequestInit,
-  fetchImpl: typeof fetch = lazyFetch,
-  within?: number,
-): Promise<Response> {
-  const headers = new Headers(init?.headers);
+export async function send(path: string, init: RequestInit = {}, { signal, within }: Asking = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
   // A multipart body must go out without a content type of its own: the
   // browser adds one that carries the boundary.
-  if (typeof init?.body === "string" && !headers.has("Content-Type")) {
+  if (typeof init.body === "string" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  let signal = init?.signal;
   let late: ReturnType<typeof setTimeout> | undefined;
   if (within !== undefined) {
     const giveUp = new AbortController();
-    const asker = init?.signal;
+    const asker = signal;
     if (asker?.aborted) giveUp.abort(asker.reason);
     asker?.addEventListener("abort", () => giveUp.abort(asker.reason), { once: true });
     late = setTimeout(() => giveUp.abort(new DataError("No answer in time.", { kind: "network" })), within);
@@ -100,9 +68,9 @@ export async function send(
   }
   let resp: Response;
   try {
-    resp = await fetchImpl(path, { ...init, headers, signal });
+    resp = await fetch(path, { ...init, headers, signal });
   } catch (error) {
-    throw networkFailure(signal?.reason instanceof DataError ? signal.reason : error);
+    throw signal?.reason instanceof DataError ? signal.reason : networkFailure(error);
   } finally {
     clearTimeout(late);
   }
@@ -110,13 +78,8 @@ export async function send(
   return resp;
 }
 
-export async function request<T>(
-  path: string,
-  init?: RequestInit,
-  fetchImpl?: typeof fetch,
-  within?: number,
-): Promise<T> {
-  const resp = await send(path, init, fetchImpl, within);
+export async function request<T>(path: string, init?: RequestInit, asking?: Asking): Promise<T> {
+  const resp = await send(path, init, asking);
   if (resp.status === 204) return undefined as T;
   return resp.json();
 }

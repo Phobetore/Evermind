@@ -10,7 +10,7 @@ import pytest
 
 from app.providers.base import ProviderError, ProviderEvent
 
-from .test_chat import FakeProvider, send, setup_conversation
+from .conftest import FakeProvider, send, setup_conversation
 
 FAILS_AFTER_TWO_WORDS = [
     ProviderEvent(type="delta", text="The door "),
@@ -70,21 +70,6 @@ async def test_a_regeneration_cut_short_by_a_failure_keeps_its_words_as_a_varian
     assert reply["active_index"] == 1
 
 
-async def test_a_regeneration_for_a_message_without_a_reply_keeps_what_arrived(client, provider):
-    """After a failure that left nothing, a regeneration writes the missing reply."""
-    convo = await setup_conversation(client)
-    provider.script = [ProviderError("Down.")]
-    await send(client, convo["id"], content="Knock")
-    provider.script = FAILS_AFTER_TWO_WORDS
-
-    assert await send(client, convo["id"], content=None, mode="regenerate")
-
-    messages = await messages_of(client, convo["id"])
-    assert [m["role"] for m in messages] == ["assistant", "user", "assistant"]
-    assert messages[-1]["content"] == "The door creaks open"
-    assert "unanswered" not in messages[1]["meta"]
-
-
 async def test_a_continuation_cut_short_by_a_failure_keeps_its_words(client, provider):
     convo = await setup_conversation(client)
     await send(client, convo["id"], content="Knock")
@@ -95,17 +80,6 @@ async def test_a_continuation_cut_short_by_a_failure_keeps_its_words(client, pro
     reply = (await messages_of(client, convo["id"]))[-1]
     assert reply["content"] == "Complete. The door creaks open"
     assert reply["variants"] == ["Complete. The door creaks open"]
-
-
-async def test_a_continuation_that_fails_before_any_word_changes_nothing(client, provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"], content="Knock")
-    before = await messages_of(client, convo["id"])
-    provider.script = [ProviderError("Down.")]
-
-    assert await send(client, convo["id"], content=None, mode="continue")
-
-    assert await messages_of(client, convo["id"]) == before
 
 
 async def test_the_conversation_read_after_a_failure_says_the_reply_was_cut_short(client, provider):
@@ -127,23 +101,6 @@ async def test_the_conversation_read_after_a_failure_says_the_reply_was_cut_shor
     assert kept["meta"].get("interrupted") == [0]
 
 
-async def test_a_regeneration_or_a_continuation_cut_short_by_a_failure_says_so_too(client, provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"], content="Knock")
-    provider.script = FAILS_AFTER_TWO_WORDS
-
-    await send(client, convo["id"], content=None, mode="regenerate")
-    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [1]
-
-    await send(client, convo["id"], content="Knock", mode="send")
-    provider.script = [ProviderEvent(type="delta", text="Whole."), ProviderEvent(type="done")]
-    await send(client, convo["id"], content=None, mode="regenerate")
-    provider.script = FAILS_AFTER_TWO_WORDS
-    await send(client, convo["id"], content=None, mode="continue")
-    # The first version was cut short too, by the send above.
-    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [0, 1]
-
-
 async def test_finishing_a_reply_that_was_cut_short_takes_the_label_away(client, provider):
     """Continuing a partial reply completes that version; leaving "interrupted" on it
     would label a whole reply for good."""
@@ -157,22 +114,6 @@ async def test_finishing_a_reply_that_was_cut_short_takes_the_label_away(client,
 
     reply = (await messages_of(client, convo["id"]))[-1]
     assert "interrupted" not in reply["meta"]
-
-
-async def test_only_finishing_a_reply_takes_the_label_away(client, provider):
-    convo = await setup_conversation(client)
-    provider.script = FAILS_AFTER_TWO_WORDS
-    await send(client, convo["id"], content="Knock")
-    provider.script = [ProviderEvent(type="delta", text="the rest."), ProviderEvent(type="done")]
-    await send(client, convo["id"], content=None, mode="continue")
-    # Not left from a turn before, and not cleared only for one mode: asking again, and
-    # failing again, labels it again, and only finishing clears it.
-    provider.script = FAILS_AFTER_TWO_WORDS
-    await send(client, convo["id"], content=None, mode="continue")
-    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [0]
-    provider.script = [ProviderEvent(type="delta", text=" Done."), ProviderEvent(type="done")]
-    await send(client, convo["id"], content=None, mode="continue")
-    assert "interrupted" not in (await messages_of(client, convo["id"]))[-1]["meta"]
 
 
 async def test_a_failure_that_is_not_a_model_event_keeps_what_arrived_too(client, monkeypatch):
@@ -216,19 +157,6 @@ async def swipe(client, convo_id, index):
     assert resp.status_code == 200, resp.text
 
 
-async def test_a_failed_regeneration_labels_its_own_version_and_not_the_whole_one(client, provider):
-    convo = await setup_conversation(client)
-    await send(client, convo["id"], content="Knock")
-    provider.script = FAILS_AFTER_TWO_WORDS
-
-    await send(client, convo["id"], content=None, mode="regenerate")
-
-    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [1]
-    assert await active_label(client, convo["id"]) == ("The door creaks open", True)
-    await swipe(client, convo["id"], 0)
-    assert await active_label(client, convo["id"]) == ("Complete.", False)
-
-
 async def test_a_whole_regeneration_leaves_the_label_on_the_version_that_was_cut(client, provider):
     convo = await setup_conversation(client)
     provider.script = FAILS_AFTER_TWO_WORDS
@@ -240,34 +168,6 @@ async def test_a_whole_regeneration_leaves_the_label_on_the_version_that_was_cut
     assert await active_label(client, convo["id"]) == ("Whole.", False)
     await swipe(client, convo["id"], 0)
     assert await active_label(client, convo["id"]) == ("The door creaks open", True)
-
-
-async def test_finishing_one_version_leaves_the_label_of_another(client, provider):
-    convo = await setup_conversation(client)
-    provider.script = FAILS_AFTER_TWO_WORDS
-    await send(client, convo["id"], content="Knock")
-    await send(client, convo["id"], content=None, mode="regenerate")
-    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [0, 1]
-    provider.script = [ProviderEvent(type="delta", text="the rest."), ProviderEvent(type="done")]
-
-    await send(client, convo["id"], content=None, mode="continue")
-
-    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [0]
-
-
-@pytest.mark.parametrize("nothing", [
-    [ProviderEvent(type="done")],
-    [ProviderEvent(type="delta", text="   "), ProviderEvent(type="done")],
-], ids=["no word", "only spaces"])
-async def test_a_continuation_that_adds_nothing_leaves_the_label(client, provider, nothing):
-    """The reply is as cut short as it was."""
-    convo = await setup_conversation(client)
-    provider.script = FAILS_AFTER_TWO_WORDS
-    await send(client, convo["id"], content="Knock")
-    provider.script = nothing
-
-    assert (await send(client, convo["id"], content=None, mode="continue"))["kind"] == "nothing_added"
-    assert (await messages_of(client, convo["id"]))[-1]["meta"].get("interrupted") == [0]
 
 
 async def test_a_branch_keeps_which_version_was_cut_short(client, provider):

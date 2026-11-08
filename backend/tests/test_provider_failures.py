@@ -14,8 +14,7 @@ from app.errors import NO_CONNECTION
 from app.providers import get_provider
 from app.providers.base import ProviderError
 
-from .test_chat import send, setup_conversation
-from .test_providers import PAYLOAD, anth_provider, collect, oai_provider, sse
+from .conftest import PAYLOAD, anth_provider, collect, oai_provider, send, setup_conversation, sse
 
 PROVIDERS = [("openai-compatible", oai_provider), ("anthropic", anth_provider)]
 

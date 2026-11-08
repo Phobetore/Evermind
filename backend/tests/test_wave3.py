@@ -7,7 +7,7 @@ import pytest
 from app.prompting.engine import match_lore
 from app.providers.base import ProviderEvent
 
-from .test_chat import FakeProvider, send, setup_conversation
+from .conftest import FakeProvider, send, setup_conversation
 
 
 @pytest.fixture()

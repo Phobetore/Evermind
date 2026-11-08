@@ -4,46 +4,7 @@ from app.prompting.engine import build_chat_payload
 from app.prompting.macros import substitute
 from app.prompting.tokens import estimate_tokens
 
-
-def make_character(**overrides) -> dict:
-    base = {
-        "kind": "character",
-        "name": "Serana",
-        "tagline": "",
-        "description": "A centuries-old vampire noble with a dry wit.",
-        "personality": "wry, guarded, fiercely loyal",
-        "scenario": "{{user}} found her sealed in an ancient crypt.",
-        "greeting": "*She stirs.* Who... are you, {{user}}?",
-        "alternate_greetings": [],
-        "example_dialogues": "<START>\n{{user}}: Are you alright?\n{{char}}: *dusts off* Define alright.",
-        "system_prompt": "",
-        "post_history_instructions": "",
-        "creator_notes": "",
-        "tags": [],
-        "creator": "",
-        "character_version": "",
-    }
-    base.update(overrides)
-    return base
-
-
-def make_connection(**overrides) -> dict:
-    base = {"context_size": 8192, "max_tokens": 512}
-    base.update(overrides)
-    return base
-
-
-def make_message(role: str, text: str, position: int) -> dict:
-    return {
-        "id": f"m{position}",
-        "role": role,
-        "variants": [text],
-        "active_index": 0,
-        "position": position,
-    }
-
-
-PERSONA = {"name": "Alex", "description": "A wandering scholar."}
+from .conftest import PERSONA, make_character, make_connection, make_message
 
 
 def test_substitute_macros_case_insensitive():

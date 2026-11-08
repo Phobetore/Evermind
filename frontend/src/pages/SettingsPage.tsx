@@ -341,7 +341,7 @@ function About({
   asks,
   onAsksChange,
 }: {
-  updates: NonNullable<DataSource["updates"]>;
+  updates: DataSource["updates"];
   /** Whether the page asks GitHub on its own when it opens. */
   asks: boolean;
   onAsksChange: (asks: boolean) => void;

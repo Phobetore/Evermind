@@ -45,19 +45,7 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
     data.access?.status().then(setStatus, () => setStatus(OPEN));
   }, []);
 
-  useEffect(
-    () =>
-      onLocked(() => {
-        // Several calls are usually refused together (a page loads a few
-        // things at once). Each lands here, and every one after the first
-        // finds the state already locked and changes nothing, so the gate
-        // redirects once, and not at all from the login itself.
-        setStatus((current) =>
-          current?.enabled && !current.authenticated ? current : LOCKED,
-        );
-      }),
-    [],
-  );
+  useEffect(() => onLocked(() => setStatus(LOCKED)), []);
 
   const value = useMemo(() => ({ status, refresh, signOut }), [status, refresh, signOut]);
   return <AccessContext.Provider value={value}>{children}</AccessContext.Provider>;

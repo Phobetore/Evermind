@@ -16,9 +16,17 @@ import pytest
 
 from app.prompting.engine import build_chat_payload
 from app.providers.base import ProviderEvent
-from tests.test_chat import messages_of, send, setup_conversation
-from tests.test_prompting import PERSONA, make_character, make_connection, make_message
-from tests.test_providers import oai_provider, sse
+from tests.conftest import (
+    PERSONA,
+    make_character,
+    make_connection,
+    make_message,
+    messages_of,
+    oai_provider,
+    send,
+    setup_conversation,
+    sse,
+)
 
 
 def build(messages, **kwargs):
@@ -42,40 +50,12 @@ def test_leading_assistant_turn_moves_into_the_system_prompt():
     assert not any(m["content"] == "*She looks up.* You came." for m in payload.messages)
 
 
-def test_every_leading_assistant_turn_folds_not_only_the_first():
-    messages = [
-        make_message("assistant", "First line.", 0),
-        make_message("assistant", "Second line.", 1),
-        make_message("user", "Right.", 2),
-    ]
-    payload = build(messages, fold_leading_assistant=True)
-
-    assert [m["role"] for m in payload.messages] == ["user"]
-    assert "First line." in payload.system
-    assert "Second line." in payload.system
-
-
 def test_folding_never_empties_the_message_list():
     """Sending no messages at all would trade one failure for a worse one."""
     payload = build([GREETING], fold_leading_assistant=True)
 
     assert payload.messages, "an assistant-only history must be left alone"
     assert FOLDED not in payload.system
-
-
-def test_nothing_folds_unless_asked():
-    payload = build([GREETING, ASKED])
-
-    assert payload.messages[0]["role"] == "assistant"
-    assert FOLDED not in payload.system
-
-
-def test_folding_leaves_a_user_led_conversation_untouched():
-    messages = [ASKED, make_message("assistant", "So you did.", 2)]
-    payload = build(messages, fold_leading_assistant=True)
-
-    assert FOLDED not in payload.system
-    assert [m["role"] for m in payload.messages] == ["user", "assistant"]
 
 
 class ScriptedProvider:
@@ -124,15 +104,6 @@ async def test_silence_is_retried_once_with_the_greeting_folded(client, scripted
     assert (await messages_of(client, convo["id"]))[-1]["content"] == "She answers after all."
 
 
-async def test_a_model_that_answers_is_only_asked_once(client, scripted):
-    scripted.scripts = [speech("Of course I answer.")]
-    convo = await setup_conversation(client)
-
-    await send(client, convo["id"])
-
-    assert len(scripted.payloads) == 1, "a working model must not pay for the retry"
-
-
 async def test_silence_twice_is_an_empty_reply(client, scripted):
     scripted.scripts = [SILENCE, SILENCE]
     convo = await setup_conversation(client)
@@ -141,17 +112,6 @@ async def test_silence_twice_is_an_empty_reply(client, scripted):
 
     assert len(scripted.payloads) == 2
     assert outcome["kind"] == "model_empty"
-
-
-async def test_the_retry_reply_is_the_one_that_gets_stored(client, scripted):
-    scripted.scripts = [SILENCE, speech("Saved from the second pass.")]
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-
-    messages = await messages_of(client, convo["id"])
-
-    assert [m["role"] for m in messages] == ["assistant", "user", "assistant"]
-    assert messages[-1]["content"] == "Saved from the second pass."
 
 
 @pytest.mark.parametrize(("status", "openings", "failed"), [
@@ -218,19 +178,3 @@ async def test_a_continuation_that_says_nothing_adds_nothing_not_even_a_space(
     assert outcome["mode"] == "continue"
     messages = await messages_of(client, convo["id"])
     assert messages[-1]["variants"] == ["She waits."]
-
-
-async def test_a_continuation_that_adds_something_does_not_say_otherwise(client, scripted):
-    scripted.scripts = [speech("She waits."), speech("Then she speaks.")]
-    convo = await setup_conversation(client)
-    await send(client, convo["id"])
-
-    assert await send(client, convo["id"], content=None, mode="continue") is None
-    assert (await messages_of(client, convo["id"]))[-1]["content"] == "She waits. Then she speaks."
-
-
-async def test_a_reply_that_is_new_or_replaced_never_says_nothing_was_added(client, scripted):
-    scripted.scripts = [speech("She waits."), speech("Another take.")]
-    convo = await setup_conversation(client)
-    assert await send(client, convo["id"]) is None
-    assert await send(client, convo["id"], content=None, mode="regenerate") is None

@@ -18,7 +18,7 @@ from app.config import db_path
 from app.models.schemas import ChatRequest
 from app.providers.base import ProviderEvent
 from app.services import turns
-from tests.test_chat import messages_of, setup_conversation
+from tests.conftest import messages_of, setup_conversation
 
 
 class HeldBack:

@@ -9,7 +9,7 @@ from app.prompting.memory_changes import plan_memory_changes
 from app.repositories import memories as repo
 from app.services.memory_service import _apply
 
-from .test_chat import setup_conversation
+from .conftest import setup_conversation
 
 TEXTS = ["a", "b", "c", "d e", "f"]
 BLANKS = ["", "", " ", "\t", "\xa0", "\x85", "\n"]

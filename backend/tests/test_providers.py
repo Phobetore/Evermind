@@ -11,41 +11,18 @@ from app.providers import get_provider
 from app.providers.anthropic import AnthropicProvider
 from app.providers.openai_compat import OpenAICompatProvider
 
-PAYLOAD = PromptPayload(
-    system="You are Serana.",
-    messages=[
-        {"role": "assistant", "content": "*She stirs.*"},
-        {"role": "user", "content": "Hello"},
-    ],
-    stop=["\nAlex:"],
-    post_history="Stay tense.",
+from .conftest import (
+    ANTH_CONN,
+    OAI_CONN,
+    PAYLOAD,
+    SAMPLING,
+    anth_provider,
+    collect,
+    oai_provider,
+    sse,
 )
 
-OAI_CONN = {
-    "provider": "openai-compatible",
-    "base_url": "http://mock/v1",
-    "api_key": "sk-test",
-    "model": "test-model",
-    "context_size": 8192,
-    "max_tokens": 256,
-    "temperature": 0.9,
-    "top_p": 0.95,
-    "frequency_penalty": 0.1,
-    "presence_penalty": 0.1,
-}
-
-ANTH_CONN = dict(OAI_CONN, provider="anthropic", base_url="https://mock.anthropic.com", api_key="sk-ant")
-
-SAMPLING = ("max_tokens", "temperature", "top_p", "frequency_penalty", "presence_penalty")
 EMPTY = dict.fromkeys(SAMPLING)
-
-
-def sse(lines: list[str]) -> bytes:
-    return "".join(f"data: {line}\n\n" for line in lines).encode()
-
-
-async def collect(provider, payload=PAYLOAD):
-    return [e async for e in provider.stream_chat(payload)]
 
 
 async def body_sent(provider_class, connection: dict, payload=PAYLOAD) -> dict:
@@ -63,12 +40,6 @@ async def body_sent(provider_class, connection: dict, payload=PAYLOAD) -> dict:
 
 
 # ---------- openai-compatible ----------
-
-def oai_provider(handler) -> OpenAICompatProvider:
-    p = OpenAICompatProvider(OAI_CONN)
-    p._client_factory = lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    return p
-
 
 async def test_openai_stream_deltas_and_done():
     captured = {}
@@ -196,12 +167,6 @@ async def test_openai_itself_is_sent_no_stop(base_url, stop):
 
 
 # ---------- anthropic ----------
-
-def anth_provider(handler) -> AnthropicProvider:
-    p = AnthropicProvider(ANTH_CONN)
-    p._client_factory = lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    return p
-
 
 async def test_anthropic_stream_and_message_shaping():
     captured = {}
