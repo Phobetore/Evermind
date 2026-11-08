@@ -1,4 +1,4 @@
-"""Half of an emoji, a lone surrogate, comes in JSON as an escape such as \\ud83d, and can be neither
+r"""Half of an emoji, a lone surrogate, comes in JSON as an escape such as \ud83d, and can be neither
 stored nor sent. Every route that takes text refuses it with a 422 naming the field, never a 500,
 and nothing is written."""
 
@@ -20,9 +20,8 @@ async def ask(client, method: str, url: str, body: dict):
 @pytest.fixture()
 async def made(client):
     convo = await setup_conversation(client)
-    character = (await client.get(f"/api/characters/{convo['character_id']}")).json()
     return {
-        "character": character["id"],
+        "character": convo["character_id"],
         "persona": (await client.get("/api/personas")).json()[0]["id"],
         "connection": (await client.get("/api/connections")).json()[0]["id"],
         "conversation": convo["id"],
