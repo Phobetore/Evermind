@@ -341,6 +341,12 @@ ZIP**), put `SEMANTIC=true` in your `.env`, and from the unzipped folder run
 `docker compose up -d --build`. Expect a long first build, and a small language
 model downloaded once on first start.
 
+Already running the ready-made image? Build where it runs: run
+`docker compose down` in the folder that holds your `docker-compose.yml` and
+`.env`, rename that folder, unzip the source in its place under the same name,
+copy your `.env` into it and go on as above. Keep the folder's name: Docker
+stores your conversations under it.
+
 **Cards from elsewhere.** Evermind reads and writes the standard Character Card
 V2 format, the JSON and PNG files used across the roleplay community. Thousands
 of existing cards work; use **Import** on the Discover page.
