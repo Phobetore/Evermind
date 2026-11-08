@@ -348,8 +348,8 @@ async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int,
         summary = back["summary"]
     elif cut + 1 <= MAX_TURNS_PER_RUN:  # the next pass reads all that is left of the story
         summary = ""
-    else:
-        summary = row["summary"]
+    else:  # the oldest: every pass after it read only turns the cut removes
+        summary = passes[-1]["summary"]
     await db.execute("UPDATE conversations SET memory_position = ?, summary = ? WHERE id = ?",
                      (position, summary, convo_id))
 

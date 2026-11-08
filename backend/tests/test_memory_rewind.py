@@ -1695,6 +1695,33 @@ async def test_a_summary_goes_only_if_the_next_pass_can_write_it_again(
     assert (read["memory_position"], read["summary"]) == (0, summary)
 
 
+@pytest.mark.parametrize("typed", [1, 0], ids=["carried over from 3.0", "by a pass"])
+async def test_a_long_story_cut_before_all_its_passes_keeps_the_oldest_summary(
+        client, fake_provider, typed):
+    """A story from 3.0.x whose memory had read to 72, a pass after the update to 84, then a cut at
+    61. Every pass after the oldest read only turns the cut removes: the oldest summary tells the
+    fewest of them, and the next pass, which reads 40 turns, goes on from it."""
+    convo_id = await a_story_read_once(client, last=92, read=72)
+    db = await _connect()
+    try:  # 1: as 015 leaves the summary of a story read under 3.0.x
+        await db.execute("UPDATE memory_summaries SET typed = ? WHERE conversation_id = ?",
+                         (typed, convo_id))
+        await db.commit()
+    finally:
+        await db.close()
+    await read_up_to(convo_id, 84, "To 84.")
+
+    await remove_from(client, convo_id, 61)
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (0, "The whole story.")
+    fake_provider.captured.clear()
+    await extract(client, convo_id, {"facts": [], "summary": "To 60."})
+    shown = fake_provider.captured["payload"].messages[0]["content"]
+    assert "CURRENT SUMMARY:\nThe whole story.\n" in shown
+    assert "(turn 21)" in shown and "(turn 60)" in shown and "(turn 20)" not in shown
+
+
 def while_the_model_answers(monkeypatch, action):
     class Acting(FakeProvider):
         async def stream_chat(self, payload):
