@@ -144,7 +144,7 @@ describe("a session that ended", () => {
     const handler = vi.fn();
     onLocked(handler);
     replies.push(json({ error: "Wrong password.", kind: "wrong_password" }, 401));
-    expect(await data.access!.login("nope").catch((e) => e)).toMatchObject({ kind: "wrong_password" });
+    expect(await data.access.login("nope").catch((e) => e)).toMatchObject({ kind: "wrong_password" });
     expect(handler).not.toHaveBeenCalled();
   });
 });

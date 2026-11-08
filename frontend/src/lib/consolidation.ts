@@ -1,4 +1,4 @@
-import type { ConsolidateResult, ExtractResult } from "@/data/source";
+import type { ConsolidateResult, ExtractResult } from "@/data";
 import type { Translate } from "@/i18n/I18nProvider";
 
 /** What a consolidation did, as a sentence. */
