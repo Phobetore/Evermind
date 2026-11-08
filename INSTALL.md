@@ -349,8 +349,9 @@ This is the one option the ready-made image cannot give you, because it would
 add two or three gigabytes to a download everybody else pays for. So it means
 building your own copy: get the source (green **Code** button, then **Download
 ZIP**), put `SEMANTIC=true` in your `.env`, and from the unzipped folder run
-`docker compose up -d --build`. Expect a long first build, and a small language
-model downloaded once on first start.
+`docker compose up -d --build`. Expect a long first build, and a first start that
+downloads a small language model (about 470 MB). It is kept in the Docker volume
+with your conversations, so rebuilding or updating does not download it again.
 
 Already running the ready-made image? Build where it runs: run
 `docker compose down` in the folder that holds your `docker-compose.yml` and
@@ -404,9 +405,11 @@ whether a newer release exists, so that you hear about fixes without having to g
 and look. It asks for the latest release number, with no cookie and nothing you
 wrote. GitHub sees what any website sees of a browser that asks it something: your
 internet address, the browser's name and languages, and the address you opened
-Evermind at. The checkbox under **About** in Settings turns it off, and with it off
-nothing goes out on its own. The button beside it still asks when you press it,
-which is the only time anything is sent once the checkbox is clear.
+Evermind at. The checkbox under **About** in Settings turns it off, and the button
+beside it still asks when you press it. With the checkbox clear, nothing goes out
+on its own, except semantic memory's model if you set it up (see **Optional
+extras**): the first start downloads it from huggingface.co, and every later start
+loads it from your disk and asks nothing.
 
 To back it up, copy that folder. To start fresh, delete it.
 
