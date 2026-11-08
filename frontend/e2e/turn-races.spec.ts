@@ -264,6 +264,7 @@ test.describe("what is asked of a connection that does not answer", () => {
     const streams = countingStreams(page);
     await page.goto(`/#/chat/${convo.id}`);
     await expect(page.locator(`[data-message-id="${target.id}"]`)).toBeVisible();
+    await page.waitForLoadState("networkidle");
 
     await page.locator('button[title="Continue the reply"]').first().click({ force: true });
     await expectPickedUp(page, expect.poll(streams).toBeGreaterThan(1));
