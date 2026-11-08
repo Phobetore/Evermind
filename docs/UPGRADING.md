@@ -14,6 +14,13 @@ From 3.0.0 or 3.0.1, the steps for 3.0.2 below apply too: with Docker, download
 `docker-compose.yml` again; remove the quotes around values in `.env`; and from
 the source, Python must use SQLite 3.35 or newer.
 
+- **If you built the image yourself, for semantic memory, do not run the command
+  that Settings shows in 3.0.x.** It would replace your image with the published
+  one, which has no semantic memory. Bring the source up to date and run
+  `docker compose up -d --build` from it instead, as
+  [Updating](../INSTALL.md#updating) says; that also builds semantic memory back
+  into an image already replaced. From 3.1.0 on, Settings links to those steps
+  rather than showing the command.
 - **Every device signs in once more**, if you set a password: the sessions kept
   by 3.0.x end with the update. A device then stays signed in until it is signed
   out in **Settings** or the password changes. There is no 30-day limit any more:
