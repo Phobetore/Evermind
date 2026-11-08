@@ -1,15 +1,29 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply } from "./fixtures";
+import { writing } from "./connection";
+import { conversationWithReply, stopTurn } from "./fixtures";
 
 /**
- * A page that arrives in the middle of a regeneration does not show the reply being replaced with
- * its replacement arriving underneath, as though a second reply were being added. The turn is
- * started over the API: the page arriving mid-regeneration is all that matters here.
+ * A regeneration does not show the reply being replaced with its replacement arriving underneath, as
+ * though a second reply were being added: not on the page that asked for it, nor on a page that
+ * arrives in the middle of it.
  */
-// The reply here is deliberately slow, so the window this test looks through is
+// The reply here is deliberately slow, so the window these tests look through is
 // wide enough to survive a loaded machine.
 test.setTimeout(120_000);
+
+test("the page asking for a regeneration hides the reply being replaced", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { slowly: true });
+  const target = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.waitForLoadState("networkidle");
+
+  await target.getByTitle("Regenerate").click({ force: true });
+
+  await expect(writing(page)).toBeVisible();
+  await expect(target, "on screen under its own replacement").toHaveCount(0);
+  await stopTurn(request, convo.id);
+});
 
 test("a page arriving mid-regeneration hides the reply being replaced", async ({ page, request }) => {
   const convo = await conversationWithReply(request, { slowly: true });
