@@ -337,8 +337,7 @@ async def test_facts_budget_scales_with_context(client, fake_provider):
         conversation={"summary": ""}, messages=recent,
         connection={"context_size": 32768, "max_tokens": 1024}, memories=memories,
     )
-    assert big.stats["facts_injected"] > small.stats["facts_injected"]
-    assert big.stats["facts_total"] == 40
+    assert big.system.count("Fait ") > small.system.count("Fait ") > 0
 
 
 async def test_history_limit_setting_flows_into_chat(client, fake_provider):

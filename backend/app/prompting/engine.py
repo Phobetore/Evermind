@@ -345,13 +345,11 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     # that starts with the player. Only ever done as a retry, since it is the
     # weaker shape: the model reads the opening as instruction rather than as its
     # own voice.
-    folded = 0
     if fold_leading_assistant and any(t["role"] != "assistant" for t in turns):
         spoken = []
         while turns and turns[0]["role"] == "assistant":
             spoken.append(turns.pop(0)["content"])
         if spoken:
-            folded = len(spoken)
             block = "\n\n".join(f"{char_name}: {s}" for s in spoken)
             system = (f"{system}\n\n### THE SCENE SO FAR "
                       f"({char_name} has already said this aloud; carry on from it "
@@ -367,12 +365,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         "messages_included": len(turns),
         "messages_total": len(messages),
         "lore_matched": len(lore),
-        "facts_injected": len(facts_shown),
-        "facts_total": len(memories or []),
         "oldest_visible": visible_oldest,
         "fact_positions": [m.get("source_position") for m in facts_shown],
-        "passages_injected": len(retrieved_passages or []),
-        "leading_assistant_folded": folded,
     }
     return PromptPayload(system=system, messages=turns, stop=stop,
                          post_history=post_history, stats=stats)

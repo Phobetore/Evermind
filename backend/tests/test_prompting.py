@@ -400,14 +400,12 @@ def test_retrieved_passages_injected_and_stats():
     assert "(turn 4) Serana: Lea swore to return." in payload.system  # assistant -> char name
     assert "(turn 3) Alex: Do you promise me?" in payload.system        # user -> persona name
     assert payload.system.index("turn 4") > payload.system.index("turn 3")  # oldest-first
-    assert payload.stats["passages_injected"] == 2
     assert "oldest_visible" in payload.stats
 
 
 def test_no_relevant_past_block_when_no_passages():
     payload = build()
     assert "### RELEVANT PAST" not in payload.system
-    assert payload.stats["passages_injected"] == 0
 
 
 def test_stats_exposes_fact_positions():
