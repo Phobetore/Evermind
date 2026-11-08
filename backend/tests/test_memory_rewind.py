@@ -1742,6 +1742,29 @@ async def test_a_summary_typed_while_the_model_answers_is_kept_with_the_rest_of_
     assert "(turn 5)" in shown and "(turn 8)" in shown and "(turn 4)" not in shown
 
 
+async def test_a_summary_typed_back_to_the_words_the_pass_read_leaves_the_pass_to_write(
+        client, fake_provider, monkeypatch):
+    """Typed over an older one, which takes the memory back to it, then back to the words the
+    pass read: what the model wrote, it wrote from those words, and nothing typed is lost."""
+    convo_id = (await setup_conversation(client))["id"]
+    for first, read in ((1, 4), (3, 8)):
+        await talk(client, convo_id, 2, first=first)
+        await extract(client, convo_id, {"facts": [], "summary": f"To {read}."})
+    await talk(client, convo_id, 2, first=5)  # 9 to 12
+
+    async def types():
+        await client.patch(f"/api/conversations/{convo_id}",
+                           json={"summary": "Typed.", "summary_was": "To 4."})
+        await client.patch(f"/api/conversations/{convo_id}", json={"summary": "To 8."})
+
+    while_the_model_answers(monkeypatch, types)
+    await extract(client, convo_id, {"facts": [], "summary": "To 12."})
+
+    read = await conversation(client, convo_id)
+    assert (read["memory_position"], read["summary"]) == (12, "To 12.")
+    assert await summaries_of(convo_id) == [(4, "To 8."), (12, "To 12.")]
+
+
 async def test_a_summary_typed_during_the_first_pass_reads_as_typed_too(
         client, fake_provider, monkeypatch):
     convo = await setup_conversation(client)
