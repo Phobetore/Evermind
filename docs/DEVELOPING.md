@@ -215,7 +215,9 @@ location /evermind/ {
 Evermind's `.env` then names that address, `FORWARDED_ALLOW_IPS=127.0.0.2`, the
 only one it believes those two headers from.
 [SECURITY.md](../SECURITY.md#behind-a-reverse-proxy) says why, and what to name
-in other setups, Docker's among them.
+in other setups, Docker's among them. It also sets `EVERMIND_GATE_PASSWORD` when
+browsers reach the proxy by a name, as they usually do: without a password,
+Evermind answers only to an address or `localhost` (`unknown_host`).
 
 The prefix needs nothing more, since nothing is addressed from the root of the
 host: the build uses relative asset paths (`base: "./"`) and routes after the
