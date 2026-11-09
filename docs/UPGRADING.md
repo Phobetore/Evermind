@@ -93,6 +93,8 @@ From 3.0.0 or 3.0.1, every step of
   The checkbox under **About** turns it off.
 - **Pictures that are replaced or removed stay on disk**, in the `media` folder
   of your data, as those of a deleted card, persona or conversation already did.
+- **A save waits for a busy database** for up to 30 seconds, where it used to
+  fail after 5 with an error. Stopping Evermind waits for such a save too.
 - **For a script that calls the API**:
   - Gone: `POST /api/characters/import` and `GET /api/characters/{id}/export`
     (cards are read and written in the browser now),
