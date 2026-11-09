@@ -416,12 +416,15 @@ To back it up, stop Evermind and copy that folder. To start fresh, delete it.
 
 With Docker there is no such folder of yours: the volume holds it all. To back it
 up, run this from the folder that holds your `docker-compose.yml`. It stops
-Evermind, copies the volume into a new folder beside it, `evermind-backup`, and
-starts Evermind again:
+Evermind, copies the volume into a new folder beside it,
+`evermind-backup-2026-11-08` here, and starts Evermind again. Give each backup a
+name no folder has yet, such as that day's date: given a folder that already
+exists, Docker puts the copy inside it, in a folder named `data`, among the older
+backup's files.
 
 ```bash
 docker compose stop
-docker compose cp evermind:/data evermind-backup
+docker compose cp evermind:/data evermind-backup-2026-11-08
 docker compose up -d
 ```
 
