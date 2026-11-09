@@ -428,6 +428,21 @@ docker compose cp evermind:/data evermind-backup-2026-11-08
 docker compose up -d
 ```
 
+To put a backup back, copy what its folder holds into the volume while Evermind is
+stopped. Everything written since that backup is lost. From the same folder, with
+your backup's name:
+
+```bash
+docker compose stop
+docker compose run --rm --no-deps --entrypoint sh evermind -c 'rm -f /data/evermind.db-wal /data/evermind.db-shm'
+docker compose cp evermind-backup-2026-11-08/. evermind:/data
+docker compose up -d
+```
+
+The second line deletes `evermind.db-wal` and `evermind.db-shm`, which belong to
+the database being replaced, as **Going back after an update** does. The `/.`
+after the backup's name copies what the folder holds, not the folder itself.
+
 To start fresh, `docker compose down -v` deletes the volume and everything in it,
 for good, and `docker compose up -d` then starts an empty Evermind.
 
