@@ -277,6 +277,10 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
             "summary": current["summary"] if typed else changes["summary"] or current["summary"]}
 
 
+# After each vector it stores, the start-up task lets any write waiting on the database go first.
+_GIVE_WAY_S = 0.05
+
+
 async def fill_vectors() -> None:
     """Startup task: load the model, the only place a download can happen, then give every
     fact and message that has no vector its own. Own connection; never raises."""
@@ -289,10 +293,12 @@ async def fill_vectors() -> None:
             if vectors:
                 await memories_repo.set_embedding(db, fact["id"], fact["content"],
                                                   embeddings.pack(vectors[0]))
+                await asyncio.sleep(_GIVE_WAY_S)
         for message in await convo_repo.list_messages_missing_embeddings(db):
             vectors = await embeddings.embed([active_content(message)], kind="passage")
             if vectors:
                 await convo_repo.set_message_embedding(db, message["id"], embeddings.pack(vectors[0]))
+                await asyncio.sleep(_GIVE_WAY_S)
     except Exception:
         logger.exception("semantic memory: filling the missing vectors failed")
     finally:
