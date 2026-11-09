@@ -86,6 +86,11 @@ def response(sock: socket.socket) -> bytes:
     return head.split(b"\r\n")[0] + (b" " + body if body else b"")
 
 
+def refused(answer: bytes) -> bool:
+    """A 400, with as much of its body as came with the head, or a connection closed without one."""
+    return answer == b"" or answer.startswith(b"HTTP/1.1 400 Bad Request")
+
+
 def closed(sock: socket.socket) -> float:
     """How long the server took to close the connection, which it must do on its own."""
     started = time.monotonic()
@@ -109,14 +114,15 @@ def test_a_head_past_16_kb_is_refused(address, start):
     """uvicorn's default parser keeps all of it, for as long as the client goes on."""
     with connect(address) as sock:
         send(sock, start, b"a" * 20 * KB)
-        assert response(sock) in (b"", b"HTTP/1.1 400 Bad Request")
+        time.sleep(0.3)  # read late, as on a loaded machine: the 400's body has come with its head
+        assert refused(response(sock))
 
 
 def test_a_megabyte_of_headers_is_refused_and_others_are_still_answered(address, caplog):
     """The security review's request, which was answered 200, and logs nothing on the way."""
     with connect(address) as sock:
         send(sock, b"GET / HTTP/1.1\r\nHost: x\r\n", b"X-Fill: " + b"a" * (MB - 10) + b"\r\n\r\n")
-        assert response(sock) in (b"", b"HTTP/1.1 400 Bad Request")
+        assert refused(response(sock))
     with connect(address) as sock:
         send(sock, b"GET / HTTP/1.1\r\nHost: x\r\n\r\n")
         assert response(sock) == b"HTTP/1.1 200 OK"

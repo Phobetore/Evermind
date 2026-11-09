@@ -74,6 +74,13 @@ def test_the_image_keeps_the_model_in_the_data_volume():
     assert f"evermind-data:{data}" in (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
 
 
+def test_the_model_in_the_volume_is_files_a_backup_can_copy_to_windows():
+    """By default they are links, which Windows makes only as administrator or in Developer Mode."""
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    assert re.search(r"\bHF_HUB_DISABLE_SYMLINKS=1\b", dockerfile)
+
+
 def test_pack_unpack_round_trip():
     vector = [0.1, -0.5, 0.9, 0.0]
     blob = embeddings.pack(vector)

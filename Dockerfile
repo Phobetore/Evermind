@@ -50,6 +50,8 @@ ENV EVERMIND_DATA_DIR=/data \
     PORT=8000
 # Semantic memory's model, with the data: a new container finds it there instead of downloading it.
 ENV HF_HUB_CACHE=/data/huggingface
+# Files, not links: copied to Windows by a backup, a link needs an administrator or Developer Mode.
+ENV HF_HUB_DISABLE_SYMLINKS=1
 EXPOSE 8000
 # No settings file: .dockerignore keeps .env out of the image, and a container
 # is configured through the environment that docker-compose.yml hands it.

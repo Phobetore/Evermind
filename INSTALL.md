@@ -199,6 +199,11 @@ your computer, until you stop it with `docker compose down`.
 > box itself. So in Step 3, wherever this guide says `localhost`, type
 > `host.docker.internal` instead. For LM Studio that means
 > `http://host.docker.internal:1234/v1`.
+>
+> On Linux, if Evermind still cannot reach it, your AI is listening for this
+> computer alone, which leaves the box out: let it listen on the network
+> (**Serve on Local Network** in LM Studio's server settings, `OLLAMA_HOST=0.0.0.0`
+> for Ollama), and let your firewall allow its port.
 
 ### The other way: run it directly
 
@@ -218,15 +223,19 @@ Evermind itself runs on Python alone. That Python must use SQLite 3.35 or newer
 > packages is often older than 22.12, so get a current one from nodejs.org or
 > with a version manager.
 
-Then, from the Evermind folder:
+Then open a terminal in the Evermind folder, as in step 4 above, and run:
 
 ```bash
 # Windows
-scripts\prod.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\prod.ps1
 
 # macOS and Linux
 ./scripts/prod.sh
 ```
+
+On Windows, `-ExecutionPolicy Bypass` lets this one script run and changes no
+setting: out of the box, Windows refuses `.\scripts\prod.ps1` typed alone, and a
+script from a downloaded ZIP even where scripts are allowed.
 
 The first run installs what it needs and takes a few minutes, and so does the
 first run after an update that changes any of it. Then open
@@ -272,9 +281,10 @@ asterisks* and they appear in italics.
 Two things worth knowing early:
 
 - **The panel on the right is the memory.** Evermind writes down the important
-  facts of your story by itself as you play. You can read them, correct them,
-  pin the ones that must never be dropped, or add your own. Nothing is hidden
-  from you.
+  facts of your story, and a summary of it, by itself as you play. You can read
+  them, pin the facts that must never be dropped, forget the wrong ones, add your
+  own and rewrite the summary. On a phone or a narrow window the panel starts
+  closed: the sliders button at the top right opens it.
 - **Settings, then General roleplay instructions** is where you set your own
   rules: language, length, tone, what you do and do not want. Evermind imposes
   nothing; whatever you write there applies to every conversation.
@@ -310,7 +320,8 @@ conversations. And keep this to your home network rather than the open internet:
 it is one shared password over plain HTTP, which is a speed bump and not real
 protection.
 
-Running without Docker instead? `scripts\prod.ps1 -Lan` (or
+Running without Docker instead?
+`powershell -ExecutionPolicy Bypass -File .\scripts\prod.ps1 -Lan` (or
 `./scripts/prod.sh --lan`) does the same thing and prints the address for you.
 Set `EVERMIND_GATE_PASSWORD` in your `.env` there too, in the Evermind folder.
 
@@ -339,8 +350,9 @@ This is the one option the ready-made image cannot give you, because it would
 add two or three gigabytes to a download everybody else pays for. So it means
 building your own copy: get the source (green **Code** button, then **Download
 ZIP**), put `SEMANTIC=true` in your `.env`, and from the unzipped folder run
-`docker compose up -d --build`. Expect a long first build, and a small language
-model downloaded once on first start.
+`docker compose up -d --build`. Expect a long first build, and a first start that
+downloads a small language model (about 470 MB). It is kept in the Docker volume
+with your conversations, so rebuilding or updating does not download it again.
 
 Already running the ready-made image? Build where it runs: run
 `docker compose down` in the folder that holds your `docker-compose.yml` and
@@ -357,21 +369,23 @@ of existing cards work; use **Import** on the Discover page.
 ## If something goes wrong
 
 The interface shows its messages in the language you chose, and they are quoted
-here in English. The ones about ports are the exception: they come from the
-program that starts Evermind, which always writes in English.
+here in English. The ones about ports come from the program that starts Evermind,
+which writes in English, but the reason your system gives for refusing a port is
+in its own words and language.
 
 | What you see | What it usually means |
 |---|---|
-| "Evermind cannot reach the model's server at http://localhost:1234/v1" | Your AI is not running. Go back to LM Studio and check the server is started. On Docker, check you used `host.docker.internal` instead of `localhost`. |
+| "Evermind cannot reach the model's server at http://localhost:1234/v1" | Your AI is not running. Go back to LM Studio and check the server is started. On Docker, check you used `host.docker.internal` instead of `localhost`, and on Linux read **One thing to remember with Docker**, in Step 2. |
 | "No LLM connection is set up" | Step 3 has not been done, or the connection was not saved. |
 | Replies are cut off mid-sentence | The **Max response (tokens)** value on your connection is too low. Raise it. |
 | The character forgets things, or repeats itself | Your **Context (tokens)** is probably set higher than your AI really offers. Match it to the real value. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
 | Replies are very slow | Normal for a large model on a modest machine. Try a smaller one, or an online service. |
 | "The model returned an empty reply" | Try again. If every reply comes back empty, that model's chat template does not work for roleplay here, whatever you write: pick another model. |
 | `docker compose` complains about `env_file`, a variable that "contains whitespaces", "invalid utf8", "Invalid template" or "unexpected character" | Write that line of `.env` as `NAME=value`, with no `export` and no spaces around `=`, and save the file as UTF-8 (Windows PowerShell 5.1 writes UTF-16 with `>`). A value holding `${` with no `}` after it cannot be used with Docker: pick another. Otherwise your Docker is older than November 2024: update it; on Debian or Ubuntu, install Docker from Docker's own packages rather than the distribution's. |
+| PowerShell says the script "cannot be loaded" (in your system's language) | Windows runs no script unless it is told to. Start Evermind with the command Step 2 gives, the one that begins with `powershell -ExecutionPolicy Bypass`. |
 | "Port 3000 is already in use", or Docker says the port is already allocated | Something else on your computer already uses that port, and often it is Evermind itself, still running. Stop it first. Otherwise set `PORT` to a free one, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
-| "error while attempting to bind on address", with "Permission denied" or "forbidden by its access permissions" | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Set `PORT` to a number above 1024, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
-| Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you ran `docker compose up -d` again afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. Evermind prints the exact command when it starts on the network; but if Windows once asked whether to let Python accept connections and got Cancel, the rules it made to block Python win over that command: delete them in `wf.msc`, under Inbound Rules. |
+| "error while attempting to bind on address", then your system's reason | Your system keeps that port for itself: Linux and macOS reserve the ones below 1024, and Windows holds back a few others. Set `PORT` to a number above 1024, `3001` for instance, in your `.env` (see **Using a different port** under Optional extras). |
+| Your phone cannot reach it | On Docker, check `BIND=0.0.0.0` is in your `.env` and that you ran `docker compose up -d` again afterwards; the default keeps Evermind on your computer alone. Both devices must be on the same Wi-Fi, and on Windows the firewall must allow the port. Started from the source, Evermind prints the exact command each time it starts on the network. With Docker, run it yourself once, in an administrator PowerShell, with your port if it is not 3000: `New-NetFirewallRule -DisplayName 'Evermind (3000)' -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow`. If Windows once asked whether to let Python, or Docker, accept connections and got Cancel, the rules it made to block that program win over the command: delete them in `wf.msc`, under Inbound Rules. |
 | "Without a password, Evermind does not answer to this name" | You opened Evermind by a name, such as the computer's own or `nas.local`, and no password is set. Open it by its address (`http://192.168.1.42:3000`) or by `localhost`, or set a password: with one, any name is accepted. With Docker, after changing `.env`, run `docker compose up -d` again (`docker compose restart` keeps the settings the container started with); otherwise start Evermind again. |
 | "Evermind refused this request because it seems to come from another address" | Evermind turns away changes that a page from another website sends. If you reach it through a reverse proxy, the proxy has to pass the browser's original `Host` header on unchanged. [docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an example. |
 | A password page appears | Only happens once you set `EVERMIND_GATE_PASSWORD` in your `.env`. Each device is asked once, then stays signed in until it is signed out. Clear that line and start Evermind again to remove the page (with Docker, `docker compose up -d`). |
@@ -382,21 +396,55 @@ program that starts Evermind, which always writes in English.
 ## Where your things are kept
 
 Everything you create, including characters, conversations, personas and API
-keys, stays on your own machine, in the `data` folder next to the app (or in a Docker volume if
-you used Docker). Nothing you write is sent anywhere except to the AI service you
-chose yourself. If you run the AI locally too, nothing you write leaves your
-computer at all.
+keys, stays on your own machine, in the `data` folder next to the app (or in a
+Docker volume if you used Docker). Nothing you write is sent anywhere except to
+the AI service you chose yourself. If you run the AI locally too, nothing you
+write leaves your computer at all.
 
-One thing does go out. Each time you open Settings, your browser asks GitHub
-whether a newer release exists, so that you hear about fixes without having to go
-and look. It asks for the latest release number, with no cookie and nothing you
-wrote. GitHub sees what any website sees of a browser that asks it something: your
-internet address, the browser's name and languages, and the address you opened
-Evermind at. The checkbox under **About** in Settings turns it off, and with it off
-nothing goes out on its own. The button beside it still asks when you press it,
-which is the only time anything is sent once the checkbox is clear.
+One thing does go out, two with semantic memory. Each time you open Settings,
+your browser asks GitHub whether a newer release exists, so that you hear about
+fixes without having to go and look. It asks for the latest release number, with
+no cookie and nothing you wrote. GitHub sees what any website sees of a browser
+that asks it something: your internet address, the browser's name and languages,
+and the address you opened Evermind at. The checkbox under **About** in Settings
+turns it off, and the button beside it still asks when you press it. Semantic
+memory, if you set it up (see **Optional extras**), downloads its model from
+huggingface.co on its first start, and every later start loads it from your disk
+and asks nothing. Nothing else goes out on its own.
 
-To back it up, copy that folder. To start fresh, delete it.
+To back it up, stop Evermind and copy that folder. To start fresh, delete it.
+
+With Docker there is no such folder of yours: the volume holds it all. To back it
+up, run this from the folder that holds your `docker-compose.yml`. It stops
+Evermind, copies the volume into a new folder beside it,
+`evermind-backup-2026-11-08` here, and starts Evermind again. Give each backup a
+name no folder has yet, such as that day's date: given a folder that already
+exists, Docker puts the copy inside it, in a folder named `data`, among the older
+backup's files.
+
+```bash
+docker compose stop
+docker compose cp evermind:/data evermind-backup-2026-11-08
+docker compose up -d
+```
+
+To put a backup back, copy what its folder holds into the volume while Evermind is
+stopped. Everything written since that backup is lost. From the same folder, with
+your backup's name:
+
+```bash
+docker compose stop
+docker compose run --rm --no-deps --entrypoint sh evermind -c 'rm -f /data/evermind.db-wal /data/evermind.db-shm'
+docker compose cp evermind-backup-2026-11-08/. evermind:/data
+docker compose up -d
+```
+
+The second line deletes `evermind.db-wal` and `evermind.db-shm`, which belong to
+the database being replaced, as **Going back after an update** does. The `/.`
+after the backup's name copies what the folder holds, not the folder itself.
+
+To start fresh, `docker compose down -v` deletes the volume and everything in it,
+for good, and `docker compose up -d` then starts an empty Evermind.
 
 ## Updating
 
@@ -416,7 +464,9 @@ docker compose up -d --pull always
 The command keeps the `docker-compose.yml` you have. When the notes ask for a new
 one, download
 **[docker-compose.yml](https://github.com/Phobetore/Evermind/releases/latest/download/docker-compose.yml)**
-again first and put it over the old one. Your `.env` stays as it is.
+again first and put it over the old one. Your `.env` stays as it is, but if it
+pins a version, with a line such as `EVERMIND_VERSION=3.0.2`, the command keeps
+that version: delete the line first.
 
 If you built the image yourself, for semantic memory, that command would replace
 it with the published image, which has none. Bring the folder you built from up
@@ -430,14 +480,16 @@ the project, one line gets the new version and starts it:
 
 ```bash
 # Windows
-git pull; .\scripts\prod.ps1
+git pull; powershell -ExecutionPolicy Bypass -File .\scripts\prod.ps1
 
 # macOS and Linux
 git pull && ./scripts/prod.sh
 ```
 
+Add `-Lan` (or `--lan`) at the end if you start it that way.
+
 If you downloaded a ZIP, unzip the new one, copy the `data` folder and your `.env`
-from the old folder into it, and run the script from there.
+from the old folder into it, and start it from there as in Step 2.
 
 ### Going back after an update
 
@@ -452,7 +504,7 @@ order: stop Evermind; replace `evermind.db` in the data folder with the copy, an
 delete `evermind.db-wal` and `evermind.db-shm` there if they exist; put back the
 version you had; start Evermind. With Docker the data is in a volume: stop
 Evermind with `docker compose down`, put the version you had in your `.env` (such
-as `EVERMIND_VERSION=3.0.1`), and list the copies:
+as `EVERMIND_VERSION=3.0.2`), and list the copies:
 
 ```bash
 docker compose run --rm --no-deps --entrypoint ls evermind -lt /data
@@ -467,4 +519,9 @@ docker compose run --rm --no-deps --entrypoint sh evermind -c 'cd /data && cp NA
 Then start Evermind with `docker compose up -d`.
 
 Everything written since the update is lost. Once the new version works, delete
-the copy: it holds your stories and API keys as they were.
+the copy: it holds your stories and API keys as they were. With Docker, `NAME`
+being its name in the list above:
+
+```bash
+docker compose run --rm --no-deps --entrypoint rm evermind /data/NAME
+```

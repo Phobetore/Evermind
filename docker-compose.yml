@@ -1,7 +1,8 @@
 # Evermind: docker compose up -d, then http://localhost:3000.
 # A .env beside this file changes the port, opens it to other devices, or turns on semantic memory
 # (that one needs the source folder and --build): see env.example on the release page.
-# A model on this computer: http://host.docker.internal:PORT/v1 in the app's connection.
+# A model on this computer: http://host.docker.internal:PORT/v1 in the app's connection
+# (on Linux, if that cannot reach it, have its server listen on the network, not on 127.0.0.1 alone).
 services:
   evermind:
     image: ghcr.io/phobetore/evermind:${EVERMIND_VERSION:-latest}

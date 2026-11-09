@@ -92,6 +92,12 @@ what stands in its way:
   a proxy can serve Evermind under its own, but the session cookie belongs to
   the name each device signed in on: a page under another name has none, and
   would need the password.
+- **Pictures are served only under the names Evermind gives them**: 32
+  hexadecimal characters, then `.png`, `.jpg` or `.webp`. Any other name is a
+  `404` before a file is looked for. A page can make your browser ask a
+  password-less Evermind for a picture, and a name that is a Windows network path
+  (`\\host\share\x`) would otherwise make Evermind connect to that host and offer
+  it your Windows account's credentials.
 
 ## Behind a reverse proxy
 
@@ -125,6 +131,16 @@ browser that has been there once then never uses plain HTTP for that name again,
 not for an address typed without `https://` nor for an old `http://` link.
 Without it, that first plain request can be answered by someone on the network
 instead of the proxy, with a page of their own that asks for the password.
+
+## Slow and malformed requests
+
+Before the password or any route, Evermind holds at most 16 KB of a request's
+line and headers while it waits for the rest, and refuses the request (`400`)
+past that. It closes a connection that leaves it waiting more than 20 seconds,
+for the rest of a request's line and headers or for a body sent after its
+answer; uploads and replies are not timed. A request whose body turns out
+malformed once Evermind has started answering it, after the `401` of a locked
+route for instance, has its connection closed at once.
 
 ## What is worth reporting
 

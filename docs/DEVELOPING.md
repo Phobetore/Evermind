@@ -8,6 +8,7 @@ Evermind, read [INSTALL.md](../INSTALL.md) instead.
 ```
 backend/   FastAPI + SQLite (aiosqlite, plain SQL migrations)
   app/__main__.py  python -m app: reads .env, checks the port, starts the server
+  app/server.py    how that server reads a request: a capped head, a deadline
   app/ui.py        serves the built interface wherever no route answers, and
                    redirects the old paths
   app/gate.py      a middleware: the access password (one session per device),
@@ -34,8 +35,8 @@ data/      SQLite database + uploaded media (created at first run, never committ
 
 ```bash
 # production: build the interface, then one server for the interface and the API
-scripts\prod.ps1 [-Lan]        # Windows
-./scripts/prod.sh [--lan]      # macOS / Linux
+powershell -ExecutionPolicy Bypass -File scripts/prod.ps1 [-Lan]   # Windows
+./scripts/prod.sh [--lan]                                          # macOS / Linux
 
 # development, with hot reload, in two terminals
 cd backend && .venv/Scripts/python -m app --dev   # the API, restarted on every change
@@ -43,11 +44,12 @@ cd frontend && npm run dev                        # the interface (npm run dev:l
 ```
 
 The environment's Python is `.venv/Scripts/python` on Windows, as written here,
-and `.venv/bin/python` elsewhere. The scripts create `backend/.venv` when it has
-no working pip, install the dependencies again when `backend/pyproject.toml` or
-`frontend/package-lock.json` has changed (the backend without its test tools:
-`pip install -e "backend[dev]"` once, to run the tests), ask
-`python -m app --check` whether the port is free before the interface is
+and `.venv/bin/python` elsewhere. `-ExecutionPolicy Bypass` runs the script where
+a stock Windows refuses scripts, without changing its policy. The scripts create
+`backend/.venv` when it has no working pip, install the dependencies again when
+`backend/pyproject.toml` or `frontend/package-lock.json` has changed (the backend
+without its test tools: `pip install -e "backend[dev]"` once, to run the tests),
+ask `python -m app --check` whether the port is free before the interface is
 installed or built, build it (Vite 8 needs **Node.js 22.12 or newer**), and start
 `python -m app`, which is all a restart without the build needs, from `backend/`.
 
@@ -61,7 +63,10 @@ first checks that the port is free: `--check` stops there and prints the port.
 `--no-env-file` leaves `.env` out (the container and the end-to-end suite use
 it). Outside a container it then prints its addresses and, when it listens beyond
 this computer, warns if no password is set and, on Windows, prints the firewall
-rule other devices need.
+rule other devices need. It runs uvicorn with Evermind's own HTTP protocol,
+`app/server.py`: h11, which holds at most 16 KB of an unfinished request head,
+with a 20 s deadline on a client that keeps the server waiting. Uvicorn started
+by hand picks httptools instead, and has neither limit.
 
 **In production there is one process and one port.** FastAPI answers `/api/` and
 serves the built interface (`frontend/dist`, or `EVERMIND_UI_DIR`) for everything
@@ -125,7 +130,10 @@ rules are deleted (`wf.msc`, Inbound Rules).
 Each test in `e2e/` is written against a fault that typecheck and build cannot
 see, such as a button off the side of a phone or an API the browser withholds
 outside a secure context, and should be checked to fail when that fault is put
-back: a test that passes either way reads like cover.
+back: a test that passes either way reads like cover. A test that clicks a
+message's button with `force` waits for the page to settle first
+(`page.waitForLoadState("networkidle")`): the persona's name is drawn late, and
+can move the buttons from under the click.
 
 ## Main API surface
 
@@ -214,7 +222,10 @@ location /evermind/ {
 Evermind's `.env` then names that address, `FORWARDED_ALLOW_IPS=127.0.0.2`, the
 only one it believes those two headers from.
 [SECURITY.md](../SECURITY.md#behind-a-reverse-proxy) says why, and what to name
-in other setups, Docker's among them.
+in other setups, Docker's among them. That `.env` also sets
+`EVERMIND_GATE_PASSWORD` when browsers reach the proxy by a name, as they usually
+do: without a password, Evermind answers only to an address or `localhost`
+(`unknown_host`).
 
 The prefix needs nothing more, since nothing is addressed from the root of the
 host: the build uses relative asset paths (`base: "./"`) and routes after the
@@ -277,11 +288,17 @@ recall, on both established facts and old message passages:
 cd backend && .venv/Scripts/python -m pip install -e ".[semantic]"
 ```
 
-It pulls in `sentence-transformers` (a few GB with torch) and downloads
-`intfloat/multilingual-e5-small` once, then works offline. The model is only ever
-loaded by a task at start, so no request can trigger a download. Without the
-extra, `embed()` and `rank()` return `None` and vectors stay `NULL`: recall falls
-back to recency, and nothing raises.
+It pulls in `sentence-transformers` (a few GB with torch). The first start
+downloads `intfloat/multilingual-e5-small` (about 470 MB) into the Hugging Face
+cache, and every later one loads it from there without contacting huggingface.co,
+offline included. In the image that cache is `/data/huggingface`
+(`HF_HUB_CACHE`), in the data volume, so a new container finds the model. It
+holds files there rather than links (`HF_HUB_DISABLE_SYMLINKS`), since
+`docker compose cp` copies a link as a link, which Windows makes only for an
+administrator or in Developer Mode: a backup would stop at the model. The model
+is only ever loaded by a task at start, so no request can trigger a download.
+Without the extra, `embed()` and `rank()` return `None` and vectors stay `NULL`:
+recall falls back to recency, and nothing raises.
 
 ## Translations
 
@@ -291,6 +308,15 @@ fallback, so it has to be complete, and the others carry exactly its keys:
 render as nothing at all rather than as an error. Interpolation placeholders
 (`{count}`, `{name}`) and card macros (`{{char}}`, `{{user}}`) must survive
 translation untouched.
+
+A sentence given a number as `{count}` can have a form for each plural category
+of its language, as `Intl.PluralRules` names them, under `<key>_one` and the like
+(`chatList.messageCount_one`): every locale then carries that key, and the plain
+one serves the other numbers. A number given to a sentence is written the
+language's way, `54,1` in French. French puts a no-break space (U+00A0) before :
+and inside « », and a narrow one (U+202F) before ; ! and ?; French, German and
+Spanish put a no-break space between a number and %. `npm test` fails on a plain
+space in those places.
 
 ## Docker
 
