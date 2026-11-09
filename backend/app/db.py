@@ -19,10 +19,12 @@ from . import __version__
 from .config import db_path
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
+# Seconds a write waits for another to end: SQLite's 5 are fewer than a busy disk can take.
+BUSY_TIMEOUT_S = 30
 
 
 async def _connect() -> aiosqlite.Connection:
-    conn = await aiosqlite.connect(db_path())
+    conn = await aiosqlite.connect(db_path(), timeout=BUSY_TIMEOUT_S)
     try:
         conn.row_factory = aiosqlite.Row
         await conn.execute("PRAGMA foreign_keys = ON")

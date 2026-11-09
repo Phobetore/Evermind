@@ -444,7 +444,7 @@ async def test_a_connection_that_could_not_be_set_up_is_closed(monkeypatch):
 
     half_open = HalfOpen()
 
-    async def connect(path):
+    async def connect(path, **options):
         return half_open
 
     monkeypatch.setattr(db.aiosqlite, "connect", connect)
