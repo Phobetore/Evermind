@@ -292,10 +292,13 @@ It pulls in `sentence-transformers` (a few GB with torch). The first start
 downloads `intfloat/multilingual-e5-small` (about 470 MB) into the Hugging Face
 cache, and every later one loads it from there without contacting huggingface.co,
 offline included. In the image that cache is `/data/huggingface`
-(`HF_HUB_CACHE`), in the data volume, so a new container finds the model. The
-model is only ever loaded by a task at start, so no request can trigger a
-download. Without the extra, `embed()` and `rank()` return `None` and vectors stay
-`NULL`: recall falls back to recency, and nothing raises.
+(`HF_HUB_CACHE`), in the data volume, so a new container finds the model. It
+holds files there rather than links (`HF_HUB_DISABLE_SYMLINKS`), since
+`docker compose cp` copies a link as a link, which Windows makes only for an
+administrator or in Developer Mode: a backup would stop at the model. The model
+is only ever loaded by a task at start, so no request can trigger a download.
+Without the extra, `embed()` and `rank()` return `None` and vectors stay `NULL`:
+recall falls back to recency, and nothing raises.
 
 ## Translations
 
