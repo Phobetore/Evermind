@@ -28,7 +28,8 @@ async def _connect() -> aiosqlite.Connection:
     try:
         conn.row_factory = aiosqlite.Row
         await conn.execute("PRAGMA foreign_keys = ON")
-        await conn.execute("PRAGMA journal_mode = WAL")
+        # Read to its end: left running while its cursor is kept, it would make a COMMIT fail.
+        await conn.execute_fetchall("PRAGMA journal_mode = WAL")
     except BaseException:
         # Cancelled included: nobody else has been handed this connection to close.
         await conn.close()

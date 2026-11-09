@@ -2,6 +2,8 @@
 
 import asyncio
 
+import aiosqlite
+
 from app import db
 from app.providers.base import ProviderEvent
 from app.services import turns
@@ -41,3 +43,23 @@ async def test_an_edit_a_send_and_a_setting_wait_for_a_write_held_past_five_seco
     assert [m["content"] for m in await messages_of(client, convo["id"])][1:] == [
         "Hello", "She nods."]
     assert (await client.get("/api/settings")).json()["reply_length"] == "long"
+
+
+async def test_a_connection_commits_while_what_opening_it_returned_is_still_held(
+        tmp_path, monkeypatch):
+    """Kept as a debugger keeps a frame's: a statement left running would fail the commit."""
+    monkeypatch.setenv("EVERMIND_DATA_DIR", str(tmp_path))
+    await db.init_db()
+    held, run = [], aiosqlite.Connection._execute
+
+    async def holding(self, fn, *args, **kwargs):
+        held.append(result := await run(self, fn, *args, **kwargs))
+        return result
+
+    monkeypatch.setattr(aiosqlite.Connection, "_execute", holding)
+    conn = await db.connect()
+    try:
+        await conn.execute("INSERT INTO settings (key, value) VALUES ('reply_length', '\"long\"')")
+        await conn.commit()
+    finally:
+        await conn.close()
