@@ -401,16 +401,16 @@ Docker volume if you used Docker). Nothing you write is sent anywhere except to
 the AI service you chose yourself. If you run the AI locally too, nothing you
 write leaves your computer at all.
 
-One thing does go out. Each time you open Settings, your browser asks GitHub
-whether a newer release exists, so that you hear about fixes without having to go
-and look. It asks for the latest release number, with no cookie and nothing you
-wrote. GitHub sees what any website sees of a browser that asks it something: your
-internet address, the browser's name and languages, and the address you opened
-Evermind at. The checkbox under **About** in Settings turns it off, and the button
-beside it still asks when you press it. With the checkbox clear, nothing goes out
-on its own, except semantic memory's model if you set it up (see **Optional
-extras**): the first start downloads it from huggingface.co, and every later start
-loads it from your disk and asks nothing.
+One thing does go out, two with semantic memory. Each time you open Settings,
+your browser asks GitHub whether a newer release exists, so that you hear about
+fixes without having to go and look. It asks for the latest release number, with
+no cookie and nothing you wrote. GitHub sees what any website sees of a browser
+that asks it something: your internet address, the browser's name and languages,
+and the address you opened Evermind at. The checkbox under **About** in Settings
+turns it off, and the button beside it still asks when you press it. Semantic
+memory, if you set it up (see **Optional extras**), downloads its model from
+huggingface.co on its first start, and every later start loads it from your disk
+and asks nothing. Nothing else goes out on its own.
 
 To back it up, stop Evermind and copy that folder. To start fresh, delete it.
 
