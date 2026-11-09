@@ -19,7 +19,7 @@ from . import __version__
 from .config import db_path
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
-# Seconds a write waits for another to end: SQLite's 5 are fewer than a busy disk can take.
+# Seconds a write waits for another: Python's sqlite3 gives 5, fewer than a busy disk can take.
 BUSY_TIMEOUT_S = 30
 
 

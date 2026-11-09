@@ -27,7 +27,7 @@ async def test_an_edit_a_send_and_a_setting_wait_for_a_write_held_past_five_seco
                                            "content": "Hello"}),
             client.put("/api/settings", json={"reply_length": "long"}),
         )]
-        await asyncio.sleep(6)  # past the 5 seconds SQLite waits unless told otherwise
+        await asyncio.sleep(6)  # past the 5 seconds Python's sqlite3 waits unless told otherwise
         assert not any(task.done() for task in asked)
         await holder.commit()
         answers = await asyncio.gather(*asked)
