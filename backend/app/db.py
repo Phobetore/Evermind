@@ -19,14 +19,17 @@ from . import __version__
 from .config import db_path
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
+# Seconds a write waits for another: Python's sqlite3 gives 5, fewer than a busy disk can take.
+BUSY_TIMEOUT_S = 30
 
 
 async def _connect() -> aiosqlite.Connection:
-    conn = await aiosqlite.connect(db_path())
+    conn = await aiosqlite.connect(db_path(), timeout=BUSY_TIMEOUT_S)
     try:
         conn.row_factory = aiosqlite.Row
         await conn.execute("PRAGMA foreign_keys = ON")
-        await conn.execute("PRAGMA journal_mode = WAL")
+        # Read to its end: left running while its cursor is kept, it would make a COMMIT fail.
+        await conn.execute_fetchall("PRAGMA journal_mode = WAL")
     except BaseException:
         # Cancelled included: nobody else has been handed this connection to close.
         await conn.close()
