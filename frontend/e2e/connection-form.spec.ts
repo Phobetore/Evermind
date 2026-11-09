@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { API } from "../playwright.config";
+import { MOCK } from "./fixtures";
 
 const SETTINGS = ["max_tokens", "temperature", "top_p", "frequency_penalty", "presence_penalty"];
 const MINE = ["OpenAI", "Tuned"];
@@ -63,5 +64,93 @@ test("a generation setting left empty is saved empty, and stays so", async ({ pa
   const [tuned] = await saved(request, "Tuned");
   expect([tuned.temperature, tuned.max_tokens]).toEqual([null, 300]);
 
+  await forgetMine(request);
+});
+
+test("a connection's own box makes it the default, and the list tags it alone", async ({ page, request }) => {
+  await forgetMine(request);
+  await request.post(`${API}/api/connections`, { data: { name: "Tuned", base_url: "http://127.0.0.1:1/v1" } });
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: /^Tuned/ }).click();
+  const form = page.getByRole("dialog");
+  await form.getByLabel("Default connection").check();
+  await form.getByRole("button", { name: "Save" }).click();
+  await expect(form).toBeHidden();
+
+  await expect(page.getByRole("button", { name: /^Tuned/ })).toContainText("Default");
+  await expect(page.locator("main").getByText("Default", { exact: true })).toHaveCount(1);
+  const [tuned] = await saved(request, "Tuned");
+  expect(tuned.is_default).toBe(true);
+  await forgetMine(request);
+});
+
+test("testing a saved connection saves nothing of what was changed", async ({ page, request }) => {
+  await forgetMine(request);
+  await request.post(`${API}/api/connections`, {
+    data: { name: "Tuned", base_url: "http://127.0.0.1:1/v1", model: "kept" },
+  });
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: /^Tuned/ }).click();
+  const form = page.getByRole("dialog");
+  await form.getByLabel("Model").fill("oops");
+  await form.getByRole("button", { name: "Test connection" }).click();
+  await expect(form.getByText("127.0.0.1:1")).toBeVisible();
+  await form.getByRole("button", { name: "Close" }).click();
+
+  const [tuned] = await saved(request, "Tuned");
+  expect(tuned.model, "Test saved the change").toBe("kept");
+  await forgetMine(request);
+});
+
+test("without an address there is nothing to test, and one typed without http:// is quoted back", async ({
+  page, request,
+}) => {
+  await forgetMine(request);
+  await request.post(`${API}/api/connections`, { data: { name: "Tuned", base_url: "http://127.0.0.1:1/v1" } });
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: /^Tuned/ }).click();
+  const form = page.getByRole("dialog");
+  const address = form.getByLabel("Base URL");
+  const testIt = form.getByRole("button", { name: "Test connection" });
+  await address.fill("");
+  await expect(testIt).toBeDisabled();
+  await expect(form.getByRole("button", { name: "Measure speed" })).toBeDisabled();
+
+  await address.fill("127.0.0.1:1/v1");
+  await testIt.click();
+  await expect(form.getByText("cannot reach the model's server at 127.0.0.1:1/v1")).toBeVisible();
+  await form.getByRole("button", { name: "Close" }).click();
+  await forgetMine(request);
+});
+
+test("measuring the speed of a saved connection measures what the form holds, and saves nothing", async ({
+  page, request,
+}) => {
+  await forgetMine(request);
+  await request.post(`${API}/api/connections`, {
+    data: { name: "Tuned", base_url: MOCK, model: "evermind-demo" },
+  });
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: /^Tuned/ }).click();
+  const form = page.getByRole("dialog");
+  const measure = form.getByRole("button", { name: "Measure speed" });
+  const nothing = form.getByText("The model did not produce any text.");
+  // The mock writes nothing for a model whose name holds this.
+  await form.getByLabel("Model").fill("MOCK_SILENT");
+  await measure.click();
+  await expect(nothing).toBeVisible();
+
+  // A result goes with the model it measured, whether another is typed or picked.
+  await form.getByLabel("Model").fill("MOCK_SILENT again");
+  await expect(nothing).toBeHidden();
+  await measure.click();
+  await expect(nothing).toBeVisible();
+  await form.getByRole("button", { name: "Test connection" }).click();
+  await form.getByRole("button", { name: "evermind-demo", exact: true }).click();
+  await expect(nothing).toBeHidden();
+  await form.getByRole("button", { name: "Close" }).click();
+
+  const [tuned] = await saved(request, "Tuned");
+  expect(tuned.model, "Measure speed saved the change").toBe("evermind-demo");
   await forgetMine(request);
 });

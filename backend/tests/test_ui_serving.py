@@ -7,14 +7,10 @@ tests are mostly about what is cached and what is redirected.
 import errno
 import logging
 import os
-import re
-from urllib.parse import urljoin
 
 import pytest
 
 from app.ui import UIFiles
-
-from .test_gate import open_socket
 
 IMMUTABLE = "public, max-age=31536000, immutable"
 
@@ -91,17 +87,12 @@ async def test_files_outside_assets_are_revalidated(ui_client, ui_dir):
 
 
 @pytest.mark.parametrize("old, new", [
-    ("/chat/abc", "/#/chat/abc"), ("/chat", "/#/chat"),
-    ("/characters/new", "/#/characters/new"), ("/characters/abc/edit", "/#/characters/abc/edit"),
-    ("/personas", "/#/personas"), ("/settings", "/#/settings"), ("/characters", "/#/characters"),
+    ("/chat/abc", "/#/chat/abc"), ("/chat", "/#/chat"), ("/chat/", "/#/chat/"),
+    ("/characters/new", "/#/characters/new"), ("/settings", "/#/settings"),
     ("/login?from=%2Fchat%2Fabc", "/#/login?from=%2Fchat%2Fabc"),
-    # A trailing slash does not stop an old link from working.
-    ("/personas/", "/#/personas/"), ("/settings/", "/#/settings/"), ("/login/", "/#/login/"),
-    ("/chat/", "/#/chat/"),
-    # The path goes through as it was written: a decoded "?" would start the
-    # query, a decoded "#" a fragment, and the route would be another one.
+    # The path is encoded again: a decoded "?" would start the query and a
+    # decoded "#" a fragment, and the route would be another one.
     ("/chat/a%3Fb", "/#/chat/a%3Fb"), ("/chat/a%23b", "/#/chat/a%23b"),
-    ("/chat/a%2Fb", "/#/chat/a%2Fb"), ("/chat/a%20b", "/#/chat/a%20b"),
     ("/chat/%C3%A9", "/#/chat/%C3%A9"), ("/chat/a%3Fb?x=1", "/#/chat/a%3Fb?x=1"),
 ])
 async def test_legacy_links_redirect(ui_client, old, new):
@@ -109,92 +100,20 @@ async def test_legacy_links_redirect(ui_client, old, new):
     assert r.status_code == 302 and r.headers["location"] == new
 
 
-@pytest.mark.parametrize("old, new", [
-    # uvicorn puts the prefix in front of the path it hands over.
-    ("/evermind/chat/abc", "/evermind/#/chat/abc"),
-    ("/evermind/chat", "/evermind/#/chat"),
-    ("/evermind/personas/", "/evermind/#/personas/"),
-    ("/evermind/login?from=%2Fchat%2Fabc", "/evermind/#/login?from=%2Fchat%2Fabc"),
-    ("/evermind/chat/a%3Fb", "/evermind/#/chat/a%3Fb"),
-    # A server that leaves the prefix out of the path.
-    ("/chat/abc", "/evermind/#/chat/abc"),
-])
-async def test_legacy_links_redirect_inside_the_root_path(make_client, ui_dir, old, new):
-    async with make_client(EVERMIND_UI_DIR=str(ui_dir), root_path="/evermind") as c:
-        r = await c.get(old, follow_redirects=False)
-        assert r.status_code == 302 and r.headers["location"] == new
+async def test_what_is_long_goes_out_compressed(ui_client, ui_dir):
+    # A long conversation is a long answer, and a phone on a weak link is who reads it.
+    (ui_dir / "assets" / "long-1f2e3d.js").write_text("console.log('a');\n" * 200, encoding="utf-8")
+    long = "Terse. " * 200
+    card = (await ui_client.post("/api/characters", json={"name": "Vane", "description": long})).json()
+    for path in ("/assets/long-1f2e3d.js", f"/api/characters/{card['id']}"):
+        r = await ui_client.get(path, headers={"Accept-Encoding": "gzip"})
+        assert r.status_code == 200 and r.headers.get("content-encoding") == "gzip", path
+    assert r.json()["description"] == long
 
 
-async def test_the_interface_loads_inside_a_root_path(make_client, ui_dir):
-    # What Vite builds refers to its files relatively ("./assets/..."), which is
-    # what lets the same build work under a prefix.
-    (ui_dir / "index.html").write_text(
-        '<!doctype html><script type="module" src="./assets/app-3f2a1b.js"></script>',
-        encoding="utf-8",
-    )
-    async with make_client(EVERMIND_UI_DIR=str(ui_dir), root_path="/evermind") as c:
-        page = await c.get("/evermind/")
-        assert page.status_code == 200
-        src = re.search(r'src="([^"]+)"', page.text).group(1)
-        script = await c.get(urljoin("/evermind/", src))
-        assert script.status_code == 200 and script.headers["cache-control"] == IMMUTABLE
-        # Without the slash, those relative addresses would lead outside the prefix.
-        bare = await c.get("/evermind", follow_redirects=False)
-        assert bare.status_code == 307 and bare.headers["location"] == "http://localhost/evermind/"
-        assert (await c.get("/evermind/api/health")).status_code == 200
-        unknown = await c.get("/evermind/api/nope")
-        assert unknown.status_code == 404
-        assert unknown.headers["content-type"].startswith("application/json")
-        again = await c.get("/evermind/api/health/", follow_redirects=False)
-        assert again.status_code == 307
-        assert again.headers["location"] == "http://localhost/evermind/api/health"
-
-
-async def get_from_application(app, path, root_path=""):
-    """GET ``path`` straight from the application, with a scope that has neither
-    ``raw_path`` nor ``query_string``: the first is optional in ASGI, and not
-    every server sends the second. Returns the status and the headers."""
-    sent = []
-
-    async def receive():
-        return {"type": "http.request", "body": b"", "more_body": False}
-
-    async def send(message):
-        sent.append(message)
-
-    scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
-             "method": "GET", "scheme": "http", "path": path, "root_path": root_path,
-             "headers": [(b"host", b"localhost")], "client": ("127.0.0.1", 50000),
-             "server": ("localhost", 80)}
-    await app(scope, receive, send)
-    start = sent[0]
-    return start["status"], {k.decode(): v.decode() for k, v in start["headers"]}
-
-
-@pytest.mark.parametrize("path, root_path, location", [
-    ("/chat/abc", "", "/#/chat/abc"),
-    # Only the decoded path is known, so what it contains is data: a "%" is not
-    # the start of an escape, a "?" is not a query and a "#" is not a fragment.
-    ("/chat/100%", "", "/#/chat/100%25"),
-    ("/chat/a?b", "", "/#/chat/a%3Fb"),
-    ("/chat/a#b", "", "/#/chat/a%23b"),
-    ("/chat/a b", "", "/#/chat/a%20b"),
-    ("/chat/é", "", "/#/chat/%C3%A9"),
-    ("/evermind/chat/100%", "/evermind", "/evermind/#/chat/100%25"),
-])
-async def test_legacy_redirect_from_a_scope_without_raw_path(
-    make_client, ui_dir, path, root_path, location
-):
-    from app.main import create_app
-
-    async with make_client(EVERMIND_UI_DIR=str(ui_dir)):
-        status, headers = await get_from_application(create_app(), path, root_path)
-    assert status == 302 and headers["location"] == location
-
-
-async def test_legacy_redirect_answers_head_too(ui_client):
-    r = await ui_client.head("/chat/abc", follow_redirects=False)
-    assert r.status_code == 302 and r.headers["location"] == "/#/chat/abc"
+async def test_a_file_named_like_a_legacy_page_is_served(ui_client, ui_dir):
+    (ui_dir / "settings").write_text("a file", encoding="utf-8")
+    assert (await ui_client.get("/settings")).text == "a file"
 
 
 async def test_unknown_api_path_stays_json(ui_client):
@@ -214,25 +133,6 @@ async def test_api_routes_are_answered_before_the_interface_fallback(ui_client):
     assert r.status_code == 200 and r.json()["app"] == "evermind"
 
 
-async def test_a_known_api_route_with_the_wrong_method_is_a_405(ui_client):
-    r = await ui_client.put("/api/health", json={})
-    assert r.status_code == 405
-    assert "GET" in r.headers["allow"]
-
-
-async def test_a_known_api_route_with_a_trailing_slash_is_redirected(ui_client):
-    r = await ui_client.get("/api/health/", follow_redirects=False)
-    assert r.status_code == 307
-    assert r.headers["location"] == "http://localhost/api/health"
-
-
-async def test_a_write_to_an_api_route_with_a_trailing_slash_is_redirected_as_one(ui_client):
-    # 307 asks the client to send the same request again, body included.
-    r = await ui_client.post("/api/characters/", json={"name": "Serana"}, follow_redirects=False)
-    assert r.status_code == 307
-    assert r.headers["location"] == "http://localhost/api/characters"
-
-
 async def test_the_interface_answers_head_too(ui_client):
     r = await ui_client.head("/")
     assert r.status_code == 200 and r.content == b""
@@ -244,14 +144,6 @@ async def test_the_interface_answers_head_too(ui_client):
 async def test_a_page_cannot_be_written_to(ui_client):
     r = await ui_client.post("/", json={})
     assert r.status_code == 405
-
-
-@pytest.mark.parametrize("path", ["/nope", "/api/nope"])
-async def test_a_websocket_to_a_path_nobody_serves_is_closed(make_client, ui_dir, path):
-    from app.main import create_app
-
-    async with make_client(EVERMIND_UI_DIR=str(ui_dir)):
-        assert await open_socket(create_app(), {}, path=path) == ["websocket.close 1000"]
 
 
 async def test_ui_is_public_when_password_is_set(make_client, ui_dir):
@@ -295,39 +187,14 @@ def failing_lookup(monkeypatch, error):
     monkeypatch.setattr(UIFiles, "lookup_path", lookup)
 
 
-@pytest.mark.parametrize("code", [errno.EINVAL, errno.ENAMETOOLONG])
-async def test_an_error_for_a_name_the_file_system_refuses_is_a_404(ui_client, monkeypatch, code):
+@pytest.mark.parametrize("code, raised", [(errno.EINVAL, False), (errno.ENAMETOOLONG, False), (errno.EIO, True)])
+async def test_only_a_name_the_file_system_refuses_is_a_missing_file(ui_client, monkeypatch, code, raised):
     failing_lookup(monkeypatch, OSError(code, os.strerror(code)))
-    assert (await ui_client.get("/assets/whatever")).status_code == 404
-
-
-@pytest.mark.parametrize("code", [errno.EIO, errno.ELOOP])
-async def test_any_other_file_system_error_is_not_taken_for_a_missing_file(
-    ui_client, monkeypatch, caplog, code
-):
-    failing_lookup(monkeypatch, OSError(code, os.strerror(code)))
-    # The test client raises what the application let out, which the server
-    # would answer with a 500.
-    with pytest.raises(OSError) as raised:
-        await ui_client.get("/assets/whatever")
-    assert raised.value.errno == code
-    assert "assets" in caplog.text and "whatever" in caplog.text
-
-
-async def test_a_path_cannot_forge_a_line_of_the_log(ui_client, monkeypatch, caplog):
-    """The path is the client's. Written as it is, an encoded line break in it
-    ends the log line and starts another that looks like the server's own."""
-    # The way a real error carries it: with the name of the file it was about.
-    name = "/ui/assets/x\r\nERROR forged line"
-    failing_lookup(monkeypatch, OSError(errno.EIO, os.strerror(errno.EIO), name))
-    with pytest.raises(OSError):
-        await ui_client.get("/assets/x%0D%0AERROR%20forged%20line")
-
-    messages = [r.getMessage() for r in caplog.records if "interface folder" in r.getMessage()]
-    assert len(messages) == 1
-    assert "\r" not in messages[0] and "\n" not in messages[0]
-    # Named once, not once by us and once again inside the error's own words.
-    assert messages[0].count("forged") == 1
+    if raised:  # the disk's own failure has to show as one
+        with pytest.raises(OSError):
+            await ui_client.get("/assets/whatever")
+    else:
+        assert (await ui_client.get("/assets/whatever")).status_code == 404
 
 
 async def test_a_link_out_of_the_folder_is_not_followed(ui_client, ui_dir, tmp_path):

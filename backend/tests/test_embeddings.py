@@ -1,6 +1,84 @@
 """Embedding module: serialization + graceful-degradation contract."""
 
+import re
+import sys
+import types
+from pathlib import Path
+
 from app.prompting import embeddings
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+class Hub:
+    """sentence-transformers as Evermind sees it, never the real one: what it was asked for, and
+    the cache, which holds the model once it has been downloaded."""
+
+    def __init__(self, cached=False, broken=False):
+        self.cached, self.broken, self.asked = cached, broken, []
+
+    def module(self):
+        hub = self
+
+        class SentenceTransformer:
+            def __init__(self, name, local_files_only=False):
+                hub.asked.append("cache" if local_files_only else "huggingface.co")
+                if hub.broken:
+                    raise RuntimeError("this torch does not run here")
+                if local_files_only and not hub.cached:
+                    raise OSError("couldn't find them in the cached files")
+                hub.cached = True
+
+        module = types.ModuleType("sentence_transformers")
+        module.SentenceTransformer = SentenceTransformer
+        return module
+
+
+async def start(monkeypatch, hub) -> bool:
+    """One start of Evermind, which loads the model once."""
+    monkeypatch.setitem(sys.modules, "sentence_transformers", hub.module())
+    monkeypatch.setattr(embeddings, "_model", None)
+    monkeypatch.setattr(embeddings, "_load_attempted", False)
+    return await embeddings.warmup()
+
+
+async def test_a_model_in_the_cache_loads_without_asking_huggingface(monkeypatch):
+    hub = Hub(cached=True)
+
+    assert await start(monkeypatch, hub)
+    assert hub.asked == ["cache"]
+
+
+async def test_the_model_is_downloaded_once_then_read_from_the_cache(monkeypatch):
+    hub = Hub()
+
+    assert await start(monkeypatch, hub)
+    assert await start(monkeypatch, hub)
+    assert hub.asked == ["cache", "huggingface.co", "cache"]
+
+
+async def test_a_model_that_fails_for_another_reason_is_not_downloaded(monkeypatch):
+    hub = Hub(cached=True, broken=True)
+
+    assert not await start(monkeypatch, hub)
+    assert hub.asked == ["cache"]
+
+
+def test_the_image_keeps_the_model_in_the_data_volume():
+    """Each update makes a new container: one that finds the model downloads nothing."""
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    data = re.search(r"EVERMIND_DATA_DIR=(\S+)", dockerfile)[1]
+    cache = re.search(r"HF_HUB_CACHE=(\S+)", dockerfile)
+
+    assert cache and cache[1].startswith(f"{data}/")
+    assert f"evermind-data:{data}" in (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+
+
+def test_the_model_in_the_volume_is_files_a_backup_can_copy_to_windows():
+    """By default they are links, which Windows makes only as administrator or in Developer Mode."""
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    assert re.search(r"\bHF_HUB_DISABLE_SYMLINKS=1\b", dockerfile)
 
 
 def test_pack_unpack_round_trip():
@@ -34,14 +112,17 @@ async def test_embed_prefixes_and_returns_vectors(monkeypatch):
 
 
 async def test_embed_query_prefix(monkeypatch):
+    captured = {}
+
     class FakeModel:
         def encode(self, texts, normalize_embeddings=False):
+            captured["texts"] = texts
             import numpy as np
             return np.zeros((len(texts), 2), dtype=np.float32)
 
     monkeypatch.setattr(embeddings, "_model", FakeModel())
     await embeddings.embed(["where is he"], kind="query")
-    # query prefix is applied — verified indirectly via no exception + shape
+    assert captured["texts"] == ["query: where is he"]
 
 
 async def test_embed_empty_input_returns_none(monkeypatch):

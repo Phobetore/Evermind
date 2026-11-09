@@ -20,10 +20,8 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 5599
 # default: nearly all of its tests only need a reply to exist, and wait for it
 # in their setup.
 WORD_DELAY = float(os.environ.get("EVERMIND_MOCK_DELAY", "0.045"))
-# Seconds between words in a conversation that says SLOWLY. A fixed pace, not a
-# multiple of the one above: how slow is slow enough depends on how long a browser
-# takes to close one page and open another, and that has nothing to do with how
-# quickly the other replies are wanted.
+# Seconds between words in a conversation that says SLOWLY: a fixed pace, as slow enough depends on
+# how long a browser takes to close one page and open another.
 SLOW_WORD_DELAY = 0.6
 # Seconds a conversation that says MOCK_FAILS waits before the model refuses, which
 # gives a test a turn it can watch before it fails.
@@ -31,6 +29,8 @@ FAIL_AFTER = 2.0
 # Seconds a conversation that says MOCK_QUIET waits before its first word, as a local
 # model does on a long prompt.
 QUIET_FOR = 8.0
+# Words a conversation that says MOCK_FAILS_MIDWAY gets before the connection is cut.
+MIDWAY_AFTER = 4
 
 REPLIES = [
     "*{char} watches you for a moment, weighing something.* Now that is an interesting "
@@ -63,7 +63,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(json.dumps({"error": {"message": "unknown endpoint"}}), status=404)
             return
 
-        if "MOCK_FAILS" in json.dumps(payload):
+        # MOCK_FAILS_MIDWAY holds MOCK_FAILS, which is another failure: refusing outright.
+        if "MOCK_FAILS" in json.dumps(payload).replace("MOCK_FAILS_MIDWAY", ""):
             time.sleep(FAIL_AFTER)
             self._json(json.dumps({"error": {"message": "The mock was told to fail."}}), status=500)
             return
@@ -99,7 +100,8 @@ class Handler(BaseHTTPRequestHandler):
                 "tags": ["fantasy", "mystery"],
             }, ensure_ascii=False)
         elif "memory-keeper" in system:
-            # memory extraction request -> strict JSON
+            # memory extraction request -> strict JSON, a summary of its own for each pass
+            newest = max(map(int, re.findall(r"\(turn (\d+)\)", json.dumps(payload))), default=0)
             reply = json.dumps({
                 "facts": [
                     {"content": f"{char} met the player in a sealed crypt.",
@@ -108,11 +110,8 @@ class Handler(BaseHTTPRequestHandler):
                      "kind": "relationship"},
                 ],
                 "summary": "The player woke the character in a crypt; introductions "
-                           "have been made and mistrust still dominates.",
+                           f"have been made and mistrust still dominates. Read to turn {newest}.",
             }, ensure_ascii=False)
-        elif "long-term memory" in system:
-            reply = ("The player woke the character in a sealed crypt; they have "
-                     "exchanged cautious introductions.")
         else:
             reply = random.choice(REPLIES).replace("{char}", char)
 
@@ -122,19 +121,27 @@ class Handler(BaseHTTPRequestHandler):
         if says:
             word = says.group(1)
             reply = f"{word} one two three four five six seven eight nine ten end{word}"
+        # A model with nothing to say: the stream ends without a word.
+        if "MOCK_SILENT" in json.dumps(payload):
+            reply = ""
 
+        # A reply that is cut off after a few words. A plain close would read as a normal
+        # end, since this sends no length for the stream; the length it promises and does
+        # not keep is what makes the client see a connection that broke.
+        midway = "MOCK_FAILS_MIDWAY" in json.dumps(payload)
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
+        if midway:
+            self.send_header("Content-Length", "1000000")
         self.end_headers()
         if "MOCK_QUIET" in json.dumps(payload):
             time.sleep(QUIET_FOR)
-        # A test that is about what happens *during* a reply needs the
-        # reply to still be going when it looks. Rather than tune sleeps
-        # against whatever machine is running, it says so in the
-        # conversation and this slows right down.
         delay = SLOW_WORD_DELAY if "SLOWLY" in json.dumps(payload) else WORD_DELAY
-        for word in reply.split(" "):
+        for number, word in enumerate(reply.split(" ") if reply else []):
+            if midway and number == MIDWAY_AFTER:
+                self.close_connection = True
+                return
             chunk = {"choices": [{"delta": {"content": word + " "}}]}
             self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
             self.wfile.flush()
@@ -155,12 +162,8 @@ class Handler(BaseHTTPRequestHandler):
 
 class Server(ThreadingHTTPServer):
     def handle_error(self, request, client_address):
-        # The reader went away, mid-reply or between two requests on a
-        # connection it had kept open. Tests do that on purpose (one of them
-        # is about what an interrupted reply leaves behind), so it is no error
-        # here, and a traceback for each buries a real failure in noise. The
-        # system words it differently (broken pipe, connection reset, and on
-        # Windows connection aborted), all of them a ConnectionError.
+        # A reader going away, which tests do on purpose, is no error here: a traceback for each
+        # would bury a real failure. Broken pipe, reset or aborted, it is a ConnectionError.
         if isinstance(sys.exc_info()[1], ConnectionError):
             return
         super().handle_error(request, client_address)

@@ -1,4 +1,4 @@
-"""What plan_memory_changes returns is pinned by parity/memory_changes.json; here,
+"""What plan_memory_changes returns is pinned by cases/memory_changes.json; here,
 what it leaves alone."""
 
 import copy
@@ -11,7 +11,7 @@ EXISTING = [
     {"id": "3", "content": "Hand fact.", "is_pinned": False, "source": "user"},
 ]
 ANSWER = {
-    "facts": [{"content": "Fresh.", "kind": "event"}],
+    "facts": [{"content": "Fresh."}],
     "updated_facts": [{"replaces": "Old one.", "content": "Old one, corrected."},
                       {"replaces": "Fresh.", "content": "Fresh, corrected."}],
     "obsolete_facts": ["Old one, corrected.", "Hand fact."],
@@ -26,4 +26,5 @@ def test_planning_leaves_the_facts_as_they_were():
 
     assert existing == EXISTING
     # What it did decide, so that the test is about an answer that changes things.
-    assert [op["op"] for op in plan["ops"]] == ["add", "update", "update", "delete"]
+    assert (plan["add"], plan["update"], plan["delete"]) == (
+        [{"content": "Fresh, corrected.", "source_position": 9}], {}, ["2"])

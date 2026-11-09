@@ -2,17 +2,12 @@ import { expect, test, type APIRequestContext, type Locator, type Page, type Rou
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
-import { makeCharacter, PNG } from "./fixtures";
+import { makeCharacter, makeConversation, PNG } from "./fixtures";
 
 /**
- * The panel beside a conversation is a fixed 320px column (the whole screen on
- * a phone), and what goes in it is longer in some languages than in others. The
- * button row under "Established facts" was a few pixels wider than that column
- * in English: the second button ran past the edge, was clipped by the screen,
- * and the panel could be dragged sideways to find it. Nothing in the typechecker
- * or the build knows about that, and it only showed in the languages whose words
- * are long enough, so every language is looked at, with the panel as full as it
- * gets.
+ * The panel beside a conversation is a fixed 320px column (the whole screen on a phone), and what
+ * goes in it is longer in some languages than in others. No type check or build sees a button
+ * pushed past its edge, so every language is looked at, with the panel as full as it gets.
  */
 
 const LOCALES = ["en", "fr", "de", "es"] as const;
@@ -24,8 +19,8 @@ function messages(locale: Locale) {
   const file = path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`);
   const chat = JSON.parse(readFileSync(file, "utf8")).chat;
   return { ...chat.panel, wallpaper: chat.wallpaper } as {
-    facts: { consolidateButton: string; extractButton: string; dormantWarning: string };
-    summary: { saveButton: string; generateButton: string; placeholder: string };
+    facts: { consolidateButton: string; extractButton: string };
+    summary: { saveButton: string; placeholder: string };
     directive: { applyButton: string; placeholder: string };
     wallpaper: { replace: string };
   };
@@ -51,8 +46,7 @@ const FACTS = [
   "She does not take sugar.",
   // A pasted link has no spaces to break at.
   "Source: https://example.org/wiki/The_Long_Winter_of_the_Third_Age_and_Everything_That_Came_After_It",
-  // Enough text, unpinned, to push the last of them past what is sent to the
-  // model, which is when the panel shows its warning and quotes a button's name.
+  // Long facts, to fill the panel the way a long story does.
   sentence("Anselm", 1900),
   sentence("Brigid", 1900),
   sentence("Corvin", 1900),
@@ -115,10 +109,6 @@ async function panelFor(page: Page, request: APIRequestContext, locale: Locale) 
   const panel = page.locator("aside:visible:has(textarea)");
   await expect(panel).toBeVisible();
   await expect(panel).toContainText(`(${FACTS.length})`);
-  // The sentence about facts over budget, from after its number to before the
-  // name of the button it quotes: that is what is being checked for.
-  const warning = text.facts.dormantWarning.split("{count}")[1].split("{consolidateLabel}")[0];
-  await expect(panel.getByText(warning, { exact: false }), "the warning about facts over budget is not showing").toBeVisible();
 
   // Summary first: leaving the directive's box saves it, which would put the
   // button this is after away again.
@@ -213,14 +203,12 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
   }
 
   // What a model's server is called is whatever its owner called it, and the
-  // sentence about a failed attempt to reach it quotes the address. Three
+  // sentence about a failed attempt to reach it quotes the address. Two
   // places in the panel show that sentence, each in a paragraph of its own.
   const text = messages("en");
   const failures: Record<string, (panel: Locator, page: Page) => Promise<void>> = {
     "remembering the story": (panel) =>
       panel.getByRole("button", { name: text.facts.extractButton, exact: true }).click(),
-    "summarizing it": (panel) =>
-      panel.getByRole("button", { name: text.summary.generateButton, exact: true }).click(),
     "setting a backdrop": async (panel, page) => {
       const chooser = page.waitForEvent("filechooser");
       await panel.getByRole("button", { name: text.wallpaper.replace, exact: true }).click();
@@ -235,14 +223,12 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
           status: 502,
           contentType: "application/json",
           body: JSON.stringify({
-            error: "Cannot reach the model.",
+            error: "http://gamingpcinthelivingroomofthefamilyhomestead.example.net:5001/v1",
             kind: "unreachable",
-            upstream_url: "http://gamingpcinthelivingroomofthefamilyhomestead.example.net:5001/v1",
           }),
         })
         : route.continue();
       await page.route("**/api/conversations/*/memories/extract", unreachable);
-      await page.route("**/api/conversations/*/summarize", unreachable);
       await page.route("**/api/conversations/*/wallpaper", unreachable);
 
       const panel = await panelFor(page, request, "en");
@@ -251,4 +237,23 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
       await expectItFits(panel, 320);
     });
   }
+});
+
+// A phone turned upright, or a window made narrow: beside the story there, the panel would cover it.
+test("the panel beside the story closes when the screen narrows under it, and leaves the focus where it is", { tag: "@desktop" }, async ({ page, request }) => {
+  await page.setViewportSize({ width: 915, height: 412 });
+  const convo = await makeConversation(request);
+  await page.goto(`/#/chat/${convo.id}`);
+  const panel = page.locator("aside:visible:has(textarea)");
+  // Not open there on its own: beside the sidebar, it would leave the story too little room.
+  await page.locator("header button:has(svg.lucide-sliders-horizontal)").click();
+  await expect(panel).toBeVisible();
+  const box = page.getByPlaceholder(/^Write to /);
+  await box.click();
+  await page.keyboard.type("Half a sentence");
+
+  await page.setViewportSize({ width: 412, height: 915 });
+  await expect(panel).toHaveCount(0);
+  await expect(page.locator("header button:has(svg.lucide-sliders-horizontal)")).toBeVisible();
+  await expect(box, "a phone's keyboard closed on a sentence being typed").toBeFocused();
 });

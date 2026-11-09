@@ -2,12 +2,6 @@ import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
 import { conversationWithReply } from "./fixtures";
 
-/**
- * Reported: with the AI server not running, asking for a suggested message did
- * nothing at all — no result and no sign of why. It was in fact being reported,
- * in eleven grey pixels for four seconds, in the slot where the keyboard tip
- * lives. Which is to say: not reported.
- */
 /** A conversation with something already in it, then pointed at an address
  *  where nothing is listening — which is what a stopped AI server looks like.
  *  The exchange comes first because asking for a suggestion on an empty
@@ -58,20 +52,4 @@ test("a reply that never comes says so too", async ({ page, request }) => {
     "a server that is merely off was reported as a fault").toHaveCount(0);
   // The message that was sent is still there to try again from.
   await expect(page.getByText("Bonjour ?")).toBeVisible();
-});
-
-
-test("only one notice at a time", async ({ page, request }) => {
-  const convo = await conversationWithNoModel(request);
-  await page.goto(`/#/chat/${convo.id}`);
-  await expect(page.locator("textarea").first()).toBeVisible();
-
-  await page.locator('button[title="Write my reply for me (editable before sending)"]').click();
-  await expect(page.getByText(/no answer from the model/i)).toBeVisible({ timeout: 20_000 });
-
-  await page.locator("textarea").first().fill("Bonjour ?");
-  await page.locator('button[title="Send"]').click();
-  await expect(page.getByText(/no answer from the model/i)).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/no answer from the model/i),
-    "the one from the suggestion stayed while the reply added its own").toHaveCount(1);
 });

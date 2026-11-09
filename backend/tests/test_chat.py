@@ -1,28 +1,11 @@
 """Chat service tests with a mocked provider (no network)."""
 
-import json
-from typing import ClassVar
-
 import pytest
 
-from app.providers.base import ProviderEvent
+from app.providers.base import ProviderError, ProviderEvent
+from app.services import turns
 
-
-class FakeProvider:
-    """Yields scripted events; records the payload it received."""
-
-    # Shared on the class on purpose: the service instantiates the provider
-    # itself, so the tests have nowhere else to read the captured payload from.
-    captured: ClassVar[dict] = {}
-
-    def __init__(self, connection):
-        self.connection = connection
-
-    async def stream_chat(self, payload):
-        FakeProvider.captured["payload"] = payload
-        FakeProvider.captured["connection"] = self.connection
-        for event in FakeProvider.script:
-            yield event
+from .conftest import FakeProvider, messages_of, send, setup_conversation
 
 
 @pytest.fixture()
@@ -37,49 +20,24 @@ def fake_provider(monkeypatch):
     return FakeProvider
 
 
-async def setup_conversation(client, greeting="*She stirs.* Hi {{user}}."):
-    char = (await client.post("/api/characters", json={"name": "Serana", "greeting": greeting})).json()
-    (await client.post("/api/personas", json={"name": "Alex"})).json()
-    (await client.post("/api/connections", json={
-        "name": "Local", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test",
-    })).json()
-    convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
-    return convo
-
-
-def parse_sse(text: str) -> list[dict]:
-    events = []
-    for line in text.splitlines():
-        if line.startswith("data:"):
-            events.append(json.loads(line[5:].strip()))
-    return events
-
-
-async def send(client, convo_id, content="Hello there", mode="send"):
-    resp = await client.post("/api/chat", json={
-        "conversation_id": convo_id, "mode": mode, "content": content,
-    })
-    assert resp.status_code == 200, resp.text
-    return parse_sse(resp.text)
-
-
-async def test_send_persists_and_streams(client, fake_provider):
+async def test_send_persists_the_message_and_its_reply(client, fake_provider):
     convo = await setup_conversation(client)
-    events = await send(client, convo["id"])
+    resp = await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "content": "Hello there"})
 
-    types = [e["type"] for e in events]
-    assert types[0] == "start"
-    assert "delta" in types
-    assert types[-1] == "done"
+    # Answered once the message is saved, with the message as it is saved.
+    assert resp.status_code == 200
+    asked = resp.json()["user_message"]
+    assert (asked["role"], asked["content"], asked["meta"]) == ("user", "Hello there", {"unanswered": True})
+    turn = await turns.running_for(convo["id"])
+    if turn:
+        await turn.finished.wait()
 
-    done = events[-1]
-    assert done["message"]["role"] == "assistant"
-    assert done["message"]["content"] == "*She smiles.* Hello."
-
-    messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
+    messages = await messages_of(client, convo["id"])
     assert [m["role"] for m in messages] == ["assistant", "user", "assistant"]
-    assert messages[1]["content"] == "Hello there"
+    assert messages[1]["id"] == asked["id"]
+    assert messages[2]["content"] == "*She smiles.* Hello."
+    assert "unanswered" not in messages[1]["meta"]
 
     # auto title from first user message
     convos = (await client.get("/api/conversations")).json()
@@ -92,12 +50,14 @@ async def test_send_persists_and_streams(client, fake_provider):
     assert "Serana" in payload.system
 
 
-async def test_send_without_connection_errors(client, fake_provider):
+async def test_send_without_connection_is_refused_and_keeps_nothing(client, fake_provider):
     char = (await client.post("/api/characters", json={"name": "X", "greeting": ""})).json()
     convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
-    events = await send(client, convo["id"])
-    assert events[-1]["type"] == "error"
-    assert "connection" in events[-1]["message"].lower()
+    resp = await client.post("/api/chat", json={
+        "conversation_id": convo["id"], "mode": "send", "content": "Hello there"})
+    assert resp.status_code == 400
+    assert resp.json()["kind"] == "no_connection"
+    assert await messages_of(client, convo["id"]) == []
 
 
 async def test_regenerate_adds_variant(client, fake_provider):
@@ -108,9 +68,8 @@ async def test_regenerate_adds_variant(client, fake_provider):
         ProviderEvent(type="delta", text="Second take."),
         ProviderEvent(type="done"),
     ]
-    events = await send(client, convo["id"], content=None, mode="regenerate")
-    assert events[-1]["type"] == "done"
-    message = events[-1]["message"]
+    assert await send(client, convo["id"], content=None, mode="regenerate") is None
+    message = (await messages_of(client, convo["id"]))[-1]
     assert message["variants"] == ["*She smiles.* Hello.", "Second take."]
     assert message["active_index"] == 1
     # history must NOT include the message being regenerated
@@ -120,31 +79,31 @@ async def test_regenerate_adds_variant(client, fake_provider):
 
 async def test_regenerate_after_error_creates_assistant(client, fake_provider):
     convo = await setup_conversation(client)
-    fake_provider.script = [ProviderEvent(type="error", message="boom")]
-    events = await send(client, convo["id"])
-    assert events[-1]["type"] == "error"
-    messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
+    fake_provider.script = [ProviderError("boom")]
+    assert (await send(client, convo["id"]))["kind"] == "model_error"
+    messages = await messages_of(client, convo["id"])
     assert [m["role"] for m in messages] == ["assistant", "user"]  # no empty assistant persisted
 
     fake_provider.script = [ProviderEvent(type="delta", text="Recovered."), ProviderEvent(type="done")]
-    events = await send(client, convo["id"], content=None, mode="regenerate")
-    assert events[-1]["message"]["content"] == "Recovered."
-    messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
+    assert await send(client, convo["id"], content=None, mode="regenerate") is None
+    messages = await messages_of(client, convo["id"])
     assert [m["role"] for m in messages] == ["assistant", "user", "assistant"]
+    assert messages[-1]["content"] == "Recovered."
 
 
 async def test_regenerate_greeting_only_rejected(client, fake_provider):
     convo = await setup_conversation(client)
-    events = await send(client, convo["id"], content=None, mode="regenerate")
-    assert events[-1]["type"] == "error"
+    resp = await client.post("/api/chat", json={"conversation_id": convo["id"], "mode": "regenerate"})
+    assert resp.status_code == 400
+    assert resp.json()["kind"] == "nothing_to_regenerate"
 
 
 async def test_continue_appends_to_active_variant(client, fake_provider):
     convo = await setup_conversation(client)
     await send(client, convo["id"])
     fake_provider.script = [ProviderEvent(type="delta", text=" And more."), ProviderEvent(type="done")]
-    events = await send(client, convo["id"], content=None, mode="continue")
-    assert events[-1]["message"]["content"] == "*She smiles.* Hello. And more."
+    await send(client, convo["id"], content=None, mode="continue")
+    assert (await messages_of(client, convo["id"]))[-1]["content"] == "*She smiles.* Hello. And more."
     # continue instruction injected as an extra user turn (not persisted)
     payload = fake_provider.captured["payload"]
     assert payload.messages[-1]["role"] == "user"
@@ -159,37 +118,19 @@ async def test_impersonation_trimmed(client, fake_provider):
         ProviderEvent(type="delta", text="Fine.\nAlex: I say something for you"),
         ProviderEvent(type="done"),
     ]
-    events = await send(client, convo["id"])
-    assert events[-1]["message"]["content"] == "Fine."
+    await send(client, convo["id"])
+    assert (await messages_of(client, convo["id"]))[-1]["content"] == "Fine."
 
 
-async def test_summarize(client, fake_provider):
+async def test_the_thinking_a_model_writes_before_its_reply_is_not_saved(client, fake_provider):
     convo = await setup_conversation(client)
-    await send(client, convo["id"])
-    fake_provider.script = [ProviderEvent(type="delta", text="They met in a crypt."), ProviderEvent(type="done")]
-    resp = await client.post(f"/api/conversations/{convo['id']}/summarize")
-    assert resp.status_code == 200
-    assert resp.json()["summary"] == "They met in a crypt."
-
-
-async def test_summarize_prompt_holds_the_turns_of_the_conversation(client, fake_provider):
-    convo = await setup_conversation(client, greeting="*She stirs.*")
-    await send(client, convo["id"])
-    fake_provider.script = [ProviderEvent(type="delta", text="They met in a crypt."),
-                            ProviderEvent(type="done")]
-
-    resp = await client.post(f"/api/conversations/{convo['id']}/summarize")
-
-    assert resp.status_code == 200, resp.text
-    payload = fake_provider.captured["payload"]
-    assert "long-term memory of a roleplay conversation between Alex and Serana" in payload.system
-    assert [(m["role"], m["content"]) for m in payload.messages] == [
-        ("assistant", "*She stirs.*"),
-        ("user", "Hello there"),
-        ("assistant", "*She smiles.* Hello."),
-        ("user", "[Write the summary of the roleplay so far now.]"),
+    fake_provider.script = [
+        ProviderEvent(type="delta", text="<think>She should "),
+        ProviderEvent(type="delta", text="smile.</think>\n\n*She smiles.*"),
+        ProviderEvent(type="done"),
     ]
-    assert payload.stop == []
+    await send(client, convo["id"])
+    assert (await messages_of(client, convo["id"]))[-1]["content"] == "*She smiles.*"
 
 
 async def test_auto_title_strips_rp_markup(client, fake_provider):
@@ -212,14 +153,14 @@ def test_auto_title_does_not_stall_on_a_pathological_message():
     assert time.perf_counter() - started < 0.5
 
 
-async def test_done_event_includes_context_and_perf(client, fake_provider):
+async def test_a_reply_says_what_its_prompt_held_and_how_fast_it_came(client, fake_provider):
     convo = await setup_conversation(client)
-    events = await send(client, convo["id"])
-    done = events[-1]
-    assert done["context"]["context_size"] == 16384  # connection default
-    assert done["context"]["used_tokens"] > 0
-    assert done["context"]["messages_included"] >= 2
-    assert "gen_seconds" in done["perf"]
+    await send(client, convo["id"])
+    meta = (await messages_of(client, convo["id"]))[-1]["meta"]
+    assert meta["context"]["context_size"] == 16384  # connection default
+    assert meta["context"]["used_tokens"] > 0
+    assert meta["context"]["messages_included"] >= 2
+    assert "gen_seconds" in meta["perf"]
 
 
 async def test_impersonate_flips_roles(client, fake_provider):
@@ -240,11 +181,12 @@ async def test_impersonate_flips_roles(client, fake_provider):
 
 
 async def test_impersonate_prompt_holds_the_persona_and_the_story_so_far(client, fake_provider):
-    convo = await setup_conversation(client, greeting="*She stirs.*")
+    first = await setup_conversation(client, greeting="*She stirs.*")
     persona = (await client.post("/api/personas", json={
         "name": "Marin", "description": "A courier with a limp."})).json()
-    await client.patch(f"/api/conversations/{convo['id']}", json={
-        "persona_id": persona["id"], "summary": "They met in a crypt."})
+    convo = (await client.post("/api/conversations", json={
+        "character_id": first["character_id"], "persona_id": persona["id"]})).json()
+    await client.patch(f"/api/conversations/{convo['id']}", json={"summary": "They met in a crypt."})
     await send(client, convo["id"])
     fake_provider.script = [ProviderEvent(type="delta", text="*Je souris.*"),
                             ProviderEvent(type="done")]
@@ -265,13 +207,12 @@ async def test_impersonate_prompt_holds_the_persona_and_the_story_so_far(client,
     ]
 
 
-async def test_impersonate_cuts_the_chat_to_make_room_for_the_facts(client, fake_provider):
-    """The facts are not in the prompt that ghost-writes the message, but the
-    window of the chat is cut as it is for a turn: they take their share of it."""
+async def test_impersonate_gives_no_share_of_the_chat_to_the_facts(client, fake_provider):
+    """The facts are not in the prompt that ghost-writes the message: they take none of its window."""
     convo = await setup_conversation(client)
     connection = (await client.get("/api/connections")).json()[0]
     await client.put(f"/api/connections/{connection['id']}",
-                     json={"context_size": 2048, "max_tokens": 16})
+                     json={**connection, "context_size": 2048, "max_tokens": 16})
     for _ in range(4):
         fake_provider.script = [ProviderEvent(type="delta", text="word " * 60),
                                 ProviderEvent(type="done")]
@@ -288,17 +229,14 @@ async def test_impersonate_cuts_the_chat_to_make_room_for_the_facts(client, fake
     assert whole_chat == 9  # the greeting and four turns
     await client.post(f"/api/conversations/{convo['id']}/memories",
                       json={"content": "Serana owes Alex a boot. " * 30, "is_pinned": True})
-    assert await messages_read() < whole_chat
+    assert await messages_read() == whole_chat
 
 
 async def test_narrate_and_ooc_modes(client, fake_provider):
     convo = await setup_conversation(client)
     # narration: stored raw, marked up for the model, no auto title
-    resp = await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "send",
-        "content": "Un orage eclate au-dessus de la crypte.", "message_mode": "narrate",
-    })
-    assert resp.status_code == 200
+    await send(client, convo["id"], content="Un orage eclate au-dessus de la crypte.",
+               message_mode="narrate")
     payload = fake_provider.captured["payload"]
     assert payload.messages[-1]["content"] == "[Narration] Un orage eclate au-dessus de la crypte."
     messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
@@ -309,10 +247,8 @@ async def test_narrate_and_ooc_modes(client, fake_provider):
     assert convos[0]["title"] == ""  # narration does not become the title
 
     # ooc: wrapped for the model
-    await client.post("/api/chat", json={
-        "conversation_id": convo["id"], "mode": "send",
-        "content": "Arrete de laisser les phrases en suspens.", "message_mode": "ooc",
-    })
+    await send(client, convo["id"], content="Arrete de laisser les phrases en suspens.",
+               message_mode="ooc")
     payload = fake_provider.captured["payload"]
     assert payload.messages[-1]["content"] == "(OOC: Arrete de laisser les phrases en suspens.)"
 

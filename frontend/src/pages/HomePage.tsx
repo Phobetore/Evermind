@@ -2,17 +2,17 @@ import { CharacterCard } from "@/components/cards/CharacterCard";
 import { ImportModal } from "@/components/cards/ImportModal";
 import { LibraryModal } from "@/components/cards/LibraryModal";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
 import type { Character, Kind } from "@/types";
 import { clsx } from "clsx";
 import { FileUp, LibraryBig, Plus, Search, Sparkles, Star } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
-/** These three lose their labels on a phone, but kept 1.1rem of side padding
- *  around a 16px icon: 53px each, which shoved Create off a 320px screen. */
+/** These three lose their labels on a phone, and their side padding: at 53px each, Create would not fit at 320px. */
 const SQUARE_ON_PHONE = "max-sm:w-11 max-sm:!px-0";
 
 const TABS: { value: Kind | "all"; labelKey: string }[] = [
@@ -28,42 +28,44 @@ export function HomePage() {
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
+  // Said on the card whose star did not go through, until the next star.
+  const [favoriteFailure, setFavoriteFailure] = useState<{ id: string; error: unknown } | null>(null);
   const [showLibrary, setShowLibrary] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
-  const load = useCallback(async (kind: Kind | "all", q: string) => {
-    try {
-      setCharacters(await data.characters.list({ kind: kind === "all" ? undefined : kind, q }));
-      setError(null);
-    } catch (e) {
-      setError(describeError(e, t, t("home.loadError")));
-    }
-  }, [t]);
-
+  const load = () =>
+    data.characters.list().then((list) => {
+      setCharacters(list);
+      setFailure(null);
+    }, (error) => setFailure({ error }));
   useEffect(() => {
-    const t = setTimeout(() => load(tab, query), query ? 250 : 0);
-    return () => clearTimeout(t);
-  }, [tab, query, load]);
+    load();
+  }, []);
+
+  const replace = (updated: Character) =>
+    setCharacters((prev) => (prev ? prev.map((c) => (c.id === updated.id ? updated : c)) : prev));
 
   async function toggleFavorite(character: Character) {
-    const updated = await data.characters.update(character.id, {
-      is_favorite: !character.is_favorite,
-    });
-    setCharacters((prev) =>
-      prev ? prev.map((c) => (c.id === character.id ? updated : c)) : prev,
-    );
+    setFavoriteFailure(null);
+    try {
+      replace(await data.characters.update(character.id, { is_favorite: !character.is_favorite }));
+    } catch (error) {
+      setFavoriteFailure({ id: character.id, error });
+      // It may have gone through all the same: the star shows what the server holds.
+      data.characters.get(character.id).then(replace, () => {});
+    }
   }
 
-  const allTags = [...new Set((characters ?? []).flatMap((c) => c.tags))].slice(0, 12);
-  let shown = activeTag
-    ? (characters ?? []).filter((c) => c.tags.includes(activeTag))
-    : characters;
-  if (shown && favoritesOnly) shown = shown.filter((c) => c.is_favorite);
+  const words = query.trim().toLowerCase();
+  const found = (characters ?? []).filter((c) => (tab === "all" || c.kind === tab)
+    && [c.name, c.tagline, c.description].some((text) => text.toLowerCase().includes(words)));
+  const allTags = [...new Set(found.flatMap((c) => c.tags))].slice(0, 12);
+  const shown = characters && found.filter((c) =>
+    (!activeTag || c.tags.includes(activeTag)) && (!favoritesOnly || c.is_favorite));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
-      {/* Hero */}
       <header className="mb-6 animate-rise sm:mb-8">
         <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[2.75rem]">
           {t("home.hero.title")}<span className="text-ember-400">.</span>
@@ -71,10 +73,7 @@ export function HomePage() {
         <p className="mt-2 max-w-xl text-mist">{t("home.hero.subtitle")}</p>
       </header>
 
-      {/* Toolbar. One wrapping row is fine once there is room for it; on a
-          phone it dealt the six controls into ragged rows and left Import
-          stranded beside Create. Below sm it is three deliberate rows
-          instead: tabs, search, then the actions. */}
+      {/* One wrapping row where there is room; below sm, three: tabs, search, then the actions. */}
       <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex rounded-xl border border-ink-700 bg-ink-900 p-1">
           {TABS.map(({ value, labelKey }) => (
@@ -93,8 +92,7 @@ export function HomePage() {
           ))}
         </div>
 
-        {/* 208px of floor here left the row 6px short of fitting at 1280, which
-            bumped Create onto a line of its own. 192px fits. */}
+        {/* A floor over 192px pushes Create onto a line of its own at 1280px. */}
         <div className="relative sm:min-w-48 sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mist-dim" />
           <input
@@ -144,10 +142,8 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Tag rail. On a touch screen the chips are reached 7px beyond what is
-          drawn, which a rail that scrolls sideways would clip, so it has that much
-          padding there; and where they wrap, rows are far enough apart for those
-          areas not to meet. */}
+      {/* On a touch screen a chip answers 7px beyond what is drawn: the rail has that much padding, which
+          its scrolling would clip otherwise, and wrapped rows are far enough apart for those areas not to meet. */}
       {allTags.length > 0 && (
         <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 pointer-coarse:gap-y-5 pointer-coarse:py-2 sm:mx-0 sm:mb-6 sm:flex-wrap sm:overflow-x-visible sm:px-0 sm:pb-0">
           {allTags.map((tag) => (
@@ -167,14 +163,9 @@ export function HomePage() {
         </div>
       )}
 
-      {error && (
-        <p className="mb-4 rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood">
-          {error}
-        </p>
-      )}
-
-      {/* Grid */}
-      {shown === null ? (
+      {failure ? (
+        <LoadFailure error={failure.error} onRetry={load} />
+      ) : shown === null ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="aspect-[3/4] animate-pulse-soft rounded-2xl bg-ink-850" />
@@ -197,6 +188,7 @@ export function HomePage() {
               key={character.id}
               character={character}
               onToggleFavorite={toggleFavorite}
+              error={favoriteFailure?.id === character.id ? describeError(favoriteFailure.error, t) : undefined}
             />
           ))}
         </div>
@@ -205,14 +197,14 @@ export function HomePage() {
       {showLibrary && (
         <LibraryModal
           onClose={() => setShowLibrary(false)}
-          onInstalled={() => load(tab, query)}
+          onInstalled={load}
         />
       )}
 
       {importOpen && (
         <ImportModal
           onClose={() => setImportOpen(false)}
-          onImported={() => load(tab, query)}
+          onImported={load}
         />
       )}
     </div>

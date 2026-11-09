@@ -15,18 +15,8 @@ body:
     id: what
     attributes:
       label: What happened
-      description: And what you expected instead.
-    validations:
-      required: true
-
-  - type: textarea
-    id: steps
-    attributes:
-      label: How to reproduce it
-      placeholder: |
-        1. Install the card ...
-        2. Send ...
-        3. The reply ...
+      description: >
+        The steps to reproduce it, and what you expected instead.
     validations:
       required: true
 
@@ -47,7 +37,6 @@ body:
     attributes:
       label: Version
       description: Shown under About, at the bottom of the Settings page
-      placeholder: "3.0.2"
     validations:
       required: true
 
@@ -62,15 +51,6 @@ body:
     validations:
       required: true
 
-  - type: input
-    id: context
-    attributes:
-      label: Context size configured on the connection
-      description: >
-        And what the model actually offers, if you know. A mismatch here causes
-        most of the memory complaints.
-      placeholder: "16384, model offers 32768"
-
   - type: textarea
     id: logs
     attributes:
@@ -79,9 +59,3 @@ body:
         `docker compose logs --tail 50` on Docker, or whatever the terminal
         printed. Browser console errors too, if the problem is visual.
       render: shell
-
-  - type: input
-    id: os
-    attributes:
-      label: Operating system
-      placeholder: "Windows 11, macOS 15, Debian 13"

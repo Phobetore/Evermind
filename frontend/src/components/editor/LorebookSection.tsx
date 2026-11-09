@@ -1,70 +1,36 @@
 import { TagInput } from "@/components/editor/TagInput";
-import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { describeError } from "@/lib/errors";
 import { newId } from "@/lib/utils";
-import type { LoreEntryDraft } from "@/types";
+import type { LoreEntry } from "@/types";
 import { BookMarked, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-/** Works in two modes:
- *  - saved character (`characterId` given): every change hits the API at once;
- *  - new character (no id): changes stay local, CharacterForm persists them
- *    right after creating the card. */
+/** The lorebook as it will be saved, with the rest of the card. */
 export function LorebookSection({
-  characterId,
   entries,
   onChange,
 }: {
-  characterId?: string;
-  entries: LoreEntryDraft[];
-  onChange: (entries: LoreEntryDraft[]) => void;
+  entries: LoreEntry[];
+  onChange: (entries: LoreEntry[]) => void;
 }) {
   const t = useT();
   const [newKeys, setNewKeys] = useState<string[]>([]);
   const [newContent, setNewContent] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  function flash(message: string) {
-    setError(message);
-    setTimeout(() => setError(null), 3000);
-  }
-
-  async function addEntry() {
+  function addEntry() {
     if (newKeys.length === 0 || !newContent.trim()) {
-      flash(t("lorebook.entryRequiredError"));
+      setError(t("lorebook.entryRequiredError"));
       return;
     }
-    const draft = {
-      keys: newKeys,
-      content: newContent.trim(),
-      enabled: true,
-      case_sensitive: false,
-      priority: 0,
-    };
-    try {
-      const saved = characterId
-        ? await data.lore.create(characterId, draft)
-        : { ...draft, id: newId() };
-      onChange([...entries, saved]);
-      setNewKeys([]);
-      setNewContent("");
-    } catch (e) {
-      flash(describeError(e, t, t("lorebook.addFailedError")));
-    }
+    onChange([...entries, { id: newId(), keys: newKeys, content: newContent.trim(), enabled: true }]);
+    setNewKeys([]);
+    setNewContent("");
+    setError(null);
   }
 
-  async function patch(entry: LoreEntryDraft, changes: Partial<LoreEntryDraft>) {
-    const updated = characterId
-      ? await data.lore.update(entry.id, changes)
-      : { ...entry, ...changes };
-    onChange(entries.map((e) => (e.id === entry.id ? updated : e)));
-  }
-
-  async function remove(entry: LoreEntryDraft) {
-    if (characterId) await data.lore.remove(entry.id);
-    onChange(entries.filter((e) => e.id !== entry.id));
-  }
+  const change = (entry: LoreEntry, changes: Partial<LoreEntry>) =>
+    onChange(entries.map((e) => (e.id === entry.id ? { ...e, ...changes } : e)));
 
   return (
     <div className="rounded-xl border border-arcane-500/30 bg-arcane-glow/30 p-4">
@@ -74,7 +40,7 @@ export function LorebookSection({
       </div>
       <p className="mb-3 text-xs leading-relaxed text-mist">
         {t("lorebook.description")}
-        {!characterId && t("lorebook.descriptionUnsavedSuffix")}
+        {t("lorebook.descriptionUnsavedSuffix")}
       </p>
 
       <div className="flex flex-col gap-2">
@@ -98,14 +64,14 @@ export function LorebookSection({
                   <input
                     type="checkbox"
                     checked={entry.enabled}
-                    onChange={() => patch(entry, { enabled: !entry.enabled })}
+                    onChange={() => change(entry, { enabled: !entry.enabled })}
                     className="h-3.5 w-3.5 accent-[#8b66b3]"
                   />
                   {t("lorebook.enabledLabel")}
                 </label>
                 <button
                   type="button"
-                  onClick={() => remove(entry)}
+                  onClick={() => onChange(entries.filter((e) => e.id !== entry.id))}
                   className="touch-target rounded p-1 text-mist-dim hover:bg-blood/15 hover:text-blood"
                   aria-label={t("lorebook.deleteEntryAriaLabel")}
                 >
@@ -115,11 +81,8 @@ export function LorebookSection({
             </div>
             <textarea
               className="field min-h-16 text-sm"
-              defaultValue={entry.content}
-              onBlur={(e) => {
-                const content = e.target.value.trim();
-                if (content && content !== entry.content) patch(entry, { content });
-              }}
+              value={entry.content}
+              onChange={(e) => change(entry, { content: e.target.value })}
             />
           </div>
         ))}

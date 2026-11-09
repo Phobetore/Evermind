@@ -2,13 +2,17 @@ import aiosqlite
 from fastapi import APIRouter, Depends
 
 from ..db import get_db
-from ..errors import AppError, NotFoundError
+from ..errors import FACT_EMPTY, AppError, NotFoundError
 from ..models.schemas import MemoryIn, MemoryPatch
 from ..repositories import conversations as convo_repo
 from ..repositories import memories as repo
 from ..services import memory_service
 
 router = APIRouter(prefix="/api", tags=["memories"])
+
+
+def _no_text() -> AppError:
+    return AppError("A fact needs some text.", kind=FACT_EMPTY)
 
 
 @router.get("/conversations/{convo_id}/memories")
@@ -23,8 +27,10 @@ async def add_memory(convo_id: str, payload: MemoryIn,
                      db: aiosqlite.Connection = Depends(get_db)):
     if not await convo_repo.get(db, convo_id, with_messages=False):
         raise NotFoundError("Conversation not found.", "conversation")
-    saved = await repo.add(db, convo_id, content=payload.content, kind=payload.kind,
-                           is_pinned=payload.is_pinned, source="user")
+    if not payload.content.strip():
+        raise _no_text()
+    saved = await repo.add(db, convo_id, content=payload.content, is_pinned=payload.is_pinned,
+                           source="user")
     if not saved:
         raise AppError("This fact already exists.", kind="fact_exists")
     return saved
@@ -34,7 +40,7 @@ async def add_memory(convo_id: str, payload: MemoryIn,
 async def extract_now(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await convo_repo.get(db, convo_id, with_messages=False):
         raise NotFoundError("Conversation not found.", "conversation")
-    result = await memory_service.run_maintenance(db, convo_id)
+    result = await memory_service.run_maintenance(db, convo_id, hold_back=0)
     return {**result, "memories": await repo.list_for_conversation(db, convo_id)}
 
 
@@ -48,6 +54,8 @@ async def consolidate_memories(convo_id: str, db: aiosqlite.Connection = Depends
 @router.patch("/memories/{memory_id}")
 async def patch_memory(memory_id: str, payload: MemoryPatch,
                        db: aiosqlite.Connection = Depends(get_db)):
+    if payload.content is not None and not payload.content.strip():
+        raise _no_text()
     updated = await repo.update(db, memory_id, content=payload.content,
                                 is_pinned=payload.is_pinned)
     if not updated:

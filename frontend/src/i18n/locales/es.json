@@ -34,7 +34,6 @@
     "importTitle": "Importar una ficha (JSON / PNG)",
     "import": "Importar",
     "create": "Crear",
-    "loadError": "Error al cargar",
     "importError": "Error al importar",
     "emptyState": {
       "title": "El teatro está vacío",
@@ -65,6 +64,7 @@
     "deletedCharacter": "Personaje eliminado",
     "newConversationFallback": "Nueva conversación",
     "messageCount": "{count} mensajes",
+    "messageCount_one": "{count} mensaje",
     "renameLabel": "Renombrar",
     "confirmDelete": "¿Eliminar la conversación «{title}»?",
     "untitled": "Sin título"
@@ -100,10 +100,7 @@
     "noModel": "sin modelo definido",
     "keyHint": "clave {hint}",
     "noKey": "sin clave",
-    "defaultPersonaLabel": "Persona predeterminada",
-    "noneOption": "Ninguna",
     "defaultConnectionLabel": "Conexión predeterminada",
-    "firstAvailableOption": "La primera disponible",
     "replyLengthLabel": "Longitud de las respuestas",
     "replyLengthHint": "Se aplica a todas las conversaciones. Recuerda subir el «Respuesta máx. (tokens)» de tu conexión para respuestas largas.",
     "replyLengthOptions": {
@@ -114,7 +111,7 @@
     "historyLimitLabel": "Mensajes recientes enviados al modelo",
     "historyLimitHint": "Más allá de eso, los turnos antiguos solo perviven en el resumen y en los hechos establecidos. Ventana corta (16–30): el modelo sigue atento a las instrucciones en vez de imitar sus propias respuestas. Ventana larga: más historial sin filtrar, pero los modelos pequeños empiezan a divagar.",
     "passageBudgetLabel": "Recuerdo de pasajes (tokens)",
-    "passageBudgetHint": "Recupera extractos literales de mensajes antiguos relacionados semánticamente con la escena actual (requiere el extra «semantic»). ~1500 ≈ 10 % de un contexto de 16k. Pon 0 para desactivarlo. Cada token de recuerdo es un token menos de historial reciente.",
+    "passageBudgetHint": "Recupera extractos literales de mensajes antiguos relacionados semánticamente con la escena actual (requiere el extra «semantic»). ~1500 ≈ 10 % de un contexto de 16k. Pon 0 para desactivarlo. Cada token de recuerdo es un token menos de historial reciente.",
     "autoMemoryTitle": "Memoria automática",
     "autoMemoryHint": {
       "before": "El modelo extrae automáticamente los",
@@ -133,7 +130,7 @@
     "savedFlash": "Guardado.",
     "access": {
       "title": "Acceso",
-      "hint": "Este dispositivo mantiene la sesión iniciada durante 30 días después de su última visita.",
+      "hint": "Este dispositivo mantiene la sesión iniciada hasta que la cierres o cambies la contraseña.",
       "logout": "Cerrar sesión en este dispositivo",
       "logoutEverywhere": "Cerrar sesión en todos los dispositivos",
       "logoutEverywhereConfirm": "Todos los dispositivos, este incluido, tendrán que volver a escribir la contraseña."
@@ -143,10 +140,16 @@
       "starHint": "Si Evermind te resulta útil, una estrella en el repositorio es lo que hace que otras personas lo encuentren.",
       "projectLink": "El proyecto en GitHub",
       "reportLink": "Informar de un problema",
-      "updateAvailable": "Evermind {version} ya está.",
-      "updateHint": "Detén Evermind, ejecuta esto en la carpeta donde lo instalaste y vuelve a arrancarlo.",
+      "updateAvailable": "Evermind {version} ya está disponible.",
+      "updateHint": "Detén Evermind y luego ejecuta esto en la carpeta donde lo instalaste.",
+      "zipHint": {
+        "before": "Descargada como ZIP, esta copia se actualiza a mano:",
+        "link": "los pasos están en INSTALL.md",
+        "after": "."
+      },
+      "builtHint": "Construida desde el código fuente, esta imagen se actualiza volviendo a construirla desde el código nuevo:",
       "releaseNotes": "Qué ha cambiado",
-      "checkHint": "Preguntar a GitHub una vez al día si hay una versión más nueva. No se envía nada más. Sin la casilla no sale nada por su cuenta, y el botón de abajo sigue funcionando cuando lo pulsas.",
+      "checkHint": "Preguntar a GitHub, cada vez que se abre esta página, si hay una versión más nueva. La consulta no lleva nada de lo que has escrito, pero GitHub ve lo que cualquier sitio web ve de un navegador, incluida la dirección en la que has abierto Evermind. Sin la casilla no sale nada por su cuenta, y el botón de abajo sigue funcionando cuando lo pulsas.",
       "checkNow": "Comprobar ahora",
       "upToDate": "Tienes la última versión.",
       "unreachable": "No se ha podido contactar con GitHub."
@@ -171,7 +174,7 @@
     "testButton": "Probar la conexión",
     "benchmarkButton": "Medir la velocidad",
     "benchmarkHint": "Una pequeña generación real para medir latencia y rendimiento",
-    "benchmarkResult": "{tokensPerSecond} t/s · primer token en {firstTokenSeconds}s",
+    "benchmarkResult": "{tokensPerSecond} t/s · primer token en {firstTokenSeconds}\u00a0s",
     "testFailed": "La prueba ha fallado",
     "modelsFound": "Conectado. Modelos encontrados: {count}",
     "benchmarkFailed": "La medición ha fallado",
@@ -181,7 +184,7 @@
     "maxTokensLabel": "Respuesta máx. (tokens)",
     "maxTokensHint": "Un techo, no un objetivo: el estilo se define en Ajustes → Longitud de las respuestas.",
     "temperatureLabel": "Temperatura",
-    "temperatureHint": "Más baja = más coherente. 0.8 es un buen equilibrio para el rol.",
+    "temperatureHint": "Más baja = más coherente. 0,8 es un buen equilibrio para el rol.",
     "topPLabel": "Top-p",
     "frequencyPenaltyLabel": "Penalización de frecuencia",
     "presencePenaltyLabel": "Penalización de presencia",
@@ -193,26 +196,28 @@
   },
   "chat": {
     "openingScene": "Abriendo la escena…",
+    "showEarlier": "Mostrar mensajes anteriores",
     "header": {
       "backAriaLabel": "Volver a las conversaciones",
       "renameTitle": "Renombrar la conversación",
-      "memorySettingsAriaLabel": "Memoria y ajustes de la conversación",
-      "openPanelAriaLabel": "Abrir el panel"
+      "memorySettingsAriaLabel": "Memoria y ajustes de la conversación"
     },
     "context": {
       "tooltipUsage": "Contexto: {used} / {budget} tokens (ventana {size})",
       "tooltipMessages": "{included}/{total} mensajes en el contexto",
       "tooltipOlderInMemory": "(los más antiguos están cubiertos por la memoria)",
       "tooltipLore": "{count} entradas de lorebook activas",
-      "percent": "{pct} %",
+      "percent": "{pct}\u00a0%",
       "perSecond": "{tps} t/s"
     },
     "stream": {
-      "assistantTyping": "{name} está escribiendo…"
+      "assistantTyping": "{name} está escribiendo…",
+      "replied": "{name} ha respondido."
     },
     "errors": {
       "connectionFailed": "Error de conexión con el servidor.",
       "noReply": "La respuesta no ha llegado.",
+      "nothingAdded": "El modelo no tenía nada que añadir a esta respuesta.",
       "retryButton": "Reintentar"
     },
     "input": {
@@ -272,23 +277,17 @@
       },
       "summary": {
         "title": "Resumen de la historia",
-        "generateTitle": "Pedir al modelo que resuma la conversación",
-        "generateButton": "Resumir",
         "placeholder": "Actualizado automáticamente por la memoria; editable libremente. Se inyecta en cada turno.",
         "saveButton": "Guardar el resumen",
-        "saved": "Resumen guardado.",
-        "generated": "Resumen generado por el modelo.",
-        "generateError": "Error al resumir"
+        "saved": "Resumen guardado."
       },
       "facts": {
         "title": "Hechos establecidos",
         "consolidateTitle": "Fusionar los hechos redundantes en un conjunto más denso",
         "consolidateButton": "Condensar",
-        "extractTitle": "Extraer ahora los hechos de los últimos turnos",
+        "extractTitle": "Leer ahora los últimos turnos: registrar los hechos nuevos y actualizar el resumen",
         "extractButton": "Recordar",
-        "description": "Canon firme reinyectado en cada turno: el personaje nunca los olvida ni los contradice. Se extraen automáticamente a medida que avanza la historia.",
-        "dormantWarning": "{count} hecho(s) fuera de presupuesto (atenuados abajo): cubiertos por el resumen, pero ya no se inyectan literalmente. Fija los cruciales o usa «{consolidateLabel}».",
-        "dormantTitle": "Latente: fuera del presupuesto de inyección",
+        "description": "Canon que el personaje no debe contradecir. Los hechos fijados se envían siempre al modelo; los demás solo cuando su turno ya no aparece en los últimos mensajes, y dentro de un presupuesto. Se extraen automáticamente a medida que avanza la historia.",
         "pinTitle": "Fijar (siempre inyectado)",
         "unpinTitle": "Dejar de fijar",
         "turnBadge": "t.{turn}",
@@ -298,10 +297,8 @@
         "addAriaLabel": "Añadir hecho",
         "addedCount": "{count} hecho(s) nuevo(s) registrado(s).",
         "noneNew": "Nada nuevo que recordar.",
+        "summaryOnly": "Ningún hecho nuevo; el resumen se actualizó.",
         "extractError": "Error en la extracción de memoria",
-        "tooFewToConsolidate": "Hay muy pocos hechos para condensar.",
-        "changedWhileConsolidating": "Los hechos han cambiado mientras el modelo los fusionaba. No se ha modificado nada; inténtalo de nuevo.",
-        "memoryTaskRunning": "Hay otra tarea de memoria en curso. No se ha modificado nada; inténtalo de nuevo en un momento.",
         "consolidated": "Memoria condensada: {before} → {after} hechos.",
         "consolidateError": "Error al condensar",
         "addError": "No se ha podido añadir el hecho"
@@ -421,8 +418,7 @@
     "keysPlaceholder": "Palabras clave que la activan, luego Enter",
     "contentPlaceholder": "Lo que el modelo debe saber cuando aparecen estas palabras…",
     "addEntryButton": "Añadir entrada",
-    "entryRequiredError": "Una entrada necesita al menos una palabra clave y algo de contenido.",
-    "addFailedError": "No se ha podido añadir la entrada"
+    "entryRequiredError": "Una entrada necesita al menos una palabra clave y algo de contenido."
   },
   "cards": {
     "startChatModal": {
@@ -430,8 +426,6 @@
       "personaHint": "Gestiona tus identidades en la pestaña Personas.",
       "noPersonaOption": "Sin persona",
       "noConnectionOption": "Ninguna conexión configurada",
-      "mainGreetingOption": "Principal",
-      "alternateGreetingOption": "Alternativa {index}",
       "noConnectionWarning": "Configura primero una conexión LLM en Ajustes (Ollama, LM Studio, OpenRouter, Anthropic…). Tú decides.",
       "startError": "No se ha podido empezar",
       "enterButton": "Entrar en la historia"
@@ -453,53 +447,49 @@
   },
   "errors": {
     "unexpected": "Algo ha salido mal.",
-    "pageLoad": "No se ha podido cargar esta página. Puede que Evermind se haya actualizado desde que la abriste, o que se haya cortado la conexión.",
     "server": "Evermind ha respondido con un error (HTTP {status}).",
     "unreachable": "Evermind no responde. ¿Sigue en marcha?",
+    "offline": "Este dispositivo no tiene conexión.",
+    "notSent": "Este mensaje no se ha enviado. Pulsa Enviar para volver a enviarlo.",
     "invalid": "Evermind no ha podido procesar la petición: falta información o algún dato no es válido.",
     "locked": "Tu sesión ha terminado. Vuelve a iniciar sesión.",
     "wrongPassword": "Acceso denegado.",
+    "tooLarge": "Demasiado largo para ser la contraseña, o un proxy inverso lo ha transmitido sin indicar su longitud.",
     "rateLimited": "Demasiados intentos. Vuelve a intentarlo en {minutes} min.",
-    "crossOrigin": "Evermind ha rechazado esta petición porque parece venir de otra dirección. Detrás de un proxy inverso, el proxy debe conservar la cabecera Host original tal cual; servir Evermind por HTTPS también ayuda.",
-    "unknownHost": "Evermind no responde en esta dirección. Añade su nombre a EVERMIND_ALLOWED_HOSTS o establece una contraseña.",
+    "crossOrigin": "Evermind ha rechazado esta petición porque parece venir de otra dirección. Detrás de un proxy inverso, el proxy debe conservar la cabecera Host original tal cual.",
+    "unknownHost": "Sin contraseña, Evermind no responde a este nombre. Ábrelo por su dirección (como http://192.168.1.42:3000) o por localhost, o establece una contraseña.",
     "notFound": {
       "character": "Esta ficha ya no existe.",
       "conversation": "Esta conversación ya no existe.",
       "message": "Este mensaje ya no existe.",
       "persona": "Esta persona ya no existe.",
       "connection": "Esta conexión ya no existe.",
-      "loreEntry": "Esta entrada del lorebook ya no existe.",
       "fact": "Este hecho ya no existe.",
-      "libraryCard": "Esta ficha no está en la biblioteca.",
       "other": "Este elemento ya no existe."
     },
     "pngWithoutCard": "Esta imagen PNG no contiene una ficha de personaje.",
     "unrecognizedCardFile": "Este archivo no es una ficha. Elige una ficha JSON o una ficha PNG.",
     "variantOutOfRange": "Esa variante de la respuesta no existe.",
-    "alreadyInstalled": "Esta ficha ya está instalada.",
-    "loreEntryIncomplete": "Una entrada del lorebook necesita al menos una palabra clave y algo de contenido.",
     "factExists": "Este hecho ya existe.",
+    "factEmpty": "Un hecho necesita algo de texto.",
+    "memoryBusy": "Hay otra tarea de memoria en curso. No se ha modificado nada; inténtalo de nuevo en un momento.",
+    "factsChanged": "Los hechos han cambiado mientras el modelo trabajaba con ellos. No se ha conservado nada; inténtalo de nuevo.",
+    "conversationChanged": "La conversación ha cambiado mientras el modelo la leía. No se ha conservado nada; inténtalo de nuevo.",
+    "tooFewFacts": "Hay muy pocos hechos para condensar: solo se fusionan los que escribió el modelo y nadie fijó.",
     "fileTooLarge": "Este archivo es demasiado grande (15 MB como máximo).",
     "unsupportedImage": "Este formato de imagen no es compatible. Usa PNG, JPEG o WebP.",
     "conversationEmpty": "Esta conversación aún no tiene mensajes.",
     "noConnection": "No hay ninguna conexión LLM configurada. Añade una en Ajustes → Conexiones LLM.",
     "modelError": "El modelo ha devuelto un error: {message}",
-    "modelUnreachable": "Evermind no puede conectar con el servidor del modelo en {url}. Comprueba que está en marcha y que la dirección de la conexión es correcta.",
-    "modelUnreachableNoAddress": "El servidor del modelo no responde. Comprueba que está en marcha y que la dirección de la conexión es correcta.",
+    "modelUnreachable": "Evermind no puede conectar con el servidor del modelo en {message}. Comprueba que está en marcha y que la dirección de la conexión es correcta.",
     "turnRunning": "Ya se está escribiendo una respuesta, así que esto no se ha enviado.",
     "modelEmpty": "El modelo ha devuelto una respuesta vacía. Inténtalo de nuevo o cambia de modelo.",
-    "modelEmptyRetried": "El modelo no ha devuelto nada en dos intentos, ni siquiera dejando aparte la línea de apertura. Es probable que su plantilla de chat no sirva aquí para el rol; prueba con otro modelo.",
     "modelUnreadable": "No se ha podido leer la respuesta del modelo. Inténtalo de nuevo.",
-    "modelAuthRefused": "El servidor del modelo ha rechazado la clave de API. Comprueba la clave en la conexión.",
-    "modelNotFound": "El servidor del modelo no reconoce esta dirección o este modelo. Comprueba la URL y el nombre del modelo en la conexión.",
-    "modelRateLimited": "El servidor del modelo indica que ha alcanzado su límite de peticiones. Inténtalo de nuevo en un momento.",
-    "modelHttpError": "El servidor del modelo ha respondido con un error (HTTP {status}).",
-    "modelTimeout": "El modelo ha tardado demasiado en responder.",
-    "modelNetworkError": "La conexión con el servidor del modelo ha fallado.",
-    "modelUnexpectedResponse": "El servidor del modelo ha respondido de un modo que Evermind no entiende. Comprueba la URL de la conexión.",
-    "modelUnknownType": "Esta conexión es de un tipo que Evermind no conoce. Edítala o créala de nuevo.",
+    "modelAuthRefused": "El servidor del modelo ha rechazado la clave de API. Comprueba la clave en la conexión. El servidor indicó: {message}",
+    "modelNotFound": "El servidor del modelo no reconoce esta dirección o este modelo. Comprueba la URL y el nombre del modelo en la conexión. El servidor indicó: {message}",
+    "modelRateLimited": "El servidor del modelo ha alcanzado su límite de peticiones. Inténtalo de nuevo en un momento. El servidor indicó: {message}",
+    "modelNetworkError": "El modelo ha tardado demasiado en responder o se ha cortado la conexión con su servidor.",
     "modelNoText": "El modelo no ha generado ningún texto.",
-    "upstream": "El servidor indicó: {text}",
     "emptyMessage": "Escribe primero un mensaje.",
     "nothingToRegenerate": "Todavía no hay ninguna respuesta que regenerar. Envía primero un mensaje.",
     "nothingToContinue": "El último mensaje no es una respuesta, así que no hay nada que continuar.",

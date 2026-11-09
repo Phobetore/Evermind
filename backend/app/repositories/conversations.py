@@ -1,5 +1,7 @@
 import aiosqlite
 
+from ..db import write_transaction
+from ..prompting.memory_changes import MAX_TURNS_PER_RUN
 from . import characters as characters_repo
 from .base import dumps, loads, new_id, now_iso
 
@@ -20,7 +22,7 @@ def message_to_out(row) -> dict:
 def convo_to_out(row) -> dict:
     out = dict(row)
     wallpaper = out.pop("wallpaper_path", None)
-    out["wallpaper_url"] = f"/api/media/{wallpaper}" if wallpaper else None
+    out["wallpaper_url"] = f"api/media/{wallpaper}" if wallpaper else None
     return out
 
 
@@ -58,7 +60,8 @@ async def list_all(db: aiosqlite.Connection, character_id: str | None = None) ->
     if character_id:
         sql += " WHERE c.character_id = ?"
         params.append(character_id)
-    sql += " GROUP BY c.id ORDER BY COALESCE(MAX(m.created_at), c.updated_at) DESC"
+    sql += (" GROUP BY c.id"
+            " ORDER BY MAX(COALESCE(MAX(m.created_at), c.updated_at), c.created_at) DESC")
     rows = await (await db.execute(sql, params)).fetchall()
     out = []
     for row in rows:
@@ -72,9 +75,10 @@ async def update(db: aiosqlite.Connection, convo_id: str, fields: dict) -> dict 
     if not await (await db.execute(
             "SELECT id FROM conversations WHERE id = ?", (convo_id,))).fetchone():
         return None
+    if fields.get("summary") is not None:
+        await _type_summary(db, convo_id, fields["summary"], fields.get("summary_was"))
     sets, params = [], []
-    for key in ("title", "summary", "author_note", "persona_id", "connection_id",
-                "wallpaper_path", "wallpaper_opacity"):
+    for key in ("title", "author_note", "connection_id", "wallpaper_path", "wallpaper_opacity"):
         if key in fields and fields[key] is not None:
             sets.append(f"{key} = ?")
             params.append(fields[key])
@@ -98,13 +102,20 @@ async def delete(db: aiosqlite.Connection, convo_id: str) -> bool:
     return cursor.rowcount > 0
 
 
-# ---------- messages ----------
-
 async def list_messages(db: aiosqlite.Connection, convo_id: str) -> list[dict]:
     rows = await (await db.execute(
         "SELECT * FROM messages WHERE conversation_id = ? ORDER BY position ASC",
         (convo_id,))).fetchall()
     return [message_to_out(r) for r in rows]
+
+
+async def turns_through(db: aiosqlite.Connection, convo_id: str,
+                        position: int) -> list[tuple[str, str]]:
+    """The story up to a position, in order: each message's id and what it says."""
+    rows = await (await db.execute(
+        "SELECT id, variants, active_index FROM messages WHERE conversation_id = ? AND position <= ?"
+        " ORDER BY position ASC", (convo_id, position))).fetchall()
+    return [(m["id"], m["content"]) for m in map(message_to_out, rows)]
 
 
 async def next_position(db: aiosqlite.Connection, convo_id: str) -> int:
@@ -116,8 +127,8 @@ async def next_position(db: aiosqlite.Connection, convo_id: str) -> int:
 
 async def add_message(db: aiosqlite.Connection, convo_id: str, role: str,
                       variants: list[str], active_index: int = 0,
-                      meta: dict | None = None) -> dict:
-    message_id = new_id()
+                      meta: dict | None = None, message_id: str | None = None) -> dict:
+    message_id = message_id or new_id()
     position = await next_position(db, convo_id)
     await db.execute(
         "INSERT INTO messages (id, conversation_id, role, variants, active_index, position,"
@@ -138,7 +149,10 @@ async def get_message(db: aiosqlite.Connection, message_id: str) -> dict | None:
 async def update_message(db: aiosqlite.Connection, message_id: str,
                          variants: list[str] | None = None,
                          active_index: int | None = None,
-                         meta: dict | None = None) -> dict | None:
+                         meta: dict | None = None, reread: bool = False) -> dict | None:
+    """``reread``: other words of the message are shown, and a memory that read it goes back to
+    before it, in the same write, if it is the story's newest. Not an older one, as not an edit:
+    every pass since would go, and the next would read only the newest 40 turns."""
     current = await get_message(db, message_id)
     if not current:
         return None
@@ -157,16 +171,22 @@ async def update_message(db: aiosqlite.Connection, message_id: str,
         params.append(None)  # active content may have changed -> re-embed lazily
     if sets:
         params.append(message_id)
-        await db.execute(f"UPDATE messages SET {', '.join(sets)} WHERE id = ?", params)
-        await db.commit()
+        async with write_transaction(db):
+            if reread:
+                memory = await (await db.execute(
+                    "SELECT memory_position, (SELECT MAX(position) FROM messages"
+                    " WHERE conversation_id = c.id) AS newest FROM conversations c WHERE c.id = ?",
+                    (current["conversation_id"],))).fetchone()
+                position = current["position"]
+                # No pass reads the greeting, at 0.
+                if position == memory["newest"] and 0 < position <= memory["memory_position"]:
+                    await _rewind_memory(db, current["conversation_id"], position - 1)
+            await db.execute(f"UPDATE messages SET {', '.join(sets)} WHERE id = ?", params)
     return await get_message(db, message_id)
 
 
 def _meta_for_branch(raw: str | None) -> str:
-    """A message's mark as still waiting for a reply says something about the turn
-    that was asked for in the conversation it comes from, not about a branch, where
-    ending on that message is what the person has just chosen. So does the id it was
-    sent under: nothing was sent to the branch."""
+    """A message's meta in a branch: nothing was sent there, so nothing waits for a reply."""
     meta = loads(raw, {})
     meta.pop("unanswered", None)
     meta.pop("client_id", None)
@@ -174,93 +194,187 @@ def _meta_for_branch(raw: str | None) -> str:
 
 
 async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict | None:
-    """New conversation replaying the story up to (and including) a message.
-    Memories and summary follow only if they were established by then."""
-    fork_point = await get_message(db, message_id)
-    if not fork_point:
-        return None
-    source = await get(db, fork_point["conversation_id"], with_messages=False)
-    if not source:
-        return None
-    position = fork_point["position"]
+    """New conversation replaying the story up to (and including) a message, with what its
+    memory held of that story: a cut at the message (see ``_rewind_memory``)."""
+    async with write_transaction(db):
+        fork_point = await get_message(db, message_id)
+        if not fork_point:
+            return None
+        source = await (await db.execute(
+            "SELECT * FROM conversations WHERE id = ?", (fork_point["conversation_id"],))).fetchone()
+        if not source:
+            return None
+        position = fork_point["position"]
 
-    branch_id = new_id()
-    now = now_iso()
-    title = (source.get("title") or "Sans titre")[:52] + " (branche)"
-    summary = source.get("summary") or ""
-    memory_position = min(source.get("memory_position") or 0, position)
-    if memory_position < (source.get("memory_position") or 0):
-        # the summary may describe events past the fork; drop it rather than lie
-        summary = ""
-    # Read raw rather than off `source`, which has already turned the stored
-    # filename into a URL for the client.
-    backdrop = await (await db.execute(
-        "SELECT wallpaper_path, wallpaper_opacity FROM conversations WHERE id = ?",
-        (source["id"],))).fetchone()
-
-    # The backdrop follows, like the persona and the connection: a branch is the
-    # same scene carried on differently, and losing the picture behind it would
-    # read as something having gone wrong rather than as a fresh start. The
-    # file is shared, not copied, which is why removing one never deletes it.
-    await db.execute(
-        "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
-        " summary, author_note, memory_position, forked_from, forked_at_position,"
-        " wallpaper_path, wallpaper_opacity, created_at, updated_at)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (branch_id, source["character_id"], source.get("persona_id"),
-         source.get("connection_id"), title, summary,
-         # The scene directive is the strongest lever there is on a reply, and
-         # it was the one piece of the setup a branch dropped.
-         source.get("author_note") or "", memory_position,
-         source["id"], position, backdrop["wallpaper_path"],
-         backdrop["wallpaper_opacity"], now, now),
-    )
-
-    rows = await (await db.execute(
-        "SELECT * FROM messages WHERE conversation_id = ? AND position <= ?"
-        " ORDER BY position ASC", (source["id"], position))).fetchall()
-    for row in rows:
+        branch_id = new_id()
+        now = now_iso()
+        # A branch is the same scene carried on differently: its directive and backdrop follow.
         await db.execute(
+            "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
+            " summary, author_note, memory_position, forked_from, wallpaper_path,"
+            " wallpaper_opacity, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (branch_id, source["character_id"], source["persona_id"],
+             source["connection_id"], source["title"], source["summary"],
+             source["author_note"] or "", source["memory_position"],
+             source["id"], source["wallpaper_path"],
+             source["wallpaper_opacity"], now, now),
+        )
+
+        messages = await (await db.execute(
+            "SELECT * FROM messages WHERE conversation_id = ? AND position <= ?"
+            " ORDER BY position ASC", (source["id"], position))).fetchall()
+        # One statement: a long story, one await at a time, holds the database for seconds.
+        await db.executemany(
             "INSERT INTO messages (id, conversation_id, role, variants, active_index,"
             " position, meta, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (new_id(), branch_id, row["role"], row["variants"], row["active_index"],
-             row["position"], _meta_for_branch(row["meta"]), row["created_at"], row["embedding"]),
+            [(new_id(), branch_id, row["role"], row["variants"], row["active_index"],
+              row["position"], _meta_for_branch(row["meta"]), row["created_at"], row["embedding"])
+             for row in messages],
         )
-
-    mem_rows = await (await db.execute(
-        "SELECT * FROM memories WHERE conversation_id = ? AND source_position <= ?",
-        (source["id"], position))).fetchall()
-    for row in mem_rows:
+        # What a person kept from after the fork stays with the story it came from.
+        facts = await (await db.execute(
+            "SELECT * FROM memories WHERE conversation_id = ? AND source_position <= ?",
+            (source["id"], position))).fetchall()
+        await db.executemany(
+            "INSERT INTO memories (id, conversation_id, content, source_position, is_pinned,"
+            " source, created_at, embedding, previous_content, corrected_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(new_id(), branch_id, f["content"], f["source_position"], f["is_pinned"],
+              f["source"], f["created_at"], f["embedding"], f["previous_content"],
+              f["corrected_at"]) for f in facts])
         await db.execute(
-            "INSERT INTO memories (id, conversation_id, kind, content, source_position,"
-            " is_pinned, source, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (new_id(), branch_id, row["kind"], row["content"], row["source_position"],
-             row["is_pinned"], row["source"], row["created_at"], row["embedding"]),
-        )
+            "INSERT INTO memory_summaries (conversation_id, position, summary, typed)"
+            " SELECT ?, position, summary, typed FROM memory_summaries WHERE conversation_id = ?",
+            (branch_id, source["id"]))
+        await _rewind_memory(db, branch_id, position, branch=True)
 
-    await db.commit()
     return await get(db, branch_id)
 
 
-async def delete_message(db: aiosqlite.Connection, message_id: str,
-                         following: bool = False) -> bool:
+# A conversation's newest summary row is where its memory has read to, and holds its summary.
+async def _type_summary(db: aiosqlite.Connection, convo_id: str, summary: str,
+                        was: str | None) -> None:
+    """A summary a person saved, kept as theirs where the memory had read to when they typed over
+    ``was``: a cut back there gives it back, and the turns a pass read since are read again."""
+    async with write_transaction(db):
+        row = await (await db.execute(
+            "SELECT memory_position, summary FROM conversations WHERE id = ?", (convo_id,))).fetchone()
+        if not row or row["summary"] == summary:
+            return
+        over = row["summary"] if was is None else was
+        base = await (await db.execute(
+            "SELECT position, typed FROM memory_summaries WHERE conversation_id = ? AND summary = ?"
+            " ORDER BY position DESC LIMIT 1", (convo_id, over))).fetchone()
+        newest = await (await db.execute(
+            "SELECT position, typed FROM memory_summaries WHERE conversation_id = ?"
+            " ORDER BY position DESC LIMIT 1", (convo_id,))).fetchone()
+        # A person's summary at 0 that no pass has read past: what replaces it is theirs as well.
+        theirs = newest and (newest["position"], newest["typed"]) == (0, 1)
+        position = base["position"] if base else 0
+        # Over a summary of turns past its row, or over one no row holds now: it may tell them too.
+        ahead = base["typed"] == 2 if base else bool(over or row["summary"]) and not theirs
+        await db.execute("DELETE FROM memory_summaries WHERE conversation_id = ? AND position > ?",
+                         (convo_id, position))
+        await db.execute(
+            "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"
+            " VALUES (?, ?, ?, ?)", (convo_id, position, summary, 2 if ahead else 1))
+        await db.execute("UPDATE conversations SET summary = ?, memory_position = ? WHERE id = ?",
+                         (summary, position, convo_id))
+
+
+async def remember(db: aiosqlite.Connection, convo_id: str, position: int,
+                   summary: str | None) -> None:
+    """What a pass wrote of the story up to ``position``. A pass that wrote no summary keeps the
+    one there was, typed (1) if a person's. Does not commit: it belongs to what it records."""
+    newest = await (await db.execute(
+        "SELECT typed FROM memory_summaries WHERE conversation_id = ? ORDER BY position DESC LIMIT 1",
+        (convo_id,))).fetchone()
+    # A summary typed at 0 may tell any turn: once a pass reads past it, it is of turns past it too.
+    await db.execute("UPDATE memory_summaries SET typed = 2"
+                     " WHERE conversation_id = ? AND position = 0 AND typed = 1", (convo_id,))
+    await db.execute(
+        "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"
+        " SELECT id, ?, COALESCE(?, summary), ? FROM conversations WHERE id = ?",
+        (position, summary, summary is None and bool(newest and newest["typed"]), convo_id))
+    await db.execute(
+        "UPDATE conversations SET memory_position = ?, summary = COALESCE(?, summary),"
+        " updated_at = ? WHERE id = ?",
+        (position, summary, now_iso(), convo_id))
+
+
+async def _rewind_memory(db: aiosqlite.Connection, convo_id: str, cut: int,
+                         branch: bool = False) -> None:
+    """Take what a conversation remembers back to a story that now ends with the turn at
+    ``cut``, as the last pass at or before it left it: the model's later facts go, its later
+    corrections are undone, and what a person wrote, pinned or typed stays. Does not commit."""
+    await db.execute(
+        "DELETE FROM memories WHERE conversation_id = ? AND source = 'auto' AND is_pinned = 0"
+        " AND source_position > ?", (convo_id, cut))
+    await db.execute(
+        "UPDATE memories SET content = previous_content, previous_content = NULL,"
+        " corrected_at = NULL, embedding = NULL WHERE conversation_id = ? AND source = 'auto'"
+        " AND is_pinned = 0 AND corrected_at > ?", (convo_id, cut))
+    # A fact kept as it is: no later cut puts back what a correction from turns now gone replaced.
+    await db.execute(
+        "UPDATE memories SET previous_content = NULL, corrected_at = NULL WHERE conversation_id = ?"
+        " AND corrected_at > ?", (convo_id, cut))
+    await db.execute(
+        "UPDATE memories SET source_position = ? WHERE conversation_id = ? AND source_position > ?",
+        (max(cut, 0), convo_id, cut))
+    row = await (await db.execute(
+        "SELECT memory_position, summary FROM conversations WHERE id = ?", (convo_id,))).fetchone()
+    passes = await (await db.execute(
+        "SELECT position, summary, typed FROM memory_summaries WHERE conversation_id = ?"
+        " ORDER BY position DESC", (convo_id,))).fetchall()
+    # A branch goes back to no summary of turns past its row: they may come after its message.
+    back = next((p for p in passes if p["position"] <= cut and not (branch and p["typed"] == 2)), None)
+    if not branch and row["memory_position"] <= cut:  # a branch may go back past the newest row
+        return
+    position = back["position"] if back else 0
+    await db.execute("DELETE FROM memory_summaries WHERE conversation_id = ? AND position > ?",
+                     (convo_id, position if back else -1))
+    if branch:  # what the memory had at the message, and nothing of what came after it
+        summary = back["summary"] if back else ""
+    elif passes and passes[0]["typed"]:  # what a person wrote stays theirs, part stale
+        summary = row["summary"]
+        if not back or back["summary"] != summary:  # typed over a later row: of turns past this one
+            # Only removing the whole story reaches a newest row at 0: it goes back as it was.
+            typed = 2 if passes[0]["position"] else passes[0]["typed"]
+            await db.execute(
+                "INSERT OR REPLACE INTO memory_summaries (conversation_id, position, summary, typed)"
+                " VALUES (?, ?, ?, ?)", (convo_id, position, summary, typed))
+    elif back:
+        summary = back["summary"]
+    elif cut + 1 <= MAX_TURNS_PER_RUN:  # the next pass reads all that is left of the story
+        summary = ""
+    else:  # the oldest: every pass after it read only turns the cut removes
+        summary = passes[-1]["summary"]
+    await db.execute("UPDATE conversations SET memory_position = ?, summary = ? WHERE id = ?",
+                     (position, summary, convo_id))
+
+
+async def delete_message(db: aiosqlite.Connection, message_id: str) -> bool:
+    """Remove the story from this message on. The memory goes back to before it: nothing
+    says what was drawn from it, or from the turns that were read with it in the story,
+    and the next pass reads again those that stay."""
     message = await get_message(db, message_id)
     if not message:
         return False
-    if following:
-        await db.execute(
-            "DELETE FROM messages WHERE conversation_id = ? AND position >= ?",
-            (message["conversation_id"], message["position"]),
-        )
-    else:
-        await db.execute("DELETE FROM messages WHERE id = ?", (message_id,))
+    await db.execute(
+        "DELETE FROM messages WHERE conversation_id = ? AND position >= ?",
+        (message["conversation_id"], message["position"]),
+    )
+    await _rewind_memory(db, message["conversation_id"], message["position"] - 1)
     await db.commit()
     return True
 
 
-async def set_message_embedding(db: aiosqlite.Connection, message_id: str, blob: bytes) -> None:
-    await db.execute("UPDATE messages SET embedding = ? WHERE id = ?", (blob, message_id))
+async def set_message_embedding(db: aiosqlite.Connection, message_id: str, blob: bytes) -> bool:
+    """Store a message's vector. Whether the message is still there."""
+    cursor = await db.execute("UPDATE messages SET embedding = ? WHERE id = ?", (blob, message_id))
     await db.commit()
+    return cursor.rowcount > 0
 
 
 async def list_message_embeddings(db: aiosqlite.Connection, convo_id: str) -> dict[str, bytes]:
@@ -273,7 +387,7 @@ async def list_message_embeddings(db: aiosqlite.Connection, convo_id: str) -> di
 
 
 async def list_messages_missing_embeddings(db: aiosqlite.Connection) -> list[dict]:
-    """Messages with no vector yet (for backfill). Carries variants/active_index
+    """Messages with no vector yet (for fill_vectors). Carries variants/active_index
     so the caller can embed the ACTIVE content."""
     rows = await (await db.execute(
         "SELECT id, variants, active_index FROM messages WHERE embedding IS NULL")).fetchall()

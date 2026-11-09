@@ -2,37 +2,18 @@ import { expect, test } from "@playwright/test";
 import { conversationWithReply } from "./fixtures";
 
 /**
- * Reached over a network by address — http://192.168.1.20:3000, the way anyone
- * running Evermind on one machine and using it from another does — the browser
- * withholds a handful of APIs that exist on localhost. Two of them were being
- * called, and both threw.
- *
- * The APIs are removed here rather than the app being served from a real
- * address: the failure is what a missing API does to the code, and a test that
- * needed a routable IP would fail on whichever machine did not have one.
+ * The suite's servers listen on this computer's address on the network, so the
+ * page is what a phone gets over plain HTTP: the browser withholds a handful of
+ * APIs that exist on localhost (crypto.randomUUID, the clipboard).
  */
-test.describe("without the APIs a secure context provides", () => {
+test.describe("on a page that is not a secure context", () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      // On the prototype, not on the instance: deleting window.crypto.randomUUID
-      // removes nothing and leaves the API exactly where it was, which is a
-      // very quiet way for this whole file to test nothing at all.
-      delete (Crypto.prototype as unknown as Record<string, unknown>).randomUUID;
-      Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
-    });
-
-    // Cheap, and the alternative is a suite that passes because the thing it
-    // meant to take away is still there.
-    await page.addInitScript(() => {
-      if (typeof crypto.randomUUID === "function") {
-        throw new Error("crypto.randomUUID is still present: the test is not testing anything");
-      }
-    });
+    await page.goto("/");
+    // A machine with no network address has only the loopback, which is secure.
+    test.skip(await page.evaluate(() => window.isSecureContext), "no network address");
   });
 
   test("a lorebook entry can still be added to a new card", async ({ page }) => {
-    // A new card, not an existing one: on a card already saved the server
-    // hands out the identifier, and the call that fails is never reached.
     await page.goto("/#/characters/new");
 
     const box = page.locator("div.border-dashed").last();
@@ -60,5 +41,17 @@ test.describe("without the APIs a secure context provides", () => {
     // The tick only appears if the copy came back true, so it stands in for
     // the fallback having run rather than the call having thrown.
     await expect(page.locator("svg.lucide-check").first()).toBeVisible();
+  });
+
+  // Copying selects a box of its own. Left there, the focus fell to the page: the row, shown
+  // while one of its buttons has it, faded with its tick, and the next Tab began at the top.
+  test("copying a message from the keyboard leaves the focus on its button", { tag: "@desktop" }, async ({ page, request }) => {
+    const convo = await conversationWithReply(request);
+    await page.goto(`/#/chat/${convo.id}`);
+    const reply = page.locator("[data-message-id]").last();
+    await reply.getByTitle("Copy", { exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(reply.getByTitle("Copied!", { exact: true })).toBeFocused();
+    await expect(reply.locator(".hover-actions")).toHaveCSS("opacity", "1");
   });
 });

@@ -6,7 +6,7 @@ from .base import new_id, now_iso
 def to_out(row) -> dict:
     out = dict(row)
     avatar = out.pop("avatar_path", None)
-    out["avatar_url"] = f"/api/media/{avatar}" if avatar else None
+    out["avatar_url"] = f"api/media/{avatar}" if avatar else None
     out["is_default"] = bool(out["is_default"])
     return out
 
@@ -44,14 +44,17 @@ async def list_all(db: aiosqlite.Connection) -> list[dict]:
 
 
 async def get_default(db: aiosqlite.Connection) -> dict | None:
+    """The persona that is marked, or none: when nothing is marked, the player is
+    "User", and no other persona stands in."""
     row = await (await db.execute(
-        "SELECT * FROM personas ORDER BY is_default DESC, created_at ASC LIMIT 1")).fetchone()
+        "SELECT * FROM personas WHERE is_default = 1 ORDER BY created_at ASC LIMIT 1")).fetchone()
     return to_out(row) if row else None
 
 
 async def for_conversation(db: aiosqlite.Connection, convo: dict) -> dict | None:
-    """The persona the conversation is played as: its own, else the default one,
-    which is the one a chat turn names the player after."""
+    """The persona the conversation is played as: its own, else the marked one,
+    else none. Every place that names the player asks here: the greeting, the
+    turns, the memory."""
     persona = await get(db, convo["persona_id"]) if convo.get("persona_id") else None
     return persona if persona is not None else await get_default(db)
 

@@ -5,7 +5,6 @@ from ..db import get_db
 from ..errors import NotFoundError
 from ..models.schemas import PersonaIn, PersonaUpdate
 from ..repositories import personas as repo
-from ..repositories import settings as settings_repo
 from ..services import media
 
 router = APIRouter(prefix="/api/personas", tags=["personas"])
@@ -34,17 +33,12 @@ async def update_persona(persona_id: str, payload: PersonaUpdate,
 async def delete_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await repo.delete(db, persona_id):
         raise NotFoundError("Persona not found.", "persona")
-    await settings_repo.forget(db, "default_persona_id", persona_id)
 
 
 @router.post("/{persona_id}/avatar")
 async def upload_avatar(persona_id: str, file: UploadFile,
                         db: aiosqlite.Connection = Depends(get_db)):
-    previous = (await repo.get(db, persona_id) or {}).get("avatar_url") or ""
     data, extension = await media.read_image_upload(file)
-    filename = media.save(data, extension)
-    updated = await repo.update(db, persona_id, {"avatar_path": filename})
-    if not updated:
+    if not await repo.get(db, persona_id):
         raise NotFoundError("Persona not found.", "persona")
-    await media.forget(db, previous.removeprefix("/api/media/"))
-    return updated
+    return await repo.update(db, persona_id, {"avatar_path": media.save(data, extension)})

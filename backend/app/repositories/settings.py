@@ -3,8 +3,6 @@ import aiosqlite
 from .base import dumps, loads
 
 DEFAULTS = {
-    "default_connection_id": None,
-    "default_persona_id": None,
     "global_instructions": "",
     "auto_memory": True,
     "reply_length": "medium",
@@ -13,9 +11,8 @@ DEFAULTS = {
     "history_limit": 24,
     # Token budget for verbatim past passages retrieved by relevance. 0 = off.
     "passage_budget": 1500,
-    # One GET to GitHub a day, to say whether a newer release exists. On by
-    # default so security fixes are not missed by people who never think to
-    # look; off is one checkbox away, in About.
+    # Whether Settings asks GitHub for a newer release each time it opens: on, so that nobody
+    # misses a security fix; off in About.
     "update_check": True,
 }
 
@@ -26,18 +23,8 @@ async def get_all(db: aiosqlite.Connection) -> dict:
     return {**DEFAULTS, **{k: v for k, v in stored.items() if k in DEFAULTS}}
 
 
-async def forget(db: aiosqlite.Connection, key: str, value: str) -> None:
-    """Drop a stored reference once the row it points at is deleted, so it can
-    never be handed out as a dangling foreign key."""
-    if key not in DEFAULTS or not value:
-        return
-    row = await (await db.execute("SELECT value FROM settings WHERE key = ?", (key,))).fetchone()
-    if row and loads(row["value"], None) == value:
-        await db.execute("DELETE FROM settings WHERE key = ?", (key,))
-        await db.commit()
-
-
 async def put(db: aiosqlite.Connection, values: dict) -> dict:
+    """Store the given settings. A `None` says nothing and is ignored."""
     for key, value in values.items():
         if key not in DEFAULTS or value is None:
             continue

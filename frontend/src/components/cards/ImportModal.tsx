@@ -1,6 +1,6 @@
 import { Modal } from "@/components/ui/Modal";
-import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { importCard } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
 import { Check, FileUp, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
@@ -10,9 +10,7 @@ interface Result {
   error?: string;
 }
 
-/** Clicking Import used to open the system file picker straight away, which
- *  asks people to already know what Evermind takes. This says so first, and
- *  takes a file either by drop or by click. */
+/** Says what Evermind takes before asking for a file, which comes by drop or by click. */
 export function ImportModal({
   onClose,
   onImported,
@@ -31,11 +29,10 @@ export function ImportModal({
     setBusy(true);
     setResults([]);
     const done: Result[] = [];
-    // One at a time: the endpoint takes a single card, and a failure part way
-    // through should not cost the ones that already worked.
+    // One at a time: a failure part way through should not cost the ones that already worked.
     for (const file of files) {
       try {
-        await data.characters.importCard(file);
+        await importCard(file);
         done.push({ name: file.name });
       } catch (e) {
         done.push({

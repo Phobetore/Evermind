@@ -30,9 +30,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # "latest" only moves on a real version tag, and never on a prerelease:
-      # .env.example promises it tracks the newest release, so neither a manual
-      # run nor a v2.1.0-rc1 may claim it.
+      # "latest" only moves on a version tag: .env.example promises it tracks
+      # the newest release, so neither a manual run nor a tag with a dash may claim it.
       #
       # One name. A docker-compose.yml from 2.x pulls evermind-backend and
       # evermind-frontend, neither of which is published any more, so it keeps
@@ -84,13 +83,7 @@ jobs:
         run: |
           # A leading dot is stripped from asset names, so ship it renamed.
           cp .env.example env.example
-          # A dash means a prerelease. Marking it as one keeps it out of
-          # /releases/latest/, which INSTALL.md sends every newcomer to.
-          case "$GITHUB_REF_NAME" in
-            *-*) PRE=--prerelease ;;
-            *)   PRE= ;;
-          esac
           # The release usually exists already; create it empty if the tag came first.
-          gh release create "$GITHUB_REF_NAME" --title "Evermind ${GITHUB_REF_NAME#v}" --notes "" $PRE \
+          gh release create "$GITHUB_REF_NAME" --title "Evermind ${GITHUB_REF_NAME#v}" --notes "" \
             || echo "release already exists, keeping its notes"
           gh release upload "$GITHUB_REF_NAME" docker-compose.yml env.example --clobber

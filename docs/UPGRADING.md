@@ -6,7 +6,162 @@ program, and your data lives somewhere of its own (the `data` folder, or the
 `evermind-data` volume under Docker).
 
 If you are installing for the first time, you want [INSTALL.md](../INSTALL.md)
-instead.
+instead. Coming from further back, read every section from your version up.
+
+## From 3.0.x to 3.1.0
+
+From 3.0.0 or 3.0.1, every step of
+[the 3.0.2 section](#from-300-or-301-to-302) below applies too.
+
+- **If you built the image yourself, for semantic memory, or run a downloaded
+  ZIP, do not run the command that Settings shows in 3.0.x.** It would replace a
+  built image with the published one, which has no semantic memory, and a ZIP's
+  folder has nothing for its `git pull` to update: on Windows, the old version
+  then starts again. Follow [Updating](../INSTALL.md#updating) instead; for an
+  image, that also builds semantic memory back into one already replaced. From
+  3.1.0 on, Settings links to those steps rather than showing a command.
+- **With semantic memory in Docker, the first start downloads its model once
+  more** (about 470 MB), into the data volume this time, under `huggingface`,
+  where every later container finds it.
+- **Reload Evermind on every device that had it open**, a phone above all. A page
+  left open from 3.0.x goes on running until then and misreads some of the new
+  answers: after a Regenerate that worked, it may say "The reply did not
+  arrive.", and its **Retry** makes yet another version.
+- **Every device signs in once more**, if you set a password: the sessions kept
+  by 3.0.x end with the update. A device then stays signed in until it is signed
+  out in **Settings** or the password changes. There is no 30-day limit any more:
+  a lost phone stays signed in until **Sign out every device**, or a new password.
+- **Without a password, Evermind only answers to an address or `localhost`.**
+  `EVERMIND_ALLOWED_HOSTS` is gone, and a line left in `.env` is ignored. Opened
+  by any name, the computer's own and `.local` ones included, it says "Without a
+  password, Evermind does not answer to this name". Open it by its address
+  (`http://192.168.1.42:3000`), or set a password: with one, any name works.
+- **Behind a reverse proxy, `FORWARDED_ALLOW_IPS` names the proxy to believe.**
+  Evermind used to believe `X-Forwarded-For` and `X-Forwarded-Proto` from
+  127.0.0.1, and now only from the addresses that new setting lists, none by
+  default. Without it, the session cookie is never `Secure`, and every device
+  behind the proxy shares one count of wrong passwords. The proxy must also pass
+  `Host` on unchanged: HTTPS no longer makes up for a changed one.
+  [DEVELOPING.md](DEVELOPING.md#serving-under-a-path-prefix) has an nginx example,
+  and [SECURITY.md](../SECURITY.md#behind-a-reverse-proxy) says which address to
+  name, or when to leave it empty. `EVERMIND_ROOT_PATH` is gone: a proxy that
+  removes the path needs nothing more.
+- **From the source, some ways of starting Evermind went.** `scripts/dev.sh` and
+  `scripts/dev.ps1`: [DEVELOPING.md](DEVELOPING.md#running-it) has the two
+  commands instead. `-SkipBuild` and `--skip-build`: run `python -m app` from
+  `backend` with the environment's own Python. The `--host`, `--port`,
+  `--data-dir`, `--env-file` and `--root-path` options of `python -m app`: put
+  `BIND`, `PORT` or `EVERMIND_DATA_DIR` in `.env`. A `.env` saved as UTF-32, or
+  as UTF-16 without a byte order mark, stops the start: save it as UTF-8. On
+  Windows, a start on the network prints the firewall rule other devices need
+  every time, rather than looking for it.
+- **A few controls went, and what they did is done elsewhere.** **Summarize**,
+  in the side panel: **Remember** writes the summary along with the facts. The
+  **Default persona** and **Default connection** lists in Settings: tick **Use by
+  default in new conversations** on a persona, or **Default connection** on a
+  connection; what the lists named stays the default. **Retry** on a message that
+  did not go: it stays in the box, and **Send** sends it. The choice of greeting
+  when a conversation starts: the arrows on the first message go through them.
+- **A conversation without a persona of its own keeps the one 3.0.x played it
+  as**: one begun before you made a persona, begun with **No persona**, or
+  played as a persona you deleted since. That is the persona ticked **Use by
+  default in new conversations**, or your oldest if none was, and the
+  conversation now shows it. Its first message may still say "User", or the name
+  of the persona you deleted.
+- **The memory follows the story back.** Removing messages takes it back to the
+  last memory pass before them, and so does regenerating, continuing or swiping
+  the last reply once the memory has read it; what you wrote, pinned or typed
+  stays. A summary carried over from 3.0.x counts as one you typed: a cut keeps
+  it, partly stale, until a memory pass writes the next one. After that, a cut
+  back past where its memory had read before the update goes back to that
+  summary when more than 40 turns are left; with fewer, the next pass reads them
+  all and writes it again. A story you cut back under 3.0.x, behind what its
+  memory had read, keeps its old summary and the model's facts from the removed
+  turns (clear them in the side panel if they no longer fit); unless it has grown
+  back that far since, its memory reads its last 40 turns again.
+- **When you edit a card, lorebook changes wait for Save**, like the rest of the
+  form, and **Cancel** drops them.
+- **Lorebook entries match whatever the case, and follow the order the card lists
+  them in.** Case-sensitive keys and priorities are gone, so an entry whose key
+  is a common word, such as a sexton named Will, now also wakes on "will": check
+  the cards you imported.
+- **A long conversation shows its newest hundred messages.** **Show earlier
+  messages** brings back a hundred more each time.
+- **The check for a newer release goes from your browser**, each time Settings
+  opens, rather than from Evermind once a day. GitHub sees what it sees of any
+  browser that asks it something, the address you opened Evermind at included.
+  The checkbox under **About** turns it off.
+- **Pictures that are replaced or removed stay on disk**, in the `media` folder
+  of your data, as those of a deleted card, persona or conversation already did.
+- **A save waits for a busy database** for up to 30 seconds, where it used to
+  fail after 5 with an error. Stopping Evermind waits for such a save too.
+- **For a script that calls the API**:
+  - Gone: `POST /api/characters/import` and `GET /api/characters/{id}/export`
+    (cards are read and written in the browser now),
+    `POST /api/library/{filename}/install`, the lorebook routes (a character's
+    `lore_entries`, in its `GET`, `POST` or `PUT`, is its whole lorebook),
+    `POST /api/conversations/{id}/summarize`, `POST /api/connections/{id}/test`
+    and `/benchmark`, `GET /api/connections/{id}/models`, and `/docs`, `/redoc`
+    and `/openapi.json`.
+  - `POST /api/chat` answers in JSON once the message is saved.
+    `GET /api/conversations/{id}/turn` no longer has `mode` or
+    `ended_recently`: it gives the `message_id` and `text` of the reply being
+    written, or, when there is none, an `outcome` that says how the last turn
+    failed or added nothing (`kind`, `message`, `mode`), or is `null`.
+    `.../turn/stream` sends the reply so far as `{"text": ...}`, each piece
+    after it as `{"delta": ...}`, then `{"end": true}`, which is all it sends
+    when no reply is being written. The reply is then read from the
+    conversation, and the `outcome` from `.../turn`.
+    `DELETE /api/messages/{id}` always removes the messages after it too.
+    `POST /api/connections/test` and `/benchmark` take the connection as the
+    form holds it, with `id` to use its saved key, and `PUT /api/connections/{id}`
+    takes the whole connection.
+  - `PATCH /api/messages/{id}` with `content` and `active_index` writes the
+    words into that version and shows it, where it wrote them into the version
+    shown before switching. `POST /api/conversations` and
+    `POST /api/messages/{id}/branch` take a `client_id`: asked again under the
+    same one, while Evermind runs, they answer with what the first made.
+    `GET /api/conversations/{id}` says whether a memory pass is running
+    (`memory_running`), and leaves the messages out with `messages=false`.
+  - A model's failure is a `502` with `error` and `kind` only, `error` being what
+    its server said, the address it could not reach, or how the connection
+    broke. `model_http_error` is now `model_error`; `model_timeout` and
+    `model_network_error` are `model_connection_lost`, or `unreachable` when no
+    connection could be made; `model_unexpected_response` is `model_unreadable`;
+    `model_empty_retried` is `model_empty`; and `model_unknown_type` is gone. The
+    connection test and the benchmark fail that way too, instead of answering
+    `200` with `"ok": false`.
+  - A turn that cannot be had is refused by `POST /api/chat` with an error
+    status before anything is saved, `400` `no_connection` among them. A memory
+    pass that keeps nothing answers `409` (`memory_busy`, `too_few_facts`,
+    `facts_changed` or `conversation_changed`) rather than `200` with `skipped`,
+    and one without a connection `400` rather than `502`. A sign-in over 4096
+    bytes, or without its length, is `413` `too_large`, and a `422` no longer
+    repeats what was sent. A text holding half of an emoji (a lone surrogate,
+    such as an unpaired `\ud83d` escape) is a `422` naming its field, wherever
+    it sits in that field, the form sent to the card assistant (`existing`)
+    included, where several routes answered `500`.
+  - `GET /api/characters` takes no filter, and lorebook entries have no
+    `case_sensitive` or `priority`. `POST /api/conversations` takes no
+    `greeting_index`, its `PATCH` no `persona_id`, and the settings have no
+    `default_persona_id` or `default_connection_id`. A conversation has no
+    `forked_at_position`, and it and the state of its turn carry `revision`. A
+    message's `meta.interrupted` lists its versions cut short instead of being
+    `true`, `meta.unanswered` can hold how the model failed instead of `true`,
+    and `meta.streaming` and `meta.finish_reason` are gone. A fact has no `kind`
+    and gains `previous_content` and `corrected_at`; adding one the model
+    already holds makes it yours (`201`, not `400` `fact_exists`), and so does
+    changing its text, while a text left blank is `400` `fact_empty`.
+    `avatar_url` and `wallpaper_url` are relative, `api/media/<file>`.
+    `GET /api/library` gives each card whole, as `card`, beside `filename` and
+    `has_avatar`, and `GET /api/connections` reports the oldest connection as
+    `is_default` when none is marked. `GET /api/update` answers only `current`,
+    `kind` and `command`.
+- **A copy of the database is kept** as `evermind.before-3.1.0.db`, beside it.
+  To go back to 3.0.x, see
+  [Going back after an update](../INSTALL.md#going-back-after-an-update). An
+  `evermind.before-3.0.2.db` from the update before is older still: the
+  database from before 3.0.2.
 
 ## From 3.0.0 or 3.0.1 to 3.0.2
 
@@ -72,9 +227,9 @@ Follow the part that matches how you run Evermind, then read
    yourself, there is nothing to download: `git pull` brings the new file. Do
    it after the step above: pulling is what replaces the old file.
 
-   One exception. If it has a line such as `EVERMIND_VERSION=2.1.6`, change it
-   to `3.0.0`, or delete the line. The new image starts at 3.0.0 and has no 2.x
-   versions to pin to.
+   One exception. If it has a line such as `EVERMIND_VERSION=2.1.6`, delete it,
+   or set it to `latest`. The new image starts at 3.0.0 and has no 2.x versions
+   to pin to, and a pin to a 3.x version would hold you there.
 
 3. Start it:
 
@@ -170,16 +325,14 @@ A `frontend/.next` folder left over from 2.x is harmless. Delete it if you like.
   too. Pass `Host` on unchanged, which always works
   ([DEVELOPING.md](DEVELOPING.md#serving-under-a-path-prefix) shows how).
   Serving it over HTTPS is the second safety net, but Safari before 16.4 sends
-  no Fetch Metadata even over HTTPS. If the proxy serves Evermind under a path
-  such as `/evermind/`, also set `EVERMIND_ROOT_PATH=/evermind`, so that an old
-  bookmark such as `/chat/<id>` lands on the right page.
+  no Fetch Metadata even over HTTPS.
 - **Bookmarks still work.** The address is the same, and the old links such as
   `/chat/<id>` or `/settings` redirect to their new form (`/#/chat/<id>`), so
   the ones on your phone keep opening the right place.
 - **There is one port, `PORT`.** From the source, the API used to listen on its
   own, on 8000. Anything of yours that called it there directly, a script for
   instance, now uses the same address as the interface.
-  `EVERMIND_BACKEND_PORT` is only for development now (`scripts/dev`), and
+  `EVERMIND_BACKEND_PORT` is only for development now (`python -m app --dev`), and
   `EVERMIND_BACKEND_URL` is not read at all any more. If either is in your
   `.env`, you can delete the line.
 - **Your `.env` is read as written.** From the source, Evermind reads it itself

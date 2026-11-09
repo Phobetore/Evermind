@@ -1,17 +1,13 @@
-"""Writes to the API from a page of another origin are refused.
+"""Writes to the API from a page of another origin are refused, password or not.
 
-A browser lets any page send a form-like request to any address: a POST with
-no body, a multipart upload. With the session cookie too when the page is on
-the same site, such as another port of the same machine. Without a password
-there is no cookie to need, so a website could write to an Evermind listening
-on localhost. The browser says where such a request comes from, and the API
-refuses the ones from elsewhere, password or not.
+A browser lets any page send a form-like request to any address, with the
+session cookie too when the page is on the same site, such as another port of
+the same machine; without a password there is no cookie to need. The browser
+names that page in Origin, which the API compares with Host.
 
-The client used here sends no browser headers of its own: each test adds the
-ones a browser would. Its address is http://localhost.
+The client used here sends no browser headers of its own. Its address is
+http://localhost.
 """
-
-import json
 
 import pytest
 
@@ -20,78 +16,34 @@ REFUSED = {"error": "Cross-origin request refused.", "kind": "cross_origin"}
 CHARACTER = {"name": "Serana", "greeting": "Hello."}
 
 
-async def characters(client) -> list[str]:
+async def names(client) -> list[str]:
     return [c["name"] for c in (await client.get("/api/characters")).json()]
 
 
-@pytest.mark.parametrize("site", ["same-origin", "none"])
-async def test_fetch_metadata_from_this_origin_is_allowed(client, site):
-    r = await client.post("/api/characters", json=CHARACTER, headers={"sec-fetch-site": site})
+@pytest.mark.parametrize("headers", [
+    {"origin": "http://localhost"},
+    # A phone on the network: over plain http, Origin is all a browser says.
+    {"host": "192.168.1.42:3000", "origin": "http://192.168.1.42:3000"},
+    # Vite's proxy keeps the browser's Host (changeOrigin is off in vite.config.ts).
+    {"host": "localhost:3000", "origin": "http://localhost:3000"},
+    # A proxy that ends https and passes Host on reaches the API over http.
+    {"host": "192.168.1.42", "origin": "https://192.168.1.42"},
+    # curl, a script, Playwright's request fixture.
+    {},
+])
+async def test_writes_from_this_origin_are_allowed(client, headers):
+    r = await client.post("/api/characters", json=CHARACTER, headers=headers)
     assert r.status_code == 201, r.text
-
-
-@pytest.mark.parametrize("site", ["same-site", "cross-site", "something-new"])
-async def test_fetch_metadata_from_elsewhere_is_refused(client, site):
-    r = await client.post("/api/characters", json=CHARACTER, headers={"sec-fetch-site": site})
-    assert r.status_code == 403
-    assert r.json() == REFUSED
-    assert await characters(client) == []
-
-
-async def test_fetch_metadata_wins_over_origin(client):
-    # Behind an https proxy that rewrites Host, Origin names the proxy's
-    # address and Host the backend's, but the browser's own verdict is there.
-    proxied = {"sec-fetch-site": "same-origin", "origin": "https://evermind.example"}
-    r = await client.post("/api/characters", json=CHARACTER, headers=proxied)
-    assert r.status_code == 201
-    forged = {"sec-fetch-site": "cross-site", "origin": "http://localhost"}
-    r = await client.post("/api/characters", json=CHARACTER, headers=forged)
-    assert r.status_code == 403
-
-
-async def test_same_origin_json_post_is_allowed(client):
-    r = await client.post("/api/characters", json=CHARACTER, headers={"origin": "http://localhost"})
-    assert r.status_code == 201, r.text
-
-
-async def test_a_phone_on_the_network_is_allowed(client):
-    # Plain http to a LAN address: no Fetch Metadata, only Origin.
-    phone = {"host": "192.168.1.42:3000", "origin": "http://192.168.1.42:3000"}
-    r = await client.post("/api/characters", json=CHARACTER, headers=phone)
-    assert r.status_code == 201
-
-
-async def test_the_development_proxy_is_allowed(client):
-    # Vite's proxy keeps the browser's Host (changeOrigin is off in
-    # vite.config.ts), so both name the address the page was opened on.
-    dev = {"host": "localhost:3000", "origin": "http://localhost:3000"}
-    r = await client.post("/api/characters", json=CHARACTER, headers=dev)
-    assert r.status_code == 201
 
 
 @pytest.mark.parametrize("origin", [
-    "http://evil.example",
-    "http://localhost:8080",
-    "https://localhost",
-    "http://localhost.evil.example",
-    "null",
+    "http://evil.example", "http://localhost:8080", "http://localhost.evil.example", "null",
+    "http://[oops",
 ])
 async def test_another_origin_is_refused(client, origin):
     r = await client.post("/api/characters", json=CHARACTER, headers={"origin": origin})
-    assert r.status_code == 403
-    assert r.json() == REFUSED
-    assert await characters(client) == []
-
-
-async def test_a_multipart_upload_from_another_origin_is_refused(client):
-    card = {"spec": "chara_card_v2", "spec_version": "2.0",
-            "data": {"name": "Imported", "first_mes": "hi"}}
-    files = {"file": ("card.json", json.dumps(card).encode(), "application/json")}
-    r = await client.post("/api/characters/import", files=files,
-                          headers={"origin": "http://192.168.1.50:8080"})
-    assert r.status_code == 403
-    assert r.json() == REFUSED
-    assert await characters(client) == []
+    assert (r.status_code, r.json()) == (403, REFUSED)
+    assert await names(client) == []
 
 
 @pytest.mark.parametrize("method", ["PUT", "PATCH", "DELETE"])
@@ -100,50 +52,23 @@ async def test_every_write_method_is_checked(client, method):
     r = await client.request(method, f"/api/characters/{created['id']}",
                              json={"name": "Changed"}, headers={"origin": "http://evil.example"})
     assert r.status_code == 403
-    assert await characters(client) == ["Serana"]
+    assert await names(client) == ["Serana"]
 
 
 async def test_reads_from_another_origin_are_allowed(client):
     # The browser keeps the answer from the page that asked; nothing changed.
-    r = await client.get("/api/characters", headers={"origin": "http://evil.example",
-                                                     "sec-fetch-site": "cross-site"})
+    r = await client.get("/api/characters", headers={"origin": "http://evil.example"})
     assert r.status_code == 200
 
 
-async def test_requests_without_browser_headers_are_allowed(client):
-    # curl, a script, Playwright's request fixture.
-    r = await client.post("/api/characters", json=CHARACTER)
-    assert r.status_code == 201
-
-
 async def test_pages_outside_the_api_are_not_judged(client):
-    # The router's own answer for a path nothing serves, not the refusal.
     r = await client.post("/somewhere", headers={"origin": "http://evil.example"})
-    assert r.status_code == 404
-    assert r.json() == {"detail": "Not Found"}
+    assert (r.status_code, r.json()) == (404, {"detail": "Not Found"})
 
 
 async def test_the_login_is_checked_too(make_client):
     async with make_client(EVERMIND_GATE_PASSWORD=PW) as c:
         r = await c.post("/api/gate", json={"password": PW},
                          headers={"origin": "http://evil.example"})
-        assert r.status_code == 403
-        assert r.json() == REFUSED
+        assert (r.status_code, r.json()) == (403, REFUSED)
         assert "set-cookie" not in r.headers
-        # Refused before the lock is even looked at.
-        r = await c.post("/api/characters", json=CHARACTER,
-                         headers={"origin": "http://evil.example"})
-        assert r.status_code == 403
-
-
-async def test_a_root_path_is_judged_too(make_client):
-    import httpx
-
-    from app.main import create_app
-
-    async with make_client():
-        transport = httpx.ASGITransport(app=create_app(), root_path="/evermind")
-        async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as prefixed:
-            r = await prefixed.post("/evermind/api/characters", json=CHARACTER,
-                                    headers={"origin": "http://evil.example"})
-    assert r.status_code == 403

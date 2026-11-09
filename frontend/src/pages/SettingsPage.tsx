@@ -1,40 +1,66 @@
 import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
+import { LanguageSelect } from "@/components/layout/LanguageSelect";
 import { ConnectionForm } from "@/components/settings/ConnectionForm";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Tag } from "@/components/ui/Tag";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import type { Connection, Persona, Settings, UpdateStatus } from "@/types";
+import { isNewer, latestRelease, type Release } from "@/lib/releases";
+import type { Connection, Installation, Settings } from "@/types";
 import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
 
 export function SettingsPage() {
   const t = useT();
   const { status: accessStatus } = useAccess();
   const [connections, setConnections] = useState<Connection[] | null>(null);
-  const [personas, setPersonas] = useState<Persona[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [editing, setEditing] = useState<Connection | "new" | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorLine = useRef<HTMLParagraphElement>(null);
 
   const load = useCallback(() => {
-    data.connections?.list().then(setConnections);
-    data.personas.list().then(setPersonas);
-    data.settings.get().then(setSettings);
+    Promise.all([
+      data.connections?.list().then(setConnections),
+      data.settings.get().then(setSettings),
+    ]).then(() => setLoadFailure(null), (error) => setLoadFailure({ error }));
   }, []);
 
   useEffect(load, [load]);
 
-  async function saveSettings(patch: Partial<Settings>) {
-    const updated = await data.settings.update(patch);
-    setSettings(updated);
+  // The page scrolls inside <main>, and the line is at the top of it.
+  useEffect(() => {
+    if (saveError) errorLine.current?.scrollIntoView({ block: "nearest" });
+  }, [saveError]);
+
+  function flashSaved() {
     setSavedFlash(true);
     if (flashTimer.current) clearTimeout(flashTimer.current);
     flashTimer.current = setTimeout(() => setSavedFlash(false), 1500);
+  }
+
+  /** The controls hold what is stored, so a save that fails and says nothing
+   *  looks like a control that will not move. */
+  async function attempt(save: () => Promise<void>) {
+    setSaveError(null);
+    try {
+      await save();
+    } catch (e) {
+      setSaveError(describeError(e, t));
+    }
+  }
+
+  function saveSettings(patch: Partial<Settings>) {
+    return attempt(async () => {
+      setSettings(await data.settings.update(patch));
+      flashSaved();
+    });
   }
 
   return (
@@ -43,6 +69,30 @@ export function SettingsPage() {
         <h1 className="font-display text-3xl font-semibold">{t("nav.settings")}</h1>
         <p className="mt-1 text-mist">{t("settings.subtitle")}</p>
       </header>
+
+      {saveError && (
+        <p
+          ref={errorLine}
+          role="alert"
+          className="mb-6 rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood"
+        >
+          {saveError}
+        </p>
+      )}
+
+      {/* Not in place of the page: what needs no reading still works. */}
+      {loadFailure && (
+        <div className="mb-6">
+          <LoadFailure error={loadFailure.error} onRetry={load} />
+        </div>
+      )}
+
+      {/* Where the sidebar, and the choice in it, is not shown. */}
+      <section className="mb-10 grid gap-4 sm:grid-cols-2 md:hidden">
+        <Field label={t("nav.language")}>
+          <LanguageSelect />
+        </Field>
+      </section>
 
       {/* Connections: only an edition that keeps its own models has them. */}
       {data.connections && (
@@ -55,7 +105,7 @@ export function SettingsPage() {
           </div>
 
           {connections === null ? (
-            <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
+            !loadFailure && <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
           ) : connections.length === 0 ? (
             <EmptyState icon={Cable} title={t("settings.emptyState.title")}>
               {t("settings.emptyState.body")}
@@ -88,43 +138,6 @@ export function SettingsPage() {
         </section>
       )}
 
-      {/* Defaults */}
-      {settings && (
-        <section className="mb-10 grid gap-4 sm:grid-cols-2">
-          <Field label={t("settings.defaultPersonaLabel")}>
-            <select
-              className="field"
-              value={settings.default_persona_id ?? ""}
-              onChange={(e) => saveSettings({ default_persona_id: e.target.value || null })}
-            >
-              <option value="">{t("settings.noneOption")}</option>
-              {personas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {data.connections && (
-            <Field label={t("settings.defaultConnectionLabel")}>
-              <select
-                className="field"
-                value={settings.default_connection_id ?? ""}
-                onChange={(e) => saveSettings({ default_connection_id: e.target.value || null })}
-              >
-                <option value="">{t("settings.firstAvailableOption")}</option>
-                {(connections ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
-        </section>
-      )}
-
-      {/* Reply length + history window */}
       {settings && (
         <section className="mb-10 grid gap-4 sm:grid-cols-2">
           <Field
@@ -180,7 +193,6 @@ export function SettingsPage() {
         </section>
       )}
 
-      {/* Memory */}
       {settings && (
         <section className="mb-10">
           <h2 className="ui-label mb-2">{t("settings.autoMemoryTitle")}</h2>
@@ -200,7 +212,6 @@ export function SettingsPage() {
         </section>
       )}
 
-      {/* Global instructions */}
       {settings && (
         <section>
           <h2 className="ui-label mb-2">{t("settings.globalInstructionsTitle")}</h2>
@@ -221,7 +232,13 @@ export function SettingsPage() {
 
       {data.access && accessStatus?.enabled && <Access />}
 
-      {data.updates && <About updates={data.updates} />}
+      {data.updates && settings && (
+        <About
+          updates={data.updates}
+          asks={settings.update_check}
+          onAsksChange={(update_check) => saveSettings({ update_check })}
+        />
+      )}
 
       {editing && data.connections && (
         <ConnectionForm
@@ -265,7 +282,6 @@ function GlobalInstructions({
 /** Signing out, for the devices that had to give the password to get in. */
 function Access() {
   const t = useT();
-  const navigate = useNavigate();
   const { signOut: leave } = useAccess();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -275,12 +291,8 @@ function Access() {
     setBusy(true);
     setError(null);
     try {
-      // By the time this returns the device is signed out as far as the page
-      // knows, so the login finds no session to send the person back from, and
-      // the gate, told that they left on purpose, has no page to send them back
-      // to.
+      // Signed out, the device meets the gate, which takes it to the login.
       await leave(everywhere);
-      navigate("/login", { replace: true });
     } catch (e) {
       setError(describeError(e, t));
       setBusy(false);
@@ -317,67 +329,91 @@ function Access() {
   );
 }
 
-/** Version, and a way back to the project. The app had neither, so nobody
- *  running it could tell what they were on, report a bug against it, or find
- *  where it comes from. It also says when a newer release exists, since a
- *  self-hosted app has no other way of telling you. */
-function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
+/** Version, a way back to the project, and whether a newer release exists: a self-hosted app has
+ *  no other way of telling. */
+function About({
+  updates,
+  asks,
+  onAsksChange,
+}: {
+  updates: DataSource["updates"];
+  /** Whether the page asks GitHub on its own when it opens. */
+  asks: boolean;
+  onAsksChange: (asks: boolean) => void;
+}) {
   const t = useT();
-  const [status, setStatus] = useState<UpdateStatus | null>(null);
+  const [installed, setInstalled] = useState<Installation | null>(null);
+  const [latest, setLatest] = useState<Release | null>(null);
   const [checking, setChecking] = useState(false);
-  // What the last press of the button came back with. Null until pressed, so
-  // an ordinary page load says nothing at all.
+  // What the last press of the button came back with: nothing until it is pressed.
   const [verdict, setVerdict] = useState<"current" | "unreachable" | null>(null);
 
   useEffect(() => {
-    updates.check().then(setStatus).catch(() => setStatus(null));
+    updates.get().then(setInstalled).catch(() => {});
   }, [updates]);
+
+  // Not reaching GitHub is no news here: only the button owes an answer.
+  useEffect(() => {
+    if (asks) latestRelease().then(setLatest).catch(() => {});
+  }, [asks]);
 
   async function checkNow() {
     setChecking(true);
     setVerdict(null);
     try {
-      const fresh = await updates.check(true);
-      setStatus(fresh);
+      const release = await latestRelease();
+      setLatest(release);
       // Nothing to say when there is an update: the notice above says it.
-      if (!fresh.update_available) setVerdict(fresh.reachable ? "current" : "unreachable");
+      if (!isNewer(release.version, installed?.current ?? "")) setVerdict("current");
     } catch {
       setVerdict("unreachable");
     }
     setChecking(false);
   }
 
-  async function setDailyCheck(enabled: boolean) {
-    // Answer the click straight away; the release lookup behind it can take a
-    // few seconds and must not make the checkbox feel stuck.
-    setStatus((prev) => (prev ? { ...prev, enabled } : prev));
-    await data.settings.update({ update_check: enabled });
-    updates.check().then(setStatus).catch(() => {});
-  }
+  const update = latest && installed && isNewer(latest.version, installed.current) ? latest : null;
 
   return (
     <section className="mt-10">
       <h2 className="ui-label mb-2">{t("settings.about.title")}</h2>
       <div className="panel px-5 py-4">
         <p className="text-sm text-mist">
-          Evermind {status?.current ?? "—"}
+          Evermind {installed?.current ?? "—"}
         </p>
 
-        {status?.update_available && (
+        {update && (
           <div className="mt-3 rounded-xl border border-ember-500/40 bg-ember-glow px-4 py-3">
             <p className="text-sm font-semibold text-ember-300">
-              {t("settings.about.updateAvailable").replace("{version}", status.latest ?? "")}
+              {t("settings.about.updateAvailable").replace("{version}", update.version)}
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-mist">
-              {t("settings.about.updateHint")}
-            </p>
-            <code className="mt-2 block overflow-x-auto rounded-lg border border-ink-600 bg-ink-950/60 px-3 py-2 text-xs text-parchment-dim">
-              {status.command}
-            </code>
-            {status.url && (
+            {installed?.command ? (
+              <>
+                <p className="mt-1 text-sm leading-relaxed text-mist">
+                  {t("settings.about.updateHint")}
+                </p>
+                {/* On one line, scrolled if need be: broken after "--", the command reads as another. */}
+                <code className="mt-2 block overflow-x-auto whitespace-pre rounded-lg border border-ink-600 bg-ink-950/60 px-3 py-2 text-xs text-parchment-dim">
+                  {installed.command}
+                </code>
+              </>
+            ) : (
+              <p className="mt-1 text-sm leading-relaxed text-mist">
+                {t(installed?.kind === "built" ? "settings.about.builtHint" : "settings.about.zipHint.before")}{" "}
+                <a
+                  className="text-ember-400 hover:text-ember-300"
+                  href="https://github.com/Phobetore/Evermind/blob/main/INSTALL.md#updating"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  {t("settings.about.zipHint.link")}
+                </a>
+                {t("settings.about.zipHint.after")}
+              </p>
+            )}
+            {update.url && (
               <a
                 className="mt-2 inline-block text-sm text-ember-400 hover:text-ember-300"
-                href={status.url}
+                href={update.url}
                 target="_blank"
                 rel="noreferrer noopener"
               >
@@ -413,8 +449,8 @@ function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
           <label className="touch-target flex cursor-pointer items-start gap-3 text-sm text-mist">
             <input
               type="checkbox"
-              checked={status?.enabled ?? false}
-              onChange={(e) => setDailyCheck(e.target.checked)}
+              checked={asks}
+              onChange={(e) => onAsksChange(e.target.checked)}
               className="mt-0.5 h-4 w-4 accent-[#e29a3e]"
             />
             <span>{t("settings.about.checkHint")}</span>
@@ -425,7 +461,7 @@ function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
               type="button"
               className="btn btn-ghost !py-1.5 text-sm"
               onClick={checkNow}
-              disabled={checking}
+              disabled={checking || !installed}
             >
               {checking ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -434,12 +470,11 @@ function About({ updates }: { updates: NonNullable<DataSource["updates"]> }) {
               )}
               {t("settings.about.checkNow")}
             </button>
-            {verdict === "current" && (
-              <span className="text-sm text-moss">{t("settings.about.upToDate")}</span>
-            )}
-            {verdict === "unreachable" && (
-              <span className="text-sm text-mist-dim">{t("settings.about.unreachable")}</span>
-            )}
+            {/* There before it has anything to say, as a screen reader only hears a change. */}
+            <span role="status" className={verdict === "current" ? "text-sm text-moss" : "text-sm text-mist-dim"}>
+              {verdict === "current" && t("settings.about.upToDate")}
+              {verdict === "unreachable" && t("settings.about.unreachable")}
+            </span>
           </div>
         </div>
       </div>

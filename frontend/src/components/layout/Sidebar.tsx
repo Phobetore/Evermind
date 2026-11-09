@@ -4,7 +4,8 @@ import { Link, useLocation } from "react-router";
 import { useT } from "@/i18n/useT";
 import { LanguageSelect } from "./LanguageSelect";
 
-const LINKS = [
+/** The pages, for this and for the phone's bar. */
+export const LINKS = [
   { href: "/", key: "nav.discover", icon: Flame, exact: true },
   { href: "/chat", key: "nav.conversations", icon: MessagesSquare },
   { href: "/personas", key: "nav.personas", icon: UserRound },
@@ -46,7 +47,7 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto flex flex-col gap-3 px-5 pb-5">
-        <LanguageSelect />
+        <LanguageSelect compact />
         <p className="text-xs leading-relaxed text-mist-dim">{t("nav.tagline")}</p>
       </div>
     </aside>

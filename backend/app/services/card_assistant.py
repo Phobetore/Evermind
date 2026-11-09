@@ -6,56 +6,29 @@ persisted here. Uses the requested connection, else the default one.
 
 import aiosqlite
 
-from ..errors import (
-    MODEL_EMPTY,
-    MODEL_UNREADABLE,
-    NO_CONNECTION,
-    AppError,
-    model_failure,
-)
+from ..errors import MODEL_EMPTY, MODEL_UNREADABLE, NO_CONNECTION, AppError
 from ..prompting.payloads import (
     LIST_FIELDS,
     TEXT_FIELDS,
     build_card_payload,
     existing_fields,
-    lore_keyword,
+    words,
 )
-from ..prompting.text import is_writable, text_of
-from ..providers import get_provider
+from ..prompting.text import text_of
+from ..providers import complete, get_provider
 from ..repositories import connections as connections_repo
-from ..repositories import settings as settings_repo
 from .llm_json import parse_llm_json
 
 _MAX_LORE_ENTRIES = 8
 
 
 async def _resolve_connection(db: aiosqlite.Connection, connection_id: str | None) -> dict:
-    connection = None
-    if connection_id:
-        connection = await connections_repo.get_raw(db, connection_id)
-    if connection is None:
-        settings = await settings_repo.get_all(db)
-        if settings.get("default_connection_id"):
-            connection = await connections_repo.get_raw(db, settings["default_connection_id"])
-    if connection is None:
-        connection = await connections_repo.get_default_raw(db)
+    connection = await connections_repo.resolve(db, connection_id)
     if connection is None:
         raise AppError(
             "No LLM connection configured. Add one in Settings → LLM connections.",
             kind=NO_CONNECTION)
     return connection
-
-
-def _words(value: object) -> list[str]:
-    """The words in what the model gave for a list: the text of each element that
-    is text or a whole number, and a bare string is a list of one. Anything else is
-    not a word, and a value that is no list holds none: a string is not a row of
-    letters, which lore matching would find in nearly every message. A text that cannot
-    be written back (a lone surrogate) is no word either."""
-    if isinstance(value, str):
-        value = [value]
-    words = map(lore_keyword, value if isinstance(value, list) else [])
-    return [word for word in words if word and is_writable(word)]
 
 
 def clean_card_draft(draft: dict) -> dict:
@@ -66,7 +39,7 @@ def clean_card_draft(draft: dict) -> dict:
         if value:
             out[field] = value
     for field in LIST_FIELDS:
-        items = _words(draft.get(field))
+        items = words(draft.get(field))
         if items:
             out[field] = items
     if "tags" in out:
@@ -77,7 +50,7 @@ def clean_card_draft(draft: dict) -> dict:
     for raw in (lore if isinstance(lore, list) else [])[:_MAX_LORE_ENTRIES]:
         if not isinstance(raw, dict):
             continue
-        keys = _words(raw.get("keys"))
+        keys = words(raw.get("keys"))
         content = text_of(raw.get("content"))
         if keys and content:
             entries.append({"keys": keys[:6], "content": content})
@@ -95,15 +68,7 @@ async def generate_card(db: aiosqlite.Connection, prompt: str, kind: str,
         connection = dict(connection, max_tokens=max(2048, connection["max_tokens"]))
 
     payload = build_card_payload(prompt, kind, existing)
-
-    chunks: list[str] = []
-    async for event in get_provider(connection).stream_chat(payload):
-        if event.type == "delta":
-            chunks.append(event.text)
-        elif event.type == "error":
-            raise model_failure(event.message, event.meta)
-
-    parsed = parse_llm_json("".join(chunks))
+    parsed = parse_llm_json(await complete(get_provider(connection), payload))
     if parsed is None:
         raise AppError("The model did not return a readable card. Try again.", 502,
                        kind=MODEL_UNREADABLE)

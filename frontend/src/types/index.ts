@@ -74,10 +74,15 @@ export interface Conversation {
   title: string;
   summary: string;
   author_note?: string;
+  /** Why the last automatic pass of the memory failed, until one succeeds. */
+  memory_error?: { error: string; kind?: string } | null;
+  /** Whether a memory pass or a consolidation is under way. */
+  memory_running?: boolean;
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
   forked_from?: string | null;
-  forked_at_position?: number | null;
+  /** Counts the changes to its messages. */
+  revision?: number;
   created_at: string;
   updated_at: string;
   character?: Character;
@@ -101,38 +106,28 @@ export interface TurnPerf {
   tokens_per_s: number | null;
 }
 
-/** A lorebook entry as edited in the form: identical for a saved entry and for
-    one being drafted before the character exists (temporary client-side id). */
-export interface LoreEntryDraft {
+/** A lorebook entry. The id only tells entries apart in the form: the lorebook is
+ *  saved whole, with the card. */
+export interface LoreEntry {
   id: string;
   keys: string[];
   content: string;
   enabled: boolean;
-  case_sensitive: boolean;
-  priority: number;
 }
 
-export interface LoreEntry extends LoreEntryDraft {
-  character_id: string;
-  created_at: string;
-  updated_at: string;
+/** A card as it is read on its own: with its lorebook. */
+export interface CharacterWithLore extends Character {
+  lore_entries: LoreEntry[];
 }
 
+/** A card of the starter library, as its file holds it. */
 export interface LibraryItem {
   filename: string;
-  name: string;
-  kind: Kind;
-  tagline: string;
-  tags: string[];
-  creator_notes: string;
-  has_lorebook: boolean;
+  card: unknown;
   has_avatar: boolean;
-  installed: boolean;
 }
 
 export interface Settings {
-  default_connection_id: string | null;
-  default_persona_id: string | null;
   global_instructions: string;
   auto_memory: boolean;
   reply_length: "short" | "medium" | "long";
@@ -141,21 +136,18 @@ export interface Settings {
   update_check: boolean;
 }
 
-export interface UpdateStatus {
+/** What only the server knows for the notice of a newer release. */
+export interface Installation {
   current: string;
-  latest: string | null;
-  url: string | null;
-  update_available: boolean;
-  install: "docker" | "source";
-  command: string;
-  enabled: boolean;
-  reachable: boolean;
+  /** "built": an image built from the source, which the published one would replace. */
+  kind: "docker" | "built" | "clone" | "zip";
+  /** Null for a copy downloaded as a ZIP or an image built from the source, which no command updates. */
+  command: string | null;
 }
 
 export interface Memory {
   id: string;
   conversation_id: string;
-  kind: "fact" | "event" | "relationship" | "promise" | "state";
   content: string;
   source_position: number;
   is_pinned: boolean;
@@ -163,27 +155,19 @@ export interface Memory {
   created_at: string;
 }
 
-/** What the server says of a conversation's turn. */
-export interface TurnState {
-  running: boolean;
-  mode: "send" | "regenerate" | "continue" | null;
-  /** One ended a moment ago, so what was read of the conversation just before
-   *  may be out of date. */
-  ended_recently: boolean;
+/** Why a reply did not come, or came cut short: when a model's server failed, the message is what
+ *  it said, or the address it could not be reached at. */
+export interface TurnFailure {
+  kind: string;
+  message: string;
+  resource?: string;
 }
 
-export type ChatEvent =
-  | { type: "start"; conversation_id: string; user_message: Message | null;
-      mode?: TurnState["mode"];
-      /** The reply this turn replaces or extends, if any. */
-      target_message_id?: string | null }
-  | { type: "delta"; text: string }
-  /** What it was writing into has been deleted, so nothing came of it. */
-  | { type: "discarded" }
-  | { type: "done"; message: Message; context?: ContextStats; perf?: TurnPerf }
-  | {
-      type: "error"; message: string; kind?: string | null; resource?: string;
-      /** What a model's server said, when it was the one that failed, or the
-       *  address that could not be reached. */
-      upstream?: string; upstream_status?: number; upstream_url?: string;
-    };
+/** What the server says of a conversation's turn: the message being written, as far as it has
+ *  got, or how the last one ended when it failed or added nothing; first, its messages' revision. */
+export type TurnState = { revision: number | null } & (
+  | { running: true; message_id: string; text: string }
+  | { running: false; outcome: (TurnFailure & { mode: "send" | "regenerate" | "continue" }) | null });
+
+/** What following a turn hands over: the message so far, then each piece as it arrives. */
+export type TurnEvent = { text: string } | { delta: string } | { end: true };

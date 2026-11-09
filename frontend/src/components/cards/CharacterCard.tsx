@@ -9,9 +9,12 @@ import { useT } from "@/i18n/useT";
 export function CharacterCard({
   character,
   onToggleFavorite,
+  error,
 }: {
   character: Character;
   onToggleFavorite?: (character: Character) => void;
+  /** Why the star did not go through. */
+  error?: string;
 }) {
   const navigate = useNavigate();
   const t = useT();
@@ -22,7 +25,6 @@ export function CharacterCard({
       to={`/characters/${character.id}`}
       className="group relative flex aspect-[3/4] flex-col justify-end overflow-hidden rounded-2xl border border-ink-700 bg-ink-850 shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:border-ember-600/50 hover:shadow-lift"
     >
-      {/* Portrait */}
       <div className="absolute inset-0">
         <Avatar
           name={character.name}
@@ -33,7 +35,6 @@ export function CharacterCard({
         <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/45 to-transparent" />
       </div>
 
-      {/* Favorite star */}
       {onToggleFavorite && (
         <button
           onClick={(e) => {
@@ -53,9 +54,17 @@ export function CharacterCard({
           <Star className={clsx("h-4 w-4", character.is_favorite && "fill-current")} />
         </button>
       )}
+      {/* Over the caption: at 320px a long name comes up behind it. */}
+      {error && (
+        <p
+          role="alert"
+          className="absolute inset-x-2 top-14 z-20 rounded-lg border border-blood/40 bg-ink-950/90 px-2.5 py-1.5 text-xs leading-snug text-blood"
+        >
+          {error}
+        </p>
+      )}
 
-      {/* Kind badge. Opaque backdrop: the tone glows are translucent, and this
-          badge sits on the portrait — light artwork made the label unreadable. */}
+      {/* Opaque: the tone glows are translucent, and on light artwork the label would not read. */}
       <div className="absolute left-3 top-3">
         <Tag
           tone={isScenario ? "arcane" : "ember"}
@@ -71,12 +80,8 @@ export function CharacterCard({
         </Tag>
       </div>
 
-      {/* Poster caption. Two columns on a phone leave a card about 154px wide and
-          205px tall, and the full caption wanted 255 to 305px of that: the block
-          overflowed upward past justify-end and the clipped box took the name
-          with it, so a card showed everything except whose it was. Below sm the
-          caption is the name and the kind badge, which is all a browsing grid
-          needs at that size. */}
+      {/* Below sm the caption is the name alone: on a card about 154 by 205px, the whole caption would
+          push the name out of it. */}
       <div className="relative z-10 flex flex-col gap-1.5 p-3 sm:p-4">
         <h2 className="font-display text-base font-semibold leading-tight text-parchment drop-shadow sm:text-xl">
           {character.name}
@@ -98,7 +103,7 @@ export function CharacterCard({
             e.preventDefault();
             navigate(`/characters/${character.id}?start=1`);
           }}
-          className="btn btn-primary mt-2 hidden w-full translate-y-1 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100 sm:inline-flex"
+          className="btn btn-primary mt-2 hidden w-full translate-y-1 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100 sm:inline-flex"
         >
           <MessageCircle className="h-4 w-4" />
           {t("characters.card.startButton")}

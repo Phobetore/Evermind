@@ -1,31 +1,37 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply } from "./fixtures";
+import { writing } from "./connection";
+import { conversationWithReply, stopTurn } from "./fixtures";
 
 /**
- * Reported from a phone: regenerate, the screen goes off mid-reply, come back
- * and the reply being replaced is on screen with its replacement arriving
- * underneath, as though a second reply were being added. The stored data was
- * right all along — one message, two variants — so this is about what a page
- * arriving in the middle of a turn is able to know about it.
- *
- * The turn is started over the API rather than by driving a first browser and
- * closing it: what matters here is a page that arrives mid-regeneration, and
- * everything else was only a way of producing one.
+ * A regeneration does not show the reply being replaced with its replacement arriving underneath, as
+ * though a second reply were being added: not on the page that asked for it, nor on a page that
+ * arrives in the middle of it.
  */
-// The reply here is deliberately slow, so the window this test looks through is
+// The reply here is deliberately slow, so the window these tests look through is
 // wide enough to survive a loaded machine.
 test.setTimeout(120_000);
+
+test("the page asking for a regeneration hides the reply being replaced", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { slowly: true });
+  const target = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.waitForLoadState("networkidle");
+
+  await target.getByTitle("Regenerate").click({ force: true });
+
+  await expect(writing(page)).toBeVisible();
+  await expect(target, "on screen under its own replacement").toHaveCount(0);
+  await stopTurn(request, convo.id);
+});
 
 test("a page arriving mid-regeneration hides the reply being replaced", async ({ page, request }) => {
   const convo = await conversationWithReply(request, { slowly: true });
   const target = convo.messages.at(-1);
   expect(target.role).toBe("assistant");
 
-  // Not awaited: the reply is being written while the page below opens.
-  const running = request.post(`${API}/api/chat`, {
-    data: { conversation_id: convo.id, mode: "regenerate" }, timeout: 120_000,
-  });
+  // Answered once it is under way: the reply is being written while the page below opens.
+  await request.post(`${API}/api/chat`, { data: { conversation_id: convo.id, mode: "regenerate" } });
 
   await expect.poll(async () =>
     (await (await request.get(`${API}/api/conversations/${convo.id}/turn`)).json()).running,
@@ -56,7 +62,7 @@ test("a page arriving mid-regeneration hides the reply being replaced", async ({
     return "hidden";
   }, { timeout: 40_000 }).toBe("hidden");
 
-  await running;
+  await stopTurn(request, convo.id);
 
   // And it replaced rather than appended.
   const after = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).messages;

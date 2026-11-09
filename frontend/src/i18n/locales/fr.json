@@ -34,7 +34,6 @@
     "importTitle": "Importer une carte (JSON / PNG)",
     "import": "Importer",
     "create": "Créer",
-    "loadError": "Erreur de chargement",
     "importError": "Import impossible",
     "emptyState": {
       "title": "La scène est vide",
@@ -50,7 +49,7 @@
       "acceptsLorebook": "Un lorebook attaché à la fiche vient avec.",
       "dropTitle": "Déposez une fiche ici",
       "dropHint": "ou cliquez pour en choisir une. Plusieurs à la fois, c'est possible.",
-      "sizeNote": "15 Mo maximum par fichier. Rien n'est envoyé nulle part : le fichier est lu par votre propre Evermind."
+      "sizeNote": "15 Mo maximum par fichier. Rien n'est envoyé nulle part\u00a0: le fichier est lu par votre propre Evermind."
     }
   },
   "chatList": {
@@ -65,12 +64,13 @@
     "deletedCharacter": "Personnage supprimé",
     "newConversationFallback": "Nouvelle conversation",
     "messageCount": "{count} messages",
+    "messageCount_one": "{count} message",
     "renameLabel": "Renommer",
-    "confirmDelete": "Supprimer la conversation « {title} » ?",
+    "confirmDelete": "Supprimer la conversation «\u00a0{title}\u00a0»\u202f?",
     "untitled": "Sans titre"
   },
   "personas": {
-    "subtitle": "Qui êtes-vous dans vos histoires ?",
+    "subtitle": "Qui êtes-vous dans vos histoires\u202f?",
     "newPersona": "Nouveau persona",
     "emptyState": {
       "title": "Aucun persona",
@@ -80,16 +80,16 @@
     "noDescription": "Sans description.",
     "nameRequired": "Le nom est requis.",
     "saveError": "Enregistrement impossible",
-    "confirmDelete": "Supprimer « {name} » ?",
+    "confirmDelete": "Supprimer «\u00a0{name}\u00a0»\u202f?",
     "editTitle": "Modifier {name}",
     "avatarLabel": "Avatar",
     "nameLabel": "Nom",
     "descriptionLabel": "Description",
-    "descriptionHint": "Apparence, caractère, contexte : ce que vos personnages sauront de vous.",
+    "descriptionHint": "Apparence, caractère, contexte\u00a0: ce que vos personnages sauront de vous.",
     "useAsDefaultLabel": "Utiliser par défaut dans les nouvelles conversations"
   },
   "settings": {
-    "subtitle": "Vos modèles, vos règles : Evermind se branche sur l'IA que vous choisissez.",
+    "subtitle": "Vos modèles, vos règles\u00a0: Evermind se branche sur l'IA que vous choisissez.",
     "connectionsTitle": "Connexions LLM",
     "addConnection": "Ajouter",
     "emptyState": {
@@ -100,21 +100,18 @@
     "noModel": "modèle non défini",
     "keyHint": "clé {hint}",
     "noKey": "sans clé",
-    "defaultPersonaLabel": "Persona par défaut",
-    "noneOption": "Aucun",
     "defaultConnectionLabel": "Connexion par défaut",
-    "firstAvailableOption": "Première disponible",
     "replyLengthLabel": "Longueur des réponses",
-    "replyLengthHint": "S'applique à toutes les conversations. Pensez à monter le « Réponse max (tokens) » de votre connexion pour les réponses longues.",
+    "replyLengthHint": "S'applique à toutes les conversations. Pensez à monter le «\u00a0Réponse max (tokens)\u00a0» de votre connexion pour les réponses longues.",
     "replyLengthOptions": {
-      "short": "Courtes : un paragraphe dense",
-      "medium": "Moyennes : 1 à 3 paragraphes",
-      "long": "Longues : 3 à 5 paragraphes riches"
+      "short": "Courtes\u00a0: un paragraphe dense",
+      "medium": "Moyennes\u00a0: 1 à 3 paragraphes",
+      "long": "Longues\u00a0: 3 à 5 paragraphes riches"
     },
     "historyLimitLabel": "Messages récents envoyés au modèle",
-    "historyLimitHint": "Au-delà, les tours ne vivent plus que dans le résumé et les faits établis. Fenêtre courte (16–30) : le modèle reste attentif aux consignes au lieu d'imiter ses propres réponses. Fenêtre longue : plus de continuité brute, mais les petits modèles se mettent à radoter.",
+    "historyLimitHint": "Au-delà, les tours ne vivent plus que dans le résumé et les faits établis. Fenêtre courte (16–30)\u00a0: le modèle reste attentif aux consignes au lieu d'imiter ses propres réponses. Fenêtre longue\u00a0: plus de continuité brute, mais les petits modèles se mettent à radoter.",
     "passageBudgetLabel": "Rappel de passages (tokens)",
-    "passageBudgetHint": "Repêche des extraits verbatim d'anciens messages sémantiquement liés à la scène en cours (nécessite l'extra « semantic »). ~1500 ≈ 10 % d'un contexte 16k. Mettez 0 pour désactiver. Chaque token de rappel est un token d'historique récent en moins.",
+    "passageBudgetHint": "Repêche des extraits verbatim d'anciens messages sémantiquement liés à la scène en cours (nécessite l'extra «\u00a0semantic\u00a0»). ~1500 ≈ 10 % d'un contexte 16k. Mettez 0 pour désactiver. Chaque token de rappel est un token d'historique récent en moins.",
     "autoMemoryTitle": "Mémoire automatique",
     "autoMemoryHint": {
       "before": "Le modèle extrait automatiquement les",
@@ -126,14 +123,14 @@
       "part1": "Ajoutées à chaque conversation, après les règles du personnage. C'est ici que vous fixez",
       "emphasis": "vos",
       "part2": "préférences et",
-      "part3": "limites : style, longueur, thèmes, langue. Evermind n'impose rien."
+      "part3": "limites\u00a0: style, longueur, thèmes, langue. Evermind n'impose rien."
     },
-    "globalInstructionsPlaceholder": "Ex. : Réponds toujours en français. Réponses de 2 paragraphes maximum.\nReste sombre et réaliste, ne me demande jamais la permission d'avancer.",
+    "globalInstructionsPlaceholder": "Ex.\u00a0: Réponds toujours en français. Réponses de 2 paragraphes maximum.\nReste sombre et réaliste, ne me demande jamais la permission d'avancer.",
     "saveInstructions": "Enregistrer les consignes",
     "savedFlash": "Enregistré.",
     "access": {
       "title": "Accès",
-      "hint": "Cet appareil reste connecté 30 jours après sa dernière visite.",
+      "hint": "Cet appareil reste connecté jusqu'à ce que vous le déconnectiez ou changiez le mot de passe.",
       "logout": "Se déconnecter de cet appareil",
       "logoutEverywhere": "Déconnecter tous les appareils",
       "logoutEverywhereConfirm": "Tous les appareils, celui-ci compris, devront saisir à nouveau le mot de passe."
@@ -144,9 +141,15 @@
       "projectLink": "Le projet sur GitHub",
       "reportLink": "Signaler un problème",
       "updateAvailable": "Evermind {version} est sortie.",
-      "updateHint": "Arrêtez Evermind, lancez ceci depuis le dossier où vous l'avez installé, puis redémarrez-le.",
+      "updateHint": "Arrêtez Evermind, puis lancez ceci depuis le dossier où vous l'avez installé.",
+      "zipHint": {
+        "before": "Téléchargée en ZIP, cette copie se met à jour à la main\u00a0:",
+        "link": "la marche à suivre est dans INSTALL.md",
+        "after": "."
+      },
+      "builtHint": "Construite depuis la source, cette image se met à jour en la reconstruisant depuis la nouvelle source\u00a0:",
       "releaseNotes": "Ce qui a changé",
-      "checkHint": "Demander une fois par jour à GitHub s'il existe une version plus récente. Rien d'autre n'est transmis. Décochée, plus rien ne part de lui-même, et le bouton ci-dessous fonctionne toujours quand vous le pressez.",
+      "checkHint": "Demander à GitHub, à chaque ouverture de cette page, s'il existe une version plus récente. La demande ne contient rien de ce que vous avez écrit, mais GitHub voit ce que tout site voit d'un navigateur, y compris l'adresse à laquelle vous avez ouvert Evermind. Décochée, plus rien ne part de lui-même, et le bouton ci-dessous fonctionne toujours quand vous le pressez.",
       "checkNow": "Vérifier maintenant",
       "upToDate": "Vous avez la dernière version.",
       "unreachable": "GitHub est injoignable."
@@ -171,15 +174,15 @@
     "testButton": "Tester la connexion",
     "benchmarkButton": "Mesurer la vitesse",
     "benchmarkHint": "Petite génération réelle pour mesurer la latence et le débit",
-    "benchmarkResult": "{tokensPerSecond} t/s · 1er token en {firstTokenSeconds}s",
+    "benchmarkResult": "{tokensPerSecond} t/s · 1er token en {firstTokenSeconds}\u202fs",
     "testFailed": "Test impossible",
-    "modelsFound": "Connecté. Modèles trouvés : {count}",
+    "modelsFound": "Connecté. Modèles trouvés\u00a0: {count}",
     "benchmarkFailed": "Mesure impossible",
     "advancedSettingsToggle": "Paramètres de génération",
     "contextSizeLabel": "Contexte (tokens)",
     "contextSizeHint": "À aligner exactement sur la taille de contexte servie par votre serveur, sinon vos conversations sont tronquées sans prévenir.",
     "maxTokensLabel": "Réponse max (tokens)",
-    "maxTokensHint": "Plafond, pas objectif : le style se règle dans Paramètres → Longueur des réponses.",
+    "maxTokensHint": "Plafond, pas objectif\u00a0: le style se règle dans Paramètres → Longueur des réponses.",
     "temperatureLabel": "Température",
     "temperatureHint": "Plus bas = plus cohérent. 0,8 est un bon équilibre en roleplay.",
     "topPLabel": "Top-p",
@@ -189,30 +192,32 @@
     "isDefaultLabel": "Connexion par défaut",
     "nameUrlRequired": "Nom et URL sont requis.",
     "saveFailed": "Enregistrement impossible",
-    "confirmDelete": "Supprimer la connexion « {name} » ?"
+    "confirmDelete": "Supprimer la connexion «\u00a0{name}\u00a0»\u202f?"
   },
   "chat": {
     "openingScene": "Ouverture de la scène…",
+    "showEarlier": "Afficher les messages précédents",
     "header": {
       "backAriaLabel": "Retour aux conversations",
       "renameTitle": "Renommer la conversation",
-      "memorySettingsAriaLabel": "Mémoire et réglages de la conversation",
-      "openPanelAriaLabel": "Ouvrir le panneau"
+      "memorySettingsAriaLabel": "Mémoire et réglages de la conversation"
     },
     "context": {
-      "tooltipUsage": "Contexte : {used} / {budget} tokens (fenêtre {size})",
+      "tooltipUsage": "Contexte\u00a0: {used} / {budget} tokens (fenêtre {size})",
       "tooltipMessages": "{included}/{total} messages dans le contexte",
       "tooltipOlderInMemory": "(les plus anciens sont couverts par la mémoire)",
       "tooltipLore": "{count} entrée(s) de lorebook active(s)",
-      "percent": "{pct}%",
+      "percent": "{pct}\u00a0%",
       "perSecond": "{tps} t/s"
     },
     "stream": {
-      "assistantTyping": "{name} écrit…"
+      "assistantTyping": "{name} écrit…",
+      "replied": "{name} a répondu."
     },
     "errors": {
       "connectionFailed": "Erreur de connexion au serveur.",
       "noReply": "La réponse n'est pas arrivée.",
+      "nothingAdded": "Le modèle n'avait rien à ajouter à cette réponse.",
       "retryButton": "Réessayer"
     },
     "input": {
@@ -222,19 +227,19 @@
           "placeholder": "Écrire à {name}… (*astérisques* pour vos actions)"
         },
         "narrate": {
-          "label": "Narration : vous décrivez le monde, la scène, les événements",
+          "label": "Narration\u00a0: vous décrivez le monde, la scène, les événements",
           "placeholder": "Décrire la scène, le monde, un événement…"
         },
         "ooc": {
-          "label": "Instruction hors-jeu : une consigne pour l'IA, invisible dans l'histoire",
-          "placeholder": "Instruction pour l'IA (ex. : finis toujours tes phrases)…"
+          "label": "Instruction hors-jeu\u00a0: une consigne pour l'IA, invisible dans l'histoire",
+          "placeholder": "Instruction pour l'IA (ex.\u00a0: finis toujours tes phrases)…"
         }
       },
       "ghostwriteTitle": "Écrire ma réplique à ma place (modifiable avant envoi)",
       "ghostwriteError": "Impossible d'écrire à votre place.",
       "stopTitle": "Arrêter la génération",
       "sendTitle": "Envoyer",
-      "hintDefault": "Entrée pour envoyer · Maj+Entrée pour un retour à la ligne · plume : l'IA propose votre réplique",
+      "hintDefault": "Entrée pour envoyer · Maj+Entrée pour un retour à la ligne · plume\u00a0: l'IA propose votre réplique",
       "hintTouch": "Appuyez sur envoyer quand vous êtes prêt. La plume rédige votre réponse.",
       "draftRestored": "Brouillon restauré"
     },
@@ -249,13 +254,13 @@
       "continueTitle": "Prolonger la réponse",
       "editTitle": "Modifier",
       "copyTitle": "Copier",
-      "copiedTitle": "Copié !",
+      "copiedTitle": "Copié\u202f!",
       "branchTitle": "Créer une branche de l'histoire à partir d'ici",
       "deleteFromTitle": "Supprimer à partir d'ici",
       "prevVariantAriaLabel": "Variante précédente",
       "nextVariantAriaLabel": "Variante suivante ou régénérer",
-      "confirmDeleteFrom": "Supprimer ce message et tous les suivants ?",
-      "confirmBranch": "Créer une branche de l'histoire à partir d'ici ?"
+      "confirmDeleteFrom": "Supprimer ce message et tous les suivants\u202f?",
+      "confirmBranch": "Créer une branche de l'histoire à partir d'ici\u202f?"
     },
     "panel": {
       "closeAriaLabel": "Fermer le panneau",
@@ -266,29 +271,23 @@
       "chooseModelOption": "Choisir un modèle",
       "directive": {
         "title": "Directive de scène",
-        "description": "Consigne permanente rappelée à l'IA à chaque réponse. C'est le levier le plus fort pour corriger un tic tenace (« finis toujours tes phrases », « varie tes formulations », « reste cru »…).",
-        "placeholder": "Ex. : chaque réplique doit être une phrase complète, ne laisse jamais un personnage en suspens.",
+        "description": "Consigne permanente rappelée à l'IA à chaque réponse. C'est le levier le plus fort pour corriger un tic tenace («\u00a0finis toujours tes phrases\u00a0», «\u00a0varie tes formulations\u00a0», «\u00a0reste cru\u00a0»…).",
+        "placeholder": "Ex.\u00a0: chaque réplique doit être une phrase complète, ne laisse jamais un personnage en suspens.",
         "applyButton": "Appliquer la directive"
       },
       "summary": {
         "title": "Résumé de l'histoire",
-        "generateTitle": "Demander au modèle de résumer la conversation",
-        "generateButton": "Résumer",
-        "placeholder": "Mis à jour automatiquement par la mémoire ; éditable librement. Injecté dans chaque tour.",
+        "placeholder": "Mis à jour automatiquement par la mémoire\u202f; éditable librement. Injecté dans chaque tour.",
         "saveButton": "Enregistrer le résumé",
-        "saved": "Résumé enregistré.",
-        "generated": "Résumé généré par le modèle.",
-        "generateError": "Échec du résumé"
+        "saved": "Résumé enregistré."
       },
       "facts": {
         "title": "Faits établis",
         "consolidateTitle": "Fusionner les faits redondants en un ensemble plus dense",
         "consolidateButton": "Condenser",
-        "extractTitle": "Extraire maintenant les faits des derniers tours",
+        "extractTitle": "Lire maintenant les derniers tours\u00a0: retenir les faits nouveaux et mettre le résumé à jour",
         "extractButton": "Mémoriser",
-        "description": "Canon dur réinjecté à chaque tour : le personnage ne les oublie ni ne les contredit jamais. Extraction automatique en cours d'histoire.",
-        "dormantWarning": "{count} fait(s) hors budget (grisé(s) ci-dessous) : couvert par le résumé, mais plus injecté tel quel. Épinglez les cruciaux, ou « {consolidateLabel} ».",
-        "dormantTitle": "Dormant : hors budget d'injection",
+        "description": "Canon que le personnage ne doit pas contredire. Les faits épinglés sont toujours envoyés au modèle\u202f; les autres seulement une fois leur tour sorti des derniers messages, et dans la limite d'un budget. Extraction automatique en cours d'histoire.",
         "pinTitle": "Épingler (toujours injecté)",
         "unpinTitle": "Désépingler",
         "turnBadge": "t.{turn}",
@@ -298,11 +297,9 @@
         "addAriaLabel": "Ajouter le fait",
         "addedCount": "{count} nouveau(x) fait(s) retenu(s).",
         "noneNew": "Rien de nouveau à retenir.",
+        "summaryOnly": "Aucun fait nouveau\u202f; le résumé a été mis à jour.",
         "extractError": "Échec de la mémorisation",
-        "tooFewToConsolidate": "Trop peu de faits pour consolider.",
-        "changedWhileConsolidating": "Les faits ont changé pendant que le modèle les fusionnait. Rien n'a été modifié ; réessayez.",
-        "memoryTaskRunning": "Une autre tâche de mémoire est en cours. Rien n'a été modifié ; réessayez dans un instant.",
-        "consolidated": "Mémoire condensée : {before} → {after} faits.",
+        "consolidated": "Mémoire condensée\u00a0: {before} → {after} faits.",
         "consolidateError": "Échec de la consolidation",
         "addError": "Ajout impossible"
       },
@@ -364,7 +361,7 @@
       "taglineLabel": "Accroche",
       "taglineHint": "Une phrase qui donne envie, affichée sur la carte.",
       "descriptionLabel": "Description",
-      "descriptionHint": "Qui est ce personnage ? Apparence, histoire, manière de parler. Utilisez {{char}} et {{user}}.",
+      "descriptionHint": "Qui est ce personnage\u202f? Apparence, histoire, manière de parler. Utilisez {{char}} et {{user}}.",
       "personalityLabel": "Personnalité",
       "personalityHint": "Traits courts séparés par des virgules.",
       "startingSituationLabel": "Situation de départ",
@@ -374,36 +371,36 @@
       "worldLabel": "Univers & situation",
       "worldHint": "Le monde, l'intrigue, les personnages que l'IA incarnera en tant que narrateur.",
       "toneLabel": "Ton & thèmes",
-      "toneHint": "Ambiance du récit : sombre, épique, romantique…",
+      "toneHint": "Ambiance du récit\u00a0: sombre, épique, romantique…",
       "playerRoleLabel": "Rôle du joueur",
-      "playerRoleHint": "Qui est {{user}} dans cette histoire ?",
+      "playerRoleHint": "Qui est {{user}} dans cette histoire\u202f?",
       "openingSceneLabel": "Scène d'ouverture",
       "openingSceneHint": "La narration qui lance l'aventure.",
       "alternateGreetingsLabel": "Ouvertures alternatives",
       "addGreetingButton": "Ajouter",
       "deleteGreetingAriaLabel": "Supprimer cette ouverture",
-      "alternateGreetingsEmptyHint": "Optionnel : d'autres débuts de scène, interchangeables d'un glissement au premier message.",
+      "alternateGreetingsEmptyHint": "Optionnel\u00a0: d'autres débuts de scène, interchangeables d'un glissement au premier message.",
       "tagsLabel": "Tags",
       "exampleDialoguesLabel": "Exemples de dialogues",
       "exampleDialoguesHint": "Montrez le style d'écriture. Séparez chaque exemple par <START>. Macros {{char}} / {{user}}.",
-      "exampleDialoguesPlaceholder": "<START>\n{{user}}: Tu vas bien ?\n{{char}}: *Elle épousseta sa cape.* Définis « bien ».",
+      "exampleDialoguesPlaceholder": "<START>\n{{user}}: Tu vas bien\u202f?\n{{char}}: *Elle épousseta sa cape.* Définis «\u00a0bien\u00a0».",
       "advancedSettingsToggle": "Réglages avancés",
       "systemPromptLabel": "System prompt personnalisé",
       "systemPromptHint": "Remplace les règles de roleplay par défaut d'Evermind. {{original}} les réinjecte.",
       "postHistoryLabel": "Instructions de fin de contexte",
-      "postHistoryHint": "Injectées après l'historique, au plus près de la génération (champ « post-history instructions » des cartes V2).",
+      "postHistoryHint": "Injectées après l'historique, au plus près de la génération (champ «\u00a0post-history instructions\u00a0» des cartes V2).",
       "creatorNotesHint": "Visibles sur la fiche, jamais envoyées au modèle.",
       "creatorLabel": "Créateur",
       "versionLabel": "Version",
-      "confirmDelete": "Supprimer « {name} » et toutes ses conversations ?",
+      "confirmDelete": "Supprimer «\u00a0{name}\u00a0» et toutes ses conversations\u202f?",
       "exportError": "La fiche n'a pas pu être exportée.",
       "savingButton": "Enregistrement…",
       "createButton": "Créer la fiche"
     },
     "assist": {
       "heading": "Création assistée par IA",
-      "briefPlaceholderCharacter": "Décrivez le personnage que vous voulez : qui, ambiance, relation avec vous, situation de départ… L'IA remplit toute la fiche, vous ajustez ensuite.",
-      "briefPlaceholderScenario": "Décrivez l'aventure que vous voulez : univers, ambiance, rôle du joueur, enjeux… L'IA remplit toute la fiche, vous ajustez ensuite.",
+      "briefPlaceholderCharacter": "Décrivez le personnage que vous voulez\u00a0: qui, ambiance, relation avec vous, situation de départ… L'IA remplit toute la fiche, vous ajustez ensuite.",
+      "briefPlaceholderScenario": "Décrivez l'aventure que vous voulez\u00a0: univers, ambiance, rôle du joueur, enjeux… L'IA remplit toute la fiche, vous ajustez ensuite.",
       "connectionSelectTitle": "Modèle utilisé pour écrire la fiche",
       "fieldsKeptHint": "Les champs déjà remplis sont conservés.",
       "generateButton": "Générer la fiche",
@@ -421,8 +418,7 @@
     "keysPlaceholder": "Mots-clés déclencheurs puis Entrée",
     "contentPlaceholder": "Ce que le modèle doit savoir quand ces mots apparaissent…",
     "addEntryButton": "Ajouter l'entrée",
-    "entryRequiredError": "Une entrée demande au moins un mot-clé et un contenu.",
-    "addFailedError": "Ajout impossible"
+    "entryRequiredError": "Une entrée demande au moins un mot-clé et un contenu."
   },
   "cards": {
     "startChatModal": {
@@ -430,14 +426,12 @@
       "personaHint": "Gérez vos identités dans l'onglet Personas.",
       "noPersonaOption": "Sans persona",
       "noConnectionOption": "Aucune connexion configurée",
-      "mainGreetingOption": "Principale",
-      "alternateGreetingOption": "Alternative {index}",
       "noConnectionWarning": "Configurez d'abord une connexion LLM dans Paramètres (Ollama, LM Studio, OpenRouter, Anthropic…). C'est vous qui choisissez.",
       "startError": "Impossible de démarrer",
       "enterButton": "Entrer dans l'histoire"
     },
     "libraryModal": {
-      "description": "Des fiches prêtes à jouer, fournies avec Evermind. Installez, modifiez, supprimez : elles deviennent les vôtres.",
+      "description": "Des fiches prêtes à jouer, fournies avec Evermind. Installez, modifiez, supprimez\u00a0: elles deviennent les vôtres.",
       "emptyState": "La bibliothèque est vide (dossier library/ absent).",
       "lorebookTag": "lorebook",
       "installedLabel": "Installée",
@@ -453,57 +447,53 @@
   },
   "errors": {
     "unexpected": "Une erreur est survenue.",
-    "pageLoad": "Cette page n'a pas pu être chargée. Evermind a peut-être été mis à jour depuis que vous l'avez ouvert, ou la connexion a été coupée.",
     "server": "Evermind a répondu par une erreur (HTTP {status}).",
-    "unreachable": "Evermind ne répond pas. Est-il toujours lancé ?",
-    "invalid": "Evermind n'a pas pu traiter cette demande : des informations manquent ou ne sont pas valides.",
+    "unreachable": "Evermind ne répond pas. Est-il toujours lancé\u202f?",
+    "offline": "Cet appareil est hors ligne.",
+    "notSent": "Ce message n'a pas été envoyé. Appuyez sur Envoyer pour l'envoyer à nouveau.",
+    "invalid": "Evermind n'a pas pu traiter cette demande\u00a0: des informations manquent ou ne sont pas valides.",
     "locked": "Votre session est terminée. Reconnectez-vous.",
     "wrongPassword": "Accès refusé.",
+    "tooLarge": "Trop long pour être le mot de passe, ou un proxy inverse l'a transmis sans en indiquer la longueur.",
     "rateLimited": "Trop de tentatives. Réessayez dans {minutes} min.",
-    "crossOrigin": "Evermind a refusé cette requête, qui semble venir d'une autre adresse. Derrière un proxy inverse, le proxy doit transmettre l'en-tête Host d'origine sans le modifier ; servir Evermind en HTTPS aide aussi.",
-    "unknownHost": "Evermind ne répond pas à cette adresse. Ajoutez son nom à EVERMIND_ALLOWED_HOSTS, ou définissez un mot de passe.",
+    "crossOrigin": "Evermind a refusé cette requête, qui semble venir d'une autre adresse. Derrière un proxy inverse, le proxy doit transmettre l'en-tête Host d'origine sans le modifier.",
+    "unknownHost": "Sans mot de passe, Evermind ne répond pas à ce nom. Ouvrez-le par son adresse (comme http://192.168.1.42:3000) ou par localhost, ou définissez un mot de passe.",
     "notFound": {
       "character": "Cette fiche n'existe plus.",
       "conversation": "Cette conversation n'existe plus.",
       "message": "Ce message n'existe plus.",
       "persona": "Ce persona n'existe plus.",
       "connection": "Cette connexion n'existe plus.",
-      "loreEntry": "Cette entrée du lorebook n'existe plus.",
       "fact": "Ce fait n'existe plus.",
-      "libraryCard": "Cette fiche n'est pas dans la bibliothèque.",
       "other": "Cet élément n'existe plus."
     },
     "pngWithoutCard": "Cette image PNG ne contient pas de fiche de personnage.",
     "unrecognizedCardFile": "Ce fichier n'est pas une fiche. Choisissez une fiche JSON ou une fiche PNG.",
     "variantOutOfRange": "Cette variante de la réponse n'existe pas.",
-    "alreadyInstalled": "Cette fiche est déjà installée.",
-    "loreEntryIncomplete": "Une entrée du lorebook a besoin d'au moins un mot-clé et d'un contenu.",
     "factExists": "Ce fait existe déjà.",
+    "factEmpty": "Un fait doit contenir du texte.",
+    "memoryBusy": "Une autre tâche de mémoire est en cours. Rien n'a été modifié\u202f; réessayez dans un instant.",
+    "factsChanged": "Les faits ont changé pendant que le modèle travaillait dessus. Rien n'a été conservé\u202f; réessayez.",
+    "conversationChanged": "La conversation a changé pendant que le modèle la lisait. Rien n'a été conservé\u202f; réessayez.",
+    "tooFewFacts": "Trop peu de faits à condenser\u00a0: seuls ceux que le modèle a écrits et que personne n'a épinglés sont fusionnés.",
     "fileTooLarge": "Ce fichier est trop volumineux (15 Mo au maximum).",
     "unsupportedImage": "Ce format d'image n'est pas pris en charge. Utilisez PNG, JPEG ou WebP.",
     "conversationEmpty": "Cette conversation ne contient pas encore de message.",
     "noConnection": "Aucune connexion LLM n'est configurée. Ajoutez-en une dans Paramètres → Connexions LLM.",
-    "modelError": "Le modèle a signalé une erreur : {message}",
-    "modelUnreachable": "Evermind n'arrive pas à joindre le serveur du modèle à l'adresse {url}. Vérifiez qu'il est lancé et que l'adresse de la connexion est correcte.",
-    "modelUnreachableNoAddress": "Le serveur du modèle ne répond pas. Vérifiez qu'il est lancé et que l'adresse de la connexion est correcte.",
-    "turnRunning": "Une réponse est déjà en cours d'écriture : ceci n'a pas été envoyé.",
+    "modelError": "Le modèle a signalé une erreur\u00a0: {message}",
+    "modelUnreachable": "Evermind n'arrive pas à joindre le serveur du modèle à l'adresse {message}. Vérifiez qu'il est lancé et que l'adresse de la connexion est correcte.",
+    "turnRunning": "Une réponse est déjà en cours d'écriture\u00a0: ceci n'a pas été envoyé.",
     "modelEmpty": "Le modèle a renvoyé une réponse vide. Réessayez ou changez de modèle.",
-    "modelEmptyRetried": "Le modèle n'a rien renvoyé à deux reprises, même en écartant la phrase d'ouverture. Son gabarit de conversation n'est probablement pas utilisable ici pour le jeu de rôle ; essayez un autre modèle.",
     "modelUnreadable": "La réponse du modèle n'a pas pu être lue. Réessayez.",
-    "modelAuthRefused": "Le serveur du modèle a refusé la clé d'API. Vérifiez la clé dans la connexion.",
-    "modelNotFound": "Le serveur du modèle ne connaît ni cette adresse ni ce modèle. Vérifiez l'URL et le nom du modèle dans la connexion.",
-    "modelRateLimited": "Le serveur du modèle indique qu'il a atteint sa limite de requêtes. Réessayez dans un instant.",
-    "modelHttpError": "Le serveur du modèle a répondu par une erreur (HTTP {status}).",
-    "modelTimeout": "Le modèle a mis trop de temps à répondre.",
-    "modelNetworkError": "La connexion au serveur du modèle a échoué.",
-    "modelUnexpectedResponse": "Le serveur du modèle a répondu d'une façon qu'Evermind ne comprend pas. Vérifiez l'URL de la connexion.",
-    "modelUnknownType": "Cette connexion est d'un type qu'Evermind ne connaît pas. Modifiez-la ou recréez-la.",
+    "modelAuthRefused": "Le serveur du modèle a refusé la clé d'API. Vérifiez la clé dans la connexion. Le serveur a indiqué\u00a0: {message}",
+    "modelNotFound": "Le serveur du modèle ne connaît ni cette adresse ni ce modèle. Vérifiez l'URL et le nom du modèle dans la connexion. Le serveur a indiqué\u00a0: {message}",
+    "modelRateLimited": "Le serveur du modèle a atteint sa limite de requêtes. Réessayez dans un instant. Le serveur a indiqué\u00a0: {message}",
+    "modelNetworkError": "Le modèle a mis trop de temps à répondre, ou la connexion à son serveur a été coupée.",
     "modelNoText": "Le modèle n'a produit aucun texte.",
-    "upstream": "Le serveur a indiqué : {text}",
     "emptyMessage": "Écrivez d'abord un message.",
     "nothingToRegenerate": "Il n'y a pas encore de réponse à régénérer. Envoyez d'abord un message.",
-    "nothingToContinue": "Le dernier message n'est pas une réponse : il n'y a rien à prolonger.",
-    "internal": "Une erreur est survenue dans Evermind : {message}"
+    "nothingToContinue": "Le dernier message n'est pas une réponse\u00a0: il n'y a rien à prolonger.",
+    "internal": "Une erreur est survenue dans Evermind\u00a0: {message}"
   },
   "login": {
     "cookieRefused": "Votre navigateur n'a pas conservé la connexion. Autorisez les cookies pour cette adresse et réessayez.",

@@ -10,6 +10,7 @@ is written beside it.
 
 import sqlite3
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import aiosqlite
@@ -18,14 +19,17 @@ from . import __version__
 from .config import db_path
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
+# Seconds a write waits for another: Python's sqlite3 gives 5, fewer than a busy disk can take.
+BUSY_TIMEOUT_S = 30
 
 
 async def _connect() -> aiosqlite.Connection:
-    conn = await aiosqlite.connect(db_path())
+    conn = await aiosqlite.connect(db_path(), timeout=BUSY_TIMEOUT_S)
     try:
         conn.row_factory = aiosqlite.Row
         await conn.execute("PRAGMA foreign_keys = ON")
-        await conn.execute("PRAGMA journal_mode = WAL")
+        # Read to its end: left running while its cursor is kept, it would make a COMMIT fail.
+        await conn.execute_fetchall("PRAGMA journal_mode = WAL")
     except BaseException:
         # Cancelled included: nobody else has been handed this connection to close.
         await conn.close()
@@ -33,8 +37,7 @@ async def _connect() -> aiosqlite.Connection:
     return conn
 
 
-# For code that runs outside a request handler, such as a middleware, and so
-# cannot be given a connection by the `get_db` dependency.
+# For code outside a request handler, such as the middleware, which `get_db` cannot serve.
 connect = _connect
 
 
@@ -69,6 +72,21 @@ async def init_db() -> None:
             await conn.executescript(f"BEGIN;\n{script}COMMIT;")
     finally:
         await conn.close()
+
+
+@asynccontextmanager
+async def write_transaction(conn: aiosqlite.Connection) -> AsyncIterator[None]:
+    """All of what is written inside, or none of it, with the database held from the start,
+    so that what is read inside is still true when it is acted on. It waits for no model:
+    what takes a while comes first. Whatever raises rolls back; leaving early commits
+    what was written, which is nothing when the checks come first."""
+    await conn.execute("BEGIN IMMEDIATE")
+    try:
+        yield
+    except BaseException:
+        await conn.rollback()
+        raise
+    await conn.commit()
 
 
 async def get_db() -> AsyncIterator[aiosqlite.Connection]:

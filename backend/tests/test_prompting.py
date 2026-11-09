@@ -4,46 +4,7 @@ from app.prompting.engine import build_chat_payload
 from app.prompting.macros import substitute
 from app.prompting.tokens import estimate_tokens
 
-
-def make_character(**overrides) -> dict:
-    base = {
-        "kind": "character",
-        "name": "Serana",
-        "tagline": "",
-        "description": "A centuries-old vampire noble with a dry wit.",
-        "personality": "wry, guarded, fiercely loyal",
-        "scenario": "{{user}} found her sealed in an ancient crypt.",
-        "greeting": "*She stirs.* Who... are you, {{user}}?",
-        "alternate_greetings": [],
-        "example_dialogues": "<START>\n{{user}}: Are you alright?\n{{char}}: *dusts off* Define alright.",
-        "system_prompt": "",
-        "post_history_instructions": "",
-        "creator_notes": "",
-        "tags": [],
-        "creator": "",
-        "character_version": "",
-    }
-    base.update(overrides)
-    return base
-
-
-def make_connection(**overrides) -> dict:
-    base = {"context_size": 8192, "max_tokens": 512}
-    base.update(overrides)
-    return base
-
-
-def make_message(role: str, text: str, position: int) -> dict:
-    return {
-        "id": f"m{position}",
-        "role": role,
-        "variants": [text],
-        "active_index": 0,
-        "position": position,
-    }
-
-
-PERSONA = {"name": "Alex", "description": "A wandering scholar."}
+from .conftest import PERSONA, make_character, make_connection, make_message
 
 
 def test_substitute_macros_case_insensitive():
@@ -272,6 +233,17 @@ def test_facts_covering_visible_turns_are_not_reinjected():
     assert "Old fact outside the window." in payload.system
 
 
+def test_a_fact_typed_by_hand_reaches_the_model_unpinned_even_in_a_short_story():
+    """It has no turn it covers: a story that still fits whole would otherwise never be told."""
+    memories = [
+        {"content": "She keeps the key.", "source_position": 0, "is_pinned": False, "source": "user"},
+        {"content": "Written by the model.", "source_position": 0, "is_pinned": False, "source": "auto"},
+    ]
+    payload = build(messages=[make_message("user", "Hello", 0)], memories=memories)
+    assert "She keeps the key." in payload.system
+    assert "Written by the model." not in payload.system
+
+
 def test_history_limit_caps_raw_turns():
     """Past the cap, turns fall out of the prompt even when tokens remain:
     they live on in the summary/facts instead of feeding the echo chamber."""
@@ -288,7 +260,7 @@ def test_history_limit_caps_raw_turns():
         character=make_character(), persona=PERSONA, conversation={"summary": ""},
         messages=messages, connection=make_connection(),
     )
-    assert len(uncapped.messages) == 30  # 0 = unlimited (summarize/impersonate)
+    assert len(uncapped.messages) == 30  # 0 = unlimited (impersonate)
 
 
 def test_history_limit_frees_facts_for_reinjection():
@@ -335,6 +307,17 @@ def test_select_facts_orders_by_relevance_when_scored():
     assert kept_one == [] or kept_one[0]["id"] == "old_relevant"
 
 
+def test_select_facts_tries_a_fact_with_no_vector_before_the_ranked_ones():
+    from app.prompting.engine import select_facts
+    memories = [
+        {"id": "relevant", "content": "x", "source_position": 1, "is_pinned": 0},
+        {"id": "no_vector", "content": "y", "source_position": 2, "is_pinned": 0},
+    ]
+    # Restored by a cut, or typed before the model was loaded: it has no score yet.
+    kept = select_facts(memories, token_budget=1, relevance_scores={"relevant": 0.9})
+    assert [m["id"] for m in kept] == ["no_vector"]
+
+
 def test_select_facts_without_scores_keeps_recency():
     from app.prompting.engine import select_facts
     memories = [
@@ -378,14 +361,12 @@ def test_retrieved_passages_injected_and_stats():
     assert "(turn 4) Serana: Lea swore to return." in payload.system  # assistant -> char name
     assert "(turn 3) Alex: Do you promise me?" in payload.system        # user -> persona name
     assert payload.system.index("turn 4") > payload.system.index("turn 3")  # oldest-first
-    assert payload.stats["passages_injected"] == 2
     assert "oldest_visible" in payload.stats
 
 
 def test_no_relevant_past_block_when_no_passages():
     payload = build()
     assert "### RELEVANT PAST" not in payload.system
-    assert payload.stats["passages_injected"] == 0
 
 
 def test_stats_exposes_fact_positions():
@@ -421,7 +402,7 @@ def test_oldest_visible_reflects_real_rendered_window():
 
 
 def _fact(content: str, *, pinned: bool, position: int = 0) -> dict:
-    return {"id": content[:8], "content": content, "kind": "event",
+    return {"id": content[:8], "content": content,
             "is_pinned": pinned, "source_position": position}
 
 

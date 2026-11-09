@@ -1,16 +1,16 @@
 import { ModelSilent } from "@/components/chat/ModelSilent";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { clearDraft, loadDraft, openBox, saveDraft, type MessageMode } from "@/lib/drafts";
+import { loadDraft, openBox, saveDraft, type MessageMode } from "@/lib/drafts";
 import { describeError } from "@/lib/errors";
+import { onItsWay } from "@/lib/useTurn";
 import { clsx } from "clsx";
 import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Send, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 /** A pointing device that hovers, which in practice means a real keyboard is
  *  attached too. Read at the moment of the keypress rather than remembered. */
-const KEYBOARD_QUERY = "(hover: hover) and (pointer: fine)";
-const hasKeyboard = () => window.matchMedia(KEYBOARD_QUERY).matches;
+const hasKeyboard = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 const MODES: Record<MessageMode, {
   next: MessageMode;
@@ -48,35 +48,33 @@ export function ChatInput({
   onStop,
   busy,
   characterName,
+  stopRef,
 }: {
   conversationId: string;
-  onSend: (content: string, messageMode: MessageMode) => Promise<void>;
+  /** Settles at the server's answer, which takes the message out of whichever box shows it, or at patience's end. */
+  onSend: (content: string, messageMode: MessageMode) => Promise<unknown>;
   onStop: () => void;
   busy: boolean;
   characterName: string;
+  stopRef?: React.Ref<HTMLButtonElement>;
 }) {
   const t = useT();
-  // The page keys this by conversation, so each conversation gets an input of its
-  // own and its unsent draft is read once, as the input appears.
+  // The page is keyed by conversation: the unsent draft is read once, as the input appears.
   const [value, setValue] = useState(() => loadDraft(conversationId));
   const [mode, setMode] = useState<MessageMode>("say");
+  // Sent from this page before it was left and come back to, it may be on its way still.
+  const [onTheWay] = useState(() => onItsWay(conversationId));
+  const [sending, setSending] = useState(onTheWay !== undefined);
   const [ghostwriting, setGhostwriting] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   // Stays until the next attempt, rather than fading: something has to be
   // switched on before trying again is worth anything.
   const [silent, setSilent] = useState(false);
   const [restored, setRestored] = useState(value !== "");
-  // A phone keyboard has no Shift, so Enter-to-send left no way at all to start
-  // a new line. Only a device that actually has a keyboard keeps that shortcut;
-  // everywhere else Enter does what its key says and the send button sends.
-  // This state drives the hint only. The keypress reads the query live, because
-  // a cached answer goes stale the moment someone docks a tablet to a keyboard
-  // and the change event is not something every browser reliably fires.
-  const [enterSends, setEnterSends] = useState(true);
   const ref = useRef<HTMLTextAreaElement>(null);
   const held = useRef({ value, mode });
-  // What the draft says as far as this input knows, and so what needs no writing.
-  const saved = useRef(value);
+  // The pen's last suggestion, which pressing it again replaces while it is as written.
+  const suggested = useRef("");
 
   useEffect(() => {
     held.current = { value, mode };
@@ -87,7 +85,6 @@ export function ChatInput({
       read: () => held.current.value,
       write(text, nextMode = held.current.mode) {
         held.current = { value: text, mode: nextMode };
-        saved.current = text; // whoever writes here has written the draft too
         setValue(text);
         setMode(nextMode);
         setRestored(text.trim() !== "");
@@ -97,19 +94,21 @@ export function ChatInput({
   );
 
   useEffect(() => {
+    let open = true;
+    void onTheWay?.then(() => {
+      if (open) setSending(false);
+    });
+    return () => {
+      open = false;
+    };
+  }, [onTheWay]);
+
+  useEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.style.height = "0px";
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
   }, [value]);
-
-  useEffect(() => {
-    const media = window.matchMedia(KEYBOARD_QUERY);
-    const apply = () => setEnterSends(media.matches);
-    apply();
-    media.addEventListener("change", apply);
-    return () => media.removeEventListener("change", apply);
-  }, []);
 
   // The notice that a draft came back, for a few seconds.
   useEffect(() => {
@@ -118,45 +117,39 @@ export function ChatInput({
     return () => clearTimeout(timer);
   }, [restored]);
 
-  // Persist on a short delay: typing costs one write per pause, not one per key.
-  // Only what has changed: an input that has only just appeared has nothing to say,
-  // and what it read a moment ago may no longer be what the draft says.
-  useEffect(() => {
-    if (value === saved.current) return;
-    const timer = setTimeout(() => {
-      saved.current = value;
-      saveDraft(conversationId, value);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [conversationId, value]);
+  /** Kept as it is typed: a phone can drop the page at any moment. */
+  function change(text: string) {
+    setValue(text);
+    saveDraft(conversationId, text);
+  }
 
-  function submit() {
+  async function submit() {
     const content = value.trim();
-    if (!content || busy) return;
-    // The reply about to be asked for reports its own silence, in the
-    // conversation. Two of these on screen at once is the fuss this was
-    // supposed to avoid.
+    if (!content || busy || sending) return;
+    // The reply about to be asked for reports its own silence, in the conversation: one notice at a time.
     setSilent(false);
-    setValue("");
-    clearDraft(conversationId);
-    saved.current = "";
-    setMode("say"); // narration and OOC are one-shot by nature
-    held.current = { value: "", mode: "say" }; // before anything is given back to it
-    void onSend(content, mode);
+    change(content);
+    suggested.current = ""; // sent, it is the person's message, refused or not
+    setSending(true);
+    await onSend(content, mode);
+    setSending(false);
   }
 
   async function ghostwrite() {
-    if (busy || ghostwriting) return;
+    if (busy || sending || ghostwriting) return;
     setGhostwriting(true);
     setHint(null);
     setSilent(false);
     try {
       const result = await data.turns.impersonate(conversationId);
-      setValue(result.text);
+      const last = suggested.current;
+      suggested.current = result.text;
+      // Under what the box holds, which is where a message given back to it is looked for.
+      const box = held.current.value;
+      const kept = last && box.endsWith(last) ? box.slice(0, -last.length).trimEnd() : box;
+      change(kept.trim() ? `${kept}\n${result.text}` : result.text);
       ref.current?.focus();
     } catch (e) {
-      // The model saying nothing is not the same as a mistake, and it used to
-      // land in the hint line for four seconds, where the keyboard tip lives.
       if (e instanceof DataError && e.kind === "unreachable") {
         setSilent(true);
       } else {
@@ -182,7 +175,7 @@ export function ChatInput({
         <button
           className={clsx("btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12", MODES[mode].color)}
           onClick={() => setMode(MODES[mode].next)}
-          disabled={busy}
+          disabled={busy || sending}
           title={t(MODES[mode].labelKey)}
         >
           {(() => {
@@ -193,7 +186,7 @@ export function ChatInput({
         <button
           className="btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
           onClick={ghostwrite}
-          disabled={busy || ghostwriting}
+          disabled={busy || sending || ghostwriting}
           title={t("chat.input.ghostwriteTitle")}
         >
           {ghostwriting ? (
@@ -205,8 +198,10 @@ export function ChatInput({
         <textarea
           ref={ref}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          readOnly={sending}
+          onChange={(e) => change(e.target.value)}
           onKeyDown={(e) => {
+            // A phone keyboard has no Shift, so there Enter is the only way to a new line.
             if (e.key === "Enter" && !e.shiftKey && hasKeyboard()) {
               e.preventDefault();
               submit();
@@ -222,6 +217,7 @@ export function ChatInput({
         />
         {busy ? (
           <button
+            ref={stopRef}
             className="btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
             onClick={onStop}
             title={t("chat.input.stopTitle")}
@@ -232,10 +228,11 @@ export function ChatInput({
           <button
             className="btn btn-primary h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
             onClick={submit}
-            disabled={!value.trim()}
+            disabled={!value.trim() || sending}
             title={t("chat.input.sendTitle")}
           >
-            <Send className="h-5 w-5" />
+            {/* Waking on wifi can take a few seconds, and the message waits here for the server. */}
+            {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
           </button>
         )}
       </div>
@@ -243,7 +240,7 @@ export function ChatInput({
         {hint ??
           (restored
             ? t("chat.input.draftRestored")
-            : t(enterSends ? "chat.input.hintDefault" : "chat.input.hintTouch"))}
+            : t(hasKeyboard() ? "chat.input.hintDefault" : "chat.input.hintTouch"))}
       </p>
     </div>
   );

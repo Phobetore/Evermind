@@ -4,9 +4,10 @@ import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { data, type CharacterInput } from "@/data";
 import { useT } from "@/i18n/useT";
+import { cardFile } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
-import type { Character, Connection, Kind, LoreEntryDraft } from "@/types";
+import type { CharacterWithLore, Connection, Kind, LoreEntry } from "@/types";
 import { clsx } from "clsx";
 import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
@@ -56,7 +57,7 @@ const KIND_COPY: Record<Kind, Record<string, { labelKey: string; hintKey: string
   },
 };
 
-export function CharacterForm({ initial }: { initial?: Character }) {
+export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const navigate = useNavigate();
   const t = useT();
   const editing = Boolean(initial);
@@ -66,23 +67,22 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   const [advanced, setAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Apart from `error`, which is about saving: an export that fails must not
-  // wipe out a save that did too, and its message belongs by the buttons.
+  // Apart from `error`, which is about saving or deleting: an export that fails
+  // must not wipe out a save that did too, and its message belongs by the buttons.
   const [exportError, setExportError] = useState<string | null>(null);
   const [brief, setBrief] = useState("");
   const [generating, setGenerating] = useState(false);
   const [assistError, setAssistError] = useState<string | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [assistConnectionId, setAssistConnectionId] = useState("");
-  const [loreEntries, setLoreEntries] = useState<LoreEntryDraft[]>([]);
+  const [loreEntries, setLoreEntries] = useState<LoreEntry[]>(initial?.lore_entries ?? []);
   const fileInput = useRef<HTMLInputElement>(null);
+  // A save whose portrait fails has made the new card already.
+  const created = useRef("");
 
   useEffect(() => {
     data.connections?.list().then(setConnections).catch(() => {});
-    if (initial) {
-      data.lore.list(initial.id).then(setLoreEntries).catch(() => {});
-    }
-  }, [initial]);
+  }, []);
 
   const copy = KIND_COPY[draft.kind];
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
@@ -99,7 +99,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
         if (Array.isArray(value) && value.length > 0) existing[key] = value;
       }
       delete existing.kind;
-      if (loreEntries.length > 0) existing.lore_entries = loreEntries;
+      existing.lore_entries = loreEntries.length > 0 ? loreEntries : undefined;
       const generated = await data.characters.assist({
         prompt: brief,
         kind: draft.kind,
@@ -109,20 +109,8 @@ export function CharacterForm({ initial }: { initial?: Character }) {
       const { lore_entries: generatedLore, ...fields } = generated;
       setDraft((d) => ({ ...d, ...fields }));
       if (generatedLore?.length) {
-        const additions = generatedLore.map((entry) => ({
-          ...entry,
-          id: newId(),
-          enabled: true,
-          case_sensitive: false,
-          priority: 0,
-        }));
-        // editing an existing card: the entries must be persisted right away
-        const saved = initial
-          ? await Promise.all(
-              additions.map((entry) => data.lore.create(initial.id, entry)),
-            )
-          : additions;
-        setLoreEntries((prev) => [...prev, ...saved]);
+        const additions = generatedLore.map((entry) => ({ ...entry, id: newId(), enabled: true }));
+        setLoreEntries((prev) => [...prev, ...additions]);
       }
     } catch (e) {
       setAssistError(describeError(e, t, t("characters.assist.generateError")));
@@ -138,23 +126,14 @@ export function CharacterForm({ initial }: { initial?: Character }) {
     setSaving(true);
     setError(null);
     try {
-      const saved = editing
-        ? await data.characters.update(initial!.id, draft)
-        : await data.characters.create(draft);
+      const id = initial?.id || created.current;
+      const card = { ...draft, lore_entries: loreEntries };
+      const saved = id
+        ? await data.characters.update(id, card)
+        : await data.characters.create(card);
+      created.current = saved.id;
       if (avatarFile) {
         await data.characters.uploadAvatar(saved.id, avatarFile);
-      }
-      if (!editing) {
-        // lorebook entries drafted before the card existed
-        for (const entry of loreEntries) {
-          await data.lore.create(saved.id, {
-            keys: entry.keys,
-            content: entry.content,
-            enabled: entry.enabled,
-            case_sensitive: entry.case_sensitive,
-            priority: entry.priority,
-          });
-        }
       }
       navigate(`/characters/${saved.id}`);
     } catch (e) {
@@ -166,15 +145,19 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   async function remove() {
     if (!initial) return;
     if (!confirm(t("characters.form.confirmDelete", { name: initial.name }))) return;
-    await data.characters.remove(initial.id);
-    navigate("/");
+    try {
+      await data.characters.remove(initial.id);
+      navigate("/");
+    } catch (e) {
+      setError(describeError(e, t));
+    }
   }
 
   async function exportCard(format: "json" | "png") {
     if (!initial) return;
     setExportError(null);
     try {
-      const { blob, filename } = await data.characters.exportCard(initial.id, format);
+      const { blob, filename } = await cardFile(initial, format);
       downloadBlob(blob, filename);
     } catch (e) {
       // Called from a click, so a rejection would reach nobody: say it here.
@@ -185,7 +168,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
-        <h1 className="font-display text-3xl font-semibold">
+        <h1 className="min-w-0 break-words font-display text-3xl font-semibold">
           {editing ? t("characters.form.editCardTitle", { name: initial!.name }) : t("characters.form.newCardTitle")}
         </h1>
         {editing && (
@@ -209,7 +192,6 @@ export function CharacterForm({ initial }: { initial?: Character }) {
       </header>
 
       <div className="flex flex-col gap-5">
-        {/* Kind switch */}
         <div className="flex gap-2">
           {(
             [
@@ -235,7 +217,6 @@ export function CharacterForm({ initial }: { initial?: Character }) {
           ))}
         </div>
 
-        {/* AI assistant */}
         <div className="rounded-xl border border-ember-600/35 bg-ember-glow/40 p-4">
           <div className="mb-2 flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-ember-400" />
@@ -301,7 +282,6 @@ export function CharacterForm({ initial }: { initial?: Character }) {
           )}
         </div>
 
-        {/* Identity row */}
         <div className="flex gap-5">
           <button
             type="button"
@@ -386,7 +366,6 @@ export function CharacterForm({ initial }: { initial?: Character }) {
           />
         </Field>
 
-        {/* Alternate greetings */}
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <span className="ui-label">{t("characters.form.alternateGreetingsLabel")}</span>
@@ -447,14 +426,8 @@ export function CharacterForm({ initial }: { initial?: Character }) {
           />
         </Field>
 
-        {/* Lorebook */}
-        <LorebookSection
-          characterId={initial?.id}
-          entries={loreEntries}
-          onChange={setLoreEntries}
-        />
+        <LorebookSection entries={loreEntries} onChange={setLoreEntries} />
 
-        {/* Advanced */}
         <button
           type="button"
           onClick={() => setAdvanced(!advanced)}
@@ -517,7 +490,8 @@ export function CharacterForm({ initial }: { initial?: Character }) {
           </p>
         )}
 
-        <div className="flex items-center justify-between border-t border-ink-700 pt-5">
+        {/* Wrapping: three buttons in German or French are wider than a phone. */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink-700 pt-5">
           {editing ? (
             <button className="btn btn-danger" onClick={remove}>
               <Trash2 className="h-4 w-4" /> {t("common.delete")}
@@ -525,7 +499,7 @@ export function CharacterForm({ initial }: { initial?: Character }) {
           ) : (
             <span />
           )}
-          <div className="flex gap-2">
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
             <button className="btn btn-ghost" onClick={() => navigate(-1)}>
               {t("common.cancel")}
             </button>

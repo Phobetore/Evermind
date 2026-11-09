@@ -1,10 +1,5 @@
-"""Local sentence embeddings for semantic memory retrieval.
-
-Optional feature: the model load needs the `semantic` extra
-(sentence-transformers). numpy is a core dependency, so vector packing and
-similarity always work. When the model is unavailable, embed() returns None and
-callers fall back to recency-based memory — this module never raises.
-"""
+"""Local sentence embeddings for semantic memory. The model needs the ``semantic`` extra; numpy is
+a core dependency, so packing and comparing vectors always work."""
 
 import asyncio
 import logging
@@ -30,7 +25,8 @@ def unpack(blob: bytes):
 
 
 async def warmup() -> bool:
-    """Load the model once, in a thread. The ONLY place a download can start.
+    """Load the model once, in a thread. The ONLY place a download can start: from the cache when
+    the model is there, which asks huggingface.co nothing, else from huggingface.co into the cache.
     Returns True if the model is ready. Safe to call repeatedly."""
     global _model, _load_attempted
     if _model is not None:
@@ -41,13 +37,14 @@ async def warmup() -> bool:
     try:
         def _load():
             from sentence_transformers import SentenceTransformer
-            return SentenceTransformer(MODEL_NAME)
+            try:
+                return SentenceTransformer(MODEL_NAME, local_files_only=True)
+            except OSError:  # not downloaded yet, or not all of it
+                return SentenceTransformer(MODEL_NAME)
         _model = await asyncio.to_thread(_load)
         logger.info("semantic memory enabled: loaded %s", MODEL_NAME)
         return True
-    # Deliberately blind: the extra is optional, so a missing package, a failed
-    # download or an incompatible torch build all mean the same thing here, which
-    # is that the feature stays off and the app runs on recency.
+    # A missing package, a failed download or a torch build that does not fit: all leave it off.
     except Exception:  # noqa: BLE001
         logger.info("semantic memory disabled: could not load %s", MODEL_NAME)
         return False

@@ -2,7 +2,7 @@ import { Field } from "@/components/editor/Field";
 import { Modal } from "@/components/ui/Modal";
 import type { BenchmarkResult, ConnectionInput, ConnectionTestResult, DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
-import { describeError, describeResult } from "@/lib/errors";
+import { describeError } from "@/lib/errors";
 import type { Connection, ProviderType } from "@/types";
 import { clsx } from "clsx";
 import { CheckCircle2, ChevronDown, Loader2, Trash2, XCircle } from "lucide-react";
@@ -71,7 +71,7 @@ export function ConnectionForm({
 }: {
   /** Taken as a prop, not read from `data`, because an edition without
    *  connections has no such thing and never renders this form. */
-  source: NonNullable<DataSource["connections"]>;
+  source: DataSource["connections"];
   connection: Connection | null;
   onClose: () => void;
   onSaved: () => void;
@@ -98,6 +98,7 @@ export function ConnectionForm({
   const set = <K extends keyof DraftConnection>(key: K, value: DraftConnection[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
     setTestResult(null);
+    setBenchResult(null);
   };
 
   function buildPayload(): ConnectionInput {
@@ -109,15 +110,7 @@ export function ConnectionForm({
     setTesting(true);
     setTestResult(null);
     try {
-      let result;
-      if (connection && !draft.api_key) {
-        // saved key lives server-side only: persist edits, then test by id
-        await source.update(connection.id, buildPayload());
-        result = await source.testSaved(connection.id);
-      } else {
-        result = await source.test({ ...draft, name: draft.name || "test" });
-      }
-      setTestResult(result);
+      setTestResult(await source.test({ ...buildPayload(), name: draft.name || "test", id: connection?.id }));
     } catch (e) {
       setTestResult({ ok: false, detail: describeError(e, t, t("connections.testFailed")) });
     }
@@ -125,11 +118,10 @@ export function ConnectionForm({
   }
 
   async function benchmark() {
-    if (!connection) return;
     setBenchmarking(true);
     setBenchResult(null);
     try {
-      setBenchResult(await source.benchmark(connection.id));
+      setBenchResult(await source.benchmark({ ...buildPayload(), name: draft.name || "test", id: connection?.id }));
     } catch (e) {
       setBenchResult({ ok: false, detail: describeError(e, t, t("connections.benchmarkFailed")) });
     }
@@ -155,8 +147,12 @@ export function ConnectionForm({
   async function remove() {
     if (!connection) return;
     if (!confirm(t("connections.confirmDelete", { name: connection.name }))) return;
-    await source.remove(connection.id);
-    onSaved();
+    try {
+      await source.remove(connection.id);
+      onSaved();
+    } catch (e) {
+      setError(describeError(e, t));
+    }
   }
 
   return (
@@ -249,21 +245,12 @@ export function ConnectionForm({
               value={draft.model}
               onChange={(e) => set("model", e.target.value)}
               placeholder="llama3, claude-sonnet-5…"
-              list="models-found"
             />
-            {testResult?.models_sample && (
-              <datalist id="models-found">
-                {testResult.models_sample.map((m) => (
-                  <option key={m} value={m} />
-                ))}
-              </datalist>
-            )}
           </Field>
         </div>
 
-        {/* Test row */}
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn btn-ghost" onClick={test} disabled={testing}>
+          <button type="button" className="btn btn-ghost" onClick={test} disabled={testing || !draft.base_url.trim()}>
             {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : t("connections.testButton")}
           </button>
           {connection && (
@@ -271,7 +258,7 @@ export function ConnectionForm({
               type="button"
               className="btn btn-ghost"
               onClick={benchmark}
-              disabled={benchmarking}
+              disabled={benchmarking || !draft.base_url.trim()}
               title={t("connections.benchmarkHint")}
             >
               {benchmarking ? <Loader2 className="h-4 w-4 animate-spin" /> : t("connections.benchmarkButton")}
@@ -284,7 +271,7 @@ export function ConnectionForm({
                     tokensPerSecond: benchResult.tokens_per_s ?? 0,
                     firstTokenSeconds: benchResult.first_token_seconds ?? 0,
                   })
-                : describeResult(benchResult, t)}
+                : benchResult.detail}
             </span>
           )}
           {testResult && (
@@ -297,7 +284,7 @@ export function ConnectionForm({
               {testResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
               {testResult.ok && testResult.model_count !== undefined
                 ? t("connections.modelsFound", { count: testResult.model_count })
-                : describeResult(testResult, t)}
+                : testResult.detail}
             </span>
           )}
         </div>
@@ -307,7 +294,10 @@ export function ConnectionForm({
               <button
                 key={m}
                 type="button"
-                onClick={() => setDraft((d) => ({ ...d, model: m }))}
+                onClick={() => {
+                  setDraft((d) => ({ ...d, model: m }));
+                  setBenchResult(null);
+                }}
                 className={clsx(
                   "rounded-full border px-2.5 py-1 font-mono text-[0.7rem] transition-colors",
                   draft.model === m

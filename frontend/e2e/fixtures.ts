@@ -1,7 +1,7 @@
 import { expect, type APIRequestContext } from "@playwright/test";
 import { API } from "../playwright.config";
 
-const MOCK = "http://127.0.0.1:5699/v1";
+export const MOCK = `http://127.0.0.1:${process.env.E2E_MOCK_PORT ?? 5699}/v1`;
 
 /** Seeding goes through the API, never the interface. A test that had to click
  *  its way to a conversation would fail for reasons that have nothing to do
@@ -10,14 +10,18 @@ const MOCK = "http://127.0.0.1:5699/v1";
 async function defaultConnection(request: APIRequestContext): Promise<string> {
   const existing = await (await request.get(`${API}/api/connections`)).json();
   const found = existing.find((c: { name: string }) => c.name === "e2e");
-  const id = found?.id ?? (await (await request.post(`${API}/api/connections`, {
-    data: {
-      name: "e2e", provider: "openai-compatible", base_url: MOCK,
-      api_key: "none", model: "evermind-demo",
-    },
-  })).json()).id;
-  await request.put(`${API}/api/settings`, { data: { default_connection_id: id } });
-  return id;
+  if (!found) {
+    return (await (await request.post(`${API}/api/connections`, {
+      data: {
+        name: "e2e", provider: "openai-compatible", base_url: MOCK,
+        api_key: "none", model: "evermind-demo", is_default: true,
+      },
+    })).json()).id;
+  }
+  if (!found.is_default) {
+    await request.put(`${API}/api/connections/${found.id}`, { data: { ...found, is_default: true } });
+  }
+  return found.id;
 }
 
 export async function makeCharacter(request: APIRequestContext, fields: Record<string, unknown> = {}) {
@@ -41,18 +45,18 @@ export async function makeConversation(request: APIRequestContext, fields: Recor
   })).json();
 }
 
-/** A conversation with one exchange already in it, so a test that needs a
- *  reply to act on does not have to wait for the model twice.
- *
- *  `slowly` puts a marker in the conversation that the mock model reads and
- *  answers at a crawl. Tests about what happens *during* a reply need one that
- *  is still going when they look, and tuning sleeps against whatever machine is
- *  running is how a suite comes to pass here and fail on a CI runner. */
+/** A conversation with one exchange already in it. `slowly` puts a marker in it that the mock model
+ *  answers at a crawl: a test about what happens during a reply needs one still going when it looks,
+ *  and sleeps tuned to one machine fail on another. */
 export async function conversationWithReply(
   request: APIRequestContext,
-  { slowly = false, failing = false, quiet = false, says }: {
+  { slowly = false, failing = false, failsMidway = false, silent = false, quiet = false, says }: {
     slowly?: boolean;
     failing?: boolean;
+    /** The model writes four words and the connection to it breaks. */
+    failsMidway?: boolean;
+    /** The model ends its reply without a word. */
+    silent?: boolean;
     /** The model takes eight seconds over its first word. */
     quiet?: boolean;
     /** The reply is this word, then numbers, then "end" and this word. */
@@ -60,15 +64,14 @@ export async function conversationWithReply(
   } = {},
 ) {
   const convo = await makeConversation(request);
-  await request.post(`${API}/api/chat`, {
-    data: { conversation_id: convo.id, mode: "send", content: "Tell me.", message_mode: "say" },
-    timeout: 60_000,
-  });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "Tell me." });
   // After the first reply, not before: the markers are for the turn the test is
   // about, and putting them in the message would make setting up slow too.
   const markers = [
     slowly && "SLOWLY",
     failing && "MOCK_FAILS", // a model that refuses a couple of seconds into a turn
+    failsMidway && "MOCK_FAILS_MIDWAY",
+    silent && "MOCK_SILENT",
     quiet && "MOCK_QUIET",
     says && `MOCK_SAYS_${says}`,
   ].filter(Boolean);
@@ -84,9 +87,21 @@ export async function conversation(request: APIRequestContext, id: string) {
   return (await request.get(`${API}/api/conversations/${id}`)).json();
 }
 
+/** Whether an address reads the conversation, with its messages or without, as the side panel does. */
+export const readOf = (id: string) => (url: string | URL) =>
+  new URL(url).pathname.endsWith(`/api/conversations/${id}`);
+
 /** The server's own account of whether a reply is being written. */
 export async function turnRunning(request: APIRequestContext, id: string): Promise<boolean> {
   return (await (await request.get(`${API}/api/conversations/${id}/turn`)).json()).running;
+}
+
+/** A turn asked for as another device would, and its reply written: the server answers as soon
+ *  as it has the message. */
+export async function chat(request: APIRequestContext, data: { conversation_id: string } & Record<string, unknown>) {
+  const answer = await request.post(`${API}/api/chat`, { data: { message_mode: "say", ...data } });
+  await expect.poll(() => turnRunning(request, data.conversation_id), { timeout: 60_000 }).toBe(false);
+  return answer;
 }
 
 /** Ends a reply and waits for the server to say it has ended. A turn carries on

@@ -45,48 +45,102 @@ closed as working-as-intended:
 
 ## How the access password works
 
-Each device types the password once and gets a session of its own, which lasts 30
-days after that device's last visit. **Sign out of this device** and **Sign out
-every device**, both in Settings, end one session or all of them, and changing or
-removing the password ends them all.
+Each device types the password once and gets a session of its own, which lasts
+until it is ended. **Sign out of this device** and **Sign out every device**, both
+in Settings, end one session or all of them, and changing or removing the password
+ends them all, for good: an old password set again later lets none of them back in.
+A session never expires by itself: each opening of Evermind gives its cookie
+another 400 days, so a device that is lost stays signed in until every device is
+signed out or the password changes.
 
-The password is kept as a salted scrypt digest, and only a SHA-256 of each
-session token is stored, so reading the database does not hand anyone a way in.
-It is compared after Unicode normalisation, so an accent typed on a phone
-keyboard is the same password as the one in `.env` however each wrote it.
-Wrong guesses are limited to 10 per 15 minutes for each address. Behind Docker
-the requests usually all reach Evermind from Docker's own address, so that limit
-is shared by every device: ten wrong guesses from one of them keep the others
-out too, for up to 15 minutes.
+The database keeps of the password only a salted scrypt digest, slow to guess
+from on purpose, by which Evermind finds out at start that the password has
+changed; and of each session only an HMAC of its token keyed by the password. So
+reading the database does not hand anyone a way in. The password is compared
+after Unicode normalisation, so an accent typed on a phone keyboard is the same
+password as the one in `.env` however each wrote it. Wrong guesses are limited to
+10 per 15 minutes for each address, and over IPv6 for each /64 network, since one
+device can take any address of its network.
+
+That limit has a cost when devices share what it counts. Every device does when
+they all reach Evermind from one address, as behind Docker Desktop, or behind a
+reverse proxy that `FORWARDED_ALLOW_IPS` does not name (see below); and over
+IPv6, every device of one network does, since a home network is a single /64.
+Ten wrong passwords from anyone who can reach Evermind that way then lock all of
+them out of signing in for 15 minutes, the right password included, and a new
+burst of ten does it again as soon as those 15 minutes are over. Devices already
+signed in go on working. Restarting Evermind lifts the lock at once.
 
 ## Requests from other sites
 
 A website you visit can make your browser send requests to Evermind. This is
 what stands in its way:
 
-- **Changes from another origin are refused, password or not.** A write to the
-  API, or a websocket, that the browser says comes from a page of another origin
-  is turned away. The browser says so in `Sec-Fetch-Site` over HTTPS and on
-  localhost, and otherwise only in `Origin`, which Evermind compares with the
-  address the request was sent to. A reverse proxy in front of Evermind must
-  therefore pass the `Host` header through unchanged, which works with every
-  browser. Serving it over HTTPS is the second safety net, since browsers then
-  send `Sec-Fetch-Site`, though Safari before 16.4 sends no Fetch Metadata even
-  over HTTPS. A proxy that does neither gets the interface's own changes refused
-  too.
-- **Without a password, Evermind only answers to names it knows.** A website can
-  point a name of its own at your computer once its page is loaded (DNS
-  rebinding), and the browser then treats that page as Evermind itself, able to
-  read and change everything. So the API only answers when it is reached by an
-  address, `localhost` (or a name ending in `.localhost`), this computer's own
-  name (also with `.local` after it), its first label when the name has a
-  domain (and that label followed by `.local`; `nas` for `nas.home.lan`), or a
-  name listed in `EVERMIND_ALLOWED_HOSTS`. A container cannot see the
-  computer's own name, so with Docker it has to be listed too.
+- **Changes from another origin are refused, password or not.** The browser
+  names the page that sends a write in `Origin`, and Evermind refuses the write
+  when that is not the address the request was sent to, its `Host`. A reverse
+  proxy in front of Evermind must therefore pass the `Host` header through
+  unchanged, or the interface's own changes are refused too. The scheme is not
+  compared, so a proxy that ends HTTPS works.
+- **Without a password, Evermind only answers to an address or `localhost`.** A
+  website can point a name of its own at your computer once its page is loaded
+  (DNS rebinding), and the browser then treats that page as Evermind itself,
+  able to read and change everything. So the API only answers when it is reached
+  by an address (`192.168.1.42`, `127.0.0.1`) or by `localhost`. To open it by a
+  name, set a password.
 - **With a password, the password protects the rest.** Any name is accepted, so
   a proxy can serve Evermind under its own, but the session cookie belongs to
   the name each device signed in on: a page under another name has none, and
   would need the password.
+- **Pictures are served only under the names Evermind gives them**: 32
+  hexadecimal characters, then `.png`, `.jpg` or `.webp`. Any other name is a
+  `404` before a file is looked for. A page can make your browser ask a
+  password-less Evermind for a picture, and a name that is a Windows network path
+  (`\\host\share\x`) would otherwise make Evermind connect to that host and offer
+  it your Windows account's credentials.
+
+## Behind a reverse proxy
+
+A proxy that ends HTTPS passes requests on to Evermind over plain HTTP, so
+Evermind only knows that a browser came over HTTPS, and from which address, if
+the proxy says so in `X-Forwarded-Proto` and `X-Forwarded-For`. Anyone can send
+those headers, so Evermind believes them only from the addresses listed in
+`FORWARDED_ALLOW_IPS`. Set it, in `.env`, to the address the proxy connects from,
+as long as nothing else connects from it (see below). The session cookie is then
+marked `Secure`, at sign-in and each time it is renewed, so the browser never
+sends it over plain HTTP, and wrong passwords are counted for each device, or over
+IPv6 for each network, rather than for the proxy.
+[docs/DEVELOPING.md](docs/DEVELOPING.md#serving-under-a-path-prefix) has an nginx
+example.
+
+Anything else that reaches Evermind from that address is believed just as much,
+and can claim a new address for each guess, so name only an address that nothing
+but the proxy connects from. On the same computer that is not `127.0.0.1`, which
+every program and browser there uses: the nginx example has its proxy connect
+from `127.0.0.2` instead, an address no browser connects from, though a program
+there could. With Docker, a proxy outside the container reaches it from the same
+address as everything else on that computer; one in its own container on
+Evermind's network can have a fixed address (`ipv4_address` in Compose), shown at
+the start of each of its requests' lines in `docker compose logs`. Where the proxy
+cannot have an address of its own, leave `FORWARDED_ALLOW_IPS` empty: both
+headers are then ignored, every device shares the limit on wrong passwords, and
+the cookie is not marked `Secure`, which HSTS below makes up for.
+
+Turn on HSTS at the proxy as well (the `Strict-Transport-Security` header). A
+browser that has been there once then never uses plain HTTP for that name again,
+not for an address typed without `https://` nor for an old `http://` link.
+Without it, that first plain request can be answered by someone on the network
+instead of the proxy, with a page of their own that asks for the password.
+
+## Slow and malformed requests
+
+Before the password or any route, Evermind holds at most 16 KB of a request's
+line and headers while it waits for the rest, and refuses the request (`400`)
+past that. It closes a connection that leaves it waiting more than 20 seconds,
+for the rest of a request's line and headers or for a body sent after its
+answer; uploads and replies are not timed. A request whose body turns out
+malformed once Evermind has started answering it, after the `401` of a locked
+route for instance, has its connection closed at once.
 
 ## What is worth reporting
 

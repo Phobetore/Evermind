@@ -1,11 +1,19 @@
+import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { cardToCharacter, installCard, type CardCharacter } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
-import type { LibraryItem } from "@/types";
 import { BookMarked, Check, Download, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+
+interface Shelved {
+  filename: string;
+  has_avatar: boolean;
+  character: CardCharacter;
+  installed: boolean;
+}
 
 export function LibraryModal({
   onClose,
@@ -15,20 +23,32 @@ export function LibraryModal({
   onInstalled: () => void;
 }) {
   const t = useT();
-  const [items, setItems] = useState<LibraryItem[] | null>(null);
+  const [items, setItems] = useState<Shelved[] | null>(null);
   const [installing, setInstalling] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
-  const load = () => data.library.list().then(setItems);
+  // What cannot be read is no empty library. A card counts as installed when one has its name.
+  const load = () =>
+    Promise.all([data.library.list(), data.characters.list()]).then(([shelf, characters]) => {
+      const names = new Set(characters.map((c) => c.name));
+      setItems(shelf.flatMap(({ filename, card, has_avatar }) => {
+        const character = cardToCharacter(card);
+        return character ? [{ filename, has_avatar, character, installed: names.has(character.name) }] : [];
+      }));
+      setFailure(null);
+    }, (error) => setFailure({ error }));
   useEffect(() => {
-    load().catch(() => setItems([]));
+    load();
   }, []);
 
-  async function install(item: LibraryItem) {
+  async function install(item: Shelved) {
     setInstalling(item.filename);
     setError(null);
     try {
-      await data.library.install(item.filename);
+      // The portrait first: one that cannot be had leaves nothing made.
+      const portrait = item.has_avatar ? await data.file(data.library.avatarUrl(item.filename)) : null;
+      await installCard(item.character, portrait);
       await load();
       onInstalled();
     } catch (e) {
@@ -40,7 +60,9 @@ export function LibraryModal({
   return (
     <Modal title={t("home.libraryTitle")} onClose={onClose} wide>
       <p className="mb-4 text-sm leading-relaxed text-mist">{t("cards.libraryModal.description")}</p>
-      {items === null ? (
+      {failure ? (
+        <LoadFailure error={failure.error} onRetry={load} />
+      ) : items === null ? (
         <div className="py-8 text-center text-mist animate-pulse-soft">{t("common.loading")}</div>
       ) : items.length === 0 ? (
         <p className="py-8 text-center text-sm text-mist-dim">
@@ -49,10 +71,7 @@ export function LibraryModal({
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((item) => (
-            // Avatar, blurb and button held one row at every width. On a phone
-            // that left the middle column nothing: the tagline came out as a
-            // fifteen-line ribbon. The button now drops to its own full-width
-            // line and the artwork shrinks, so the words get the space.
+            // On a phone the button drops to its own line and the artwork shrinks, so the words get the space.
             <div
               key={item.filename}
               className="flex flex-wrap items-start gap-3 rounded-xl border border-ink-700 bg-ink-900/60 p-3 sm:flex-nowrap sm:justify-between sm:gap-4 sm:p-4"
@@ -60,18 +79,18 @@ export function LibraryModal({
               {item.has_avatar && (
                 <img
                   src={data.library.avatarUrl(item.filename)}
-                  alt={item.name}
+                  alt={item.character.name}
                   className="h-[4.5rem] w-14 shrink-0 rounded-lg border border-ink-600 object-cover sm:h-24 sm:w-[4.5rem]"
                   draggable={false}
                 />
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-display font-semibold">{item.name}</h3>
-                  <Tag tone={item.kind === "scenario" ? "arcane" : "ember"}>
-                    {item.kind === "scenario" ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}
+                  <h3 className="font-display font-semibold">{item.character.name}</h3>
+                  <Tag tone={item.character.kind === "scenario" ? "arcane" : "ember"}>
+                    {item.character.kind === "scenario" ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}
                   </Tag>
-                  {item.has_lorebook && (
+                  {item.character.lore_entries.length > 0 && (
                     <Tag tone="arcane">
                       <span className="inline-flex items-center gap-1">
                         <BookMarked className="h-3 w-3" /> {t("cards.libraryModal.lorebookTag")}
@@ -80,11 +99,11 @@ export function LibraryModal({
                   )}
                 </div>
                 <p className="mt-1 text-sm italic leading-snug text-parchment-dim">
-                  {item.tagline}
+                  {item.character.tagline}
                 </p>
-                {item.tags.length > 0 && (
+                {item.character.tags.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
-                    {item.tags.map((tag) => (
+                    {item.character.tags.map((tag) => (
                       <Tag key={tag}>{tag}</Tag>
                     ))}
                   </div>

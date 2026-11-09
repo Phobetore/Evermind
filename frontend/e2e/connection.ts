@@ -1,4 +1,6 @@
 import { expect, type Page } from "@playwright/test";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 
 /**
  * What a phone going to sleep does to a reply being read: the request rejects part
@@ -67,44 +69,54 @@ export async function connectionDiesDuring(page: Page, path: string, trouble: Co
   }, { path, ...options });
 }
 
-/** Every stream of a turn, sent or followed, ends cleanly after `chunks` chunks, for
- *  the first `times` of them, which `window.__closesLeft` can change meanwhile. */
-export async function streamsKeepClosing(page: Page, times: number, chunks = 3) {
-  await page.addInitScript(({ times, chunks }) => {
-    const realFetch = window.fetch;
-    const page_ = window as unknown as { __closesLeft: number };
-    page_.__closesLeft = times;
-    window.fetch = async (input, init) => {
-      const response = await realFetch(input, init);
-      const url = String(input);
-      const stream = url.endsWith("api/chat") || url.endsWith("/turn/stream");
-      if (!stream || page_.__closesLeft <= 0 || !response.body) return response;
-      page_.__closesLeft -= 1;
-      const reader = response.body.getReader();
-      let passed = 0;
-      const body = new ReadableStream({
-        async pull(controller) {
-          if (passed++ >= chunks) {
-            await reader.cancel();
-            controller.close();
-            return;
-          }
-          const next = await reader.read();
-          if (next.done) controller.close();
-          else controller.enqueue(next.value);
-        },
-      });
-      return new Response(body, { status: response.status, headers: response.headers });
-    };
-  }, { times, chunks });
-}
-
 export async function connectionBack(page: Page) {
   await page.evaluate(() => (window as unknown as Record<string, () => void>).__connectionBack());
 }
 
 export async function cutConnection(page: Page) {
   await page.evaluate(() => (window as unknown as Record<string, () => void>).__cutConnection());
+}
+
+/**
+ * The home Wi-Fi, as a proxy between the browser and Evermind: it can lose the answer to a
+ * request while keeping its connection open. Unlike a route, it leaves the browser's cache on,
+ * where a request to the same address can wait behind the one left hanging.
+ */
+export async function homeWifi() {
+  const losing = new Set<string>();
+  const proxy = http.createServer((asked, answer) => {
+    const url = new URL(asked.url!);
+    const passed = http.request(url, { method: asked.method, headers: asked.headers }, (served) => {
+      if (asked.method === "GET" && losing.delete(url.pathname)) return void served.resume();
+      answer.writeHead(served.statusCode!, served.headers);
+      served.pipe(answer);
+    });
+    passed.on("error", () => answer.destroy());
+    answer.on("close", () => passed.destroy());
+    asked.pipe(passed);
+  });
+  await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+  return {
+    server: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`,
+    /** The answer to the next GET of this path is lost on the way back. */
+    loseAnswerTo: (path: string) => losing.add(path),
+    close: () => new Promise<void>((resolve) => {
+      proxy.closeAllConnections();
+      proxy.close(() => resolve());
+    }),
+  };
+}
+
+/** Everything the page says in red from now on, however briefly. */
+export async function listen(page: Page) {
+  await page.evaluate(() => {
+    const said: string[] = [];
+    (window as unknown as { __said: string[] }).__said = said;
+    new MutationObserver(() => {
+      for (const p of document.querySelectorAll("p.text-blood")) said.push(p.textContent ?? "");
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+  return () => page.evaluate(() => (window as unknown as { __said: string[] }).__said);
 }
 
 /** Says what a phone coming back says. The page waits a moment before acting on it. */
@@ -130,16 +142,14 @@ export const writing = (page: Page) => page.locator(".stream-caret");
 export const endingOf = (content: string) =>
   content.trim().split(" ").slice(-3).join(" ").replaceAll("*", "");
 
-function countingRequests(page: Page, ending: string, method?: string) {
+function countingRequests(page: Page, ending: string) {
   let count = 0;
   page.on("request", (sent) => {
-    if (new URL(sent.url()).pathname.endsWith(ending) && (!method || sent.method() === method)) count += 1;
+    if (new URL(sent.url()).pathname.endsWith(ending)) count += 1;
   });
   return () => count;
 }
 
-/** How many times the page has asked about the turn since this was called. */
-export const countingTurnQuestions = (page: Page) => countingRequests(page, "/turn", "GET");
 /** How many times the page has started reading a turn's stream. */
 export const countingStreams = (page: Page) => countingRequests(page, "/turn/stream");
 /** How many times the page has asked for a turn. */
