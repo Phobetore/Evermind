@@ -37,8 +37,8 @@ jobs:
         working-directory: backend
         run: pytest -q
 
-  # The jobs on Linux never run scripts\prod.ps1, the way Evermind starts from the
-  # source on Windows, and 3.1.0 shipped a -Lan that never reached python whole.
+  # Nothing on Linux runs scripts\prod.ps1, which starts Evermind from the source on
+  # Windows, and 3.1.0 shipped a -Lan that never reached python whole.
   windows-start:
     name: Windows start script
     runs-on: windows-latest
