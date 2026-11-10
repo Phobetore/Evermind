@@ -203,7 +203,7 @@
       "memorySettingsAriaLabel": "Mémoire et réglages de la conversation"
     },
     "cardSummary": {
-      "aboutAriaLabel": "À propos de {name}",
+      "aboutAriaLabel": "En savoir plus sur {name}",
       "openButton": "Voir la fiche"
     },
     "context": {

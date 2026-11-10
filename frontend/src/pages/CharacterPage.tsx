@@ -80,7 +80,9 @@ function CharacterDetail({ id }: { id: string }) {
             {character.name}
           </h1>
           {character.tagline && (
-            <p className="mt-1.5 text-lg italic text-parchment-dim">{character.tagline}</p>
+            <p className="mt-1.5 text-lg italic text-parchment-dim">
+              {previewMacros(character.tagline, character.name, t("chat.panel.sceneAnchor.youFallback"))}
+            </p>
           )}
           {character.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">

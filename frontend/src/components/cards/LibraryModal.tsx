@@ -5,6 +5,7 @@ import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { cardToCharacter, installCard, type CardCharacter } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
+import { previewMacros } from "@/lib/utils";
 import { BookMarked, Check, Download, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -99,7 +100,7 @@ export function LibraryModal({
                   )}
                 </div>
                 <p className="mt-1 text-sm italic leading-snug text-parchment-dim">
-                  {item.character.tagline}
+                  {previewMacros(item.character.tagline, item.character.name, t("chat.panel.sceneAnchor.youFallback"))}
                 </p>
                 {item.character.tags.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1">

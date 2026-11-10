@@ -4,7 +4,7 @@ import { Tag } from "@/components/ui/Tag";
 import { useT } from "@/i18n/useT";
 import { previewMacros } from "@/lib/utils";
 import type { Character } from "@/types";
-import { BookOpen } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
 /** The card a conversation is played with, in short, opened from the conversation itself, with the way
@@ -51,7 +51,7 @@ export function CardSummary({
       )}
       <div className="mt-5 flex justify-end">
         <Link to={`/characters/${character.id}`} className="btn btn-primary">
-          <BookOpen className="h-4 w-4" /> {t("chat.cardSummary.openButton")}
+          {t("chat.cardSummary.openButton")} <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
     </Modal>

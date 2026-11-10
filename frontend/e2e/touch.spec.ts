@@ -244,7 +244,8 @@ test.describe("on a touch screen", () => {
       await page.locator("aside:visible:has(textarea)").waitFor({ state: "hidden" });
 
       // The title is cut, not spread: it is wider than its place, if it is not.
-      const title = page.locator("header button[title]").first();
+      // By its own title: the avatar beside it has a title too.
+      const title = page.getByTitle("Rename conversation");
       expect(
         await title.locator("span").evaluate((span) => span.scrollWidth > span.clientWidth),
         `the title is not cut at ${width}px, so it is not what is being tested`,

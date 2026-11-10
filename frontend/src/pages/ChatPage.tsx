@@ -399,6 +399,7 @@ function ChatView({ id }: { id: string }) {
             onClick={() => setShowCard(true)}
             className="shrink-0 rounded-lg transition-opacity hover:opacity-80 pointer-coarse:-my-1 pointer-coarse:p-1"
             aria-label={t("chat.cardSummary.aboutAriaLabel", { name: character.name })}
+            title={t("chat.cardSummary.aboutAriaLabel", { name: character.name })}
             aria-haspopup="dialog"
           >
             <Avatar name={character.name} src={character.avatar_url} className="h-9 w-9 text-base" />
