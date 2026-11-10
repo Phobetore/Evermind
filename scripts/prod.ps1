@@ -12,17 +12,30 @@ param([switch]$Lan)
 
 $root = Split-Path -Parent $PSScriptRoot
 $python = "$root\backend\.venv\Scripts\python.exe"
-$appArgs = if ($Lan) { @("--lan") } else { @() }
 $here = Get-Location
 
 function Stop-Here($why) {
     Write-Host ("$why Nothing was started.").Trim() -ForegroundColor Red
     exit 1
 }
-# Dependencies are installed again whenever the file they come from changes.
+# Dependencies are installed again whenever the file they come from changes. Compared as
+# text: Get-FileHash fails to load in a Windows PowerShell that inherits PowerShell 7's
+# module folders, as one started by a program run from PowerShell 7 does.
 function Changed($file, $stamp) {
-    -not (Test-Path $stamp) -or (Get-FileHash $file).Hash -ne (Get-FileHash $stamp).Hash
+    -not (Test-Path $stamp) -or [IO.File]::ReadAllText($file) -cne [IO.File]::ReadAllText($stamp)
 }
+
+# --lan, as the Linux script spells it, works here too, as does -Lan passed on as text
+# (quoted, or by another script). Anything else is refused rather than ignored: Evermind
+# would start, but not the way it was asked to. An empty argument is no option at all.
+$lanWords = "-lan", "--lan"
+if (@($args | Where-Object { $_ -in $lanWords }).Count) { $Lan = [switch]$true }
+$unknown = @($args | Where-Object { $_ -notin $lanWords -and "$_" -ne "" })
+if ($unknown.Count) {
+    Stop-Here "Unknown option: $unknown. The only option is -Lan, which makes Evermind reachable from the local network."
+}
+# The @() keeps a list of one a list: splatted, a bare string goes letter by letter.
+$appArgs = @(if ($Lan) { "--lan" })
 
 # The environment exists when its pip answers: an interrupted creation leaves a
 # folder without one, which --clear starts over.
@@ -68,6 +81,11 @@ try {
     if ($LASTEXITCODE -ne 0) { Stop-Here "The build failed." }
     Set-Location "$root\backend"
     & $python -m app @appArgs
+} catch {
+    # A command that cannot run at all (npm, without Node.js) lands here, rather than
+    # ending the script with the code of the last command that did run.
+    Write-Host $_ -ForegroundColor Red
+    Stop-Here ""
 } finally {
     Set-Location -LiteralPath $here
 }
