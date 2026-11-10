@@ -37,6 +37,30 @@ jobs:
         working-directory: backend
         run: pytest -q
 
+  # The jobs on Linux never run scripts\prod.ps1, the way Evermind starts from the
+  # source on Windows, and 3.1.0 shipped a -Lan that never reached python whole.
+  windows-start:
+    name: Windows start script
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      # The tests' shared conftest imports the application.
+      - name: Install
+        working-directory: backend
+        run: pip install -e ".[dev]"
+
+      - name: Test
+        working-directory: backend
+        run: pytest -q tests/test_windows_start.py
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest
