@@ -202,6 +202,10 @@
       "renameTitle": "Unterhaltung umbenennen",
       "memorySettingsAriaLabel": "Gedächtnis und Einstellungen der Unterhaltung"
     },
+    "cardSummary": {
+      "aboutAriaLabel": "Über {name}",
+      "openButton": "Karte öffnen"
+    },
     "context": {
       "tooltipUsage": "Kontext: {used} / {budget} Tokens (Fenster {size})",
       "tooltipMessages": "{included}/{total} Nachrichten im Kontext",

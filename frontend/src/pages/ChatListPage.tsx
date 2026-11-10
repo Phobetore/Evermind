@@ -1,3 +1,4 @@
+import { CardSummary } from "@/components/chat/CardSummary";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
@@ -6,13 +7,16 @@ import { useT } from "@/i18n/useT";
 import { clearDraft, pruneDrafts } from "@/lib/drafts";
 import { describeError } from "@/lib/errors";
 import { timeAgo } from "@/lib/utils";
-import type { Conversation } from "@/types";
-import { GitBranch, MessagesSquare, Pencil, PenLine, Trash2 } from "lucide-react";
+import type { Conversation, Persona } from "@/types";
+import { BookOpenText, GitBranch, MessagesSquare, Pencil, PenLine, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 export function ChatListPage() {
   const t = useT();
+  // The conversation whose card is shown in short, and the personas, for the {{user}} of its card.
+  const [summaryOf, setSummaryOf] = useState<Conversation | null>(null);
+  const [personas, setPersonas] = useState<Persona[]>([]);
   const [conversations, setConversations] = useState<Conversation[] | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -46,8 +50,11 @@ export function ChatListPage() {
     }
   }
 
-  const load = () =>
-    data.conversations
+  const load = () => {
+    // Without them a card says "you" for {{user}}: no reason to fail the list over it. Read again
+    // with the list, so that Retry after a failed first load brings them back too.
+    data.personas.list().then(setPersonas, () => {});
+    return data.conversations
       .list()
       .then((list) => {
         setConversations(list);
@@ -56,6 +63,7 @@ export function ChatListPage() {
         setWithDraft(pruneDrafts(list.map((c) => c.id)));
       })
       .catch((error) => setFailure({ error }));
+  };
   useEffect(() => {
     load();
   }, []);
@@ -94,30 +102,60 @@ export function ChatListPage() {
               to={`/chat/${convo.id}`}
               className="group panel flex flex-wrap items-center gap-4 px-5 py-4 transition-all hover:-translate-y-0.5 hover:border-ember-600/40"
             >
-              <Avatar
-                name={convo.character?.name ?? "?"}
-                src={convo.character?.avatar_url}
-                className="h-12 w-12 shrink-0 text-lg"
-              />
+              {convo.character ? (
+                // The card in short, as from the conversation's own header; the rest of the row opens the conversation.
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSummaryOf(convo);
+                  }}
+                  className="shrink-0 rounded-xl transition-opacity hover:opacity-80"
+                  aria-label={t("chat.cardSummary.aboutAriaLabel", { name: convo.character.name })}
+                  title={t("chat.cardSummary.aboutAriaLabel", { name: convo.character.name })}
+                  aria-haspopup="dialog"
+                >
+                  <Avatar name={convo.character.name} src={convo.character.avatar_url} className="h-12 w-12 text-lg" />
+                </button>
+              ) : (
+                <Avatar name="?" className="h-12 w-12 shrink-0 text-lg" />
+              )}
               <div className="min-w-0 flex-1">
+                {/* Below sm a badge is its icon, its word kept for a screen reader: on a phone the line has
+                    about 140px, and the words would push the name out of it. */}
                 <div className="flex items-baseline gap-2">
                   <h2 className="truncate font-display font-semibold">
                     {convo.character?.name ?? t("chatList.deletedCharacter")}
                   </h2>
+                  {convo.character?.kind === "scenario" && (
+                    <span
+                      className="flex shrink-0 items-center gap-1 rounded-full border border-arcane-500/40 bg-arcane-glow px-1.5 py-0.5 font-display text-[0.65rem] text-arcane-300 sm:px-2"
+                      title={t("chat.panel.kindScenario")}
+                    >
+                      <BookOpenText className="h-2.5 w-2.5" />
+                      <span className="sr-only sm:not-sr-only">{t("chat.panel.kindScenario")}</span>
+                    </span>
+                  )}
                   {convo.forked_from && (
-                    <span className="flex shrink-0 items-center gap-1 rounded-full border border-arcane-500/40 bg-arcane-glow px-2 py-0.5 font-display text-[0.65rem] text-arcane-300">
-                      <GitBranch className="h-2.5 w-2.5" /> {t("chatList.forkedBadge")}
+                    <span
+                      className="flex shrink-0 items-center gap-1 rounded-full border border-arcane-500/40 bg-arcane-glow px-1.5 py-0.5 font-display text-[0.65rem] text-arcane-300 sm:px-2"
+                      title={t("chatList.forkedBadge")}
+                    >
+                      <GitBranch className="h-2.5 w-2.5" />
+                      <span className="sr-only sm:not-sr-only">{t("chatList.forkedBadge")}</span>
                     </span>
                   )}
                   {withDraft.has(convo.id) && (
                     <span
-                      className="flex shrink-0 items-center gap-1 rounded-full border border-ember-600/40 bg-ember-glow px-2 py-0.5 font-display text-[0.65rem] text-ember-300"
+                      className="flex shrink-0 items-center gap-1 rounded-full border border-ember-600/40 bg-ember-glow px-1.5 py-0.5 font-display text-[0.65rem] text-ember-300 sm:px-2"
                       title={t("chatList.draftTooltip")}
                     >
-                      <PenLine className="h-2.5 w-2.5" /> {t("chatList.draftBadge")}
+                      <PenLine className="h-2.5 w-2.5" />
+                      <span className="sr-only sm:not-sr-only">{t("chatList.draftBadge")}</span>
                     </span>
                   )}
-                  <span className="shrink-0 text-xs text-mist-dim">
+                  {/* Below sm on the second line, where the title gives way to it, not the name. */}
+                  <span className="hidden shrink-0 text-xs text-mist-dim sm:inline">
                     {timeAgo(convo.last_message_at ?? convo.updated_at, t)}
                   </span>
                 </div>
@@ -136,6 +174,7 @@ export function ChatListPage() {
                   />
                 ) : (
                   <p className="truncate text-sm text-mist">
+                    <span className="sm:hidden">{timeAgo(convo.last_message_at ?? convo.updated_at, t)} · </span>
                     {convo.title || t("chatList.newConversationFallback")} ·{" "}
                     {t("chatList.messageCount", { count: convo.message_count ?? 0 })}
                   </p>
@@ -171,6 +210,13 @@ export function ChatListPage() {
             </Link>
           ))}
         </div>
+      )}
+      {summaryOf?.character && (
+        <CardSummary
+          character={summaryOf.character}
+          personaName={personas.find((p) => p.id === summaryOf.persona_id)?.name ?? null}
+          onClose={() => setSummaryOf(null)}
+        />
       )}
     </div>
   );

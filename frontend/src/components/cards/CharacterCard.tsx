@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
 import { useT } from "@/i18n/useT";
+import { previewMacros } from "@/lib/utils";
 
 export function CharacterCard({
   character,
@@ -88,7 +89,7 @@ export function CharacterCard({
         </h2>
         {character.tagline && (
           <p className="line-clamp-2 hidden text-sm italic leading-snug text-parchment-dim sm:block">
-            {character.tagline}
+            {previewMacros(character.tagline, character.name, t("chat.panel.sceneAnchor.youFallback"))}
           </p>
         )}
         {character.tags.length > 0 && (

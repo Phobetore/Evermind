@@ -1,3 +1,4 @@
+import { CardSummary } from "@/components/chat/CardSummary";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ModelSilent } from "@/components/chat/ModelSilent";
@@ -63,6 +64,7 @@ function ChatView({ id }: { id: string }) {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [persona, setPersona] = useState<Persona | null>(null);
+  const [showCard, setShowCard] = useState(false);
   // Over the conversation on a phone, so open there only once asked for, and closed if the screen narrows.
   const [wide, setWide] = useState(() => window.matchMedia(WIDE).matches);
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia(ROOMY).matches);
@@ -391,7 +393,17 @@ function ChatView({ id }: { id: string }) {
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <Avatar name={character.name} src={character.avatar_url} className="h-9 w-9 text-base" />
+          {/* The avatar opens the card in short, as in a messaging app. Not the name too: stacked over
+              the title, a second 44px area would take the title's touches. */}
+          <button
+            onClick={() => setShowCard(true)}
+            className="shrink-0 rounded-lg transition-opacity hover:opacity-80 pointer-coarse:-my-1 pointer-coarse:p-1"
+            aria-label={t("chat.cardSummary.aboutAriaLabel", { name: character.name })}
+            title={t("chat.cardSummary.aboutAriaLabel", { name: character.name })}
+            aria-haspopup="dialog"
+          >
+            <Avatar name={character.name} src={character.avatar_url} className="h-9 w-9 text-base" />
+          </button>
           <div className="min-w-0">
             <h1 className="truncate font-display font-semibold leading-tight">{character.name}</h1>
             {titleDraft !== null ? (
@@ -598,6 +610,9 @@ function ChatView({ id }: { id: string }) {
             setAdjustingWallpaper(true);
           }}
         />
+      )}
+      {showCard && (
+        <CardSummary character={character} personaName={persona?.name ?? null} onClose={() => setShowCard(false)} />
       )}
     </div>
   );
