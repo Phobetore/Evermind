@@ -1,18 +1,21 @@
+import { CardSummary } from "@/components/chat/CardSummary";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
+import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { clearDraft, pruneDrafts } from "@/lib/drafts";
 import { describeError } from "@/lib/errors";
 import { timeAgo } from "@/lib/utils";
-import type { Conversation } from "@/types";
+import type { Character, Conversation } from "@/types";
 import { GitBranch, MessagesSquare, Pencil, PenLine, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 export function ChatListPage() {
   const t = useT();
+  const [cardOf, setCardOf] = useState<Character | null>(null);
   const [conversations, setConversations] = useState<Conversation[] | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -94,16 +97,32 @@ export function ChatListPage() {
               to={`/chat/${convo.id}`}
               className="group panel flex flex-wrap items-center gap-4 px-5 py-4 transition-all hover:-translate-y-0.5 hover:border-ember-600/40"
             >
-              <Avatar
-                name={convo.character?.name ?? "?"}
-                src={convo.character?.avatar_url}
-                className="h-12 w-12 shrink-0 text-lg"
-              />
+              {convo.character ? (
+                // The card in short, as from the conversation's own header; the rest of the row opens the conversation.
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setCardOf(convo.character ?? null);
+                  }}
+                  className="shrink-0 rounded-xl transition-opacity hover:opacity-80"
+                  aria-label={t("chat.cardSummary.aboutAriaLabel", { name: convo.character.name })}
+                  title={t("chat.cardSummary.aboutAriaLabel", { name: convo.character.name })}
+                  aria-haspopup="dialog"
+                >
+                  <Avatar name={convo.character.name} src={convo.character.avatar_url} className="h-12 w-12 text-lg" />
+                </button>
+              ) : (
+                <Avatar name="?" className="h-12 w-12 shrink-0 text-lg" />
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <h2 className="truncate font-display font-semibold">
                     {convo.character?.name ?? t("chatList.deletedCharacter")}
                   </h2>
+                  {convo.character?.kind === "scenario" && (
+                    <Tag tone="arcane" className="shrink-0">{t("chat.panel.kindScenario")}</Tag>
+                  )}
                   {convo.forked_from && (
                     <span className="flex shrink-0 items-center gap-1 rounded-full border border-arcane-500/40 bg-arcane-glow px-2 py-0.5 font-display text-[0.65rem] text-arcane-300">
                       <GitBranch className="h-2.5 w-2.5" /> {t("chatList.forkedBadge")}
@@ -172,6 +191,7 @@ export function ChatListPage() {
           ))}
         </div>
       )}
+      {cardOf && <CardSummary character={cardOf} personaName={null} onClose={() => setCardOf(null)} />}
     </div>
   );
 }

@@ -202,6 +202,10 @@
       "renameTitle": "Renombrar la conversación",
       "memorySettingsAriaLabel": "Memoria y ajustes de la conversación"
     },
+    "cardSummary": {
+      "aboutAriaLabel": "Sobre {name}",
+      "openButton": "Ver la ficha"
+    },
     "context": {
       "tooltipUsage": "Contexto: {used} / {budget} tokens (ventana {size})",
       "tooltipMessages": "{included}/{total} mensajes en el contexto",
