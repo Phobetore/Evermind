@@ -50,8 +50,11 @@ export function ChatListPage() {
     }
   }
 
-  const load = () =>
-    data.conversations
+  const load = () => {
+    // Without them a card says "you" for {{user}}: no reason to fail the list over it. Read again
+    // with the list, so that Retry after a failed first load brings them back too.
+    data.personas.list().then(setPersonas, () => {});
+    return data.conversations
       .list()
       .then((list) => {
         setConversations(list);
@@ -60,10 +63,9 @@ export function ChatListPage() {
         setWithDraft(pruneDrafts(list.map((c) => c.id)));
       })
       .catch((error) => setFailure({ error }));
+  };
   useEffect(() => {
     load();
-    // Without them a card says "you" for {{user}}: no reason to fail the list over it.
-    data.personas.list().then(setPersonas, () => {});
   }, []);
 
   async function remove(e: React.MouseEvent, convo: Conversation) {
@@ -152,7 +154,8 @@ export function ChatListPage() {
                       <span className="sr-only sm:not-sr-only">{t("chatList.draftBadge")}</span>
                     </span>
                   )}
-                  <span className="shrink-0 text-xs text-mist-dim">
+                  {/* Below sm on the second line, where the title gives way to it, not the name. */}
+                  <span className="hidden shrink-0 text-xs text-mist-dim sm:inline">
                     {timeAgo(convo.last_message_at ?? convo.updated_at, t)}
                   </span>
                 </div>
@@ -171,6 +174,7 @@ export function ChatListPage() {
                   />
                 ) : (
                   <p className="truncate text-sm text-mist">
+                    <span className="sm:hidden">{timeAgo(convo.last_message_at ?? convo.updated_at, t)} · </span>
                     {convo.title || t("chatList.newConversationFallback")} ·{" "}
                     {t("chatList.messageCount", { count: convo.message_count ?? 0 })}
                   </p>
