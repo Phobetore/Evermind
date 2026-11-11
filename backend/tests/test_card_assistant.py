@@ -209,3 +209,19 @@ async def test_an_error_under_500_leaves_nothing_in_the_log(client, fake_provide
     resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
     assert resp.status_code == 400
     assert warnings_of(caplog) == []
+
+
+async def test_an_empty_card_is_logged_with_the_names_of_the_fields_it_had(
+        client, fake_provider, caplog):
+    await add_connection(client)
+    answer = '{"personnage": {"nom": "Ana"}}'
+    fake_provider.script = [ProviderEvent(type="delta", text=answer), ProviderEvent(type="done")]
+    resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
+    assert resp.status_code == 502
+    assert resp.json()["kind"] == "model_empty"
+    empty, failed = warnings_of(caplog)
+    assert empty.getMessage() == (
+        "card assistant: no card field in the answer, whose fields are ['personnage']; "
+        f'{len(answer)} characters, ends with "{answer}"')
+    assert "model_empty" in failed.getMessage()
+    assert all(r.exc_info is None for r in caplog.records)

@@ -80,6 +80,10 @@ async def generate_card(db: aiosqlite.Connection, prompt: str, kind: str,
                        kind=MODEL_UNREADABLE)
     draft = clean_card_draft(parsed)
     if not draft:
+        # The names tell why: a model that translated the field names, or nested the card under one key.
+        names = sorted(str(name)[:40] for name in parsed)[:12]
+        logger.warning("card assistant: no card field in the answer, whose fields are %s; %s",
+                       names, describe_answer(answer))
         raise AppError("The model returned an empty card. Try again.", 502, kind=MODEL_EMPTY)
     # never overwrite what the creator already wrote
     for key, value in existing_fields(existing).items():
