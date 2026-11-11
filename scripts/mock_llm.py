@@ -31,6 +31,9 @@ FAIL_AFTER = 2.0
 QUIET_FOR = 8.0
 # Words a conversation that says MOCK_FAILS_MIDWAY gets before the connection is cut.
 MIDWAY_AFTER = 4
+# Pieces of reasoning a card request that says MOCK_THINKS or MOCK_ONLY_THINKS gets before its
+# answer, sent apart from it as servers that show a model's reasoning do.
+THOUGHTS = 40
 
 REPLIES = [
     "*{char} watches you for a moment, weighing something.* Now that is an interesting "
@@ -125,6 +128,21 @@ class Handler(BaseHTTPRequestHandler):
         if "MOCK_SILENT" in json.dumps(payload):
             reply = ""
 
+        # A card the model runs out of room for: it stops after the greeting and the comma that
+        # follows it, and says why, as a server does.
+        card = "card-writer" in system
+        finish = "stop"
+        cut = card and "MOCK_CUT" in json.dumps(payload) and ', "alternate_greetings"' in reply
+        if cut:
+            reply = reply[:reply.index(', "alternate_greetings"') + 1]
+            finish = "length"
+        # A model that reasons first; or one that spends all its room on reasoning, and answers nothing.
+        thinks = card and ("MOCK_THINKS" in json.dumps(payload)
+                           or "MOCK_ONLY_THINKS" in json.dumps(payload))
+        if card and "MOCK_ONLY_THINKS" in json.dumps(payload):
+            reply = ""
+            finish = "length"
+
         # A reply that is cut off after a few words. A plain close would read as a normal
         # end, since this sends no length for the stream; the length it promises and does
         # not keep is what makes the client see a connection that broke.
@@ -138,16 +156,25 @@ class Handler(BaseHTTPRequestHandler):
         if "MOCK_QUIET" in json.dumps(payload):
             time.sleep(QUIET_FOR)
         delay = SLOW_WORD_DELAY if "SLOWLY" in json.dumps(payload) else WORD_DELAY
-        for number, word in enumerate(reply.split(" ") if reply else []):
+        for number in range(THOUGHTS if thinks else 0):
+            thought = f"Step {number + 1}: weighing the brief, the voice and the stakes. "
+            chunk = {"choices": [{"delta": {"reasoning_content": thought}}]}
+            self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
+            self.wfile.flush()
+            time.sleep(delay)
+        words = reply.split(" ") if reply else []
+        for number, word in enumerate(words):
             if midway and number == MIDWAY_AFTER:
                 self.close_connection = True
                 return
-            chunk = {"choices": [{"delta": {"content": word + " "}}]}
+            # A cut card ends exactly where the model stopped, on its comma.
+            text = word if cut and number == len(words) - 1 else word + " "
+            chunk = {"choices": [{"delta": {"content": text}}]}
             self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
             self.wfile.flush()
             time.sleep(delay)
-        self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"stop"}],'
-                         b'"usage":{"total_tokens":42}}\n\n')
+        self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"%s"}],'
+                         b'"usage":{"total_tokens":42}}\n\n' % finish.encode())
         self.wfile.write(b"data: [DONE]\n\n")
         self.wfile.flush()
 
