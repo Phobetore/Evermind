@@ -18,6 +18,8 @@ MODEL_ERROR = "model_error"
 MODEL_EMPTY = "model_empty"
 # A reply that came back, but not in a shape that could be used.
 MODEL_UNREADABLE = "model_unreadable"
+# A model that spent all it had on its reasoning, and wrote not one character of its answer.
+MODEL_ONLY_THOUGHT = "model_only_thought"
 NO_CONNECTION = "no_connection"
 NOT_FOUND = "not_found"
 # A turn was asked for while a different one was being written.

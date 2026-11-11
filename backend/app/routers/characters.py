@@ -23,13 +23,21 @@ async def create_character(payload: CharacterIn, db: aiosqlite.Connection = Depe
     return await repo.create(db, payload.model_dump())
 
 
-@router.post("/assist")
+@router.post("/assist", status_code=202)
 async def assist_card(payload: CardAssistRequest, db: aiosqlite.Connection = Depends(get_db)):
-    """Generate a full card draft from a free-form brief (nothing is saved)."""
-    return await card_assistant.generate_card(
-        db, prompt=payload.prompt, kind=payload.kind,
-        connection_id=payload.connection_id, existing=payload.existing,
-    )
+    """Begin drafting a full card from a free-form brief (nothing is saved); answers at once."""
+    return {"id": await card_assistant.start(db, payload)}
+
+
+# Declared before the routes of a character, so that no id of a card ever stands for one of these.
+@router.get("/assist/{job_id}")
+async def assist_state(job_id: str):
+    return card_assistant.state(job_id)
+
+
+@router.delete("/assist/{job_id}")
+async def stop_assist(job_id: str):
+    return await card_assistant.stop(job_id)
 
 
 @router.get("/{char_id}")
