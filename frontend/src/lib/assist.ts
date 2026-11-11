@@ -4,6 +4,7 @@
 import { data, DataError, type Asking, type AssistField, type AssistState, type CharacterInput } from "@/data";
 import type { Translate } from "@/i18n/I18nProvider";
 import { describeFailure, isUnanswered } from "@/lib/errors";
+import { newId } from "@/lib/utils";
 import type { Kind } from "@/types";
 
 const PREFIX = "evermind:assist:";
@@ -50,6 +51,25 @@ export function forgetJob(scope: string): void {
   } catch {
     /* storage this site may not use has nothing to clear */
   }
+}
+
+/** Moves what is remembered for a card not saved yet to the card it has become, so that the job
+ *  follows it and the next new card does not find it. */
+export function moveJob(from: string, to: string): void {
+  const job = rememberedJob(from);
+  if (!job) return;
+  rememberJob(to, job);
+  forgetJob(from);
+}
+
+/** The id a start goes out under. A start whose answer was lost may have begun a job all the same:
+ *  asked again under the same id for the same brief, the server answers with that job. */
+export function clientIdFor(
+  lost: { clientId: string; brief: string } | null,
+  brief: string,
+  draw: () => string = newId,
+): string {
+  return lost && lost.brief === brief ? lost.clientId : draw();
 }
 
 export const POLL_MS = 1_000;
@@ -146,6 +166,17 @@ export interface AssistOutcome {
 export function outcome(state: AssistState): AssistOutcome {
   const { lore_entries: lore = [], ...fields } = state.draft ?? {};
   return { fields, lore, missing: state.missing, cut: state.cut, stopped: state.stopped, error: state.error };
+}
+
+const isEmpty = (value: unknown) =>
+  typeof value === "string" ? !value.trim() : Array.isArray(value) ? value.length === 0 : value == null;
+
+/** Of the fields a job wrote, those the form can take now: the draft holds the creator's fields as
+ *  they were when the job began, so a field is taken only if it is still empty in the form. */
+export function fieldsToTake(form: Partial<CharacterInput>, fields: Partial<CharacterInput>): Partial<CharacterInput> {
+  return Object.fromEntries(
+    Object.entries(fields).filter(([key]) => isEmpty(form[key as keyof CharacterInput])),
+  ) as Partial<CharacterInput>;
 }
 
 /** Whether anything of the card came. */

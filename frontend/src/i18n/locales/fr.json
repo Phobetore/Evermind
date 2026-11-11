@@ -418,12 +418,12 @@
       "chipDone": "terminé",
       "statusWaiting": "En attente du premier mot du modèle…",
       "statusThinking": "Le modèle réfléchit… {chars} caractères pour l'instant.",
-      "statusWriting": "Écriture : {field}…",
+      "statusWriting": "Écriture\u00a0: {field}…",
       "statusBetween": "Écriture de la fiche…",
       "connectionWait": "En attente de la connexion… la fiche continue de s'écrire entre-temps.",
-      "missing": "Il manque encore : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque.",
-      "missingCut": "Le modèle a manqué de place avant la fin. Il manque : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque.",
-      "missingStopped": "Génération arrêtée avant la fin. Il manque : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque."
+      "missing": "Il manque encore\u00a0: {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque.",
+      "missingCut": "Le modèle a manqué de place avant la fin. Il manque\u00a0: {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque.",
+      "missingStopped": "Génération arrêtée avant la fin. Il manque\u00a0: {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque."
     }
   },
   "lorebook": {

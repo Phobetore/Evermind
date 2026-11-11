@@ -5,9 +5,12 @@ import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { data, DataError, type AssistField, type AssistState, type CharacterInput } from "@/data";
 import { useT } from "@/i18n/useT";
-import { describeOutcome, follow, forgetJob, outcome, rememberJob, rememberedJob, scopeOf } from "@/lib/assist";
+import {
+  clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, moveJob, outcome, rememberJob, rememberedJob,
+  scopeOf,
+} from "@/lib/assist";
 import { cardFile } from "@/lib/cards";
-import { describeError } from "@/lib/errors";
+import { describeError, isUnanswered } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
 import type { CharacterWithLore, Connection, Kind, LoreEntry } from "@/types";
 import { clsx } from "clsx";
@@ -106,6 +109,10 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const fileInput = useRef<HTMLInputElement>(null);
   // A save whose portrait fails has made the new card already.
   const created = useRef("");
+  // The card a job belongs to: a card saved meanwhile is no longer "new".
+  const scopeNow = useCallback(() => scopeOf(initial?.id || created.current), [initial?.id]);
+  // A start whose answer was lost, which may have begun a job: asked again for the same brief, it is that job.
+  const lostStart = useRef<{ clientId: string; brief: string } | null>(null);
 
   useEffect(() => {
     data.connections?.list().then(setConnections).catch(() => {});
@@ -128,12 +135,13 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     if (settled.current === state.id) return;
     settled.current = state.id;
     const ended = outcome(state);
-    setDraft((d) => ({ ...d, ...ended.fields }));
+    // What was typed while the model wrote stays: only a field still empty takes what it wrote.
+    setDraft((d) => ({ ...d, ...fieldsToTake(d, ended.fields) }));
     if (ended.lore.length) {
       const additions = ended.lore.map((entry) => ({ ...entry, id: newId(), enabled: true }));
       setLoreEntries((prev) => [...prev, ...additions]);
     }
-    forgetJob(scope);
+    forgetJob(scopeNow());
     setGenerating(false);
     setStopping(false);
     setWaiting(false);
@@ -141,18 +149,18 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     const said = describeOutcome(ended, latest.current.t, label);
     if (state.error) setAssistError(said);
     else setAssistNote(said);
-  }, [scope, label]);
+  }, [scopeNow, label]);
 
   /** The server does not know the job any more, or it never had it. */
   const lost = useCallback(() => {
     watching.current?.abort();
-    forgetJob(scope);
+    forgetJob(scopeNow());
     setGenerating(false);
     setStopping(false);
     setWaiting(false);
     setSeen(null);
     setAssistError(latest.current.t("characters.assist.gone"));
-  }, [scope]);
+  }, [scopeNow]);
 
   /** Follows a job until it ends. Leaving the form only stops the following: the job goes on, and is found again. */
   const watch = useCallback((id: string) => {
@@ -218,6 +226,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     setAssistError(null);
     setAssistNote(null);
     setSeen({ state: null, at: Date.now() });
+    const clientId = clientIdFor(lostStart.current, brief);
     try {
       const existing: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(draft)) {
@@ -231,13 +240,15 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
         kind: draft.kind,
         existing,
         connection_id: assistConnectionId || null,
-        client_id: newId(),
+        client_id: clientId,
       });
       // Written down before anything else: from here the job is the server's, and a page that is
       // left or reloaded from now on finds it again.
-      rememberJob(scope, { id, brief, kind: draft.kind });
+      rememberJob(scopeNow(), { id, brief, kind: draft.kind });
+      lostStart.current = null;
       if (here.current) watch(id);
     } catch (e) {
+      lostStart.current = isUnanswered(e) ? { clientId, brief } : null;
       setAssistError(describeError(e, t, t("characters.assist.generateError")));
       setGenerating(false);
       setSeen(null);
@@ -258,6 +269,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
         ? await data.characters.update(id, card)
         : await data.characters.create(card);
       created.current = saved.id;
+      // A job begun on this card while it was not saved is the new card's now.
+      if (!initial) moveJob("new", saved.id);
       if (avatarFile) {
         await data.characters.uploadAvatar(saved.id, avatarFile);
       }

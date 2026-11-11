@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { DataError } from "@/data/errors";
 import type { AssistState } from "@/data";
 import {
-  describeOutcome, follow, forgetJob, formatClock, kept, outcome, progress, rememberJob, rememberedJob, scopeOf,
-  type Followed,
+  clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, formatClock, kept, moveJob, outcome, progress,
+  rememberJob, rememberedJob, scopeOf, type Followed,
 } from "./assist";
 
 /** A state as the server gives it, a job just begun unless said otherwise. */
@@ -96,6 +96,65 @@ describe("a job being remembered", () => {
     useStorage(full);
     expect(() => rememberJob("c1", { id: "j1", brief: "x", kind: "character" })).not.toThrow();
     expect(rememberedJob("c1")).toBeNull();
+  });
+});
+
+describe("a job that follows its card", () => {
+  beforeEach(() => useStorage(new MemoryStorage()));
+
+  test("a job begun on a card not saved yet is the saved card's, and the next new card does not find it", () => {
+    rememberJob("new", { id: "j1", brief: "A keeper", kind: "scenario" });
+    moveJob("new", "c1");
+    expect(rememberedJob("c1")).toEqual({ id: "j1", brief: "A keeper", kind: "scenario" });
+    expect(rememberedJob("new")).toBeNull();
+  });
+
+  test("with no job, nothing moves, and a job of the saved card is not touched", () => {
+    rememberJob("c1", { id: "j2", brief: "x", kind: "character" });
+    moveJob("new", "c1");
+    expect(rememberedJob("c1")?.id).toBe("j2");
+  });
+
+  test("blocked storage breaks nothing", () => {
+    blockStorage();
+    expect(() => moveJob("new", "c1")).not.toThrow();
+  });
+});
+
+describe("the id a start goes out under", () => {
+  let drawn = 0;
+  const draw = () => `drawn-${++drawn}`;
+
+  test("a start whose answer was lost is asked again under the same id while the brief is the same", () => {
+    expect(clientIdFor({ clientId: "kept", brief: "A keeper" }, "A keeper", draw)).toBe("kept");
+  });
+
+  test("a changed brief, or no start lost, draws a new one", () => {
+    expect(clientIdFor({ clientId: "kept", brief: "A keeper" }, "A keeper, older", draw)).toBe("drawn-1");
+    expect(clientIdFor(null, "A keeper", draw)).toBe("drawn-2");
+  });
+});
+
+describe("what the form takes of a card once it is written", () => {
+  test("a field typed while the card was written is kept", () => {
+    expect(fieldsToTake({ name: "Typed", tagline: "" }, { name: "Mira", tagline: "Keeper" })).toEqual({ tagline: "Keeper" });
+  });
+
+  test("an empty field takes what the model wrote, and so does one of spaces", () => {
+    expect(fieldsToTake({ name: "", description: "   " }, { name: "Mira", description: "Tired." })).toEqual({
+      name: "Mira", description: "Tired.",
+    });
+  });
+
+  test("lists too: one with something in it is kept, an empty one is filled", () => {
+    const form = { tags: ["mine"], alternate_greetings: [] as string[] };
+    expect(fieldsToTake(form, { tags: ["sea"], alternate_greetings: ["Hello."] })).toEqual({
+      alternate_greetings: ["Hello."],
+    });
+  });
+
+  test("a field the form does not hold at all is taken", () => {
+    expect(fieldsToTake({}, { greeting: "Come in." })).toEqual({ greeting: "Come in." });
   });
 });
 
