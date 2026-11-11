@@ -240,3 +240,12 @@ async def test_a_folder_without_index_is_not_served(make_client, tmp_path):
     async with make_client(EVERMIND_UI_DIR=str(empty)) as c:
         assert (await c.get("/")).status_code == 404
         assert (await c.get("/api/health")).status_code == 200
+
+
+async def test_the_tab_icon_is_served_and_revalidated(ui_client, ui_dir):
+    # Vite copies public/ to the root of the build: no hash in the name, so it must not stick.
+    (ui_dir / "favicon.svg").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>", encoding="utf-8")
+    r = await ui_client.get("/favicon.svg")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("image/svg+xml")
+    assert r.headers["cache-control"] == "no-cache"
