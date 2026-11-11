@@ -239,6 +239,72 @@ async def test_anthropic_never_ends_on_the_models_own_turn():
     assert body["messages"][-1] == {"role": "user", "content": "[Continue.]\n\n[Note.]"}
 
 
+def streaming(body: bytes):
+    return lambda _: httpx.Response(200, content=body, headers={"content-type": "text/event-stream"})
+
+
+async def test_openai_counts_the_reasoning_and_never_keeps_it():
+    events = await collect(oai_provider(streaming(sse([
+        json.dumps({"choices": [{"delta": {"reasoning_content": "Let me think"}}]}),
+        json.dumps({"choices": [{"delta": {"reasoning": "Hmm."}}]}),
+        json.dumps({"choices": [{"delta": {"content": "Hi"}}]}),
+        "[DONE]",
+    ]))))
+    assert [(e.type, e.text, e.count) for e in events] == [
+        ("thought", "", 12), ("thought", "", 4), ("delta", "Hi", 0), ("done", "", 0)]
+
+
+@pytest.mark.parametrize(("finish", "stop"), [
+    ("length", "length"), ("stop", "stop"), ("content_filter", "content_filter"), (None, None)])
+async def test_openai_says_how_the_model_stopped(finish, stop):
+    events = await collect(oai_provider(streaming(sse([
+        json.dumps({"choices": [{"delta": {"content": "Hi"}}]}),
+        json.dumps({"choices": [{"delta": {}, "finish_reason": finish}]}),
+        "[DONE]",
+    ]))))
+    assert (events[-1].type, events[-1].stop) == ("done", stop)
+
+
+def anthropic_events(*events: dict) -> bytes:
+    return b"".join(f"event: {e['type']}\ndata: {json.dumps(e)}\n\n".encode() for e in events)
+
+
+async def test_anthropic_counts_the_thinking_and_never_keeps_it():
+    events = await collect(anth_provider(streaming(anthropic_events(
+        {"type": "content_block_delta", "delta": {"type": "thinking_delta", "thinking": "Plan it"}},
+        {"type": "content_block_delta", "delta": {"type": "signature_delta", "signature": "abc"}},
+        {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Hi"}},
+        {"type": "message_stop"},
+    ))))
+    assert [(e.type, e.text, e.count) for e in events] == [
+        ("thought", "", 7), ("delta", "Hi", 0), ("done", "", 0)]
+
+
+@pytest.mark.parametrize(("reason", "stop"), [
+    ("max_tokens", "length"), ("end_turn", "end_turn"), (None, None)])
+async def test_anthropic_says_how_the_model_stopped(reason, stop):
+    events = await collect(anth_provider(streaming(anthropic_events(
+        {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Hi"}},
+        {"type": "message_delta", "delta": {"stop_reason": reason}, "usage": {"output_tokens": 1}},
+        {"type": "message_stop"},
+    ))))
+    assert (events[-1].type, events[-1].stop, events[-1].usage) == (
+        "done", stop, {"output_tokens": 1})
+
+
+async def test_a_whole_answer_is_the_same_with_or_without_reasoning():
+    from app.providers import complete
+
+    thinking = oai_provider(streaming(sse([
+        json.dumps({"choices": [{"delta": {"reasoning_content": "Think"}}]}),
+        json.dumps({"choices": [{"delta": {"content": "Hel"}}]}),
+        json.dumps({"choices": [{"delta": {"reasoning_content": "More"}}]}),
+        json.dumps({"choices": [{"delta": {"content": "lo"}}]}),
+        "[DONE]",
+    ])))
+    assert await complete(thinking, PAYLOAD) == "Hello"
+
+
 def test_get_provider_dispatch():
     assert isinstance(get_provider(OAI_CONN), OpenAICompatProvider)
     assert isinstance(get_provider(ANTH_CONN), AnthropicProvider)

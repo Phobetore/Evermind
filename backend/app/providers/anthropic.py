@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 from contextlib import aclosing
 
 from ..prompting.engine import PromptPayload
-from .base import Provider, ProviderError, ProviderEvent, words_of
+from .base import STOPPED_FOR_LENGTH, Provider, ProviderError, ProviderEvent, words_of
 
 API_VERSION = "2023-06-01"
 
@@ -63,18 +63,26 @@ class AnthropicProvider(Provider):
         return body
 
     async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
-        usage = None
+        usage = stop = None
         async with aclosing(self._sse("/v1/messages", self._build_body(payload))) as events:
             async for event in events:
                 kind = event.get("type")
                 if kind == "content_block_delta":
-                    text = (event.get("delta") or {}).get("text")
+                    delta = event.get("delta") or {}
+                    thought = delta.get("thinking") if delta.get("type") == "thinking_delta" else None
+                    if isinstance(thought, str) and thought:
+                        yield ProviderEvent(type="thought", count=len(thought))
+                    text = delta.get("text")
                     if text:
                         yield ProviderEvent(type="delta", text=text)
                 elif kind == "message_delta":
                     usage = event.get("usage") or usage
+                    stop = (event.get("delta") or {}).get("stop_reason") or stop
                 elif kind == "error":
                     raise ProviderError(words_of(event))
                 elif kind == "message_stop":
                     break
-        yield ProviderEvent(type="done", usage=usage)
+        if stop == "max_tokens":
+            stop = STOPPED_FOR_LENGTH
+        yield ProviderEvent(type="done", usage=usage,
+                            stop=str(stop) if stop is not None else None)

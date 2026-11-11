@@ -25,11 +25,20 @@ RATE_LIMITED = "model_rate_limited"
 NO_TEXT = "model_no_text"
 
 
+# How a model stopped when it ran out of room, whatever its server calls it.
+STOPPED_FOR_LENGTH = "length"
+
+
 @dataclass
 class ProviderEvent:
-    type: Literal["delta", "done"]
+    type: Literal["delta", "thought", "done"]
     text: str = ""
     usage: dict | None = None
+    # On "done": STOPPED_FOR_LENGTH, else the server's own word for why the model stopped, if it gave one.
+    stop: str | None = None
+    # On "thought": how many characters of reasoning arrived. Only the count: what a model thinks is
+    # not its answer, and nothing keeps it.
+    count: int = 0
 
 
 class ProviderError(AppError):

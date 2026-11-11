@@ -133,6 +133,21 @@ async def test_the_thinking_a_model_writes_before_its_reply_is_not_saved(client,
     assert (await messages_of(client, convo["id"]))[-1]["content"] == "*She smiles.*"
 
 
+async def test_reasoning_a_server_sends_apart_changes_nothing_in_the_reply(client, fake_provider):
+    convo = await setup_conversation(client)
+    fake_provider.script = [
+        ProviderEvent(type="thought", count=40),
+        ProviderEvent(type="delta", text="*She smiles.*"),
+        ProviderEvent(type="thought", count=12),
+        ProviderEvent(type="done"),
+    ]
+    await send(client, convo["id"])
+    assert (await messages_of(client, convo["id"]))[-1]["content"] == "*She smiles.*"
+
+    fake_provider.script = [ProviderEvent(type="thought", count=40), ProviderEvent(type="done")]
+    assert (await send(client, convo["id"], content="Again"))["kind"] == "model_empty"
+
+
 async def test_auto_title_strips_rp_markup(client, fake_provider):
     convo = await setup_conversation(client)
     await send(client, convo["id"], content="*I step back, torch raised.* Easy, I'm Aymeric.")

@@ -228,6 +228,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
                 if event.type == "done":
                     usage = event.usage
                     continue
+                if event.type != "delta":
+                    continue  # reasoning is no word of the reply, nor its first
                 first_token_at = first_token_at or time.monotonic()
                 if not chunks and existing[-1:].strip() and event.text[:1].strip():
                     turn.add(" ")  # as the version is saved
