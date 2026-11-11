@@ -4,6 +4,8 @@ The draft is returned to the editor for the creator to adjust — nothing is
 persisted here. Uses the requested connection, else the default one.
 """
 
+import logging
+
 import aiosqlite
 
 from ..errors import MODEL_EMPTY, MODEL_UNREADABLE, NO_CONNECTION, AppError
@@ -17,7 +19,9 @@ from ..prompting.payloads import (
 from ..prompting.text import text_of
 from ..providers import complete, get_provider
 from ..repositories import connections as connections_repo
-from .llm_json import parse_llm_json
+from .llm_json import describe_answer, parse_llm_json
+
+logger = logging.getLogger(__name__)
 
 _MAX_LORE_ENTRIES = 8
 
@@ -68,8 +72,10 @@ async def generate_card(db: aiosqlite.Connection, prompt: str, kind: str,
         connection = dict(connection, max_tokens=max(2048, connection["max_tokens"]))
 
     payload = build_card_payload(prompt, kind, existing)
-    parsed = parse_llm_json(await complete(get_provider(connection), payload))
+    answer = await complete(get_provider(connection), payload)
+    parsed = parse_llm_json(answer)
     if parsed is None:
+        logger.warning("card assistant: unreadable answer, %s", describe_answer(answer))
         raise AppError("The model did not return a readable card. Try again.", 502,
                        kind=MODEL_UNREADABLE)
     draft = clean_card_draft(parsed)

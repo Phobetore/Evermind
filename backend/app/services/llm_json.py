@@ -14,6 +14,13 @@ _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 _CLOSER_RE = re.compile(r"\s*[}\]]")
 
 
+def describe_answer(text: str) -> str:
+    """How long an answer was and how it ended, for the log: the end tells an answer cut short in
+    the middle of a sentence from one that is whole but malformed. Never the whole of it."""
+    end = text[-80:].replace("\r", "").replace("\n", "\\n")
+    return f"{len(text)} characters, ends with \"{end}\""
+
+
 def parse_llm_json(text: str) -> dict | None:
     """Best-effort extraction of one JSON object; None if hopeless."""
     text = strip_thought(text)

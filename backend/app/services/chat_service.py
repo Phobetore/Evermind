@@ -12,6 +12,7 @@ or the person stops the turn.
 """
 
 import asyncio
+import logging
 import re
 import time
 from contextlib import aclosing
@@ -39,6 +40,9 @@ from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
 from ..repositories.base import new_id
 from . import memory_service
+from .llm_json import describe_answer
+
+logger = logging.getLogger(__name__)
 
 # A reply in progress is saved this often: a server going down loses a second of it at most.
 _FLUSH_SECONDS = 1.0
@@ -327,8 +331,9 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
         raise AppError("Nothing to write: the conversation is empty.", kind="conversation_empty")
 
     payload = build_impersonate_payload(character, persona, convo, messages, connection)
-    text = trim_reply(await complete(get_provider(connection), payload),
-                      char_name=user_name, user_name=char_name)
+    answer = await complete(get_provider(connection), payload)
+    text = trim_reply(answer, char_name=user_name, user_name=char_name)
     if not text:
+        logger.warning("impersonation: empty answer, %s", describe_answer(answer))
         raise AppError("The model did not suggest anything. Try again.", 502, kind=MODEL_EMPTY)
     return {"text": text}

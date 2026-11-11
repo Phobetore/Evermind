@@ -1,10 +1,11 @@
 """Card assistant tests (mocked provider)."""
 
 import json
+import logging
 
 import pytest
 
-from app.providers.base import ProviderEvent
+from app.providers.base import ProviderError, ProviderEvent
 
 from .conftest import FakeProvider
 
@@ -162,3 +163,49 @@ async def test_assist_reads_lore_entries_from_a_list_only_and_their_keys_as_a_dr
     assert resp.status_code == 200, resp.text
     content = fake_provider.captured["payload"].messages[0]["content"]
     assert "EXISTING LOREBOOK KEYWORDS (cover other subjects):\nKabukicho, clan\n" in content
+
+
+def warnings_of(caplog):
+    return [r for r in caplog.records if r.levelno == logging.WARNING]
+
+
+async def test_a_failed_model_server_is_logged_with_its_kind_and_status(
+        client, fake_provider, caplog):
+    await add_connection(client)
+    fake_provider.script = [ProviderError("Invalid key", "model_auth_refused", 401)]
+    resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
+    assert resp.status_code == 502
+    [line] = warnings_of(caplog)
+    assert line.getMessage() == ("POST /api/characters/assist failed with model_auth_refused: "
+                                 "Invalid key (the model's server answered 401)")
+    assert line.exc_info is None
+
+
+async def test_an_unreadable_card_is_logged_with_the_length_and_end_of_the_answer(
+        client, fake_provider, caplog):
+    await add_connection(client)
+    cut = '{"name": "Nyra",\n"description": "She draws cards for ' + "x" * 200
+    fake_provider.script = [ProviderEvent(type="delta", text=cut), ProviderEvent(type="done")]
+    resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
+    assert resp.status_code == 502
+    unreadable, failed = warnings_of(caplog)
+    assert unreadable.getMessage() == (
+        f'card assistant: unreadable answer, {len(cut)} characters, ends with "{"x" * 80}"')
+    assert "model_unreadable" in failed.getMessage()
+    assert all(r.exc_info is None for r in caplog.records)
+    assert "She draws cards" not in caplog.text, "only the end of an answer is logged"
+
+
+async def test_a_newline_in_the_end_of_an_answer_stays_on_one_line(client, fake_provider, caplog):
+    await add_connection(client)
+    fake_provider.script = [ProviderEvent(type="delta", text="Sorry,\nI cannot."),
+                            ProviderEvent(type="done")]
+    await client.post("/api/characters/assist", json={"prompt": "A pirate"})
+    [line, _] = warnings_of(caplog)
+    assert line.getMessage().endswith('16 characters, ends with "Sorry,\\nI cannot."')
+
+
+async def test_an_error_under_500_leaves_nothing_in_the_log(client, fake_provider, caplog):
+    resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
+    assert resp.status_code == 400
+    assert warnings_of(caplog) == []

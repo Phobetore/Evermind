@@ -4,9 +4,13 @@ The ``error`` sentence is English, for whoever reads the API. The interface
 reads ``kind`` instead, and says it in the person's own language.
 """
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 # A model's server that failed and said why: the sentence is its own, so it is worth showing.
 MODEL_ERROR = "model_error"
@@ -62,7 +66,13 @@ def error_body(exc: AppError) -> dict:
 
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
-    async def _app_error(_: Request, exc: AppError) -> JSONResponse:
+    async def _app_error(request: Request, exc: AppError) -> JSONResponse:
+        if exc.status_code >= 500:
+            # The access line says 502 and no more, and three different causes give it.
+            # Not imported from providers, which imports this file: only a ProviderError has a status.
+            upstream = getattr(exc, "status", None)
+            logger.warning("%s %s failed with %s: %s%s", request.method, request.url.path, exc.kind,
+                           exc.message, f" (the model's server answered {upstream})" if upstream else "")
         return JSONResponse(status_code=exc.status_code, content=error_body(exc))
 
     @app.exception_handler(RequestValidationError)
