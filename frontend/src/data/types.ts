@@ -28,6 +28,39 @@ export type AssistResult = Partial<CharacterInput> & {
   lore_entries?: { keys: string[]; content: string }[];
 };
 
+/** The fields of a card that the assistant writes, by the names the server gives them. */
+export type AssistField =
+  | "name" | "tagline" | "description" | "personality" | "scenario" | "greeting"
+  | "alternate_greetings" | "example_dialogues" | "tags" | "lore_entries";
+
+/** A card job as the server stands on it: how far the model has got while it runs, what to put in
+ *  the form once it has ended. `error` can come with a `draft`: a connection that broke half-way. */
+export interface AssistState {
+  id: string;
+  running: boolean;
+  /** Since the job began, to a tenth; it stops counting when the job ends. */
+  seconds: number;
+  /** Characters of reasoning produced so far, 0 for a model that shows none. */
+  thought: number;
+  /** Characters of answer received so far. */
+  written: number;
+  /** The fields complete so far, in the order the model wrote them. */
+  fields: AssistField[];
+  /** Lorebook entries complete so far, even while the list is still being written. */
+  lore: number;
+  /** The field being written at this moment, if it is one. */
+  writing: AssistField | null;
+  /** From the end of the job: the card to put in the form, with only the fields obtained. */
+  draft: AssistResult | null;
+  /** The fields asked for that are not in `draft`. */
+  missing: AssistField[];
+  /** The model stopped for lack of room. */
+  cut: boolean;
+  /** Someone stopped the job. */
+  stopped: boolean;
+  error: { error: string; kind: string } | null;
+}
+
 export type LoreEntryInput = Omit<LoreEntry, "id">;
 
 export interface PersonaInput {

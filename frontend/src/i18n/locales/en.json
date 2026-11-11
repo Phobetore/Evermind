@@ -409,7 +409,8 @@
       "fieldsKeptHint": "Fields already filled in are kept.",
       "generateButton": "Generate the card",
       "generatingButton": "Writing…",
-      "generateError": "Generation failed"
+      "generateError": "Generation failed",
+      "gone": "The result is no longer there. Press Generate to start again."
     }
   },
   "lorebook": {
@@ -489,6 +490,7 @@
     "turnRunning": "A reply is already being written, so this was not sent.",
     "modelEmpty": "The model returned an empty reply. Try again or switch models.",
     "modelUnreadable": "The model's answer could not be read. Try again.",
+    "modelOnlyThought": "The model spent its whole answer thinking and wrote nothing. Raise the connection's max tokens, or use a model that does not think as long.",
     "modelAuthRefused": "The model's server refused the API key. Check the key in the connection. The server said: {message}",
     "modelNotFound": "The model's server does not know this address or this model. Check the URL and the model name in the connection. The server said: {message}",
     "modelRateLimited": "The model's server has reached its rate limit. Try again shortly. The server said: {message}",

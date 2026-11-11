@@ -41,6 +41,8 @@ const KIND_KEYS: Record<string, string> = {
   model_no_text: "errors.modelNoText",
   model_empty: "errors.modelEmpty",
   model_unreadable: "errors.modelUnreadable",
+  // The card assistant's: the model reasoned and wrote not one character of answer.
+  model_only_thought: "errors.modelOnlyThought",
   empty_message: "errors.emptyMessage",
   nothing_to_regenerate: "errors.nothingToRegenerate",
   nothing_to_continue: "errors.nothingToContinue",

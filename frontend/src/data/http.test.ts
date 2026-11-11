@@ -80,6 +80,20 @@ describe("what is sent", () => {
     ]);
   });
 
+  test("the card assistant starts a job under the id the page drew, asks how it stands past any cache, and stops it", async () => {
+    replies.push(json({ id: "j1" }, 202), json({ id: "j1", running: true }), json({ id: "j1", running: false }));
+    const input = { prompt: "A tired lighthouse keeper", kind: "character" as const, existing: {}, connection_id: null, client_id: "c1" };
+    await expect(data.characters.assist.start(input)).resolves.toEqual({ id: "j1" });
+    await data.characters.assist.state("j/1");
+    await data.characters.assist.stop("j1");
+    expect(calls.map((c) => [c.url, c.init.method ?? "GET", c.init.cache])).toEqual([
+      ["api/characters/assist", "POST", undefined],
+      ["api/characters/assist/j%2F1", "GET", "no-store"],
+      ["api/characters/assist/j1", "DELETE", undefined],
+    ]);
+    expect(JSON.parse(calls[0].init.body as string)).toEqual(input);
+  });
+
   test("an image read back is a file of the type the server gave", async () => {
     replies.push(new Response(new Uint8Array([0xff, 0xd8]), { headers: { "Content-Type": "image/jpeg" } }));
     const file = await data.file("api/media/a.jpg");
@@ -239,10 +253,14 @@ function answering() {
 describe("patience", () => {
   test("a question whose answer has not begun in time is given up on, as unanswered", async () => {
     const server = answering();
-    for (const asked of [data.turns.state("v1", { within: 20 }), data.turns.stop("v1", { within: 20 })]) {
+    const questions = [
+      data.turns.state("v1", { within: 20 }), data.turns.stop("v1", { within: 20 }),
+      data.characters.assist.state("j1", { within: 20 }),
+    ];
+    for (const asked of questions) {
       expect(await asked.catch((e) => e)).toMatchObject({ name: "DataError", kind: "network" });
     }
-    expect(server.given.map((signal) => signal.aborted), "they are left hanging on a connection").toEqual([true, true]);
+    expect(server.given.map((signal) => signal.aborted), "they are left hanging on a connection").toEqual([true, true, true]);
   });
 
   test("is for the answer to begin, not for all of it to arrive", async () => {

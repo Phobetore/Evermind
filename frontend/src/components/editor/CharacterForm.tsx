@@ -2,10 +2,11 @@ import { Field } from "@/components/editor/Field";
 import { LorebookSection } from "@/components/editor/LorebookSection";
 import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
-import { data, type CharacterInput } from "@/data";
+import { data, type AssistState, type CharacterInput } from "@/data";
 import { useT } from "@/i18n/useT";
+import { follow, forgetJob, outcome, rememberJob, rememberedJob, scopeOf } from "@/lib/assist";
 import { cardFile } from "@/lib/cards";
-import { describeError } from "@/lib/errors";
+import { describeError, describeFailure } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
 import type { CharacterWithLore, Connection, Kind, LoreEntry } from "@/types";
 import { clsx } from "clsx";
@@ -13,7 +14,7 @@ import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
   UserRound, X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 type Draft = CharacterInput;
@@ -61,7 +62,13 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const navigate = useNavigate();
   const t = useT();
   const editing = Boolean(initial);
-  const [draft, setDraft] = useState<Draft>(initial ?? EMPTY);
+  const scope = scopeOf(initial?.id);
+  // A job this page began and has not seen the end of: the person reloaded, came back from another
+  // page, or unlocked a phone. Read once, as the form opens, so that it opens as it was left.
+  const [remembered] = useState(() => rememberedJob(scope));
+  const [draft, setDraft] = useState<Draft>(
+    initial ?? (remembered ? { ...EMPTY, kind: remembered.kind } : EMPTY),
+  );
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(initial?.avatar_url ?? null);
   const [advanced, setAdvanced] = useState(false);
@@ -70,8 +77,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   // Apart from `error`, which is about saving or deleting: an export that fails
   // must not wipe out a save that did too, and its message belongs by the buttons.
   const [exportError, setExportError] = useState<string | null>(null);
-  const [brief, setBrief] = useState("");
-  const [generating, setGenerating] = useState(false);
+  const [brief, setBrief] = useState(remembered?.brief ?? "");
+  const [generating, setGenerating] = useState(Boolean(remembered));
   const [assistError, setAssistError] = useState<string | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [assistConnectionId, setAssistConnectionId] = useState("");
@@ -83,6 +90,63 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   useEffect(() => {
     data.connections?.list().then(setConnections).catch(() => {});
   }, []);
+
+  const watching = useRef<AbortController | null>(null);
+  // The job whose end is in the form already: the two ways to learn of it must not both add its entries.
+  const settled = useRef("");
+  const here = useRef(false);
+  const latest = useRef(t);
+  useEffect(() => {
+    latest.current = t;
+  });
+
+  /** Puts what a job wrote in the form, once, and lets go of the job. */
+  const settle = useCallback((state: AssistState) => {
+    if (settled.current === state.id) return;
+    settled.current = state.id;
+    const ended = outcome(state);
+    setDraft((d) => ({ ...d, ...ended.fields }));
+    if (ended.lore.length) {
+      const additions = ended.lore.map((entry) => ({ ...entry, id: newId(), enabled: true }));
+      setLoreEntries((prev) => [...prev, ...additions]);
+    }
+    forgetJob(scope);
+    setGenerating(false);
+    if (state.error) {
+      setAssistError(describeFailure({ kind: state.error.kind, message: state.error.error }, latest.current));
+    }
+  }, [scope]);
+
+  /** Follows a job until it ends. Leaving the form only stops the following: the job goes on, and is found again. */
+  const watch = useCallback((id: string) => {
+    watching.current?.abort();
+    const own = new AbortController();
+    watching.current = own;
+    setGenerating(true);
+    setAssistError(null);
+    void follow(id, { signal: own.signal, onState: () => {}, onWaiting: () => {} }).then((end) => {
+      if (end.kind === "aborted") return;
+      if (end.kind === "ended") return settle(end.state);
+      setGenerating(false);
+      if (end.kind === "gone") {
+        forgetJob(scope);
+        setAssistError(latest.current("characters.assist.gone"));
+      } else {
+        // Not forgotten: a failure of the road says nothing of the job, which may be found on the next try.
+        setAssistError(describeError(end.error, latest.current, latest.current("characters.assist.generateError")));
+      }
+    });
+  }, [scope, settle]);
+
+  useEffect(() => {
+    here.current = true;
+    const picking = remembered ? setTimeout(() => watch(remembered.id)) : undefined;
+    return () => {
+      here.current = false;
+      clearTimeout(picking);
+      watching.current?.abort();
+    };
+  }, [remembered, watch]);
 
   const copy = KIND_COPY[draft.kind];
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
@@ -100,22 +164,21 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
       }
       delete existing.kind;
       existing.lore_entries = loreEntries.length > 0 ? loreEntries : undefined;
-      const generated = await data.characters.assist({
+      const { id } = await data.characters.assist.start({
         prompt: brief,
         kind: draft.kind,
         existing,
         connection_id: assistConnectionId || null,
+        client_id: newId(),
       });
-      const { lore_entries: generatedLore, ...fields } = generated;
-      setDraft((d) => ({ ...d, ...fields }));
-      if (generatedLore?.length) {
-        const additions = generatedLore.map((entry) => ({ ...entry, id: newId(), enabled: true }));
-        setLoreEntries((prev) => [...prev, ...additions]);
-      }
+      // Written down before anything else: from here the job is the server's, and a page that is
+      // left or reloaded from now on finds it again.
+      rememberJob(scope, { id, brief, kind: draft.kind });
+      if (here.current) watch(id);
     } catch (e) {
       setAssistError(describeError(e, t, t("characters.assist.generateError")));
+      setGenerating(false);
     }
-    setGenerating(false);
   }
 
   async function save() {
@@ -228,6 +291,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
             className="field min-h-20"
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
+            disabled={generating}
             placeholder={
               draft.kind === "scenario"
                 ? t("characters.assist.briefPlaceholderScenario")
@@ -241,6 +305,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
                   className="field !w-auto max-w-52 !py-1.5 text-xs"
                   value={assistConnectionId}
                   onChange={(e) => setAssistConnectionId(e.target.value)}
+                  disabled={generating}
                   title={t("characters.assist.connectionSelectTitle")}
                   // The control is deliberately unlabelled on screen, so a
                   // screen reader would otherwise announce it as just "combo box".

@@ -409,7 +409,8 @@
       "fieldsKeptHint": "Les champs déjà remplis sont conservés.",
       "generateButton": "Générer la fiche",
       "generatingButton": "Écriture en cours…",
-      "generateError": "Génération impossible"
+      "generateError": "Génération impossible",
+      "gone": "Le résultat n'est plus là. Appuyez sur Générer pour recommencer."
     }
   },
   "lorebook": {
@@ -489,6 +490,7 @@
     "turnRunning": "Une réponse est déjà en cours d'écriture\u00a0: ceci n'a pas été envoyé.",
     "modelEmpty": "Le modèle a renvoyé une réponse vide. Réessayez ou changez de modèle.",
     "modelUnreadable": "La réponse du modèle n'a pas pu être lue. Réessayez.",
+    "modelOnlyThought": "Le modèle a passé toute sa réponse à réfléchir et n'a rien écrit. Augmentez le nombre maximal de tokens de la connexion, ou prenez un modèle qui réfléchit moins longtemps.",
     "modelAuthRefused": "Le serveur du modèle a refusé la clé d'API. Vérifiez la clé dans la connexion. Le serveur a indiqué\u00a0: {message}",
     "modelNotFound": "Le serveur du modèle ne connaît ni cette adresse ni ce modèle. Vérifiez l'URL et le nom du modèle dans la connexion. Le serveur a indiqué\u00a0: {message}",
     "modelRateLimited": "Le serveur du modèle a atteint sa limite de requêtes. Réessayez dans un instant. Le serveur a indiqué\u00a0: {message}",

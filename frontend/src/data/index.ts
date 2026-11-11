@@ -5,7 +5,7 @@ import type {
 import { readEvents } from "./events";
 import { request, send } from "./request";
 import type {
-  Asking, AssistInput, AssistResult, BenchmarkResult, CharacterInput, ConnectionInput,
+  Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConnectionInput,
   ConnectionTestResult, ConsolidateResult, ConversationInput, ConversationPatch, ExtractResult,
   LoreEntryInput, PersonaInput, TurnRequest,
 } from "./types";
@@ -47,7 +47,14 @@ export const data = {
     ) => put<Character>(`api/characters/${seg(id)}`, input),
     remove: (id: string) => del(`api/characters/${seg(id)}`),
     uploadAvatar: (id: string, file: File) => upload<Character>(`api/characters/${seg(id)}/avatar`, file),
-    assist: (input: AssistInput) => post<AssistResult>("api/characters/assist", input),
+    /** The card is written by a job the server owns, which outlives the page: `start` answers at
+     *  once, `state` says how far it is, `stop` ends it and keeps what was complete. Asked for again
+     *  under the same `client_id`, `start` is the job begun the first time. */
+    assist: {
+      start: (input: AssistInput & { client_id: string }) => post<{ id: string }>("api/characters/assist", input),
+      state: (id: string, asking?: Asking) => fresh<AssistState>(`api/characters/assist/${seg(id)}`, asking),
+      stop: (id: string) => del<AssistState>(`api/characters/assist/${seg(id)}`),
+    },
   },
 
   personas: {

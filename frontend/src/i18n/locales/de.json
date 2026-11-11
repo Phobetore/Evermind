@@ -409,7 +409,8 @@
       "fieldsKeptHint": "Bereits ausgefüllte Felder bleiben erhalten.",
       "generateButton": "Karte generieren",
       "generatingButton": "Wird geschrieben…",
-      "generateError": "Generierung fehlgeschlagen"
+      "generateError": "Generierung fehlgeschlagen",
+      "gone": "Das Ergebnis ist nicht mehr da. Drücke auf Generieren, um neu zu beginnen."
     }
   },
   "lorebook": {
@@ -489,6 +490,7 @@
     "turnRunning": "Es wird bereits eine Antwort geschrieben, deshalb wurde das nicht gesendet.",
     "modelEmpty": "Das Modell hat eine leere Antwort geliefert. Versuch es noch einmal oder wechsle das Modell.",
     "modelUnreadable": "Die Antwort des Modells ließ sich nicht lesen. Versuch es noch einmal.",
+    "modelOnlyThought": "Das Modell hat seine ganze Antwort mit Nachdenken verbraucht und nichts geschrieben. Erhöhe in der Verbindung die maximale Tokenzahl oder nimm ein Modell, das nicht so lange nachdenkt.",
     "modelAuthRefused": "Der Server des Modells hat den API-Schlüssel abgelehnt. Prüfe den Schlüssel in der Verbindung. Der Server meldet: {message}",
     "modelNotFound": "Der Server des Modells kennt diese Adresse oder dieses Modell nicht. Prüfe die URL und den Modellnamen in der Verbindung. Der Server meldet: {message}",
     "modelRateLimited": "Der Server des Modells hat sein Anfragelimit erreicht. Versuch es gleich noch einmal. Der Server meldet: {message}",
