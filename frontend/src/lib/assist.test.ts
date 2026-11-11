@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { DataError } from "@/data/errors";
 import type { AssistState } from "@/data";
 import {
-  follow, forgetJob, kept, outcome, rememberJob, rememberedJob, scopeOf, type Followed,
+  describeOutcome, follow, forgetJob, formatClock, kept, outcome, progress, rememberJob, rememberedJob, scopeOf,
+  type Followed,
 } from "./assist";
 
 /** A state as the server gives it, a job just begun unless said otherwise. */
@@ -324,6 +325,81 @@ describe("following a job", () => {
     page.shows();
     await job.pass(0);
     expect(job.asked).toEqual([0]);
+  });
+});
+
+describe("what the panel shows of a job under way", () => {
+  test("a model that has said nothing yet is waited for", () => {
+    expect(progress(aState()).situation).toEqual({ kind: "waiting" });
+  });
+
+  test("a model that has reasoned and written nothing is thinking, and for how long", () => {
+    expect(progress(aState({ thought: 1840 })).situation).toEqual({ kind: "thinking", thought: 1840 });
+  });
+
+  test("a model writing a field says which", () => {
+    const shown = progress(aState({ written: 300, thought: 900, writing: "greeting", fields: ["name"] }));
+    expect(shown.situation).toEqual({ kind: "writing", field: "greeting" });
+  });
+
+  test("a model between two fields, or at something that is not a field, is just writing", () => {
+    expect(progress(aState({ written: 300, writing: null })).situation).toEqual({ kind: "between" });
+  });
+
+  test("the ten fields are there in the form's order, those that are complete told done", () => {
+    const shown = progress(aState({ written: 900, fields: ["tagline", "name", "tags"], lore: 2, writing: "lore_entries" }));
+    expect(shown.fields.map((f) => f.field)).toEqual([
+      "name", "tagline", "description", "personality", "scenario", "greeting",
+      "alternate_greetings", "example_dialogues", "tags", "lore_entries",
+    ]);
+    expect(shown.fields.filter((f) => f.done).map((f) => f.field)).toEqual(["name", "tagline", "tags"]);
+    // Entries are counted while the book is still being written.
+    expect(shown.lore).toBe(2);
+  });
+
+  test.each([
+    [0, "0:00"], [0.9, "0:00"], [42.4, "0:42"], [60, "1:00"], [605, "10:05"], [-3, "0:00"],
+  ])("%j seconds is %s on the clock", (seconds, shown) => {
+    expect(formatClock(seconds)).toBe(shown);
+  });
+});
+
+describe("what is said when a job has ended", () => {
+  // Says which key and which values it was asked for, as the error tests do.
+  const t = (key: string, vars?: Record<string, string | number>) => (vars ? `${key} ${JSON.stringify(vars)}` : key);
+  const label = (field: string) => `<${field}>`;
+  const said = (changes: Partial<AssistState>) =>
+    describeOutcome(outcome(aState({ running: false, ...changes })), t, label);
+
+  test("a whole card has nothing to say", () => {
+    expect(said({ draft: { name: "Mira" } })).toBeNull();
+  });
+
+  test("missing fields are named, with the form's words for them", () => {
+    expect(said({ draft: { name: "Mira" }, missing: ["greeting", "tags"] })).toBe(
+      'characters.assist.missing {"fields":"<greeting>, <tags>"}',
+    );
+  });
+
+  test("a card cut short says the model ran out of room, and one stopped says it was stopped", () => {
+    expect(said({ cut: true, draft: { name: "Mira" }, missing: ["tags"] })).toBe(
+      'characters.assist.missingCut {"fields":"<tags>"}',
+    );
+    expect(said({ stopped: true, draft: { name: "Mira" }, missing: ["tags"] })).toBe(
+      'characters.assist.missingStopped {"fields":"<tags>"}',
+    );
+  });
+
+  test("a failure with nothing kept is said alone", () => {
+    const error = { error: "Thought only.", kind: "model_only_thought" };
+    expect(said({ error })).toBe('errors.modelOnlyThought {"message":"Thought only."}');
+  });
+
+  test("a failure with some fields kept is said with what is missing", () => {
+    const error = { error: "Reset.", kind: "model_connection_lost" };
+    expect(said({ error, draft: { name: "Mira" }, missing: ["tagline"] })).toBe(
+      'errors.modelNetworkError {"message":"Reset."} characters.assist.missing {"fields":"<tagline>"}',
+    );
   });
 });
 

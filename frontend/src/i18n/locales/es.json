@@ -410,7 +410,20 @@
       "generateButton": "Generar la ficha",
       "generatingButton": "Escribiendo…",
       "generateError": "Error al generar",
-      "gone": "El resultado ya no está. Pulsa Generar para empezar de nuevo."
+      "gone": "El resultado ya no está. Pulsa Generar para empezar de nuevo.",
+      "stopButton": "Detener",
+      "stoppingButton": "Deteniendo…",
+      "elapsedLabel": "Tiempo transcurrido",
+      "progressLabel": "Campos escritos",
+      "chipDone": "listo",
+      "statusWaiting": "Esperando la primera palabra del modelo…",
+      "statusThinking": "El modelo está pensando… {chars} caracteres por ahora.",
+      "statusWriting": "Escribiendo: {field}…",
+      "statusBetween": "Escribiendo la ficha…",
+      "connectionWait": "Esperando la conexión… mientras tanto la ficha sigue escribiéndose.",
+      "missing": "Aún falta: {fields}. Pulsa Generar otra vez para escribir solo lo que falta.",
+      "missingCut": "Al modelo se le acabó el espacio antes del final. Falta: {fields}. Pulsa Generar otra vez para escribir solo lo que falta.",
+      "missingStopped": "Se detuvo antes del final. Falta: {fields}. Pulsa Generar otra vez para escribir solo lo que falta."
     }
   },
   "lorebook": {

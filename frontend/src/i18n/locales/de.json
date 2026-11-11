@@ -410,7 +410,20 @@
       "generateButton": "Karte generieren",
       "generatingButton": "Wird geschrieben…",
       "generateError": "Generierung fehlgeschlagen",
-      "gone": "Das Ergebnis ist nicht mehr da. Drücke auf Generieren, um neu zu beginnen."
+      "gone": "Das Ergebnis ist nicht mehr da. Drücke auf Generieren, um neu zu beginnen.",
+      "stopButton": "Stopp",
+      "stoppingButton": "Wird gestoppt…",
+      "elapsedLabel": "Verstrichene Zeit",
+      "progressLabel": "Geschriebene Felder",
+      "chipDone": "fertig",
+      "statusWaiting": "Warte auf das erste Wort des Modells…",
+      "statusThinking": "Das Modell denkt nach… bisher {chars} Zeichen.",
+      "statusWriting": "Schreibt: {field}…",
+      "statusBetween": "Die Karte wird geschrieben…",
+      "connectionWait": "Warte auf die Verbindung… die Karte wird währenddessen weitergeschrieben.",
+      "missing": "Es fehlt noch: {fields}. Drücke noch einmal auf Generieren, um nur das Fehlende zu schreiben.",
+      "missingCut": "Dem Modell ging vor dem Ende der Platz aus. Es fehlt: {fields}. Drücke noch einmal auf Generieren, um nur das Fehlende zu schreiben.",
+      "missingStopped": "Vor dem Ende gestoppt. Es fehlt: {fields}. Drücke noch einmal auf Generieren, um nur das Fehlende zu schreiben."
     }
   },
   "lorebook": {

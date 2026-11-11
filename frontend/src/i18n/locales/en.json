@@ -410,7 +410,20 @@
       "generateButton": "Generate the card",
       "generatingButton": "Writing…",
       "generateError": "Generation failed",
-      "gone": "The result is no longer there. Press Generate to start again."
+      "gone": "The result is no longer there. Press Generate to start again.",
+      "stopButton": "Stop",
+      "stoppingButton": "Stopping…",
+      "elapsedLabel": "Time elapsed",
+      "progressLabel": "Fields written",
+      "chipDone": "done",
+      "statusWaiting": "Waiting for the model's first word…",
+      "statusThinking": "The model is thinking… {chars} characters so far.",
+      "statusWriting": "Writing: {field}…",
+      "statusBetween": "Writing the card…",
+      "connectionWait": "Waiting for the connection… the card keeps being written meanwhile.",
+      "missing": "Still missing: {fields}. Press Generate again to write only what is missing.",
+      "missingCut": "The model ran out of room before the end. Missing: {fields}. Press Generate again to write only what is missing.",
+      "missingStopped": "Stopped before the end. Missing: {fields}. Press Generate again to write only what is missing."
     }
   },
   "lorebook": {

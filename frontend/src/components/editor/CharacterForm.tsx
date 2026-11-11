@@ -1,12 +1,13 @@
+import { AssistProgress } from "@/components/editor/AssistProgress";
 import { Field } from "@/components/editor/Field";
 import { LorebookSection } from "@/components/editor/LorebookSection";
 import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
-import { data, type AssistState, type CharacterInput } from "@/data";
+import { data, DataError, type AssistField, type AssistState, type CharacterInput } from "@/data";
 import { useT } from "@/i18n/useT";
-import { follow, forgetJob, outcome, rememberJob, rememberedJob, scopeOf } from "@/lib/assist";
+import { describeOutcome, follow, forgetJob, outcome, rememberJob, rememberedJob, scopeOf } from "@/lib/assist";
 import { cardFile } from "@/lib/cards";
-import { describeError, describeFailure } from "@/lib/errors";
+import { describeError } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
 import type { CharacterWithLore, Connection, Kind, LoreEntry } from "@/types";
 import { clsx } from "clsx";
@@ -58,6 +59,19 @@ const KIND_COPY: Record<Kind, Record<string, { labelKey: string; hintKey: string
   },
 };
 
+/** The name the form gives a field of the card, which the assistant's words use for it. */
+function labelKey(field: AssistField, kind: Kind): string {
+  switch (field) {
+    case "name": return "personas.nameLabel";
+    case "tagline": return "characters.form.taglineLabel";
+    case "alternate_greetings": return "characters.form.alternateGreetingsLabel";
+    case "example_dialogues": return "characters.form.exampleDialoguesLabel";
+    case "tags": return "characters.form.tagsLabel";
+    case "lore_entries": return "lorebook.title";
+    default: return KIND_COPY[kind][field].labelKey;
+  }
+}
+
 export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const navigate = useNavigate();
   const t = useT();
@@ -80,6 +94,12 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const [brief, setBrief] = useState(remembered?.brief ?? "");
   const [generating, setGenerating] = useState(Boolean(remembered));
   const [assistError, setAssistError] = useState<string | null>(null);
+  // What the end of a job has to say when nothing failed: a card that arrived in part.
+  const [assistNote, setAssistNote] = useState<string | null>(null);
+  // The last state of the job, and when the page had it: the clock counts in the page between two.
+  const [seen, setSeen] = useState<{ state: AssistState | null; at: number } | null>(null);
+  const [waiting, setWaiting] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [assistConnectionId, setAssistConnectionId] = useState("");
   const [loreEntries, setLoreEntries] = useState<LoreEntry[]>(initial?.lore_entries ?? []);
@@ -95,10 +115,13 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   // The job whose end is in the form already: the two ways to learn of it must not both add its entries.
   const settled = useRef("");
   const here = useRef(false);
-  const latest = useRef(t);
+  const job = useRef("");
+  // What the callbacks below need of the page as it is now, without being made again for it.
+  const latest = useRef({ t, kind: draft.kind });
   useEffect(() => {
-    latest.current = t;
+    latest.current = { t, kind: draft.kind };
   });
+  const label = useCallback((field: AssistField) => latest.current.t(labelKey(field, latest.current.kind)), []);
 
   /** Puts what a job wrote in the form, once, and lets go of the job. */
   const settle = useCallback((state: AssistState) => {
@@ -112,9 +135,23 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     }
     forgetJob(scope);
     setGenerating(false);
-    if (state.error) {
-      setAssistError(describeFailure({ kind: state.error.kind, message: state.error.error }, latest.current));
-    }
+    setStopping(false);
+    setWaiting(false);
+    setSeen(null);
+    const said = describeOutcome(ended, latest.current.t, label);
+    if (state.error) setAssistError(said);
+    else setAssistNote(said);
+  }, [scope, label]);
+
+  /** The server does not know the job any more, or it never had it. */
+  const lost = useCallback(() => {
+    watching.current?.abort();
+    forgetJob(scope);
+    setGenerating(false);
+    setStopping(false);
+    setWaiting(false);
+    setSeen(null);
+    setAssistError(latest.current.t("characters.assist.gone"));
   }, [scope]);
 
   /** Follows a job until it ends. Leaving the form only stops the following: the job goes on, and is found again. */
@@ -122,21 +159,44 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     watching.current?.abort();
     const own = new AbortController();
     watching.current = own;
+    job.current = id;
+    const at = Date.now();
     setGenerating(true);
     setAssistError(null);
-    void follow(id, { signal: own.signal, onState: () => {}, onWaiting: () => {} }).then((end) => {
+    setAssistNote(null);
+    setSeen((before) => before ?? { state: null, at });
+    void follow(id, {
+      signal: own.signal,
+      onState: (state) => setSeen({ state, at: Date.now() }),
+      onWaiting: setWaiting,
+    }).then((end) => {
       if (end.kind === "aborted") return;
       if (end.kind === "ended") return settle(end.state);
+      if (end.kind === "gone") return lost();
+      // Not forgotten: a failure of the road says nothing of the job, which may be found on the next try.
       setGenerating(false);
-      if (end.kind === "gone") {
-        forgetJob(scope);
-        setAssistError(latest.current("characters.assist.gone"));
-      } else {
-        // Not forgotten: a failure of the road says nothing of the job, which may be found on the next try.
-        setAssistError(describeError(end.error, latest.current, latest.current("characters.assist.generateError")));
-      }
+      setWaiting(false);
+      setSeen(null);
+      const { t } = latest.current;
+      setAssistError(describeError(end.error, t, t("characters.assist.generateError")));
     });
-  }, [scope, settle]);
+  }, [settle, lost]);
+
+  async function stop() {
+    if (!job.current || stopping) return;
+    setStopping(true);
+    try {
+      const state = await data.characters.assist.stop(job.current);
+      if (state.running) return setStopping(false);
+      // Its end is told here, and the following, which may tell it too, is let go.
+      watching.current?.abort();
+      settle(state);
+    } catch (e) {
+      if (e instanceof DataError && e.kind === "not_found") return lost();
+      setStopping(false);
+      setAssistError(describeError(e, t, t("characters.assist.generateError")));
+    }
+  }
 
   useEffect(() => {
     here.current = true;
@@ -156,6 +216,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     if (!brief.trim() || generating) return;
     setGenerating(true);
     setAssistError(null);
+    setAssistNote(null);
+    setSeen({ state: null, at: Date.now() });
     try {
       const existing: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(draft)) {
@@ -178,6 +240,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     } catch (e) {
       setAssistError(describeError(e, t, t("characters.assist.generateError")));
       setGenerating(false);
+      setSeen(null);
     }
   }
 
@@ -340,8 +403,23 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
               )}
             </button>
           </div>
+          {generating && seen && (
+            <AssistProgress
+              state={seen.state}
+              since={seen.at}
+              waiting={waiting}
+              stopping={stopping}
+              label={label}
+              onStop={stop}
+            />
+          )}
+          {assistNote && (
+            <p className="mt-2 break-words rounded-lg border border-ember-600/35 bg-ink-900/50 px-3 py-2 text-sm text-parchment">
+              {assistNote}
+            </p>
+          )}
           {assistError && (
-            <p className="mt-2 rounded-lg border border-blood/40 bg-blood/10 px-3 py-2 text-sm text-blood">
+            <p className="mt-2 break-words rounded-lg border border-blood/40 bg-blood/10 px-3 py-2 text-sm text-blood">
               {assistError}
             </p>
           )}

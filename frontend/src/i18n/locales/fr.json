@@ -410,7 +410,20 @@
       "generateButton": "Générer la fiche",
       "generatingButton": "Écriture en cours…",
       "generateError": "Génération impossible",
-      "gone": "Le résultat n'est plus là. Appuyez sur Générer pour recommencer."
+      "gone": "Le résultat n'est plus là. Appuyez sur Générer pour recommencer.",
+      "stopButton": "Arrêter",
+      "stoppingButton": "Arrêt en cours…",
+      "elapsedLabel": "Temps écoulé",
+      "progressLabel": "Champs écrits",
+      "chipDone": "terminé",
+      "statusWaiting": "En attente du premier mot du modèle…",
+      "statusThinking": "Le modèle réfléchit… {chars} caractères pour l'instant.",
+      "statusWriting": "Écriture : {field}…",
+      "statusBetween": "Écriture de la fiche…",
+      "connectionWait": "En attente de la connexion… la fiche continue de s'écrire entre-temps.",
+      "missing": "Il manque encore : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque.",
+      "missingCut": "Le modèle a manqué de place avant la fin. Il manque : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque.",
+      "missingStopped": "Génération arrêtée avant la fin. Il manque : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque."
     }
   },
   "lorebook": {

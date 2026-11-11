@@ -49,6 +49,9 @@ describe("a sentence reads right where it is shown", () => {
     ["es", "settings.about.updateAvailable", "Evermind {version} ya está disponible."],
     ["de", "cards.startChatModal.title", "Mit {name} spielen"],
     ["de", "errors.notSent", "Diese Nachricht wurde nicht gesendet. Drücke auf Senden, um sie noch einmal zu schicken."],
+    // The colon after a word that ends a line stays with it, in French.
+    ["fr", "characters.assist.statusWriting", "Écriture : {field}…"],
+    ["fr", "characters.assist.missing", "Il manque encore : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque."],
     // Every command shown starts Evermind itself.
     ["en", "settings.about.updateHint", "Stop Evermind, then run this from the folder you installed it in."],
     ["fr", "settings.about.updateHint", "Arrêtez Evermind, puis lancez ceci depuis le dossier où vous l'avez installé."],

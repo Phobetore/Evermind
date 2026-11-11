@@ -2,7 +2,8 @@
  *  server how it stands, and what its end means for the form. Nothing here touches the page. */
 
 import { data, DataError, type Asking, type AssistField, type AssistState, type CharacterInput } from "@/data";
-import { isUnanswered } from "@/lib/errors";
+import type { Translate } from "@/i18n/I18nProvider";
+import { describeFailure, isUnanswered } from "@/lib/errors";
 import type { Kind } from "@/types";
 
 const PREFIX = "evermind:assist:";
@@ -149,3 +150,58 @@ export function outcome(state: AssistState): AssistOutcome {
 
 /** Whether anything of the card came. */
 export const kept = (ended: AssistOutcome) => Object.keys(ended.fields).length > 0 || ended.lore.length > 0;
+
+/** What the model is doing at this moment, as far as the server can tell. */
+export type Situation =
+  | { kind: "waiting" }
+  | { kind: "thinking"; thought: number }
+  | { kind: "writing"; field: AssistField }
+  | { kind: "between" };
+
+/** What the panel shows of a job under way. */
+export interface Progress {
+  /** The card's fields in the form's order, each told whether it is complete. */
+  fields: { field: AssistField; done: boolean }[];
+  /** Lorebook entries complete so far, which the lorebook's chip counts. */
+  lore: number;
+  situation: Situation;
+}
+
+export function progress(state: Pick<AssistState, "fields" | "lore" | "written" | "thought" | "writing">): Progress {
+  const done = new Set(state.fields);
+  const writing = state.writing && ASSIST_FIELDS.includes(state.writing) ? state.writing : null;
+  let situation: Situation;
+  if (state.written === 0) {
+    situation = state.thought > 0 ? { kind: "thinking", thought: state.thought } : { kind: "waiting" };
+  } else {
+    situation = writing ? { kind: "writing", field: writing } : { kind: "between" };
+  }
+  return {
+    fields: ASSIST_FIELDS.map((field) => ({ field, done: done.has(field) })),
+    lore: state.lore,
+    situation,
+  };
+}
+
+/** Seconds as a clock: "0:42", "12:05". */
+export function formatClock(seconds: number): string {
+  const whole = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+}
+
+/** The sentence under the block once a job has ended, or null when everything arrived. A failure
+ *  is said first, then what is missing: pressing Generate again writes only that, since the fields
+ *  that are filled are kept and the server asks for the rest. `label` is the name the form gives a field. */
+export function describeOutcome(
+  ended: AssistOutcome,
+  t: Translate,
+  label: (field: AssistField) => string,
+): string | null {
+  const said: string[] = [];
+  if (ended.error) said.push(describeFailure({ kind: ended.error.kind, message: ended.error.error }, t));
+  if (ended.missing.length > 0) {
+    const key = ended.cut ? "missingCut" : ended.stopped ? "missingStopped" : "missing";
+    said.push(t(`characters.assist.${key}`, { fields: ended.missing.map(label).join(", ") }));
+  }
+  return said.length > 0 ? said.join(" ") : null;
+}
