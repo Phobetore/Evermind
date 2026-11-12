@@ -46,6 +46,12 @@ describe("the entries of a card", () => {
     expect(character.lore_entries).toEqual([expect.objectContaining({ keys: [], content: "Always.", constant: true, origin: 0 })]);
   });
 
+  test("a keyword is stripped as the server strips it", () => {
+    // Python's strip keeps a byte order mark and takes U+001F and U+0085, where JavaScript's trim does the opposite.
+    const { character } = v2({}, [{ keys: ["﻿", " \u001Fa\u0085 ", "  ", 7, null], secondary_keys: ["﻿"], content: "A." }]);
+    expect(character.lore_entries[0]).toMatchObject({ keys: ["﻿", "a", "7"], secondary_keys: ["﻿"] });
+  });
+
   test("the settings are read where SillyTavern writes them", () => {
     const { character } = readFixture("sillytavern-export.json");
     const entries: Partial<LoreEntryInput>[] = [
@@ -206,6 +212,8 @@ describe("the fields of a card", () => {
     const tagline = (creator_notes: string) => v2({ creator_notes }).suggestedTagline;
     expect(tagline("<style>p { color: red }</style><p><b>Oyelaran</b> keeps the harbor.</p> More text.")).toBe("Oyelaran keeps the harbor.");
     expect(tagline("<script>alert(1)</script># A *keeper* of _light_\n> Quoted ~~text~~ and `code`! Then more.")).toBe("A keeper of light Quoted text and code!");
+    expect(tagline("> > A quote within a quote. More.")).toBe("A quote within a quote.");
+    expect(tagline("  ## > Heading and quote. More.")).toBe("Heading and quote.");
     expect(tagline("![portrait](https://example.com/a.png)Read [the guide](https://example.com) first... or not")).toBe("Read the guide first...");
     expect(tagline("Salt &amp; iron, &lt;sharp&gt; &quot;edges&quot; &#39;here&#39;&nbsp;now")).toBe(`Salt & iron, <sharp> "edges" 'here' now`);
     expect(tagline("東京の門番。 二つ目の文")).toBe("東京の門番。");

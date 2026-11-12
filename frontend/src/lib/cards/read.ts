@@ -45,7 +45,7 @@ export interface ReadCard {
 export const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isText = (value: unknown) => typeof value === "string" || (typeof value === "number" && Number.isFinite(value));
+export const isText = (value: unknown) => typeof value === "string" || (typeof value === "number" && Number.isFinite(value));
 
 /** A field as text: anything but a string or a number counts as absent. Half of an emoji, which
  *  Evermind cannot store, becomes the replacement character. */
@@ -57,8 +57,9 @@ export const text = (value: unknown) =>
 export const texts = (value: unknown) =>
   (Array.isArray(value) ? value : [value]).map(text).filter((item) => item.trim());
 
-/** Keywords as the server keeps them: stripped as Python strips, blank ones left out. */
-const keywords = (value: unknown) => texts(value).map(pyStrip).filter(Boolean);
+/** Keywords as the server keeps them: stripped as Python strips, blank ones left out. Not through
+ *  texts(), whose trim would also drop a key the server keeps, such as a byte order mark alone. */
+const keywords = (value: unknown) => (Array.isArray(value) ? value : [value]).map(text).map(pyStrip).filter(Boolean);
 
 /** A whole number between the bounds, written as a number or as a string of digits; else null. */
 function whole(value: unknown, low: number, high: number): number | null {
@@ -199,7 +200,8 @@ export function taglineOf(notes: string): string {
     .replace(/!\[[^[\]]*\]\([^()]*\)/g, "")
     .replace(/\[([^[\]]*)\]\([^()]*\)/g, "$1")
     .replace(/[*_`~]/g, "")
-    .replace(/^[^\S\n]*(?:#+|>)/gm, "")
+    // Every mark at the start of a line, so that a quote within a quote loses both.
+    .replace(/^(?:[^\S\n]*(?:#+|>))+/gm, "")
     .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name: string) => ENTITIES[name]);
   plain = plain.replace(/\s+/g, " ").trim();
   const end = /[.!?…。！？](?=\s|$)/.exec(plain);
