@@ -276,3 +276,22 @@ async def test_the_card_assistant_keeps_a_name_split_inside_an_emoji(client, mon
 
     assert state["error"] is None
     assert state["draft"]["name"] == name
+
+
+async def test_a_model_list_with_half_an_emoji_in_an_id_is_told(client, monkeypatch):
+    body = json.dumps({"data": [{"id": "smile-" + HIGH + LOW}, {"id": "half-" + HIGH}]}).encode()
+
+    def make(connection):
+        provider = OpenAICompatProvider(connection)
+        provider._client_factory = lambda: httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda _: httpx.Response(200, content=body)))
+        return provider
+
+    monkeypatch.setattr("app.routers.connections.get_provider", make)
+    resp = await client.post("/api/connections/test", json={
+        "name": "Mock", "provider": "openai-compatible",
+        "base_url": "http://mock/v1", "model": "test-model",
+    })
+
+    assert resp.status_code == 200
+    assert resp.json()["models_sample"] == ["smile-" + SMILE, "half-�"]
