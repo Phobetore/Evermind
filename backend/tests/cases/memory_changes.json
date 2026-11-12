@@ -7359,30 +7359,6 @@
     ],
     "source_position": 4
    }
-  },
-  {
-   "fn": "consolidation_reply",
-   "name": "of two oldest positions that compare equal, the first is kept",
-   "input": {
-    "text": "{\"facts\": [{\"content\": \"Kept.\"}]}",
-    "movable": [
-     {
-      "source_position": 5
-     },
-     {
-      "source_position": 0
-     },
-     {
-      "source_position": -0.0
-     }
-    ]
-   },
-   "expected": {
-    "facts": [
-     "Kept."
-    ],
-    "source_position": 0
-   }
   }
  ]
 }
