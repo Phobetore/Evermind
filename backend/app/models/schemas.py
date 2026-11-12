@@ -8,6 +8,8 @@ from ..prompting.text import is_writable
 
 Kind = Literal["character", "scenario"]
 ProviderType = Literal["openai-compatible", "anthropic"]
+Role = Literal["system", "user", "assistant"]
+WHOLE = 2**53 - 1  # the largest whole number JSON and JavaScript both hold exactly
 
 
 def _texts(value) -> list[str]:
@@ -31,10 +33,38 @@ class Input(BaseModel):
         return value
 
 
+class OriginalCardIn(Input):
+    text: str = Field(min_length=2)   # the card's JSON as its file held it, decoded from UTF-8
+    format: Literal["png", "json"]
+    other_text: str | None = None     # the PNG's other card chunk, when it reads differently
+    read: "CharacterIn"               # what the reader made of the card; its own `card` is ignored
+
+
 class LoreEntryIn(Input):
     keys: list[str]
     content: str
     enabled: bool = True
+    origin: int | None = Field(default=None, ge=0, le=WHOLE)
+    comment: str = ""
+    constant: bool = False
+    selective: bool = False
+    secondary_keys: list[str] = []
+    selective_logic: int = Field(default=0, ge=0, le=3)
+    insertion_order: int = Field(default=100, ge=-WHOLE, le=WHOLE)
+    position: int = Field(default=1, ge=0, le=7)
+    depth: int = Field(default=4, ge=0, le=WHOLE)
+    role: Role = "system"
+    whole_words: bool = True
+    exclude_recursion: bool = False
+    prevent_recursion: bool = False
+
+
+def _one_entry_per_origin(entries: list[LoreEntryIn] | None) -> list[LoreEntryIn] | None:
+    # The export writes each entry over the entry of the card it came from: two would fight over it.
+    origins = [entry.origin for entry in entries or [] if entry.origin is not None]
+    if len(origins) != len(set(origins)):
+        raise ValueError("two entries cannot come from the same entry of the card")
+    return entries
 
 
 class CharacterIn(Input):
@@ -54,6 +84,16 @@ class CharacterIn(Input):
     creator: str = ""
     character_version: str = ""
     lore_entries: list[LoreEntryIn] = []
+    # Left out by a page from before the rules existed: its card keeps the old ones until re-read.
+    card_rules: Literal[1, 2] = 1
+    nickname: str = ""
+    character_note: str = ""
+    character_note_depth: int = Field(default=4, ge=0, le=WHOLE)
+    character_note_role: Role = "system"
+    creator_notes_multilingual: dict[str, str] = {}
+    card: OriginalCardIn | None = None
+
+    _lore_entries = field_validator("lore_entries")(_one_entry_per_origin)
 
 
 class CharacterUpdate(Input):
@@ -74,6 +114,18 @@ class CharacterUpdate(Input):
     character_version: str | None = None
     is_favorite: bool | None = None
     lore_entries: list[LoreEntryIn] | None = None  # the whole lorebook, in order
+    card_rules: Literal[1, 2] | None = None
+    nickname: str | None = None
+    character_note: str | None = None
+    character_note_depth: int | None = Field(default=None, ge=0, le=WHOLE)
+    character_note_role: Role | None = None
+    creator_notes_multilingual: dict[str, str] | None = None
+    card: OriginalCardIn | None = None
+
+    _lore_entries = field_validator("lore_entries")(_one_entry_per_origin)
+
+
+OriginalCardIn.model_rebuild()  # its reading is a CharacterIn, declared after it
 
 
 class CardAssistRequest(Input):
