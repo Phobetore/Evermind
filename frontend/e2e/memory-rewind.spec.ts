@@ -2,7 +2,7 @@ import { expect, test, type Request } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
-import { chat, makeConversation, readOf } from "./fixtures";
+import { answer, chat, makeConversation, readOf } from "./fixtures";
 
 /**
  * Taking the story back from a message takes what was remembered of it back too: the facts
@@ -50,8 +50,8 @@ test("cutting the story back empties the summary and the facts of what went", as
 
   // The greeting, the first question and its reply stay; the second question goes.
   if (covers) await panel.getByLabel(panelText.closeAriaLabel).click();
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByTitle("Delete from here").nth(3).click();
+  await answer(page, true);
   if (covers) await opener.click();
 
   await expect(panel).toContainText("(1)");
@@ -99,8 +99,8 @@ test("cutting the story back puts the summary it had back", async ({ page, reque
   // Read again after the cut by the panel beside the story, or by the page while the panel is closed.
   const cut = page.waitForResponse((r) => r.request().method() === "GET"
     && readOf(convo.id)(r.url()));
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByTitle("Delete from here").nth(3).click();
+  await answer(page, true);
   await cut;
   if (covers) {
     reopened = true;
@@ -149,8 +149,8 @@ test("the page's read of a cut, landing once a summary is saved in the panel, do
     await released;
     await route.fulfill({ response: old }).catch(() => {});
   });
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByTitle("Delete from here").nth(3).click();
+  await answer(page, true);
   await answered;
 
   await opener.click();

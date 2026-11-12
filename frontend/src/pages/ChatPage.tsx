@@ -5,6 +5,7 @@ import { ModelSilent } from "@/components/chat/ModelSilent";
 import { ChatSidePanel } from "@/components/chat/ChatSidePanel";
 import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
+import { useConfirm } from "@/components/ui/Confirm";
 import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
 import { beginSending, type MessageMode } from "@/lib/drafts";
@@ -60,6 +61,7 @@ function StreamBubble({ text, character, arriving, onGrow }: {
 
 function ChatView({ id }: { id: string }) {
   const t = useT();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -315,7 +317,7 @@ function ChatView({ id }: { id: string }) {
 
   /** The server ends a reply being written before it cuts the story. */
   async function deleteFrom(message: Message) {
-    if (!confirm(t("chat.message.confirmDeleteFrom"))) return;
+    if (!(await confirm(t("chat.message.confirmDeleteFrom"), { action: t("common.delete"), danger: true }))) return;
     await data.messages.removeFrom(message.id);
     changesByHand.current += 1;
     setMessages((prev) => prev.filter((m) => m.position < message.position));
@@ -332,7 +334,7 @@ function ChatView({ id }: { id: string }) {
   // Each message's branch keeps its id, so that one asked for again after its answer was lost is the one made.
   const branchIds = useRef(new Map<string, string>());
   async function branchFrom(message: Message) {
-    if (!confirm(t("chat.message.confirmBranch"))) return;
+    if (!(await confirm(t("chat.message.confirmBranch"), { action: t("chat.message.branchAction") }))) return;
     const clientId = branchIds.current.get(message.id) ?? newId();
     branchIds.current.set(message.id, clientId);
     const branch = await data.messages.branch(message.id, clientId);

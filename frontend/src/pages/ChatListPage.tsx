@@ -1,5 +1,6 @@
 import { CardSummary } from "@/components/chat/CardSummary";
 import { Avatar } from "@/components/ui/Avatar";
+import { useConfirm } from "@/components/ui/Confirm";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data } from "@/data";
@@ -14,6 +15,7 @@ import { Link } from "react-router";
 
 export function ChatListPage() {
   const t = useT();
+  const confirm = useConfirm();
   // The conversation whose card is shown in short, and the personas, for the {{user}} of its card.
   const [summaryOf, setSummaryOf] = useState<Conversation | null>(null);
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -71,8 +73,8 @@ export function ChatListPage() {
   async function remove(e: React.MouseEvent, convo: Conversation) {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm(t("chatList.confirmDelete", { title: convo.title || t("chatList.untitled") })))
-      return;
+    const question = t("chatList.confirmDelete", { title: convo.title || t("chatList.untitled") });
+    if (!(await confirm(question, { action: t("common.delete"), danger: true }))) return;
     if (await write(convo.id, () => data.conversations.remove(convo.id))) {
       clearDraft(convo.id);
       load();

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import http from "node:http";
 import { GATE_PASSWORD, GATED } from "../playwright.config";
+import { answer } from "./fixtures";
 
 /**
  * Everything here runs against the second server, the one started with an
@@ -174,8 +175,8 @@ test("signing out every device signs this one out too", async ({ page, context }
   await enter(page, GATE_PASSWORD);
   await expect(page).toHaveURL(/#\/settings$/);
 
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: /sign out every device/i }).click();
+  await answer(page, true);
   await expect(page).toHaveURL(/#\/login\?from=%2Fsettings$/);
   expect((await context.cookies()).find((c) => c.name === "evermind_session")).toBeUndefined();
 });

@@ -264,7 +264,8 @@
       "prevVariantAriaLabel": "Previous variant",
       "nextVariantAriaLabel": "Next variant or regenerate",
       "confirmDeleteFrom": "Delete this message and all that follow?",
-      "confirmBranch": "Branch the story from here?"
+      "confirmBranch": "Branch the story from here?",
+      "branchAction": "Branch"
     },
     "panel": {
       "closeAriaLabel": "Close panel",
