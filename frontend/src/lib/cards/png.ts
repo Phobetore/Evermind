@@ -35,15 +35,25 @@ function binary(bytes: Uint8Array) {
   return out;
 }
 
+/** How much compressed text goes into the stream at a time. */
+const SLICE = 16384;
+
 /** A zlib stream inflated as UTF-8 text; null for one that is broken, or that grows past `bound`,
  *  which is given up as soon as it does rather than read to its end. */
 async function inflate(data: Uint8Array, bound: number): Promise<string | null> {
+  // In slices, each pulled only once the last is used: a browser inflates a whole piece before
+  // the first read gives anything, so a body given at once would inflate whole past the bound.
+  let sent = 0;
   const source = new ReadableStream<BufferSource>({
-    start(controller) {
-      controller.enqueue(data as Uint8Array<ArrayBuffer>);
-      controller.close();
+    pull(controller) {
+      if (sent >= data.length) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(data.subarray(sent, sent + SLICE) as Uint8Array<ArrayBuffer>);
+      sent += SLICE;
     },
-  });
+  }, { highWaterMark: 0 });
   const reader = source.pipeThrough(new DecompressionStream("deflate")).getReader();
   const parts: Uint8Array[] = [];
   let size = 0;

@@ -112,15 +112,32 @@ describe("the chunks of a PNG", () => {
 
   test("a compressed chunk that inflates past the bound is refused, and nothing else is decompressed", async () => {
     let made = 0;
+    const written: number[] = [];
     const Inflate = globalThis.DecompressionStream;
-    vi.stubGlobal("DecompressionStream", class extends Inflate {
+    // The real stream behind one that notes the size of every piece written to it: a browser
+    // inflates a whole piece before the first read, so no piece may be more than a slice.
+    vi.stubGlobal("DecompressionStream", class {
+      readonly readable: ReadableStream<Uint8Array>;
+      readonly writable: WritableStream<BufferSource>;
       constructor(format: CompressionFormat) {
-        super(format);
         made++;
+        const inflate = new Inflate(format);
+        const writer = inflate.writable.getWriter();
+        this.readable = inflate.readable;
+        this.writable = new WritableStream({
+          write(piece) {
+            written.push(piece.byteLength);
+            return writer.write(piece);
+          },
+          close: () => writer.close(),
+          abort: (reason) => writer.abort(reason),
+        });
       }
     });
     const cancel = vi.spyOn(ReadableStreamDefaultReader.prototype, "cancel");
-    const zeros = await deflate(new Uint8Array(8 * 1024 * 1024));
+    // Large enough to be written in several slices.
+    const zeros = await deflate(new Uint8Array(64 * 1024 * 1024));
+    expect(zeros.length).toBeGreaterThan(3 * 16384);
     const other = await deflate(utf8("a comment that is never inflated"));
     const png = withChunks(zTXt("comment", other), zTXt("chara", zeros));
 
@@ -128,6 +145,8 @@ describe("the chunks of a PNG", () => {
     expect(texts.has("chara")).toBe(false);
     expect(cancel).toHaveBeenCalled();
     expect(made).toBe(1);
+    expect(written.length).toBeGreaterThan(0);
+    expect(Math.max(...written)).toBeLessThanOrEqual(16384);
     expect(texts.get("comment")).toBe(String.fromCharCode(...other));
   });
 
