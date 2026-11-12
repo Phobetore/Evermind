@@ -83,9 +83,11 @@ const roleOf = (value: unknown): NoteRole =>
  *  Pygmalion shape under the names of a card; null for what is no card. */
 export function cardFields(card: unknown): Record<string, unknown> | null {
   if (!isObject(card)) return null;
-  // With `spec`, `data` wins over the V1 fields SillyTavern copies at the root.
-  const fields = isObject(card.data) ? card.data : card;
-  if (Object.keys(FIELDS).some((key) => typeof fields[key] === "string")) return fields;
+  const isCard = (fields: Record<string, unknown>) => Object.keys(FIELDS).some((key) => typeof fields[key] === "string");
+  // With `spec`, `data` wins over the V1 fields SillyTavern copies at the root. Without it, as
+  // SillyTavern chooses by `spec`, a flat V1 card may carry a `data` of its own that is no card.
+  const fields = isObject(card.data) && (card.spec !== undefined || isCard(card.data)) ? card.data : card;
+  if (isCard(fields)) return fields;
   if (fields === card && typeof card.char_name === "string") {
     return Object.fromEntries(Object.entries(PYGMALION).map(([flat, field]) => [field, card[flat]]));
   }

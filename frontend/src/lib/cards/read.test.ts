@@ -180,6 +180,14 @@ describe("the fields of a card", () => {
     expect(readFixture("risu-v3.json").character.creator_notes_multilingual).not.toHaveProperty("fr");
   });
 
+  test("a flat V1 card with a data object of its own reads by its root", () => {
+    expect(readObject({ name: "Vane", first_mes: "Late.", data: { source: "a site" } }).character)
+      .toMatchObject({ name: "Vane", greeting: "Late." });
+    // Without spec, data that holds a field of a card is the card.
+    expect(readObject({ data: { name: "Inner" } }).character.name).toBe("Inner");
+    expect(readCardJson({ data: {} }, "{}", "json")).toBeNull();
+  });
+
   test("half of an emoji is repaired in the fields and kept as written in the card", async () => {
     const text = String.raw`{"spec":"chara_card_v2","data":{"name":"Broken \ud83d","nickname":"N\ud83d",
       "creator_notes_multilingual":{"e\ud83dn":"x\ud83d"},
