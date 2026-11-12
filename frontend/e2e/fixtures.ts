@@ -96,6 +96,28 @@ export async function turnRunning(request: APIRequestContext, id: string): Promi
   return (await (await request.get(`${API}/api/conversations/${id}/turn`)).json()).running;
 }
 
+/** Settles once the page has heard that the reply it asked for has ended: the server's answer to
+ *  the request, then its word, read by the page, that nothing is being written any more. What the
+ *  page does at a reply's end is looked for from there, not from the click: how long the reply
+ *  takes is the model's and the machine's. Called before the click. */
+export function replyEnds(page: Page, id: string): Promise<unknown> {
+  let asked = false;
+  return page.waitForResponse(async (r) => {
+    const method = r.request().method();
+    const where = new URL(r.url()).pathname;
+    if (method === "POST" && where.endsWith("/api/chat")) asked = true;
+    else if (asked && method === "GET" && where.endsWith(`/api/conversations/${id}/turn`)) {
+      // A read the page gave up on brings no word.
+      return (await r.json().catch(() => ({ running: true }))).running === false;
+    }
+    return false;
+  });
+}
+
+/** Settles once the server has answered the page's Remember, which is when the panel shows what it wrote. */
+export const remembered = (page: Page) =>
+  page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith("/memories/extract"));
+
 /** A turn asked for as another device would, and its reply written: the server answers as soon
  *  as it has the message. */
 export async function chat(request: APIRequestContext, data: { conversation_id: string } & Record<string, unknown>) {

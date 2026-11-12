@@ -2,7 +2,7 @@ import { expect, test, type Request } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
-import { answer, chat, makeConversation, readOf } from "./fixtures";
+import { answer, chat, makeConversation, readOf, remembered, replyEnds } from "./fixtures";
 
 /**
  * Taking the story back from a message takes what was remembered of it back too: the facts
@@ -191,7 +191,9 @@ test("the summary box can be typed in while the memory reads the story", async (
 
   await expect(summary).toBeEnabled();
   await summary.fill("Typed while it reads.");
+  const passed = remembered(page);
   release();
+  await passed;
   await expect(panel).toContainText("(2)");
 
   await expect(summary).toHaveValue("Typed while it reads.");
@@ -245,7 +247,9 @@ test("a summary being typed stays through a Remember", async ({ page, request })
   const summary = panel.getByPlaceholder(panelText.summary.placeholder);
   await summary.fill("Typed, not saved yet.");
 
+  const passed = remembered(page);
   await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+  await passed;
   await expect(panel).toContainText("(2)");
 
   await expect(summary).toHaveValue("Typed, not saved yet.");
@@ -316,17 +320,24 @@ test("the panel beside the story reads the memory again once a reply written ove
   const summary = panel.getByPlaceholder(panelText.summary.placeholder);
   await expect(summary).toHaveValue(first.summary);
   const reply = page.locator("[data-message-id]").last();
+  // Each with what the panel reads the memory again on: a reply's end, or the swipe's answer.
+  const swipeAnswered = () => page.waitForResponse((r) => r.request().method() === "PATCH"
+    && new URL(r.url()).pathname.includes("/api/messages/"));
   const writtenOver = {
-    regenerated: () => reply.getByTitle(en.chat.message.regenerateTitle).click(),
-    "carried on": () => reply.getByTitle(en.chat.message.continueTitle).click(),
-    "swiped back": () => reply.getByLabel(en.chat.message.prevVariantAriaLabel).click(),
-  };
-  for (const [how, act] of Object.entries(writtenOver)) {
+    regenerated: [() => reply.getByTitle(en.chat.message.regenerateTitle).click(), () => replyEnds(page, convo.id)],
+    "carried on": [() => reply.getByTitle(en.chat.message.continueTitle).click(), () => replyEnds(page, convo.id)],
+    "swiped back": [() => reply.getByLabel(en.chat.message.prevVariantAriaLabel).click(), swipeAnswered],
+  } as const;
+  for (const [how, [act, heard]] of Object.entries(writtenOver)) {
     // Remember reads the newest reply, so that writing it over takes the memory back to the first pass.
+    const passed = remembered(page);
     await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+    await passed;
     await expect(summary).not.toHaveValue(first.summary);
     await reply.hover();
+    const reason = heard();
     await act();
+    await reason;
     await expect(summary, `the summary once the reply is ${how}`).toHaveValue(first.summary);
   }
 
@@ -372,7 +383,10 @@ test("a reply asked for again with the panel closed reads the story once at its 
     if (ended && r.method() === "GET" && readOf(convo.id)(r.url())) reads.push(r.url());
   });
   const reply = page.locator("[data-message-id]").last();
+  // The second version can show before the end, read as the reply goes: the count starts at the end.
+  const over = replyEnds(page, convo.id);
   await reply.getByTitle(en.chat.message.regenerateTitle).click();
+  await over;
   await expect(reply.getByText("2/2")).toBeVisible();
   await page.waitForTimeout(1000);
   expect(reads, "the story read again once the read that ended the reply was shown").toHaveLength(1);
