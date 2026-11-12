@@ -12,9 +12,10 @@ import type {
  *  anything reads as empty, and the page goes on without what it would have held. */
 export interface DeviceStore {
   /** Settled once the store can be read; the interface waits for it before it draws. When the
-   *  store cannot be read it rejects with a `DataError` whose kind `describeFailure` can put
-   *  into words: the page shown instead says why, and anything else only reads "Something went
-   *  wrong". */
+   *  store cannot be read it rejects with a `DataError`, and the page shown instead says why:
+   *  in the person's language when its kind is one `lib/errors.ts` knows, otherwise its message
+   *  as it stands. Anything but a `DataError` only reads "Something went wrong". No kind for a
+   *  store exists yet: a source that brings one adds it there, in the four languages. */
   readonly ready: Promise<void>;
   /** The language the host suggests, when it has one. Read after `ready`. */
   readonly suggestedLocale: string | null;

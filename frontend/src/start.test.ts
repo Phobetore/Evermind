@@ -1,8 +1,11 @@
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
 import { describe, expect, test, vi } from "vitest";
 import { DataError } from "@/data/errors";
 import type { Translate } from "@/i18n/I18nProvider";
-import { describeError } from "@/lib/errors";
+import { translate } from "@/i18n/translate";
 import { start } from "./start";
+import { StartFailure } from "./StartFailure";
 
 describe("starting the interface", () => {
   test("a store that cannot be read shows why instead of a blank page", async () => {
@@ -14,8 +17,12 @@ describe("starting the interface", () => {
     await start({ ready }, render, renderFailure);
     expect(render).not.toHaveBeenCalled();
     expect(renderFailure).toHaveBeenCalledWith(unreadable);
-    const t: Translate = (key) => key;
-    expect(describeError(renderFailure.mock.calls[0][0], t)).toBe("The stored data cannot be read.");
+    // What main.tsx draws for that error: the sentence that says why, and a way to try again.
+    const t: Translate = (key, vars) => translate("en", key, vars);
+    const page = renderToString(createElement(StartFailure, { error: renderFailure.mock.calls[0][0], t }));
+    expect(page).toContain('role="alert"');
+    expect(page).toContain("The stored data cannot be read.");
+    expect(page).toMatch(/<button[^>]*>.*Reload<\/button>/);
   });
 
   test("a store that can be read draws the application once it is", async () => {
