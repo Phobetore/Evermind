@@ -33,6 +33,8 @@ const PYGMALION = {
 const WHOLE = Number.MAX_SAFE_INTEGER; // what JSON and JavaScript both hold exactly, as the server bounds it
 const DEPTH = 4; // SillyTavern's, for a note or an entry whose depth cannot be read
 const ROLES: readonly NoteRole[] = ["system", "user", "assistant"];
+/** The longest name the server takes, counted as it counts, in code points. */
+export const NAME_LENGTH = 200;
 
 export interface ReadCard {
   character: CardCharacter;
@@ -151,8 +153,8 @@ function characterOf(fields: Record<string, unknown>, flat: boolean): CardCharac
   const multilingual = isObject(fields.creator_notes_multilingual) ? fields.creator_notes_multilingual : {};
   return {
     ...character,
-    // The longest the server takes, counted as it counts.
-    name: [...character.name.trim()].slice(0, 200).join("") || "Unnamed",
+    // The longest the server takes, counted as it counts; the report says when it is cut.
+    name: [...character.name.trim()].slice(0, NAME_LENGTH).join("") || "Unnamed",
     kind: own.kind === "scenario" ? "scenario" : "character",
     tagline: text(own.tagline),
     nickname: text(fields.nickname),

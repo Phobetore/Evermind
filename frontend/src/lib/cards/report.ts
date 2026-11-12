@@ -1,6 +1,6 @@
 import type { CardCharacter, CardText, LoreEntryInput } from "@/data";
 import { pyStrip } from "@/engine/text";
-import { bookEntries, cardFields, FIELDS, isObject, isStorable, isText, texts } from "./read";
+import { bookEntries, cardFields, FIELDS, isObject, isStorable, isText, NAME_LENGTH, texts } from "./read";
 
 // What an import says it did with a card: what Evermind uses, and what it only keeps for the export.
 
@@ -72,13 +72,19 @@ function settingsOf(entries: Record<string, unknown>[]): string[] {
 /** A value that says something Evermind cannot read as text: null counts as saying nothing. */
 const unreadable = (value: unknown) => value !== undefined && value !== null && !isText(value);
 
+/** A list of texts, or one text alone, that holds something else somewhere. */
+const unreadableList = (value: unknown) => Array.isArray(value) ? value.some(unreadable) : unreadable(value);
+
 /** The fields Evermind reads as text, or as lists of texts, that held something else: what the
- *  reading left out, by its place in the card. The card keeps it all the same. */
-function unreadFields(fields: Record<string, unknown>): string[] {
+ *  reading left out, by its place in the card. The card keeps it all the same. `flat` for a V1
+ *  card, whose notes may be its `creatorcomment`. */
+function unreadFields(fields: Record<string, unknown>, flat: boolean): string[] {
   const names = [...Object.keys(FIELDS), "nickname"].filter((key) => unreadable(fields[key]));
+  // A name longer than the server takes loses its end: the card keeps it whole, but it is said.
+  if (typeof fields.name === "string" && [...fields.name.toWellFormed().trim()].length > NAME_LENGTH) names.push("name");
+  if (flat && !isText(fields.creator_notes) && unreadable(fields.creatorcomment)) names.push("creatorcomment");
   for (const key of ["alternate_greetings", "tags"]) {
-    const value = fields[key];
-    if (Array.isArray(value) ? value.some(unreadable) : unreadable(value)) names.push(key);
+    if (unreadableList(fields[key])) names.push(key);
   }
   const multilingual = fields.creator_notes_multilingual;
   if (isObject(multilingual)) {
@@ -95,9 +101,21 @@ function unreadFields(fields: Record<string, unknown>): string[] {
   } else if (note !== undefined && note !== null) {
     names.push("extensions.depth_prompt");
   }
+  const own = isObject(fields.extensions) ? fields.extensions.evermind : undefined;
+  if (isObject(own) && unreadable(own.tagline)) names.push("extensions.evermind.tagline");
   const book = fields.character_book;
   if (isObject(book)) {
     if (book.entries !== undefined && book.entries !== null && !Array.isArray(book.entries)) names.push("character_book.entries");
+    // The texts of each entry, by its index in the book, as readEntry reads them.
+    bookEntries(fields).forEach((entry, index) => {
+      if (!isObject(entry)) return;
+      for (const key of ["keys", "secondary_keys"]) {
+        if (unreadableList(entry[key])) names.push(`character_book.entries.${index}.${key}`);
+      }
+      for (const key of ["content", "comment", "name"]) {
+        if (unreadable(entry[key])) names.push(`character_book.entries.${index}.${key}`);
+      }
+    });
   } else if (book !== undefined && book !== null) {
     names.push("character_book");
   }
@@ -148,7 +166,8 @@ export function reportOf(card: Record<string, unknown>, character: CardCharacter
   say(kept, "groupGreetings", texts(fields.group_only_greetings).length);
   say(kept, "assets", Array.isArray(fields.assets) ? fields.assets.filter(isObject).length : 0);
   say(kept, "multilingualNotes", Object.keys(character.creator_notes_multilingual));
-  say(kept, "unreadFields", unreadFields(fields));
+  // The fields are the card itself for a V1 card, as characterOf reads them.
+  say(kept, "unreadFields", unreadFields(fields, fields === card));
   say(kept, "otherChunk", original.other_text !== null);
 
   return {

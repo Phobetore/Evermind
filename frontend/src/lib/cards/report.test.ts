@@ -74,6 +74,29 @@ describe("the report of an import", () => {
     // Items of the book that are no object hold no entry, and are counted with those not stored.
     expect(report({ character_book: { entries: [1, "x", null, { keys: ["k"], content: "c" }, { keys: [], content: "c" }] } }))
       .toEqual([{ key: "loreNotStored", count: 4 }]);
+    // The texts of an entry that hold something else, by the entry's index in the book.
+    expect(report({
+      character_book: { entries: [1, { keys: ["a", { o: 1 }], secondary_keys: [[1]], content: "c", comment: { a: 1 }, name: ["n"] }] },
+    })).toEqual([{ key: "loreNotStored", count: 1 }, {
+      key: "unreadFields",
+      names: [
+        "character_book.entries.1.keys", "character_book.entries.1.secondary_keys",
+        "character_book.entries.1.comment", "character_book.entries.1.name",
+      ],
+    }]);
+    expect(report({ character_book: { entries: [{ keys: "k", secondary_keys: { o: 1 }, content: 5, comment: null }] } }))
+      .toContainEqual({ key: "unreadFields", names: ["character_book.entries.0.secondary_keys"] });
+    // Evermind's own tagline that is no text.
+    expect(report({ extensions: { evermind: { tagline: { a: 1 } } } }))
+      .toEqual([{ key: "unreadFields", names: ["extensions.evermind.tagline"] }]);
+    // A name longer than the server takes is cut there, and that is said; one of 200 is not.
+    expect(report({ name: `${"é".repeat(199)}🌊x` })).toEqual([{ key: "unreadFields", names: ["name"] }]);
+    expect(report({ name: `${"é".repeat(199)}🌊` })).toEqual([]);
+    // A flat V1 card's creatorcomment, read as its notes, that is no text; read nowhere else.
+    const flat = (card: object) => readCardJson({ name: "N", ...card }, "{}", "json")!.report.kept;
+    expect(flat({ creatorcomment: { a: 1 } })).toEqual([{ key: "unreadFields", names: ["creatorcomment"] }]);
+    expect(flat({ creator_notes: "Notes.", creatorcomment: { a: 1 } })).toEqual([]);
+    expect(report({ creatorcomment: { a: 1 } })).toEqual([]);
   });
 
   test("a card with nothing more than Evermind's own fields reports nothing kept", () => {
