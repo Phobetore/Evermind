@@ -296,8 +296,8 @@ formed strings, whole rows), and whatever feeds the TypeScript copy must keep it
 Some things cannot be the same between Python and JavaScript:
 
 - a model's answer nested deeper than 900, which TypeScript refuses;
-- an integer past 2^53, which a double rounds, and one of 309 digits or more in a
-  model's answer, which JavaScript reads as Infinity;
+- an integer past 2^53, which a double rounds, and one in a model's answer past
+  the largest double (about 1.8e308), which JavaScript reads as Infinity;
 - the letters that only Unicode 16 cases, which Node knows and Python 3.13 does not;
 - a text that grows past the longest string V8 accepts, such as a name repeated
   by thousands of `{{char}}`;
