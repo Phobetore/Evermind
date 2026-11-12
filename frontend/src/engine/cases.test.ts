@@ -39,7 +39,11 @@ const ADAPTERS: Record<string, Adapter> = {
   consolidation_reply: via(["parseLlmJson", "planConsolidation"], (i) =>
     engine.planConsolidation(engine.parseLlmJson(i.text), i.movable),
   ),
-  default_prompts: via([], () => ({ ...defaults })),
+  // The names come from defaults.ts, the texts from index.ts: one it stopped offering
+  // would read as undefined, and fail the case.
+  default_prompts: via([], () =>
+    Object.fromEntries(Object.keys(defaults).map((name) => [name, (engine as Record<string, unknown>)[name]])),
+  ),
 
   build_chat_payload: via(["buildChatPayload"], (i) => engine.buildChatPayload(i)),
   match_lore: via(["matchLore"], (i) => engine.matchLore(i.entries, i.messages)),
