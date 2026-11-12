@@ -160,4 +160,3 @@ export const data: DataSource = {
     logoutEverywhere: () => del("api/gate/sessions"),
   },
 };
-
