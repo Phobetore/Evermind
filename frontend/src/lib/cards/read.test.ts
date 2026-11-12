@@ -48,8 +48,8 @@ describe("the entries of a card", () => {
 
   test("a keyword is stripped as the server strips it", () => {
     // Python's strip keeps a byte order mark and takes U+001F and U+0085, where JavaScript's trim does the opposite.
-    const { character } = v2({}, [{ keys: ["﻿", " \u001Fa\u0085 ", "  ", 7, null], secondary_keys: ["﻿"], content: "A." }]);
-    expect(character.lore_entries[0]).toMatchObject({ keys: ["﻿", "a", "7"], secondary_keys: ["﻿"] });
+    const { character } = v2({}, [{ keys: ["\uFEFF", " \u001Fa\u0085 ", "  ", 7, null], secondary_keys: ["\uFEFF"], content: "A." }]);
+    expect(character.lore_entries[0]).toMatchObject({ keys: ["\uFEFF", "a", "7"], secondary_keys: ["\uFEFF"] });
   });
 
   test("the settings are read where SillyTavern writes them", () => {
