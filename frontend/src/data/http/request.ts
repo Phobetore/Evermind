@@ -1,5 +1,5 @@
-import { DataError } from "./errors";
-import type { Asking } from "./types";
+import { DataError } from "../errors";
+import type { Asking } from "../types";
 
 let lockedHandler = () => {};
 

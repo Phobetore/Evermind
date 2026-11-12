@@ -1,4 +1,5 @@
 import { Field } from "@/components/editor/Field";
+import { useConfirm } from "@/components/ui/Confirm";
 import { Modal } from "@/components/ui/Modal";
 import type { BenchmarkResult, ConnectionInput, ConnectionTestResult, DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
@@ -71,12 +72,13 @@ export function ConnectionForm({
 }: {
   /** Taken as a prop, not read from `data`, because an edition without
    *  connections has no such thing and never renders this form. */
-  source: DataSource["connections"];
+  source: NonNullable<DataSource["connections"]>;
   connection: Connection | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const t = useT();
+  const confirm = useConfirm();
   const modelDefault = t("connections.modelDefaultPlaceholder");
   const [draft, setDraft] = useState<DraftConnection>({
     name: connection?.name ?? "",
@@ -146,7 +148,7 @@ export function ConnectionForm({
 
   async function remove() {
     if (!connection) return;
-    if (!confirm(t("connections.confirmDelete", { name: connection.name }))) return;
+    if (!(await confirm(t("connections.confirmDelete", { name: connection.name }), { action: t("common.delete"), danger: true }))) return;
     try {
       await source.remove(connection.id);
       onSaved();

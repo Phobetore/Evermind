@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page, type Route } from "@playwright/test";
 import { API } from "../playwright.config";
-import { chat, conversation, conversationWithReply, makeCharacter, readOf } from "./fixtures";
+import { answer, chat, conversation, conversationWithReply, makeCharacter, readOf } from "./fixtures";
 
 /** An answer lost or late on a phone's Wi-Fi: the page ends with what the server holds, and makes nothing twice. */
 
@@ -89,10 +89,10 @@ test("Delete from here whose answer was lost shows the story the server holds, a
   const [asked, answered] = convo.messages.slice(-2);
   await page.goto(`/#/chat/${convo.id}`);
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toBeVisible();
-  page.on("dialog", (dialog) => dialog.accept());
 
   await page.route("**/api/messages/*", answerLost, { times: 1 });
   await page.locator(`[data-message-id="${asked.id}"]`).getByTitle("Delete from here").click();
+  await answer(page, true);
 
   await expect(page.locator(`[data-message-id="${asked.id}"]`)).toHaveCount(0);
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toHaveCount(0);
@@ -107,9 +107,9 @@ test("Delete from here on a message already gone shows the story as it is, and s
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toBeVisible();
   // Gone already: deleted from another device, or by a first tap whose answer was lost.
   await request.delete(`${API}/api/messages/${answered.id}`);
-  page.on("dialog", (dialog) => dialog.accept());
 
   await page.locator(`[data-message-id="${answered.id}"]`).getByTitle("Delete from here").click();
+  await answer(page, true);
 
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toHaveCount(0);
   await expect(page.getByRole("alert"), "a message on screen said to be gone").toHaveCount(0);
@@ -124,11 +124,11 @@ test("Branch shows that it is under way, and a second tap makes no second branch
   const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
   await page.goto(`/#/chat/${convo.id}`);
   await expect(reply).toBeVisible();
-  page.on("dialog", (dialog) => dialog.accept());
 
   const letGo = await held(page, "**/api/messages/*/branch", "POST");
   const branch = reply.getByTitle("Branch the story from here");
   await branch.click();
+  await answer(page, true);
   await expect(branch, "nothing shows the branch is being made").toBeDisabled();
   await branch.click({ force: true });
   letGo();
@@ -143,12 +143,13 @@ test("Branch whose answer was lost, tried again, makes one branch", async ({ pag
   const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
   await page.goto(`/#/chat/${convo.id}`);
   await expect(reply).toBeVisible();
-  page.on("dialog", (dialog) => dialog.accept());
 
   await page.route("**/api/messages/*/branch", answerLost, { times: 1 });
   await reply.getByTitle("Branch the story from here").click();
+  await answer(page, true);
   await expect(page.getByRole("alert")).toContainText("Evermind is not answering");
   await reply.getByTitle("Branch the story from here").click();
+  await answer(page, true);
 
   await expect(page).not.toHaveURL(new RegExp(convo.id));
   expect(await branchesOf(request, convo.id)).toBe(1);

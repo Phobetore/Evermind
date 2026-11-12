@@ -2,6 +2,7 @@ import { CharacterForm } from "@/components/editor/CharacterForm";
 import { AccessGate } from "@/components/layout/Access";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageError } from "@/components/layout/PageError";
+import { DropQuestionOnLeave } from "@/components/ui/Confirm";
 import { CharacterPage } from "@/pages/CharacterPage";
 import { ChatListPage } from "@/pages/ChatListPage";
 import { ChatPage } from "@/pages/ChatPage";
@@ -19,6 +20,7 @@ export const router = createHashRouter([
   {
     element: (
       <AppShell>
+        <DropQuestionOnLeave />
         <AccessGate>
           <Outlet />
         </AccessGate>

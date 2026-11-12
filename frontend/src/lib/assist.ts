@@ -28,29 +28,22 @@ export const scopeOf = (cardId: string | undefined) => cardId || "new";
 /** Writes a job down for a card, so that a page that is reloaded, left, or put to sleep by a phone
  *  can find it again. */
 export function rememberJob(scope: string, job: RememberedJob): void {
-  try {
-    localStorage.setItem(PREFIX + scope, JSON.stringify(job));
-  } catch {
-    /* quota exceeded or storage disabled: the job still runs, it is only not found again */
-  }
+  // Where the device keeps nothing, the job still runs: it is only not found again.
+  data.device.set(PREFIX + scope, JSON.stringify(job));
 }
 
 export function rememberedJob(scope: string): RememberedJob | null {
   try {
-    const kept = JSON.parse(localStorage.getItem(PREFIX + scope) ?? "null");
+    const kept = JSON.parse(data.device.get(PREFIX + scope) ?? "null");
     if (typeof kept?.id !== "string" || typeof kept?.brief !== "string") return null;
     return { id: kept.id, brief: kept.brief, kind: kept.kind === "scenario" ? "scenario" : "character" };
   } catch {
-    return null; // nothing readable was kept, or storage this site may not use
+    return null; // nothing readable was kept
   }
 }
 
 export function forgetJob(scope: string): void {
-  try {
-    localStorage.removeItem(PREFIX + scope);
-  } catch {
-    /* storage this site may not use has nothing to clear */
-  }
+  data.device.remove(PREFIX + scope);
 }
 
 /** Moves what is remembered for a card not saved yet to the card it has become, so that the job

@@ -12,6 +12,11 @@ import { makeCharacter } from "./fixtures";
  * wait for the end: it stops it.
  */
 
+/** How long to wait for a card to end, by its own pace rather than the suite's ten seconds: the
+ *  stand-in model's reasoning and writing together come near those ten seconds when the whole
+ *  suite loads the machine, and a card that ends late still ends. */
+const CARD = { timeout: 30_000 };
+
 const NAME = "Nyra the Cartographer";
 const TAGLINE = "She sells maps of places that do not exist yet.";
 
@@ -45,9 +50,9 @@ test("a card is written under the eyes of the person, and fills the form", { tag
   await expect(stop(page)).toBeVisible();
   await expect(brief(page)).toBeDisabled();
   await expect(done(page).first(), "no field turned done before the end").toBeVisible();
-  await expect(nameField(page)).toHaveValue(NAME);
-  await expect(taglineField(page)).toHaveValue(TAGLINE);
-  await expect(stop(page)).toHaveCount(0);
+  await expect(nameField(page)).toHaveValue(NAME, CARD);
+  await expect(taglineField(page)).toHaveValue(TAGLINE, CARD);
+  await expect(stop(page)).toHaveCount(0, CARD);
   await expect(brief(page)).toBeEnabled();
 });
 
@@ -60,8 +65,8 @@ test("a card goes on being written while the page is away", async ({ page, reque
   await expect(brief(page)).toHaveValue("A seller of maps MOCK_THINKS");
   await expect(brief(page)).toBeDisabled();
   await expect(stop(page)).toBeVisible();
-  await expect(nameField(page)).toHaveValue(NAME);
-  await expect(stop(page)).toHaveCount(0);
+  await expect(nameField(page)).toHaveValue(NAME, CARD);
+  await expect(stop(page)).toHaveCount(0, CARD);
   const found = await page.evaluate(() => localStorage.getItem("evermind:assist:new"));
   expect(found, "the job was still remembered after its end").toBeNull();
 });
@@ -69,7 +74,7 @@ test("a card goes on being written while the page is away", async ({ page, reque
 test("a card cut short keeps what was written and says what is missing", async ({ page, request }) => {
   await ask(page, request, "A seller of maps MOCK_CUT");
 
-  await expect(nameField(page)).toHaveValue(NAME);
+  await expect(nameField(page)).toHaveValue(NAME, CARD);
   await expect(page.getByLabel("First message")).toHaveValue(/There you are/);
   const sentence = said(page);
   await expect(sentence).toContainText("ran out of room");
@@ -85,8 +90,8 @@ test("stopping keeps what was complete", async ({ page, request }) => {
   await expect(done(page).first()).toBeVisible();
   await stop(page).click();
 
-  await expect(stop(page)).toHaveCount(0);
-  await expect(nameField(page)).toHaveValue(NAME);
+  await expect(stop(page)).toHaveCount(0, CARD);
+  await expect(nameField(page)).toHaveValue(NAME, CARD);
   await expect(said(page)).toContainText("Stopped before the end");
   expect(await page.evaluate(() => localStorage.getItem("evermind:assist:new"))).toBeNull();
 });
@@ -97,8 +102,8 @@ test("what is typed while the card is written is kept", async ({ page, request }
 
   await nameField(page).fill("Typed meanwhile");
 
-  await expect(taglineField(page)).toHaveValue(TAGLINE);
-  await expect(stop(page)).toHaveCount(0);
+  await expect(taglineField(page)).toHaveValue(TAGLINE, CARD);
+  await expect(stop(page)).toHaveCount(0, CARD);
   await expect(nameField(page)).toHaveValue("Typed meanwhile");
 });
 
@@ -106,8 +111,8 @@ test("a model that only thinks is said so", async ({ page, request }) => {
   await ask(page, request, "A seller of maps MOCK_ONLY_THINKS");
 
   await expect(page.getByText(/The model is thinking/)).toBeVisible();
-  await expect(said(page)).toContainText("spent its whole answer thinking");
-  await expect(stop(page)).toHaveCount(0);
+  await expect(said(page)).toContainText("spent its whole answer thinking", CARD);
+  await expect(stop(page)).toHaveCount(0, CARD);
   await expect(nameField(page)).toHaveValue("");
 });
 

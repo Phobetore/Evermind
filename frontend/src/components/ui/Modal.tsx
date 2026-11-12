@@ -8,11 +8,14 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  role = "dialog",
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   wide?: boolean;
+  /** A question that must be answered before anything else is an alert dialog. */
+  role?: "dialog" | "alertdialog";
 }) {
   const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -31,7 +34,7 @@ export function Modal({
     <dialog
       ref={dialog}
       // Its own role, written out as before: what finds a dialog by the attribute still does.
-      role="dialog"
+      role={role}
       aria-label={title}
       onCancel={(e) => {
         e.preventDefault();

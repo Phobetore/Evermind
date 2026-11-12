@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
 
 export const MOCK = `http://127.0.0.1:${process.env.E2E_MOCK_PORT ?? 5699}/v1`;
@@ -121,3 +121,13 @@ export const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
   "base64",
 );
+
+/** Answers the confirmation box a click has just opened: the button that confirms (the last one) or
+ *  Cancel, and waits for the box to close. */
+export async function answer(page: Page, accept: boolean): Promise<void> {
+  const box = page.getByRole("alertdialog");
+  const buttons = box.getByRole("button");
+  // The cross is a button too, ahead of the two answers; the answer that confirms comes last.
+  await (accept ? buttons.last() : box.getByRole("button", { name: "Cancel" })).click();
+  await expect(box).toHaveCount(0);
+}

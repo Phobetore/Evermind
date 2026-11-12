@@ -3,6 +3,7 @@ import { Field } from "@/components/editor/Field";
 import { LorebookSection } from "@/components/editor/LorebookSection";
 import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
+import { useConfirm } from "@/components/ui/Confirm";
 import { data, DataError, type AssistField, type AssistState, type CharacterInput } from "@/data";
 import { useT } from "@/i18n/useT";
 import {
@@ -78,6 +79,7 @@ function labelKey(field: AssistField, kind: Kind): string {
 export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const navigate = useNavigate();
   const t = useT();
+  const confirm = useConfirm();
   const editing = Boolean(initial);
   const scope = scopeOf(initial?.id);
   // A job this page began and has not seen the end of: the person reloaded, came back from another
@@ -283,7 +285,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
 
   async function remove() {
     if (!initial) return;
-    if (!confirm(t("characters.form.confirmDelete", { name: initial.name }))) return;
+    if (!(await confirm(t("characters.form.confirmDelete", { name: initial.name }), { action: t("common.delete"), danger: true }))) return;
     try {
       await data.characters.remove(initial.id);
       navigate("/");

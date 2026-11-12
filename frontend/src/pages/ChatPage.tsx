@@ -315,7 +315,6 @@ function ChatView({ id }: { id: string }) {
 
   /** The server ends a reply being written before it cuts the story. */
   async function deleteFrom(message: Message) {
-    if (!confirm(t("chat.message.confirmDeleteFrom"))) return;
     await data.messages.removeFrom(message.id);
     changesByHand.current += 1;
     setMessages((prev) => prev.filter((m) => m.position < message.position));
@@ -332,7 +331,6 @@ function ChatView({ id }: { id: string }) {
   // Each message's branch keeps its id, so that one asked for again after its answer was lost is the one made.
   const branchIds = useRef(new Map<string, string>());
   async function branchFrom(message: Message) {
-    if (!confirm(t("chat.message.confirmBranch"))) return;
     const clientId = branchIds.current.get(message.id) ?? newId();
     branchIds.current.set(message.id, clientId);
     const branch = await data.messages.branch(message.id, clientId);

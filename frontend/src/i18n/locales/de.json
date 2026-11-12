@@ -264,7 +264,8 @@
       "prevVariantAriaLabel": "Vorherige Variante",
       "nextVariantAriaLabel": "Nächste Variante oder neu generieren",
       "confirmDeleteFrom": "Diese Nachricht und alle folgenden löschen?",
-      "confirmBranch": "Die Geschichte ab hier verzweigen?"
+      "confirmBranch": "Die Geschichte ab hier verzweigen?",
+      "branchAction": "Abzweigen"
     },
     "panel": {
       "closeAriaLabel": "Panel schließen",

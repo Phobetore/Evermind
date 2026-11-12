@@ -1,5 +1,6 @@
 import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
+import { useConfirm } from "@/components/ui/Confirm";
 import { useT } from "@/i18n/useT";
 import { isCutShort } from "@/lib/cutShort";
 import { copyText, nothingFocused } from "@/lib/utils";
@@ -48,7 +49,15 @@ export function ChatMessage({
   // A branch or a cut on its way: seen to be, and not asked for a second time meanwhile.
   const [working, setWorking] = useState<"branch" | "delete" | null>(null);
 
+  const confirm = useConfirm();
+
+  /** Asked before the work is marked as under way: while the box is open the button stays enabled,
+   *  so that a No hands the focus back to it, and no spinner shows for what nobody has agreed to. */
   async function act(what: "branch" | "delete", action: () => Promise<unknown>) {
+    const asked = what === "delete"
+      ? await confirm(t("chat.message.confirmDeleteFrom"), { action: t("common.delete"), danger: true })
+      : await confirm(t("chat.message.confirmBranch"), { action: t("chat.message.branchAction") });
+    if (!asked) return;
     setWorking(what);
     try {
       await action();

@@ -1,5 +1,6 @@
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
+import { useConfirm } from "@/components/ui/Confirm";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Modal } from "@/components/ui/Modal";
@@ -84,6 +85,7 @@ export function PersonasPage() {
 
 function PersonaModal({ persona, onClose }: { persona: Persona | null; onClose: () => void }) {
   const t = useT();
+  const confirm = useConfirm();
   const [name, setName] = useState(persona?.name ?? "");
   const [description, setDescription] = useState(persona?.description ?? "");
   const [isDefault, setIsDefault] = useState(persona?.is_default ?? false);
@@ -120,7 +122,7 @@ function PersonaModal({ persona, onClose }: { persona: Persona | null; onClose: 
 
   async function remove() {
     if (!persona) return;
-    if (!confirm(t("personas.confirmDelete", { name: persona.name }))) return;
+    if (!(await confirm(t("personas.confirmDelete", { name: persona.name }), { action: t("common.delete"), danger: true }))) return;
     try {
       await data.personas.remove(persona.id);
       onClose();
