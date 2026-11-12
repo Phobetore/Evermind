@@ -1,6 +1,6 @@
 import { Modal } from "@/components/ui/Modal";
 import { useT } from "@/i18n/useT";
-import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Options = { action: string; danger?: boolean };
 type Ask = (question: string, options: Options) => Promise<boolean>;
@@ -31,6 +31,19 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       });
     });
   }, []);
+
+  // The box sits above the router: a question about a page that the person has left (a lock sent
+  // them to the login, the back gesture) is a no, or a yes would run that page's handler once gone.
+  useEffect(() => {
+    if (!asked) return;
+    const leave = () => asked.settle(false);
+    window.addEventListener("hashchange", leave);
+    window.addEventListener("popstate", leave);
+    return () => {
+      window.removeEventListener("hashchange", leave);
+      window.removeEventListener("popstate", leave);
+    };
+  }, [asked]);
 
   return (
     <ConfirmContext.Provider value={ask}>

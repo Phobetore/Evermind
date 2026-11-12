@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { answer, makeConversation } from "./fixtures";
+import { answer, conversationWithReply, makeConversation } from "./fixtures";
 
 /** What cannot be taken back is asked about in a box of our own: the browser's `confirm()` is not
  *  there to answer in a frame that forbids modals. */
@@ -54,14 +54,16 @@ test("confirming deletes it, once", async ({ page, request }) => {
 
   await remove.click();
   await expect(box(page)).toBeVisible();
-  await answer(page, true);
+  // Two clicks in one task on the button that confirms, before the box can close: the second must
+  // not send a second request. (A real second tap would land on the row underneath.)
+  await box(page).getByRole("button", { name: "Delete", exact: true }).evaluate((b: HTMLElement) => { b.click(); b.click(); });
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await expect(row).toHaveCount(0);
 
   expect(deletes.filter((url) => url.endsWith(`/api/conversations/${id}`))).toHaveLength(1);
 });
 
-test("both buttons can be hit on a phone", async ({ page, request }, info) => {
-  test.skip(info.project.name !== "phone", "a phone's thumb is the point");
+test("both buttons can be hit on a phone", async ({ page, request }) => {
   const { remove } = await listed(page, request);
   await remove.click();
 
@@ -85,4 +87,56 @@ test("a confirmation over another dialog answers for itself", async ({ page, req
   const kept = (await (await request.get(`${API}/api/personas`)).json()).filter((p: { id: string }) => p.id === persona.id);
   expect(kept).toHaveLength(1);
   await request.delete(`${API}/api/personas/${persona.id}`);
+});
+
+test("a second question while one is open is a no, and the first still answers", async ({ page, request }) => {
+  const first = await listed(page, request);
+  const other = await makeConversation(request);
+  const title = `Asked other ${Date.now()}`;
+  await request.patch(`${API}/api/conversations/${other.id}`, { data: { title } });
+  await page.reload();
+  const second = page.locator(`main a[href$="/chat/${other.id}"]`);
+  await expect(second).toContainText(title);
+
+  // Both in one task, as two taps in the same frame: the first question must not be replaced.
+  await page.evaluate(([a, b]) => {
+    for (const id of [a, b]) {
+      document.querySelector<HTMLButtonElement>(`main a[href$="/chat/${id}"] button[aria-label="Delete"], main a[href$="/chat/${id}"] button[title="Delete"]`)?.click();
+    }
+  }, [first.id, other.id]);
+  await expect(page.getByRole("alertdialog")).toHaveCount(1);
+
+  await answer(page, true);
+  await expect(first.row).toHaveCount(0);
+  await expect(second).toBeVisible();
+  await request.delete(`${API}/api/conversations/${other.id}`);
+});
+
+test("a question is dropped when the page it was about is left", async ({ page, request }) => {
+  const { row, remove } = await listed(page, request);
+  await remove.click();
+  await expect(box(page)).toBeVisible();
+
+  await page.evaluate(() => { location.hash = "#/personas"; });
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await page.goBack();
+  await expect(row).toBeVisible();
+});
+
+test("Delete from here and Branch stay enabled while asked, and a No gives the focus back", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(reply).toBeVisible();
+
+  for (const title of ["Delete from here", "Branch the story from here"]) {
+    const opener = reply.getByTitle(title);
+    await opener.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("alertdialog")).toBeVisible();
+    await expect(opener, "nobody has agreed to it yet").toBeEnabled();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    await expect(opener).toBeFocused();
+  }
 });
