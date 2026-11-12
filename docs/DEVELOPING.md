@@ -267,10 +267,12 @@ Three things are worth knowing before changing it:
 
 ## Recorded cases
 
-`backend/tests/cases/` holds cases `{fn, name, input, expected}` for the memory
-pass and the default prompts: `input` is the named arguments of the function and
-`expected` is what the code answered when the case was written. A change that
-moves one on purpose is regenerated from `backend/`:
+`backend/tests/cases/` holds cases `{fn, name, input, expected}` for the whole
+prompt engine: the chat prompt and its parts, the other prompts, the reading of a
+model's answer, the memory pass, the card draft and the default prompts. `input`
+is the named arguments of the function and `expected` is what the Python code
+answered when the case was written. A change that moves one on purpose is
+regenerated from `backend/`:
 
 ```bash
 .venv/Scripts/python -m tests.test_recorded_cases
@@ -278,6 +280,30 @@ moves one on purpose is regenerated from `backend/`:
 
 Read the diff, since it is the change in behaviour. Never edit an `expected` by
 hand, and never remove a case that fails.
+
+Two suites read the same files. `backend/tests/test_recorded_cases.py` runs each
+case against Python, which is the reference. `frontend/src/engine/cases.test.ts`
+runs it against the engine's TypeScript copy in `frontend/src/engine/`, through
+`index.ts`, its only door, and fails when a recorded function has no adapter or
+a function of `index.ts` is reached by none. So a rule changed in Python and not
+in TypeScript fails `npm test` once the cases are regenerated. Nothing in the
+interface calls that copy yet, so it is not in the build.
+
+The two engines owe each other the same answer on typed input, and on anything a
+model answers. Typed input is what the server stores: the header of
+`frontend/src/engine/chat.ts` says what a type cannot (whole, finite numbers, well
+formed strings, whole rows), and whatever feeds the TypeScript copy must keep it.
+Some things cannot be the same between Python and JavaScript:
+
+- a model's answer nested deeper than 900, which TypeScript refuses;
+- an integer past 2^53, which a double rounds, and one in a model's answer past
+  the largest double (about 1.8e308), which JavaScript reads as Infinity;
+- the letters that only Unicode 16 cases, which Node knows and Python 3.13 does not;
+- a text that grows past the longest string V8 accepts, such as a name repeated
+  by thousands of `{{char}}`;
+- a whole float such as `3.0` given as input, which `JSON.parse` hands back as an
+  integer;
+- an object key that reads as an integer, which JavaScript lists first.
 
 ## Optional semantic memory
 

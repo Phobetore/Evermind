@@ -1,0 +1,2679 @@
+{
+ "cases": [
+  {
+   "fn": "match_lore",
+   "name": "keys found in the recent messages",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "knight"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "castle",
+       "moat"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "The dragon circles."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Over the moat."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "dragon"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "castle",
+      "moat"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "disabled entries are skipped",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore.",
+      "enabled": false
+     },
+     {
+      "id": "b",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore.",
+      "enabled": true
+     },
+     {
+      "id": "d",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore.",
+      "enabled": null
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "b",
+     "keys": [
+      "dragon"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "dragon"
+     ],
+     "content": "Lore.",
+     "enabled": true
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "a keyword matches whatever its case",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "DRAGON"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "Dragon"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "dragon"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "Dragon"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "e",
+      "keys": [
+       "DRAGON"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "a dragon sleeps"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "DRAGON"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "b",
+     "keys": [
+      "Dragon"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "dragon"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "Dragon"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "e",
+     "keys": [
+      "DRAGON"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an entry too long for the budget is skipped and a later one still fits",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta al"
+     },
+     {
+      "id": "b",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta"
+     },
+     {
+      "id": "c",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta"
+     },
+     {
+      "id": "d",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma d"
+     },
+     {
+      "id": "e",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha be"
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "b",
+     "keys": [
+      "x"
+     ],
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta"
+    },
+    {
+     "id": "c",
+     "keys": [
+      "x"
+     ],
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta"
+    },
+    {
+     "id": "e",
+     "keys": [
+      "x"
+     ],
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha be"
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "entries that use the budget exactly, then one more token",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma d"
+     },
+     {
+      "id": "b",
+      "keys": [
+       "x"
+      ],
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma d"
+     },
+     {
+      "id": "c",
+      "keys": [
+       "x"
+      ],
+      "content": "x"
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "x"
+     ],
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma d"
+    },
+    {
+     "id": "b",
+     "keys": [
+      "x"
+     ],
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma d"
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an empty keyword never matches",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       ""
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "",
+       "nope"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "",
+       "here"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [],
+      "content": "Lore."
+     },
+     {
+      "id": "e",
+      "keys": null,
+      "content": "Lore."
+     },
+     {
+      "id": "f",
+      "content": "No keys."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Something is here."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "c",
+     "keys": [
+      "",
+      "here"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "a key only beyond the last six messages",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "start"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "alpha"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "beta"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "gamma"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "start"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "alpha"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "beta"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "gamma"
+      ],
+      "active_index": 0,
+      "position": 7
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "c",
+     "keys": [
+      "beta"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "gamma"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "more than six messages at one position are read in the order they came in",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "start"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "alpha"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "beta"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "gamma"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "start"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "alpha"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "beta"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "plain"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "gamma"
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "c",
+     "keys": [
+      "beta"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "gamma"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "final sigma in the text and in the key",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "ΣΑΣ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "σας"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "c",
+      "keys": [
+       "σασ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "d",
+      "keys": [
+       "ΟΔΥΣΣΕΑΣ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "e",
+      "keys": [
+       "οδυσσεασ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "f",
+      "keys": [
+       "ΣΑΣΙΝ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "g",
+      "keys": [
+       "ΣΑΣ"
+      ],
+      "content": "Lore."
+     },
+     {
+      "id": "h",
+      "keys": [
+       "σασιν"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "ΣΑΣ ΟΔΥΣΣΕΑΣ ΣΑΣΙΝ"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "ΣΑΣ"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "b",
+     "keys": [
+      "σας"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "c",
+     "keys": [
+      "σασ"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "d",
+     "keys": [
+      "ΟΔΥΣΣΕΑΣ"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "f",
+     "keys": [
+      "ΣΑΣΙΝ"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "g",
+     "keys": [
+      "ΣΑΣ"
+     ],
+     "content": "Lore."
+    },
+    {
+     "id": "h",
+     "keys": [
+      "σασιν"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "entries keep the lorebook's order",
+   "input": {
+    "entries": [
+     {
+      "id": "z",
+      "keys": [
+       "x"
+      ],
+      "content": "Last by name."
+     },
+     {
+      "id": "b",
+      "keys": [
+       "y"
+      ],
+      "content": "Matched by the older message."
+     },
+     {
+      "id": "m",
+      "keys": [
+       "X"
+      ],
+      "content": "Middle."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "y"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "x"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "z",
+     "keys": [
+      "x"
+     ],
+     "content": "Last by name."
+    },
+    {
+     "id": "b",
+     "keys": [
+      "y"
+     ],
+     "content": "Matched by the older message."
+    },
+    {
+     "id": "m",
+     "keys": [
+      "X"
+     ],
+     "content": "Middle."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "messages given out of order are read by position",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "lantern"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "The lantern flickers."
+      ],
+      "active_index": 0,
+      "position": 7
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 0."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 1."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 2."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 3."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 4."
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 5."
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 6."
+      ],
+      "active_index": 0,
+      "position": 6
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "lantern"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "pinned first, then the newest that fit",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact one is here.",
+      "is_pinned": false,
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact two is here.",
+      "is_pinned": true,
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact three is here.",
+      "is_pinned": false,
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact four is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12
+   },
+   "expected": [
+    {
+     "id": "b",
+     "content": "Fact two is here.",
+     "is_pinned": true,
+     "source_position": 2
+    },
+    {
+     "id": "d",
+     "content": "Fact four is here.",
+     "source_position": 4
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "a fact that does not fit is skipped and a smaller older one is taken",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Tiny.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Small one.",
+      "source_position": 3
+     }
+    ],
+    "token_budget": 10
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Tiny.",
+     "source_position": 1
+    },
+    {
+     "id": "c",
+     "content": "Small one.",
+     "source_position": 3
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "a fact that costs exactly the budget fits and one token more does not",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "alpha beta gam",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "alpha beta gamma d",
+      "source_position": 2
+     }
+    ],
+    "token_budget": 5
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "alpha beta gam",
+     "source_position": 1
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "a fact with no score comes before every scored fact",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {
+     "a": -3,
+     "c": 0
+    }
+   },
+   "expected": [
+    {
+     "id": "b",
+     "content": "Fact b is here.",
+     "source_position": 2
+    },
+    {
+     "id": "d",
+     "content": "Fact d is here.",
+     "source_position": 4
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "an empty map of scores is not recency",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {}
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 1
+    },
+    {
+     "id": "b",
+     "content": "Fact b is here.",
+     "source_position": 2
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "scores rank the loose facts",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {
+     "a": 0.9,
+     "b": 0.1,
+     "c": 0.5,
+     "d": 0.7
+    }
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 1
+    },
+    {
+     "id": "d",
+     "content": "Fact d is here.",
+     "source_position": 4
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "equal scores keep the order they came in",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 4
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 3
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 2
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 1
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {
+     "a": 0.5,
+     "b": 0.5,
+     "c": 0.5,
+     "d": 0.9
+    }
+   },
+   "expected": [
+    {
+     "id": "d",
+     "content": "Fact d is here.",
+     "source_position": 1
+    },
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 4
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "equal positions keep the order they came in",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 5
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 5
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 5
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 5
+     }
+    ],
+    "token_budget": 12
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 5
+    },
+    {
+     "id": "b",
+     "content": "Fact b is here.",
+     "source_position": 5
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "position zero and a missing position sort first",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 3
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 0
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here."
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 1
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "b",
+     "content": "Fact b is here.",
+     "source_position": 0
+    },
+    {
+     "id": "c",
+     "content": "Fact c is here."
+    },
+    {
+     "id": "d",
+     "content": "Fact d is here.",
+     "source_position": 1
+    },
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 3
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "ids that are the names of what every object has",
+   "input": {
+    "memories": [
+     {
+      "id": "constructor",
+      "content": "Fact one is here.",
+      "source_position": 1
+     },
+     {
+      "id": "toString",
+      "content": "Fact two is here.",
+      "source_position": 2
+     },
+     {
+      "id": "__proto__",
+      "content": "Fact three is here.",
+      "source_position": 3
+     },
+     {
+      "id": "x",
+      "content": "Fact four is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {
+     "x": 0.1,
+     "__proto__": 0.9
+    }
+   },
+   "expected": [
+    {
+     "id": "constructor",
+     "content": "Fact one is here.",
+     "source_position": 1
+    },
+    {
+     "id": "toString",
+     "content": "Fact two is here.",
+     "source_position": 2
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "a cap of sixty facts, the pinned ones counted first",
+   "input": {
+    "memories": [
+     {
+      "content": "Fact 1.",
+      "source_position": 1
+     },
+     {
+      "content": "Fact 2.",
+      "source_position": 2
+     },
+     {
+      "content": "Fact 3.",
+      "source_position": 3
+     },
+     {
+      "content": "Fact 4.",
+      "source_position": 4
+     },
+     {
+      "content": "Fact 5.",
+      "source_position": 5
+     },
+     {
+      "content": "Fact 6.",
+      "source_position": 6
+     },
+     {
+      "content": "Fact 7.",
+      "source_position": 7
+     },
+     {
+      "content": "Fact 8.",
+      "source_position": 8
+     },
+     {
+      "content": "Fact 9.",
+      "source_position": 9
+     },
+     {
+      "content": "Fact 10.",
+      "source_position": 10
+     },
+     {
+      "content": "Fact 11.",
+      "source_position": 11
+     },
+     {
+      "content": "Fact 12.",
+      "source_position": 12
+     },
+     {
+      "content": "Fact 13.",
+      "source_position": 13
+     },
+     {
+      "content": "Fact 14.",
+      "source_position": 14
+     },
+     {
+      "content": "Fact 15.",
+      "source_position": 15
+     },
+     {
+      "content": "Fact 16.",
+      "source_position": 16
+     },
+     {
+      "content": "Fact 17.",
+      "source_position": 17
+     },
+     {
+      "content": "Fact 18.",
+      "source_position": 18
+     },
+     {
+      "content": "Fact 19.",
+      "source_position": 19
+     },
+     {
+      "content": "Fact 20.",
+      "source_position": 20
+     },
+     {
+      "content": "Fact 21.",
+      "source_position": 21
+     },
+     {
+      "content": "Fact 22.",
+      "source_position": 22
+     },
+     {
+      "content": "Fact 23.",
+      "source_position": 23
+     },
+     {
+      "content": "Fact 24.",
+      "source_position": 24
+     },
+     {
+      "content": "Fact 25.",
+      "source_position": 25
+     },
+     {
+      "content": "Fact 26.",
+      "source_position": 26
+     },
+     {
+      "content": "Fact 27.",
+      "source_position": 27
+     },
+     {
+      "content": "Fact 28.",
+      "source_position": 28
+     },
+     {
+      "content": "Fact 29.",
+      "source_position": 29
+     },
+     {
+      "content": "Fact 30.",
+      "source_position": 30
+     },
+     {
+      "content": "Fact 31.",
+      "source_position": 31
+     },
+     {
+      "content": "Fact 32.",
+      "source_position": 32
+     },
+     {
+      "content": "Fact 33.",
+      "source_position": 33
+     },
+     {
+      "content": "Fact 34.",
+      "source_position": 34
+     },
+     {
+      "content": "Fact 35.",
+      "source_position": 35
+     },
+     {
+      "content": "Fact 36.",
+      "source_position": 36
+     },
+     {
+      "content": "Fact 37.",
+      "source_position": 37
+     },
+     {
+      "content": "Fact 38.",
+      "source_position": 38
+     },
+     {
+      "content": "Fact 39.",
+      "source_position": 39
+     },
+     {
+      "content": "Fact 40.",
+      "source_position": 40
+     },
+     {
+      "content": "Fact 41.",
+      "source_position": 41
+     },
+     {
+      "content": "Fact 42.",
+      "source_position": 42
+     },
+     {
+      "content": "Fact 43.",
+      "source_position": 43
+     },
+     {
+      "content": "Fact 44.",
+      "source_position": 44
+     },
+     {
+      "content": "Fact 45.",
+      "source_position": 45
+     },
+     {
+      "content": "Fact 46.",
+      "source_position": 46
+     },
+     {
+      "content": "Fact 47.",
+      "source_position": 47
+     },
+     {
+      "content": "Fact 48.",
+      "source_position": 48
+     },
+     {
+      "content": "Fact 49.",
+      "source_position": 49
+     },
+     {
+      "content": "Fact 50.",
+      "source_position": 50
+     },
+     {
+      "content": "Fact 51.",
+      "source_position": 51
+     },
+     {
+      "content": "Fact 52.",
+      "source_position": 52
+     },
+     {
+      "content": "Fact 53.",
+      "source_position": 53
+     },
+     {
+      "content": "Fact 54.",
+      "source_position": 54
+     },
+     {
+      "content": "Fact 55.",
+      "source_position": 55
+     },
+     {
+      "content": "Fact 56.",
+      "source_position": 56
+     },
+     {
+      "content": "Fact 57.",
+      "source_position": 57
+     },
+     {
+      "content": "Fact 58.",
+      "source_position": 58
+     },
+     {
+      "content": "Fact 59.",
+      "source_position": 59
+     },
+     {
+      "content": "Pinned 1.",
+      "source_position": 10,
+      "is_pinned": true
+     },
+     {
+      "content": "Pinned 2.",
+      "source_position": 20,
+      "is_pinned": true
+     },
+     {
+      "content": "Pinned 3.",
+      "source_position": 30,
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": [
+    {
+     "content": "Fact 3.",
+     "source_position": 3
+    },
+    {
+     "content": "Fact 4.",
+     "source_position": 4
+    },
+    {
+     "content": "Fact 5.",
+     "source_position": 5
+    },
+    {
+     "content": "Fact 6.",
+     "source_position": 6
+    },
+    {
+     "content": "Fact 7.",
+     "source_position": 7
+    },
+    {
+     "content": "Fact 8.",
+     "source_position": 8
+    },
+    {
+     "content": "Fact 9.",
+     "source_position": 9
+    },
+    {
+     "content": "Pinned 1.",
+     "source_position": 10,
+     "is_pinned": true
+    },
+    {
+     "content": "Fact 10.",
+     "source_position": 10
+    },
+    {
+     "content": "Fact 11.",
+     "source_position": 11
+    },
+    {
+     "content": "Fact 12.",
+     "source_position": 12
+    },
+    {
+     "content": "Fact 13.",
+     "source_position": 13
+    },
+    {
+     "content": "Fact 14.",
+     "source_position": 14
+    },
+    {
+     "content": "Fact 15.",
+     "source_position": 15
+    },
+    {
+     "content": "Fact 16.",
+     "source_position": 16
+    },
+    {
+     "content": "Fact 17.",
+     "source_position": 17
+    },
+    {
+     "content": "Fact 18.",
+     "source_position": 18
+    },
+    {
+     "content": "Fact 19.",
+     "source_position": 19
+    },
+    {
+     "content": "Pinned 2.",
+     "source_position": 20,
+     "is_pinned": true
+    },
+    {
+     "content": "Fact 20.",
+     "source_position": 20
+    },
+    {
+     "content": "Fact 21.",
+     "source_position": 21
+    },
+    {
+     "content": "Fact 22.",
+     "source_position": 22
+    },
+    {
+     "content": "Fact 23.",
+     "source_position": 23
+    },
+    {
+     "content": "Fact 24.",
+     "source_position": 24
+    },
+    {
+     "content": "Fact 25.",
+     "source_position": 25
+    },
+    {
+     "content": "Fact 26.",
+     "source_position": 26
+    },
+    {
+     "content": "Fact 27.",
+     "source_position": 27
+    },
+    {
+     "content": "Fact 28.",
+     "source_position": 28
+    },
+    {
+     "content": "Fact 29.",
+     "source_position": 29
+    },
+    {
+     "content": "Pinned 3.",
+     "source_position": 30,
+     "is_pinned": true
+    },
+    {
+     "content": "Fact 30.",
+     "source_position": 30
+    },
+    {
+     "content": "Fact 31.",
+     "source_position": 31
+    },
+    {
+     "content": "Fact 32.",
+     "source_position": 32
+    },
+    {
+     "content": "Fact 33.",
+     "source_position": 33
+    },
+    {
+     "content": "Fact 34.",
+     "source_position": 34
+    },
+    {
+     "content": "Fact 35.",
+     "source_position": 35
+    },
+    {
+     "content": "Fact 36.",
+     "source_position": 36
+    },
+    {
+     "content": "Fact 37.",
+     "source_position": 37
+    },
+    {
+     "content": "Fact 38.",
+     "source_position": 38
+    },
+    {
+     "content": "Fact 39.",
+     "source_position": 39
+    },
+    {
+     "content": "Fact 40.",
+     "source_position": 40
+    },
+    {
+     "content": "Fact 41.",
+     "source_position": 41
+    },
+    {
+     "content": "Fact 42.",
+     "source_position": 42
+    },
+    {
+     "content": "Fact 43.",
+     "source_position": 43
+    },
+    {
+     "content": "Fact 44.",
+     "source_position": 44
+    },
+    {
+     "content": "Fact 45.",
+     "source_position": 45
+    },
+    {
+     "content": "Fact 46.",
+     "source_position": 46
+    },
+    {
+     "content": "Fact 47.",
+     "source_position": 47
+    },
+    {
+     "content": "Fact 48.",
+     "source_position": 48
+    },
+    {
+     "content": "Fact 49.",
+     "source_position": 49
+    },
+    {
+     "content": "Fact 50.",
+     "source_position": 50
+    },
+    {
+     "content": "Fact 51.",
+     "source_position": 51
+    },
+    {
+     "content": "Fact 52.",
+     "source_position": 52
+    },
+    {
+     "content": "Fact 53.",
+     "source_position": 53
+    },
+    {
+     "content": "Fact 54.",
+     "source_position": 54
+    },
+    {
+     "content": "Fact 55.",
+     "source_position": 55
+    },
+    {
+     "content": "Fact 56.",
+     "source_position": 56
+    },
+    {
+     "content": "Fact 57.",
+     "source_position": 57
+    },
+    {
+     "content": "Fact 58.",
+     "source_position": 58
+    },
+    {
+     "content": "Fact 59.",
+     "source_position": 59
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "pinned facts go past the budget and loose ones then no longer fit",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Loose and short.",
+      "source_position": 5
+     },
+     {
+      "id": "b",
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta",
+      "is_pinned": true,
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha",
+      "is_pinned": true,
+      "source_position": 3
+     }
+    ],
+    "token_budget": 60
+   },
+   "expected": [
+    {
+     "id": "b",
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta",
+     "is_pinned": true,
+     "source_position": 2
+    },
+    {
+     "id": "c",
+     "content": "delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha",
+     "is_pinned": true,
+     "source_position": 3
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "a fact costs its spaces too",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Ok.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "     Tiny fact.     ",
+      "source_position": 2
+     }
+    ],
+    "token_budget": 5
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Ok.",
+     "source_position": 1
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "an id named like what every object has, with no score of its own",
+   "input": {
+    "memories": [
+     {
+      "id": "s1",
+      "content": "Fact one is here.",
+      "source_position": 1
+     },
+     {
+      "id": "s2",
+      "content": "Fact two is here.",
+      "source_position": 2
+     },
+     {
+      "id": "constructor",
+      "content": "Fact three is here.",
+      "source_position": 3
+     }
+    ],
+    "token_budget": 11,
+    "relevance_scores": {
+     "s1": 0.5,
+     "s2": 0.9
+    }
+   },
+   "expected": [
+    {
+     "id": "s2",
+     "content": "Fact two is here.",
+     "source_position": 2
+    },
+    {
+     "id": "constructor",
+     "content": "Fact three is here.",
+     "source_position": 3
+    }
+   ]
+  },
+  {
+   "fn": "active_content",
+   "name": "the last variant",
+   "input": {
+    "message": {
+     "variants": [
+      "first",
+      "second",
+      "third"
+     ],
+     "active_index": 2
+    }
+   },
+   "expected": "third"
+  },
+  {
+   "fn": "active_content",
+   "name": "active index is minus one",
+   "input": {
+    "message": {
+     "variants": [
+      "first",
+      "second",
+      "third"
+     ],
+     "active_index": -1
+    }
+   },
+   "expected": "third"
+  },
+  {
+   "fn": "active_content",
+   "name": "active index is far past the end",
+   "input": {
+    "message": {
+     "variants": [
+      "first",
+      "second",
+      "third"
+     ],
+     "active_index": 99
+    }
+   },
+   "expected": "third"
+  },
+  {
+   "fn": "active_content",
+   "name": "variants are null",
+   "input": {
+    "message": {
+     "variants": null,
+     "active_index": null
+    }
+   },
+   "expected": ""
+  },
+  {
+   "fn": "is_out_of_character",
+   "name": "a message out of character",
+   "input": {
+    "message": {
+     "role": "user",
+     "meta": {
+      "mode": "ooc"
+     }
+    }
+   },
+   "expected": true
+  },
+  {
+   "fn": "is_out_of_character",
+   "name": "a narrated message is in character",
+   "input": {
+    "message": {
+     "role": "user",
+     "meta": {
+      "mode": "narrate"
+     }
+    }
+   },
+   "expected": false
+  },
+  {
+   "fn": "is_out_of_character",
+   "name": "a message with no meta",
+   "input": {
+    "message": {
+     "role": "user"
+    }
+   },
+   "expected": false
+  },
+  {
+   "fn": "is_out_of_character",
+   "name": "a message with a null meta",
+   "input": {
+    "message": {
+     "role": "user",
+     "meta": null
+    }
+   },
+   "expected": false
+  },
+  {
+   "fn": "substitute",
+   "name": "char in capitals with spaces",
+   "input": {
+    "text": "{{ CHAR }} waits.",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana waits."
+  },
+  {
+   "fn": "substitute",
+   "name": "a no-break space inside the braces",
+   "input": {
+    "text": "{{\u00a0char\u00a0}} and {{ user\u00a0}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana and Alex"
+  },
+  {
+   "fn": "substitute",
+   "name": "a next line character inside the braces",
+   "input": {
+    "text": "{{\u0085char}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Serana"
+  },
+  {
+   "fn": "substitute",
+   "name": "a byte order mark inside is not a space",
+   "input": {
+    "text": "{{\ufeffchar}} {{user\ufeff}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "{{\ufeffchar}} {{user\ufeff}}"
+  },
+  {
+   "fn": "substitute",
+   "name": "a long s is an s",
+   "input": {
+    "text": "{{uſer}}",
+    "char_name": "Serana",
+    "user_name": "Alex"
+   },
+   "expected": "Alex"
+  },
+  {
+   "fn": "substitute",
+   "name": "a name that is a dollar and an ampersand",
+   "input": {
+    "text": "{{char}} {{user}}",
+    "char_name": "$&",
+    "user_name": "Alex"
+   },
+   "expected": "$& Alex"
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with replacement escapes",
+   "input": {
+    "text": "[{{original}}]",
+    "original": "\\1 costs $& and \\d $1 \\g<0>"
+   },
+   "expected": "[\\1 costs $& and \\d $1 \\g<0>]"
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original with a dotted capital I",
+   "input": {
+    "text": "{{ORİGİNAL}}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules."
+  },
+  {
+   "fn": "substitute_original",
+   "name": "original in capitals with spaces",
+   "input": {
+    "text": "{{ ORIGINAL }}",
+    "original": "The default rules."
+   },
+   "expected": "The default rules."
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "a file separator inside original is a space",
+   "input": {
+    "text": "{{original\u001c}}"
+   },
+   "expected": true
+  },
+  {
+   "fn": "has_original_macro",
+   "name": "another macro is not original",
+   "input": {
+    "text": "{{char}} {{user}}"
+   },
+   "expected": false
+  },
+  {
+   "fn": "estimate_tokens",
+   "name": "seven characters",
+   "input": {
+    "text": "abcdefg"
+   },
+   "expected": 3
+  },
+  {
+   "fn": "estimate_tokens",
+   "name": "eight characters",
+   "input": {
+    "text": "abcdefgh"
+   },
+   "expected": 3
+  },
+  {
+   "fn": "estimate_tokens",
+   "name": "seven emoji",
+   "input": {
+    "text": "😀😀😀😀😀😀😀"
+   },
+   "expected": 3
+  },
+  {
+   "fn": "estimate_tokens",
+   "name": "a flag",
+   "input": {
+    "text": "🇫🇷"
+   },
+   "expected": 1
+  },
+  {
+   "fn": "strip_thought",
+   "name": "a thought is removed",
+   "input": {
+    "text": "<think>plan</think>\n Hello."
+   },
+   "expected": "Hello."
+  },
+  {
+   "fn": "strip_thought",
+   "name": "nothing while the thinking is unfinished",
+   "input": {
+    "text": "<think>still thinking"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "strip_thought",
+   "name": "nothing while the opening tag is still arriving",
+   "input": {
+    "text": "  <thi"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "strip_thought",
+   "name": "a text that only begins like the tag is text",
+   "input": {
+    "text": "<tha"
+   },
+   "expected": "<tha"
+  },
+  {
+   "fn": "strip_thought",
+   "name": "a thought that is not at the start stays",
+   "input": {
+    "text": "Hi <think>x</think> there"
+   },
+   "expected": "Hi <think>x</think> there"
+  },
+  {
+   "fn": "strip_thought",
+   "name": "spaces before a thought are not text",
+   "input": {
+    "text": "\n <think>a</think>b"
+   },
+   "expected": "b"
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker with a space before the colon",
+   "input": {
+    "text": "She nods.\nAlex : I think so",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She nods."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's tag after leading whitespace",
+   "input": {
+    "text": "  \n Mira: She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a next-line character before the tag is whitespace",
+   "input": {
+    "text": "\u0085Mira: She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a byte order mark before the tag is not whitespace",
+   "input": {
+    "text": "\ufeffMira: She smiles.",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "\ufeffMira: She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "names that a substitution would read",
+   "input": {
+    "text": "$&: She smiles.\n\\d: hello",
+    "char_name": "$&",
+    "user_name": "\\d"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a reply's thinking is removed before it is trimmed",
+   "input": {
+    "text": "<think>\nAlex: what would he say?</think>Ana: Hello.\nAlex: hi",
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": "Hello."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's tag with a space before the colon",
+   "input": {
+    "text": "Ana : Hello",
+    "char_name": "Ana",
+    "user_name": "Bob"
+   },
+   "expected": "Hello"
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a next-line character after the reply is whitespace",
+   "input": {
+    "text": "She smiles.\u0085",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a byte order mark after the reply is not whitespace",
+   "input": {
+    "text": "She smiles.\ufeff",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles.\ufeff"
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a separator control before the tag is whitespace",
+   "input": {
+    "text": "\u001cAna: Hello.",
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": "Hello."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker with a space before the colon, then without",
+   "input": {
+    "text": "Hi\nAlex : x\nAlex: y",
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": "Hi"
+  },
+  {
+   "fn": "words",
+   "name": "a bare string is a list of one",
+   "input": {
+    "value": " a, b "
+   },
+   "expected": [
+    "a, b"
+   ]
+  },
+  {
+   "fn": "words",
+   "name": "whole numbers are words, booleans and fractions are not",
+   "input": {
+    "value": [
+     "x",
+     3,
+     true,
+     false,
+     1.5,
+     null,
+     0,
+     [
+      "y"
+     ],
+     {
+      "z": 1
+     }
+    ]
+   },
+   "expected": [
+    "x",
+    "3",
+    "0"
+   ]
+  },
+  {
+   "fn": "words",
+   "name": "words are stripped as Python strips, and blanks dropped",
+   "input": {
+    "value": [
+     "  a ",
+     "",
+     " ",
+     "\u00a0b\u0085",
+     "\ufeffc",
+     "\u001cd\u3000"
+    ]
+   },
+   "expected": [
+    "a",
+    "b",
+    "\ufeffc",
+    "d"
+   ]
+  },
+  {
+   "fn": "words",
+   "name": "a word that cannot be written is dropped",
+   "input": {
+    "value": [
+     "ok",
+     "\ud800",
+     "x\udc00",
+     "😀"
+    ]
+   },
+   "expected": [
+    "ok",
+    "😀"
+   ]
+  },
+  {
+   "fn": "words",
+   "name": "what is neither a list nor a string has no words",
+   "input": {
+    "value": {
+     "keys": [
+      "a"
+     ]
+    }
+   },
+   "expected": []
+  },
+  {
+   "fn": "is_movable",
+   "name": "a fact the model wrote and nobody pinned",
+   "input": {
+    "fact": {
+     "is_pinned": false,
+     "source": "auto"
+    }
+   },
+   "expected": true
+  },
+  {
+   "fn": "is_movable",
+   "name": "a pinned fact",
+   "input": {
+    "fact": {
+     "is_pinned": true,
+     "source": "auto"
+    }
+   },
+   "expected": false
+  },
+  {
+   "fn": "is_movable",
+   "name": "a fact written by hand",
+   "input": {
+    "fact": {
+     "is_pinned": false,
+     "source": "user"
+    }
+   },
+   "expected": false
+  },
+  {
+   "fn": "movable_facts",
+   "name": "every combination, in the order they came",
+   "input": {
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Fact 1.",
+      "source_position": 1,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f2",
+      "content": "Fact 2.",
+      "source_position": 2,
+      "is_pinned": true,
+      "source": "auto"
+     },
+     {
+      "id": "f3",
+      "content": "Fact 3.",
+      "source_position": 3,
+      "is_pinned": false,
+      "source": "user"
+     },
+     {
+      "id": "f4",
+      "content": "Fact 4.",
+      "source_position": 4,
+      "is_pinned": true,
+      "source": "user"
+     },
+     {
+      "id": "f5",
+      "content": "Fact 5.",
+      "source_position": 5,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f6",
+      "content": "Fact 6.",
+      "source_position": 6,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f7",
+      "content": "Fact 7.",
+      "source_position": 7,
+      "is_pinned": true,
+      "source": "auto"
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "f1",
+     "content": "Fact 1.",
+     "source_position": 1,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    {
+     "id": "f5",
+     "content": "Fact 5.",
+     "source_position": 5,
+     "is_pinned": false,
+     "source": "auto"
+    },
+    {
+     "id": "f6",
+     "content": "Fact 6.",
+     "source_position": 6,
+     "is_pinned": false,
+     "source": "auto"
+    }
+   ]
+  },
+  {
+   "fn": "movable_facts",
+   "name": "the facts come back whole",
+   "input": {
+    "memories": [
+     {
+      "id": "x",
+      "content": "Kept.",
+      "source_position": 12,
+      "is_pinned": false,
+      "source": "auto",
+      "created_at": "2026-11-02T10:00:00",
+      "conversation_id": "c1"
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "x",
+     "content": "Kept.",
+     "source_position": 12,
+     "is_pinned": false,
+     "source": "auto",
+     "created_at": "2026-11-02T10:00:00",
+     "conversation_id": "c1"
+    }
+   ]
+  },
+  {
+   "fn": "answer_texts",
+   "name": "the texts of new facts and of corrections",
+   "input": {
+    "parsed": {
+     "facts": [
+      {
+       "content": " a "
+      },
+      {
+       "content": "b"
+      }
+     ],
+     "updated_facts": [
+      {
+       "content": "c",
+       "replaces": "a"
+      }
+     ],
+     "obsolete_facts": [
+      "d"
+     ],
+     "summary": "s"
+    }
+   },
+   "expected": [
+    "a",
+    "b",
+    "c"
+   ]
+  },
+  {
+   "fn": "answer_texts",
+   "name": "what is not a text is not embedded",
+   "input": {
+    "parsed": {
+     "facts": [
+      {
+       "content": 5
+      },
+      {
+       "content": ""
+      },
+      {
+       "content": "\ud800"
+      },
+      "x",
+      {
+       "content": null
+      }
+     ],
+     "updated_facts": {
+      "content": "y"
+     }
+    }
+   },
+   "expected": []
+  },
+  {
+   "fn": "answer_texts",
+   "name": "texts are stripped as Python strips",
+   "input": {
+    "parsed": {
+     "facts": [
+      {
+       "content": "\u00a0x\u0085"
+      },
+      {
+       "content": "\ufeffy"
+      }
+     ],
+     "updated_facts": [
+      {
+       "content": "\u001cz"
+      }
+     ]
+    }
+   },
+   "expected": [
+    "x",
+    "\ufeffy",
+    "z"
+   ]
+  }
+ ]
+}
