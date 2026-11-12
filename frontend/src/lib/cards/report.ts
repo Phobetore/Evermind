@@ -1,6 +1,6 @@
 import type { CardCharacter, CardText, LoreEntryInput } from "@/data";
 import { pyStrip } from "@/engine/text";
-import { bookEntries, cardFields, FIELDS, isObject, isStorable, isText, NAME_LENGTH, texts } from "./read";
+import { bookEntries, cardFields, FIELDS, isObject, isStorable, isText, NAME_LENGTH, text, texts } from "./read";
 
 // What an import says it did with a card: what Evermind uses, and what it only keeps for the export.
 
@@ -80,8 +80,9 @@ const unreadableList = (value: unknown) => Array.isArray(value) ? value.some(unr
  *  card, whose notes may be its `creatorcomment`. */
 function unreadFields(fields: Record<string, unknown>, flat: boolean): string[] {
   const names = [...Object.keys(FIELDS), "nickname"].filter((key) => unreadable(fields[key]));
-  // A name longer than the server takes loses its end: the card keeps it whole, but it is said.
-  if (typeof fields.name === "string" && [...fields.name.toWellFormed().trim()].length > NAME_LENGTH) names.push("name");
+  // A name longer than the server takes loses its end: the card keeps it whole, but it is said,
+  // under a name of its own so that it never reads as a name that held something else.
+  if (typeof fields.name === "string" && [...fields.name.toWellFormed().trim()].length > NAME_LENGTH) names.push("name.cut");
   if (flat && !isText(fields.creator_notes) && unreadable(fields.creatorcomment)) names.push("creatorcomment");
   for (const key of ["alternate_greetings", "tags"]) {
     if (unreadableList(fields[key])) names.push(key);
@@ -112,7 +113,9 @@ function unreadFields(fields: Record<string, unknown>, flat: boolean): string[] 
       for (const key of ["keys", "secondary_keys"]) {
         if (unreadableList(entry[key])) names.push(`character_book.entries.${index}.${key}`);
       }
-      for (const key of ["content", "comment", "name"]) {
+      // The name is read only when the comment gives nothing, as readEntry reads it.
+      const read = text(entry.comment) ? ["content", "comment"] : ["content", "comment", "name"];
+      for (const key of read) {
         if (unreadable(entry[key])) names.push(`character_book.entries.${index}.${key}`);
       }
     });

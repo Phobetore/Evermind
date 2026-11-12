@@ -86,11 +86,16 @@ describe("the report of an import", () => {
     }]);
     expect(report({ character_book: { entries: [{ keys: "k", secondary_keys: { o: 1 }, content: 5, comment: null }] } }))
       .toContainEqual({ key: "unreadFields", names: ["character_book.entries.0.secondary_keys"] });
+    // An entry's name is read only when its comment gives nothing: otherwise it is not said.
+    expect(report({ character_book: { entries: [{ keys: ["k"], content: "c", comment: "C", name: { a: 1 } }] } }))
+      .toEqual([]);
     // Evermind's own tagline that is no text.
     expect(report({ extensions: { evermind: { tagline: { a: 1 } } } }))
       .toEqual([{ key: "unreadFields", names: ["extensions.evermind.tagline"] }]);
     // A name longer than the server takes is cut there, and that is said; one of 200 is not.
-    expect(report({ name: `${"é".repeat(199)}🌊x` })).toEqual([{ key: "unreadFields", names: ["name"] }]);
+    expect(report({ name: `${"é".repeat(199)}🌊x` })).toEqual([{ key: "unreadFields", names: ["name.cut"] }]);
+    // A name that is no text is said as such, not as a name cut.
+    expect(report({ name: { a: 1 }, description: "D." })).toEqual([{ key: "unreadFields", names: ["name"] }]);
     expect(report({ name: `${"é".repeat(199)}🌊` })).toEqual([]);
     // A flat V1 card's creatorcomment, read as its notes, that is no text; read nowhere else.
     const flat = (card: object) => readCardJson({ name: "N", ...card }, "{}", "json")!.report.kept;
