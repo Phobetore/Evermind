@@ -1,5 +1,6 @@
 export type Kind = "character" | "scenario";
 export type ProviderType = "openai-compatible" | "anthropic";
+export type NoteRole = "system" | "user" | "assistant";
 
 export interface Character {
   id: string;
@@ -18,6 +19,15 @@ export interface Character {
   tags: string[];
   creator: string;
   character_version: string;
+  nickname: string;
+  character_note: string;
+  character_note_depth: number;
+  character_note_role: NoteRole;
+  creator_notes_multilingual: Record<string, string>;
+  /** 1: the rules every card had before cards were kept whole; 2: those community cards are written for. */
+  card_rules: 1 | 2;
+  /** Whether the card it was read from is kept, for its export. */
+  has_card: boolean;
   avatar_url: string | null;
   is_favorite: boolean;
   created_at: string;
@@ -113,6 +123,22 @@ export interface LoreEntry {
   keys: string[];
   content: string;
   enabled: boolean;
+  /** The index of the entry of the kept card this one comes from; null for one made here. */
+  origin: number | null;
+  comment: string;
+  constant: boolean;
+  selective: boolean;
+  secondary_keys: string[];
+  /** 0 and any, 1 not all, 2 none, 3 all: SillyTavern's numbering. */
+  selective_logic: 0 | 1 | 2 | 3;
+  insertion_order: number;
+  /** SillyTavern's numbering, 0 to 7, kept as read. */
+  position: number;
+  depth: number;
+  role: NoteRole;
+  whole_words: boolean;
+  exclude_recursion: boolean;
+  prevent_recursion: boolean;
 }
 
 /** A card as it is read on its own: with its lorebook. */

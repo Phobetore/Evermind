@@ -103,6 +103,15 @@ describe("what is sent", () => {
     expect(JSON.parse(calls[0].init.body as string)).toEqual(input);
   });
 
+  test("asks for the card a character was read from", async () => {
+    replies.push(json(null), json({ text: "{}", format: "json", other_text: null, read: {}, read_at: "t" }));
+    await expect(data.characters.card("c1")).resolves.toBeNull();
+    await data.characters.card("c/2");
+    expect(calls.map((c) => [c.url, c.init.method ?? "GET"])).toEqual([
+      ["api/characters/c1/card", "GET"], ["api/characters/c%2F2/card", "GET"],
+    ]);
+  });
+
   test("an image read back is a file of the type the server gave", async () => {
     replies.push(new Response(new Uint8Array([0xff, 0xd8]), { headers: { "Content-Type": "image/jpeg" } }));
     const file = await data.file("api/media/a.jpg");

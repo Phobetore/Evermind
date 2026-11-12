@@ -5,7 +5,7 @@ import type {
 import type {
   Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConnectionInput,
   ConnectionTestResult, ConsolidateResult, ConversationInput, ConversationPatch, ExtractResult,
-  LoreEntryInput, PersonaInput, TurnRequest,
+  LoreEntryInput, OriginalCard, PersonaInput, StoredCard, TurnRequest,
 } from "./types";
 
 /** A few words kept on this device and nowhere else. It never throws: a store that cannot keep
@@ -36,11 +36,13 @@ export interface DataSource {
     list(): Promise<Character[]>;
     get(id: string): Promise<CharacterWithLore>;
     /** `lore_entries` is the whole lorebook: an entry with no keyword or no text is left out. */
-    create(input: CharacterInput & { lore_entries?: LoreEntryInput[] }): Promise<Character>;
+    create(input: CharacterInput & { lore_entries?: LoreEntryInput[]; card?: OriginalCard }): Promise<Character>;
     update(
       id: string,
-      input: Partial<CharacterInput> & { is_favorite?: boolean; lore_entries?: LoreEntryInput[] },
+      input: Partial<CharacterInput> & { is_favorite?: boolean; lore_entries?: LoreEntryInput[]; card?: OriginalCard },
     ): Promise<Character>;
+    /** The card the character was read from, or null for one made here. */
+    card(id: string): Promise<StoredCard | null>;
     remove(id: string): Promise<void>;
     uploadAvatar(id: string, file: File): Promise<Character>;
     /** The card is written by a job that outlives the page: `start` answers at once, `state` says

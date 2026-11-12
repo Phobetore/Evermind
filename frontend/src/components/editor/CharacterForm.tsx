@@ -11,6 +11,7 @@ import {
   scopeOf,
 } from "@/lib/assist";
 import { cardFile } from "@/lib/cards";
+import { newLoreEntry } from "@/lib/loreEntry";
 import { describeError, isUnanswered } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
 import type { CharacterWithLore, Connection, Kind, LoreEntry } from "@/types";
@@ -40,6 +41,12 @@ const EMPTY: Draft = {
   tags: [],
   creator: "",
   character_version: "",
+  nickname: "",
+  character_note: "",
+  character_note_depth: 4,
+  character_note_role: "system",
+  creator_notes_multilingual: {},
+  card_rules: 2,
 };
 
 const KIND_COPY: Record<Kind, Record<string, { labelKey: string; hintKey: string }>> = {
@@ -140,7 +147,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     // What was typed while the model wrote stays: only a field still empty takes what it wrote.
     setDraft((d) => ({ ...d, ...fieldsToTake(d, ended.fields) }));
     if (ended.lore.length) {
-      const additions = ended.lore.map((entry) => ({ ...entry, id: newId(), enabled: true }));
+      const additions = ended.lore.map((entry) => ({ ...newLoreEntry(entry.keys, entry.content), id: newId() }));
       setLoreEntries((prev) => [...prev, ...additions]);
     }
     forgetJob(scopeNow());

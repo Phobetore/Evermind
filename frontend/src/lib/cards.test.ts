@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { crc32 } from "node:zlib";
 import { describe, expect, test } from "vitest";
+import { newLoreEntry } from "./loreEntry";
 import { cardFile, cardToCharacter, characterToCard, readCardFile, withCard } from "./cards";
 
 const PNG = Uint8Array.from(
@@ -12,11 +13,12 @@ const VANE = {
   kind: "scenario" as const, name: "Vane", tagline: "The ferry", description: "Terse.", personality: "Dry",
   scenario: "A dock.", greeting: "Late.", alternate_greetings: ["Early."], example_dialogues: "<START>",
   system_prompt: "S", post_history_instructions: "P", creator_notes: "N", tags: ["sea"], creator: "C",
-  character_version: "2",
+  character_version: "2", nickname: "", character_note: "", character_note_depth: 4,
+  character_note_role: "system" as const, creator_notes_multilingual: {}, card_rules: 2 as const,
 };
 const LORE = [
-  { keys: ["tide"], content: "It turns at noon.", enabled: false },
-  { keys: ["bell", "Bell"], content: "It rings.", enabled: true },
+  { ...newLoreEntry(["tide"], "It turns at noon."), enabled: false },
+  newLoreEntry(["bell", "Bell"], "It rings."),
 ];
 
 /** A tEXt chunk, put before the end of the PNG. */

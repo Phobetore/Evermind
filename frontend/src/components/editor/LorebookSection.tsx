@@ -1,5 +1,6 @@
 import { TagInput } from "@/components/editor/TagInput";
 import { useT } from "@/i18n/useT";
+import { newLoreEntry } from "@/lib/loreEntry";
 import { newId } from "@/lib/utils";
 import type { LoreEntry } from "@/types";
 import { BookMarked, Plus, Trash2 } from "lucide-react";
@@ -23,7 +24,7 @@ export function LorebookSection({
       setError(t("lorebook.entryRequiredError"));
       return;
     }
-    onChange([...entries, { id: newId(), keys: newKeys, content: newContent.trim(), enabled: true }]);
+    onChange([...entries, { ...newLoreEntry(newKeys, newContent.trim()), id: newId() }]);
     setNewKeys([]);
     setNewContent("");
     setError(null);

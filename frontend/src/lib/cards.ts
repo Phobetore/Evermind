@@ -1,10 +1,10 @@
-import { data, DataError, type CharacterInput, type LoreEntryInput } from "@/data";
+import { data, DataError, type CardCharacter, type CharacterInput, type LoreEntryInput } from "@/data";
+import { newLoreEntry } from "@/lib/loreEntry";
 import type { Character } from "@/types";
 
 // Character Card V2, and V1 and V3 when read; Evermind's own fields go in extensions.evermind.
 
-/** A card as Evermind keeps one: its fields, and its whole lorebook. */
-export type CardCharacter = CharacterInput & { lore_entries: LoreEntryInput[] };
+export type { CardCharacter };
 
 const MAX_BYTES = 15 * 1024 * 1024; // what the server takes for a portrait
 const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
@@ -55,11 +55,16 @@ export function cardToCharacter(card: unknown): CardCharacter | null {
     name: [...character.name.trim()].slice(0, 200).join("") || "Unnamed",
     kind: own.kind === "scenario" ? "scenario" : "character",
     tagline: text(own.tagline),
+    nickname: "",
+    character_note: "",
+    character_note_depth: 4,
+    character_note_role: "system",
+    creator_notes_multilingual: {},
+    card_rules: 2,
     alternate_greetings: texts(fields.alternate_greetings),
     tags: texts(fields.tags),
     lore_entries: book.filter(isObject).map((entry) => ({
-      keys: texts(entry.keys).map((key) => key.trim()),
-      content: text(entry.content).trim(),
+      ...newLoreEntry(texts(entry.keys).map((key) => key.trim()), text(entry.content).trim()),
       enabled: Boolean(entry.enabled ?? true),
     })).filter((entry) => entry.keys.length > 0 && entry.content),
   };
