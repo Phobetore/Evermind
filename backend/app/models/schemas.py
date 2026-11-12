@@ -86,7 +86,7 @@ class CharacterIn(Input):
     lore_entries: list[LoreEntryIn] = []
     # Left out by a page from before the rules existed: its card keeps the old ones until re-read.
     card_rules: Literal[1, 2] = 1
-    nickname: str = ""
+    nickname: str = Field(default="", max_length=200)
     character_note: str = ""
     character_note_depth: int = Field(default=4, ge=0, le=WHOLE)
     character_note_role: Role = "system"
@@ -115,7 +115,7 @@ class CharacterUpdate(Input):
     is_favorite: bool | None = None
     lore_entries: list[LoreEntryIn] | None = None  # the whole lorebook, in order
     card_rules: Literal[1, 2] | None = None
-    nickname: str | None = None
+    nickname: str | None = Field(default=None, max_length=200)
     character_note: str | None = None
     character_note_depth: int | None = Field(default=None, ge=0, le=WHOLE)
     character_note_role: Role | None = None

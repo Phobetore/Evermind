@@ -83,6 +83,8 @@ function unreadFields(fields: Record<string, unknown>, flat: boolean): string[] 
   // A name longer than the server takes loses its end: the card keeps it whole, but it is said,
   // under a name of its own so that it never reads as a name that held something else.
   if (typeof fields.name === "string" && [...fields.name.toWellFormed().trim()].length > NAME_LENGTH) names.push("name.cut");
+  // The nickname is cut the same way, though not trimmed first, as characterOf reads it.
+  if (typeof fields.nickname === "string" && [...fields.nickname.toWellFormed()].length > NAME_LENGTH) names.push("nickname.cut");
   if (flat && !isText(fields.creator_notes) && unreadable(fields.creatorcomment)) names.push("creatorcomment");
   for (const key of ["alternate_greetings", "tags"]) {
     if (unreadableList(fields[key])) names.push(key);

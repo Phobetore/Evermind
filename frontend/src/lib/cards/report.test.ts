@@ -97,6 +97,9 @@ describe("the report of an import", () => {
     // A name that is no text is said as such, not as a name cut.
     expect(report({ name: { a: 1 }, description: "D." })).toEqual([{ key: "unreadFields", names: ["name"] }]);
     expect(report({ name: `${"é".repeat(199)}🌊` })).toEqual([]);
+    // So is a nickname, which the card keeps whole as well.
+    expect(report({ nickname: `${"é".repeat(199)}🌊x` })).toEqual([{ key: "unreadFields", names: ["nickname.cut"] }]);
+    expect(report({ nickname: `${"é".repeat(199)}🌊` })).toEqual([]);
     // A flat V1 card's creatorcomment, read as its notes, that is no text; read nowhere else.
     const flat = (card: object) => readCardJson({ name: "N", ...card }, "{}", "json")!.report.kept;
     expect(flat({ creatorcomment: { a: 1 } })).toEqual([{ key: "unreadFields", names: ["creatorcomment"] }]);

@@ -178,6 +178,9 @@ describe("the fields of a card", () => {
       nickname: "Ari", creator_notes_multilingual: { en: "A guardian.", ko: "문지기." },
     });
     expect(readFixture("risu-v3.json").character.creator_notes_multilingual).not.toHaveProperty("fr");
+    // Cut where the name is cut, counted the same way; an empty one stays empty.
+    expect(v2({ nickname: "😀".repeat(250) }).character.nickname).toBe("😀".repeat(200));
+    expect(v2({ nickname: "" }).character.nickname).toBe("");
   });
 
   test("a flat V1 card with a data object of its own reads by its root", () => {
