@@ -62,7 +62,7 @@ class AnthropicProvider(Provider):
             body["stop_sequences"] = [s for s in payload.stop if s.strip()][:4]
         return body
 
-    async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
+    async def _events(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
         usage = stop = None
         async with aclosing(self._sse("/v1/messages", self._build_body(payload))) as events:
             async for event in events:
@@ -71,7 +71,7 @@ class AnthropicProvider(Provider):
                     delta = event.get("delta") or {}
                     thought = delta.get("thinking") if delta.get("type") == "thinking_delta" else None
                     if isinstance(thought, str) and thought:
-                        yield ProviderEvent(type="thought", count=len(thought))
+                        yield ProviderEvent(type="thought", text=thought)
                     text = delta.get("text")
                     if text:
                         yield ProviderEvent(type="delta", text=text)
