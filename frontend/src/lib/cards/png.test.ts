@@ -138,5 +138,20 @@ describe("the chunks of a PNG", () => {
     const card = await read(withChunks(tEXt("ccv3", base64(RISU_V3)), tEXt("chara", base64(BACKFILL))));
     expect(card.original).toEqual({ text: RISU_V3, format: "png", other_text: null });
     expect(card.report.kept.map((line) => line.key)).not.toContain("otherChunk");
+
+    // The warning the V3 specification suggests for its V2 copy, added to the notes or in their place.
+    const warning = "This character card is Character Card V3, but it is loaded as a Character Card V2. "
+      + "Please use a Character Card V3 compatible application to use this character card properly.";
+    const notes = "A guardian, written by hand for the tests.";
+    for (const backfillNotes of [`${warning}\n\n${notes}`, `${notes}\n${warning}`, warning]) {
+      const backfill = BACKFILL.replace(`"creator_notes": "${notes}"`, `"creator_notes": ${JSON.stringify(backfillNotes)}`);
+      expect(backfill).not.toBe(BACKFILL);
+      const warned = await read(withChunks(tEXt("ccv3", base64(RISU_V3)), tEXt("chara", base64(backfill))));
+      expect(warned.original.other_text).toBeNull();
+    }
+    // Notes that say something else are another card all the same.
+    const retold = BACKFILL.replace(`"creator_notes": "${notes}"`, `"creator_notes": "${warning} A keeper, retold."`);
+    const other = await read(withChunks(tEXt("ccv3", base64(RISU_V3)), tEXt("chara", base64(retold))));
+    expect(other.original.other_text).toBe(retold);
   });
 });

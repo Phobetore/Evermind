@@ -57,14 +57,27 @@ function withoutDecorators(content: string) {
   return lines.slice(first).join("\n").trim();
 }
 
-/** What Evermind reads of a card, the part two cards of one PNG must agree on to be the same. */
+/** The warning the V3 specification suggests a V2 copy add to its creator's notes. */
+const BACKFILL_WARNING = "This character card is Character Card V3, but it is loaded as a Character Card V2. "
+  + "Please use a Character Card V3 compatible application to use this character card properly.";
+
+/** What Evermind reads of a card, the part two cards of one PNG must agree on to be the same; the
+ *  creator's notes are compared apart, by sameNotes. */
 function readingOf(character: CardCharacter) {
   return JSON.stringify([
-    ["kind", "tagline", ...Object.values(FIELDS)].map((field) => character[field as keyof CardCharacter]),
+    ["kind", "tagline", ...Object.values(FIELDS)].filter((field) => field !== "creator_notes")
+      .map((field) => character[field as keyof CardCharacter]),
     character.alternate_greetings,
     character.tags,
     character.lore_entries.map((entry) => [entry.keys, withoutDecorators(entry.content)]),
   ]);
+}
+
+/** Whether the other card's notes are the winner's: a V2 copy that follows the specification adds
+ *  its warning to them, or puts the warning in their place, and is no other card for it. */
+function sameNotes(winner: string, other: string) {
+  const plain = (notes: string) => notes.split(BACKFILL_WARNING).join("").trim();
+  return plain(winner) === plain(other) || (other.includes(BACKFILL_WARNING) && plain(other) === "");
 }
 
 /** The card a PNG carries: `ccv3` first, as the V3 specification and SillyTavern read it, else
@@ -81,7 +94,8 @@ async function pngCard(png: Uint8Array): Promise<ReadCard | null> {
   });
   if (found.length === 0) return null;
   const [{ card, read }, other] = found;
-  if (!other || readingOf(other.read.character) === readingOf(read.character)) return read;
+  if (!other || (readingOf(other.read.character) === readingOf(read.character)
+    && sameNotes(read.character.creator_notes, other.read.character.creator_notes))) return read;
   const original = { ...read.original, other_text: other.read.original.text };
   return { ...read, original, report: reportOf(card, read.character, original) };
 }
