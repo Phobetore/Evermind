@@ -114,6 +114,20 @@ export function replyEnds(page: Page, id: string): Promise<unknown> {
   });
 }
 
+/** Settles once the page has heard that the card it follows has ended: the server's word, read by
+ *  the page, that the job no longer runs, or the answer to its Stop. What the form shows at a card's
+ *  end is looked for from there: how long the card takes is the model's and the machine's. Called
+ *  before what begins the job. */
+export function cardEnds(page: Page): Promise<unknown> {
+  return page.waitForResponse(async (r) => {
+    const method = r.request().method();
+    if (method !== "GET" && method !== "DELETE") return false;
+    if (!/\/api\/characters\/assist\/[^/]+$/.test(new URL(r.url()).pathname)) return false;
+    // A read the page gave up on brings no word.
+    return (await r.json().catch(() => ({ running: true }))).running === false;
+  });
+}
+
 /** Settles once the server has answered the page's Remember, which is when the panel shows what it wrote. */
 export const remembered = (page: Page) =>
   page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith("/memories/extract"));
