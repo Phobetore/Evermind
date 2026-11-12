@@ -1,5 +1,6 @@
 import aiosqlite
 
+from ..models.schemas import CharacterIn
 from . import lore as lore_repo
 from .base import dumps, loads, new_id, now_iso
 
@@ -10,9 +11,12 @@ _TEXT_FIELDS = (
     "creator", "character_version", "nickname", "character_note", "character_note_role",
 )
 _INT_FIELDS = ("card_rules", "character_note_depth")
-# What a column holds when a caller leaves it out, where an empty text would not do.
-_DEFAULTS = {"kind": "character", "character_note_role": "system", "card_rules": 1,
-             "character_note_depth": 4}
+# What a column holds when a caller leaves it out, where an empty text would not do: taken from
+# the request's own defaults, so a character made here and one sent by a page cannot drift apart.
+_DEFAULTS = {
+    name: CharacterIn.model_fields[name].default
+    for name in ("kind", "character_note_role", "card_rules", "character_note_depth")
+}
 
 # The card file is never read here: it can weigh megabytes, and a list would carry them all.
 _SELECT = """SELECT characters.*, EXISTS(SELECT 1 FROM character_cards AS card
