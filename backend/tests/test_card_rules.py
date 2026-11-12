@@ -3,7 +3,7 @@
 import time
 from dataclasses import asdict
 
-from app.prompting.engine import build_chat_payload, match_lore
+from app.prompting.engine import _BUDGET_MARGIN, build_chat_payload, match_lore
 from app.prompting.lorebook import key_matches, strip_decorators
 from app.prompting.payloads import build_impersonate_payload
 from app.prompting.tokens import estimate_tokens
@@ -298,10 +298,10 @@ def noted(depth, note="Remember the storm.", **overrides):
     return make_character(card_rules=2, character_note=note, character_note_depth=depth, **overrides)
 
 
-def chat(character, messages, entries=(), **arguments):
+def chat(character, messages, entries=(), connection=None, **arguments):
     return asdict(build_chat_payload(
         character=character, persona=PERSONA, conversation={"summary": ""}, messages=messages,
-        connection=make_connection(), lore_entries=list(entries), **arguments))
+        connection=connection or make_connection(), lore_entries=list(entries), **arguments))
 
 
 def contents(built):
@@ -311,6 +311,41 @@ def contents(built):
 def test_a_note_at_depth_one_sits_just_before_the_newest_message():
     assert contents(chat(noted(1), said(*STORY))) == [
         "Hi.", "Hello.", "How are you?", "Fine.", f"{NOTE}\n\nGood."]
+    # Between two of the player's turns, it opens the newest rather than ending the one before.
+    unanswered = said("Hi.", "Hello.", "Are you there?") + [make_message("user", "Hello?", 3)]
+    assert contents(chat(noted(1), unanswered)) == [
+        "Hi.", "Hello.", "Are you there?", f"{NOTE}\n\nHello?"]
+
+
+def test_a_note_with_no_depth_given_sits_at_depth_four():
+    unset = make_character(card_rules=2, character_note="Remember the storm.")
+    assert chat(unset, said(*STORY)) == chat(noted(4), said(*STORY))
+    assert chat(noted(None), said(*STORY)) == chat(noted(4), said(*STORY))
+
+
+def test_the_note_takes_its_room_from_the_story():
+    # A long opening turn, so that the note's room is that turn and no other; no examples,
+    # which a tight context would drop and so give room back.
+    story = [make_message("user", costing(40, "a"), 0)] + said(*STORY)[1:]
+    unnoted = make_character(card_rules=2, example_dialogues="")
+
+    def sent(character, size, **arguments):
+        return chat(character, story, connection=make_connection(context_size=size), **arguments)
+
+    # The smallest context in which every turn fits, with nothing to spare: what the prompt
+    # uses, the reply's room and the margin.
+    size = (chat(unnoted, story)["stats"]["used_tokens"]
+            + make_connection()["max_tokens"] + _BUDGET_MARGIN)
+    plain = sent(unnoted, size)
+    assert plain["stats"]["messages_included"] == 5
+    assert sent(unnoted, size - 1)["stats"]["messages_included"] == 4
+
+    built = sent(noted(1, example_dialogues=""), size)
+    assert built["stats"]["messages_included"] == 4
+    assert contents(built) == ["Hello.", "How are you?", "Fine.", f"{NOTE}\n\nGood."]
+    # Left out, the note leaves the story its room.
+    bare = sent(noted(1, example_dialogues=""), size, insertions=False)
+    assert bare["stats"]["messages_included"] == 5 and bare["messages"] == plain["messages"]
 
 
 def test_a_note_at_depth_two_sits_at_the_end_of_the_player_s_message_before_the_last_reply():

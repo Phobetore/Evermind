@@ -795,7 +795,7 @@
   },
   {
    "fn": "build_impersonate_payload",
-   "name": "impersonation: a card's note and its entries at a depth are not for the player's pen",
+   "name": "impersonation: a card's note is not for the player's pen",
    "input": {
     "character": {
      "kind": "character",

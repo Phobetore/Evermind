@@ -347,8 +347,11 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         if insertions:
             at_depth = [entry for entry in matched if at_a_depth(entry)]
             note = (character.get("character_note") or "").strip()
-            depth_texts = _texts_at_depths(note, character.get("character_note_depth", _NOTE_DEPTH),
-                                           at_depth, char_name, user_name)
+            # None reads as unset, as the TypeScript engine's ?? does.
+            note_depth = character.get("character_note_depth")
+            if note_depth is None:
+                note_depth = _NOTE_DEPTH
+            depth_texts = _texts_at_depths(note, note_depth, at_depth, char_name, user_name)
     else:
         lore = match_lore(lore_entries or [], messages)
     # Said among the turns or in the closing block, these texts take their room from the story.
