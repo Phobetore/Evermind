@@ -560,6 +560,22 @@
    }
   },
   {
+   "fn": "clean_card_draft",
+   "name": "a long tag of emoji is cut at 40 characters, not 40 halves",
+   "input": {
+    "draft": {
+     "tags": [
+      "🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉"
+    ]
+   }
+  },
+  {
    "fn": "with_room_for_a_card",
    "name": "a connection with no ceiling is left as it is",
    "input": {

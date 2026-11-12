@@ -407,6 +407,36 @@
    }
   },
   {
+   "fn": "parse_llm_json",
+   "name": "the fence is tried before the text from the first brace",
+   "input": {
+    "text": "Say \"hi {\"a\": \"line1\nline2\"} ```json\n{\"b\": 1}\n```"
+   },
+   "expected": {
+    "b": 1
+   }
+  },
+  {
+   "fn": "parse_llm_json",
+   "name": "an answer that reads as it is is not repaired",
+   "input": {
+    "text": "say \" {\"a\": \"p,]\"}"
+   },
+   "expected": {
+    "a": "p,]"
+   }
+  },
+  {
+   "fn": "parse_llm_json",
+   "name": "a list that reads ends the search",
+   "input": {
+    "text": "[{\"a\": 1}, \"```\", {\"b\": 2}, \"```\"]"
+   },
+   "expected": {
+    "b": 2
+   }
+  },
+  {
    "fn": "partial_json",
    "name": "a whole answer is read whole",
    "input": {
