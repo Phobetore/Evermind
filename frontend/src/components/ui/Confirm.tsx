@@ -1,12 +1,13 @@
 import { Modal } from "@/components/ui/Modal";
 import { useT } from "@/i18n/useT";
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router";
 
 type Options = { action: string; danger?: boolean };
 type Ask = (question: string, options: Options) => Promise<boolean>;
 type Asked = Options & { question: string; settle: (answer: boolean) => void };
 
-const ConfirmContext = createContext<Ask | null>(null);
+const ConfirmContext = createContext<{ ask: Ask; drop: () => void } | null>(null);
 
 /** Our own box in place of the browser's `confirm()`: a page in a sandboxed frame is not allowed
  *  to open that one, and it looks like nothing else here. */
@@ -14,39 +15,33 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [asked, setAsked] = useState<Asked | null>(null);
   // Read at once, not through state: two clicks in the same frame must not open two questions.
   const open = useRef(false);
+  const current = useRef<Asked | null>(null);
 
   const ask = useCallback<Ask>((question, options) => {
     if (open.current) return Promise.resolve(false);
     open.current = true;
     return new Promise<boolean>((resolve) => {
-      setAsked({
+      const next: Asked = {
         question,
         ...options,
         settle: (answer) => {
           if (!open.current) return;
           open.current = false;
+          current.current = null;
           setAsked(null);
           resolve(answer);
         },
-      });
+      };
+      current.current = next;
+      setAsked(next);
     });
   }, []);
 
-  // The box sits above the router: a question about a page that the person has left (a lock sent
-  // them to the login, the back gesture) is a no, or a yes would run that page's handler once gone.
-  useEffect(() => {
-    if (!asked) return;
-    const leave = () => asked.settle(false);
-    window.addEventListener("hashchange", leave);
-    window.addEventListener("popstate", leave);
-    return () => {
-      window.removeEventListener("hashchange", leave);
-      window.removeEventListener("popstate", leave);
-    };
-  }, [asked]);
+  const drop = useCallback(() => current.current?.settle(false), []);
+  const value = useMemo(() => ({ ask, drop }), [ask, drop]);
 
   return (
-    <ConfirmContext.Provider value={ask}>
+    <ConfirmContext.Provider value={value}>
       {children}
       {asked && <ConfirmBox {...asked} />}
     </ConfirmContext.Provider>
@@ -54,11 +49,28 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 }
 
 /** Asks, and answers whether the person said yes. Anything but a yes (Cancel, Escape, the cross,
- *  a click outside, a question already open) is a no. */
+ *  a click outside, a question already open, a change of page) is a no. */
 export function useConfirm(): Ask {
-  const ask = useContext(ConfirmContext);
-  if (!ask) throw new Error("useConfirm needs a ConfirmProvider");
-  return ask;
+  const ctx = useContext(ConfirmContext);
+  if (!ctx) throw new Error("useConfirm needs a ConfirmProvider");
+  return ctx.ask;
+}
+
+/** Placed inside the router, which the box sits above. A question about a page the person has
+ *  left is a no, or a yes would run the handler of a page that is gone. Any move of the router
+ *  counts: the back gesture, an address typed in, and the replace that a lock makes to send the
+ *  person to the login, which the browser announces with no event at all. */
+export function DropQuestionOnLeave() {
+  const ctx = useContext(ConfirmContext);
+  if (!ctx) throw new Error("DropQuestionOnLeave needs a ConfirmProvider");
+  const { drop } = ctx;
+  // The location itself, not its key: an address typed in arrives with no state, and so with the
+  // same "default" key as the page it replaces.
+  const location = useLocation();
+  useEffect(() => {
+    drop();
+  }, [location, drop]);
+  return null;
 }
 
 function ConfirmBox({ question, action, danger, settle }: Asked) {
