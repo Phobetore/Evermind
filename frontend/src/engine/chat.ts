@@ -13,12 +13,19 @@ import { estimateTokens } from "./tokens";
 // Python has it in engine.py, beside the reply's cleanup: so does the engine's door.
 export { stripThought };
 
-// What the engine reads, not the types of the interface: a card saved by an older
-// version has fields missing or null. A text, a list, a mode or a flag that is missing
-// or null is read as Python reads it (`x or ""`, `.get(k, default)`), a null `enabled`
-// included, which switches an entry off. Not a null `position` or `source_position`:
-// Python sorts them as numbers and fails on a null, where this reads 0. Those columns
-// are NOT NULL in the database, so no stored row holds one.
+// What the engine reads, not the types of the interface. A text, a list, a mode or a flag
+// that is missing or null is read as Python reads it (`x or ""`, `.get(k, default)`), a
+// null `enabled` included, which switches an entry off.
+//
+// What a type cannot say, the data layer that feeds the engine guarantees, as the server's
+// schemas and columns do today; on anything else the two engines may part:
+// - every number is finite, and positions, indexes, sizes, budgets and counts are whole
+//   (INTEGER columns, `int` settings), so never NaN, -0 or a fraction;
+// - every string is well formed: no lone surrogate, which the schemas refuse;
+// - a row is whole: a key the server always stores (a message's `position`, a fact's
+//   `source_position`, both NOT NULL) is there.
+// None of this holds for what a model answers, which is any text and is read as Python
+// reads it.
 export interface PromptCharacter {
   kind?: string | null;
   name?: string | null;
@@ -50,10 +57,18 @@ export interface ActiveMessage {
   active_index?: number | null;
 }
 
+/** What the server writes in a message's meta that the engine reads: `greeting` is only
+ *  ever true, `mode` "narrate" or "ooc". The other keys are the interface's. */
+export interface MessageMeta {
+  greeting?: boolean;
+  mode?: string;
+  [key: string]: unknown;
+}
+
 export interface PromptMessage extends ActiveMessage {
   role: string;
-  position?: number | null;
-  meta?: Record<string, unknown> | null;
+  position?: number;
+  meta?: MessageMeta | null;
 }
 
 export interface PromptMemory {
@@ -62,7 +77,7 @@ export interface PromptMemory {
   is_pinned?: boolean | null;
   /** "user" for a fact written by hand, which reaches the prompt even when its turn does. */
   source?: string | null;
-  source_position?: number | null;
+  source_position?: number;
 }
 
 export interface PromptLoreEntry {
@@ -161,7 +176,7 @@ export function activeContent(message: ActiveMessage): string {
   return variants[index];
 }
 
-export function isOutOfCharacter(message: { meta?: Record<string, unknown> | null }): boolean {
+export function isOutOfCharacter(message: { meta?: MessageMeta | null }): boolean {
   return message.meta?.mode === "ooc";
 }
 
