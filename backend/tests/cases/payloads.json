@@ -1,0 +1,4058 @@
+{
+ "cases": [
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: persona, summary and a chat",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "Alex came ashore in a storm."
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Mira.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira's last message and moves the scene forward.\nNever write Mira's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT Alex: A courier with a limp.\n\nSTORY SO FAR: Alex came ashore in a storm.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, Alex."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Mira the keeper?"
+     },
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nMira:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: no persona",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": null,
+    "conversation": {
+     "summary": "A storm."
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays User; their partner plays Mira.\nWrite ONLY User's next message: first person as User, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira's last message and moves the scene forward.\nNever write Mira's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nSTORY SO FAR: A storm.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, User."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Mira the keeper?"
+     },
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nMira:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: the roles are inverted",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "One."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Two."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Three."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Four."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Five."
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Six."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Mira.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira's last message and moves the scene forward.\nNever write Mira's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT Alex: A courier with a limp.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "One."
+     },
+     {
+      "role": "assistant",
+      "content": "Two."
+     },
+     {
+      "role": "assistant",
+      "content": "Three."
+     },
+     {
+      "role": "user",
+      "content": "Four."
+     },
+     {
+      "role": "user",
+      "content": "Five."
+     },
+     {
+      "role": "assistant",
+      "content": "Six."
+     }
+    ],
+    "stop": [
+     "\nMira:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: player message modes reach the model marked",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "Hello."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "A door opens."
+      ],
+      "active_index": 0,
+      "position": 1,
+      "meta": {
+       "mode": "narrate"
+      }
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Who is there?"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Stop the scene."
+      ],
+      "active_index": 0,
+      "position": 3,
+      "meta": {
+       "mode": "ooc"
+      }
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Mira.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira's last message and moves the scene forward.\nNever write Mira's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT Alex: A courier with a limp.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Hello."
+     },
+     {
+      "role": "assistant",
+      "content": "[Narration] A door opens."
+     },
+     {
+      "role": "user",
+      "content": "Who is there?"
+     },
+     {
+      "role": "assistant",
+      "content": "(OOC: Stop the scene.)"
+     }
+    ],
+    "stop": [
+     "\nMira:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: the stop of a character with an emoji name",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira 🌟",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "🧭",
+     "description": "x"
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays 🧭; their partner plays Mira 🌟.\nWrite ONLY 🧭's next message: first person as 🧭, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira 🌟's last message and moves the scene forward.\nNever write Mira 🌟's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT 🧭: x",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, 🧭."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Mira 🌟 the keeper?"
+     },
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nMira 🌟:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: names with what a substitution reads",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mi\\1ra $& C:\\x",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "A\\dex $1 $$",
+     "description": "x"
+    },
+    "conversation": {
+     "summary": "s"
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays A\\dex $1 $$; their partner plays Mi\\1ra $& C:\\x.\nWrite ONLY A\\dex $1 $$'s next message: first person as A\\dex $1 $$, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mi\\1ra $& C:\\x's last message and moves the scene forward.\nNever write Mi\\1ra $& C:\\x's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT A\\dex $1 $$: x\n\nSTORY SO FAR: s",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, A\\dex $1 $$."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Mi\\1ra $& C:\\x the keeper?"
+     },
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nMi\\1ra $& C:\\x:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: the description and the summary are not stripped",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "  A courier.  \n"
+    },
+    "conversation": {
+     "summary": "\n A storm. \n"
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Mira.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira's last message and moves the scene forward.\nNever write Mira's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT Alex:   A courier.  \n\n\nSTORY SO FAR: \n A storm. \n",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, Alex."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Mira the keeper?"
+     },
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nMira:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: a tiny context keeps the latest message only",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 600,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Mira.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira's last message and moves the scene forward.\nNever write Mira's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT Alex: A courier with a limp.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nMira:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: turns since the last pass",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "Alex came ashore.",
+     "memory_position": 2
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\nAlex came ashore.\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: no turn since the last pass",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 5
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: the first turn is read when nothing was read yet",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s"
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 0): *The lamp turns.* Welcome, Alex.\n\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: a null memory position",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": null
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 0): *The lamp turns.* Welcome, Alex.\n\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: a memory position below zero takes turn zero in",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": -1
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 0): *The lamp turns.* Welcome, Alex.\n\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: the turns come back in the order they came in",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 2
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "late"
+      ],
+      "active_index": 0,
+      "position": 9
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "early"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "middle"
+      ],
+      "active_index": 0,
+      "position": 6
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nAlex (turn 9): late\n\nMira (turn 3): early\n\nAlex (turn 6): middle\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "user",
+      "variants": [
+       "late"
+      ],
+      "active_index": 0,
+      "position": 9
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "early"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "middle"
+      ],
+      "active_index": 0,
+      "position": 6
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: forty-one turns drop the oldest",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Turn 1 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 2 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 3 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 4 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 5 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 6 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 7 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 7
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 8 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 8
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 9 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 9
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 10 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 10
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 11 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 11
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 12 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 12
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 13 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 13
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 14 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 14
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 15 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 15
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 16 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 16
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 17 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 17
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 18 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 18
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 19 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 19
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 20 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 20
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 21 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 21
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 22 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 22
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 23 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 23
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 24 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 24
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 25 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 25
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 26 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 26
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 27 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 27
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 28 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 28
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 29 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 29
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 30 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 30
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 31 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 31
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 32 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 32
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 33 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 33
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 34 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 34
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 35 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 35
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 36 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 36
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 37 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 37
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 38 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 38
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 39 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 39
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 40 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 40
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 41 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 41
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 2): Turn 2 of Mira.\n\nAlex (turn 3): Turn 3 of Mira.\n\nMira (turn 4): Turn 4 of Mira.\n\nAlex (turn 5): Turn 5 of Mira.\n\nMira (turn 6): Turn 6 of Mira.\n\nAlex (turn 7): Turn 7 of Mira.\n\nMira (turn 8): Turn 8 of Mira.\n\nAlex (turn 9): Turn 9 of Mira.\n\nMira (turn 10): Turn 10 of Mira.\n\nAlex (turn 11): Turn 11 of Mira.\n\nMira (turn 12): Turn 12 of Mira.\n\nAlex (turn 13): Turn 13 of Mira.\n\nMira (turn 14): Turn 14 of Mira.\n\nAlex (turn 15): Turn 15 of Mira.\n\nMira (turn 16): Turn 16 of Mira.\n\nAlex (turn 17): Turn 17 of Mira.\n\nMira (turn 18): Turn 18 of Mira.\n\nAlex (turn 19): Turn 19 of Mira.\n\nMira (turn 20): Turn 20 of Mira.\n\nAlex (turn 21): Turn 21 of Mira.\n\nMira (turn 22): Turn 22 of Mira.\n\nAlex (turn 23): Turn 23 of Mira.\n\nMira (turn 24): Turn 24 of Mira.\n\nAlex (turn 25): Turn 25 of Mira.\n\nMira (turn 26): Turn 26 of Mira.\n\nAlex (turn 27): Turn 27 of Mira.\n\nMira (turn 28): Turn 28 of Mira.\n\nAlex (turn 29): Turn 29 of Mira.\n\nMira (turn 30): Turn 30 of Mira.\n\nAlex (turn 31): Turn 31 of Mira.\n\nMira (turn 32): Turn 32 of Mira.\n\nAlex (turn 33): Turn 33 of Mira.\n\nMira (turn 34): Turn 34 of Mira.\n\nAlex (turn 35): Turn 35 of Mira.\n\nMira (turn 36): Turn 36 of Mira.\n\nAlex (turn 37): Turn 37 of Mira.\n\nMira (turn 38): Turn 38 of Mira.\n\nAlex (turn 39): Turn 39 of Mira.\n\nMira (turn 40): Turn 40 of Mira.\n\nAlex (turn 41): Turn 41 of Mira.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 2 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 3 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 4 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 5 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 6 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 7 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 7
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 8 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 8
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 9 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 9
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 10 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 10
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 11 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 11
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 12 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 12
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 13 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 13
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 14 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 14
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 15 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 15
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 16 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 16
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 17 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 17
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 18 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 18
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 19 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 19
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 20 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 20
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 21 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 21
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 22 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 22
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 23 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 23
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 24 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 24
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 25 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 25
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 26 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 26
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 27 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 27
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 28 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 28
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 29 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 29
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 30 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 30
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 31 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 31
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 32 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 32
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 33 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 33
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 34 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 34
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 35 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 35
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 36 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 36
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 37 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 37
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 38 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 38
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 39 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 39
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 40 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 40
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 41 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 41
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: old turns listed after the new ones do not use up the cap",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 50
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 100 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 100
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 101 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 101
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 102 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 102
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 103 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 103
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 104 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 104
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 105 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 105
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 106 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 106
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 107 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 107
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 108 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 108
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 109 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 109
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 110 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 110
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 111 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 111
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 112 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 112
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 113 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 113
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 114 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 114
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 115 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 115
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 116 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 116
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 117 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 117
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 118 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 118
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 119 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 119
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 120 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 120
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 121 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 121
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 122 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 122
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 123 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 123
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 124 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 124
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 125 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 125
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 126 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 126
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 127 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 127
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 128 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 128
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 129 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 129
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 130 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 130
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 131 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 131
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 132 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 132
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 133 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 133
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 134 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 134
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 135 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 135
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 136 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 136
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 137 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 137
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 138 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 138
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 139 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 139
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 0 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 1 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 2 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 3 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 4 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 5 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 6 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 7 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 7
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 8 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 8
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 9 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 9
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nMira (turn 100): Turn 100 of Mira.\n\nAlex (turn 101): Turn 101 of Mira.\n\nMira (turn 102): Turn 102 of Mira.\n\nAlex (turn 103): Turn 103 of Mira.\n\nMira (turn 104): Turn 104 of Mira.\n\nAlex (turn 105): Turn 105 of Mira.\n\nMira (turn 106): Turn 106 of Mira.\n\nAlex (turn 107): Turn 107 of Mira.\n\nMira (turn 108): Turn 108 of Mira.\n\nAlex (turn 109): Turn 109 of Mira.\n\nMira (turn 110): Turn 110 of Mira.\n\nAlex (turn 111): Turn 111 of Mira.\n\nMira (turn 112): Turn 112 of Mira.\n\nAlex (turn 113): Turn 113 of Mira.\n\nMira (turn 114): Turn 114 of Mira.\n\nAlex (turn 115): Turn 115 of Mira.\n\nMira (turn 116): Turn 116 of Mira.\n\nAlex (turn 117): Turn 117 of Mira.\n\nMira (turn 118): Turn 118 of Mira.\n\nAlex (turn 119): Turn 119 of Mira.\n\nMira (turn 120): Turn 120 of Mira.\n\nAlex (turn 121): Turn 121 of Mira.\n\nMira (turn 122): Turn 122 of Mira.\n\nAlex (turn 123): Turn 123 of Mira.\n\nMira (turn 124): Turn 124 of Mira.\n\nAlex (turn 125): Turn 125 of Mira.\n\nMira (turn 126): Turn 126 of Mira.\n\nAlex (turn 127): Turn 127 of Mira.\n\nMira (turn 128): Turn 128 of Mira.\n\nAlex (turn 129): Turn 129 of Mira.\n\nMira (turn 130): Turn 130 of Mira.\n\nAlex (turn 131): Turn 131 of Mira.\n\nMira (turn 132): Turn 132 of Mira.\n\nAlex (turn 133): Turn 133 of Mira.\n\nMira (turn 134): Turn 134 of Mira.\n\nAlex (turn 135): Turn 135 of Mira.\n\nMira (turn 136): Turn 136 of Mira.\n\nAlex (turn 137): Turn 137 of Mira.\n\nMira (turn 138): Turn 138 of Mira.\n\nAlex (turn 139): Turn 139 of Mira.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 100 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 100
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 101 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 101
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 102 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 102
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 103 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 103
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 104 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 104
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 105 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 105
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 106 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 106
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 107 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 107
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 108 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 108
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 109 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 109
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 110 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 110
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 111 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 111
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 112 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 112
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 113 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 113
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 114 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 114
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 115 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 115
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 116 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 116
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 117 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 117
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 118 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 118
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 119 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 119
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 120 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 120
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 121 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 121
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 122 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 122
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 123 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 123
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 124 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 124
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 125 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 125
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 126 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 126
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 127 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 127
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 128 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 128
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 129 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 129
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 130 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 130
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 131 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 131
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 132 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 132
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 133 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 133
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 134 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 134
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 135 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 135
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 136 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 136
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 137 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 137
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 138 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 138
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 139 of {{char}}."
+      ],
+      "active_index": 0,
+      "position": 139
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: names with what a substitution reads",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mi\\1ra $& C:\\x",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "A\\dex $1 $$"
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 2
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I am {{user}}."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I am {{char}}."
+      ],
+      "active_index": 0,
+      "position": 4
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between A\\dex $1 $$ (the player) and Mi\\1ra $& C:\\x.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nA\\dex $1 $$ (turn 3): I am A\\dex $1 $$.\n\nMi\\1ra $& C:\\x (turn 4): I am Mi\\1ra $& C:\\x.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "user",
+      "variants": [
+       "I am {{user}}."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I am {{char}}."
+      ],
+      "active_index": 0,
+      "position": 4
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: facts are given as they are, macros included",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "Alex came ashore.",
+     "memory_position": 2
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "a",
+      "content": "{{char}} owes {{user}} a boot.  "
+     },
+     {
+      "id": "b",
+      "content": "Line one\nline two"
+     },
+     {
+      "id": "c",
+      "content": ""
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\nAlex came ashore.\n\nFACTS ALREADY RECORDED:\n- {{char}} owes {{user}} a boot.  \n- Line one\nline two\n- \n\nNEWEST TURNS:\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: the greeting is not read when nothing was read yet",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s"
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0,
+      "meta": {
+       "greeting": true
+      }
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nAlex (turn 1): Thanks. Is Mira the keeper?\n\nMira (turn 2): *She nods.* Sit down, you are dripping.\n\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: out-of-character turns are left out of the prompt and come back",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 1
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2,
+      "meta": {
+       "mode": "ooc"
+      }
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3,
+      "meta": {
+       "mode": "narrate"
+      }
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\ns\n\nFACTS ALREADY RECORDED:\n- Alex lost a boot in the surf.\n- The lamp has not failed in forty years.\n\nNEWEST TURNS:\nAlex (turn 3): I sit.\n\nMira (turn 4): Tea?\n\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2,
+      "meta": {
+       "mode": "ooc"
+      }
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3,
+      "meta": {
+       "mode": "narrate"
+      }
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: only out-of-character turns give nothing",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "s",
+     "memory_position": 3
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2,
+      "meta": {
+       "mode": "ooc"
+      }
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3,
+      "meta": {
+       "mode": "narrate"
+      }
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4,
+      "meta": {
+       "mode": "ooc"
+      }
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5,
+      "meta": {
+       "mode": "ooc"
+      }
+     }
+    ],
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Alex lost a boot in the surf.",
+      "source": "auto",
+      "is_pinned": false
+     },
+     {
+      "id": "f2",
+      "content": "The lamp has not failed in forty years.",
+      "source": "user",
+      "is_pinned": true
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "fn": "build_consolidation_payload",
+   "name": "consolidation: a few facts",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "movable": [
+     {
+      "id": "f1",
+      "content": "Fact 1.",
+      "source_position": 1,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f2",
+      "content": "Fact 2.",
+      "source_position": 2,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f3",
+      "content": "Fact 3.",
+      "source_position": 3,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are the memory-keeper of a roleplay between Alex and Mira. The list of recorded facts has grown long and needs consolidating.\nMerge and compress the facts below into a SHORTER list that loses NO important information: combine related facts into single dense sentences, drop pure redundancy, and keep every consequential event, relationship state, promise, injury, death and revelation. Preserve chronology. Aim for at most 20 facts. Write each as one short past-tense sentence in the language of the facts.\nReply with ONLY this JSON object, no other text:\n{\"facts\": [{\"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "FACTS TO CONSOLIDATE:\n- Fact 1.\n- Fact 2.\n- Fact 3.\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_consolidation_payload",
+   "name": "consolidation: no facts",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "movable": []
+   },
+   "expected": {
+    "system": "You are the memory-keeper of a roleplay between Alex and Mira. The list of recorded facts has grown long and needs consolidating.\nMerge and compress the facts below into a SHORTER list that loses NO important information: combine related facts into single dense sentences, drop pure redundancy, and keep every consequential event, relationship state, promise, injury, death and revelation. Preserve chronology. Aim for at most 20 facts. Write each as one short past-tense sentence in the language of the facts.\nReply with ONLY this JSON object, no other text:\n{\"facts\": [{\"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "FACTS TO CONSOLIDATE:\n\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_consolidation_payload",
+   "name": "consolidation: names with what a substitution reads",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mi\\1ra $& C:\\x",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "A\\dex $1 $$"
+    },
+    "movable": [
+     {
+      "id": "f1",
+      "content": "Fact 1.",
+      "source_position": 1,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f2",
+      "content": "Fact 2.",
+      "source_position": 2,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f3",
+      "content": "Fact 3.",
+      "source_position": 3,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are the memory-keeper of a roleplay between A\\dex $1 $$ and Mi\\1ra $& C:\\x. The list of recorded facts has grown long and needs consolidating.\nMerge and compress the facts below into a SHORTER list that loses NO important information: combine related facts into single dense sentences, drop pure redundancy, and keep every consequential event, relationship state, promise, injury, death and revelation. Preserve chronology. Aim for at most 20 facts. Write each as one short past-tense sentence in the language of the facts.\nReply with ONLY this JSON object, no other text:\n{\"facts\": [{\"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "FACTS TO CONSOLIDATE:\n- Fact 1.\n- Fact 2.\n- Fact 3.\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_consolidation_payload",
+   "name": "consolidation: only the content is read",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "movable": [
+     {
+      "id": "a",
+      "content": "Kept.",
+      "source_position": 7,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are the memory-keeper of a roleplay between Alex and Mira. The list of recorded facts has grown long and needs consolidating.\nMerge and compress the facts below into a SHORTER list that loses NO important information: combine related facts into single dense sentences, drop pure redundancy, and keep every consequential event, relationship state, promise, injury, death and revelation. Preserve chronology. Aim for at most 20 facts. Write each as one short past-tense sentence in the language of the facts.\nReply with ONLY this JSON object, no other text:\n{\"facts\": [{\"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "FACTS TO CONSOLIDATE:\n- Kept.\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: a character from a brief",
+   "input": {
+    "prompt": "A mysterious cartographer.",
+    "kind": "character",
+    "existing": {}
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nA mysterious cartographer.\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: a scenario from a brief",
+   "input": {
+    "prompt": "A sunken city full of secrets.",
+    "kind": "scenario",
+    "existing": {}
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a SCENARIO (the AI narrates the world and plays every character except the player).\n\nCREATOR'S BRIEF:\nA sunken city full of secrets.\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: a kind that only begins like scenario",
+   "input": {
+    "prompt": "A pirate.",
+    "kind": "scenarios",
+    "existing": {}
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nA pirate.\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: a brief with the spaces python strips and the one it does not",
+   "input": {
+    "prompt": "\u3000\u001c\u0085\u00a0A pirate.\u00a0\u001f\u3000",
+    "kind": "character",
+    "existing": {}
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nA pirate.\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: existing fields: control characters are escaped in lower case",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "name": "a\u0001b\u001fc\u0000d\be\ff\u000bg"
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING FIELDS (keep their content, fill the rest):\n{\n  \"name\": \"a\\u0001b\\u001fc\\u0000d\\be\\ff\\u000bg\"\n}\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: existing fields: emoji and a flag and a joined sequence",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "description": "🇫🇷 👨\u200d👩\u200d👧 🏴\u200d☠\ufe0f"
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING FIELDS (keep their content, fill the rest):\n{\n  \"description\": \"🇫🇷 👨\u200d👩\u200d👧 🏴\u200d☠\ufe0f\"\n}\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: existing fields: small fractions, python's positional and exponent forms",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "tags": [
+      0.001,
+      0.0001,
+      0.00012345,
+      1e-05,
+      1e-06,
+      1e-07,
+      1.5e-07,
+      1e-10,
+      2.5e-10,
+      -1e-05,
+      5e-324
+     ]
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING FIELDS (keep their content, fill the rest):\n{\n  \"tags\": [\n    0.001,\n    0.0001,\n    0.00012345,\n    1e-05,\n    1e-06,\n    1e-07,\n    1.5e-07,\n    1e-10,\n    2.5e-10,\n    -1e-05,\n    5e-324\n  ]\n}\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: existing fields: object keys named like object methods",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "tags": [
+      {
+       "__proto__": 1,
+       "constructor": 2,
+       "toString": 3
+      }
+     ]
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING FIELDS (keep their content, fill the rest):\n{\n  \"tags\": [\n    {\n      \"__proto__\": 1,\n      \"constructor\": 2,\n      \"toString\": 3\n    }\n  ]\n}\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: lore keywords: repeated ones appear once, where first seen",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": [
+      {
+       "keys": [
+        "b",
+        "a",
+        "b"
+       ],
+       "content": "1"
+      },
+      {
+       "keys": [
+        "a",
+        "c",
+        "b",
+        "d"
+       ],
+       "content": "2"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nb, a, c, d\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: lore keywords: a bare string of keys is one keyword",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": [
+      {
+       "keys": "Kabukicho, clan Sato",
+       "content": "c"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nKabukicho, clan Sato\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: lore keywords: a number and the same number as text are one",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": [
+      {
+       "keys": [
+        1984,
+        "1984",
+        " 1984 ",
+        7,
+        "7"
+       ],
+       "content": "c"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\n1984, 7\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: lore keywords: booleans are not keywords",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": [
+      {
+       "keys": [
+        true,
+        "a",
+        false
+       ],
+       "content": "c"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\na\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: lore keywords: a keyword that cannot be written is dropped",
+   "input": {
+    "prompt": "x",
+    "kind": "character",
+    "existing": {
+     "lore_entries": [
+      {
+       "keys": [
+        "ok",
+        "\udc00",
+        "a\ud800",
+        "😀"
+       ],
+       "content": "c"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nok, 😀\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  }
+ ]
+}
