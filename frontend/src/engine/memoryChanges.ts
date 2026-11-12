@@ -135,8 +135,9 @@ export function planConsolidation(
     .map((item) => textOf(field(item, "content")))
     .filter((text) => text !== "");
   if (!facts.length) return null;
-  // A loop, not Math.min(...), which runs out of arguments on a very long list.
+  // Python's `min()`: the first of the smallest, by `<`. Not Math.min, which runs out of
+  // arguments on a very long list, and prefers -0 to 0 and NaN to any number.
   let oldest = movable.length ? movable[0].source_position : 0;
-  for (const m of movable) oldest = Math.min(oldest, m.source_position);
+  for (const m of movable) if (m.source_position < oldest) oldest = m.source_position;
   return { facts, source_position: oldest };
 }
