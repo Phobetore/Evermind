@@ -115,5 +115,6 @@ describe("the engine", () => {
 
   it("the constants say what Python's say", () => {
     expect(MAX_TURNS_PER_RUN).toBe(40);
+    expect(engine.MIN_FACTS_TO_CONSOLIDATE).toBe(8);
   });
 });

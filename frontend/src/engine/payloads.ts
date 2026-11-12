@@ -166,7 +166,8 @@ function existingFields(existing: Record<string, unknown> | null): Record<string
 /** How Python's `json.dumps` writes a number that `JSON.parse` read. A fraction is written
  *  the same in both but for the small ones, which Python gives an exponent from 1e-5 on,
  *  of two digits at least, where JavaScript waits for 1e-7. A whole number cannot be told
- *  apart from the float Python would write as `1.0`, and one past 2^53 has been rounded. */
+ *  apart from the float Python would write as `1.0` or, from 1e16 on, as `1.5e+16`, and one
+ *  past 2^53 has been rounded. A card's fields are strings, so no card prompt holds a number. */
 function pyNumber(n: number): string {
   if (!Number.isFinite(n)) return Number.isNaN(n) ? "NaN" : n > 0 ? "Infinity" : "-Infinity";
   const [digits, exponent] = n.toExponential().split("e");
@@ -175,9 +176,10 @@ function pyNumber(n: number): string {
 }
 
 /** Python's `json.dumps(value, ensure_ascii=False, indent=2)`: `JSON.stringify(value, null, 2)`
- *  but for the numbers. Not the same, and in no case since a file of cases cannot hold it:
- *  an object key that reads as an integer, which JavaScript puts first, and a lone
- *  surrogate, which JavaScript escapes and Python writes as it is. */
+ *  but for the numbers. Still not the same: an object key that reads as an integer, which
+ *  JavaScript puts first, and a lone surrogate, which JavaScript escapes and Python writes as
+ *  it is. A case could record them, but a card's fields are strings or lists of strings, so
+ *  none of this reaches a card prompt and no case holds it. */
 function pyJsonDumps(value: unknown, depth = 0): string {
   const inner = " ".repeat(2 * (depth + 1));
   const outer = " ".repeat(2 * depth);
