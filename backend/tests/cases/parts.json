@@ -2936,6 +2936,14 @@
    "expected": "The text."
   },
   {
+   "fn": "strip_decorators",
+   "name": "a decorator line and a blank line both ended by a carriage return",
+   "input": {
+    "content": "@@activate\r\n\r\nText"
+   },
+   "expected": "Text"
+  },
+  {
    "fn": "match_lore",
    "name": "two entries that call each other end the scan",
    "input": {

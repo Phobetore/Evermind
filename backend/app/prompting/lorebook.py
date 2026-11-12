@@ -75,10 +75,11 @@ def key_matches(key: str, text: str, whole_words: bool) -> bool:
 
 def strip_decorators(content: str) -> str:
     """The content without the lines at its start that begin with @@ (CCv3 decorators, such
-    as @@activate), nor the line breaks after them: they are for the engine, not the model."""
+    as @@activate), nor the line breaks after them: they are for the engine, not the model.
+    A card written on Windows breaks its lines with \\r\\n, so both characters go."""
     while content.startswith("@@"):
         end = content.find("\n")
-        content = "" if end == -1 else content[end:].lstrip("\n")
+        content = "" if end == -1 else content[end:].lstrip("\r\n")
     return content
 
 

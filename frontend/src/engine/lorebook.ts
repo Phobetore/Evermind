@@ -95,12 +95,13 @@ export function keyMatches(key: string, text: string, wholeWords: boolean): bool
 }
 
 /** The content without the lines at its start that begin with @@ (CCv3 decorators, such as
- *  @@activate), nor the line breaks after them: they are for the engine, not the model. */
+ *  @@activate), nor the line breaks after them: they are for the engine, not the model.
+ *  A card written on Windows breaks its lines with \r\n, so both characters go. */
 export function stripDecorators(content: string): string {
   let rest = content;
   while (rest.startsWith("@@")) {
     const end = rest.indexOf("\n");
-    rest = end === -1 ? "" : rest.slice(end).replace(/^\n+/, "");
+    rest = end === -1 ? "" : rest.slice(end).replace(/^[\r\n]+/, "");
   }
   return rest;
 }

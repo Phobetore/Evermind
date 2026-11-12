@@ -140,6 +140,7 @@ def test_two_entries_that_call_each_other_end_the_scan():
 def test_decorator_lines_never_reach_the_model():
     assert strip_decorators("@@activate\n@@depth 2\n\nThe real text.\n@@ kept") == "The real text.\n@@ kept"
     assert strip_decorators("@@only") == ""
+    assert strip_decorators("@@activate\r\n\r\nText") == "Text"
     assert strip_decorators("Text first.\n@@activate") == "Text first.\n@@activate"
 
     entries = [entry(["dragon"], "@@dont_activate\nDragons hoard gold.")]
