@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from app.prompting import defaults, engine, macros, memory_changes, payloads, tokens
+from app.prompting import defaults, engine, lorebook, macros, memory_changes, payloads, tokens
 from app.prompting.memory_changes import plan_consolidation, plan_memory_changes
 from app.services import card_assistant, chat_service, llm_json
 
@@ -91,6 +91,7 @@ FUNCTIONS = {f.__name__: f for f in (
     memory_reply, consolidation_reply, default_prompts,
     build_chat_payload,
     engine.match_lore, engine.select_facts, engine.active_content, engine.is_out_of_character,
+    lorebook.key_matches, lorebook.strip_decorators,
     macros.substitute, macros.substitute_original, macros.has_original_macro,
     tokens.estimate_tokens, engine.strip_thought, engine.trim_reply, payloads.words,
     memory_changes.is_movable, payloads.movable_facts, memory_changes.answer_texts,

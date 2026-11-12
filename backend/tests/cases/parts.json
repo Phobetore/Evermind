@@ -2674,6 +2674,1926 @@
     "\ufeffy",
     "z"
    ]
+  },
+  {
+   "fn": "key_matches",
+   "name": "a dotted capital I in the key is lowered as Python lowers it",
+   "input": {
+    "key": "İstanbul",
+    "text": "to i\u0307stanbul",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a dotted capital I in the key does not match a plain i",
+   "input": {
+    "key": "İstanbul",
+    "text": "to istanbul",
+    "whole_words": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "key_matches",
+   "name": "a capital sharp s in the key is a small one",
+   "input": {
+    "key": "STRAẞE",
+    "text": "die straße",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a final sigma in the key is lowered as a final sigma",
+   "input": {
+    "key": "ΟΔΟΣ",
+    "text": "στην οδος",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a final sigma in the key does not match a medial one",
+   "input": {
+    "key": "ΟΔΟΣ",
+    "text": "στην οδοσ",
+    "whole_words": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "key_matches",
+   "name": "an accented letter after a key is the edge of a word",
+   "input": {
+    "key": "ros",
+    "text": "un rosé",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "an accented key matches as written",
+   "input": {
+    "key": "Rosé",
+    "text": "un rosé, frais",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a key in Japanese followed by kana is found",
+   "input": {
+    "key": "東京",
+    "text": "東京に行く",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "an emoji key between spaces is a whole word",
+   "input": {
+    "key": "🐉",
+    "text": "a 🐉 here",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "an emoji key between letters is not a whole word",
+   "input": {
+    "key": "🐉",
+    "text": "x🐉y",
+    "whole_words": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "key_matches",
+   "name": "an underscore is part of a word",
+   "input": {
+    "key": "_",
+    "text": "a_b",
+    "whole_words": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "key_matches",
+   "name": "an underscore key on its own is a whole word",
+   "input": {
+    "key": "_",
+    "text": "a _ b",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a key at both edges of the text",
+   "input": {
+    "key": "ring",
+    "text": "ring",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a key inside a longer word does not match",
+   "input": {
+    "key": "ring",
+    "text": "bring",
+    "whole_words": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "key_matches",
+   "name": "a key inside a longer word matches without whole words",
+   "input": {
+    "key": "ring",
+    "text": "bring",
+    "whole_words": false
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a later occurrence of the key can be a whole word",
+   "input": {
+    "key": "ring",
+    "text": "bring the ring",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a key in braces is looked for as given: the caller puts the names in",
+   "input": {
+    "key": "{{char}}",
+    "text": "{{char}} waits",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a key of the form of a regular expression never fires",
+   "input": {
+    "key": "/ring/i",
+    "text": "ring /ring/i",
+    "whole_words": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "key_matches",
+   "name": "a key of the form of a regular expression never fires, without whole words either",
+   "input": {
+    "key": "/ring/",
+    "text": "/ring/",
+    "whole_words": false
+   },
+   "expected": false
+  },
+  {
+   "fn": "key_matches",
+   "name": "a key with a no-break space is a substring",
+   "input": {
+    "key": "old\u00a0ring",
+    "text": "bold\u00a0ringmaster",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a key of only spaces never fires",
+   "input": {
+    "key": " \u3000 ",
+    "text": "a  b",
+    "whole_words": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "key_matches",
+   "name": "a key is trimmed and lowered",
+   "input": {
+    "key": "  Dragon ",
+    "text": "the dragon",
+    "whole_words": true
+   },
+   "expected": true
+  },
+  {
+   "fn": "strip_decorators",
+   "name": "a decorator line is taken out with its line break",
+   "input": {
+    "content": "@@activate\nThe text."
+   },
+   "expected": "The text."
+  },
+  {
+   "fn": "strip_decorators",
+   "name": "several decorator lines and the blank lines after them",
+   "input": {
+    "content": "@@activate\n@@depth 2\n\nThe text.\n@@ later"
+   },
+   "expected": "The text.\n@@ later"
+  },
+  {
+   "fn": "strip_decorators",
+   "name": "a content of only a decorator is empty",
+   "input": {
+    "content": "@@dont_activate"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "strip_decorators",
+   "name": "a decorator line after the text stays",
+   "input": {
+    "content": "The text.\n@@activate"
+   },
+   "expected": "The text.\n@@activate"
+  },
+  {
+   "fn": "strip_decorators",
+   "name": "a decorator line ended by a carriage return and a line break",
+   "input": {
+    "content": "@@activate\r\nThe text."
+   },
+   "expected": "The text."
+  },
+  {
+   "fn": "match_lore",
+   "name": "two entries that call each other end the scan",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "alpha"
+      ],
+      "content": "Beta follows."
+     },
+     {
+      "keys": [
+       "beta"
+      ],
+      "content": "Alpha follows."
+     },
+     {
+      "keys": [
+       "gamma"
+      ],
+      "content": "Gamma, gamma."
+     },
+     {
+      "keys": [
+       "delta"
+      ],
+      "content": "Never said."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Alpha, then gamma."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I listen."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "alpha"
+     ],
+     "content": "Beta follows."
+    },
+    {
+     "keys": [
+      "beta"
+     ],
+     "content": "Alpha follows."
+    },
+    {
+     "keys": [
+      "gamma"
+     ],
+     "content": "Gamma, gamma."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an entry keyed on {{char}} fires on the character's turn",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "{{char}}"
+      ],
+      "content": "About Ana."
+     },
+     {
+      "keys": [
+       "{{user}}"
+      ],
+      "content": "About Alex."
+     },
+     {
+      "keys": [
+       "{{CHAR}} smiles"
+      ],
+      "content": "Never."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Hello."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I wait by the door."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "{{char}}"
+     ],
+     "content": "About Ana."
+    },
+    {
+     "keys": [
+      "{{user}}"
+     ],
+     "content": "About Alex."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an entry keyed on {{char}} does not fire when only the person spoke",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "{{char}}"
+      ],
+      "content": "About Ana."
+     },
+     {
+      "keys": [
+       "{{user}}"
+      ],
+      "content": "About Alex."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Hello there."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "{{user}}"
+     ],
+     "content": "About Alex."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "a secondary key seen in an earlier pass still counts",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "door"
+      ],
+      "content": "A long hall."
+     },
+     {
+      "keys": [
+       "hall"
+      ],
+      "content": "At its end, a key."
+     },
+     {
+      "keys": [
+       "key"
+      ],
+      "content": "The key opens the vault.",
+      "selective": true,
+      "secondary_keys": [
+       "lantern",
+       "hall"
+      ],
+      "selective_logic": 3
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I raise the lantern."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Open the door, then."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "door"
+     ],
+     "content": "A long hall."
+    },
+    {
+     "keys": [
+      "hall"
+     ],
+     "content": "At its end, a key."
+    },
+    {
+     "keys": [
+      "key"
+     ],
+     "content": "The key opens the vault.",
+     "selective": true,
+     "secondary_keys": [
+      "lantern",
+      "hall"
+     ],
+     "selective_logic": 3
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "a chained lorebook of fifty entries",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "k0"
+      ],
+      "content": "Then k1."
+     },
+     {
+      "keys": [
+       "k1"
+      ],
+      "content": "Then k2."
+     },
+     {
+      "keys": [
+       "k2"
+      ],
+      "content": "Then k3."
+     },
+     {
+      "keys": [
+       "k3"
+      ],
+      "content": "Then k4."
+     },
+     {
+      "keys": [
+       "k4"
+      ],
+      "content": "Then k5."
+     },
+     {
+      "keys": [
+       "k5"
+      ],
+      "content": "Then k6."
+     },
+     {
+      "keys": [
+       "k6"
+      ],
+      "content": "Then k7."
+     },
+     {
+      "keys": [
+       "k7"
+      ],
+      "content": "Then k8."
+     },
+     {
+      "keys": [
+       "k8"
+      ],
+      "content": "Then k9."
+     },
+     {
+      "keys": [
+       "k9"
+      ],
+      "content": "Then k10."
+     },
+     {
+      "keys": [
+       "k10"
+      ],
+      "content": "Then k11."
+     },
+     {
+      "keys": [
+       "k11"
+      ],
+      "content": "Then k12."
+     },
+     {
+      "keys": [
+       "k12"
+      ],
+      "content": "Then k13."
+     },
+     {
+      "keys": [
+       "k13"
+      ],
+      "content": "Then k14."
+     },
+     {
+      "keys": [
+       "k14"
+      ],
+      "content": "Then k15."
+     },
+     {
+      "keys": [
+       "k15"
+      ],
+      "content": "Then k16."
+     },
+     {
+      "keys": [
+       "k16"
+      ],
+      "content": "Then k17."
+     },
+     {
+      "keys": [
+       "k17"
+      ],
+      "content": "Then k18."
+     },
+     {
+      "keys": [
+       "k18"
+      ],
+      "content": "Then k19."
+     },
+     {
+      "keys": [
+       "k19"
+      ],
+      "content": "Then k20."
+     },
+     {
+      "keys": [
+       "k20"
+      ],
+      "content": "Then k21."
+     },
+     {
+      "keys": [
+       "k21"
+      ],
+      "content": "Then k22."
+     },
+     {
+      "keys": [
+       "k22"
+      ],
+      "content": "Then k23."
+     },
+     {
+      "keys": [
+       "k23"
+      ],
+      "content": "Then k24."
+     },
+     {
+      "keys": [
+       "k24"
+      ],
+      "content": "Then k25."
+     },
+     {
+      "keys": [
+       "k25"
+      ],
+      "content": "Then k26."
+     },
+     {
+      "keys": [
+       "k26"
+      ],
+      "content": "Then k27."
+     },
+     {
+      "keys": [
+       "k27"
+      ],
+      "content": "Then k28."
+     },
+     {
+      "keys": [
+       "k28"
+      ],
+      "content": "Then k29."
+     },
+     {
+      "keys": [
+       "k29"
+      ],
+      "content": "Then k30."
+     },
+     {
+      "keys": [
+       "k30"
+      ],
+      "content": "Then k31."
+     },
+     {
+      "keys": [
+       "k31"
+      ],
+      "content": "Then k32."
+     },
+     {
+      "keys": [
+       "k32"
+      ],
+      "content": "Then k33."
+     },
+     {
+      "keys": [
+       "k33"
+      ],
+      "content": "Then k34."
+     },
+     {
+      "keys": [
+       "k34"
+      ],
+      "content": "Then k35."
+     },
+     {
+      "keys": [
+       "k35"
+      ],
+      "content": "Then k36."
+     },
+     {
+      "keys": [
+       "k36"
+      ],
+      "content": "Then k37."
+     },
+     {
+      "keys": [
+       "k37"
+      ],
+      "content": "Then k38."
+     },
+     {
+      "keys": [
+       "k38"
+      ],
+      "content": "Then k39."
+     },
+     {
+      "keys": [
+       "k39"
+      ],
+      "content": "Then k40."
+     },
+     {
+      "keys": [
+       "k40"
+      ],
+      "content": "Then k41."
+     },
+     {
+      "keys": [
+       "k41"
+      ],
+      "content": "Then k42."
+     },
+     {
+      "keys": [
+       "k42"
+      ],
+      "content": "Then k43."
+     },
+     {
+      "keys": [
+       "k43"
+      ],
+      "content": "Then k44."
+     },
+     {
+      "keys": [
+       "k44"
+      ],
+      "content": "Then k45."
+     },
+     {
+      "keys": [
+       "k45"
+      ],
+      "content": "Then k46."
+     },
+     {
+      "keys": [
+       "k46"
+      ],
+      "content": "Then k47."
+     },
+     {
+      "keys": [
+       "k47"
+      ],
+      "content": "Then k48."
+     },
+     {
+      "keys": [
+       "k48"
+      ],
+      "content": "Then k49."
+     },
+     {
+      "keys": [
+       "k49"
+      ],
+      "content": "Then k50."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Start at k0."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Go on."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "k0"
+     ],
+     "content": "Then k1."
+    },
+    {
+     "keys": [
+      "k1"
+     ],
+     "content": "Then k2."
+    },
+    {
+     "keys": [
+      "k2"
+     ],
+     "content": "Then k3."
+    },
+    {
+     "keys": [
+      "k3"
+     ],
+     "content": "Then k4."
+    },
+    {
+     "keys": [
+      "k4"
+     ],
+     "content": "Then k5."
+    },
+    {
+     "keys": [
+      "k5"
+     ],
+     "content": "Then k6."
+    },
+    {
+     "keys": [
+      "k6"
+     ],
+     "content": "Then k7."
+    },
+    {
+     "keys": [
+      "k7"
+     ],
+     "content": "Then k8."
+    },
+    {
+     "keys": [
+      "k8"
+     ],
+     "content": "Then k9."
+    },
+    {
+     "keys": [
+      "k9"
+     ],
+     "content": "Then k10."
+    },
+    {
+     "keys": [
+      "k10"
+     ],
+     "content": "Then k11."
+    },
+    {
+     "keys": [
+      "k11"
+     ],
+     "content": "Then k12."
+    },
+    {
+     "keys": [
+      "k12"
+     ],
+     "content": "Then k13."
+    },
+    {
+     "keys": [
+      "k13"
+     ],
+     "content": "Then k14."
+    },
+    {
+     "keys": [
+      "k14"
+     ],
+     "content": "Then k15."
+    },
+    {
+     "keys": [
+      "k15"
+     ],
+     "content": "Then k16."
+    },
+    {
+     "keys": [
+      "k16"
+     ],
+     "content": "Then k17."
+    },
+    {
+     "keys": [
+      "k17"
+     ],
+     "content": "Then k18."
+    },
+    {
+     "keys": [
+      "k18"
+     ],
+     "content": "Then k19."
+    },
+    {
+     "keys": [
+      "k19"
+     ],
+     "content": "Then k20."
+    },
+    {
+     "keys": [
+      "k20"
+     ],
+     "content": "Then k21."
+    },
+    {
+     "keys": [
+      "k21"
+     ],
+     "content": "Then k22."
+    },
+    {
+     "keys": [
+      "k22"
+     ],
+     "content": "Then k23."
+    },
+    {
+     "keys": [
+      "k23"
+     ],
+     "content": "Then k24."
+    },
+    {
+     "keys": [
+      "k24"
+     ],
+     "content": "Then k25."
+    },
+    {
+     "keys": [
+      "k25"
+     ],
+     "content": "Then k26."
+    },
+    {
+     "keys": [
+      "k26"
+     ],
+     "content": "Then k27."
+    },
+    {
+     "keys": [
+      "k27"
+     ],
+     "content": "Then k28."
+    },
+    {
+     "keys": [
+      "k28"
+     ],
+     "content": "Then k29."
+    },
+    {
+     "keys": [
+      "k29"
+     ],
+     "content": "Then k30."
+    },
+    {
+     "keys": [
+      "k30"
+     ],
+     "content": "Then k31."
+    },
+    {
+     "keys": [
+      "k31"
+     ],
+     "content": "Then k32."
+    },
+    {
+     "keys": [
+      "k32"
+     ],
+     "content": "Then k33."
+    },
+    {
+     "keys": [
+      "k33"
+     ],
+     "content": "Then k34."
+    },
+    {
+     "keys": [
+      "k34"
+     ],
+     "content": "Then k35."
+    },
+    {
+     "keys": [
+      "k35"
+     ],
+     "content": "Then k36."
+    },
+    {
+     "keys": [
+      "k36"
+     ],
+     "content": "Then k37."
+    },
+    {
+     "keys": [
+      "k37"
+     ],
+     "content": "Then k38."
+    },
+    {
+     "keys": [
+      "k38"
+     ],
+     "content": "Then k39."
+    },
+    {
+     "keys": [
+      "k39"
+     ],
+     "content": "Then k40."
+    },
+    {
+     "keys": [
+      "k40"
+     ],
+     "content": "Then k41."
+    },
+    {
+     "keys": [
+      "k41"
+     ],
+     "content": "Then k42."
+    },
+    {
+     "keys": [
+      "k42"
+     ],
+     "content": "Then k43."
+    },
+    {
+     "keys": [
+      "k43"
+     ],
+     "content": "Then k44."
+    },
+    {
+     "keys": [
+      "k44"
+     ],
+     "content": "Then k45."
+    },
+    {
+     "keys": [
+      "k45"
+     ],
+     "content": "Then k46."
+    },
+    {
+     "keys": [
+      "k46"
+     ],
+     "content": "Then k47."
+    },
+    {
+     "keys": [
+      "k47"
+     ],
+     "content": "Then k48."
+    },
+    {
+     "keys": [
+      "k48"
+     ],
+     "content": "Then k49."
+    },
+    {
+     "keys": [
+      "k49"
+     ],
+     "content": "Then k50."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an always-on entry fires without its keys and a disabled one never",
+   "input": {
+    "entries": [
+     {
+      "keys": [],
+      "content": "Always.",
+      "constant": true
+     },
+     {
+      "keys": [],
+      "content": "Off.",
+      "constant": true,
+      "enabled": false
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Off too.",
+      "enabled": false
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "On."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "It lands."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [],
+     "content": "Always.",
+     "constant": true
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "On."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "secondary keys are read only on a selective entry with keys left once trimmed",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Not selective.",
+      "secondary_keys": [
+       "silver"
+      ],
+      "selective_logic": 3
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Only spaces.",
+      "selective": true,
+      "secondary_keys": [
+       "  ",
+       ""
+      ],
+      "selective_logic": 3
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Selective.",
+      "selective": true,
+      "secondary_keys": [
+       "silver"
+      ],
+      "selective_logic": 3
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Gold everywhere."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Not selective.",
+     "secondary_keys": [
+      "silver"
+     ],
+     "selective_logic": 3
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Only spaces.",
+     "selective": true,
+     "secondary_keys": [
+      "  ",
+      ""
+     ],
+     "selective_logic": 3
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "the four logics of the secondary keys",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Any.",
+      "selective": true,
+      "secondary_keys": [
+       "gold",
+       "silver"
+      ],
+      "selective_logic": 0
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Not all.",
+      "selective": true,
+      "secondary_keys": [
+       "gold",
+       "sleeps"
+      ],
+      "selective_logic": 1
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "None.",
+      "selective": true,
+      "secondary_keys": [
+       "silver",
+       "copper"
+      ],
+      "selective_logic": 2
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "All.",
+      "selective": true,
+      "secondary_keys": [
+       "gold",
+       "sleeps"
+      ],
+      "selective_logic": 3
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "A regex is never seen.",
+      "selective": true,
+      "secondary_keys": [
+       "/gold/"
+      ],
+      "selective_logic": 2
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "The dragon sleeps."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "On its gold."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Any.",
+     "selective": true,
+     "secondary_keys": [
+      "gold",
+      "silver"
+     ],
+     "selective_logic": 0
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "None.",
+     "selective": true,
+     "secondary_keys": [
+      "silver",
+      "copper"
+     ],
+     "selective_logic": 2
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "All.",
+     "selective": true,
+     "secondary_keys": [
+      "gold",
+      "sleeps"
+     ],
+     "selective_logic": 3
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "A regex is never seen.",
+     "selective": true,
+     "secondary_keys": [
+      "/gold/"
+     ],
+     "selective_logic": 2
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an outlet entry is never inserted",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Outlet.",
+      "position": 7
+     },
+     {
+      "keys": [],
+      "content": "Outlet too.",
+      "constant": true,
+      "position": 7
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "At a depth.",
+      "position": 4
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "It lands."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "At a depth.",
+     "position": 4
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "decorator lines are taken out of what is inserted, and of what is scanned",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "@@activate\n@@depth 2\nDragons hoard gold."
+     },
+     {
+      "keys": [
+       "depth"
+      ],
+      "content": "Never."
+     },
+     {
+      "keys": [
+       "gold"
+      ],
+      "content": "Called."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "It lands."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Dragons hoard gold."
+    },
+    {
+     "keys": [
+      "gold"
+     ],
+     "content": "Called."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an entry that prevents recursion calls no other, one excluded from it is not called",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "sword"
+      ],
+      "content": "Forged by the smith.",
+      "prevent_recursion": true
+     },
+     {
+      "keys": [
+       "smith"
+      ],
+      "content": "Never."
+     },
+     {
+      "keys": [
+       "shield"
+      ],
+      "content": "The hills are near."
+     },
+     {
+      "keys": [
+       "hills"
+      ],
+      "content": "Never either.",
+      "exclude_recursion": true
+     },
+     {
+      "keys": [
+       "shield"
+      ],
+      "content": "Said, and excluded.",
+      "exclude_recursion": true
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A sword."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "And a shield."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "sword"
+     ],
+     "content": "Forged by the smith.",
+     "prevent_recursion": true
+    },
+    {
+     "keys": [
+      "shield"
+     ],
+     "content": "The hills are near."
+    },
+    {
+     "keys": [
+      "shield"
+     ],
+     "content": "Said, and excluded.",
+     "exclude_recursion": true
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "keys are read on whole words unless the entry says otherwise",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "ring"
+      ],
+      "content": "Whole."
+     },
+     {
+      "keys": [
+       "ring"
+      ],
+      "content": "Part.",
+      "whole_words": false
+     },
+     {
+      "keys": [
+       "old ring"
+      ],
+      "content": "Words."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Bring the bold ringmaster."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Yes."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "ring"
+     ],
+     "content": "Part.",
+     "whole_words": false
+    },
+    {
+     "keys": [
+      "old ring"
+     ],
+     "content": "Words."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "only the last six turns are read, each under its speaker's name",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "first"
+      ],
+      "content": "Too old."
+     },
+     {
+      "keys": [
+       "alex: seventh"
+      ],
+      "content": "Named."
+     },
+     {
+      "keys": [
+       "ana: second"
+      ],
+      "content": "Too old too."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "first"
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "second"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "third"
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "fourth"
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "fifth"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "sixth"
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "seventh"
+      ],
+      "active_index": 0,
+      "position": 6
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "eighth"
+      ],
+      "active_index": 0,
+      "position": 7
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "alex: seventh"
+     ],
+     "content": "Named."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "the budget still applies, in the lorebook's order",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word "
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Short."
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word "
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "It lands."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex",
+    "budget": 40
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Short."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "a key across the join of two passes is seen, a word cut by it is not",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "walk"
+      ],
+      "content": "gate opens."
+     },
+     {
+      "keys": [
+       "bring?\ngate"
+      ],
+      "content": "Across."
+     },
+     {
+      "keys": [
+       "ring"
+      ],
+      "content": "Never."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A lamp."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I walk, bring?"
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "walk"
+     ],
+     "content": "gate opens."
+    },
+    {
+     "keys": [
+      "bring?\ngate"
+     ],
+     "content": "Across."
+    }
+   ]
   }
  ]
 }

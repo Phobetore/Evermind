@@ -8,6 +8,7 @@ is the closing block each provider places after the history.
 from dataclasses import dataclass, field
 
 from .defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
+from .lorebook import activated, strip_decorators
 from .macros import has_original_macro, substitute, substitute_original
 from .tokens import estimate_tokens
 
@@ -93,7 +94,7 @@ def _format_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
     return "\n".join(lines)
 
 
-def match_lore(entries: list[dict], messages: list[dict]) -> list[dict]:
+def _match_lore_before_cards(entries: list[dict], messages: list[dict]) -> list[dict]:
     """Entries whose keywords appear in the recent turns, whatever the case, in the
     lorebook's order, within the lore token budget."""
     if not entries:
@@ -110,6 +111,33 @@ def match_lore(entries: list[dict], messages: list[dict]) -> list[dict]:
             continue
         budget -= cost
         kept.append(entry)
+    return kept
+
+
+def match_lore(entries: list[dict], messages: list[dict], rules: int = 1,
+               budget: int = _LORE_TOKEN_BUDGET, char_name: str = "Character",
+               user_name: str = "User") -> list[dict]:
+    """The lorebook entries that reach the prompt. Rules 1, Evermind's from before community
+    cards were read whole, are kept as they were, so that an older card gives the prompt it
+    gave; rules 2 are those the cards are written for (lorebook.py)."""
+    if rules != 2:
+        return _match_lore_before_cards(entries, messages)
+    if not entries:
+        return []
+    recent = sorted(messages, key=lambda m: m.get("position", 0))[-_LORE_SCAN_MESSAGES:]
+    # Each turn under the name of who speaks, as SillyTavern reads them: a key {{char}} then
+    # fires on any of the character's turns, as the cards expect.
+    scan = "\n".join(f"{char_name if m.get('role') == 'assistant' else user_name}: {active_content(m)}"
+                     for m in recent)
+
+    kept = []
+    for entry in activated(entries, scan, char_name, user_name):
+        content = strip_decorators(entry.get("content") or "")
+        cost = estimate_tokens(content)
+        if cost > budget:
+            continue
+        budget -= cost
+        kept.append({**entry, "content": content})
     return kept
 
 
@@ -229,7 +257,12 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     max_tokens = int(connection.get("max_tokens") or 1024)
     budget = max(512, context_size - max_tokens - _BUDGET_MARGIN)
 
-    lore = match_lore(lore_entries or [], messages)
+    # A card keeps the rules it was made with until its owner agrees to have it read again.
+    if (character.get("card_rules") or 1) == 2:
+        lore = match_lore(lore_entries or [], messages, rules=2,
+                          char_name=char_name, user_name=user_name)
+    else:
+        lore = match_lore(lore_entries or [], messages)
 
     length_override = _LENGTH_OVERRIDES.get(reply_length)
     if length_override:

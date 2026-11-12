@@ -6,6 +6,7 @@
 // order it was given, reversed or not.
 
 import { DEFAULT_RP_RULES, SCENARIO_RP_RULES } from "./defaults";
+import { activated, stripDecorators, type LoreEntrySettings } from "./lorebook";
 import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
 import { PY_WS, pyLstrip, pyMin, pyRstrip, pyStrip, sliceCodePoints, stripThought } from "./text";
 import { estimateTokens } from "./tokens";
@@ -35,6 +36,8 @@ export interface PromptCharacter {
   example_dialogues?: string | null;
   system_prompt?: string | null;
   post_history_instructions?: string | null;
+  /** 1, Evermind's rules from before community cards were read whole, when left out. */
+  card_rules?: 1 | 2;
 }
 
 export interface PromptPersona {
@@ -80,7 +83,7 @@ export interface PromptMemory {
   source_position?: number;
 }
 
-export interface PromptLoreEntry {
+export interface PromptLoreEntry extends LoreEntrySettings {
   keys?: string[] | null;
   content?: string | null;
   enabled?: boolean | null;
@@ -227,7 +230,7 @@ function formatFacts(
 
 /** Entries whose keywords appear in the recent turns, whatever the case, in the
  *  lorebook's order, within the lore token budget. */
-export function matchLore<E extends PromptLoreEntry>(
+function matchLoreBeforeCards<E extends PromptLoreEntry>(
   entries: readonly E[],
   messages: readonly PromptMessage[],
 ): E[] {
@@ -247,6 +250,36 @@ export function matchLore<E extends PromptLoreEntry>(
     if (cost > budget) continue;
     budget -= cost;
     kept.push(entry);
+  }
+  return kept;
+}
+
+/** The lorebook entries that reach the prompt. Rules 1, Evermind's from before community
+ *  cards were read whole, are kept as they were, so that an older card gives the prompt it
+ *  gave; rules 2 are those the cards are written for (lorebook.ts). */
+export function matchLore<E extends PromptLoreEntry>(
+  entries: readonly E[],
+  messages: readonly PromptMessage[],
+  rules = 1,
+  budget = LORE_TOKEN_BUDGET,
+  charName = "Character",
+  userName = "User",
+): E[] {
+  if (rules !== 2) return matchLoreBeforeCards(entries, messages);
+  if (!entries.length) return [];
+  const recent = sortedBy(messages, (m) => m.position ?? 0).slice(-LORE_SCAN_MESSAGES);
+  // Each turn under the name of who speaks, as SillyTavern reads them: a key {{char}} then
+  // fires on any of the character's turns, as the cards expect.
+  const scan = recent.map((m) => `${m.role === "assistant" ? charName : userName}: ${activeContent(m)}`).join("\n");
+
+  const kept: E[] = [];
+  let room = budget;
+  for (const entry of activated(entries, scan, charName, userName)) {
+    const content = stripDecorators(entry.content || "");
+    const cost = estimateTokens(content);
+    if (cost > room) continue;
+    room -= cost;
+    kept.push({ ...entry, content });
   }
   return kept;
 }
@@ -386,7 +419,11 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   const maxTokens = int(connection.max_tokens || 1024);
   const budget = Math.max(512, contextSize - maxTokens - BUDGET_MARGIN);
 
-  const lore = matchLore(input.lore_entries ?? [], messages);
+  // A card keeps the rules it was made with until its owner agrees to have it read again.
+  const lore =
+    (character.card_rules || 1) === 2
+      ? matchLore(input.lore_entries ?? [], messages, 2, LORE_TOKEN_BUDGET, charName, userName)
+      : matchLore(input.lore_entries ?? [], messages);
 
   const lengthOverride = LENGTH_OVERRIDES.get(input.reply_length ?? "medium");
   if (lengthOverride) globalInstructions = pyStrip(globalInstructions + "\n\n" + lengthOverride);
