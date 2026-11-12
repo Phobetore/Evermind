@@ -8,7 +8,14 @@ is the closing block each provider places after the history.
 from dataclasses import dataclass, field
 
 from .defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
-from .lorebook import activated, before_the_card, strip_decorators, within_budget
+from .lorebook import (
+    activated,
+    at_a_depth,
+    before_the_card,
+    depth_of,
+    strip_decorators,
+    within_budget,
+)
 from .macros import has_original_macro, substitute, substitute_original
 from .tokens import estimate_tokens
 
@@ -33,6 +40,7 @@ _MAX_FACTS_TOKEN_BUDGET = 2000  # cap, so facts never dominate the window
 _FACTS_BUDGET_SHARE = 0.12      # of the budget, between the two
 _LORE_SCAN_MESSAGES = 6
 _LORE_TOKEN_BUDGET = 800
+_NOTE_DEPTH = 4  # CharacterIn's default, for a character that says nothing of it
 
 
 @dataclass
@@ -231,6 +239,68 @@ def _build_system(character: dict, persona: dict | None, summary: str,
     return substitute(system, char_name=char_name, user_name=user_name)
 
 
+def _texts_at_depths(note: str, note_depth: int, entries: list[dict],
+                     char_name: str, user_name: str) -> dict[int, str]:
+    """What is said among the turns, by depth: the character's note, then the entries at that
+    depth in the order they are placed, as one text. It is marked as not the player's, since
+    it goes in one of the player's turns: unmarked, a card could speak in the player's voice,
+    and a reminder written as an order would read as something the player said."""
+    parts: dict[int, list[str]] = {}
+    if note:
+        parts[note_depth] = [note]
+    for entry in entries:
+        parts.setdefault(depth_of(entry), []).append((entry.get("content") or "").strip())
+    return {depth: f"[Note for the story, not written by {user_name}: "
+                   + substitute("\n".join(texts), char_name=char_name, user_name=user_name) + "]"
+            for depth, texts in parts.items()}
+
+
+def _place_at_depths(turns: list[dict], texts: dict[int, str]) -> list[str]:
+    """Puts each text in a turn of the player's, as near its depth as one is, and returns
+    those that open the closing block instead, the deepest first. No message is ever added:
+    local models drop or move a system message in the middle of the story and want the turns
+    to alternate, and Anthropic's API takes none there.
+
+    Depth d is the point before the last d turns sent. The text opens the turn just after
+    the point when that is the player's, else ends the one just before it; between two of
+    the character's turns, it opens the player's next turn, else ends the player's last
+    one. Depth 0, or a story with no turn of the player's, opens the closing block, which
+    keeps the guardrails after it."""
+    count = len(turns)
+    # The player's first turn at or after each index, and last turn before it: one pass
+    # each, however many depths there are.
+    next_player: list[int | None] = [None] * (count + 1)
+    for i in range(count - 1, -1, -1):
+        next_player[i] = i if turns[i]["role"] == "user" else next_player[i + 1]
+    last_player: list[int | None] = [None] * (count + 1)
+    for i in range(count):
+        last_player[i + 1] = i if turns[i]["role"] == "user" else last_player[i]
+
+    heads: list[list[str]] = [[] for _ in turns]
+    tails: list[list[str]] = [[] for _ in turns]
+    closing: list[str] = []
+    # Deepest first, so that two texts in one turn keep their order in the story.
+    for depth in sorted(texts, reverse=True):
+        text = texts[depth]
+        point = count - min(depth, count)
+        if depth == 0:
+            closing.append(text)
+        elif point < count and turns[point]["role"] == "user":
+            heads[point].append(text)
+        elif point > 0 and turns[point - 1]["role"] == "user":
+            tails[point - 1].append(text)
+        elif next_player[point] is not None:
+            heads[next_player[point]].append(text)
+        elif last_player[point] is not None:
+            tails[last_player[point]].append(text)
+        else:
+            closing.append(text)
+    for turn, head, tail in zip(turns, heads, tails, strict=True):
+        if head or tail:
+            turn["content"] = "\n\n".join([*head, turn["content"], *tail])
+    return closing
+
+
 _LENGTH_OVERRIDES = {
     "short": ("LENGTH OVERRIDE: keep every reply to ONE tight paragraph. "
               "Dense, punchy, no padding."),
@@ -249,7 +319,11 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                        history_limit: int = 0,
                        relevance_scores: dict[str, float] | None = None,
                        retrieved_passages: list[dict] | None = None,
-                       fold_leading_assistant: bool = False) -> PromptPayload:
+                       fold_leading_assistant: bool = False,
+                       insertions: bool = True) -> PromptPayload:
+    """``insertions`` False leaves out what the card says to the character among the turns
+    (its note, its entries at a depth): the ghostwriter, who writes as the player, has no use
+    for them."""
     char_name = character.get("name") or "Character"
     user_name = (persona or {}).get("name") or "User"
     summary = (conversation or {}).get("summary") or ""
@@ -260,15 +334,25 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
 
     # A card keeps the rules it was made with until its owner agrees to have it read again.
     # On those of community cards the lorebook has a share of the prompt, not a fixed amount,
-    # and an entry can go before the character's definition.
+    # and an entry can go before the character's definition or among the turns, as the note
+    # to the character does.
     lore_before: list[dict] = []
+    at_depth: list[dict] = []
+    depth_texts: dict[int, str] = {}
     if (character.get("card_rules") or 1) == 2:
         matched = match_lore(lore_entries or [], messages, rules=2, budget=budget // 4,
                              char_name=char_name, user_name=user_name)
         lore_before = [entry for entry in matched if before_the_card(entry)]
-        lore = [entry for entry in matched if not before_the_card(entry)]
+        lore = [entry for entry in matched if not before_the_card(entry) and not at_a_depth(entry)]
+        if insertions:
+            at_depth = [entry for entry in matched if at_a_depth(entry)]
+            note = (character.get("character_note") or "").strip()
+            depth_texts = _texts_at_depths(note, character.get("character_note_depth", _NOTE_DEPTH),
+                                           at_depth, char_name, user_name)
     else:
         lore = match_lore(lore_entries or [], messages)
+    # Said among the turns or in the closing block, these texts take their room from the story.
+    depth_cost = sum(estimate_tokens(text) for text in depth_texts.values())
 
     length_override = _LENGTH_OVERRIDES.get(reply_length)
     if length_override:
@@ -323,7 +407,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                            memories=memories, lore=lore, lore_before=lore_before,
                            facts_budget=facts_budget,
                            relevance_scores=relevance_scores, passages=retrieved_passages)
-    provisional = render_turns(budget - estimate_tokens(static) - estimate_tokens(post_history))
+    provisional = render_turns(budget - estimate_tokens(static) - estimate_tokens(post_history)
+                               - depth_cost)
     oldest_visible = min((t["position"] for t in provisional), default=0)
     relevant_memories = [
         m for m in (memories or [])
@@ -344,7 +429,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                                facts_budget=facts_budget,
                                relevance_scores=relevance_scores, passages=retrieved_passages)
 
-    turns = render_turns(budget - estimate_tokens(system) - estimate_tokens(post_history))
+    turns = render_turns(budget - estimate_tokens(system) - estimate_tokens(post_history)
+                         - depth_cost)
     # The oldest turn actually sent: the estimate above, with every fact, may leave out older ones.
     visible_oldest = min((t["position"] for t in turns), default=oldest_visible)
     for t in turns:
@@ -363,6 +449,11 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                       f"({char_name} has already said this aloud; carry on from it "
                       f"rather than repeating it)\n{block}")
 
+    # Placed in the turns as sent, cut and folded, so that a depth counts what the model reads.
+    closing = _place_at_depths(turns, depth_texts)
+    if closing:
+        post_history = "\n\n".join([*closing, post_history])
+
     stop = [f"\n{user_name}:"]
     used = (estimate_tokens(system) + estimate_tokens(post_history)
             + sum(estimate_tokens(t["content"]) + 4 for t in turns))
@@ -372,7 +463,7 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         "context_size": context_size,
         "messages_included": len(turns),
         "messages_total": len(messages),
-        "lore_matched": len(lore_before) + len(lore),
+        "lore_matched": len(lore_before) + len(lore) + len(at_depth),
         "oldest_visible": visible_oldest,
         "fact_positions": [m.get("source_position") for m in facts_shown],
     }

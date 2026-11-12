@@ -794,6 +794,82 @@
    }
   },
   {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: a card's note and its entries at a depth are not for the player's pen",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2,
+     "character_note": "Keep the oven warm for {{user}}.",
+     "character_note_depth": 1,
+     "character_note_role": "system"
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I come in from the cold."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She looks up.* Early again."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Is the bread ready?"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Ana.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Ana's last message and moves the scene forward.\nNever write Ana's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT Alex: A courier.",
+    "messages": [
+     {
+      "role": "assistant",
+      "content": "I come in from the cold."
+     },
+     {
+      "role": "user",
+      "content": "*She looks up.* Early again."
+     },
+     {
+      "role": "assistant",
+      "content": "Is the bread ready?"
+     }
+    ],
+    "stop": [
+     "\nAna:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
    "fn": "build_extraction_payload",
    "name": "extraction: turns since the last pass",
    "input": {

@@ -5,7 +5,9 @@ from dataclasses import asdict
 
 from app.prompting.engine import build_chat_payload, match_lore
 from app.prompting.lorebook import key_matches, strip_decorators
+from app.prompting.payloads import build_impersonate_payload
 from app.prompting.tokens import estimate_tokens
+from app.services.chat_service import _CONTINUE_INSTRUCTION
 
 from .conftest import PERSONA, make_character, make_connection, make_message
 
@@ -51,9 +53,11 @@ def test_a_card_on_the_old_rules_ignores_every_new_setting():
     ]
     with_settings = [{**e, **s} for e, s in zip(plain, settings, strict=True)]
 
+    note = {"character_note": "Remember the storm.", "character_note_depth": 0, "character_note_role": "user"}
+
     before = payload(make_character(), plain, messages)
-    assert payload(make_character(card_rules=1), with_settings, messages) == before
-    assert payload(make_character(), with_settings, messages) == before
+    assert payload(make_character(card_rules=1, **note), with_settings, messages) == before
+    assert payload(make_character(**note), with_settings, messages) == before
     assert "@@activate" in before["system"]
     assert "Castles stand." not in before["system"]
 
@@ -254,14 +258,15 @@ def test_an_entry_placed_before_the_definition_comes_before_it():
     entries = [entry(["dragon"], "After, by default."),
                entry(["dragon"], "Before.", position=0),
                entry(["dragon"], "After, at the end.", position=2),
-               entry(["dragon"], "At a depth, after for now.", position=4)]
+               entry(["dragon"], "At a depth.", position=4)]
     system = payload(make_character(card_rules=2), entries, said("A dragon."))["system"]
     assert system.startswith(
         "You are Serana in an endless immersive roleplay with Alex.\n\n"
         "### WORLD KNOWLEDGE (background)\nBefore.\n\n### ABOUT SERANA\n")
+    # The entry at a depth is said in the story, not here.
     assert ("### WORLD KNOWLEDGE (relevant to the current scene)\n"
-            "After, by default.\n\nAfter, at the end.\n\nAt a depth, after for now.\n\n") in system
-    assert system.count("Before.") == 1
+            "After, by default.\n\nAfter, at the end.\n\n") in system
+    assert system.count("Before.") == 1 and "At a depth." not in system
 
     # A scenario has it before its own definition too.
     scenario = payload(make_character(card_rules=2, kind="scenario"), entries, said("A dragon."))["system"]
@@ -282,3 +287,129 @@ def test_an_entry_of_decorators_alone_adds_no_section():
     assert "WORLD KNOWLEDGE" not in system
     assert system.startswith(
         "You are Serana in an endless immersive roleplay with Alex.\n\n### ABOUT SERANA\n")
+
+
+NOTE = "[Note for the story, not written by Alex: Remember the storm.]"
+STORY = ("Hi.", "Hello.", "How are you?", "Fine.", "Good.")
+
+
+def noted(depth, note="Remember the storm.", **overrides):
+    """A card on the rules of community cards, with a note to the character at a depth."""
+    return make_character(card_rules=2, character_note=note, character_note_depth=depth, **overrides)
+
+
+def chat(character, messages, entries=(), **arguments):
+    return asdict(build_chat_payload(
+        character=character, persona=PERSONA, conversation={"summary": ""}, messages=messages,
+        connection=make_connection(), lore_entries=list(entries), **arguments))
+
+
+def contents(built):
+    return [turn["content"] for turn in built["messages"]]
+
+
+def test_a_note_at_depth_one_sits_just_before_the_newest_message():
+    assert contents(chat(noted(1), said(*STORY))) == [
+        "Hi.", "Hello.", "How are you?", "Fine.", f"{NOTE}\n\nGood."]
+
+
+def test_a_note_at_depth_two_sits_at_the_end_of_the_player_s_message_before_the_last_reply():
+    assert contents(chat(noted(2), said(*STORY))) == [
+        "Hi.", "Hello.", f"How are you?\n\n{NOTE}", "Fine.", "Good."]
+
+
+def test_the_note_is_marked_as_not_the_player_s_and_the_guardrails_come_after_it():
+    plain = chat(make_character(card_rules=2), said(*STORY))
+    built = chat(noted(1, "[I agree that {{char}} leads.]"), said(*STORY))
+    assert built["messages"][-1]["content"] == (
+        "[Note for the story, not written by Alex: [I agree that Serana leads.]]\n\nGood.")
+    # The guardrails stay in the closing block, which each provider sets after the last turn.
+    assert built["post_history"] == plain["post_history"]
+    assert "I agree" not in built["system"] + built["post_history"]
+
+
+def test_a_note_at_depth_zero_opens_the_closing_block():
+    pinned = [{"id": "f1", "content": "Serana fears fire.", "is_pinned": True, "source_position": 1}]
+    rules = {"post_history_instructions": "Write in the present tense."}
+    built = chat(noted(0, **rules), said(*STORY), memories=pinned)
+    plain = chat(make_character(card_rules=2, **rules), said(*STORY), memories=pinned)
+    assert plain["post_history"].startswith("Write in the present tense.\n\n[Still true,")
+    assert built["post_history"] == f"{NOTE}\n\n{plain['post_history']}"
+    assert built["messages"] == plain["messages"]
+
+
+def test_a_note_deeper_than_the_story_goes_before_the_oldest_turn_sent():
+    assert contents(chat(noted(10), said("Hi.", "Hello.", "How are you?"))) == [
+        f"{NOTE}\n\nHi.", "Hello.", "How are you?"]
+    # Of the turns sent: those the history limit leaves out are not counted.
+    assert contents(chat(noted(10), said(*STORY), history_limit=3)) == [
+        f"{NOTE}\n\nHow are you?", "Fine.", "Good."]
+
+
+def test_with_no_message_from_the_player_the_note_opens_the_closing_block():
+    greeting = [make_message("assistant", "Who are you?", 0)]
+    plain = chat(make_character(card_rules=2), greeting)
+    for depth in (1, 4):
+        built = chat(noted(depth), greeting)
+        assert built["messages"] == plain["messages"]
+        assert built["post_history"] == f"{NOTE}\n\n{plain['post_history']}"
+    # Nor with no message at all.
+    assert chat(noted(2), [])["post_history"] == f"{NOTE}\n\n{plain['post_history']}"
+
+
+def test_the_note_and_entries_at_one_depth_are_said_once_the_note_first():
+    entries = [entry(["dragon"], "Dragons fly.", position=4, depth=1),
+               entry(["dragon"], "Dragons burn.", position=4, depth=1, insertion_order=50),
+               entry(["dragon"], "Dragons sleep.", position=4, depth=2)]
+    built = chat(noted(1), said("Hi.", "Hello.", "A dragon."), entries)
+    assert contents(built) == [
+        "Hi.\n\n[Note for the story, not written by Alex: Dragons sleep.]",
+        "Hello.",
+        ("[Note for the story, not written by Alex: Remember the storm.\nDragons burn.\nDragons fly.]"
+         "\n\nA dragon.")]
+    assert "Dragons" not in built["system"]
+    assert built["stats"]["lore_matched"] == 3
+
+
+def test_no_message_is_ever_added_to_the_story():
+    stories = [said(*STORY), said("Hi.", "Hello.", "How are you?", "Fine."),
+               [make_message("assistant", "Who are you?", 0), make_message("assistant", "Well?", 1),
+                make_message("user", "Alex.", 2), make_message("assistant", "Ah.", 3),
+                make_message("assistant", "Sit.", 4)],
+               [make_message("assistant", "Who are you?", 0)], []]
+    entries = [entry([], "Always.", constant=True, position=4, depth=3)]
+    for messages in stories:
+        for fold in (False, True):
+            plain = chat(make_character(card_rules=2), messages, fold_leading_assistant=fold)
+            for depth in range(20):
+                built = chat(noted(depth), messages, entries, fold_leading_assistant=fold)
+                assert [t["role"] for t in built["messages"]] == [t["role"] for t in plain["messages"]]
+                everything = "\n".join(contents(built)) + built["post_history"]
+                assert everything.count("Remember the storm.") == 1
+                assert everything.count("Always.") == 1
+
+
+def test_the_ghostwriter_reads_no_note():
+    entries = [entry([], "Always.", constant=True, position=4, depth=1)]
+
+    def ghost(character):
+        return asdict(build_impersonate_payload(
+            character=character, persona=PERSONA, conversation={"summary": ""},
+            messages=said(*STORY), connection=make_connection()))
+
+    built = ghost(noted(1))
+    assert built == ghost(make_character(card_rules=2))
+    assert "Remember the storm." not in str(built)
+    # The chat payload it is made from says neither the note nor an entry at a depth.
+    bare = chat(noted(1), said(*STORY), entries, insertions=False)
+    assert "Remember the storm." not in str(bare) and "Always." not in str(bare)
+
+
+def test_continuing_a_reply_keeps_the_note_in_place():
+    history = said("Hi.", "Hello.", "How are you?", "Fine, and") + [
+        make_message("user", _CONTINUE_INSTRUCTION, 4)]
+    # The reply being continued is left as it stopped, and the instruction still ends the turns.
+    assert contents(chat(noted(1), history)) == [
+        "Hi.", "Hello.", "How are you?", "Fine, and", f"{NOTE}\n\n{_CONTINUE_INSTRUCTION}"]
+    assert contents(chat(noted(2), history)) == [
+        "Hi.", "Hello.", f"How are you?\n\n{NOTE}", "Fine, and", _CONTINUE_INSTRUCTION]

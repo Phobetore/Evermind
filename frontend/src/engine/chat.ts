@@ -6,7 +6,15 @@
 // order it was given, reversed or not.
 
 import { DEFAULT_RP_RULES, SCENARIO_RP_RULES } from "./defaults";
-import { activated, beforeTheCard, stripDecorators, withinBudget, type LoreEntrySettings } from "./lorebook";
+import {
+  activated,
+  atADepth,
+  beforeTheCard,
+  depthOf,
+  stripDecorators,
+  withinBudget,
+  type LoreEntrySettings,
+} from "./lorebook";
 import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
 import { PY_WS, pyLstrip, pyMin, pyRstrip, pyStrip, sliceCodePoints, stripThought } from "./text";
 import { estimateTokens } from "./tokens";
@@ -38,6 +46,11 @@ export interface PromptCharacter {
   post_history_instructions?: string | null;
   /** 1, Evermind's rules from before community cards were read whole, when left out. */
   card_rules?: 1 | 2;
+  /** Said among the turns at its depth, 4 when left out, on the rules of community cards. */
+  character_note?: string | null;
+  character_note_depth?: number;
+  /** Kept with the card, but not followed: the note always goes in a turn of the player's. */
+  character_note_role?: string | null;
 }
 
 export interface PromptPersona {
@@ -110,6 +123,9 @@ export interface ChatInput {
   relevance_scores?: Record<string, number> | null;
   retrieved_passages?: readonly PromptPassage[] | null;
   fold_leading_assistant?: boolean;
+  /** False leaves out what the card says to the character among the turns (its note, its
+   *  entries at a depth): the ghostwriter, who writes as the player, has no use for them. */
+  insertions?: boolean;
 }
 
 /** What the builder reports about the prompt it made: the first six are shown, the last
@@ -156,6 +172,7 @@ const MAX_FACTS_TOKEN_BUDGET = 2000; // cap, so facts never dominate the window
 const FACTS_BUDGET_SHARE = 0.12; // of the budget, between the two
 const LORE_SCAN_MESSAGES = 6;
 const LORE_TOKEN_BUDGET = 800;
+const NOTE_DEPTH = 4; // CharacterIn's default, for a character that says nothing of it
 
 /** The instruction a continuation sends as the player's turn, after the reply it extends. */
 export const CONTINUE_INSTRUCTION =
@@ -402,6 +419,79 @@ interface Turn {
   position: number;
 }
 
+/** What is said among the turns, by depth: the character's note, then the entries at that
+ *  depth in the order they are placed, as one text. It is marked as not the player's, since
+ *  it goes in one of the player's turns: unmarked, a card could speak in the player's voice,
+ *  and a reminder written as an order would read as something the player said. */
+function textsAtDepths(
+  note: string,
+  noteDepth: number,
+  entries: readonly PromptLoreEntry[],
+  charName: string,
+  userName: string,
+): Map<number, string> {
+  const parts = new Map<number, string[]>();
+  if (note) parts.set(noteDepth, [note]);
+  for (const entry of entries) {
+    const depth = depthOf(entry);
+    const texts = parts.get(depth) ?? [];
+    texts.push(pyStrip(entry.content || ""));
+    parts.set(depth, texts);
+  }
+  const marked = new Map<number, string>();
+  for (const [depth, texts] of parts) {
+    marked.set(
+      depth,
+      `[Note for the story, not written by ${userName}: ` + substitute(texts.join("\n"), charName, userName) + "]",
+    );
+  }
+  return marked;
+}
+
+/** Puts each text in a turn of the player's, as near its depth as one is, and returns those
+ *  that open the closing block instead, the deepest first. No message is ever added: local
+ *  models drop or move a system message in the middle of the story and want the turns to
+ *  alternate, and Anthropic's API takes none there.
+ *
+ *  Depth d is the point before the last d turns sent. The text opens the turn just after the
+ *  point when that is the player's, else ends the one just before it; between two of the
+ *  character's turns, it opens the player's next turn, else ends the player's last one.
+ *  Depth 0, or a story with no turn of the player's, opens the closing block, which keeps
+ *  the guardrails after it. */
+function placeAtDepths(turns: { role: string; content: string }[], texts: Map<number, string>): string[] {
+  const count = turns.length;
+  const isPlayer = (i: number) => turns[i].role === "user";
+  // The player's first turn at or after each index, and last turn before it: one pass each,
+  // however many depths there are.
+  const nextPlayer: (number | null)[] = new Array(count + 1).fill(null);
+  for (let i = count - 1; i >= 0; i--) nextPlayer[i] = isPlayer(i) ? i : nextPlayer[i + 1];
+  const lastPlayer: (number | null)[] = new Array(count + 1).fill(null);
+  for (let i = 0; i < count; i++) lastPlayer[i + 1] = isPlayer(i) ? i : lastPlayer[i];
+
+  const heads: string[][] = turns.map(() => []);
+  const tails: string[][] = turns.map(() => []);
+  const closing: string[] = [];
+  // Deepest first, so that two texts in one turn keep their order in the story.
+  for (const depth of [...texts.keys()].sort((a, b) => b - a)) {
+    const text = texts.get(depth) as string;
+    const point = count - Math.min(depth, count);
+    const next = nextPlayer[point];
+    const last = lastPlayer[point];
+    if (depth === 0) closing.push(text);
+    else if (point < count && isPlayer(point)) heads[point].push(text);
+    else if (point > 0 && isPlayer(point - 1)) tails[point - 1].push(text);
+    else if (next !== null) heads[next].push(text);
+    else if (last !== null) tails[last].push(text);
+    else closing.push(text);
+  }
+  turns.forEach((turn, i) => {
+    if (heads[i].length || tails[i].length) {
+      turn.content = [...heads[i], turn.content, ...tails[i]].join("\n\n");
+    }
+  });
+  return closing;
+}
+
 /** Python's `min((t["position"] for t in turns), default=fallback)`. */
 const oldestPosition = (turns: readonly Turn[], fallback: number) =>
   pyMin(turns.map((turn) => turn.position), fallback);
@@ -427,16 +517,27 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
 
   // A card keeps the rules it was made with until its owner agrees to have it read again.
   // On those of community cards the lorebook has a share of the prompt, not a fixed amount,
-  // and an entry can go before the character's definition.
+  // and an entry can go before the character's definition or among the turns, as the note
+  // to the character does.
   let lore: PromptLoreEntry[];
   let loreBefore: PromptLoreEntry[] = [];
+  let atDepth: PromptLoreEntry[] = [];
+  let depthTexts = new Map<number, string>();
   if ((character.card_rules || 1) === 2) {
     const matched = matchLore(input.lore_entries ?? [], messages, 2, Math.floor(budget / 4), charName, userName);
     loreBefore = matched.filter((entry) => beforeTheCard(entry));
-    lore = matched.filter((entry) => !beforeTheCard(entry));
+    lore = matched.filter((entry) => !beforeTheCard(entry) && !atADepth(entry));
+    if (input.insertions ?? true) {
+      atDepth = matched.filter((entry) => atADepth(entry));
+      const note = pyStrip(character.character_note || "");
+      depthTexts = textsAtDepths(note, character.character_note_depth ?? NOTE_DEPTH, atDepth, charName, userName);
+    }
   } else {
     lore = matchLore(input.lore_entries ?? [], messages);
   }
+  // Said among the turns or in the closing block, these texts take their room from the story.
+  let depthCost = 0;
+  for (const text of depthTexts.values()) depthCost += estimateTokens(text);
 
   const lengthOverride = LENGTH_OVERRIDES.get(input.reply_length ?? "medium");
   if (lengthOverride) globalInstructions = pyStrip(globalInstructions + "\n\n" + lengthOverride);
@@ -456,7 +557,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   const sceneDirective = pyStrip(conversation?.author_note || "");
   if (sceneDirective) postBits.push(`[Scene directive from ${userName}]: ${sceneDirective}`);
   postBits.push(POST_HISTORY_REMINDER);
-  const postHistory = substitute(postBits.join("\n\n"), charName, userName);
+  let postHistory = substitute(postBits.join("\n\n"), charName, userName);
 
   const factsBudget = Math.min(
     MAX_FACTS_TOKEN_BUDGET,
@@ -505,7 +606,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   // by hand: an echo feeds repetition loops. Which turns stay is first estimated with
   // every fact in the system prompt.
   const everyFact = systemWith(true, memories);
-  const provisional = renderTurns(budget - estimateTokens(everyFact) - estimateTokens(postHistory));
+  const provisional = renderTurns(budget - estimateTokens(everyFact) - estimateTokens(postHistory) - depthCost);
   const oldestVisible = oldestPosition(provisional, 0);
   const relevantMemories = (memories ?? []).filter(
     (m) => m.is_pinned || m.source === "user" || (m.source_position || 0) < oldestVisible,
@@ -517,7 +618,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     system = systemWith(false, relevantMemories);
   }
 
-  const rendered = renderTurns(budget - estimateTokens(system) - estimateTokens(postHistory));
+  const rendered = renderTurns(budget - estimateTokens(system) - estimateTokens(postHistory) - depthCost);
   // The oldest turn actually sent: the estimate above, with every fact, may leave out older ones.
   const visibleOldest = oldestPosition(rendered, oldestVisible);
   const turns = rendered.map(({ role, content }) => ({ role, content }));
@@ -539,6 +640,10 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     }
   }
 
+  // Placed in the turns as sent, cut and folded, so that a depth counts what the model reads.
+  const closing = placeAtDepths(turns, depthTexts);
+  if (closing.length) postHistory = [...closing, postHistory].join("\n\n");
+
   const used =
     estimateTokens(system) +
     estimateTokens(postHistory) +
@@ -549,7 +654,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     context_size: contextSize,
     messages_included: turns.length,
     messages_total: messages.length,
-    lore_matched: loreBefore.length + lore.length,
+    lore_matched: loreBefore.length + lore.length + atDepth.length,
     oldest_visible: visibleOldest,
     fact_positions: factsShown.map((m) => m.source_position ?? null),
   };

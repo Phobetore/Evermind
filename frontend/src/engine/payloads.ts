@@ -55,7 +55,9 @@ export function buildImpersonatePayload(input: ImpersonateInput): PlainPayload {
   const { character, persona, conversation, messages, connection } = input;
   const charName = character.name || "Character";
   const userName = persona?.name || "User";
-  const base = buildChatPayload({ character, persona, conversation, messages, connection });
+  // Without what the card says to the character among the turns: the player's pen reads no
+  // reminder meant for the character.
+  const base = buildChatPayload({ character, persona, conversation, messages, connection, insertions: false });
 
   const contextBits: string[] = [];
   if (persona?.description) contextBits.push(`ABOUT ${userName}: ${persona.description}`);

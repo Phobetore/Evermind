@@ -31,6 +31,7 @@ ENTRY_DEFAULTS = {
 }
 
 _BEFORE_THE_CARD = 0  # "before the character's definition", SillyTavern's first place
+_AT_A_DEPTH = 4  # "@ depth": among the turns of the story, so many from the end
 _OUTLET = 7  # shown only where a {{outlet}} macro asks for it, which Evermind does not have
 _REGEX_KEY = re.compile(r"/([\s\S]+?)/([gimsuy]*)")
 _WORD = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
@@ -199,3 +200,13 @@ def within_budget(entries: list[dict], budget: int) -> list[dict]:
 def before_the_card(entry: dict) -> bool:
     """Whether an entry goes before the character's definition rather than after it."""
     return _setting(entry, "position") == _BEFORE_THE_CARD
+
+
+def at_a_depth(entry: dict) -> bool:
+    """Whether an entry is said among the turns of the story, at its depth."""
+    return _setting(entry, "position") == _AT_A_DEPTH
+
+
+def depth_of(entry: dict) -> int:
+    """How many turns from the end an entry at a depth is said."""
+    return _setting(entry, "depth")

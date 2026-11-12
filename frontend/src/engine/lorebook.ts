@@ -54,6 +54,7 @@ export const ENTRY_DEFAULTS = {
 type Defaulted = keyof typeof ENTRY_DEFAULTS;
 
 const BEFORE_THE_CARD = 0; // "before the character's definition", SillyTavern's first place
+const AT_A_DEPTH = 4; // "@ depth": among the turns of the story, so many from the end
 const OUTLET = 7; // shown only where a {{outlet}} macro asks for it, which Evermind does not have
 const REGEX_KEY = /^\/([\s\S]+?)\/([gimsuy]*)$/;
 const WORD = new Set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
@@ -255,3 +256,9 @@ export function withinBudget<E extends LoreEntryLike>(entries: readonly E[], bud
 
 /** Whether an entry goes before the character's definition rather than after it. */
 export const beforeTheCard = (entry: LoreEntryLike) => setting(entry, "position") === BEFORE_THE_CARD;
+
+/** Whether an entry is said among the turns of the story, at its depth. */
+export const atADepth = (entry: LoreEntryLike) => setting(entry, "position") === AT_A_DEPTH;
+
+/** How many turns from the end an entry at a depth is said. */
+export const depthOf = (entry: LoreEntryLike) => setting(entry, "depth");
