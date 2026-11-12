@@ -5,7 +5,7 @@
 // Python's decoder reads and JSON.parse refuses: NaN and the infinities outside a string,
 // which a browser reads as null (and so do the recorded cases). What Python cannot read,
 // JSON.parse cannot either: a control character inside a string, a bad escape, a number
-// written as JavaScript would allow it.
+// written as JavaScript would allow it, an integer too long for Python's int.
 
 import { PY_WS, pyStrip, stripThought } from "./text";
 
@@ -45,6 +45,12 @@ const LITERALS: [written: string, read: string][] = [
 // Where a value may begin: an integer -0 there is Python's 0, never JavaScript's -0.
 const BEFORE_A_VALUE = new Set(["[", ",", ":", " ", "\t", "\n", "\r"]);
 const AFTER_A_NUMBER_GOES_ON = /[0-9.eE]/;
+// Python refuses to turn an integer of more than this many digits, its sign aside, into
+// an int, and so fails to read the whole text; a float, however long, it reads. A digit
+// run follows one of these only inside a number, or in text no decoder reads anyway.
+const MAX_INTEGER_DIGITS = 4300;
+const INSIDE_A_NUMBER = /[0-9A-Za-z.+-]/;
+const NOT_AN_INTEGER = /[.eE]/;
 
 /** The text from `start` as JSON.parse can read it. With `one`, only the object that
  *  opens at `start`, whatever follows it, and null if it never closes; otherwise the
@@ -84,6 +90,12 @@ function readable(text: string, start: number, one: boolean): string | null {
         i += 2;
         from = i;
         continue;
+      }
+      if ((ch === "-" || (ch >= "0" && ch <= "9")) && !INSIDE_A_NUMBER.test(text[i - 1] ?? "")) {
+        const first = ch === "-" ? i + 1 : i;
+        let j = first;
+        while (j < text.length && text[j] >= "0" && text[j] <= "9") j++;
+        if (j - first > MAX_INTEGER_DIGITS && !NOT_AN_INTEGER.test(text[j] ?? "")) return null;
       }
     }
     i++;
