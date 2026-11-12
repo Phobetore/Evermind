@@ -61,7 +61,12 @@ def test_a_single_word_key_matches_whole_words_only():
 
 def test_a_key_of_several_words_is_a_substring():
     assert key_matches("old ring", "the bold ringmaster", True)
-    assert key_matches("old ring", "the bold ringmaster", True)
+    # Any of the spaces counts, written as escapes so the eye sees which one, while a key
+    # of one word on the same text stays whole.
+    assert key_matches("old\u00a0ring", "the bold\u00a0ringmaster", True)
+    assert key_matches("old\tring", "the bold\tringmaster", True)
+    assert key_matches("古い\u3000指輪", "その古い\u3000指輪たち", True)
+    assert not key_matches("ring", "the bold ringmaster", True)
     assert not key_matches("old ring", "the old  ring", True)
 
 
