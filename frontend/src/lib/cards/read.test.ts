@@ -217,6 +217,10 @@ describe("the fields of a card", () => {
     expect(tagline("![portrait](https://example.com/a.png)Read [the guide](https://example.com) first... or not")).toBe("Read the guide first...");
     expect(tagline("Salt &amp; iron, &lt;sharp&gt; &quot;edges&quot; &#39;here&#39;&nbsp;now")).toBe(`Salt & iron, <sharp> "edges" 'here' now`);
     expect(tagline("東京の門番。 二つ目の文")).toBe("東京の門番。");
+    // Japanese and Chinese put no space after their marks.
+    expect(tagline("東京の門番。二つ目の文。")).toBe("東京の門番。");
+    expect(tagline("門を守れ！二つ目の文")).toBe("門を守れ！");
+    expect(tagline("誰が来た？二つ目の文")).toBe("誰が来た？");
     expect(tagline("Version 1.5 is out? Yes")).toBe("Version 1.5 is out?");
     expect(tagline("No end to this one")).toBe("No end to this one");
     expect(tagline("")).toBe("");

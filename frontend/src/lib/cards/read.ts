@@ -206,7 +206,8 @@ export function taglineOf(notes: string): string {
     .replace(/^(?:[^\S\n]*(?:#+|>))+/gm, "")
     .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name: string) => ENTITIES[name]);
   plain = plain.replace(/\s+/g, " ").trim();
-  const end = /[.!?…。！？](?=\s|$)/.exec(plain);
+  // A full-width mark ends the sentence whatever follows: Japanese and Chinese put no space after it.
+  const end = /[.!?…](?=\s|$)|[。！？]/.exec(plain);
   return end ? plain.slice(0, end.index + 1) : plain;
 }
 
