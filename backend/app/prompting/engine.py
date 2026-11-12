@@ -132,7 +132,9 @@ def match_lore(entries: list[dict], messages: list[dict], rules: int = 1,
 
     fired = [{**entry, "content": strip_decorators(entry.get("content") or "")}
              for entry in activated(entries, scan, char_name, user_name)]
-    return within_budget(fired, budget)
+    # An entry that is only decorators, or blank, has nothing for the model: kept, it would
+    # leave a heading with nothing under it, or an empty gap between two entries.
+    return within_budget([entry for entry in fired if entry["content"].strip()], budget)
 
 
 def _build_system(character: dict, persona: dict | None, summary: str,

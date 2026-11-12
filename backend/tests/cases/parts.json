@@ -5062,6 +5062,54 @@
      "insertion_order": 2
     }
    ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an entry that is only decorators, or blank, does not reach the prompt",
+   "input": {
+    "entries": [
+     {
+      "keys": [],
+      "content": "@@depth 4",
+      "constant": true,
+      "position": 0
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "@@activate\r\n   \n",
+      "insertion_order": 50
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Dragons hoard gold."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Dragons hoard gold."
+    }
+   ]
   }
  ]
 }

@@ -276,7 +276,12 @@ export function matchLore<E extends PromptLoreEntry>(
     ...entry,
     content: stripDecorators(entry.content || ""),
   }));
-  return withinBudget(fired, budget);
+  // An entry that is only decorators, or blank, has nothing for the model: kept, it would
+  // leave a heading with nothing under it, or an empty gap between two entries.
+  return withinBudget(
+    fired.filter((entry) => pyStrip(entry.content)),
+    budget,
+  );
 }
 
 interface SystemParts {

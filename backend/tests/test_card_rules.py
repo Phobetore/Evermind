@@ -271,3 +271,14 @@ def test_an_entry_placed_before_the_definition_comes_before_it():
     old = payload(make_character(), entries, said("A dragon."))["system"]
     assert "(background)" not in old
     assert "(relevant to the current scene)\nAfter, by default.\n\nBefore.\n\n" in old
+
+
+def test_an_entry_of_decorators_alone_adds_no_section():
+    entries = [entry([], "@@depth 4", constant=True, position=0),
+               entry(["dragon"], "@@activate\r\n  \n")]
+    assert fired(entries, said("A dragon.")) == []
+
+    system = payload(make_character(card_rules=2), entries, said("A dragon."))["system"]
+    assert "WORLD KNOWLEDGE" not in system
+    assert system.startswith(
+        "You are Serana in an endless immersive roleplay with Alex.\n\n### ABOUT SERANA\n")
