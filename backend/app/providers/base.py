@@ -155,7 +155,7 @@ class Provider:
             raise _refusal(response.status_code, response.content)
         try:
             models = response.json().get("data") or []
-            return [m["id"] for m in models if isinstance(m, dict) and m.get("id")]
+            return [well_formed(str(m["id"])) for m in models if isinstance(m, dict) and m.get("id")]
         except (ValueError, AttributeError, TypeError):
             raise ProviderError("The list of models could not be read.", MODEL_UNREADABLE)
 
