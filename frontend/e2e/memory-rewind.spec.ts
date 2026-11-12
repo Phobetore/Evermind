@@ -505,12 +505,13 @@ test("an older read, given up once a newer one is sent, does not put back the su
     await released;
     await route.fulfill({ response: old }).catch(() => {}); // given up on by then
   });
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await answered;
-  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  // Listened for before the read starts: however early it is given up, that is not missed.
   const givenUp = page.waitForEvent("requestfailed", {
     predicate: (r) => readOf(convo.id)(r.url()),
   });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await answered;
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
   await summary.click();
   await expect(summary).toHaveValue(/woke the character in a crypt/);
   const brought = await summary.inputValue();
