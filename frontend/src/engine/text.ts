@@ -67,6 +67,15 @@ export function sliceCodePoints(s: string, end: number): string {
   return s.slice(0, i);
 }
 
+/** Python's `min(values, default=fallback)`: the first of the smallest, by `<`. Not
+ *  Math.min, which prefers -0 to 0 and NaN to any number, where `<` keeps the first. */
+export function pyMin(values: readonly number[], fallback: number): number {
+  if (!values.length) return fallback;
+  let smallest = values[0];
+  for (const value of values) if (value < smallest) smallest = value;
+  return smallest;
+}
+
 const THINK = "<think>";
 const THOUGHT_END = "</think>";
 

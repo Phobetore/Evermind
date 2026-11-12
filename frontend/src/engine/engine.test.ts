@@ -5,6 +5,7 @@ import { cleanCardDraft } from "./cardDraft";
 import * as engine from "./index";
 import { parseLlmJson, partialJson } from "./llmJson";
 import { MAX_TURNS_PER_RUN, planMemoryChanges } from "./memoryChanges";
+import { pyMin } from "./text";
 
 // What a recorded case cannot hold: how the engine is built, and answers that a case
 // file would not carry, or that would make it heavy.
@@ -112,6 +113,15 @@ describe("the engine", () => {
     expect(engine.buildImpersonatePayload({ ...input, memories } as typeof input)).toStrictEqual(
       engine.buildImpersonatePayload(input),
     );
+  });
+
+  it("the smallest of several numbers is the first, as Python's min picks it", () => {
+    expect(pyMin([], 7)).toBe(7);
+    expect(pyMin([3, 1, 2], 0)).toBe(1);
+    // Of two that compare equal, the first: Math.min would give -0 both ways, and NaN.
+    expect(Object.is(pyMin([0, -0], 9), 0)).toBe(true);
+    expect(Object.is(pyMin([-0, 0], 9), -0)).toBe(true);
+    expect(pyMin([1, NaN], 9)).toBe(1);
   });
 
   it("the constants say what Python's say", () => {

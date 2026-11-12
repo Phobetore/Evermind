@@ -7,7 +7,7 @@
 
 import { DEFAULT_RP_RULES, SCENARIO_RP_RULES } from "./defaults";
 import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
-import { PY_WS, pyLstrip, pyRstrip, pyStrip, sliceCodePoints, stripThought } from "./text";
+import { PY_WS, pyLstrip, pyMin, pyRstrip, pyStrip, sliceCodePoints, stripThought } from "./text";
 import { estimateTokens } from "./tokens";
 
 // Python has it in engine.py, beside the reply's cleanup: so does the engine's door.
@@ -364,10 +364,8 @@ interface Turn {
 }
 
 /** Python's `min((t["position"] for t in turns), default=fallback)`. */
-function oldestPosition(turns: readonly Turn[], fallback: number): number {
-  if (!turns.length) return fallback;
-  return turns.reduce((oldest, turn) => Math.min(oldest, turn.position), turns[0].position);
-}
+const oldestPosition = (turns: readonly Turn[], fallback: number) =>
+  pyMin(turns.map((turn) => turn.position), fallback);
 
 /** Python's `int()` of a number: no -0, which a strict comparison tells from 0. */
 const int = (n: number) => Math.trunc(n) + 0;

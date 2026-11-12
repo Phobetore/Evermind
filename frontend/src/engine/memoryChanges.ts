@@ -7,7 +7,7 @@
 // an array is a list: a string would be read letter by letter.
 
 import { field } from "./llmJson";
-import { textOf } from "./text";
+import { pyMin, textOf } from "./text";
 
 export const MAX_TURNS_PER_RUN = 40; // safety cap on turns fed to one extraction call
 
@@ -135,9 +135,5 @@ export function planConsolidation(
     .map((item) => textOf(field(item, "content")))
     .filter((text) => text !== "");
   if (!facts.length) return null;
-  // Python's `min()`: the first of the smallest, by `<`. Not Math.min, which runs out of
-  // arguments on a very long list, and prefers -0 to 0 and NaN to any number.
-  let oldest = movable.length ? movable[0].source_position : 0;
-  for (const m of movable) if (m.source_position < oldest) oldest = m.source_position;
-  return { facts, source_position: oldest };
+  return { facts, source_position: pyMin(movable.map((m) => m.source_position), 0) };
 }
