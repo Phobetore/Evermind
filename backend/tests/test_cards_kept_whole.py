@@ -10,7 +10,8 @@ from app.config import db_path
 
 MIGRATIONS = Path(db.MIGRATIONS_DIR)
 
-# Every one of the 13 settings away from its default, so that none can be lost unnoticed.
+# Twelve of the 13 settings away from their default, so that none can be lost unnoticed;
+# each entry gives its own `origin`, the 13th.
 SETTINGS = {
     "comment": "The harbour",
     "constant": True,
