@@ -289,6 +289,22 @@ a function of `index.ts` is reached by none. So a rule changed in Python and not
 in TypeScript fails `npm test` once the cases are regenerated. Nothing in the
 interface calls that copy yet, so it is not in the build.
 
+The two engines owe each other the same answer on typed input, and on anything a
+model answers. Typed input is what the server stores: the header of
+`frontend/src/engine/chat.ts` says what a type cannot (whole, finite numbers, well
+formed strings, whole rows), and whatever feeds the TypeScript copy must keep it.
+Some things cannot be the same between Python and JavaScript:
+
+- a model's answer nested deeper than 900, which TypeScript refuses;
+- an integer past 2^53, which a double rounds, and one of 309 digits or more in a
+  model's answer, which JavaScript reads as Infinity;
+- the letters that only Unicode 16 cases, which Node knows and Python 3.13 does not;
+- a text that grows past the longest string V8 accepts, such as a name repeated
+  by thousands of `{{char}}`;
+- a whole float such as `3.0` given as input, which `JSON.parse` hands back as an
+  integer;
+- an object key that reads as an integer, which JavaScript lists first.
+
 ## Optional semantic memory
 
 Installing the `semantic` extra swaps recency-based recall for meaning-based
