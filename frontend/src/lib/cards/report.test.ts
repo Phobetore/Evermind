@@ -44,9 +44,36 @@ describe("the report of an import", () => {
       { key: "groupGreetings", count: 1 },
       { key: "assets", count: 1 },
       { key: "multilingualNotes", names: ["en", "ko"] },
+      // "fr": 3, which is no text: left out of the reading, so said.
+      { key: "unreadFields", names: ["creator_notes_multilingual.fr"] },
     ]);
     expect(readText(fixture("risu-v3.json")).report.newer).toBe(false);
     expect(readText(fixture("chub-v2.json").replace('"spec_version": "2.0"', '"spec_version": "3.5"')).report.newer).toBe(false);
+  });
+
+  test("what the reading leaves out is said, every item of the book counted", () => {
+    const report = (data: object) =>
+      readCardJson({ spec: "chara_card_v2", data: { name: "N", ...data } }, "{}", "json")!.report.kept;
+    expect(report({
+      alternate_greetings: ["Hello.", { text: "Hi." }],
+      tags: ["sea", ["storm"]],
+      creator_notes_multilingual: { en: "Notes.", fr: 3, de: null },
+      extensions: { depth_prompt: { prompt: ["x"], depth: 2 } },
+      character_book: { entries: { 0: { keys: ["k"], content: "c" } } },
+    })).toContainEqual({
+      key: "unreadFields",
+      names: ["alternate_greetings", "tags", "creator_notes_multilingual.fr", "extensions.depth_prompt.prompt", "character_book.entries"],
+    });
+    expect(report({
+      creator_notes_multilingual: "Notes.", extensions: { depth_prompt: "x" }, character_book: [{ keys: ["k"], content: "c" }],
+    })).toContainEqual({
+      key: "unreadFields", names: ["creator_notes_multilingual", "extensions.depth_prompt", "character_book"],
+    });
+    // Greetings and tags that are all text, a number among them, leave nothing out.
+    expect(report({ alternate_greetings: ["Hello.", 2], tags: "sea" })).toEqual([]);
+    // Items of the book that are no object hold no entry, and are counted with those not stored.
+    expect(report({ character_book: { entries: [1, "x", null, { keys: ["k"], content: "c" }, { keys: [], content: "c" }] } }))
+      .toEqual([{ key: "loreNotStored", count: 4 }]);
   });
 
   test("a card with nothing more than Evermind's own fields reports nothing kept", () => {

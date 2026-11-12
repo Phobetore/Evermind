@@ -1,6 +1,6 @@
 import type { CardCharacter, CardText, LoreEntryInput } from "@/data";
 import { pyStrip } from "@/engine/text";
-import { bookEntries, cardFields, FIELDS, isObject, isStorable, texts } from "./read";
+import { bookEntries, cardFields, FIELDS, isObject, isStorable, isText, texts } from "./read";
 
 // What an import says it did with a card: what Evermind uses, and what it only keeps for the export.
 
@@ -69,6 +69,41 @@ function settingsOf(entries: Record<string, unknown>[]): string[] {
   return names;
 }
 
+/** A value that says something Evermind cannot read as text: null counts as saying nothing. */
+const unreadable = (value: unknown) => value !== undefined && value !== null && !isText(value);
+
+/** The fields Evermind reads as text, or as lists of texts, that held something else: what the
+ *  reading left out, by its place in the card. The card keeps it all the same. */
+function unreadFields(fields: Record<string, unknown>): string[] {
+  const names = [...Object.keys(FIELDS), "nickname"].filter((key) => unreadable(fields[key]));
+  for (const key of ["alternate_greetings", "tags"]) {
+    const value = fields[key];
+    if (Array.isArray(value) ? value.some(unreadable) : unreadable(value)) names.push(key);
+  }
+  const multilingual = fields.creator_notes_multilingual;
+  if (isObject(multilingual)) {
+    // Only strings are read there: a number is left out too.
+    for (const [language, notes] of Object.entries(multilingual)) {
+      if (notes !== null && typeof notes !== "string") names.push(`creator_notes_multilingual.${language.toWellFormed()}`);
+    }
+  } else if (multilingual !== undefined && multilingual !== null) {
+    names.push("creator_notes_multilingual");
+  }
+  const note = isObject(fields.extensions) ? fields.extensions.depth_prompt : undefined;
+  if (isObject(note)) {
+    if (unreadable(note.prompt)) names.push("extensions.depth_prompt.prompt");
+  } else if (note !== undefined && note !== null) {
+    names.push("extensions.depth_prompt");
+  }
+  const book = fields.character_book;
+  if (isObject(book)) {
+    if (book.entries !== undefined && book.entries !== null && !Array.isArray(book.entries)) names.push("character_book.entries");
+  } else if (book !== undefined && book !== null) {
+    names.push("character_book");
+  }
+  return names;
+}
+
 export function reportOf(card: Record<string, unknown>, character: CardCharacter, original: CardText): ImportReport {
   const fields = cardFields(card) ?? {};
   const extensions = isObject(fields.extensions) ? fields.extensions : {};
@@ -102,7 +137,8 @@ export function reportOf(card: Record<string, unknown>, character: CardCharacter
   say(used, "nickname", Boolean(character.nickname.trim()));
 
   say(kept, "extensions", Object.keys(extensions).filter((key) => key !== "evermind" && key !== "depth_prompt"));
-  say(kept, "loreNotStored", character.lore_entries.length - stored.length);
+  // Every item of the book that gives no entry the server keeps, those that are no object included.
+  say(kept, "loreNotStored", raw.length - stored.length);
   say(kept, "outletEntries", count((entry) => entry.position === 7));
   say(kept, "otherPlaces", count((entry) => [2, 3, 5, 6].includes(entry.position)));
   say(kept, "regexKeys", count((entry) => entry.keys.some(isRegexKey)));
@@ -112,10 +148,7 @@ export function reportOf(card: Record<string, unknown>, character: CardCharacter
   say(kept, "groupGreetings", texts(fields.group_only_greetings).length);
   say(kept, "assets", Array.isArray(fields.assets) ? fields.assets.filter(isObject).length : 0);
   say(kept, "multilingualNotes", Object.keys(character.creator_notes_multilingual));
-  say(kept, "unreadFields", [...Object.keys(FIELDS), "nickname"].filter((key) => {
-    const value = fields[key];
-    return value !== undefined && value !== null && typeof value !== "string" && typeof value !== "number";
-  }));
+  say(kept, "unreadFields", unreadFields(fields));
   say(kept, "otherChunk", original.other_text !== null);
 
   return {
