@@ -92,6 +92,11 @@ describe("the chunks of a PNG", () => {
 
   test("a keyword is found whatever its case", async () => {
     expect((await read(withChunks(tEXt("Chara", base64(BACKFILL))))).character.name).toBe("Arisen of the Gate");
+    // A keyword met twice, whatever its case: the first occurrence is the one read.
+    const named = (name: string) => base64(JSON.stringify({ spec: "chara_card_v2", data: { name } }));
+    expect((await read(withChunks(tEXt("chara", named("A")), tEXt("Chara", named("B"))))).character.name).toBe("A");
+    // Even when the first one is refused, the later one is not read in its place.
+    expect(await kindOf(withChunks(zTXt("chara", utf8("no zlib stream")), tEXt("chara", named("B"))))).toBe("png_without_card");
   });
 
   test("a chara chunk that holds a V3 card reads as V3", async () => {
