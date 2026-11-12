@@ -66,7 +66,14 @@ class WholeCharacters:
             return text
         if "\ud800" <= text[-1] <= "\udbff":
             text, self.held = text[:-1], text[-1]
-        return text.encode("utf-16-le", "surrogatepass").decode("utf-16-le", "replace")
+        return well_formed(text)
+
+
+def well_formed(text: str) -> str:
+    """The text with each half of a character that has no pair turned into U+FFFD."""
+    if not _SURROGATE.search(text):
+        return text
+    return text.encode("utf-16-le", "surrogatepass").decode("utf-16-le", "replace")
 
 
 class ProviderError(AppError):
@@ -79,12 +86,16 @@ class ProviderError(AppError):
 
 
 def words_of(said: object) -> str:
-    """What a model's server said of an error, from the JSON it sent: its message, if it gave one."""
+    """What a model's server said of an error, from the JSON it sent: its message, if it gave one.
+
+    Its words are shown and saved like the reply, so they leave whole too: a half of a character
+    it sent with no pair becomes U+FFFD.
+    """
     if isinstance(said, dict):
         said = said.get("error", said)
     if isinstance(said, dict):
         said = said.get("message") or said
-    return str(said)[:300] if said else ""
+    return well_formed(str(said)[:300]) if said else ""
 
 
 def _refusal(status: int, body: bytes) -> ProviderError:
