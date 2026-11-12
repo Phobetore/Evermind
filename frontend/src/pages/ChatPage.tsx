@@ -10,7 +10,7 @@ import { useT } from "@/i18n/useT";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
-import { newId, nothingFocused } from "@/lib/utils";
+import { cssUrl, newId, nothingFocused } from "@/lib/utils";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -482,7 +482,7 @@ function ChatView({ id }: { id: string }) {
               <div
                 className="h-[100dvh] w-full bg-cover bg-center bg-no-repeat"
                 style={{
-                  backgroundImage: `url(${conversation.wallpaper_url})`,
+                  backgroundImage: cssUrl(conversation.wallpaper_url),
                   opacity: conversation.wallpaper_opacity ?? 0.25,
                 }}
               />

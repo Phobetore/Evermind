@@ -102,6 +102,8 @@ async function panelFor(page: Page, request: APIRequestContext, locale: Locale) 
   // On a laptop the panel is already open beside the conversation; on a phone,
   // and on a window narrower than a tablet, it is behind this button.
   await expect(page.locator("textarea").first()).toBeVisible();
+  // The backdrop's address is quoted, whatever it contains.
+  await expect(page.locator("div[aria-hidden].sticky > div")).toHaveCSS("background-image", /^url\("/);
   const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
   if (await opener.isVisible()) await opener.click();
 
