@@ -14,7 +14,7 @@ from app.prompting.engine import PromptPayload
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import ProviderEvent
 from app.providers.openai_compat import OpenAICompatProvider
-from app.services import turns
+from app.services import card_assistant, turns
 
 # A 1x1 image, for the tests that send one.
 PNG = base64.b64decode(
@@ -40,6 +40,12 @@ def _no_wrong_passwords_counted():
     from app import gate
 
     gate._failures.clear()
+
+
+@pytest.fixture(autouse=True)
+def _no_card_drafts_from_another_test():
+    # The server keeps them in its memory, which every test shares.
+    card_assistant._jobs.clear()
 
 
 @pytest.fixture()
@@ -166,6 +172,15 @@ def waiting_provider(monkeypatch):
 async def within(seconds, awaitable):
     """So that a pass that waits for another fails the test instead of hanging it."""
     return await asyncio.wait_for(awaitable, seconds)
+
+
+async def assist(client, **body) -> dict:
+    """A card asked of the assistant, and the state its job ended in."""
+    resp = await client.post("/api/characters/assist", json={"prompt": "A pirate", **body})
+    assert resp.status_code == 202, resp.text
+    job_id = resp.json()["id"]
+    await within(2, card_assistant._jobs[job_id].finished.wait())
+    return (await client.get(f"/api/characters/assist/{job_id}")).json()
 
 
 PAYLOAD = PromptPayload(

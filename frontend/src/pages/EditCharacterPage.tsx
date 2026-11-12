@@ -28,5 +28,5 @@ function EditCharacter({ id }: { id: string }) {
 
   if (failure) return <p className="p-10 text-blood">{describeError(failure.error, t)}</p>;
   if (!character) return <div className="p-10 text-mist animate-pulse-soft">{t("common.loading")}</div>;
-  return <CharacterForm initial={character} />;
+  return <CharacterForm key={character.id} initial={character} />;
 }

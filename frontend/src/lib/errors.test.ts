@@ -35,6 +35,7 @@ describe("an error the server named", () => {
     ["model_no_text", "errors.modelNoText"],
     ["model_empty", "errors.modelEmpty"],
     ["model_unreadable", "errors.modelUnreadable"],
+    ["model_only_thought", "errors.modelOnlyThought"],
     ["empty_message", "errors.emptyMessage"],
     ["nothing_to_regenerate", "errors.nothingToRegenerate"],
     ["nothing_to_continue", "errors.nothingToContinue"],
@@ -200,7 +201,7 @@ describe("the sentences exist", () => {
     "file_too_large", "unsupported_image",
     "conversation_empty", "no_connection", "unreachable", "model_connection_lost",
     "model_auth_refused", "model_not_found", "model_rate_limited", "model_error", "model_no_text",
-    "model_empty", "model_unreadable", "empty_message", "nothing_to_regenerate",
+    "model_empty", "model_unreadable", "model_only_thought", "empty_message", "nothing_to_regenerate",
     "nothing_to_continue", "turn_running", "internal", "http_error", "network", "offline", "not_sent",
     "not_found",
   ];

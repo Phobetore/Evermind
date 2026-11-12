@@ -43,7 +43,7 @@ from ..repositories import memories as memories_repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
 from . import turns as chat_turns
-from .llm_json import parse_llm_json
+from .llm_json import describe_answer, parse_llm_json
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +174,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     answer = await complete(get_provider(connection), payload)
     merged = plan_consolidation(parse_llm_json(answer), movable)
     if merged is None:
+        logger.warning("consolidation: unreadable answer, %s", describe_answer(answer))
         raise AppError("Unreadable consolidation — try again.", 502, kind=MODEL_UNREADABLE)
 
     vectors = await _vectors_of(merged["facts"])
@@ -250,8 +251,10 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     told = {(m["id"], m["content"]) for m in turns}  # what the model was told they say
     sent = {(m["id"], m["content"]) for m in existing}
 
-    parsed = parse_llm_json(await complete(get_provider(connection), payload))
+    answer = await complete(get_provider(connection), payload)
+    parsed = parse_llm_json(answer)
     if parsed is None:
+        logger.warning("memory extraction: unreadable answer, %s", describe_answer(answer))
         raise AppError("Unreadable memory response (JSON expected).", 502,
                        kind=MODEL_UNREADABLE)
     vectors = await _vectors_of(answer_texts(parsed))

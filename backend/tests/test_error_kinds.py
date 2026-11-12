@@ -10,7 +10,7 @@ import pytest
 import app as app_package
 from app.providers.base import ProviderError, ProviderEvent
 
-from .conftest import FakeProvider, send, setup_conversation
+from .conftest import FakeProvider, assist, send, setup_conversation
 
 
 @pytest.fixture()
@@ -58,6 +58,10 @@ def test_every_raised_error_names_itself():
 NOT_FOUND = [
     ("get", "/api/characters/nope", None, "Character not found.", "character"),
     ("put", "/api/characters/nope", {"name": "x"}, "Character not found.", "character"),
+    # Not a character's: a card being written shares the start of their routes.
+    ("get", "/api/characters/assist/nope", None, "No card being written has this id.", "assist"),
+    ("delete", "/api/characters/assist/nope", None, "No card being written has this id.",
+     "assist"),
     ("get", "/api/conversations/nope", None, "Conversation not found.", "conversation"),
     ("get", "/api/conversations/nope/memories", None, "Conversation not found.", "conversation"),
     ("post", "/api/conversations", {"character_id": "nope"}, "Character not found.", "character"),
@@ -156,9 +160,8 @@ async def test_a_card_the_model_wrote_badly(client, provider):
     await add_connection(client)
     provider.script = [ProviderEvent(type="delta", text="not json"),
                                  ProviderEvent(type="done")]
-    resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
-    assert resp.status_code == 502
-    assert resp.json() == {
+    state = await assist(client)
+    assert state["error"] == {
         "error": "The model did not return a readable card. Try again.",
         "kind": "model_unreadable",
     }

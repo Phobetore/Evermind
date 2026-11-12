@@ -51,14 +51,23 @@ class OpenAICompatProvider(Provider):
         return body
 
     async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
-        usage = None
+        usage = stop = None
         async with aclosing(self._sse("/chat/completions", self._build_body(payload))) as events:
             async for event in events:
                 if event.get("error"):
                     raise ProviderError(words_of(event))
                 usage = event.get("usage") or usage
-                choices = event.get("choices") or [{}]
-                text = (choices[0].get("delta") or {}).get("content")
+                choice = (event.get("choices") or [{}])[0]
+                if not isinstance(choice, dict):
+                    continue
+                stop = choice.get("finish_reason") or stop
+                delta = choice.get("delta") or {}
+                # Servers that show a model's reasoning do not agree on where they put it.
+                thought = delta.get("reasoning_content") or delta.get("reasoning")
+                if isinstance(thought, str) and thought:
+                    yield ProviderEvent(type="thought", count=len(thought))
+                text = delta.get("content")
                 if text:
                     yield ProviderEvent(type="delta", text=text)
-        yield ProviderEvent(type="done", usage=usage)
+        yield ProviderEvent(type="done", usage=usage,
+                            stop=str(stop) if stop is not None else None)

@@ -81,6 +81,8 @@ class CardAssistRequest(Input):
     kind: Kind = "character"
     connection_id: str | None = None
     existing: dict = {}
+    # Sent again by a page that never heard the answer: it names the card that is already being written.
+    client_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class PersonaIn(Input):

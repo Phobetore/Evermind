@@ -14,7 +14,16 @@ from app.errors import NO_CONNECTION
 from app.providers import get_provider
 from app.providers.base import ProviderError
 
-from .conftest import PAYLOAD, anth_provider, collect, oai_provider, send, setup_conversation, sse
+from .conftest import (
+    PAYLOAD,
+    anth_provider,
+    assist,
+    collect,
+    oai_provider,
+    send,
+    setup_conversation,
+    sse,
+)
 
 PROVIDERS = [("openai-compatible", oai_provider), ("anthropic", anth_provider)]
 
@@ -275,9 +284,8 @@ async def test_a_failed_story_tool_keeps_what_the_server_said(client, monkeypatc
 async def test_a_failed_card_assistant_keeps_what_the_server_said(client, monkeypatch):
     await saved_connection(client)
     patch_providers(monkeypatch, lambda: oai_provider(answering(500, {"error": "boom"})))
-    resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
-    assert resp.status_code == 502
-    assert resp.json() == {"error": "boom", "kind": "model_error"}
+    state = await assist(client)
+    assert (state["error"], state["draft"]) == ({"error": "boom", "kind": "model_error"}, None)
 
 
 async def test_a_failed_memory_pass_keeps_what_the_server_said(client, monkeypatch):
