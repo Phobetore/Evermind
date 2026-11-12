@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext, type Locator, type Page, type Rou
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
-import { makeCharacter, makeConversation, PNG } from "./fixtures";
+import { makeCharacter, makeConversation, PNG, readOf } from "./fixtures";
 
 /**
  * The panel beside a conversation is a fixed 320px column (the whole screen on a phone), and what
@@ -239,13 +239,13 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
   }
 });
 
-// A phone turned upright, or a window made narrow: beside the story there, the panel would cover it.
 test("a backdrop whose address has a parenthesis and an apostrophe still shows", async ({ page, request }) => {
   const convo = await makeConversation(request);
   // The address is rewritten on its way in: a stored one cannot hold these, but a link to someone
   // else's picture can, and unquoted in the style it ends the url() at the first parenthesis.
   const hostile = `${API}/backdrops/it (1)'s.png`;
-  await page.route(new RegExp(`/api/conversations/${convo.id}$`), async (route) => {
+  await page.route(readOf(convo.id), async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
     const response = await route.fetch();
     const body = await response.json();
     await route.fulfill({ response, json: { ...body, wallpaper_url: hostile, wallpaper_opacity: 0.5 } });
@@ -260,9 +260,11 @@ test("a backdrop whose address has a parenthesis and an apostrophe still shows",
   await expect(backdrop).toBeAttached();
   // The browser only fetches a background it could parse; a broken one is never asked for.
   await expect.poll(() => asked, { message: "the backdrop picture was never requested" }).toBeGreaterThan(0);
-  await expect(backdrop).toHaveCSS("background-image", /it \(1\)'s\.png/);
+  // Read back, the address is the one the browser asked for, its space written %20.
+  await expect(backdrop).toHaveCSS("background-image", /it%20\(1\)'s\.png/);
 });
 
+// A phone turned upright, or a window made narrow: beside the story there, the panel would cover it.
 test("the panel beside the story closes when the screen narrows under it, and leaves the focus where it is", { tag: "@desktop" }, async ({ page, request }) => {
   await page.setViewportSize({ width: 915, height: 412 });
   const convo = await makeConversation(request);
