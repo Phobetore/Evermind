@@ -2,7 +2,7 @@ import { expect, test, type Request } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
-import { answer, chat, makeConversation, readOf, remembered, replyEnds } from "./fixtures";
+import { answer, chat, makeConversation, readOf, remembered, replyEnds, turnRunning } from "./fixtures";
 
 /**
  * Taking the story back from a message takes what was remembered of it back too: the facts
@@ -347,6 +347,52 @@ test("the panel beside the story reads the memory again once a reply written ove
   await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
   const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   expect(read.memory_position).toBe(2);
+});
+
+// A phone's link can drop the answer to a reply asked for again once the server has written it: the
+// page then finds the turn over without ever seeing it run, and the panel beside it reads all the same.
+test("the panel beside the story reads the memory again when a reply written over is found over, its answer lost", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+  test.skip(isMobile, "a phone's panel is closed to reach the reply, and reads on opening");
+  const convo = await makeConversation(request);
+  const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
+  await say("First question.");
+  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
+  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  await say("Second question.");
+
+  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
+  await page.goto(`/#/chat/${convo.id}`);
+  const panel = page.locator("aside:visible:has(textarea)");
+  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
+  await expect(summary).toHaveValue(first.summary);
+  // Read to the newest reply, which asking for again takes back to the first pass.
+  const passed = remembered(page);
+  await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
+  await passed;
+  await expect(summary).not.toHaveValue(first.summary);
+
+  // The server takes the request and writes the reply; its answer is lost on the way back.
+  await page.route("**/api/chat", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    await route.fetch();
+    await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
+    await route.abort("connectionreset");
+  });
+  const lostAnswer = page.waitForEvent("requestfailed", {
+    predicate: (r) => r.method() === "POST" && new URL(r.url()).pathname.endsWith("/api/chat"),
+  });
+  const reply = page.locator("[data-message-id]").last();
+  await reply.hover();
+  await reply.getByTitle(en.chat.message.regenerateTitle).click();
+  await lostAnswer;
+  // What the page asks next finds the reply already written.
+  const foundOver = page.waitForResponse(async (r) => r.request().method() === "GET"
+    && new URL(r.url()).pathname.endsWith(`/api/conversations/${convo.id}/turn`)
+    && (await r.json().catch(() => ({ running: true }))).running === false);
+  await foundOver;
+  await expect(reply.getByText("2/2")).toBeVisible();
+  await expect(summary, "the summary the server went back to").toHaveValue(first.summary);
+  expect((await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).summary).toBe(first.summary);
 });
 
 // A read is the whole story: the one that ends the turn brings the summary a closed panel opens on.

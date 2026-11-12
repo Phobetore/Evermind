@@ -101,11 +101,15 @@ function askFor(id: string, request: TurnRequest): Promise<void> {
 
 /** The reply being written: ask the server how it stands, read when what is shown may be behind,
  *  follow the words until that ends for any reason, ask again. `read` fetches the conversation
- *  with what shows it, which says whether it did; `add` shows a message the server has taken. */
+ *  with what shows it, which says whether it did; `add` shows a message the server has taken;
+ *  `settled` is told each time the page has shown the story with nothing being written and nothing
+ *  asked for still on its way, which is how it learns a turn has ended, whether it saw it run or,
+ *  its answer lost, only found it over. */
 export function useTurn(
   id: string,
   read: (asking: Asking) => Promise<{ conversation: Conversation; show: () => boolean }>,
   add: (message: Message) => void,
+  settled: () => void = () => {},
 ) {
   // The message being written, "" until the server says which.
   const [writing, setWriting] = useState<string | null>(null);
@@ -120,8 +124,10 @@ export function useTurn(
   // Until when a message on its way that no request here waits for, sent before a reload say, may land.
   const unsure = useRef(0);
   const adding = useRef(add);
+  const settling = useRef(settled);
   useEffect(() => {
     adding.current = add;
+    settling.current = settled;
   });
 
   const watch = useCallback(async (quietly = false) => {
@@ -137,6 +143,7 @@ export function useTurn(
         const state = await data.turns.state(id, asking);
         if (signal.aborted) return;
         const now = state.running ? state.message_id : null;
+        let shownNow = false; // whether this pass showed the story the server holds
         if (shown.current.behind || now !== shown.current.writing
           || (!state.running && state.revision !== shown.current.revision)) {
           const { conversation, show } = await read(asking);
@@ -151,6 +158,7 @@ export function useTurn(
           }
           // Newer than the state: something began or ended in between, which it says next.
           if (!state.running && shown.current.revision !== state.revision) continue;
+          shownNow = true;
         }
         quiet = 0;
         setLost(null);
@@ -159,6 +167,7 @@ export function useTurn(
           ? (loadSending(id) ? NOT_SENT : null)
           : refusal));
         if (!state.running) {
+          if (shownNow && !waiting.has(id)) settling.current();
           shown.current.writing = null;
           setWriting(null);
           text.set("");

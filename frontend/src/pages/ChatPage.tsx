@@ -197,7 +197,17 @@ function ChatView({ id }: { id: string }) {
     setMessages((now) => [...now.filter((m) => m.id !== sent.id), sent].sort((a, b) => a.position - b.position));
   }, []);
 
-  const turn = useTurn(id, read, add);
+  // A reply asked for again or carried on takes back a memory that read it: an open panel reads it at
+  // the turn's end, once the page shows the story with nothing being written. That is also when the
+  // request's answer was lost and the page found the turn already over, never having seen it run.
+  const rewriting = useRef(false);
+  const settled = useCallback(() => {
+    if (!rewriting.current) return;
+    rewriting.current = false;
+    setStoryCuts((n) => n + 1);
+  }, []);
+
+  const turn = useTurn(id, read, add, settled);
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
 
@@ -230,17 +240,6 @@ function ChatView({ id }: { id: string }) {
     const takeSummary = summaryTaker();
     data.conversations.withoutMessages(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
   }, [id, summaryTaker]);
-
-  // A reply asked for again or carried on takes back a memory that read it: an open panel reads it at the turn's end.
-  const rewriting = useRef(false);
-  const wasWriting = useRef(writing);
-  useEffect(() => {
-    if (wasWriting.current !== null && writing === null && rewriting.current) {
-      rewriting.current = false;
-      setStoryCuts((n) => n + 1);
-    }
-    wasWriting.current = writing;
-  }, [writing]);
 
   useEffect(() => {
     const personaId = conversation?.persona_id;
