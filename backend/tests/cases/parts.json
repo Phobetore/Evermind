@@ -849,6 +849,96 @@
    ]
   },
   {
+   "fn": "match_lore",
+   "name": "messages given out of order are read by position",
+   "input": {
+    "entries": [
+     {
+      "id": "a",
+      "keys": [
+       "lantern"
+      ],
+      "content": "Lore."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "The lantern flickers."
+      ],
+      "active_index": 0,
+      "position": 7
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 0."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 1."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 2."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 3."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 4."
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Turn 5."
+      ],
+      "active_index": 0,
+      "position": 5
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Turn 6."
+      ],
+      "active_index": 0,
+      "position": 6
+     }
+    ]
+   },
+   "expected": [
+    {
+     "id": "a",
+     "keys": [
+      "lantern"
+     ],
+     "content": "Lore."
+    }
+   ]
+  },
+  {
    "fn": "select_facts",
    "name": "pinned first, then the newest that fit",
    "input": {
@@ -1815,6 +1905,72 @@
    ]
   },
   {
+   "fn": "select_facts",
+   "name": "a fact costs its spaces too",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Ok.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "     Tiny fact.     ",
+      "source_position": 2
+     }
+    ],
+    "token_budget": 5
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Ok.",
+     "source_position": 1
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
+   "name": "an id named like what every object has, with no score of its own",
+   "input": {
+    "memories": [
+     {
+      "id": "s1",
+      "content": "Fact one is here.",
+      "source_position": 1
+     },
+     {
+      "id": "s2",
+      "content": "Fact two is here.",
+      "source_position": 2
+     },
+     {
+      "id": "constructor",
+      "content": "Fact three is here.",
+      "source_position": 3
+     }
+    ],
+    "token_budget": 11,
+    "relevance_scores": {
+     "s1": 0.5,
+     "s2": 0.9
+    }
+   },
+   "expected": [
+    {
+     "id": "s2",
+     "content": "Fact two is here.",
+     "source_position": 2
+    },
+    {
+     "id": "constructor",
+     "content": "Fact three is here.",
+     "source_position": 3
+    }
+   ]
+  },
+  {
    "fn": "active_content",
    "name": "the last variant",
    "input": {
@@ -2199,6 +2355,16 @@
     "user_name": "Alex"
    },
    "expected": "Hello."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the player's marker with a space before the colon, then without",
+   "input": {
+    "text": "Hi\nAlex : x\nAlex: y",
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": "Hi"
   },
   {
    "fn": "words",
