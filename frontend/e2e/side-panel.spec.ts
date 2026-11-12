@@ -102,8 +102,6 @@ async function panelFor(page: Page, request: APIRequestContext, locale: Locale) 
   // On a laptop the panel is already open beside the conversation; on a phone,
   // and on a window narrower than a tablet, it is behind this button.
   await expect(page.locator("textarea").first()).toBeVisible();
-  // The backdrop's address is quoted, whatever it contains.
-  await expect(page.locator("div[aria-hidden].sticky > div")).toHaveCSS("background-image", /^url\("/);
   const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
   if (await opener.isVisible()) await opener.click();
 
@@ -242,6 +240,29 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
 });
 
 // A phone turned upright, or a window made narrow: beside the story there, the panel would cover it.
+test("a backdrop whose address has a parenthesis and an apostrophe still shows", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  // The address is rewritten on its way in: a stored one cannot hold these, but a link to someone
+  // else's picture can, and unquoted in the style it ends the url() at the first parenthesis.
+  const hostile = `${API}/backdrops/it (1)'s.png`;
+  await page.route(new RegExp(`/api/conversations/${convo.id}$`), async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({ response, json: { ...body, wallpaper_url: hostile, wallpaper_opacity: 0.5 } });
+  });
+  let asked = 0;
+  await page.route(/\/backdrops\//, (route) => {
+    asked += 1;
+    return route.fulfill({ status: 200, contentType: "image/png", body: PNG });
+  });
+  await page.goto(`/#/chat/${convo.id}`);
+  const backdrop = page.locator("div[aria-hidden].sticky > div");
+  await expect(backdrop).toBeAttached();
+  // The browser only fetches a background it could parse; a broken one is never asked for.
+  await expect.poll(() => asked, { message: "the backdrop picture was never requested" }).toBeGreaterThan(0);
+  await expect(backdrop).toHaveCSS("background-image", /it \(1\)'s\.png/);
+});
+
 test("the panel beside the story closes when the screen narrows under it, and leaves the focus where it is", { tag: "@desktop" }, async ({ page, request }) => {
   await page.setViewportSize({ width: 915, height: 412 });
   const convo = await makeConversation(request);
