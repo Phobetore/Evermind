@@ -91,22 +91,60 @@ function readable(text: string, start: number, one: boolean): string | null {
   return one ? null : out + text.slice(from);
 }
 
-// An infinity that a number too large becomes is read as null too, as Python's
-// infinite floats are in the recorded cases.
-const finite = (_key: string, value: unknown) =>
-  typeof value === "number" && !Number.isFinite(value) ? null : value;
+// A double does not say every number as Python reads it: a float that is whole (`1.0`,
+// `1e2`, `-0.0`) is no int there, and an integer keeps every digit, past 2^53 as past
+// 10^308. Where the browser hands a reviver the number's source text, the source of such
+// a number is kept beside the list or object that holds it, for `words`; elsewhere, and in
+// a browser that does not, a number is what the double says.
+const numberSources = new WeakMap<object, Map<string, string>>();
 
-function parsed(json: string | null): { value: unknown } | null {
+/** The source text of the number at `key` of `holder`, read from a model's answer, when
+ *  a double says it otherwise than Python: a whole float, or an integer a double rounds
+ *  or cannot hold. Undefined for any other value. */
+export function numberSource(holder: object, key: string): string | undefined {
+  return numberSources.get(holder)?.get(key);
+}
+
+function noteSource(holder: object, key: string, source: string): void {
+  const sources = numberSources.get(holder) ?? new Map<string, string>();
+  sources.set(key, source);
+  numberSources.set(holder, sources);
+}
+
+/** Whether a double says the number written `source` otherwise than Python reads it. */
+const misread = (value: number, source: string) =>
+  /[.eE]/.test(source) ? Number.isInteger(value) : !Number.isSafeInteger(value);
+
+type Decoded = { value: unknown; source?: string };
+
+function parsed(json: string | null): Decoded | null {
   if (json === null) return null;
+  // The reviver is called for the whole value last, under the key "".
+  let rootSource: string | undefined;
+  function revive(this: unknown, key: string, value: unknown, context?: { source?: string }): unknown {
+    if (typeof value !== "number") {
+      if (key === "") rootSource = undefined;
+      return value;
+    }
+    const written = context?.source;
+    const source = written !== undefined && misread(value, written) ? written : undefined;
+    if (key === "") rootSource = source;
+    if (source !== undefined && typeof this === "object" && this !== null) noteSource(this, key, source);
+    // An infinity that a number too large becomes is read as null, as Python's
+    // infinite floats are in the recorded cases: an integer of more than 308 digits
+    // too, which Python keeps, but whose source is noted above.
+    return Number.isFinite(value) ? value : null;
+  }
   try {
-    return { value: JSON.parse(json, finite) };
+    const value: unknown = JSON.parse(json, revive);
+    return rootSource === undefined ? { value } : { value, source: rootSource };
   } catch {
     return null;
   }
 }
 
 /** Python's `json.loads`: the whole text is one value, with JSON whitespace around it. */
-function loads(text: string): { value: unknown } | null {
+function loads(text: string): Decoded | null {
   return parsed(readable(text, 0, false));
 }
 
@@ -228,7 +266,7 @@ function valueEnd(text: string, i: number): number | null {
   return j < text.length ? j : null;
 }
 
-function decode(token: string): { value: unknown } | null {
+function decode(token: string): Decoded | null {
   return loads(repair(token));
 }
 
@@ -244,6 +282,8 @@ function listSoFar(text: string, i: number): unknown[] {
     if (end === null) return items;
     const item = decode(text.slice(i, end));
     if (!item) return items;
+    // Read alone, a number's source is the list's to keep, as when the list is read whole.
+    if (item.source !== undefined) noteSource(items, String(items.length), item.source);
     items.push(item.value);
     i = end;
   }

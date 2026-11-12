@@ -6,7 +6,7 @@
 // `toLowerCase()` and Python's `lower()` agree on the final sigma and the dotted capital I,
 // which the recorded cases hold.
 
-import { field } from "./llmJson";
+import { field, numberSource } from "./llmJson";
 import { estimateTokens } from "./tokens";
 import { isWritable, pyStrip, sliceCodePoints, textOf } from "./text";
 
@@ -31,16 +31,24 @@ const CEILING = 4096;
 // What the estimate of the prompt may miss: a ceiling past the context is refused by most servers.
 const CONTEXT_MARGIN = 128;
 
+// Python's `str(x)` for an element that is text or an int; null for anything else.
+const writtenNumber = (source: string) => (/[.eE]/.test(source) ? null : source);
+const writtenValue = (x: unknown) =>
+  typeof x === "string" ? x : typeof x === "number" && Number.isInteger(x) ? BigInt(x).toString() : null;
+
 /** The words of what stands for a list: each element that is text or a whole number,
  *  stripped, a bare string being a list of one. A lone surrogate cannot be written back:
- *  no word. A number is a double here, so a whole float (`1.0`) is a word where Python
- *  says no, and an integer past 2^53 is rounded. */
+ *  no word. A number read from a model's answer is taken as it was written, where the
+ *  browser says (see `numberSource`): a whole float (`1.0`) is then no word, and an integer
+ *  keeps all its digits, one of more than 308 included, which reads as null. Elsewhere a
+ *  number is a double: a whole float is a word, an integer past 2^53 is rounded, and one
+ *  of more than 308 digits is null, so no word. */
 export function words(value: unknown): string[] {
   const list = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
   const found: string[] = [];
-  for (const x of list) {
-    const written =
-      typeof x === "string" ? x : typeof x === "number" && Number.isInteger(x) ? BigInt(x).toString() : null;
+  for (const [i, x] of list.entries()) {
+    const source = list === value ? numberSource(list, String(i)) : undefined;
+    const written = source !== undefined ? writtenNumber(source) : writtenValue(x);
     if (written === null) continue;
     const word = pyStrip(written);
     if (word && isWritable(word)) found.push(word);

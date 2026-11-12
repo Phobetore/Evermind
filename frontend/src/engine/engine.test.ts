@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { cleanCardDraft } from "./cardDraft";
 import { parseLlmJson, partialJson } from "./llmJson";
 import { MAX_TURNS_PER_RUN, planMemoryChanges } from "./memoryChanges";
 
@@ -66,6 +67,21 @@ describe("the engine", () => {
     });
     // Python's integers have no -0; its floats do.
     expect(parseLlmJson('{"a": -0, "b": -0.0}')).toStrictEqual({ a: 0, b: -0 });
+  });
+
+  it("numbers in a card answer become words as Python's do", () => {
+    // A case file is read by a plain JSON.parse, which keeps no number's source: so here.
+    // The expected values are what clean_card_draft gives in Python for the same text.
+    const big = "9".repeat(309);
+    const answer = `{"tags": [1.0, 2, 1e2, -0.0, 12345678901234567890], "lore_entries": [{"keys": [3.0, 9007199254740993, -12, ${big}], "content": "C"}]}`;
+    expect(cleanCardDraft(parseLlmJson(answer))).toStrictEqual({
+      tags: ["2", "12345678901234567890"],
+      lore_entries: [{ keys: ["9007199254740993", "-12", big], content: "C" }],
+    });
+    // A list still being written keeps its numbers as they were written too.
+    const [fields, writing] = partialJson('{"name": "A", "tags": [1.0, 12345678901234567890, -0.0, 4, 7');
+    expect(writing).toBe("tags");
+    expect(cleanCardDraft(fields)).toStrictEqual({ name: "A", tags: ["12345678901234567890", "4"] });
   });
 
   it("the constants say what Python's say", () => {
