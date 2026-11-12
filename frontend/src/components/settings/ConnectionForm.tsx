@@ -71,7 +71,7 @@ export function ConnectionForm({
 }: {
   /** Taken as a prop, not read from `data`, because an edition without
    *  connections has no such thing and never renders this form. */
-  source: DataSource["connections"];
+  source: NonNullable<DataSource["connections"]>;
   connection: Connection | null;
   onClose: () => void;
   onSaved: () => void;
