@@ -95,7 +95,10 @@ function readable(text: string, start: number, one: boolean): string | null {
 // `1e2`, `-0.0`) is no int there, and an integer keeps every digit, past 2^53 as past
 // 10^308. Where the browser hands a reviver the number's source text, the source of such
 // a number is kept beside the list or object that holds it, for `words`; elsewhere, and in
-// a browser that does not, a number is what the double says.
+// a browser that does not, a number is what the double says. The source belongs to the
+// very object the reader returned, found by its identity: a copy (a spread, structuredClone,
+// a JSON round-trip, a message to a worker) loses it without a word, so `cleanCardDraft`
+// must be called on that object, never on a copy of it.
 const numberSources = new WeakMap<object, Map<string, string>>();
 
 /** The source text of the number at `key` of `holder`, read from a model's answer, when

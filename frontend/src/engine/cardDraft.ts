@@ -42,7 +42,9 @@ const writtenValue = (x: unknown) =>
  *  browser says (see `numberSource`): a whole float (`1.0`) is then no word, and an integer
  *  keeps all its digits, one of more than 308 included, which reads as null. Elsewhere a
  *  number is a double: a whole float is a word, an integer past 2^53 is rounded, and one
- *  of more than 308 digits is null, so no word. */
+ *  of more than 308 digits is null, so no word. The source belongs to the very list the
+ *  reader returned: a copy of it reads as doubles, so `cleanCardDraft` must be given the
+ *  object `parseLlmJson` or `partialJson` returned, never a copy of it. */
 export function words(value: unknown): string[] {
   const list = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
   const found: string[] = [];
