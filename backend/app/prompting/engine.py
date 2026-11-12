@@ -8,7 +8,7 @@ is the closing block each provider places after the history.
 from dataclasses import dataclass, field
 
 from .defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
-from .lorebook import activated, strip_decorators
+from .lorebook import activated, before_the_card, strip_decorators, within_budget
 from .macros import has_original_macro, substitute, substitute_original
 from .tokens import estimate_tokens
 
@@ -130,15 +130,9 @@ def match_lore(entries: list[dict], messages: list[dict], rules: int = 1,
     scan = "\n".join(f"{char_name if m.get('role') == 'assistant' else user_name}: {active_content(m)}"
                      for m in recent)
 
-    kept = []
-    for entry in activated(entries, scan, char_name, user_name):
-        content = strip_decorators(entry.get("content") or "")
-        cost = estimate_tokens(content)
-        if cost > budget:
-            continue
-        budget -= cost
-        kept.append({**entry, "content": content})
-    return kept
+    fired = [{**entry, "content": strip_decorators(entry.get("content") or "")}
+             for entry in activated(entries, scan, char_name, user_name)]
+    return within_budget(fired, budget)
 
 
 def _build_system(character: dict, persona: dict | None, summary: str,
@@ -146,6 +140,7 @@ def _build_system(character: dict, persona: dict | None, summary: str,
                   char_name: str, user_name: str,
                   memories: list[dict] | None = None,
                   lore: list[dict] | None = None,
+                  lore_before: list[dict] | None = None,
                   facts_budget: int = _FACTS_TOKEN_BUDGET,
                   relevance_scores: dict[str, float] | None = None,
                   passages: list[dict] | None = None) -> str:
@@ -160,6 +155,10 @@ def _build_system(character: dict, persona: dict | None, summary: str,
         sections.append(
             f"You are {char_name} in an endless immersive roleplay with {user_name}."
         )
+
+    if lore_before:
+        block = "\n\n".join((entry.get("content") or "").strip() for entry in lore_before)
+        sections.append(f"### WORLD KNOWLEDGE (background)\n{block}")
 
     identity: list[str] = []
     if character.get("description"):
@@ -258,9 +257,14 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     budget = max(512, context_size - max_tokens - _BUDGET_MARGIN)
 
     # A card keeps the rules it was made with until its owner agrees to have it read again.
+    # On those of community cards the lorebook has a share of the prompt, not a fixed amount,
+    # and an entry can go before the character's definition.
+    lore_before: list[dict] = []
     if (character.get("card_rules") or 1) == 2:
-        lore = match_lore(lore_entries or [], messages, rules=2,
-                          char_name=char_name, user_name=user_name)
+        matched = match_lore(lore_entries or [], messages, rules=2, budget=budget // 4,
+                             char_name=char_name, user_name=user_name)
+        lore_before = [entry for entry in matched if before_the_card(entry)]
+        lore = [entry for entry in matched if not before_the_card(entry)]
     else:
         lore = match_lore(lore_entries or [], messages)
 
@@ -314,7 +318,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     # repetition loops. Which turns stay is first estimated with every fact in the system prompt.
     static = _build_system(character, persona, summary, global_instructions,
                            include_examples=True, char_name=char_name, user_name=user_name,
-                           memories=memories, lore=lore, facts_budget=facts_budget,
+                           memories=memories, lore=lore, lore_before=lore_before,
+                           facts_budget=facts_budget,
                            relevance_scores=relevance_scores, passages=retrieved_passages)
     provisional = render_turns(budget - estimate_tokens(static) - estimate_tokens(post_history))
     oldest_visible = min((t["position"] for t in provisional), default=0)
@@ -327,12 +332,14 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
 
     system = _build_system(character, persona, summary, global_instructions,
                            include_examples=True, char_name=char_name, user_name=user_name,
-                           memories=relevant_memories, lore=lore, facts_budget=facts_budget,
+                           memories=relevant_memories, lore=lore, lore_before=lore_before,
+                           facts_budget=facts_budget,
                            relevance_scores=relevance_scores, passages=retrieved_passages)
     if estimate_tokens(system) > budget * _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES:
         system = _build_system(character, persona, summary, global_instructions,
                                include_examples=False, char_name=char_name, user_name=user_name,
-                               memories=relevant_memories, lore=lore, facts_budget=facts_budget,
+                               memories=relevant_memories, lore=lore, lore_before=lore_before,
+                               facts_budget=facts_budget,
                                relevance_scores=relevance_scores, passages=retrieved_passages)
 
     turns = render_turns(budget - estimate_tokens(system) - estimate_tokens(post_history))
@@ -363,7 +370,7 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         "context_size": context_size,
         "messages_included": len(turns),
         "messages_total": len(messages),
-        "lore_matched": len(lore),
+        "lore_matched": len(lore_before) + len(lore),
         "oldest_visible": visible_oldest,
         "fact_positions": [m.get("source_position") for m in facts_shown],
     }

@@ -4602,6 +4602,466 @@
      "content": "Across."
     }
    ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "under a small budget the highest order goes first and a large entry is passed over",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word ",
+      "insertion_order": 10
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word word word word ",
+      "insertion_order": 50
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+      "insertion_order": 30
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Tiny.",
+      "insertion_order": 5
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex",
+    "budget": 20
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Tiny.",
+     "insertion_order": 5
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "word word word word word word word word word word word ",
+     "insertion_order": 50
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "under the budget a tie of orders goes to the first in the lorebook",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word "
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word "
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Third, short."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex",
+    "budget": 15
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "word word word word word word word word "
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "entries of the same order are placed in the lorebook's order",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "One.",
+      "insertion_order": 3
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Two.",
+      "insertion_order": 1
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Three.",
+      "insertion_order": 3
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Four.",
+      "insertion_order": 1
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Five."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Two.",
+     "insertion_order": 1
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Four.",
+     "insertion_order": 1
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "One.",
+     "insertion_order": 3
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Three.",
+     "insertion_order": 3
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Five."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "a negative order is placed before the default",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Default."
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Minus one.",
+      "insertion_order": -1
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Minus fifty.",
+      "insertion_order": -50
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Zero.",
+      "insertion_order": 0
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Minus fifty.",
+     "insertion_order": -50
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Minus one.",
+     "insertion_order": -1
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Zero.",
+     "insertion_order": 0
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Default."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "entries before and after the definition come back together, by order",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "After, last.",
+      "position": 2,
+      "insertion_order": 200
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Before.",
+      "position": 0,
+      "insertion_order": 150
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "After, first.",
+      "position": 2,
+      "insertion_order": 50
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Before, first.",
+      "position": 0
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "After, first.",
+     "position": 2,
+     "insertion_order": 50
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Before, first.",
+     "position": 0
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Before.",
+     "position": 0,
+     "insertion_order": 150
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "After, last.",
+     "position": 2,
+     "insertion_order": 200
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an entry that fills the budget exactly, then one that would go one token over",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word word word word word word word ",
+      "insertion_order": 2
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Over.",
+      "insertion_order": 1
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex",
+    "budget": 21
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "word word word word word word word word word word word word word word ",
+     "insertion_order": 2
+    }
+   ]
   }
  ]
 }

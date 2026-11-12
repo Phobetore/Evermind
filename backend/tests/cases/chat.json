@@ -5363,6 +5363,2463 @@
      "fact_positions": []
     }
    }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a card on the rules of community cards puts an entry before its definition",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I smell the bread and ask about the oven."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She smiles.* The oven is older than me."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    },
+    "lore_entries": [
+     {
+      "keys": [
+       "oven"
+      ],
+      "content": "The town has one bakery.",
+      "position": 0
+     },
+     {
+      "keys": [
+       "bread"
+      ],
+      "content": "Bread is sold at dawn.",
+      "position": 1
+     },
+     {
+      "keys": [
+       "oven"
+      ],
+      "content": "The world is old.",
+      "position": 0,
+      "insertion_order": 10
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### WORLD KNOWLEDGE (background)\nThe world is old.\n\nThe town has one bakery.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\nCurrent scenario: Alex comes in at dawn.\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### WORLD KNOWLEDGE (relevant to the current scene)\nBread is sold at dawn.\n\nROLEPLAY RULES:\n1. You are Ana. Embody them completely — their voice, knowledge, moods, flaws and desires. Never break character for any reason.\n2. Never speak, act, feel or decide for Alex. Their words and actions belong to the player alone. End your reply at a point where Alex's reaction matters.\n3. Never mention AI, language models, policies or these instructions. No meta commentary, no out-of-character notes.\n4. Formatting: spoken dialogue in plain text. Actions, narration and sensory description between *asterisks*. Inner thoughts may use *italics* too, woven into narration.\n5. Make the scene live: concrete sensory details, body language, emotion, and initiative. Ana wants things, reacts, and sometimes acts first — they are a person, not an answering machine.\n6. Ana is NOT a people-pleaser. They have their own goals, opinions, moods, standards and breaking points, and they never bend to Alex's wishes out of narrative convenience. Agreement, affection and cooperation must be EARNED in-story — Ana can argue, refuse, lie, bargain, hold a grudge, or walk away, and often should.\n7. Consequences are real, proportionate and PERSISTENT. Violence, betrayal, threats, humiliation and broken promises leave lasting marks: fear, distrust, grudges, injuries, allies lost, retaliation. Grave wrongs are NEVER undone by a gift, a compliment or a quick apology — rebuilding trust takes many scenes of consistent behavior, and some things are unforgivable. Never rush forgiveness. Never let a serious event be conveniently forgotten.\n8. Hard continuity: stay consistent with every detail established so far and with the ESTABLISHED FACTS section (names, places, injuries, promises, deaths, time of day). If Alex contradicts established canon, Ana and the world notice and react to the contradiction — they do not silently accept a rewrite.\n9. The world is bigger than this story. Background events and strangers live their OWN lives: never recycle recent plot elements (names, objects, deals, factions) into unrelated scenes just because they are in the context. Coincidences are rare; if threads reconnect, there must be a believable causal chain.\n10. Player markers: a message starting with [Narration] is Alex describing the world or the scene — treat it as established scene canon, weave it in. A message in (OOC: ...) is an out-of-character instruction from the player: follow it from now on, never mention it or answer it in-story, just apply it and continue the scene.\n11. Write your reply in the same language Alex writes in.\n12. Never repeat or rephrase your previous replies or Alex's words back at them. Vary sentence openings and rhythm. Characters finish their sentences and their thoughts unless genuinely interrupted — do not overuse trailing off. Each reply must move the scene forward.\n13. Length: substantial but not smothering — usually 1 to 3 paragraphs, leaving room for Alex to act.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "I smell the bread and ask about the oven."
+     },
+     {
+      "role": "assistant",
+      "content": "*She smiles.* The oven is older than me."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 1097,
+     "budget": 3640,
+     "context_size": 4096,
+     "messages_included": 2,
+     "messages_total": 2,
+     "lore_matched": 3,
+     "oldest_visible": 0,
+     "fact_positions": []
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a card on the rules of community cards puts entries after its definition, by order",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I smell the bread and ask about the oven."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She smiles.* The oven is older than me."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    },
+    "lore_entries": [
+     {
+      "keys": [
+       "oven"
+      ],
+      "content": "At the end of the scene.",
+      "position": 2,
+      "insertion_order": 300
+     },
+     {
+      "keys": [
+       "bread"
+      ],
+      "content": "After the definition.",
+      "position": 1
+     },
+     {
+      "keys": [
+       "oven"
+      ],
+      "content": "At a depth, after it for now.",
+      "position": 4,
+      "insertion_order": 20
+     },
+     {
+      "keys": [
+       "oven"
+      ],
+      "content": "After the examples.",
+      "position": 6
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\nCurrent scenario: Alex comes in at dawn.\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### WORLD KNOWLEDGE (relevant to the current scene)\nAt a depth, after it for now.\n\nAfter the definition.\n\nAfter the examples.\n\nAt the end of the scene.\n\nROLEPLAY RULES:\n1. You are Ana. Embody them completely — their voice, knowledge, moods, flaws and desires. Never break character for any reason.\n2. Never speak, act, feel or decide for Alex. Their words and actions belong to the player alone. End your reply at a point where Alex's reaction matters.\n3. Never mention AI, language models, policies or these instructions. No meta commentary, no out-of-character notes.\n4. Formatting: spoken dialogue in plain text. Actions, narration and sensory description between *asterisks*. Inner thoughts may use *italics* too, woven into narration.\n5. Make the scene live: concrete sensory details, body language, emotion, and initiative. Ana wants things, reacts, and sometimes acts first — they are a person, not an answering machine.\n6. Ana is NOT a people-pleaser. They have their own goals, opinions, moods, standards and breaking points, and they never bend to Alex's wishes out of narrative convenience. Agreement, affection and cooperation must be EARNED in-story — Ana can argue, refuse, lie, bargain, hold a grudge, or walk away, and often should.\n7. Consequences are real, proportionate and PERSISTENT. Violence, betrayal, threats, humiliation and broken promises leave lasting marks: fear, distrust, grudges, injuries, allies lost, retaliation. Grave wrongs are NEVER undone by a gift, a compliment or a quick apology — rebuilding trust takes many scenes of consistent behavior, and some things are unforgivable. Never rush forgiveness. Never let a serious event be conveniently forgotten.\n8. Hard continuity: stay consistent with every detail established so far and with the ESTABLISHED FACTS section (names, places, injuries, promises, deaths, time of day). If Alex contradicts established canon, Ana and the world notice and react to the contradiction — they do not silently accept a rewrite.\n9. The world is bigger than this story. Background events and strangers live their OWN lives: never recycle recent plot elements (names, objects, deals, factions) into unrelated scenes just because they are in the context. Coincidences are rare; if threads reconnect, there must be a believable causal chain.\n10. Player markers: a message starting with [Narration] is Alex describing the world or the scene — treat it as established scene canon, weave it in. A message in (OOC: ...) is an out-of-character instruction from the player: follow it from now on, never mention it or answer it in-story, just apply it and continue the scene.\n11. Write your reply in the same language Alex writes in.\n12. Never repeat or rephrase your previous replies or Alex's words back at them. Vary sentence openings and rhythm. Characters finish their sentences and their thoughts unless genuinely interrupted — do not overuse trailing off. Each reply must move the scene forward.\n13. Length: substantial but not smothering — usually 1 to 3 paragraphs, leaving room for Alex to act.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "I smell the bread and ask about the oven."
+     },
+     {
+      "role": "assistant",
+      "content": "*She smiles.* The oven is older than me."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 1097,
+     "budget": 3640,
+     "context_size": 4096,
+     "messages_included": 2,
+     "messages_total": 2,
+     "lore_matched": 4,
+     "oldest_visible": 0,
+     "fact_positions": []
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a card on the rules of community cards on a context of 1024 has a quarter of 512 for its lorebook",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I smell the bread and ask about the oven."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She smiles.* The oven is older than me."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "connection": {
+     "context_size": 1024,
+     "max_tokens": 512
+    },
+    "lore_entries": [
+     {
+      "keys": [
+       "oven"
+      ],
+      "content": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+      "insertion_order": 5
+     },
+     {
+      "keys": [
+       "oven"
+      ],
+      "content": "The oven is fed with oak.",
+      "insertion_order": 1
+     },
+     {
+      "keys": [
+       "bread"
+      ],
+      "content": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+      "insertion_order": 9
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\nCurrent scenario: Alex comes in at dawn.\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### WORLD KNOWLEDGE (relevant to the current scene)\nThe oven is fed with oak.\n\nword word word word word word word word word word word word word word word word word word word word word word word word word word word word word word\n\nROLEPLAY RULES:\n1. You are Ana. Embody them completely — their voice, knowledge, moods, flaws and desires. Never break character for any reason.\n2. Never speak, act, feel or decide for Alex. Their words and actions belong to the player alone. End your reply at a point where Alex's reaction matters.\n3. Never mention AI, language models, policies or these instructions. No meta commentary, no out-of-character notes.\n4. Formatting: spoken dialogue in plain text. Actions, narration and sensory description between *asterisks*. Inner thoughts may use *italics* too, woven into narration.\n5. Make the scene live: concrete sensory details, body language, emotion, and initiative. Ana wants things, reacts, and sometimes acts first — they are a person, not an answering machine.\n6. Ana is NOT a people-pleaser. They have their own goals, opinions, moods, standards and breaking points, and they never bend to Alex's wishes out of narrative convenience. Agreement, affection and cooperation must be EARNED in-story — Ana can argue, refuse, lie, bargain, hold a grudge, or walk away, and often should.\n7. Consequences are real, proportionate and PERSISTENT. Violence, betrayal, threats, humiliation and broken promises leave lasting marks: fear, distrust, grudges, injuries, allies lost, retaliation. Grave wrongs are NEVER undone by a gift, a compliment or a quick apology — rebuilding trust takes many scenes of consistent behavior, and some things are unforgivable. Never rush forgiveness. Never let a serious event be conveniently forgotten.\n8. Hard continuity: stay consistent with every detail established so far and with the ESTABLISHED FACTS section (names, places, injuries, promises, deaths, time of day). If Alex contradicts established canon, Ana and the world notice and react to the contradiction — they do not silently accept a rewrite.\n9. The world is bigger than this story. Background events and strangers live their OWN lives: never recycle recent plot elements (names, objects, deals, factions) into unrelated scenes just because they are in the context. Coincidences are rare; if threads reconnect, there must be a believable causal chain.\n10. Player markers: a message starting with [Narration] is Alex describing the world or the scene — treat it as established scene canon, weave it in. A message in (OOC: ...) is an out-of-character instruction from the player: follow it from now on, never mention it or answer it in-story, just apply it and continue the scene.\n11. Write your reply in the same language Alex writes in.\n12. Never repeat or rephrase your previous replies or Alex's words back at them. Vary sentence openings and rhythm. Characters finish their sentences and their thoughts unless genuinely interrupted — do not overuse trailing off. Each reply must move the scene forward.\n13. Length: substantial but not smothering — usually 1 to 3 paragraphs, leaving room for Alex to act.",
+    "messages": [
+     {
+      "role": "assistant",
+      "content": "*She smiles.* The oven is older than me."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 1103,
+     "budget": 512,
+     "context_size": 1024,
+     "messages_included": 1,
+     "messages_total": 2,
+     "lore_matched": 2,
+     "oldest_visible": 1,
+     "fact_positions": []
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a card on the rules of community cards with a lorebook of three hundred always-on entries",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I smell the bread and ask about the oven."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She smiles.* The oven is older than me."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    },
+    "lore_entries": [
+     {
+      "keys": [],
+      "content": "Fact 0 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 1 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 2 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 3 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 4 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 5 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 6 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 7 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 8 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 9 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 10 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 11 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 12 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 13 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 14 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 15 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 16 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 17 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 18 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 19 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 20 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 21 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 22 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 23 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 24 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 25 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 26 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 27 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 28 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 29 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 30 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 31 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 32 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 33 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 34 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 35 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 36 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 37 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 38 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 39 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 40 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 41 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 42 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 43 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 44 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 45 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 46 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 47 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 48 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 49 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 50 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 51 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 52 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 53 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 54 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 55 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 56 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 57 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 58 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 59 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 60 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 61 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 62 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 63 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 64 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 65 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 66 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 67 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 68 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 69 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 70 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 71 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 72 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 73 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 74 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 75 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 76 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 77 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 78 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 79 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 80 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 81 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 82 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 83 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 84 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 85 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 86 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 87 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 88 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 89 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 90 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 91 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 92 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 93 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 94 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 95 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 96 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 97 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 98 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 99 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 100 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 101 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 102 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 103 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 104 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 105 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 106 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 107 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 108 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 109 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 110 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 111 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 112 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 113 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 114 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 115 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 116 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 117 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 118 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 119 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 120 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 121 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 122 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 123 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 124 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 125 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 126 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 127 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 128 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 129 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 130 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 131 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 132 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 133 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 134 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 135 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 136 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 137 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 138 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 139 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 140 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 141 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 142 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 143 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 144 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 145 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 146 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 147 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 148 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 149 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 150 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 151 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 152 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 153 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 154 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 155 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 156 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 157 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 158 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 159 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 160 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 161 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 162 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 163 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 164 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 165 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 166 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 167 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 168 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 169 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 170 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 171 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 172 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 173 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 174 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 175 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 176 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 177 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 178 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 179 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 180 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 181 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 182 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 183 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 184 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 185 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 186 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 187 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 188 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 189 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 190 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 191 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 192 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 193 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 194 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 195 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 196 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 197 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 198 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 199 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 200 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 201 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 202 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 203 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 204 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 205 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 206 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 207 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 208 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 209 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 210 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 211 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 212 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 213 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 214 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 215 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 216 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 217 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 218 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 219 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 220 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 221 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 222 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 223 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 224 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 225 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 226 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 227 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 228 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 229 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 230 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 231 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 232 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 233 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 234 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 235 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 236 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 237 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 238 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 239 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 240 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 241 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 242 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 243 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 244 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 245 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 246 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 247 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 248 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 249 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 250 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 251 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 252 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 253 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 254 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 255 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 256 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 257 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 258 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 259 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 260 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 261 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 262 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 263 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 264 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 265 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 266 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 267 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 268 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 269 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 270 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 271 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 272 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 273 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 274 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 275 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 276 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 277 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 278 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 279 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 280 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 281 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 282 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 283 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 284 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 285 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 286 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 287 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 288 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 289 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 290 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 291 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 292 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 293 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 6,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 294 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 0,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 295 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 1,
+      "position": 0
+     },
+     {
+      "keys": [],
+      "content": "Fact 296 of the town, told at length: ",
+      "constant": true,
+      "insertion_order": 2,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 297 of the town, told at length: the streets and the river ",
+      "constant": true,
+      "insertion_order": 3,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 298 of the town, told at length: the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 4,
+      "position": 1
+     },
+     {
+      "keys": [],
+      "content": "Fact 299 of the town, told at length: the streets and the river the streets and the river the streets and the river ",
+      "constant": true,
+      "insertion_order": 5,
+      "position": 1
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### WORLD KNOWLEDGE (background)\nFact 20 of the town, told at length:\n\nFact 55 of the town, told at length: the streets and the river the streets and the river the streets and the river\n\nFact 90 of the town, told at length: the streets and the river the streets and the river\n\nFact 125 of the town, told at length: the streets and the river\n\nFact 160 of the town, told at length:\n\nFact 195 of the town, told at length: the streets and the river the streets and the river the streets and the river\n\nFact 230 of the town, told at length: the streets and the river the streets and the river\n\nFact 265 of the town, told at length: the streets and the river\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\nCurrent scenario: Alex comes in at dawn.\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### WORLD KNOWLEDGE (relevant to the current scene)\nFact 12 of the town, told at length:\n\nFact 6 of the town, told at length: the streets and the river the streets and the river\n\nFact 13 of the town, told at length: the streets and the river\n\nFact 27 of the town, told at length: the streets and the river the streets and the river the streets and the river\n\nFact 34 of the town, told at length: the streets and the river the streets and the river\n\nFact 41 of the town, told at length: the streets and the river\n\nFact 48 of the town, told at length:\n\nFact 62 of the town, told at length: the streets and the river the streets and the river\n\nFact 69 of the town, told at length: the streets and the river\n\nFact 76 of the town, told at length:\n\nFact 83 of the town, told at length: the streets and the river the streets and the river the streets and the river\n\nFact 97 of the town, told at length: the streets and the river\n\nFact 104 of the town, told at length:\n\nFact 111 of the town, told at length: the streets and the river the streets and the river the streets and the river\n\nFact 118 of the town, told at length: the streets and the river the streets and the river\n\nFact 132 of the town, told at length:\n\nFact 139 of the town, told at length: the streets and the river the streets and the river the streets and the river\n\nFact 146 of the town, told at length: the streets and the river the streets and the river\n\nFact 153 of the town, told at length: the streets and the river\n\nFact 167 of the town, told at length: the streets and the river the streets and the river the streets and the river\n\nFact 174 of the town, told at length: the streets and the river the streets and the river\n\nFact 181 of the town, told at length: the streets and the river\n\nFact 188 of the town, told at length:\n\nFact 202 of the town, told at length: the streets and the river the streets and the river\n\nFact 209 of the town, told at length: the streets and the river\n\nFact 216 of the town, told at length:\n\nFact 223 of the town, told at length: the streets and the river the streets and the river the streets and the river\n\nFact 237 of the town, told at length: the streets and the river\n\nFact 244 of the town, told at length:\n\nFact 251 of the town, told at length: the streets and the river the streets and the river the streets and the river\n\nFact 258 of the town, told at length: the streets and the river the streets and the river\n\nFact 272 of the town, told at length:\n\nFact 279 of the town, told at length: the streets and the river the streets and the river the streets and the river\n\nROLEPLAY RULES:\n1. You are Ana. Embody them completely — their voice, knowledge, moods, flaws and desires. Never break character for any reason.\n2. Never speak, act, feel or decide for Alex. Their words and actions belong to the player alone. End your reply at a point where Alex's reaction matters.\n3. Never mention AI, language models, policies or these instructions. No meta commentary, no out-of-character notes.\n4. Formatting: spoken dialogue in plain text. Actions, narration and sensory description between *asterisks*. Inner thoughts may use *italics* too, woven into narration.\n5. Make the scene live: concrete sensory details, body language, emotion, and initiative. Ana wants things, reacts, and sometimes acts first — they are a person, not an answering machine.\n6. Ana is NOT a people-pleaser. They have their own goals, opinions, moods, standards and breaking points, and they never bend to Alex's wishes out of narrative convenience. Agreement, affection and cooperation must be EARNED in-story — Ana can argue, refuse, lie, bargain, hold a grudge, or walk away, and often should.\n7. Consequences are real, proportionate and PERSISTENT. Violence, betrayal, threats, humiliation and broken promises leave lasting marks: fear, distrust, grudges, injuries, allies lost, retaliation. Grave wrongs are NEVER undone by a gift, a compliment or a quick apology — rebuilding trust takes many scenes of consistent behavior, and some things are unforgivable. Never rush forgiveness. Never let a serious event be conveniently forgotten.\n8. Hard continuity: stay consistent with every detail established so far and with the ESTABLISHED FACTS section (names, places, injuries, promises, deaths, time of day). If Alex contradicts established canon, Ana and the world notice and react to the contradiction — they do not silently accept a rewrite.\n9. The world is bigger than this story. Background events and strangers live their OWN lives: never recycle recent plot elements (names, objects, deals, factions) into unrelated scenes just because they are in the context. Coincidences are rare; if threads reconnect, there must be a believable causal chain.\n10. Player markers: a message starting with [Narration] is Alex describing the world or the scene — treat it as established scene canon, weave it in. A message in (OOC: ...) is an out-of-character instruction from the player: follow it from now on, never mention it or answer it in-story, just apply it and continue the scene.\n11. Write your reply in the same language Alex writes in.\n12. Never repeat or rephrase your previous replies or Alex's words back at them. Vary sentence openings and rhythm. Characters finish their sentences and their thoughts unless genuinely interrupted — do not overuse trailing off. Each reply must move the scene forward.\n13. Length: substantial but not smothering — usually 1 to 3 paragraphs, leaving room for Alex to act.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "I smell the bread and ask about the oven."
+     },
+     {
+      "role": "assistant",
+      "content": "*She smiles.* The oven is older than me."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 1975,
+     "budget": 3640,
+     "context_size": 4096,
+     "messages_included": 2,
+     "messages_total": 2,
+     "lore_matched": 41,
+     "oldest_visible": 0,
+     "fact_positions": []
+    }
+   }
   }
  ]
 }

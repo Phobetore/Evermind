@@ -5,12 +5,20 @@ from dataclasses import asdict
 
 from app.prompting.engine import build_chat_payload, match_lore
 from app.prompting.lorebook import key_matches, strip_decorators
+from app.prompting.tokens import estimate_tokens
 
 from .conftest import PERSONA, make_character, make_connection, make_message
 
 
 def entry(keys, content="Lore.", **settings):
     return {"keys": keys, "content": content, **settings}
+
+
+def costing(tokens, letter):
+    """A content the engine counts as exactly so many tokens."""
+    content = letter * -(-7 * (tokens - 1) // 2)
+    assert estimate_tokens(content) == tokens
+    return content
 
 
 def fired(entries, messages, **arguments):
@@ -24,10 +32,10 @@ def said(*texts):
     return [make_message("user" if i % 2 == 0 else "assistant", text, i) for i, text in enumerate(texts)]
 
 
-def payload(character, entries, messages):
+def payload(character, entries, messages, **connection):
     return asdict(build_chat_payload(
         character=character, persona=PERSONA, conversation={"summary": ""},
-        messages=messages, connection=make_connection(), lore_entries=entries))
+        messages=messages, connection=make_connection(**connection), lore_entries=entries))
 
 
 def test_a_card_on_the_old_rules_ignores_every_new_setting():
@@ -199,3 +207,67 @@ def test_a_chained_lorebook_of_a_thousand_entries_takes_linear_time():
     found = match_lore(entries, said("k0"), rules=2, budget=10**9)
     assert len(found) == 1000
     assert time.perf_counter() - start < 5
+
+
+def test_the_lorebook_has_a_quarter_of_the_prompt_budget():
+    messages = said("Hello.")
+    # 2049 - 512 - 200 leaves 1337 for the prompt, a quarter of it 334 tokens.
+    fits = [entry([], costing(334, "a"), constant=True)]
+    too_large = [entry([], costing(335, "b"), constant=True)]
+    assert costing(334, "a") in payload(make_character(card_rules=2), fits, messages, context_size=2049)["system"]
+    shut_out = payload(make_character(card_rules=2), too_large, messages, context_size=2049)
+    assert "bbb" not in shut_out["system"] and shut_out["stats"]["lore_matched"] == 0
+
+    # On a large context it is far more than the 800 tokens of the old rules, which keep them.
+    large = [entry(["hello"], costing(900, "c"), constant=True)]
+    assert costing(900, "c") in payload(make_character(card_rules=2), large, messages)["system"]
+    assert "ccc" not in payload(make_character(card_rules=1), large, messages)["system"]
+
+
+def test_under_the_budget_the_highest_order_goes_first_and_a_large_entry_is_skipped():
+    entries = [entry(["dragon"], costing(5, "a"), insertion_order=10),
+               entry(["dragon"], costing(8, "b"), insertion_order=50),
+               entry(["dragon"], costing(20, "c"), insertion_order=30),
+               entry(["dragon"], costing(2, "d"), insertion_order=5)]
+    # 50 takes 8 of the 10 tokens, 30 and 10 no longer fit, 5 still does.
+    assert fired(entries, said("A dragon."), budget=10) == [costing(2, "d"), costing(8, "b")]
+
+    # Of two entries of the same order, the first in the lorebook goes first.
+    tied = [entry(["dragon"], costing(6, "e")), entry(["dragon"], costing(6, "f"))]
+    assert fired(tied, said("A dragon."), budget=10) == [costing(6, "e")]
+
+
+def test_entries_are_placed_by_ascending_order_then_lorebook_order():
+    entries = [entry(["dragon"], "First hundred.", insertion_order=100),
+               entry(["dragon"], "Below zero.", insertion_order=-5),
+               entry(["dragon"], "Second hundred.", insertion_order=100),
+               entry(["dragon"], "Seven.", insertion_order=7),
+               entry(["dragon"], "Hundred by default.")]
+    placed = ["Below zero.", "Seven.", "First hundred.", "Second hundred.", "Hundred by default."]
+    assert fired(entries, said("A dragon.")) == placed
+
+    system = payload(make_character(card_rules=2), entries, said("A dragon."))["system"]
+    assert "\n\n".join(placed) in system
+
+
+def test_an_entry_placed_before_the_definition_comes_before_it():
+    entries = [entry(["dragon"], "After, by default."),
+               entry(["dragon"], "Before.", position=0),
+               entry(["dragon"], "After, at the end.", position=2),
+               entry(["dragon"], "At a depth, after for now.", position=4)]
+    system = payload(make_character(card_rules=2), entries, said("A dragon."))["system"]
+    assert system.startswith(
+        "You are Serana in an endless immersive roleplay with Alex.\n\n"
+        "### WORLD KNOWLEDGE (background)\nBefore.\n\n### ABOUT SERANA\n")
+    assert ("### WORLD KNOWLEDGE (relevant to the current scene)\n"
+            "After, by default.\n\nAfter, at the end.\n\nAt a depth, after for now.\n\n") in system
+    assert system.count("Before.") == 1
+
+    # A scenario has it before its own definition too.
+    scenario = payload(make_character(card_rules=2, kind="scenario"), entries, said("A dragon."))["system"]
+    assert "for Alex.\n\n### WORLD KNOWLEDGE (background)\nBefore.\n\n### SCENARIO\n" in scenario
+
+    # On the old rules every entry stays where it was.
+    old = payload(make_character(), entries, said("A dragon."))["system"]
+    assert "(background)" not in old
+    assert "(relevant to the current scene)\nAfter, by default.\n\nBefore.\n\n" in old

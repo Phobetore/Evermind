@@ -6,7 +6,7 @@
 // order it was given, reversed or not.
 
 import { DEFAULT_RP_RULES, SCENARIO_RP_RULES } from "./defaults";
-import { activated, stripDecorators, type LoreEntrySettings } from "./lorebook";
+import { activated, beforeTheCard, stripDecorators, withinBudget, type LoreEntrySettings } from "./lorebook";
 import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
 import { PY_WS, pyLstrip, pyMin, pyRstrip, pyStrip, sliceCodePoints, stripThought } from "./text";
 import { estimateTokens } from "./tokens";
@@ -272,16 +272,11 @@ export function matchLore<E extends PromptLoreEntry>(
   // fires on any of the character's turns, as the cards expect.
   const scan = recent.map((m) => `${m.role === "assistant" ? charName : userName}: ${activeContent(m)}`).join("\n");
 
-  const kept: E[] = [];
-  let room = budget;
-  for (const entry of activated(entries, scan, charName, userName)) {
-    const content = stripDecorators(entry.content || "");
-    const cost = estimateTokens(content);
-    if (cost > room) continue;
-    room -= cost;
-    kept.push({ ...entry, content });
-  }
-  return kept;
+  const fired = activated(entries, scan, charName, userName).map((entry) => ({
+    ...entry,
+    content: stripDecorators(entry.content || ""),
+  }));
+  return withinBudget(fired, budget);
 }
 
 interface SystemParts {
@@ -294,6 +289,7 @@ interface SystemParts {
   userName: string;
   memories: readonly PromptMemory[] | null;
   lore: readonly PromptLoreEntry[];
+  loreBefore: readonly PromptLoreEntry[];
   factsBudget: number;
   relevanceScores: Record<string, number> | null;
   passages: readonly PromptPassage[] | null;
@@ -301,7 +297,7 @@ interface SystemParts {
 
 function buildSystem(parts: SystemParts): string {
   const { character, persona, summary, globalInstructions, includeExamples, charName, userName } = parts;
-  const { memories, lore, factsBudget, relevanceScores, passages } = parts;
+  const { memories, lore, loreBefore, factsBudget, relevanceScores, passages } = parts;
   const isScenario = character.kind === "scenario";
   const sections: string[] = [];
 
@@ -310,6 +306,11 @@ function buildSystem(parts: SystemParts): string {
       ? `You are running "${charName}", an immersive roleplay scenario, for ${userName}.`
       : `You are ${charName} in an endless immersive roleplay with ${userName}.`,
   );
+
+  if (loreBefore.length) {
+    const block = loreBefore.map((entry) => pyStrip(entry.content || "")).join("\n\n");
+    sections.push(`### WORLD KNOWLEDGE (background)\n${block}`);
+  }
 
   const identity: string[] = [];
   if (character.description) identity.push(character.description);
@@ -420,10 +421,17 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   const budget = Math.max(512, contextSize - maxTokens - BUDGET_MARGIN);
 
   // A card keeps the rules it was made with until its owner agrees to have it read again.
-  const lore =
-    (character.card_rules || 1) === 2
-      ? matchLore(input.lore_entries ?? [], messages, 2, LORE_TOKEN_BUDGET, charName, userName)
-      : matchLore(input.lore_entries ?? [], messages);
+  // On those of community cards the lorebook has a share of the prompt, not a fixed amount,
+  // and an entry can go before the character's definition.
+  let lore: PromptLoreEntry[];
+  let loreBefore: PromptLoreEntry[] = [];
+  if ((character.card_rules || 1) === 2) {
+    const matched = matchLore(input.lore_entries ?? [], messages, 2, Math.floor(budget / 4), charName, userName);
+    loreBefore = matched.filter((entry) => beforeTheCard(entry));
+    lore = matched.filter((entry) => !beforeTheCard(entry));
+  } else {
+    lore = matchLore(input.lore_entries ?? [], messages);
+  }
 
   const lengthOverride = LENGTH_OVERRIDES.get(input.reply_length ?? "medium");
   if (lengthOverride) globalInstructions = pyStrip(globalInstructions + "\n\n" + lengthOverride);
@@ -482,6 +490,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
       userName,
       memories: shown,
       lore,
+      loreBefore,
       factsBudget,
       relevanceScores,
       passages,
@@ -535,7 +544,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     context_size: contextSize,
     messages_included: turns.length,
     messages_total: messages.length,
-    lore_matched: lore.length,
+    lore_matched: loreBefore.length + lore.length,
     oldest_visible: visibleOldest,
     fact_positions: factsShown.map((m) => m.source_position ?? null),
   };
