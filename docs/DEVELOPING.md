@@ -267,10 +267,12 @@ Three things are worth knowing before changing it:
 
 ## Recorded cases
 
-`backend/tests/cases/` holds cases `{fn, name, input, expected}` for the memory
-pass and the default prompts: `input` is the named arguments of the function and
-`expected` is what the code answered when the case was written. A change that
-moves one on purpose is regenerated from `backend/`:
+`backend/tests/cases/` holds cases `{fn, name, input, expected}` for the whole
+prompt engine: the chat prompt and its parts, the other prompts, the reading of a
+model's answer, the memory pass, the card draft and the default prompts. `input`
+is the named arguments of the function and `expected` is what the Python code
+answered when the case was written. A change that moves one on purpose is
+regenerated from `backend/`:
 
 ```bash
 .venv/Scripts/python -m tests.test_recorded_cases
@@ -278,6 +280,14 @@ moves one on purpose is regenerated from `backend/`:
 
 Read the diff, since it is the change in behaviour. Never edit an `expected` by
 hand, and never remove a case that fails.
+
+Two suites read the same files. `backend/tests/test_recorded_cases.py` runs each
+case against Python, which is the reference. `frontend/src/engine/cases.test.ts`
+runs it against the engine's TypeScript copy in `frontend/src/engine/`, through
+`index.ts`, its only door, and fails when a recorded function has no adapter or
+a function of `index.ts` is reached by none. So a rule changed in Python and not
+in TypeScript fails `npm test` once the cases are regenerated. Nothing in the
+interface calls that copy yet, so it is not in the build.
 
 ## Optional semantic memory
 

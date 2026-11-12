@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { cleanCardDraft } from "./cardDraft";
+import * as engine from "./index";
 import { parseLlmJson, partialJson } from "./llmJson";
 import { MAX_TURNS_PER_RUN, planMemoryChanges } from "./memoryChanges";
 
@@ -82,6 +83,34 @@ describe("the engine", () => {
     const [fields, writing] = partialJson('{"name": "A", "tags": [1.0, 12345678901234567890, -0.0, 4, 7');
     expect(writing).toBe("tags");
     expect(cleanCardDraft(fields)).toStrictEqual({ name: "A", tags: ["12345678901234567890", "4"] });
+  });
+
+  it("no summary builder, and the ghostwriter reads no memories", () => {
+    // The summary is the memory pass's to write, and Python has no builder of its own for it.
+    expect(Object.keys(engine).filter((name) => /summar/i.test(name))).toStrictEqual([]);
+
+    // A fact would take room from the turns that the ghostwriter reads, and say nothing it uses.
+    const input = {
+      character: { name: "Ana" },
+      persona: { name: "Alex" },
+      conversation: {},
+      messages: Array.from({ length: 40 }, (_, i) => ({
+        role: i % 2 ? "assistant" : "user",
+        variants: [`Turn ${i}. ` + "word ".repeat(100)],
+        position: i + 1,
+      })),
+      connection: {},
+    };
+    const memories = [
+      { id: "a", content: "A secret. ".repeat(350), is_pinned: true, source: "auto", source_position: 1 },
+    ];
+    // The fact does take room when the chat payload is given it: so the test can fail.
+    expect(engine.buildChatPayload({ ...input, memories }).messages.length).toBeLessThan(
+      engine.buildChatPayload(input).messages.length,
+    );
+    expect(engine.buildImpersonatePayload({ ...input, memories } as typeof input)).toStrictEqual(
+      engine.buildImpersonatePayload(input),
+    );
   });
 
   it("the constants say what Python's say", () => {
