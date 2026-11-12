@@ -13,6 +13,7 @@ import json
 import httpx
 import pytest
 
+from app.errors import MODEL_ERROR
 from app.providers import complete
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import CONNECTION_LOST
@@ -216,6 +217,48 @@ async def test_the_memory_pass_keeps_a_fact_split_inside_an_emoji(client, chat_m
 
     assert resp.status_code == 200, resp.text
     assert [content for content, *_ in await stored_facts(client, convo["id"])] == [fact]
+
+
+def refusing(words: str):
+    """An OpenAI-compatible server that refuses the request with these words."""
+    def make(connection):
+        provider = OpenAICompatProvider(connection)
+        body = json.dumps({"error": {"message": words}}).encode()
+        provider._client_factory = lambda: httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda _: httpx.Response(400, content=body)))
+        return provider
+    return make
+
+
+async def test_a_refusal_with_half_an_emoji_in_its_words_is_told(client, chat_model):
+    convo = await setup_conversation(client)
+    chat_model(refusing("Bad request " + HIGH))
+
+    outcome = await send(client, convo["id"], content="Hello")
+
+    assert (outcome["kind"], outcome["message"]) == (MODEL_ERROR, "Bad request �")
+
+
+ERROR_EVENTS = {
+    "openai": lambda words: sse([json.dumps({"choices": [{"delta": {"content": "Hi"}}]}),
+                                 json.dumps({"error": {"message": words}})]),
+    "anthropic": lambda words: b"".join(
+        f"event: {e['type']}\ndata: {json.dumps(e)}\n\n".encode() for e in [
+            {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Hi"}},
+            {"type": "error", "error": {"type": "overloaded_error", "message": words}}]),
+}
+
+
+@pytest.mark.parametrize("adapter", list(ADAPTERS))
+async def test_an_error_event_with_half_an_emoji_in_its_words_is_told(client, chat_model, adapter):
+    convo = await setup_conversation(client)
+    chat_model(serving(adapter, ERROR_EVENTS[adapter]("Overloaded " + HIGH)))
+
+    outcome = await send(client, convo["id"], content="Hello")
+
+    assert (outcome["kind"], outcome["message"]) == (MODEL_ERROR, "Overloaded �")
+    reply = (await messages_of(client, convo["id"]))[-1]
+    assert (reply["role"], reply["content"]) == ("assistant", "Hi")
 
 
 async def test_the_card_assistant_keeps_a_name_split_inside_an_emoji(client, monkeypatch):
