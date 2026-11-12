@@ -644,6 +644,156 @@
    }
   },
   {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: a persona with a name and no description gives no ABOUT line",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": ""
+    },
+    "conversation": {
+     "summary": "A storm."
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Mira.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira's last message and moves the scene forward.\nNever write Mira's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nSTORY SO FAR: A storm.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, Alex."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Mira the keeper?"
+     },
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nMira:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: a role that is neither is the player's side",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "system",
+      "variants": [
+       "The storm grows."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Mira.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira's last message and moves the scene forward.\nNever write Mira's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT Alex: A courier.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, Alex."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Mira the keeper?"
+     },
+     {
+      "role": "assistant",
+      "content": "The storm grows."
+     }
+    ],
+    "stop": [
+     "\nMira:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
    "fn": "build_extraction_payload",
    "name": "extraction: turns since the last pass",
    "input": {
@@ -3609,6 +3759,140 @@
    }
   },
   {
+   "fn": "build_extraction_payload",
+   "name": "extraction: no summary yet",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": "",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I knock on the door."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "memories": []
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\n(empty)\n\nFACTS ALREADY RECORDED:\n(none yet)\n\nNEWEST TURNS:\nAlex (turn 1): I knock on the door.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "user",
+      "variants": [
+       "I knock on the door."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: a role that is not the player's is the character's",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": "A storm.",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I knock."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "system",
+      "variants": [
+       "Thunder."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "memories": []
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\nA storm.\n\nFACTS ALREADY RECORDED:\n(none yet)\n\nNEWEST TURNS:\nAlex (turn 1): I knock.\n\nMira (turn 2): Thunder.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "user",
+      "variants": [
+       "I knock."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "system",
+      "variants": [
+       "Thunder."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ]
+   }
+  },
+  {
    "fn": "build_consolidation_payload",
    "name": "consolidation: a few facts",
    "input": {
@@ -4146,6 +4430,33 @@
      {
       "role": "user",
       "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nx\n\nEXISTING LOREBOOK KEYWORDS (cover other subjects):\nok, 😀\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_card_payload",
+   "name": "card: existing fields: empty ones and ones that are not text or a list are left out",
+   "input": {
+    "prompt": "A baker.",
+    "kind": "character",
+    "existing": {
+     "name": "",
+     "tags": [],
+     "tagline": "kept",
+     "description": 5,
+     "personality": null
+    }
+   },
+   "expected": {
+    "system": "You are Evermind's expert card-writer: you turn a creator's brief into a complete, high-quality roleplay card.\n\nRules:\n- Write every field in the same language as the brief.\n- Make it vivid and SPECIFIC: a distinct voice, concrete flaws, desires, quirks, secrets. No generic filler.\n- `description`: 120-250 words, who they are, how they speak, what drives them (for a scenario: the world, the situation, the stakes, the key NPCs).\n- `personality`: comma-separated traits (for a scenario: tone and themes).\n- `scenario`: the starting situation (for a scenario card: who {{user}} plays in this story).\n- `greeting`: opens the scene in medias res — *actions and narration in asterisks*, spoken dialogue in plain text, addresses {{user}} directly, ends on something {{user}} must react to. 80-180 words.\n- `alternate_greetings`: exactly one alternative opening, meaningfully different.\n- `example_dialogues`: 2 short exchanges showing the writing style, format:\n<START>\n{{user}}: ...\n{{char}}: ...\n- `tags`: 3-6 lowercase keywords.\n- `tagline`: one hook sentence for the card cover.\n- `lore_entries`: 3 to 6 lorebook entries — world knowledge injected ONLY when its keywords appear in the scene. Use them for what matters in SOME scenes only: places, factions or organisations, secondary characters, secrets, rules of this world. NEVER duplicate what is already in `description` or `scenario` (those are always in context anyway). Each entry needs `keys` (2 to 4 trigger words a player would actually type — proper nouns and common nouns, include spelling variants with and without accents) and `content` (40 to 120 words of concrete, usable facts, not vague atmosphere).\n- Use {{char}} and {{user}} macros in description/scenario/greeting/examples where natural.\n- If EXISTING FIELDS are provided, keep their content and spirit (do not overwrite what the creator wrote) and fill only what is missing or empty, coherently.\n- If EXISTING LOREBOOK KEYWORDS are listed, do not write entries covering those subjects again: propose different ones.\n\nReply with ONLY this JSON object. No markdown fences, no commentary before or after. Escape every newline inside string values as \\n:\n{\"name\": \"...\", \"tagline\": \"...\", \"description\": \"...\", \"personality\": \"...\", \"scenario\": \"...\", \"greeting\": \"...\", \"alternate_greetings\": [\"...\"], \"example_dialogues\": \"...\", \"tags\": [\"...\"], \"lore_entries\": [{\"keys\": [\"...\", \"...\"], \"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "The card is a CHARACTER (the AI embodies one person the player talks to).\n\nCREATOR'S BRIEF:\nA baker.\n\nEXISTING FIELDS (keep their content, fill the rest):\n{\n  \"tagline\": \"kept\"\n}\n\nReply with the JSON now."
      }
     ],
     "stop": [],

@@ -661,6 +661,32 @@
     },
     "writing": "tags"
    }
+  },
+  {
+   "fn": "partial_json",
+   "name": "a field name followed by no colon ends the reading",
+   "input": {
+    "text": "{\"name\": \"Ana\", \"tagline\" \"x"
+   },
+   "expected": {
+    "fields": {
+     "name": "Ana"
+    },
+    "writing": null
+   }
+  },
+  {
+   "fn": "partial_json",
+   "name": "an object cut in the middle gives nothing under its name",
+   "input": {
+    "text": "{\"name\": \"Ana\", \"extra\": {\"a\": 1, \"b"
+   },
+   "expected": {
+    "fields": {
+     "name": "Ana"
+    },
+    "writing": "extra"
+   }
   }
  ]
 }
