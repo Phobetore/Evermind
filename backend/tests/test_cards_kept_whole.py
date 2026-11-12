@@ -107,7 +107,7 @@ async def test_saving_the_lorebook_keeps_each_entry_s_origin_and_settings(client
     made = await make(client)
     entries = [
         {"keys": ["harbour"], "content": "Ships.", "enabled": False, "origin": 5, **SETTINGS},
-        {"keys": ["bell"], "content": "It rings.", "enabled": True, "origin": None,
+        {"keys": ["bell"], "content": "It rings.", "enabled": True, "origin": 1,
          **SETTINGS, "position": 0, "role": "user", "depth": 0},
         {"keys": ["tower"], "content": "Tall.", "enabled": True, "origin": 0,
          **SETTINGS, "selective_logic": 3, "insertion_order": 2**53 - 1, "position": 7},
