@@ -3,6 +3,7 @@ import type {
   Message, Persona, Settings, TurnEvent, TurnState,
 } from "@/types";
 import type { DataSource } from "../contract";
+import { device } from "./device";
 import { readEvents } from "./events";
 import { request, send } from "./request";
 import type {
@@ -136,6 +137,8 @@ export const data: DataSource = {
     const blob = await (await send(url)).blob();
     return new File([blob], "image", { type: blob.type });
   },
+
+  device,
 
   connections: {
     list: () => get<Connection[]>("api/connections"),

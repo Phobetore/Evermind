@@ -37,7 +37,7 @@ const failureOf = () => data.settings.get().catch((e) => e);
 describe("the contract", () => {
   test("offers what the contract names, and nothing else", () => {
     expect(Object.keys(data).sort()).toEqual([
-      "access", "characters", "connections", "conversations", "file", "library", "memories",
+      "access", "characters", "connections", "conversations", "device", "file", "library", "memories",
       "messages", "personas", "settings", "turns", "updates",
     ]);
   });

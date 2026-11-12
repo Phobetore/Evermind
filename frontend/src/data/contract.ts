@@ -8,6 +8,21 @@ import type {
   LoreEntryInput, PersonaInput, TurnRequest,
 } from "./types";
 
+/** A few words kept on this device and nowhere else. It never throws: a store that cannot keep
+ *  anything reads as empty, and the page goes on without what it would have held. */
+export interface DeviceStore {
+  /** Settled once the store can be read; the interface waits for it before it draws. */
+  readonly ready: Promise<void>;
+  /** The language the host suggests, when it has one. Read after `ready`. */
+  readonly suggestedLocale: string | null;
+  get(key: string): string | null;
+  set(key: string, value: string): void;
+  remove(key: string): void;
+  keys(prefix: string): string[];
+  /** A key changed from another window: what it held, and what it holds now. Returns the way to stop listening. */
+  onChange(listener: (key: string, oldValue: string | null, newValue: string | null) => void): () => void;
+}
+
 /** Everything the interface asks of where its data lives. An edition brings one of these; the
  *  interface never learns whether it is a server across the network or something else.
  *  `connections`, `access` and `updates` are the three things an edition may not have: the
@@ -96,6 +111,9 @@ export interface DataSource {
 
   /** An image the source serves, such as a portrait, as a file to draw or to send back. */
   file(url: string): Promise<File>;
+
+  /** What this device keeps for itself: drafts, a message on its way, the chosen language. */
+  readonly device: DeviceStore;
 
   connections?: {
     list(): Promise<Connection[]>;
