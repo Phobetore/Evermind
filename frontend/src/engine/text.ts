@@ -5,7 +5,7 @@
  *  (no brackets), every member written as an escape so that it can be audited.
  *  JavaScript's `\s` and `trim()` disagree with it on both sides: they take U+FEFF
  *  and leave out U+001C to U+001F and U+0085. */
-export const PY_WS = String.raw`\t\n\v\f\r\x1c-\x1f\x20\x85\xa0  -     　`;
+export const PY_WS = String.raw`\t\n\v\f\r\x1c-\x1f\x20\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000`;
 
 const SPACE = new RegExp(`[${PY_WS}]`);
 
