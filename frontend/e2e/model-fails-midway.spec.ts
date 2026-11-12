@@ -96,7 +96,10 @@ test("a regeneration cut short labels its own version, not the whole one", async
   const last = page.locator("[data-message-id]").last();
   await expect(last).toContainText(WHOLE);
 
+  // The failure is said once the page hears the reply has ended.
+  const over = replyEnds(page, convo.id);
   await last.getByRole("button", { name: "Regenerate" }).click();
+  await over;
   await expect(failure(page)).toBeVisible();
   await expect(last).toContainText("interrupted");
 

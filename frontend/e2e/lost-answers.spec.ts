@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Locator, type Page, type Route } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { API } from "../playwright.config";
 import { answer, chat, conversation, conversationWithReply, makeCharacter, readOf } from "./fixtures";
 
@@ -22,6 +22,23 @@ async function held(page: Page, url: string, method: string) {
   return letGo;
 }
 
+/** Settles once the page's read of the conversation, sent after the answer to a `method` on a
+ *  message was lost or refused, has come back: what the server holds shows from there, and how long
+ *  the server takes over both is the machine's. Called before what sends the change. */
+function storyReadAfter(page: Page, id: string, method: string): Promise<unknown> {
+  let over = false;
+  const ended = (r: Request) => {
+    if (r.method() === method && new URL(r.url()).pathname.includes("/api/messages/")) over = true;
+  };
+  page.on("requestfailed", ended);
+  page.on("requestfinished", ended);
+  return page.waitForResponse((r) => over && r.request().method() === "GET" && readOf(id)(r.url()))
+    .finally(() => {
+      page.off("requestfailed", ended);
+      page.off("requestfinished", ended);
+    });
+}
+
 /** A reply in three versions told apart, the last of them shown: [another, alpha, beta]. */
 async function threeVersions(request: APIRequestContext) {
   const convo = await conversationWithReply(request, { says: "alpha" });
@@ -43,7 +60,9 @@ test("a swipe whose answer was lost shows the version the server holds, and an e
   await expect(reply).toContainText("3/3");
 
   await page.route("**/api/messages/*", answerLost, { times: 1 });
+  const readAfter = storyReadAfter(page, convo.id, "PATCH");
   await reply.getByLabel("Previous variant").click();
+  await readAfter;
 
   await expect(reply).toContainText("2/3");
   await expect(reply).toContainText("alpha one two");
@@ -91,8 +110,11 @@ test("Delete from here whose answer was lost shows the story the server holds, a
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toBeVisible();
 
   await page.route("**/api/messages/*", answerLost, { times: 1 });
+  // What the server holds shows once the read that follows the lost answer has come back.
+  const readAfter = storyReadAfter(page, convo.id, "DELETE");
   await page.locator(`[data-message-id="${asked.id}"]`).getByTitle("Delete from here").click();
   await answer(page, true);
+  await readAfter;
 
   await expect(page.locator(`[data-message-id="${asked.id}"]`)).toHaveCount(0);
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toHaveCount(0);
@@ -108,8 +130,10 @@ test("Delete from here on a message already gone shows the story as it is, and s
   // Gone already: deleted from another device, or by a first tap whose answer was lost.
   await request.delete(`${API}/api/messages/${answered.id}`);
 
+  const readAfter = storyReadAfter(page, convo.id, "DELETE");
   await page.locator(`[data-message-id="${answered.id}"]`).getByTitle("Delete from here").click();
   await answer(page, true);
+  await readAfter;
 
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toHaveCount(0);
   await expect(page.getByRole("alert"), "a message on screen said to be gone").toHaveCount(0);
