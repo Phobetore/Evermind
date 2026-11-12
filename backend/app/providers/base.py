@@ -1,9 +1,10 @@
 """What every provider shares: the request to a model's server, its stream, and how it fails."""
 
 import json
+import re
 from collections.abc import AsyncIterator
 from contextlib import aclosing
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
 import httpx
@@ -32,6 +33,8 @@ STOPPED_FOR_LENGTH = "length"
 @dataclass
 class ProviderEvent:
     type: Literal["delta", "thought", "done"]
+    # On "delta": the reply. On "thought", only inside a provider: the reasoning, which
+    # stream_chat turns into its count before it leaves.
     text: str = ""
     usage: dict | None = None
     # On "done": STOPPED_FOR_LENGTH, else the server's own word for why the model stopped, if it gave one.
@@ -39,6 +42,38 @@ class ProviderEvent:
     # On "thought": how many characters of reasoning arrived. Only the count: what a model thinks is
     # not its answer, and nothing keeps it.
     count: int = 0
+
+
+_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
+class WholeCharacters:
+    """Puts back together a character that a server split across two events.
+
+    A server that writes each token as JSON on its own can send an emoji in two halves,
+    "\\ud83d" at the end of one event and "\\ude00" at the start of the next, and each event
+    is read on its own. A high half that ends a piece is held until the next one says
+    whether its low half follows; a half that has no pair becomes U+FFFD, as JavaScript's
+    toWellFormed does. A high half still held when the text ends is dropped with it.
+    """
+
+    def __init__(self):
+        self.held = ""
+
+    def take(self, text: str) -> str:
+        text, self.held = self.held + text, ""
+        if not _SURROGATE.search(text):
+            return text
+        if "\ud800" <= text[-1] <= "\udbff":
+            text, self.held = text[:-1], text[-1]
+        return well_formed(text)
+
+
+def well_formed(text: str) -> str:
+    """The text with each half of a character that has no pair turned into U+FFFD."""
+    if not _SURROGATE.search(text):
+        return text
+    return text.encode("utf-16-le", "surrogatepass").decode("utf-16-le", "replace")
 
 
 class ProviderError(AppError):
@@ -51,12 +86,16 @@ class ProviderError(AppError):
 
 
 def words_of(said: object) -> str:
-    """What a model's server said of an error, from the JSON it sent: its message, if it gave one."""
+    """What a model's server said of an error, from the JSON it sent: its message, if it gave one.
+
+    Its words are shown and saved like the reply, so they leave whole too: a half of a character
+    it sent with no pair becomes U+FFFD.
+    """
     if isinstance(said, dict):
         said = said.get("error", said)
     if isinstance(said, dict):
         said = said.get("message") or said
-    return str(said)[:300] if said else ""
+    return well_formed(str(said)[:300]) if said else ""
 
 
 def _refusal(status: int, body: bytes) -> ProviderError:
@@ -84,7 +123,25 @@ class Provider:
         raise NotImplementedError
 
     async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
-        """The reply as it arrives, then its end. A failure raises a ProviderError."""
+        """The reply as it arrives, then its end. A failure raises a ProviderError.
+
+        Every piece of model text leaves here, whole: the reply and the reasoning are each
+        joined on their own, so half a reply character never pairs with half a thought.
+        """
+        reply, reasoning = WholeCharacters(), WholeCharacters()
+        async with aclosing(self._events(payload)) as events:
+            async for event in events:
+                if event.type == "delta":
+                    if text := reply.take(event.text):
+                        yield replace(event, text=text)
+                elif event.type == "thought":
+                    if text := reasoning.take(event.text):
+                        yield ProviderEvent(type="thought", count=len(text))
+                else:
+                    yield event
+
+    async def _events(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
+        """What the server sent, as each event reads: deltas and thoughts with their text."""
         raise NotImplementedError
         yield  # pragma: no cover
 
@@ -98,7 +155,7 @@ class Provider:
             raise _refusal(response.status_code, response.content)
         try:
             models = response.json().get("data") or []
-            return [m["id"] for m in models if isinstance(m, dict) and m.get("id")]
+            return [well_formed(str(m["id"])) for m in models if isinstance(m, dict) and m.get("id")]
         except (ValueError, AttributeError, TypeError):
             raise ProviderError("The list of models could not be read.", MODEL_UNREADABLE)
 
