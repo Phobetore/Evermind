@@ -612,6 +612,55 @@
     "fields": {},
     "writing": null
    }
+  },
+  {
+   "fn": "partial_json",
+   "name": "a field whose value has not started is being written",
+   "input": {
+    "text": "{\"name\": \"Ana\", \"tagline\": "
+   },
+   "expected": {
+    "fields": {
+     "name": "Ana"
+    },
+    "writing": "tagline"
+   }
+  },
+  {
+   "fn": "partial_json",
+   "name": "a brace inside a string of a whole entry",
+   "input": {
+    "text": "{\"lore_entries\": [{\"keys\": [\"a\"], \"content\": \"x } y\"}], \"name\": \"Ana\", \"tagline\": \"A"
+   },
+   "expected": {
+    "fields": {
+     "lore_entries": [
+      {
+       "keys": [
+        "a"
+       ],
+       "content": "x } y"
+      }
+     ],
+     "name": "Ana"
+    },
+    "writing": "tagline"
+   }
+  },
+  {
+   "fn": "partial_json",
+   "name": "a list stops at an element that cannot be read",
+   "input": {
+    "text": "{\"tags\": [\"a\", b, \"c\", \"d"
+   },
+   "expected": {
+    "fields": {
+     "tags": [
+      "a"
+     ]
+    },
+    "writing": "tags"
+   }
   }
  ]
 }

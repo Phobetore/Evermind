@@ -1775,6 +1775,46 @@
    ]
   },
   {
+   "fn": "select_facts",
+   "name": "pinned facts go past the budget and loose ones then no longer fit",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Loose and short.",
+      "source_position": 5
+     },
+     {
+      "id": "b",
+      "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta",
+      "is_pinned": true,
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha",
+      "is_pinned": true,
+      "source_position": 3
+     }
+    ],
+    "token_budget": 60
+   },
+   "expected": [
+    {
+     "id": "b",
+     "content": "alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta alpha beta gamma delta",
+     "is_pinned": true,
+     "source_position": 2
+    },
+    {
+     "id": "c",
+     "content": "delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha delta gamma beta alpha",
+     "is_pinned": true,
+     "source_position": 3
+    }
+   ]
+  },
+  {
    "fn": "active_content",
    "name": "the last variant",
    "input": {
@@ -2119,6 +2159,16 @@
     "user_name": "Alex"
    },
    "expected": "Hello."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "the character's tag with a space before the colon",
+   "input": {
+    "text": "Ana : Hello",
+    "char_name": "Ana",
+    "user_name": "Bob"
+   },
+   "expected": "Hello"
   },
   {
    "fn": "words",

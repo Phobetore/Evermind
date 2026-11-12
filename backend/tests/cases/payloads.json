@@ -3510,6 +3510,105 @@
    "expected": null
   },
   {
+   "fn": "build_extraction_payload",
+   "name": "extraction: no facts yet",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A lighthouse keeper.",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "Alex came ashore.",
+     "memory_position": 4
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I sit."
+      ],
+      "active_index": 0,
+      "position": 3
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Tea?"
+      ],
+      "active_index": 0,
+      "position": 4
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ],
+    "memories": []
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Mira.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\nAlex came ashore.\n\nFACTS ALREADY RECORDED:\n(none yet)\n\nNEWEST TURNS:\nAlex (turn 5): Please.\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "user",
+      "variants": [
+       "Please."
+      ],
+      "active_index": 0,
+      "position": 5
+     }
+    ]
+   }
+  },
+  {
    "fn": "build_consolidation_payload",
    "name": "consolidation: a few facts",
    "input": {

@@ -4426,6 +4426,63 @@
      ]
     }
    }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a persona with a name and no description still has its heading",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Bob",
+     "description": ""
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Hello, {{char}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Bob.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT BOB (the player's character)\n\nHouse rules for Ana and Bob.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Hello, Ana."
+     }
+    ],
+    "stop": [
+     "\nBob:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Bob's actions.]",
+    "stats": {
+     "used_tokens": 190,
+     "budget": 3640,
+     "context_size": 4096,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 0,
+     "oldest_visible": 0,
+     "fact_positions": []
+    }
+   }
   }
  ]
 }
