@@ -229,11 +229,12 @@ async def test_the_update_keeps_old_cards_on_the_old_rules_and_their_entries_in_
             conn.execute("INSERT INTO characters (id, name, created_at, updated_at)"
                          " VALUES (?, ?, 't', 't')", (char_id, char_id))
         # Inserted out of their order: the oldest last, and two that share their second.
+        # Those two sort the other way by id, so only insertion breaks their tie, as today.
         for entry_id, char_id, created_at in (
                 ("late", "serana", "2026-01-01T00:00:02+00:00"),
                 ("lydia-only", "lydia", "2026-01-01T00:00:00+00:00"),
-                ("first", "serana", "2026-01-01T00:00:01+00:00"),
-                ("second", "serana", "2026-01-01T00:00:01+00:00")):
+                ("zz-first", "serana", "2026-01-01T00:00:01+00:00"),
+                ("aa-second", "serana", "2026-01-01T00:00:01+00:00")):
             conn.execute("INSERT INTO lore_entries (id, character_id, keys, content, enabled,"
                          " created_at, updated_at) VALUES (?, ?, '[\"k\"]', 'c', 1, ?, ?)",
                          (entry_id, char_id, created_at, created_at))
@@ -249,7 +250,7 @@ async def test_the_update_keeps_old_cards_on_the_old_rules_and_their_entries_in_
         ("serana", 1, "", "", 4, "system", "{}"),
     ]
     assert rows("SELECT id, insertion_order FROM lore_entries WHERE character_id = 'serana'"
-                " ORDER BY created_at, rowid") == [("first", 0), ("second", 1), ("late", 2)]
+                " ORDER BY created_at, rowid") == [("zz-first", 0), ("aa-second", 1), ("late", 2)]
     assert rows("SELECT insertion_order FROM lore_entries WHERE character_id = 'lydia'") == [(0,)]
     assert rows("SELECT DISTINCT origin, comment, constant, selective, secondary_keys,"
                 " selective_logic, position, depth, role, whole_words, exclude_recursion,"
