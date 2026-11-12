@@ -38,7 +38,7 @@ export const movableFacts = <F extends { is_pinned: boolean; source: string }>(m
   memories.filter(isMovable);
 
 /** Every text that the changes of an extraction's answer can write. */
-export function answerTexts(parsed: unknown): string[] {
+export function answerTexts(parsed: Record<string, unknown>): string[] {
   const found = [...items(field(parsed, "facts")), ...items(field(parsed, "updated_facts"))];
   return found.map((item) => textOf(field(item, "content"))).filter((text) => text !== "");
 }
@@ -56,7 +56,11 @@ type Known = {
  *  says it. The model corrects or drops only a fact it wrote and nobody pinned, adds
  *  nothing in place of the others, and drops a fact it corrects into another fact's text.
  *  Applied deletes, then updates, then adds, so an add never repeats what a fact says. */
-export function planMemoryChanges(parsed: unknown, existing: KnownFact[], topPosition: number): MemoryPlan {
+export function planMemoryChanges(
+  parsed: Record<string, unknown>,
+  existing: KnownFact[],
+  topPosition: number,
+): MemoryPlan {
   let known: Known[] = existing.map((m) => ({ id: m.id, content: m.content, movable: isMovable(m) }));
   let adds: MemoryPlan["add"] = [];
   // A Map until the end, since an id is a key like any other, "__proto__" included.
@@ -91,7 +95,6 @@ export function planMemoryChanges(parsed: unknown, existing: KnownFact[], topPos
     }
   };
 
-  // `field` finds nothing in what is no object, which adds nothing.
   for (const fact of items(field(parsed, "facts"))) add(textOf(field(fact, "content")));
 
   for (const update of items(field(parsed, "updated_facts"))) {
@@ -125,7 +128,7 @@ export function planMemoryChanges(parsed: unknown, existing: KnownFact[], topPos
  *  from the model for dozens of turns. Two may say the same thing: adding them drops
  *  the second. */
 export function planConsolidation(
-  parsed: unknown,
+  parsed: Record<string, unknown> | null,
   movable: { source_position: number }[],
 ): { facts: string[]; source_position: number } | null {
   const facts = items(field(parsed, "facts"))

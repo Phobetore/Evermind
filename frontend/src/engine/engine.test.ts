@@ -26,9 +26,10 @@ describe("the engine", () => {
   });
 
   it("a key named __proto__ in a reply changes no prototype", () => {
-    const parsed = parseLlmJson('{"__proto__": {"facts": [{"content": "Hidden."}]}, "summary": "S."}');
+    // An answer that cannot be read would leave {}, which has no own __proto__.
+    const parsed = parseLlmJson('{"__proto__": {"facts": [{"content": "Hidden."}]}, "summary": "S."}') ?? {};
     expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
-    expect(Object.hasOwn(parsed as object, "__proto__")).toBe(true);
+    expect(Object.hasOwn(parsed, "__proto__")).toBe(true);
     expect(planMemoryChanges(parsed, [], 3)).toStrictEqual({ add: [], update: {}, delete: [], summary: "S." });
 
     const [fields, writing] = partialJson('{"__proto__": {"name": "Hidden"}, "name": "An');
@@ -75,7 +76,7 @@ describe("the engine", () => {
     // The expected values are what clean_card_draft gives in Python for the same text.
     const big = "9".repeat(309);
     const answer = `{"tags": [1.0, 2, 1e2, -0.0, 12345678901234567890], "lore_entries": [{"keys": [3.0, 9007199254740993, -12, ${big}], "content": "C"}]}`;
-    expect(cleanCardDraft(parseLlmJson(answer))).toStrictEqual({
+    expect(cleanCardDraft(parseLlmJson(answer) ?? {})).toStrictEqual({
       tags: ["2", "12345678901234567890"],
       lore_entries: [{ keys: ["9007199254740993", "-12", big], content: "C" }],
     });

@@ -226,7 +226,7 @@ function repair(text: string): string {
 /** Best-effort extraction of one JSON object from what a model answered: the text
  *  itself, what is inside its first code fence, and what follows its first "{", each
  *  as it is and then repaired. Null if nothing can be read. */
-export function parseLlmJson(text: string): unknown {
+export function parseLlmJson(text: string): Record<string, unknown> | null {
   const answer = stripThought(text);
   if (!answer) return null;
   const candidates = [answer];

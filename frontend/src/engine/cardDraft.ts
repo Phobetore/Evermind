@@ -67,7 +67,7 @@ export type CardDraft = Partial<Record<(typeof TEXT_FIELDS)[number], string>> &
   Partial<Record<(typeof LIST_FIELDS)[number], string[]>> & { lore_entries?: DraftLoreEntry[] };
 
 /** Whitelist and normalize what the model returned. */
-export function cleanCardDraft(draft: unknown): CardDraft {
+export function cleanCardDraft(draft: Record<string, unknown>): CardDraft {
   const out: CardDraft = {};
   for (const name of TEXT_FIELDS) {
     const value = textOf(field(draft, name));
