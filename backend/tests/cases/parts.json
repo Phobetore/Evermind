@@ -1002,6 +1002,48 @@
   },
   {
    "fn": "select_facts",
+   "name": "an empty map of scores is not recency",
+   "input": {
+    "memories": [
+     {
+      "id": "a",
+      "content": "Fact a is here.",
+      "source_position": 1
+     },
+     {
+      "id": "b",
+      "content": "Fact b is here.",
+      "source_position": 2
+     },
+     {
+      "id": "c",
+      "content": "Fact c is here.",
+      "source_position": 3
+     },
+     {
+      "id": "d",
+      "content": "Fact d is here.",
+      "source_position": 4
+     }
+    ],
+    "token_budget": 12,
+    "relevance_scores": {}
+   },
+   "expected": [
+    {
+     "id": "a",
+     "content": "Fact a is here.",
+     "source_position": 1
+    },
+    {
+     "id": "b",
+     "content": "Fact b is here.",
+     "source_position": 2
+    }
+   ]
+  },
+  {
+   "fn": "select_facts",
    "name": "scores rank the loose facts",
    "input": {
     "memories": [

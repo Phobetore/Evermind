@@ -424,6 +424,19 @@
   },
   {
    "fn": "partial_json",
+   "name": "a whole answer after a brace in the prose is read whole",
+   "input": {
+    "text": "Use {curly} braces? Here:\n```json\n{\"name\": \"Ana\"}\n```"
+   },
+   "expected": {
+    "fields": {
+     "name": "Ana"
+    },
+    "writing": null
+   }
+  },
+  {
+   "fn": "partial_json",
    "name": "a field being written is named",
    "input": {
     "text": "{\"name\": \"Ana\", \"tagline\": \"A sto"
