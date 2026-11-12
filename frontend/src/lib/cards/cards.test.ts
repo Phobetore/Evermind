@@ -1,8 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { crc32 } from "node:zlib";
 import { describe, expect, test } from "vitest";
-import { newLoreEntry } from "./loreEntry";
-import { cardFile, cardToCharacter, characterToCard, readCardFile, withCard } from "./cards";
+import type { CardCharacter } from "@/data";
+import { newLoreEntry } from "../loreEntry";
+import { cardFile, cardToCharacter, characterToCard, readCardFile, withCard } from "./index";
 
 const PNG = Uint8Array.from(
   atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="),
@@ -34,6 +35,16 @@ function withText(png: Uint8Array<ArrayBuffer>, ...texts: [keyword: string, text
   return new File([png.subarray(0, -12), ...chunks, png.subarray(-12)], "card.png");
 }
 
+/** What a card made of VANE and LORE gives back: the fields, each entry's keys, text and switch,
+ *  and the index and order the card writes for each. */
+function survives(character: CardCharacter) {
+  expect(character).toMatchObject(VANE);
+  expect(character.lore_entries.map(({ keys, content, enabled }) => ({ keys, content, enabled })))
+    .toEqual(LORE.map(({ keys, content, enabled }) => ({ keys, content, enabled })));
+  expect(character.lore_entries.map((entry) => entry.origin)).toEqual([0, 1]);
+  expect(character.lore_entries.map((entry) => entry.insertion_order)).toEqual([0, 1]);
+}
+
 const base64 = (value: unknown) => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(value))));
 const kindOf = (file: File) => readCardFile(file).catch((error) => error.kind);
 
@@ -43,7 +54,7 @@ describe("the card codec", () => {
     expect(card.spec).toBe("chara_card_v2");
     expect((card.data.character_book as { entries: { insertion_order: number }[] }).entries
       .map((e) => e.insertion_order)).toEqual([0, 1]);
-    expect(cardToCharacter(JSON.parse(JSON.stringify(card)))).toEqual({ ...VANE, lore_entries: LORE });
+    survives(cardToCharacter(JSON.parse(JSON.stringify(card)))!);
   });
 
   test("a flat card reads, and a name is never empty nor longer than the server takes", () => {
@@ -61,13 +72,13 @@ describe("the card codec", () => {
       character_book: { entries: [1, { keys: " k ", content: "c", insertion_order: "abc" }, { keys: [], content: "x" }] },
     })).toMatchObject({
       tags: ["5"], description: "", alternate_greetings: ["Hi."], creator: "7", personality: "",
-      lore_entries: [{ keys: ["k"], content: "c", enabled: true }],
+      lore_entries: [{ keys: ["k"], content: "c", enabled: true, origin: 1, insertion_order: 100 }, { keys: [], content: "x", origin: 2 }],
     });
   });
 });
 
 test("every card the library ships reads, with its JPEG portrait beside it", () => {
-  const shelf = new URL("../../../library/", import.meta.url);
+  const shelf = new URL("../../../../library/", import.meta.url);
   const cards = readdirSync(shelf).filter((name) => name.endsWith(".json"));
   expect(cards.length).toBeGreaterThan(0);
   for (const name of cards) {
@@ -79,7 +90,7 @@ test("every card the library ships reads, with its JPEG portrait beside it", () 
 describe("a card file", () => {
   test("a JSON card reads, with a byte order mark too", async () => {
     const file = new File(["\uFEFF" + JSON.stringify({ name: "Vane" })], "vane.json");
-    expect(await readCardFile(file)).toMatchObject({ character: { name: "Vane" }, portrait: null });
+    expect(await readCardFile(file)).toMatchObject({ read: { character: { name: "Vane" } }, portrait: null });
   });
 
   test("half of an emoji, where a card site cut one, reads as the replacement character", async () => {
@@ -87,9 +98,9 @@ describe("a card file", () => {
     const file = new File([String.raw`{"spec":"chara_card_v2","data":{"name":"Broken \ud83d",
       "description":"She smiles \ud83d","first_mes":"Hello \uD83D\uDE00","tags":["\ude00"],
       "character_book":{"entries":[{"keys":["k\ud83d"],"content":"\ud83d"}]}}}`], "broken-emoji.json");
-    expect((await readCardFile(file)).character).toMatchObject({
+    expect((await readCardFile(file)).read.character).toMatchObject({
       name: "Broken \uFFFD", description: "She smiles \uFFFD", greeting: "Hello \u{1F600}", tags: ["\uFFFD"],
-      lore_entries: [{ keys: ["k\uFFFD"], content: "\uFFFD", enabled: true }],
+      lore_entries: [{ keys: ["k\uFFFD"], content: "\uFFFD", enabled: true, origin: 0 }],
     });
   });
 
@@ -108,8 +119,8 @@ describe("a card file", () => {
       expect(view.getUint32(length + 8), "a chunk whose CRC is wrong").toBe(crc32(png.subarray(at + 4, at + 8 + length)));
       at += length + 12;
     }
-    const { character, portrait } = await readCardFile(new File([png], "vane.png"));
-    expect(character).toEqual({ ...VANE, lore_entries: LORE });
+    const { read, portrait } = await readCardFile(new File([png], "vane.png"));
+    survives(read.character);
     expect(portrait!.type).toBe("image/png");
   });
 
@@ -122,11 +133,12 @@ describe("a card file", () => {
     expect((await cardFile({ ...VANE, name: refused, avatar_url: null, lore_entries: [] }, "json")).filename).toBe("card.json");
   });
 
-  test("chara is read first, and ccv3 when chara is not a card", async () => {
+  test("ccv3 is read first, and chara when ccv3 is not a card", async () => {
     const card = (name: string) => base64({ data: { name } });
-    expect((await readCardFile(withText(PNG, ["ccv3", card("V3")], ["chara", card("V2")]))).character.name).toBe("V2");
-    expect((await readCardFile(withText(PNG, ["chara", base64([1])], ["ccv3", card("V3")]))).character.name).toBe("V3");
-    expect((await readCardFile(withText(PNG, ["chara", "not base64!"], ["ccv3", card("V3")]))).character.name).toBe("V3");
+    expect((await readCardFile(withText(PNG, ["ccv3", card("V3")], ["chara", card("V2")]))).read.character.name).toBe("V3");
+    expect((await readCardFile(withText(PNG, ["chara", base64([1])], ["ccv3", card("V3")]))).read.character.name).toBe("V3");
+    expect((await readCardFile(withText(PNG, ["chara", "not base64!"], ["ccv3", card("V3")]))).read.character.name).toBe("V3");
+    expect((await readCardFile(withText(PNG, ["ccv3", "not base64!"], ["chara", card("V2")]))).read.character.name).toBe("V2");
     expect(await kindOf(withText(PNG, ["chara", base64("Vane")]))).toBe("png_without_card");
   });
 });
