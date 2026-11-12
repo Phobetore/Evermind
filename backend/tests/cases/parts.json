@@ -2171,6 +2171,36 @@
    "expected": "Hello"
   },
   {
+   "fn": "trim_reply",
+   "name": "a next-line character after the reply is whitespace",
+   "input": {
+    "text": "She smiles.\u0085",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles."
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a byte order mark after the reply is not whitespace",
+   "input": {
+    "text": "She smiles.\ufeff",
+    "char_name": "Mira",
+    "user_name": "Alex"
+   },
+   "expected": "She smiles.\ufeff"
+  },
+  {
+   "fn": "trim_reply",
+   "name": "a separator control before the tag is whitespace",
+   "input": {
+    "text": "\u001cAna: Hello.",
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": "Hello."
+  },
+  {
    "fn": "words",
    "name": "a bare string is a list of one",
    "input": {

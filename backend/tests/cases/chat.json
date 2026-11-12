@@ -4720,6 +4720,70 @@
      "fact_positions": []
     }
    }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "the facts budget is the share of the budget rounded down",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "system_prompt": "House rules for {{char}} and {{user}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Go on."
+      ],
+      "active_index": 0,
+      "position": 40
+     }
+    ],
+    "connection": {
+     "context_size": 8171,
+     "max_tokens": 1000
+    },
+    "memories": [
+     {
+      "id": "f1",
+      "content": "Fact 1. f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alpha beta gamma delta f1 alp",
+      "source_position": 1
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\nHouse rules for Ana and Alex.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Go on."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 192,
+     "budget": 6971,
+     "context_size": 8171,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 0,
+     "oldest_visible": 40,
+     "fact_positions": []
+    }
+   }
   }
  ]
 }
