@@ -48,7 +48,7 @@ export interface PromptCharacter {
   card_rules?: 1 | 2;
   /** Said among the turns at its depth, 4 when left out, on the rules of community cards. */
   character_note?: string | null;
-  character_note_depth?: number;
+  character_note_depth?: number | null;
   /** Kept with the card, but not followed: the note always goes in a turn of the player's. */
   character_note_role?: string | null;
 }
@@ -457,7 +457,8 @@ function textsAtDepths(
  *  point when that is the player's, else ends the one just before it; between two of the
  *  character's turns, it opens the player's next turn, else ends the player's last one.
  *  Depth 0, or a story with no turn of the player's, opens the closing block, which keeps
- *  the guardrails after it. */
+ *  the guardrails after it. The instruction to continue a reply is a turn sent like any
+ *  other, so while a reply is continued every depth sits one turn nearer the end. */
 function placeAtDepths(turns: { role: string; content: string }[], texts: Map<number, string>): string[] {
   const count = turns.length;
   const isPlayer = (i: number) => turns[i].role === "user";

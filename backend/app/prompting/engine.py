@@ -265,7 +265,8 @@ def _place_at_depths(turns: list[dict], texts: dict[int, str]) -> list[str]:
     the point when that is the player's, else ends the one just before it; between two of
     the character's turns, it opens the player's next turn, else ends the player's last
     one. Depth 0, or a story with no turn of the player's, opens the closing block, which
-    keeps the guardrails after it."""
+    keeps the guardrails after it. The instruction to continue a reply is a turn sent like
+    any other, so while a reply is continued every depth sits one turn nearer the end."""
     count = len(turns)
     # The player's first turn at or after each index, and last turn before it: one pass
     # each, however many depths there are.

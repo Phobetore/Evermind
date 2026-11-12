@@ -444,6 +444,8 @@ def test_continuing_a_reply_keeps_the_note_in_place():
     history = said("Hi.", "Hello.", "How are you?", "Fine, and") + [
         make_message("user", _CONTINUE_INSTRUCTION, 4)]
     # The reply being continued is left as it stopped, and the instruction still ends the turns.
+    # The instruction is a turn sent, so it counts in the depth: the note keeps its place among
+    # the turns the model reads, one turn nearer the reply than without it.
     assert contents(chat(noted(1), history)) == [
         "Hi.", "Hello.", "How are you?", "Fine, and", f"{NOTE}\n\n{_CONTINUE_INSTRUCTION}"]
     assert contents(chat(noted(2), history)) == [
