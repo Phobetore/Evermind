@@ -68,3 +68,85 @@ test("a PNG whose card inflates without end is refused, and the page still answe
     await request.delete(`${API}/api/characters/${made.id}`);
   }
 });
+
+/** A V2 card written by hand: three entries, one always on, and data of another application. */
+function harborCard(name: string) {
+  const entry = (keys: string[], content: string, constant = false) => ({
+    keys, content, enabled: true, insertion_order: 0, constant, extensions: {},
+  });
+  return Buffer.from(JSON.stringify({
+    spec: "chara_card_v2",
+    spec_version: "2.0",
+    data: {
+      name,
+      description: "A lighthouse keeper.",
+      creator_notes: "A quiet harbor at the end of the world. Visitors are rare.",
+      extensions: { zz_other_tool: { mood: "calm" } },
+      character_book: {
+        entries: [
+          entry(["lamp"], "The lamp is never lit.", true),
+          entry(["boat"], "One boat, no oars."),
+          entry(["bell"], "The bell rings alone."),
+        ],
+      },
+    },
+  }));
+}
+
+async function removeNamed(request: import("@playwright/test").APIRequestContext, name: string) {
+  const listed: { id: string; name: string }[] = await (await request.get(`${API}/api/characters`)).json();
+  for (const made of listed.filter((c) => c.name === name)) {
+    await request.delete(`${API}/api/characters/${made.id}`);
+  }
+}
+
+test("an imported card says what was used and what was only kept", async ({ page, request }) => {
+  const name = "Harbor report";
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await page.getByTitle(/^import a card/i).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: "harbor.json", mimeType: "application/json", buffer: harborCard(name),
+  });
+
+  const row = dialog.locator("li", { hasText: "harbor.json" });
+  await expect(row).toContainText("3 entries");
+  await expect(row).toContainText("always on");
+  // What is only kept is folded away until asked for.
+  await expect(row.getByText("zz_other_tool")).toBeHidden();
+  await row.getByText("Kept in the card, not used").click();
+  await expect(row.getByText("zz_other_tool")).toBeVisible();
+  await removeNamed(request, name);
+});
+
+test("the kind and the tagline asked after an import are saved, and only when asked", async ({ page, request }) => {
+  const name = "Harbor questions";
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await page.getByTitle(/^import a card/i).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: "harbor.json", mimeType: "application/json", buffer: harborCard(name),
+  });
+  const row = dialog.locator("li", { hasText: "harbor.json" });
+  await expect(row).toContainText("3 entries");
+
+  const stored = async () => {
+    const listed: { id: string; name: string; kind: string; tagline: string }[] =
+      await (await request.get(`${API}/api/characters`)).json();
+    return listed.find((c) => c.name === name)!;
+  };
+  // The tagline is offered, not written: nothing was clicked.
+  await expect(row.getByRole("textbox")).toHaveValue("A quiet harbor at the end of the world.");
+  expect((await stored()).tagline).toBe("");
+  expect((await stored()).kind).toBe("character");
+
+  await row.getByRole("button", { name: "Scenario" }).click();
+  await row.getByRole("button", { name: "Save" }).click();
+  await expect(row.getByText("Saved")).toBeVisible();
+  const saved = await stored();
+  expect(saved.kind).toBe("scenario");
+  expect(saved.tagline).toBe("A quiet harbor at the end of the world.");
+  await removeNamed(request, name);
+});

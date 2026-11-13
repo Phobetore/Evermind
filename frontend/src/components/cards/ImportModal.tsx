@@ -1,13 +1,18 @@
 import { Modal } from "@/components/ui/Modal";
 import { useT } from "@/i18n/useT";
-import { importCard } from "@/lib/cards";
+import { importCard, type ReadCard } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
+import type { Character } from "@/types";
 import { Check, FileUp, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { ImportReport } from "./ImportReport";
 
 interface Result {
   name: string;
   error?: string;
+  /** What a file that went in made, and what was read of it. */
+  character?: Character;
+  read?: ReadCard;
 }
 
 /** Says what Evermind takes before asking for a file, which comes by drop or by click. */
@@ -32,8 +37,8 @@ export function ImportModal({
     // One at a time: a failure part way through should not cost the ones that already worked.
     for (const file of files) {
       try {
-        await importCard(file);
-        done.push({ name: file.name });
+        const { character, read } = await importCard(file);
+        done.push({ name: file.name, character, read });
       } catch (e) {
         done.push({
           name: file.name,
@@ -103,17 +108,26 @@ export function ImportModal({
 
       {results.length > 0 && (
         <ul className="mt-4 flex flex-col gap-2">
-          {results.map((r) => (
-            <li key={r.name} className="flex items-start gap-2 text-sm">
+          {results.map((r, index) => (
+            <li key={`${index}:${r.name}`} className="flex items-start gap-2 text-sm">
               {r.error ? (
                 <X className="mt-0.5 h-4 w-4 shrink-0 text-blood" />
               ) : (
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-moss" />
               )}
-              <span className="min-w-0">
+              <div className="min-w-0">
                 <span className="break-all text-parchment-dim">{r.name}</span>
                 {r.error && <span className="block text-blood">{r.error}</span>}
-              </span>
+                {r.character && r.read && (
+                  <ImportReport
+                    character={r.character}
+                    read={r.read}
+                    onSaved={(saved) =>
+                      setResults((all) => all.map((other, i) => (i === index ? { ...other, character: saved } : other)))
+                    }
+                  />
+                )}
+              </div>
             </li>
           ))}
         </ul>
