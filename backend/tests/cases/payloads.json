@@ -4629,6 +4629,131 @@
      }
     ]
    }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: a card on the rules of community cards is written for under its nickname",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2,
+     "nickname": "Annie"
+    },
+    "persona": null,
+    "conversation": {
+     "summary": "A storm."
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays User; their partner plays Annie.\nWrite ONLY User's next message: first person as User, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Annie's last message and moves the scene forward.\nNever write Annie's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nSTORY SO FAR: A storm.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, User."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Annie the keeper?"
+     },
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nAnnie:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_consolidation_payload",
+   "name": "consolidation: a card on the rules of community cards is read under its nickname",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2,
+     "nickname": "Annie"
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "movable": [
+     {
+      "id": "f1",
+      "content": "Fact 1.",
+      "source_position": 1,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f2",
+      "content": "Fact 2.",
+      "source_position": 2,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f3",
+      "content": "Fact 3.",
+      "source_position": 3,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are the memory-keeper of a roleplay between Alex and Annie. The list of recorded facts has grown long and needs consolidating.\nMerge and compress the facts below into a SHORTER list that loses NO important information: combine related facts into single dense sentences, drop pure redundancy, and keep every consequential event, relationship state, promise, injury, death and revelation. Preserve chronology. Aim for at most 20 facts. Write each as one short past-tense sentence in the language of the facts.\nReply with ONLY this JSON object, no other text:\n{\"facts\": [{\"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "FACTS TO CONSOLIDATE:\n- Fact 1.\n- Fact 2.\n- Fact 3.\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
   }
  ]
 }
