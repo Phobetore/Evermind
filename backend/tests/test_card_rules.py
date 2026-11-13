@@ -4,6 +4,7 @@ import itertools
 import time
 from dataclasses import asdict
 
+from app.prompting import engine as engine_module
 from app.prompting.engine import (
     _BUDGET_MARGIN,
     build_chat_payload,
@@ -713,6 +714,34 @@ def test_the_player_s_own_markers_are_left_as_typed():
                  "Alex owes {{roll:d6}}."):
         assert text in built["system"]
     assert "Rain {{random:x,y}}." in built["post_history"]
+
+
+def test_a_card_s_text_is_resolved_once_however_often_the_prompt_is_built(monkeypatch):
+    # Resolving reads the whole text: done again for each build of the system prompt while the
+    # examples are fitted, a description of megabytes would cost that many full reads.
+    calls: list[str] = []
+
+    def counted(text, *arguments):
+        calls.append(text)
+        return expand_macros(text, *arguments)
+
+    monkeypatch.setattr(engine_module, "expand_macros", counted)
+    description = "A vampire {{random:a,b}}. " + "x" * 2_000_000
+    blocks = [f"{{{{char}}}}: Line {i}. " + costing(40, "e") for i in range(64)]
+    character = make_character(card_rules=2, description=description, personality="wry",
+                               scenario="Night.", system_prompt="{{original}}",
+                               example_dialogues="".join(f"<START>\n{block}\n" for block in blocks))
+    start = time.perf_counter()
+    built = chat(character, said("Hi.", "Hello {{roll:d6}}.", "Well?"), conversation={"id": "c1"})
+    elapsed = time.perf_counter() - start
+    # The examples did not all fit, so the prompt was built several times.
+    assert "Line 63." not in built["system"]
+    assert calls.count(description) == 1
+    assert len(calls) == len(set(calls))
+    # About the time of one full read of the description.
+    once = time.perf_counter()
+    expanded(description)
+    assert elapsed < 4 * (time.perf_counter() - once) + 1
 
 
 def test_unclosed_markers_take_linear_time():

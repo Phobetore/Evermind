@@ -367,11 +367,19 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     # The conversation draws the card's random choices: the same text gives the same choice in
     # every turn of one story, and may give another in the next story.
     seed = (conversation or {}).get("id") or ""
+    # The system prompt is built several times while the examples are fitted, and the turns
+    # twice: each text of the card is resolved once, since resolving reads the whole text and
+    # a card's description can run to megabytes.
+    resolved_texts: dict[str, str] = {}
 
     def card_text(text: str) -> str:
         """What the card says, its markers resolved on the rules of community cards. The
         player's own texts never go through this: they keep only the names put in."""
-        return expand_macros(text, char_name, user_name, seed) if card_rules else text
+        if not card_rules:
+            return text
+        if text not in resolved_texts:
+            resolved_texts[text] = expand_macros(text, char_name, user_name, seed)
+        return resolved_texts[text]
 
     context_size = int(connection.get("context_size") or 8192)
     max_tokens = int(connection.get("max_tokens") or 1024)

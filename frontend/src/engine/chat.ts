@@ -550,7 +550,19 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   const seed = conversation?.id || "";
   /** What the card says, its markers resolved on the rules of community cards. The player's
    *  own texts never go through this: they keep only the names put in. */
-  const cardText = (text: string) => (cardRules ? expandMacros(text, charName, userName, seed) : text);
+  // The system prompt is built several times while the examples are fitted, and the turns
+  // twice: each text of the card is resolved once, since resolving reads the whole text and a
+  // card's description can run to megabytes.
+  const resolvedTexts = new Map<string, string>();
+  const cardText = (text: string) => {
+    if (!cardRules) return text;
+    let resolved = resolvedTexts.get(text);
+    if (resolved === undefined) {
+      resolved = expandMacros(text, charName, userName, seed);
+      resolvedTexts.set(text, resolved);
+    }
+    return resolved;
+  };
 
   const contextSize = int(connection.context_size || 8192);
   const maxTokens = int(connection.max_tokens || 1024);
