@@ -5151,6 +5151,17 @@
   },
   {
    "fn": "split_examples",
+   "name": "a long s reads as the s of <START>, as python reads it",
+   "input": {
+    "text": "One.\n<ſtart>\nTwo."
+   },
+   "expected": [
+    "One.",
+    "Two."
+   ]
+  },
+  {
+   "fn": "split_examples",
    "name": "the text before the first <START> is a block of its own",
    "input": {
     "text": "Before.\n<START>\nAfter."
