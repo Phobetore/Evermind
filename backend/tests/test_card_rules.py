@@ -641,6 +641,17 @@ def test_comments_never_reach_the_model():
     assert "Lore." in built["system"] and "Serana: Hm." in built["system"]
     assert "Storm." in str(built["messages"]) and "Deep." in str(built["messages"])
 
+    # A system prompt or instructions that are only a comment are none: the default rules and
+    # the reminder of who to play stay, as on a card that has neither.
+    commented = make_character(card_rules=2, system_prompt="{{// write yours here}}",
+                               post_history_instructions="{{// x}}")
+    bare = make_character(card_rules=2)
+    for story in (said("Hi."), said("Hi.", "Hello.", "Well?")):
+        built, plain = chat(commented, story), chat(bare, story)
+        assert built["system"] == plain["system"] and "ROLEPLAY RULES:" in built["system"]
+        assert built["post_history"] == plain["post_history"]
+        assert built["post_history"].startswith("[Stay in character as Serana.")
+
 
 def test_a_random_choice_is_the_same_all_through_a_conversation():
     text = "She wears {{random:red,green,blue,black,white}} and {{pick::silk::wool}}."

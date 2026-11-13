@@ -258,14 +258,14 @@ def _build_system(character: dict, persona: dict | None, summary: str,
     default_rules = SCENARIO_RP_RULES if is_scenario else DEFAULT_RP_RULES
     card_prompt = (character.get("system_prompt") or "").strip()
     if card_prompt:
-        rules = card_text(
+        card_prompt = card_text(
             substitute_original(card_prompt, default_rules)
             if has_original_macro(card_prompt)
             else card_prompt
-        )
-    else:
-        rules = default_rules
-    sections.append(rules)
+        ).strip()
+    # A prompt its markers leave blank, a comment alone, is no prompt: without the default
+    # rules the model would get no rules at all.
+    sections.append(card_prompt or default_rules)
 
     if global_instructions.strip():
         sections.append(f"### PLAYER'S STANDING INSTRUCTIONS\n{global_instructions.strip()}")
@@ -432,10 +432,14 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     scene_directive = ((conversation or {}).get("author_note") or "").strip()
     if scene_directive:
         post_bits.append(f"[Scene directive from {user_name}]: {scene_directive}")
-    if card_note and card_rules:
+    # Instructions their markers leave blank, a comment alone, are none: the reminder of who
+    # to play stays.
+    in_place_of_reminder = (card_text(substitute_original(card_note, _ROLE_REMINDER)).strip()
+                            if card_note and card_rules else "")
+    if in_place_of_reminder:
         # As the cards are written for: their instructions take the place of the reminder of
         # who to play, which {{original}} brings back, and the guardrails still come last.
-        post_bits.append(card_text(substitute_original(card_note, _ROLE_REMINDER)))
+        post_bits.append(in_place_of_reminder)
         post_bits.append(f"[{_GUARDRAILS}]")
     else:
         post_bits.append(_POST_HISTORY_REMINDER)

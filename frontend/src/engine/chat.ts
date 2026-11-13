@@ -421,12 +421,15 @@ function buildSystem(parts: SystemParts): string {
   if (examples) sections.push(EXAMPLES_HEADER + examples);
 
   const defaultRules = isScenario ? SCENARIO_RP_RULES : DEFAULT_RP_RULES;
-  const cardPrompt = pyStrip(character.system_prompt || "");
-  let rules = defaultRules;
+  let cardPrompt = pyStrip(character.system_prompt || "");
   if (cardPrompt) {
-    rules = cardText(hasOriginalMacro(cardPrompt) ? substituteOriginal(cardPrompt, defaultRules) : cardPrompt);
+    cardPrompt = pyStrip(
+      cardText(hasOriginalMacro(cardPrompt) ? substituteOriginal(cardPrompt, defaultRules) : cardPrompt),
+    );
   }
-  sections.push(rules);
+  // A prompt its markers leave blank, a comment alone, is no prompt: without the default rules
+  // the model would get no rules at all.
+  sections.push(cardPrompt || defaultRules);
 
   if (pyStrip(globalInstructions)) {
     sections.push(`### PLAYER'S STANDING INSTRUCTIONS\n${pyStrip(globalInstructions)}`);
@@ -613,10 +616,14 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   }
   const sceneDirective = pyStrip(conversation?.author_note || "");
   if (sceneDirective) postBits.push(`[Scene directive from ${userName}]: ${sceneDirective}`);
-  if (cardNote && cardRules) {
+  // Instructions their markers leave blank, a comment alone, are none: the reminder of who to
+  // play stays.
+  const inPlaceOfReminder =
+    cardNote && cardRules ? pyStrip(cardText(substituteOriginal(cardNote, ROLE_REMINDER))) : "";
+  if (inPlaceOfReminder) {
     // As the cards are written for: their instructions take the place of the reminder of who
     // to play, which {{original}} brings back, and the guardrails still come last.
-    postBits.push(cardText(substituteOriginal(cardNote, ROLE_REMINDER)));
+    postBits.push(inPlaceOfReminder);
     postBits.push(`[${GUARDRAILS}]`);
   } else {
     postBits.push(POST_HISTORY_REMINDER);
