@@ -101,6 +101,8 @@ export function ImportReport({
               key={value}
               type="button"
               aria-pressed={kind === value}
+              // Locked while a save is in flight, so "Saved" never sits next to other values.
+              disabled={saving}
               onClick={() => {
                 setKind(value);
                 setSaved(false);
@@ -124,6 +126,7 @@ export function ImportReport({
           <input
             className="field"
             value={tagline}
+            disabled={saving}
             onChange={(e) => {
               setTagline(e.target.value);
               setSaved(false);

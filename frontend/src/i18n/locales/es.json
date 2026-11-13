@@ -485,8 +485,8 @@
       "assets_one": "{count} recurso adjunto (imagen, sonido…)",
       "multilingualNotes": "Notas del autor en otros idiomas: {names}",
       "unreadFields": "Campos que contenían algo distinto de texto, dejados de lado: {names}",
-      "nameCut": "El nombre superaba los 200 caracteres que acepta Evermind y se cortó para la ficha; la carta lo conserva entero.",
-      "nicknameCut": "El apodo superaba los 200 caracteres que acepta Evermind y se cortó para la ficha; la carta lo conserva entero.",
+      "nameCut": "El nombre superaba los 200 caracteres que acepta Evermind y se cortó para la ficha; la ficha original lo conserva entero.",
+      "nicknameCut": "El apodo superaba los 200 caracteres que acepta Evermind y se cortó para la ficha; la ficha original lo conserva entero.",
       "otherChunk": "El PNG traía una segunda versión de la ficha, distinta: guardada aparte, sin leer"
     },
     "startChatModal": {

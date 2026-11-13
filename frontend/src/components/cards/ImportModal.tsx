@@ -122,9 +122,17 @@ export function ImportModal({
                   <ImportReport
                     character={r.character}
                     read={r.read}
-                    onSaved={(saved) =>
-                      setResults((all) => all.map((other, i) => (i === index ? { ...other, character: saved } : other)))
-                    }
+                    // Found by the character, not by the row's place: a batch dropped while a save is
+                    // in flight must not receive the answer of the old one. The home list is
+                    // refreshed too, so a kind or tagline saved here shows behind the window.
+                    onSaved={(saved) => {
+                      setResults((all) =>
+                        all.map((other) =>
+                          other.character?.id === saved.id ? { ...other, character: saved } : other,
+                        ),
+                      );
+                      onImported();
+                    }}
                   />
                 )}
               </div>

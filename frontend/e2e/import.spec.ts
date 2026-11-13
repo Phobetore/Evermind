@@ -148,5 +148,11 @@ test("the kind and the tagline asked after an import are saved, and only when as
   const saved = await stored();
   expect(saved.kind).toBe("scenario");
   expect(saved.tagline).toBe("A quiet harbor at the end of the world.");
+
+  // The list behind the window follows the save, without a reload.
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: /^Scenarios/ }).click();
+  await expect(page.getByText(name)).toBeVisible();
+  await expect(page.getByText("A quiet harbor at the end of the world.")).toBeVisible();
   await removeNamed(request, name);
 });
