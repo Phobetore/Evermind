@@ -46,6 +46,8 @@ export interface PromptCharacter {
   post_history_instructions?: string | null;
   /** 1, Evermind's rules from before community cards were read whole, when left out. */
   card_rules?: 1 | 2;
+  /** The name the model is told on the rules of community cards, when it says something. */
+  nickname?: string;
   /** Said among the turns at its depth, 4 when left out, on the rules of community cards. */
   character_note?: string | null;
   character_note_depth?: number | null;
@@ -154,15 +156,24 @@ export interface PromptPayload<S = PromptStats> {
 // Enough for what someone marked, without another wall of text.
 const MAX_PINNED_RESTATED = 8;
 
-// Said again at generation time, since a rule weighs less the further back it is.
-const POST_HISTORY_REMINDER =
-  "[Stay in character as {{char}}. Write only {{char}}'s next turn. Every line " +
-  "of dialogue and every action must be a COMPLETE sentence — never leave " +
+// Said again at generation time, since a rule weighs less the further back it is. In two
+// parts: who to play, which a card's own instructions after the story replace, and the
+// guardrails, which stay whatever the card says.
+const ROLE_REMINDER = "Stay in character as {{char}}. Write only {{char}}'s next turn.";
+const GUARDRAILS =
+  "Every line of dialogue and every action must be a COMPLETE sentence — never leave " +
   "{{char}} trailing off mid-thought as a tic, and never END your reply on an " +
   "unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, " +
   "images or sentence structures from your recent replies — especially not " +
   "how they ended; vary them. Move the scene forward with something new. " +
-  "Never write or decide {{user}}'s actions.]";
+  "Never write or decide {{user}}'s actions.";
+const POST_HISTORY_REMINDER = `[${ROLE_REMINDER} ${GUARDRAILS}]`;
+
+// SillyTavern's separator of example dialogues, whatever its case: spelled out in classes, as
+// in macros.ts, since Python's IGNORECASE also takes U+017F (long s) for an "s".
+const EXAMPLE_START = /<[sSſ][tT][aA][rR][tT]>/;
+const EXAMPLE_SEPARATOR = "\n\n***\n\n";
+const EXAMPLES_HEADER = "### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\n";
 
 const BUDGET_MARGIN = 200;
 const SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6;
@@ -198,6 +209,24 @@ export function activeContent(message: ActiveMessage): string {
 
 export function isOutOfCharacter(message: { meta?: MessageMeta | null }): boolean {
   return message.meta?.mode === "ooc";
+}
+
+/** Whether the card follows the rules of community cards (2) rather than Evermind's own. */
+const onCardRules = (character: PromptCharacter) => (character.card_rules || 1) === 2;
+
+/** The name the model is told: the nickname on the card rules, when there is one. */
+export function speakingName(character: PromptCharacter): string {
+  if (onCardRules(character)) {
+    const nickname = pyStrip(character.nickname ?? "");
+    if (nickname) return nickname;
+  }
+  return character.name || "Character";
+}
+
+/** The example dialogues as blocks, as SillyTavern reads them: split on <START> whatever its
+ *  case, the text before the first one a block too, each stripped, the empty ones left out. */
+export function splitExamples(text: string): string[] {
+  return text.split(EXAMPLE_START).map(pyStrip).filter(Boolean);
 }
 
 /** Which facts get injected: pinned always survive, the rest fill the budget by relevance
@@ -306,7 +335,8 @@ interface SystemParts {
   persona: PromptPersona | null;
   summary: string;
   globalInstructions: string;
-  includeExamples: boolean;
+  /** The examples as they are sent, "" for none. */
+  examples: string;
   charName: string;
   userName: string;
   memories: readonly PromptMemory[] | null;
@@ -318,7 +348,7 @@ interface SystemParts {
 }
 
 function buildSystem(parts: SystemParts): string {
-  const { character, persona, summary, globalInstructions, includeExamples, charName, userName } = parts;
+  const { character, persona, summary, globalInstructions, examples, charName, userName } = parts;
   const { memories, lore, loreBefore, factsBudget, relevanceScores, passages } = parts;
   const isScenario = character.kind === "scenario";
   const sections: string[] = [];
@@ -380,12 +410,7 @@ function buildSystem(parts: SystemParts): string {
     );
   }
 
-  if (includeExamples && character.example_dialogues) {
-    sections.push(
-      "### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\n" +
-        character.example_dialogues,
-    );
-  }
+  if (examples) sections.push(EXAMPLES_HEADER + examples);
 
   const defaultRules = isScenario ? SCENARIO_RP_RULES : DEFAULT_RP_RULES;
   const cardPrompt = pyStrip(character.system_prompt || "");
@@ -508,9 +533,10 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   const passages = input.retrieved_passages ?? null;
   let globalInstructions = input.global_instructions ?? "";
 
-  const charName = character.name || "Character";
+  const charName = speakingName(character);
   const userName = persona?.name || "User";
   const summary = conversation?.summary || "";
+  const cardRules = onCardRules(character);
 
   const contextSize = int(connection.context_size || 8192);
   const maxTokens = int(connection.max_tokens || 1024);
@@ -524,7 +550,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   let loreBefore: PromptLoreEntry[] = [];
   let atDepth: PromptLoreEntry[] = [];
   let depthTexts = new Map<number, string>();
-  if ((character.card_rules || 1) === 2) {
+  if (cardRules) {
     const matched = matchLore(input.lore_entries ?? [], messages, 2, Math.floor(budget / 4), charName, userName);
     loreBefore = matched.filter((entry) => beforeTheCard(entry));
     lore = matched.filter((entry) => !beforeTheCard(entry) && !atADepth(entry));
@@ -546,7 +572,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   // What the model reads last carries the most weight.
   const postBits: string[] = [];
   const cardNote = pyStrip(character.post_history_instructions || "");
-  if (cardNote) postBits.push(cardNote);
+  if (cardNote && !cardRules) postBits.push(cardNote);
   const pinned = (memories ?? []).filter((m) => m.is_pinned);
   if (pinned.length) {
     const lines = pinned
@@ -557,7 +583,14 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   }
   const sceneDirective = pyStrip(conversation?.author_note || "");
   if (sceneDirective) postBits.push(`[Scene directive from ${userName}]: ${sceneDirective}`);
-  postBits.push(POST_HISTORY_REMINDER);
+  if (cardNote && cardRules) {
+    // As the cards are written for: their instructions take the place of the reminder of who
+    // to play, which {{original}} brings back, and the guardrails still come last.
+    postBits.push(substituteOriginal(cardNote, ROLE_REMINDER));
+    postBits.push(`[${GUARDRAILS}]`);
+  } else {
+    postBits.push(POST_HISTORY_REMINDER);
+  }
   let postHistory = substitute(postBits.join("\n\n"), charName, userName);
 
   const factsBudget = Math.min(
@@ -586,13 +619,18 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     return turns.reverse();
   };
 
-  const systemWith = (includeExamples: boolean, shown: readonly PromptMemory[] | null) =>
+  // On the rules of community cards the examples are blocks, sent without their <START>; on
+  // Evermind's own they go as they were written.
+  const blocks = cardRules ? splitExamples(character.example_dialogues || "") : [];
+  const examples = cardRules ? blocks.join(EXAMPLE_SEPARATOR) : character.example_dialogues || "";
+
+  const systemWith = (sent: string, shown: readonly PromptMemory[] | null) =>
     buildSystem({
       character,
       persona,
       summary,
       globalInstructions,
-      includeExamples,
+      examples: sent,
       charName,
       userName,
       memories: shown,
@@ -606,7 +644,9 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   // A fact the model drew from a turn it still sees is left out unless pinned or written
   // by hand: an echo feeds repetition loops. Which turns stay is first estimated with
   // every fact in the system prompt.
-  const everyFact = systemWith(true, memories);
+  const fits = (system: string) => estimateTokens(system) <= budget * SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES;
+
+  const everyFact = systemWith(examples, memories);
   const provisional = renderTurns(budget - estimateTokens(everyFact) - estimateTokens(postHistory) - depthCost);
   const oldestVisible = oldestPosition(provisional, 0);
   const relevantMemories = (memories ?? []).filter(
@@ -614,9 +654,20 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   );
   const factsShown = selectFacts(relevantMemories, factsBudget, relevanceScores);
 
-  let system = systemWith(true, relevantMemories);
-  if (estimateTokens(system) > budget * SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES) {
-    system = systemWith(false, relevantMemories);
+  let system = systemWith(examples, relevantMemories);
+  if (!fits(system)) {
+    // On Evermind's own rules the examples go whole or not at all. On those of community cards
+    // they are kept a block at a time, in order, for as long as the system prompt fits: it only
+    // grows with each block, so the longest prefix that fits is found by halving, in a few
+    // builds of the prompt rather than one for each block.
+    let kept = 0;
+    let over = blocks.length;
+    while (over - kept > 1) {
+      const middle = Math.floor((kept + over) / 2);
+      if (fits(systemWith(blocks.slice(0, middle).join(EXAMPLE_SEPARATOR), relevantMemories))) kept = middle;
+      else over = middle;
+    }
+    system = systemWith(blocks.slice(0, kept).join(EXAMPLE_SEPARATOR), relevantMemories);
   }
 
   const rendered = renderTurns(budget - estimateTokens(system) - estimateTokens(postHistory) - depthCost);

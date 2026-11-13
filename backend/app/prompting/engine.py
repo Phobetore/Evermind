@@ -1,10 +1,12 @@
 """Builds the provider-agnostic chat payload for one turn, and trims the reply that comes back.
 
 The history is trimmed oldest first, and its latest message always stays. The system prompt is
-not trimmed: it drops its example dialogue when it takes too much of the budget. ``post_history``
-is the closing block each provider places after the history.
+not trimmed: it drops its example dialogue when it takes too much of the budget, whole on
+Evermind's own rules and a block at a time on those of community cards. ``post_history`` is the
+closing block each provider places after the history.
 """
 
+import re
 from dataclasses import dataclass, field
 
 from .defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
@@ -22,15 +24,24 @@ from .tokens import estimate_tokens
 # Enough for what someone marked, without another wall of text.
 _MAX_PINNED_RESTATED = 8
 
-_POST_HISTORY_REMINDER = (
-    "[Stay in character as {{char}}. Write only {{char}}'s next turn. Every line "
-    "of dialogue and every action must be a COMPLETE sentence — never leave "
+# The closing reminder in its two parts: who to play, which a card's own instructions after the
+# story replace, and the guardrails, which stay whatever the card says.
+_ROLE_REMINDER = "Stay in character as {{char}}. Write only {{char}}'s next turn."
+_GUARDRAILS = (
+    "Every line of dialogue and every action must be a COMPLETE sentence — never leave "
     "{{char}} trailing off mid-thought as a tic, and never END your reply on an "
     "unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, "
     "images or sentence structures from your recent replies — especially not "
     "how they ended; vary them. Move the scene forward with something new. "
-    "Never write or decide {{user}}'s actions.]"
+    "Never write or decide {{user}}'s actions."
 )
+_POST_HISTORY_REMINDER = f"[{_ROLE_REMINDER} {_GUARDRAILS}]"
+
+# SillyTavern's separator of example dialogues, whatever its case. Python's IGNORECASE also
+# takes U+017F (long s) for an "s": the TypeScript engine spells that out.
+_EXAMPLE_START = re.compile(r"<start>", re.IGNORECASE)
+_EXAMPLE_SEPARATOR = "\n\n***\n\n"
+_EXAMPLES_HEADER = "### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\n"
 
 _BUDGET_MARGIN = 200
 _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6
@@ -62,6 +73,26 @@ def active_content(message: dict) -> str:
 
 def is_out_of_character(message: dict) -> bool:
     return (message.get("meta") or {}).get("mode") == "ooc"
+
+
+def _on_card_rules(character: dict) -> bool:
+    """Whether the card follows the rules of community cards (2) rather than Evermind's own."""
+    return (character.get("card_rules") or 1) == 2
+
+
+def speaking_name(character: dict) -> str:
+    """The name the model is told: the nickname on the card rules, when there is one."""
+    if _on_card_rules(character):
+        nickname = (character.get("nickname") or "").strip()
+        if nickname:
+            return nickname
+    return character.get("name") or "Character"
+
+
+def split_examples(text: str) -> list[str]:
+    """The example dialogues as blocks, as SillyTavern reads them: split on <START> whatever
+    its case, the text before the first one a block too, each stripped, the empty ones left out."""
+    return [block for part in _EXAMPLE_START.split(text) if (block := part.strip())]
 
 
 def select_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
@@ -146,7 +177,7 @@ def match_lore(entries: list[dict], messages: list[dict], rules: int = 1,
 
 
 def _build_system(character: dict, persona: dict | None, summary: str,
-                  global_instructions: str, include_examples: bool,
+                  global_instructions: str, examples: str,
                   char_name: str, user_name: str,
                   memories: list[dict] | None = None,
                   lore: list[dict] | None = None,
@@ -214,11 +245,8 @@ def _build_system(character: dict, persona: dict | None, summary: str,
             f"story — may repeat; {char_name} recalls these)\n" + "\n".join(lines)
         )
 
-    if include_examples and character.get("example_dialogues"):
-        sections.append(
-            "### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\n"
-            + character["example_dialogues"]
-        )
+    if examples:
+        sections.append(_EXAMPLES_HEADER + examples)
 
     default_rules = SCENARIO_RP_RULES if is_scenario else DEFAULT_RP_RULES
     card_prompt = (character.get("system_prompt") or "").strip()
@@ -325,9 +353,10 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     """``insertions`` False leaves out what the card says to the character among the turns
     (its note, its entries at a depth): the ghostwriter, who writes as the player, has no use
     for them."""
-    char_name = character.get("name") or "Character"
+    char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     summary = (conversation or {}).get("summary") or ""
+    on_card_rules = _on_card_rules(character)
 
     context_size = int(connection.get("context_size") or 8192)
     max_tokens = int(connection.get("max_tokens") or 1024)
@@ -340,7 +369,7 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     lore_before: list[dict] = []
     at_depth: list[dict] = []
     depth_texts: dict[int, str] = {}
-    if (character.get("card_rules") or 1) == 2:
+    if on_card_rules:
         matched = match_lore(lore_entries or [], messages, rules=2, budget=budget // 4,
                              char_name=char_name, user_name=user_name)
         lore_before = [entry for entry in matched if before_the_card(entry)]
@@ -365,7 +394,7 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     # What the model reads last carries the most weight.
     post_bits = []
     card_note = (character.get("post_history_instructions") or "").strip()
-    if card_note:
+    if card_note and not on_card_rules:
         post_bits.append(card_note)
     pinned = [m for m in (memories or []) if m.get("is_pinned")]
     if pinned:
@@ -376,7 +405,13 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     scene_directive = ((conversation or {}).get("author_note") or "").strip()
     if scene_directive:
         post_bits.append(f"[Scene directive from {user_name}]: {scene_directive}")
-    post_bits.append(_POST_HISTORY_REMINDER)
+    if card_note and on_card_rules:
+        # As the cards are written for: their instructions take the place of the reminder of
+        # who to play, which {{original}} brings back, and the guardrails still come last.
+        post_bits.append(substitute_original(card_note, _ROLE_REMINDER))
+        post_bits.append(f"[{_GUARDRAILS}]")
+    else:
+        post_bits.append(_POST_HISTORY_REMINDER)
     post_history = substitute("\n\n".join(post_bits),
                               char_name=char_name, user_name=user_name)
 
@@ -404,13 +439,28 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         turns.reverse()
         return turns
 
+    # On the rules of community cards the examples are blocks, sent without their <START>;
+    # on Evermind's own they go as they were written.
+    if on_card_rules:
+        blocks = split_examples(character.get("example_dialogues") or "")
+        examples = _EXAMPLE_SEPARATOR.join(blocks)
+    else:
+        blocks = []
+        examples = character.get("example_dialogues") or ""
+
+    def system_with(sent: str, shown: list[dict] | None) -> str:
+        return _build_system(character, persona, summary, global_instructions,
+                             examples=sent, char_name=char_name, user_name=user_name,
+                             memories=shown, lore=lore, lore_before=lore_before,
+                             facts_budget=facts_budget,
+                             relevance_scores=relevance_scores, passages=retrieved_passages)
+
+    def fits(system: str) -> bool:
+        return estimate_tokens(system) <= budget * _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES
+
     # A fact the model drew from a turn it still sees is left out unless pinned: an echo feeds
     # repetition loops. Which turns stay is first estimated with every fact in the system prompt.
-    static = _build_system(character, persona, summary, global_instructions,
-                           include_examples=True, char_name=char_name, user_name=user_name,
-                           memories=memories, lore=lore, lore_before=lore_before,
-                           facts_budget=facts_budget,
-                           relevance_scores=relevance_scores, passages=retrieved_passages)
+    static = system_with(examples, memories)
     provisional = render_turns(budget - estimate_tokens(static) - estimate_tokens(post_history)
                                - depth_cost)
     oldest_visible = min((t["position"] for t in provisional), default=0)
@@ -421,17 +471,20 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     ]
     facts_shown = select_facts(relevant_memories, facts_budget, relevance_scores)
 
-    system = _build_system(character, persona, summary, global_instructions,
-                           include_examples=True, char_name=char_name, user_name=user_name,
-                           memories=relevant_memories, lore=lore, lore_before=lore_before,
-                           facts_budget=facts_budget,
-                           relevance_scores=relevance_scores, passages=retrieved_passages)
-    if estimate_tokens(system) > budget * _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES:
-        system = _build_system(character, persona, summary, global_instructions,
-                               include_examples=False, char_name=char_name, user_name=user_name,
-                               memories=relevant_memories, lore=lore, lore_before=lore_before,
-                               facts_budget=facts_budget,
-                               relevance_scores=relevance_scores, passages=retrieved_passages)
+    system = system_with(examples, relevant_memories)
+    if not fits(system):
+        # On Evermind's own rules the examples go whole or not at all. On those of community
+        # cards they are kept a block at a time, in order, for as long as the system prompt fits:
+        # it only grows with each block, so the longest prefix that fits is found by halving,
+        # in a few builds of the prompt rather than one for each block.
+        kept, over = 0, len(blocks)
+        while over - kept > 1:
+            middle = (kept + over) // 2
+            if fits(system_with(_EXAMPLE_SEPARATOR.join(blocks[:middle]), relevant_memories)):
+                kept = middle
+            else:
+                over = middle
+        system = system_with(_EXAMPLE_SEPARATOR.join(blocks[:kept]), relevant_memories)
 
     turns = render_turns(budget - estimate_tokens(system) - estimate_tokens(post_history)
                          - depth_cost)

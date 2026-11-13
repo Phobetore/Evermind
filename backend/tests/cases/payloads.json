@@ -4539,6 +4539,96 @@
     "post_history": "",
     "stats": {}
    }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: a card on the rules of community cards is read under its nickname",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2,
+     "nickname": "Annie"
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": "",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Good morning."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Morning, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Is the bread ready?"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "memories": []
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Annie.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\n(empty)\n\nFACTS ALREADY RECORDED:\n(none yet)\n\nNEWEST TURNS:\nAlex (turn 0): Good morning.\n\nAnnie (turn 1): Morning, Alex.\n\nAlex (turn 2): Is the bread ready?\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "user",
+      "variants": [
+       "Good morning."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Morning, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Is the bread ready?"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ]
+   }
   }
  ]
 }

@@ -91,6 +91,7 @@ FUNCTIONS = {f.__name__: f for f in (
     memory_reply, consolidation_reply, default_prompts,
     build_chat_payload,
     engine.match_lore, engine.select_facts, engine.active_content, engine.is_out_of_character,
+    engine.split_examples, engine.speaking_name,
     lorebook.key_matches, lorebook.strip_decorators,
     macros.substitute, macros.substitute_original, macros.has_original_macro,
     tokens.estimate_tokens, engine.strip_thought, engine.trim_reply, payloads.words,

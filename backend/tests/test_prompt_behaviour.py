@@ -1,7 +1,15 @@
 """What the prompt engine promises, said directly where no recorded case says it."""
 
 from app.prompting.defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
-from app.prompting.engine import build_chat_payload, match_lore, select_facts, trim_reply
+from app.prompting.engine import (
+    _GUARDRAILS,
+    _ROLE_REMINDER,
+    build_chat_payload,
+    match_lore,
+    select_facts,
+    trim_reply,
+)
+from app.prompting.macros import substitute
 
 CHARACTER = {"name": "Mira", "description": "A ferrywoman."}
 SMALL = {"context_size": 600, "max_tokens": 50}
@@ -63,3 +71,20 @@ def test_no_more_facts_than_the_cap_and_the_history_leaves_a_margin_below_the_wi
     assert len(select_facts([fact(str(i), "f", i) for i in range(80)], 1000)) == 60
     stats = build_chat_payload(CHARACTER, None, {}, [message(1, "Hi.")], {"context_size": 2000}).stats
     assert stats["budget"] == 776  # 2000 - 1024 default reply - 200 margin
+
+
+def test_the_closing_reminder_is_the_one_every_card_had():
+    # Written out in full: a card on Evermind's own rules closes on exactly this, and the
+    # reminder split in two for the cards' own instructions must not change a byte of it.
+    before = (
+        "[Stay in character as {{char}}. Write only {{char}}'s next turn. Every line "
+        "of dialogue and every action must be a COMPLETE sentence — never leave "
+        "{{char}} trailing off mid-thought as a tic, and never END your reply on an "
+        "unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, "
+        "images or sentence structures from your recent replies — especially not "
+        "how they ended; vary them. Move the scene forward with something new. "
+        "Never write or decide {{user}}'s actions.]"
+    )
+    assert f"[{_ROLE_REMINDER} {_GUARDRAILS}]" == before
+    payload = build_chat_payload(CHARACTER, {"name": "Alex"}, {}, [message(1, "Hi.")], SMALL)
+    assert payload.post_history == substitute(before, char_name="Mira", user_name="Alex")

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, UploadFile
 from ..db import get_db
 from ..errors import AppError, NotFoundError
 from ..models.schemas import BranchIn, ConversationIn, ConversationPatch, MessagePatch
+from ..prompting.engine import speaking_name
 from ..prompting.macros import substitute
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
@@ -73,7 +74,7 @@ async def _create_conversation(db: aiosqlite.Connection, payload: ConversationIn
                  if g and g.strip()]
     if greetings:
         user_name = (persona or {}).get("name") or "User"
-        variants = [substitute(g, char_name=character["name"], user_name=user_name)
+        variants = [substitute(g, char_name=speaking_name(character), user_name=user_name)
                     for g in greetings]
         await repo.add_message(db, convo["id"], "assistant", variants, meta={"greeting": True})
     return await repo.get(db, convo["id"])

@@ -7,6 +7,8 @@ export {
   selectFacts,
   activeContent,
   isOutOfCharacter,
+  speakingName,
+  splitExamples,
   stripThought,
   trimReply,
 } from "./chat";

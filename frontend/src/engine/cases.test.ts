@@ -54,6 +54,8 @@ const ADAPTERS: Record<string, Adapter> = {
   select_facts: via(["selectFacts"], (i) => engine.selectFacts(i.memories, i.token_budget, i.relevance_scores)),
   active_content: via(["activeContent"], (i) => engine.activeContent(i.message)),
   is_out_of_character: via(["isOutOfCharacter"], (i) => engine.isOutOfCharacter(i.message)),
+  split_examples: via(["splitExamples"], (i) => engine.splitExamples(i.text)),
+  speaking_name: via(["speakingName"], (i) => engine.speakingName(i.character)),
 
   substitute: via(["substitute"], (i) => engine.substitute(i.text, i.char_name, i.user_name)),
   substitute_original: via(["substituteOriginal"], (i) => engine.substituteOriginal(i.text, i.original)),

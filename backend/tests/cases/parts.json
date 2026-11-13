@@ -5110,6 +5110,101 @@
      "content": "Dragons hoard gold."
     }
    ]
+  },
+  {
+   "fn": "split_examples",
+   "name": "no examples give no block",
+   "input": {
+    "text": ""
+   },
+   "expected": []
+  },
+  {
+   "fn": "split_examples",
+   "name": "a lone <START> gives no block",
+   "input": {
+    "text": "  <START>\n"
+   },
+   "expected": []
+  },
+  {
+   "fn": "split_examples",
+   "name": "examples without <START> are one block, stripped",
+   "input": {
+    "text": "\n{{char}}: Fresh bread.\n{{user}}: Thanks.\n "
+   },
+   "expected": [
+    "{{char}}: Fresh bread.\n{{user}}: Thanks."
+   ]
+  },
+  {
+   "fn": "split_examples",
+   "name": "<START> is read whatever its case",
+   "input": {
+    "text": "<start>\nOne.\n<Start>\nTwo.\n<sTaRt>Three."
+   },
+   "expected": [
+    "One.",
+    "Two.",
+    "Three."
+   ]
+  },
+  {
+   "fn": "split_examples",
+   "name": "the text before the first <START> is a block of its own",
+   "input": {
+    "text": "Before.\n<START>\nAfter."
+   },
+   "expected": [
+    "Before.",
+    "After."
+   ]
+  },
+  {
+   "fn": "split_examples",
+   "name": "blocks of only spaces python strips are left out",
+   "input": {
+    "text": "<START>\n\u2003\u0085\n<START><START>\nKept.\n<START>\u3000"
+   },
+   "expected": [
+    "Kept."
+   ]
+  },
+  {
+   "fn": "speaking_name",
+   "name": "the nickname, stripped, on the rules of community cards",
+   "input": {
+    "character": {
+     "name": "Arisen of the Gate",
+     "nickname": "\u00a0Ari\u3000",
+     "card_rules": 2
+    }
+   },
+   "expected": "Ari"
+  },
+  {
+   "fn": "speaking_name",
+   "name": "a nickname of only spaces leaves the name",
+   "input": {
+    "character": {
+     "name": "Arisen of the Gate",
+     "nickname": " \u2028\t",
+     "card_rules": 2
+    }
+   },
+   "expected": "Arisen of the Gate"
+  },
+  {
+   "fn": "speaking_name",
+   "name": "the name on Evermind's own rules, whatever the nickname",
+   "input": {
+    "character": {
+     "name": "Arisen of the Gate",
+     "nickname": "Ari",
+     "card_rules": 1
+    }
+   },
+   "expected": "Arisen of the Gate"
   }
  ]
 }

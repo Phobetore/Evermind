@@ -1,15 +1,36 @@
 """Which lorebook entries fire, on the rules of community cards (2) and on Evermind's own (1)."""
 
+import itertools
 import time
 from dataclasses import asdict
 
-from app.prompting.engine import _BUDGET_MARGIN, build_chat_payload, match_lore
+from app.prompting.engine import (
+    _BUDGET_MARGIN,
+    build_chat_payload,
+    match_lore,
+    speaking_name,
+    split_examples,
+)
 from app.prompting.lorebook import key_matches, strip_decorators
-from app.prompting.payloads import build_impersonate_payload
+from app.prompting.payloads import (
+    build_consolidation_payload,
+    build_extraction_payload,
+    build_impersonate_payload,
+)
 from app.prompting.tokens import estimate_tokens
+from app.providers.base import ProviderEvent
 from app.services.chat_service import _CONTINUE_INSTRUCTION
 
-from .conftest import PERSONA, make_character, make_connection, make_message
+from .conftest import (
+    PERSONA,
+    FakeProvider,
+    make_character,
+    make_connection,
+    make_message,
+    messages_of,
+    send,
+    setup_conversation,
+)
 
 
 def entry(keys, content="Lore.", **settings):
@@ -298,9 +319,9 @@ def noted(depth, note="Remember the storm.", **overrides):
     return make_character(card_rules=2, character_note=note, character_note_depth=depth, **overrides)
 
 
-def chat(character, messages, entries=(), connection=None, **arguments):
+def chat(character, messages, entries=(), connection=None, conversation=None, **arguments):
     return asdict(build_chat_payload(
-        character=character, persona=PERSONA, conversation={"summary": ""}, messages=messages,
+        character=character, persona=PERSONA, conversation=conversation or {"summary": ""}, messages=messages,
         connection=connection or make_connection(), lore_entries=list(entries), **arguments))
 
 
@@ -368,7 +389,8 @@ def test_a_note_at_depth_zero_opens_the_closing_block():
     rules = {"post_history_instructions": "Write in the present tense."}
     built = chat(noted(0, **rules), said(*STORY), memories=pinned)
     plain = chat(make_character(card_rules=2, **rules), said(*STORY), memories=pinned)
-    assert plain["post_history"].startswith("Write in the present tense.\n\n[Still true,")
+    assert plain["post_history"].startswith("[Still true,")
+    assert "Write in the present tense.\n\n[Every line" in plain["post_history"]
     assert built["post_history"] == f"{NOTE}\n\n{plain['post_history']}"
     assert built["messages"] == plain["messages"]
 
@@ -450,3 +472,134 @@ def test_continuing_a_reply_keeps_the_note_in_place():
         "Hi.", "Hello.", "How are you?", "Fine, and", f"{NOTE}\n\n{_CONTINUE_INSTRUCTION}"]
     assert contents(chat(noted(2), history)) == [
         "Hi.", "Hello.", f"How are you?\n\n{NOTE}", "Fine, and", _CONTINUE_INSTRUCTION]
+
+
+GUARDRAILS = ("[Every line of dialogue and every action must be a COMPLETE sentence — never leave "
+              "Serana trailing off mid-thought as a tic, and never END your reply on an unfinished "
+              "line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence "
+              "structures from your recent replies — especially not how they ended; vary them. "
+              "Move the scene forward with something new. Never write or decide Alex's actions.]")
+ROLE_REMINDER = "Stay in character as Serana. Write only Serana's next turn."
+REMINDER = f"[{ROLE_REMINDER} {GUARDRAILS[1:]}"
+
+
+def test_a_card_s_instructions_replace_the_role_reminder_and_keep_the_guardrails():
+    pinned = [{"id": "f1", "content": "Serana fears fire.", "is_pinned": True, "source_position": 1}]
+    character = make_character(card_rules=2, post_history_instructions="  Write in the present tense, {{char}}.\n")
+    built = chat(character, said(*STORY), memories=pinned)
+    assert built["post_history"] == (
+        "[Still true, and Serana has not forgotten any of it:\n- Serana fears fire.]\n\n"
+        "Write in the present tense, Serana.\n\n" + GUARDRAILS)
+    assert "Stay in character" not in built["post_history"]
+
+    # A scene directive comes before them too.
+    directed = chat(character, said(*STORY), conversation={"summary": "", "author_note": "It rains."})
+    assert directed["post_history"] == (
+        "[Scene directive from Alex]: It rains.\n\nWrite in the present tense, Serana.\n\n" + GUARDRAILS)
+
+    # On Evermind's own rules they open the block, and the whole reminder closes it, as before.
+    old = chat(make_character(post_history_instructions="Write in the present tense."), said(*STORY))
+    assert old["post_history"] == f"Write in the present tense.\n\n{REMINDER}"
+
+
+def test_original_in_a_card_s_instructions_is_the_role_reminder():
+    character = make_character(card_rules=2, post_history_instructions="{{original}} Use the present tense.")
+    assert chat(character, said(*STORY))["post_history"] == (
+        f"{ROLE_REMINDER} Use the present tense.\n\n{GUARDRAILS}")
+    # Whatever its case and its spaces, as in the system prompt.
+    spaced = make_character(card_rules=2, post_history_instructions="First.\n{{ ORIGINAL }}")
+    assert chat(spaced, said(*STORY))["post_history"] == f"First.\n{ROLE_REMINDER}\n\n{GUARDRAILS}"
+
+
+def test_without_instructions_the_closing_block_is_unchanged():
+    for instructions in ("", " \n\t"):
+        for rules in (1, 2):
+            built = chat(make_character(card_rules=rules, post_history_instructions=instructions), said(*STORY))
+            assert built["post_history"] == REMINDER
+    # With what else the block holds, the whole reminder still comes last.
+    built = chat(make_character(card_rules=2), said(*STORY),
+                 conversation={"summary": "", "author_note": "It rains."})
+    assert built["post_history"] == f"[Scene directive from Alex]: It rains.\n\n{REMINDER}"
+
+
+def test_the_nickname_is_the_name_the_model_is_told():
+    assert speaking_name(make_character(card_rules=2, nickname=" Sera ")) == "Sera"
+    assert speaking_name(make_character(card_rules=2, nickname=" \n")) == "Serana"
+    assert speaking_name(make_character(nickname="Sera")) == "Serana"
+    assert speaking_name(make_character(card_rules=2, name="")) == "Character"
+
+    character = make_character(card_rules=2, nickname="Sera")
+    memories = [{"id": "f1", "content": "{{char}} fears fire.", "is_pinned": True, "source_position": 1}]
+    entries = [entry(["{{char}}"], "About {{char}}.")]
+    built = chat(character, said("Hi.", "Hello."), entries, memories=memories)
+    assert built["system"].startswith("You are Sera in an endless immersive roleplay with Alex.\n\n")
+    assert "### ABOUT SERA\n" in built["system"] and "Sera's personality" in built["system"]
+    assert "Sera never forgets them" in built["system"] and "About Sera." in built["system"]
+    assert "Sera: *dusts off*" in built["system"]
+    assert "Stay in character as Sera." in built["post_history"]
+    assert "Sera has not forgotten" in built["post_history"]
+    assert "Serana" not in str(built)
+
+    # The pen, the memory's reading and its merging are told the same name.
+    ghost = asdict(build_impersonate_payload(
+        character=character, persona=PERSONA, conversation={"summary": ""},
+        messages=said("Hi.", "Hello."), connection=make_connection()))
+    assert ghost["stop"] == ["\nSera:"] and "Serana" not in str(ghost)
+    reading, _ = build_extraction_payload(character, PERSONA, {"summary": ""}, said("Hi.", "Hello."), [])
+    assert "Sera (turn 1): Hello." in reading.messages[0]["content"]
+    assert "Serana" not in str(asdict(reading))
+    merging = build_consolidation_payload(character, PERSONA, [{"content": "A fact."}])
+    assert "Sera" in merging.system and "Serana" not in merging.system
+
+    # On Evermind's own rules a nickname changes nothing.
+    assert chat(make_character(nickname="Sera"), said("Hi.", "Hello.")) == chat(
+        make_character(), said("Hi.", "Hello."))
+
+
+async def test_a_reply_that_starts_with_the_nickname_loses_it(client, monkeypatch):
+    FakeProvider.captured = {}
+    monkeypatch.setattr("app.services.chat_service.get_provider", FakeProvider)
+    await setup_conversation(client)
+    character = (await client.post("/api/characters", json={
+        "name": "Serana", "nickname": "Sera", "card_rules": 2, "greeting": "{{char}} stirs."})).json()
+    convo = (await client.post("/api/conversations", json={"character_id": character["id"]})).json()
+    # The greeting says the name the model is told, so that the story never calls her by two.
+    assert (await messages_of(client, convo["id"]))[0]["content"] == "Sera stirs."
+
+    FakeProvider.script = [ProviderEvent(type="delta", text="Sera: Hello."), ProviderEvent(type="done")]
+    assert await send(client, convo["id"]) is None
+    assert (await messages_of(client, convo["id"]))[-1]["content"] == "Hello."
+
+    # The pen's suggestion is cut where it starts writing for her.
+    FakeProvider.script = [ProviderEvent(type="delta", text="I wave.\nSera: Hi."), ProviderEvent(type="done")]
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
+    assert resp.json() == {"text": "I wave."}
+
+
+def test_examples_are_split_on_start_and_dropped_one_block_at_a_time():
+    assert split_examples("Before.\n<START>\nOne.\n<start>\n \n<StArT>Two.\n") == ["Before.", "One.", "Two."]
+    assert split_examples("<START>") == [] and split_examples("") == []
+
+    examples = "<START>\n{{user}}: Hi.\n{{char}}: Hello.\n<START>\n" + costing(200, "b")
+    character = make_character(card_rules=2, example_dialogues=examples)
+    header = "### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\n"
+    whole = chat(character, said("Hi."))["system"]
+    assert header + "Alex: Hi.\nSerana: Hello.\n\n***\n\n" + costing(200, "b") + "\n\n" in whole
+    assert "<START>" not in whole
+
+    # The smallest budget in which the first block keeps the system prompt under sixty
+    # percent of it: the second block no longer fits, and is the only one left out.
+    first = chat(make_character(card_rules=2, example_dialogues="<START>\n{{user}}: Hi.\n{{char}}: Hello."),
+                 said("Hi."))["system"]
+    budget = next(b for b in itertools.count(512) if estimate_tokens(first) <= b * 0.6)
+    assert budget > 512
+    size = budget + make_connection()["max_tokens"] + _BUDGET_MARGIN
+    assert chat(character, said("Hi."), connection=make_connection(context_size=size))["system"] == first
+    # One token less, and not even the first fits.
+    bare = chat(character, said("Hi."), connection=make_connection(context_size=size - 1))["system"]
+    assert "EXAMPLE OF HOW YOU WRITE" not in bare
+    # On Evermind's own rules the examples go whole or not at all, <START> and all.
+    old = make_character(example_dialogues=examples)
+    assert "EXAMPLE OF HOW YOU WRITE" not in chat(
+        old, said("Hi."), connection=make_connection(context_size=size))["system"]
+    assert "<START>\nAlex: Hi." in chat(old, said("Hi."))["system"]
