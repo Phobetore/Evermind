@@ -105,6 +105,17 @@ describe("an export of a card that was read", () => {
     expect(card.read.lore_entries.map((entry) => entry.origin)).toEqual([1, 3, 5]);
     const out = exported(card, (read) => ({ ...read, lore_entries: [...read.lore_entries].reverse() }));
     expect(entriesOf(out.v2.data)).toEqual([entries[0], entries[5], entries[3], entries[4], entries[1], entries[2]]);
+
+    // Entries kept in an object, which Evermind does not read: left alone, and first once one is added.
+    const map = { "0": { keys: ["a"], content: "A." } };
+    const { kept: mapped } = kept(JSON.stringify({ spec: "chara_card_v2", spec_version: "2.0", data: { name: "N", character_book: { name: "B", entries: map } } }));
+    expect(mapped.read.lore_entries).toEqual([]);
+    expect((exported(mapped).v2.data.character_book as Record<string, unknown>).entries).toEqual(map);
+    const added = newLoreEntry(["bell"], "The bell is rung at dawn.");
+    const grown = entriesOf(exported(mapped, (read) => ({ ...read, lore_entries: [added] })).v2.data);
+    expect(grown).toHaveLength(2);
+    expect(grown[0]).toEqual(map["0"]);
+    expect(grown[1]).toMatchObject({ keys: ["bell"], content: "The bell is rung at dawn." });
   });
 
   test("a field changed in Evermind wins, and only that one is written", () => {
@@ -112,6 +123,13 @@ describe("an export of a card that was read", () => {
     const out = exported(card, (read) => ({ ...read, description: "Runs the harbor, and the town with it." }));
     expect(out.v2.data).toEqual({ ...original.data, description: "Runs the harbor, and the town with it." });
     expect(entriesOf(out.v2.data)[0].position).toBe("0");
+
+    // The note: only what changed is written, the role by its name, and the rest of the object kept.
+    const st = JSON.parse(fixture("sillytavern-export.json"));
+    st.data.extensions.depth_prompt = { prompt: "Mirelle never leaves the lamp unattended.", depth: "2", role: 0, scan: true };
+    const { kept: lamp } = kept(JSON.stringify(st));
+    const note = exported(lamp, (read) => ({ ...read, character_note: "", character_note_role: "user" }));
+    expect((note.v2.data.extensions as Record<string, unknown>).depth_prompt).toEqual({ prompt: "", depth: "2", role: "user", scan: true });
   });
 
   test("a reading rule changed later does not pass for an edit", () => {
@@ -141,6 +159,9 @@ describe("an export of a card that was read", () => {
     const v3 = kept(fixture("risu-v3.json")).kept;
     expect(exported(v3).v3.data.modification_date).toBe(1794049611);
     expect(exported(v3, (read) => ({ ...read, name: "Arisen" })).v3.data.modification_date).toBe(NOW.getTime() / 1000);
+    // Moving an entry, and nothing else, is a change.
+    expect(exported(v3, (read) => ({ ...read, lore_entries: [...read.lore_entries].reverse() })).v3.data.modification_date)
+      .toBe(NOW.getTime() / 1000);
     const v2 = kept(fixture("risu-v2-backfill.json")).kept;
     expect(exported(v2).v3.data).not.toHaveProperty("modification_date");
     expect(exported(v2, (read) => ({ ...read, lore_entries: read.lore_entries.slice(1) })).v3.data.modification_date)
@@ -162,6 +183,10 @@ describe("an export of a card that was read", () => {
         mes_example: "<START>", creator_notes: "Written in a hurry.", tags: ["sea"],
       },
     });
+    // A `data` of its own, which is no card, is kept beside the card's rather than under it.
+    const own = exported(kept(JSON.stringify({ ...flat, data: { junk: 1 }, data_v1: "taken" })).kept);
+    expect(own.v2).toMatchObject({ data_v1: "taken", data_v1_2: { junk: 1 }, data: { name: "Vane", creator_notes: "Written in a hurry." } });
+    expect(own.v2.data).not.toHaveProperty("junk");
     // The flat shape of Pygmalion, the other one there is, loses its flat fields.
     const pygmalion = JSON.parse(fixture("pygmalion-flat.json"));
     const bellamy = exported(kept(JSON.stringify({ ...pygmalion, source: "a site" })).kept);

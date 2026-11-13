@@ -182,10 +182,13 @@ function writeColumns(fields: Fields, character: CardCharacter, read: CardCharac
   }
 
   const book = isObject(fields.character_book) ? fields.character_book : null;
-  const [entries, changed] = bookOf(book ? bookEntries(fields) : [], character.lore_entries, read.lore_entries);
+  // Entries kept in an object rather than a list were never read, so never received: they go first,
+  // as items Evermind never received, rather than be lost under an entry added here.
+  const originals = book && isObject(book.entries) ? Object.values(book.entries) : book ? bookEntries(fields) : [];
+  const [entries, changed] = bookOf(originals, character.lore_entries, read.lore_entries);
   if (book) {
-    // A book without a list of entries keeps its shape until there is one to write.
-    if (Array.isArray(book.entries) || entries.length > 0) book.entries = entries;
+    // A book without a list of entries keeps its shape until there is one of Evermind's to write.
+    if (Array.isArray(book.entries) || character.lore_entries.length > 0) book.entries = entries;
   } else if (entries.length > 0) {
     fields.character_book = { entries };
   }
@@ -287,6 +290,14 @@ export function cardForExport(character: CardCharacter, stored: StoredCard | nul
     }
     // SillyTavern keeps the notes of a V1 card in creatorcomment.
     if (!("creator_notes" in data) && "creatorcomment" in root) data.creator_notes = structuredClone(root.creatorcomment);
+    // A `data` of the card's own, which is no card, would be written over by the card's: it moves
+    // to the first free name beside it instead.
+    if ("data" in root) {
+      let name = "data_v1";
+      for (let n = 2; name in root; n++) name = `data_v1_${n}`;
+      root[name] = root.data;
+      delete root.data;
+    }
   } else {
     // The flat shape of Pygmalion: its fields under the names of a card, and no longer at the root.
     root = structuredClone(card);
