@@ -69,6 +69,9 @@ export function sliceCodePoints(s: string, end: number): string {
 
 // Each script's zero among the digits Python's `\d` takes (Unicode 15.1, Python 3.13's), each
 // followed by its nine others: JavaScript's \p{Nd} follows a newer Unicode, and takes more.
+// Python 3.12 takes the same digits. Python 3.11, which a server may still run on, has Unicode 14
+// and does not count Kawi's (U+11F50) or Nag Mundari's (U+1E4F0): there, a roll written in those
+// digits stays as written while this engine rolls it. The tests and the releases run on 3.13.
 const DIGIT_ZEROS = [
   0x30, 0x660, 0x6f0, 0x7c0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6, 0xc66, 0xce6, 0xd66, 0xde6, 0xe50, 0xed0,
   0xf20, 0x1040, 0x1090, 0x17e0, 0x1810, 0x1946, 0x19d0, 0x1a80, 0x1a90, 0x1b50, 0x1bb0, 0x1c40, 0x1c50, 0xa620,

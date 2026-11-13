@@ -11,6 +11,8 @@ _ORIGINAL_RE = re.compile(r"\{\{\s*original\s*\}\}", re.IGNORECASE)
 # then ends at the next brace, where it would otherwise scan to the end of the text for each
 # possible start. A roll's separator, "::", ":" or a space, is written so that a run of spaces
 # can be read one way only: "\s*(?:::|:|\s)\s*" is the same text, but tries every split of the run.
+# A roll's \d takes any script's digits, as Python's Unicode knows them: the TypeScript engine
+# lists those of Python 3.12 and later, and on 3.11 Kawi's and Nag Mundari's are not digits yet.
 _COMMENT_RE = re.compile(r"\{\{\s*//[^{}]*\}\}")
 _MARKER_RE = re.compile(
     r"\{\{\s*(?:(random|pick)\s*(::|:)([^{}]*)|roll(?:\s*::?\s*|\s+)(?:1?d)?(\d{1,9})\s*)\}\}",
