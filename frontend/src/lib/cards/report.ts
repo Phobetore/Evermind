@@ -149,7 +149,8 @@ export function reportOf(card: Record<string, unknown>, character: CardCharacter
   if (character.character_note.trim()) used.push({ key: "characterNote", count: character.character_note_depth });
   say(used, "postHistory", Boolean(character.post_history_instructions.trim()));
   say(used, "systemPrompt", Boolean(character.system_prompt.trim()));
-  // Counted as the engine sends them: one block for each <START>, the empty ones left out.
+  // Counted as the engine sends them: split on <START>, the text before the first one a block too,
+  // the empty ones left out.
   say(used, "examples", splitExamples(character.example_dialogues).length);
   say(used, "nickname", Boolean(character.nickname.trim()));
 
