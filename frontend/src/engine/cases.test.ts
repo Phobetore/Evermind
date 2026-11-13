@@ -46,7 +46,11 @@ const ADAPTERS: Record<string, Adapter> = {
   ),
 
   build_chat_payload: via(["buildChatPayload"], (i) => engine.buildChatPayload(i)),
-  match_lore: via(["matchLore"], (i) => engine.matchLore(i.entries, i.messages)),
+  match_lore: via(["matchLore"], (i) =>
+    engine.matchLore(i.entries, i.messages, i.rules, i.budget, i.char_name, i.user_name),
+  ),
+  key_matches: via(["keyMatches"], (i) => engine.keyMatches(i.key, i.text, i.whole_words)),
+  strip_decorators: via(["stripDecorators"], (i) => engine.stripDecorators(i.content)),
   select_facts: via(["selectFacts"], (i) => engine.selectFacts(i.memories, i.token_budget, i.relevance_scores)),
   active_content: via(["activeContent"], (i) => engine.activeContent(i.message)),
   is_out_of_character: via(["isOutOfCharacter"], (i) => engine.isOutOfCharacter(i.message)),

@@ -10,6 +10,7 @@ export {
   stripThought,
   trimReply,
 } from "./chat";
+export { keyMatches, stripDecorators } from "./lorebook";
 export {
   buildImpersonatePayload,
   buildExtractionPayload,
