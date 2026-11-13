@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { crc32 } from "node:zlib";
+import { crc32, deflateSync } from "node:zlib";
 import { API } from "../playwright.config";
 import { makeCharacter, PNG } from "./fixtures";
 
@@ -73,6 +73,13 @@ function chunksOf(png: Buffer) {
   return chunks;
 }
 
+/** The card a tEXt chunk of this keyword holds, in base64. */
+function cardIn(chunks: { type: string; data: Buffer }[], keyword: string) {
+  const text = chunks.find((c) => c.type === "tEXt" && c.data.toString("latin1").startsWith(`${keyword}\0`));
+  expect(text, `a ${keyword} chunk`).toBeTruthy();
+  return JSON.parse(Buffer.from(text!.data.toString("latin1").slice(keyword.length + 1), "base64").toString("utf8"));
+}
+
 const NAME = "The Elmswood Vigil";
 
 async function installed(request: APIRequestContext): Promise<{ id: string; avatar_url: string }[]> {
@@ -103,10 +110,12 @@ test("a library card exported as a PNG keeps its portrait and its lorebook, and 
   const chunks = chunksOf(await readFile(file));
   const header = chunks[0].data;
   expect([header.readUInt32BE(0), header.readUInt32BE(4)], "not the portrait's size").toEqual([960, 615]);
-  const text = chunks.find((c) => c.type === "tEXt" && c.data.toString("latin1").startsWith("chara\0"));
-  const exported = JSON.parse(Buffer.from(text!.data.toString("latin1").slice(6), "base64").toString("utf8"));
-  expect(exported.data.name).toBe(NAME);
-  expect(exported.data.character_book.entries).toHaveLength(6);
+  for (const [keyword, spec] of [["chara", "chara_card_v2"], ["ccv3", "chara_card_v3"]]) {
+    const exported = cardIn(chunks, keyword);
+    expect(exported.spec).toBe(spec);
+    expect(exported.data.name).toBe(NAME);
+    expect(exported.data.character_book.entries).toHaveLength(6);
+  }
 
   await page.goto("/#/");
   await page.getByTitle(/^import a card/i).click();
@@ -127,4 +136,62 @@ test("a library card exported as a PNG keeps its portrait and its lorebook, and 
   const portrait = await request.get(`${API}/${copy.avatar_url}`);
   expect(portrait.headers()["content-type"]).toBe("image/png");
   for (const made of await installed(request)) await request.delete(`${API}/api/characters/${made.id}`);
+});
+
+/** A chunk of this type, its length and CRC as a PNG has them. */
+function chunk(type: string, body: Buffer) {
+  const typed = Buffer.concat([Buffer.from(type, "latin1"), body]);
+  const out = Buffer.alloc(typed.length + 8);
+  out.writeUInt32BE(body.length, 0);
+  typed.copy(out, 4);
+  out.writeUInt32BE(crc32(typed), typed.length + 4);
+  return out;
+}
+
+/** A grey PNG of this size, with these chunks before its image. */
+function greyPng(width: number, height: number, ...extra: Buffer[]) {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8; // bits per sample; colour type 0, grey, and the rest 0
+  // Each row: its filter byte, 0, then a sample per pixel.
+  const rows = Buffer.alloc((width + 1) * height, 0x80);
+  for (let y = 0; y < height; y++) rows[y * (width + 1)] = 0;
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", header), ...extra, chunk("IDAT", deflateSync(rows)), chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+/** A portrait is not drawn again: wider than the 1536 the canvas would bring it down to, and with a
+ *  chunk of another application, it comes back as it went in. */
+test("a PNG card comes back with its own image bytes and every chunk it had", { tag: "@desktop" }, async ({ page, request }) => {
+  const name = "The Wide Portrait";
+  const card = { spec: "chara_card_v2", spec_version: "2.0", data: { name, description: "A long, thin picture." } };
+  const own = chunk("evMd", Buffer.from("a chunk Evermind does not know", "latin1"));
+  const text = chunk("tEXt", Buffer.from(`chara\0${Buffer.from(JSON.stringify(card)).toString("base64")}`, "latin1"));
+  const png = greyPng(2000, 10, own, text);
+
+  await page.goto("/#/");
+  await page.getByTitle(/^import a card/i).click();
+  const importing = page.getByRole("dialog");
+  await importing.locator('input[type="file"]').setInputFiles({ name: "wide.png", mimeType: "image/png", buffer: png });
+  await expect(importing.locator("li", { hasText: "wide.png" }).locator("svg.lucide-check")).toBeVisible();
+  const all: { id: string; name: string }[] = await (await request.get(`${API}/api/characters`)).json();
+  const made = all.filter((c) => c.name === name);
+  try {
+    expect(made).toHaveLength(1);
+    await page.goto(`/#/characters/${made[0].id}/edit`);
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "PNG" }).click();
+    const chunks = chunksOf(await readFile(await (await download).path()));
+    const header = chunks[0].data;
+    expect([header.readUInt32BE(0), header.readUInt32BE(4)]).toEqual([2000, 10]);
+    expect(chunks.find((c) => c.type === "evMd")?.data).toEqual(own.subarray(8, -4));
+    expect(chunks.find((c) => c.type === "IDAT")?.data).toEqual(chunksOf(png).find((c) => c.type === "IDAT")!.data);
+    expect(cardIn(chunks, "chara").data).toMatchObject(card.data);
+    expect(cardIn(chunks, "ccv3").data).toMatchObject(card.data);
+  } finally {
+    for (const { id } of made) await request.delete(`${API}/api/characters/${id}`);
+  }
 });

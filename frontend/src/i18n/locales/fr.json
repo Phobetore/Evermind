@@ -530,6 +530,10 @@
       "nicknameCut": "Le surnom dépassait les 200 caractères qu'Evermind accepte\u00a0: il a été coupé pour la fiche, la carte le garde en entier.",
       "otherChunk": "Le PNG portait une seconde version de la carte, différente\u00a0: gardée à part, non lue"
     },
+    "exportWarning": {
+      "tooLarge": "Ce PNG dépasse 15\u00a0Mo\u00a0: Evermind ne pourra pas le reprendre. Le JSON garde tout.",
+      "assetsLeft": "Les images jointes à cette carte ne sont pas dans ce fichier\u00a0: elles ne restent que dans le PNG d'origine."
+    },
     "startChatModal": {
       "title": "Rejoindre {name}",
       "personaHint": "Gérez vos identités dans l'onglet Personas.",

@@ -1,4 +1,4 @@
-// The chunks of a PNG: read its texts, and write a card into one.
+// The chunks of a PNG: read its texts, and write the cards into them.
 
 export const MAX_BYTES = 15 * 1024 * 1024; // what the server takes for a portrait
 /** A bound of memory, not a policy: the text, its decoded copy and the parsed card must fit in a
@@ -132,15 +132,43 @@ function crc32(bytes: Uint8Array): number {
   return ~crc >>> 0;
 }
 
-/** The PNG with the card in a `chara` chunk, before its end. */
-export function withCard(png: Uint8Array<ArrayBuffer>, card: object): Blob {
+/** A tEXt chunk that holds the card in base64, under this keyword. */
+function cardChunk(keyword: string, card: object): Uint8Array<ArrayBuffer> {
   const json = new TextEncoder().encode(JSON.stringify(card));
-  const body = new TextEncoder().encode(`tEXtchara\0${btoa(binary(json))}`);
+  const body = new TextEncoder().encode(`tEXt${keyword}\0${btoa(binary(json))}`);
   const chunk = new Uint8Array(body.length + 8);
   const view = new DataView(chunk.buffer);
   view.setUint32(0, body.length - 4);
   chunk.set(body, 4);
   view.setUint32(body.length + 4, crc32(body));
-  const end = [...chunks(png)].find((c) => c.type === "IEND")?.at ?? png.length;
-  return new Blob([png.subarray(0, end), chunk, png.subarray(end)], { type: "image/png" });
+  return chunk;
+}
+
+/** The keyword of a text chunk, lowercased as it is read; null for any other chunk. */
+export function textKeyword(type: string, data: Uint8Array) {
+  if (type !== "tEXt" && type !== "zTXt" && type !== "iTXt") return null;
+  const end = data.indexOf(0);
+  return new TextDecoder("latin1").decode(end < 0 ? data : data.subarray(0, end)).toLowerCase();
+}
+
+/** The PNG less every chara and ccv3 chunk, of any kind and case, with the two written before IEND.
+ *  Every other chunk is kept as its bytes are: the image itself, and what other applications put in. */
+export function withCards(png: Uint8Array<ArrayBuffer>, v2: object, v3: object): Blob {
+  const parts: Uint8Array<ArrayBuffer>[] = [png.subarray(0, PNG_SIGNATURE.length)];
+  // A card left in another chunk would be read in place of the new one, or beside it as another card.
+  let end = PNG_SIGNATURE.length;
+  let ended = false;
+  for (const { type, data, at } of chunks(png)) {
+    end = at + 12 + data.length;
+    if (type === "IEND") {
+      parts.push(cardChunk("chara", v2), cardChunk("ccv3", v3));
+      ended = true;
+    }
+    const keyword = textKeyword(type, data);
+    if (keyword === null || !CARD_KEYWORDS.has(keyword)) parts.push(png.subarray(at, end));
+  }
+  if (!ended) parts.push(cardChunk("chara", v2), cardChunk("ccv3", v3));
+  // Whatever follows the chunks is kept too, as the old writer kept it.
+  parts.push(png.subarray(end));
+  return new Blob(parts, { type: "image/png" });
 }

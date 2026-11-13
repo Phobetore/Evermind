@@ -530,6 +530,10 @@
       "nicknameCut": "The nickname was longer than the 200 characters Evermind takes, so it was cut for the character; the card keeps it whole.",
       "otherChunk": "The PNG held a second, different version of the card: kept apart, not read"
     },
+    "exportWarning": {
+      "tooLarge": "This PNG is over 15 MB: Evermind will not be able to take it back. The JSON keeps everything.",
+      "assetsLeft": "The images attached to this card are not in this file: they remain only in the original PNG."
+    },
     "startChatModal": {
       "title": "Join {name}",
       "personaHint": "Manage your identities in the Personas tab.",

@@ -11,7 +11,7 @@ import {
   clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, moveJob, outcome, rememberJob, rememberedJob,
   scopeOf,
 } from "@/lib/assist";
-import { cardFile } from "@/lib/cards";
+import { cardFile, type ExportWarning } from "@/lib/cards";
 import { newLoreEntry } from "@/lib/loreEntry";
 import { describeError, isUnanswered } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
@@ -104,6 +104,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   // Apart from `error`, which is about saving or deleting: an export that fails
   // must not wipe out a save that did too, and its message belongs by the buttons.
   const [exportError, setExportError] = useState<string | null>(null);
+  // What the file just written cannot do; it was written all the same.
+  const [exportWarnings, setExportWarnings] = useState<ExportWarning[]>([]);
   const [brief, setBrief] = useState(remembered?.brief ?? "");
   const [generating, setGenerating] = useState(Boolean(remembered));
   const [assistError, setAssistError] = useState<string | null>(null);
@@ -305,9 +307,11 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   async function exportCard(format: "json" | "png") {
     if (!initial) return;
     setExportError(null);
+    setExportWarnings([]);
     try {
-      const { blob, filename } = await cardFile(initial, format);
+      const { blob, filename, warnings } = await cardFile(initial, format);
       downloadBlob(blob, filename);
+      setExportWarnings(warnings);
     } catch (e) {
       // Called from a click, so a rejection would reach nobody: say it here.
       setExportError(`${t("characters.form.exportError")} ${describeError(e, t)}`);
@@ -338,6 +342,15 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
             {exportError}
           </p>
         )}
+        {exportWarnings.map((warning) => (
+          <p
+            key={warning}
+            role="status"
+            className="w-full rounded-lg border border-ember-600/40 bg-ember-glow px-4 py-2.5 text-sm text-ember-300"
+          >
+            {t(`cards.exportWarning.${warning}`)}
+          </p>
+        ))}
       </header>
 
       <div className="flex flex-col gap-5">

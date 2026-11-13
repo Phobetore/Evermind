@@ -3,7 +3,9 @@ import { crc32 } from "node:zlib";
 import { describe, expect, test } from "vitest";
 import type { CardCharacter } from "@/data";
 import { newLoreEntry } from "../loreEntry";
-import { cardFile, cardToCharacter, characterToCard, readCardFile, withCard } from "./index";
+import { cardForExport } from "./export";
+import { cardFile, cardToCharacter, readCardFile } from "./index";
+import { withCards } from "./png";
 
 const PNG = Uint8Array.from(
   atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="),
@@ -18,9 +20,11 @@ const VANE = {
   character_note_role: "system" as const, creator_notes_multilingual: {}, card_rules: 2 as const,
 };
 const LORE = [
-  { ...newLoreEntry(["tide"], "It turns at noon."), enabled: false },
-  newLoreEntry(["bell", "Bell"], "It rings."),
+  { ...newLoreEntry(["tide"], "It turns at noon."), enabled: false, insertion_order: 20 },
+  { ...newLoreEntry(["bell", "Bell"], "It rings."), insertion_order: 10 },
 ];
+/** The card a character made here exports. */
+const cardOf = (character: CardCharacter) => cardForExport(character, null, new Date("2026-11-12T00:00:00Z"));
 
 /** A tEXt chunk, put before the end of the PNG. */
 function withText(png: Uint8Array<ArrayBuffer>, ...texts: [keyword: string, text: string][]) {
@@ -36,13 +40,13 @@ function withText(png: Uint8Array<ArrayBuffer>, ...texts: [keyword: string, text
 }
 
 /** What a card made of VANE and LORE gives back: the fields, each entry's keys, text and switch,
- *  and the index and order the card writes for each. */
+ *  its index in the card, and its own order, which the card writes as it is. */
 function survives(character: CardCharacter) {
   expect(character).toMatchObject(VANE);
   expect(character.lore_entries.map(({ keys, content, enabled }) => ({ keys, content, enabled })))
     .toEqual(LORE.map(({ keys, content, enabled }) => ({ keys, content, enabled })));
   expect(character.lore_entries.map((entry) => entry.origin)).toEqual([0, 1]);
-  expect(character.lore_entries.map((entry) => entry.insertion_order)).toEqual([0, 1]);
+  expect(character.lore_entries.map((entry) => entry.insertion_order)).toEqual([20, 10]);
 }
 
 const base64 = (value: unknown) => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(value))));
@@ -50,10 +54,10 @@ const kindOf = (file: File) => readCardFile(file).catch((error) => error.kind);
 
 describe("the card codec", () => {
   test("a character and its lorebook come back from the card made of them", () => {
-    const card = characterToCard(VANE, LORE);
+    const card = cardOf({ ...VANE, lore_entries: LORE }).v2;
     expect(card.spec).toBe("chara_card_v2");
     expect((card.data.character_book as { entries: { insertion_order: number }[] }).entries
-      .map((e) => e.insertion_order)).toEqual([0, 1]);
+      .map((e) => e.insertion_order)).toEqual([20, 10]);
     survives(cardToCharacter(JSON.parse(JSON.stringify(card)))!);
   });
 
@@ -112,7 +116,8 @@ describe("a card file", () => {
   });
 
   test("a card written into a PNG reads back, and the PNG is its portrait", async () => {
-    const png = new Uint8Array(await withCard(PNG, characterToCard(VANE, LORE)).arrayBuffer());
+    const { v2, v3 } = cardOf({ ...VANE, lore_entries: LORE });
+    const png = new Uint8Array(await withCards(PNG, v2, v3).arrayBuffer());
     for (let at = 8; at < png.length;) {
       const view = new DataView(png.buffer, at);
       const length = view.getUint32(0);
@@ -127,10 +132,11 @@ describe("a card file", () => {
   test("a card's file is named after it, less what a file name cannot hold", async () => {
     // A backslash, the mark that turns text around, and a bell.
     const refused = '/:*?"<>|' + String.fromCharCode(92, 0x202e, 7);
-    const json = await cardFile({ ...VANE, name: `Va${refused}ne`, avatar_url: null, lore_entries: [] }, "json");
+    const made = { ...VANE, id: "c1", has_card: false, avatar_url: null, lore_entries: [] };
+    const json = await cardFile({ ...made, name: `Va${refused}ne` }, "json");
     expect(json.filename).toBe("Vane.json");
     expect(JSON.parse(await json.blob.text()).data.first_mes).toBe("Late.");
-    expect((await cardFile({ ...VANE, name: refused, avatar_url: null, lore_entries: [] }, "json")).filename).toBe("card.json");
+    expect((await cardFile({ ...made, name: refused }, "json")).filename).toBe("card.json");
   });
 
   test("ccv3 is read first, and chara when ccv3 is not a card", async () => {

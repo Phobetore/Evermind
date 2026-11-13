@@ -530,6 +530,10 @@
       "nicknameCut": "Der Spitzname war länger als die 200 Zeichen, die Evermind annimmt, und wurde für die Figur gekürzt; die Karte behält ihn ganz.",
       "otherChunk": "Das PNG enthielt eine zweite, abweichende Version der Karte: getrennt aufbewahrt, nicht gelesen"
     },
+    "exportWarning": {
+      "tooLarge": "Dieses PNG ist größer als 15 MB: Evermind kann es nicht wieder einlesen. Das JSON behält alles.",
+      "assetsLeft": "Die an diese Karte angehängten Bilder sind nicht in dieser Datei: Sie bleiben nur im ursprünglichen PNG."
+    },
     "startChatModal": {
       "title": "Mit {name} spielen",
       "personaHint": "Verwalte deine Identitäten im Tab „Personas“.",

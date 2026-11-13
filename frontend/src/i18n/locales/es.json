@@ -530,6 +530,10 @@
       "nicknameCut": "El apodo superaba los 200 caracteres que acepta Evermind y se cortó para la ficha; la ficha original lo conserva entero.",
       "otherChunk": "El PNG traía una segunda versión de la ficha, distinta: guardada aparte, sin leer"
     },
+    "exportWarning": {
+      "tooLarge": "Este PNG supera los 15 MB: Evermind no podrá volver a importarlo. El JSON lo conserva todo.",
+      "assetsLeft": "Las imágenes adjuntas a esta ficha no están en este archivo: solo quedan en el PNG original."
+    },
     "startChatModal": {
       "title": "Unirse a {name}",
       "personaHint": "Gestiona tus identidades en la pestaña Personas.",

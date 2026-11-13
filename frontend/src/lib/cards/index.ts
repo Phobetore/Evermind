@@ -1,33 +1,18 @@
-import { data, DataError, type CardCharacter, type CharacterInput, type LoreEntryInput } from "@/data";
+import { data, DataError, type CardCharacter } from "@/data";
 import type { Character } from "@/types";
-import { isPng, MAX_BYTES, pngTexts, withCard } from "./png";
+import { cardForExport } from "./export";
+import { chunks, isPng, MAX_BYTES, pngTexts, textKeyword, withCards } from "./png";
 import { FIELDS, readCardJson, type ReadCard } from "./read";
 import { reportOf } from "./report";
 
-// Character Card V2, and V1 and V3 when read; Evermind's own fields go in extensions.evermind.
+// Character Card V1, V2 and V3 when read; V2 and V3 when written, Evermind's own fields in
+// extensions.evermind.
 
 export type { CardCharacter };
-export { INFLATE_BOUND, pngTexts, withCard } from "./png";
+export { cardForExport, type ExportedCard } from "./export";
+export { INFLATE_BOUND, pngTexts, withCards } from "./png";
 export { cardToCharacter, isStorable, readCardJson, readEntry, type ReadCard } from "./read";
 export { reportOf, type ImportReport, type ReportKey, type ReportLine } from "./report";
-
-/** A V2 card of a character and its lorebook, whose order is its `insertion_order`. */
-export function characterToCard(character: CharacterInput, lore: LoreEntryInput[]) {
-  const card: Record<string, unknown> = Object.fromEntries(
-    Object.entries(FIELDS).map(([key, field]) => [key, character[field]]),
-  );
-  card.alternate_greetings = character.alternate_greetings;
-  card.tags = character.tags;
-  card.extensions = { evermind: { kind: character.kind, tagline: character.tagline } };
-  if (lore.length > 0) {
-    card.character_book = {
-      entries: lore.map(({ keys, content, enabled }, index) => ({
-        keys, content, enabled, insertion_order: index, extensions: {},
-      })),
-    };
-  }
-  return { spec: "chara_card_v2", spec_version: "2.0", data: card };
-}
 
 const parsed = (json: string): unknown => {
   try {
@@ -143,12 +128,18 @@ export async function importCard(file: File): Promise<{ character: Character; re
   return { character: await installCard(read, portrait), read };
 }
 
-/** The portrait as a PNG, its longest side 1536 at most; a dark square for a card without one. */
+/** The portrait as a PNG: its own bytes when it is one, its size and every chunk kept; else drawn
+ *  again, its longest side 1536 at most; a dark square for a card without one. */
 async function portraitPng(avatarUrl: string | null): Promise<Uint8Array<ArrayBuffer>> {
+  const portrait = avatarUrl ? await data.file(avatarUrl) : null;
+  if (portrait) {
+    const bytes = new Uint8Array(await portrait.arrayBuffer());
+    if (isPng(bytes)) return bytes;
+  }
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d")!;
-  if (avatarUrl) {
-    const image = await createImageBitmap(await data.file(avatarUrl));
+  if (portrait) {
+    const image = await createImageBitmap(portrait);
     const scale = Math.min(1, 1536 / Math.max(image.width, image.height));
     canvas.width = Math.round(image.width * scale);
     canvas.height = Math.round(image.height * scale);
@@ -166,11 +157,53 @@ async function portraitPng(avatarUrl: string | null): Promise<Uint8Array<ArrayBu
 const fileStem = (name: string) =>
   name.replace(/[\p{Cc}\u200e\u200f\u202a-\u202e\u2066-\u2069\\/:*?"<>|]/gu, "").trim() || "card";
 
-/** A card as a file to download: JSON, or a PNG of its portrait that carries it. */
-export async function cardFile(character: CardCharacter & Pick<Character, "avatar_url">, format: "json" | "png") {
-  const card = characterToCard(character, character.lore_entries);
-  const blob = format === "json"
-    ? new Blob([JSON.stringify(card, null, 2)], { type: "application/json" })
-    : withCard(await portraitPng(character.avatar_url), card);
-  return { blob, filename: `${fileStem(character.name)}.${format}` };
+export type ExportWarning = "tooLarge" | "assetsLeft";
+
+/** The images a card points to in the chunks of its PNG, by the keyword of their chunk. */
+function assetKeywords(data: Record<string, unknown>): string[] {
+  const assets = Array.isArray(data.assets) ? data.assets : [];
+  return assets.flatMap((asset) => {
+    const uri = typeof asset === "object" && asset !== null ? (asset as Record<string, unknown>).uri : null;
+    return typeof uri === "string" && uri.startsWith("__asset:") ? [`chara-ext-asset_:${uri.slice("__asset:".length)}`] : [];
+  });
+}
+
+/** What a written file cannot do: be taken back (size in bytes, PNG only), carry the images its card points to. */
+export function exportWarnings(format: "json" | "png", size: number, data: Record<string, unknown>, carriesAssets: boolean): ExportWarning[] {
+  const warnings: ExportWarning[] = [];
+  // The file is written all the same: a JSON keeps everything, and other applications take larger PNGs.
+  if (format === "png" && size > MAX_BYTES) warnings.push("tooLarge");
+  // The V3 specification asks a tool to say so when it cannot keep the images joined to a card.
+  if (assetKeywords(data).length > 0 && !carriesAssets) warnings.push("assetsLeft");
+  return warnings;
+}
+
+/** Whether a PNG holds a text chunk for every one of these keywords. */
+function carries(png: Uint8Array, keywords: string[]) {
+  const found = new Set([...chunks(png)].map(({ type, data: body }) => textKeyword(type, body)));
+  return keywords.every((keyword) => found.has(keyword.toLowerCase()));
+}
+
+/** A card as a file to download: JSON, or a PNG of its portrait that carries it; the card it was
+ *  read from, when it is kept, with what was changed here written over it. */
+export async function cardFile(
+  character: CardCharacter & Pick<Character, "id" | "avatar_url" | "has_card">,
+  format: "json" | "png",
+): Promise<{ blob: Blob; filename: string; warnings: ExportWarning[] }> {
+  const stored = character.has_card ? await data.characters.card(character.id) : null;
+  const card = cardForExport(character, stored, new Date());
+  let blob: Blob;
+  let carriesAssets = false;
+  if (format === "json") {
+    blob = new Blob([JSON.stringify(card.json === "v3" ? card.v3 : card.v2, null, 2)], { type: "application/json" });
+  } else {
+    const portrait = await portraitPng(character.avatar_url);
+    carriesAssets = carries(portrait, assetKeywords(card.v3.data));
+    blob = withCards(portrait, card.v2, card.v3);
+  }
+  return {
+    blob,
+    filename: `${fileStem(character.name)}.${format}`,
+    warnings: exportWarnings(format, blob.size, card.v3.data, carriesAssets),
+  };
 }

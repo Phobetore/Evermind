@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { crc32 } from "node:zlib";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { readCardBytes } from "./index";
-import { pngTexts } from "./png";
+import { chunks, pngTexts, withCards } from "./png";
 
 // A PNG of one pixel, without any card.
 const PNG = Uint8Array.from(
@@ -177,5 +177,27 @@ describe("the chunks of a PNG", () => {
     const retold = BACKFILL.replace(`"creator_notes": "${notes}"`, `"creator_notes": "${warning} A keeper, retold."`);
     const other = await read(withChunks(tEXt("ccv3", base64(RISU_V3)), tEXt("chara", base64(retold))));
     expect(other.original.other_text).toBe(retold);
+  });
+});
+
+describe("the cards written into a PNG", () => {
+  test("the two cards replace every old card chunk, compressed or not, and nothing else", async () => {
+    const asset = tEXt("chara-ext-asset_:0", base64("an image"));
+    const png = withChunks(zTXt("chara", await deflate(utf8(base64(BACKFILL)))), tEXt("CCV3", base64(RISU_V3)), asset);
+    const out = new Uint8Array(await withCards(png as Uint8Array<ArrayBuffer>, { v: 2 }, { v: 3 }).arrayBuffer());
+
+    const before = [...chunks(png)];
+    const after = [...chunks(out)];
+    expect(after.map((c) => c.type)).toEqual(["IHDR", "IDAT", "tEXt", "tEXt", "tEXt", "IEND"]);
+    // The image is the same, byte for byte.
+    for (const type of ["IHDR", "IDAT"]) {
+      expect(after.find((c) => c.type === type)!.data).toEqual(before.find((c) => c.type === type)!.data);
+    }
+    expect(out.subarray(after[2].at, after[2].at + asset.length)).toEqual(asset);
+    const texts = await pngTexts(out);
+    expect([...texts.keys()]).toEqual(["chara-ext-asset_:0", "chara", "ccv3"]);
+    const card = (keyword: string) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(texts.get(keyword)!), (c) => c.charCodeAt(0))));
+    expect(card("chara")).toEqual({ v: 2 });
+    expect(card("ccv3")).toEqual({ v: 3 });
   });
 });
