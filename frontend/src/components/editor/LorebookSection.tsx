@@ -64,15 +64,15 @@ export function LorebookSection({
           <div key={entry.id} className="rounded-lg border border-ink-700 bg-ink-900/60 p-3">
             {rules === 2 && (
               <input
-                className="field mb-2 text-sm"
+                className="field mb-2 text-sm pointer-coarse:mb-3"
                 value={entry.comment}
                 onChange={(e) => change(entry, { comment: e.target.value })}
                 placeholder={t("lorebook.titlePlaceholder")}
                 aria-label={t("lorebook.titleLabel")}
               />
             )}
-            {/* Further from the text box below on a touch screen: the reachable
-                area of the delete button is 44px, and must not be over it. */}
+            {/* Further from the text boxes above and below on a touch screen: the reachable
+                area of the delete button is 44px, and must not be over them. */}
             <div className="mb-1.5 flex items-center justify-between gap-2 pointer-coarse:mb-3">
               <div className="flex flex-wrap gap-1.5">
                 {entry.keys.map((k) => (

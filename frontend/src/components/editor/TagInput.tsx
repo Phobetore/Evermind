@@ -6,10 +6,14 @@ export function TagInput({
   value,
   onChange,
   placeholder,
+  ariaLabel,
 }: {
   value: string[];
   onChange: (tags: string[]) => void;
   placeholder?: string;
+  /** The name of the text box, for a place where no label wraps it: a label around the whole box
+   *  would name the first tag's button instead. */
+  ariaLabel?: string;
 }) {
   const t = useT();
   const effectivePlaceholder = placeholder ?? t("ui.tagInput.placeholder");
@@ -48,6 +52,7 @@ export function TagInput({
       ))}
       <input
         value={draft}
+        aria-label={ariaLabel}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === ",") {

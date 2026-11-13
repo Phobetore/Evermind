@@ -18,12 +18,11 @@ export const ROLES: NoteRole[] = ["system", "user", "assistant"];
  * Leaving the box shows the number that is saved.
  */
 export function NumberField({
-  value, min = 0, onChange, ariaLabel,
+  value, min = 0, onChange,
 }: {
   value: number;
   min?: number;
   onChange: (value: number) => void;
-  ariaLabel?: string;
 }) {
   const [text, setText] = useState(String(value));
   // The value can change from outside (a save, another place chosen): the box follows it, unless
@@ -41,7 +40,6 @@ export function NumberField({
       step={1}
       min={min}
       className="field"
-      aria-label={ariaLabel}
       value={text}
       onChange={(e) => {
         const typed = e.target.value;
@@ -108,6 +106,7 @@ export function LoreEntrySettings({
           value={entry.secondary_keys}
           onChange={(secondary_keys) => onChange({ secondary_keys })}
           placeholder={t("lorebook.secondaryKeysPlaceholder")}
+          ariaLabel={t("lorebook.secondaryKeysLabel")}
         />
         <Switch
           label={t("lorebook.selectiveLabel")}

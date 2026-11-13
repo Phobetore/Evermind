@@ -68,6 +68,22 @@ test("every setting of an entry survives a save made elsewhere in the form", asy
   expect(settingsOf(after.lore_entries[0])).toEqual(before);
 });
 
+test("editing one thing on an entry keeps its other settings", async ({ page, request }) => {
+  const card = await seed(request);
+  const before = settingsOf((await read(request, card.id)).lore_entries[0]);
+
+  await page.goto(`/#/characters/${card.id}/edit`);
+  const text = entry(page, "harbour").getByRole("textbox").last();
+  await text.fill("The harbour thaws in spring.");
+  const panel = await openSettings(page);
+  await panel.getByLabel("Whole words").check();
+  await save(page, card.id);
+
+  const [saved] = (await read(request, card.id)).lore_entries;
+  expect(saved.origin).toBe(0);
+  expect(settingsOf(saved)).toEqual({ ...before, content: "The harbour thaws in spring.", whole_words: true });
+});
+
 test("a setting changed in the form is the one saved", async ({ page, request }) => {
   const card = await seed(request, {
     lore_entries: [{ keys: ["harbour"], content: HOURS }],
@@ -75,12 +91,14 @@ test("a setting changed in the form is the one saved", async ({ page, request })
   await page.goto(`/#/characters/${card.id}/edit`);
   const panel = await openSettings(page);
   await panel.getByLabel("Always active").check();
+  await panel.getByLabel("Secondary keys").fill("lamp");
+  await panel.getByLabel("Secondary keys").press("Enter");
   await panel.getByLabel(/^Place/).selectOption({ label: "At a depth" });
   await panel.getByLabel(/^Depth/).fill("2");
   await save(page, card.id);
 
   const [saved] = (await read(request, card.id)).lore_entries;
-  expect(saved).toMatchObject({ constant: true, position: 4, depth: 2, content: HOURS });
+  expect(saved).toMatchObject({ constant: true, secondary_keys: ["lamp"], position: 4, depth: 2, content: HOURS });
 });
 
 test("a place SillyTavern has and Evermind does not is kept as it was", async ({ page, request }) => {
@@ -154,6 +172,18 @@ test("the settings can be reached on a phone", async ({ page, request }) => {
     panel.locator(".field", { has: page.locator("input:not([type])") }),
     panel.locator("label", { has: page.locator("input[type=checkbox]") }),
   ];
+  // The title box is not under the touch area of the delete button or of the switch beside it.
+  const title = entry(page, "harbour").getByLabel("Title");
+  const covered = await title.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const y = r.bottom - 1;
+    return [0.1, 0.3, 0.5, 0.7, 0.9].filter((f) => {
+      const hit = document.elementFromPoint(r.left + r.width * f, y);
+      return hit !== el;
+    }).length;
+  });
+  expect(covered, "something sits over the lower edge of the title box").toBe(0);
+
   let seen = 0;
   for (const control of controls) {
     for (const one of await control.filter({ visible: true }).all()) {
