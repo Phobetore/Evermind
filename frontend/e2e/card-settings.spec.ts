@@ -91,8 +91,8 @@ test("a setting changed in the form is the one saved", async ({ page, request })
   await page.goto(`/#/characters/${card.id}/edit`);
   const panel = await openSettings(page);
   await panel.getByLabel("Always active").check();
-  await panel.getByLabel("Secondary keys").fill("lamp");
-  await panel.getByLabel("Secondary keys").press("Enter");
+  await panel.getByLabel("Secondary keys", { exact: true }).fill("lamp");
+  await panel.getByLabel("Secondary keys", { exact: true }).press("Enter");
   await panel.getByLabel(/^Place/).selectOption({ label: "At a depth" });
   await panel.getByLabel(/^Depth/).fill("2");
   await save(page, card.id);
