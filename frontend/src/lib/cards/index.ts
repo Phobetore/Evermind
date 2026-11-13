@@ -1,8 +1,9 @@
-import { data, DataError, type CardCharacter } from "@/data";
+import { data, DataError, type CardCharacter, type StoredCard } from "@/data";
 import type { Character } from "@/types";
 import { cardForExport } from "./export";
 import { chunks, isPng, MAX_BYTES, pngTexts, textKeyword, withCards } from "./png";
 import { FIELDS, readCardJson, type ReadCard } from "./read";
+import { findOriginal, rereadPlan } from "./reread";
 import { reportOf } from "./report";
 
 // Character Card V1, V2 and V3 when read; V2 and V3 when written, Evermind's own fields in
@@ -13,6 +14,7 @@ export { cardForExport, type ExportedCard } from "./export";
 export { INFLATE_BOUND, pngTexts, withCards } from "./png";
 export { cardToCharacter, isStorable, readCardJson, readEntry, type ReadCard } from "./read";
 export { reportOf, type ImportReport, type ReportKey, type ReportLine } from "./report";
+export { findOriginal, oldReading, rereadPlan, type FoundCard, type RereadMode, type RereadPlan } from "./reread";
 
 const parsed = (json: string): unknown => {
   try {
@@ -190,8 +192,19 @@ export async function cardFile(
   character: CardCharacter & Pick<Character, "id" | "avatar_url" | "has_card">,
   format: "json" | "png",
 ): Promise<{ blob: Blob; filename: string; warnings: ExportWarning[] }> {
-  const stored = character.has_card ? await data.characters.card(character.id) : null;
-  const card = cardForExport(character, stored, new Date());
+  let stored: StoredCard | null = character.has_card ? await data.characters.card(character.id) : null;
+  let exported: CardCharacter = character;
+  if (!character.has_card && character.card_rules === 1) {
+    // A card made before cards were kept whole is exported from its card when it is found again,
+    // as keeping that card would: on a copy, the character itself left as it is.
+    const found = await findOriginal(character);
+    if (found) {
+      const plan = rereadPlan(character, found, "keep");
+      exported = { ...character, ...plan.fields, lore_entries: plan.lore };
+      stored = plan.card && { ...plan.card, read_at: "" };
+    }
+  }
+  const card = cardForExport(exported, stored, new Date());
   let blob: Blob;
   let carriesAssets = false;
   if (format === "json") {

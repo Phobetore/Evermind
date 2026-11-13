@@ -9,7 +9,9 @@ export type ReportKey =
   | "postHistory" | "systemPrompt" | "examples" | "nickname"
   | "extensions" | "loreNotStored" | "outletEntries" | "otherPlaces" | "regexKeys" | "decorators"
   | "loreSettings" | "bookSettings" | "groupGreetings" | "assets" | "multilingualNotes"
-  | "unreadFields" | "otherChunk";
+  | "unreadFields" | "otherChunk"
+  // Only in what a re-reading adds: the fields it brings up to date, by their name.
+  | "fields";
 
 export interface ReportLine { key: ReportKey; count?: number; names?: string[] }
 

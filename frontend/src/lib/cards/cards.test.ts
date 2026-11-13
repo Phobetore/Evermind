@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { crc32 } from "node:zlib";
-import { describe, expect, test } from "vitest";
-import type { CardCharacter } from "@/data";
+import { describe, expect, test, vi } from "vitest";
+import { data, type CardCharacter } from "@/data";
 import { newLoreEntry } from "../loreEntry";
 import { cardForExport } from "./export";
 import { cardFile, cardToCharacter, readCardFile } from "./index";
@@ -137,6 +137,33 @@ describe("a card file", () => {
     expect(json.filename).toBe("Vane.json");
     expect(JSON.parse(await json.blob.text()).data.first_mes).toBe("Late.");
     expect((await cardFile({ ...made, name: refused }, "json")).filename).toBe("card.json");
+  });
+
+  test("a card not yet re-read exports from the card in its portrait, unchanged", async () => {
+    const card = {
+      spec: "chara_card_v2", spec_version: "2.0",
+      data: {
+        name: "Vane", description: "Terse.", first_mes: "Late.", extensions: { other_app: { mood: "grey" } },
+        character_book: { entries: [{ keys: ["tide"], content: "It turns at noon.", extensions: { other_app: 1 } }] },
+      },
+    };
+    const portrait = withText(PNG, ["chara", base64(card)]);
+    vi.spyOn(data, "file").mockResolvedValue(portrait);
+    const update = vi.spyOn(data.characters, "update");
+    const character = {
+      ...VANE, ...cardToCharacter(card)!, card_rules: 1 as const, id: "c1", has_card: false, avatar_url: "api/media/face.png",
+      lore_entries: [{ ...newLoreEntry(["tide"], "It turns at noon."), insertion_order: 0 }],
+    };
+    const before = structuredClone(character);
+    try {
+      const exported = JSON.parse(await (await cardFile(character, "json")).blob.text());
+      expect(exported.data.extensions.other_app).toEqual({ mood: "grey" });
+      expect(exported.data.character_book.entries).toEqual([card.data.character_book.entries[0]]);
+      expect(character).toEqual(before);
+      expect(update).not.toHaveBeenCalled();
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   test("ccv3 is read first, and chara when ccv3 is not a card", async () => {

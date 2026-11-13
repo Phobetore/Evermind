@@ -354,7 +354,8 @@
       "aboutHeading": "Über",
       "universeHeading": "Die Welt",
       "openingHeading": "Eröffnung",
-      "yourConversationsHeading": "Deine Unterhaltungen"
+      "yourConversationsHeading": "Deine Unterhaltungen",
+      "rereadable": "Kann mit den neuen Regeln neu gelesen werden"
     },
     "form": {
       "editCardTitle": "{name} bearbeiten",
@@ -409,6 +410,30 @@
       "exportError": "Die Karte konnte nicht exportiert werden.",
       "savingButton": "Wird gespeichert…",
       "createButton": "Karte erstellen"
+    },
+    "reread": {
+      "title": "Diese Karte wurde erstellt, bevor Evermind Karten vollständig aufbewahrt hat.",
+      "added": "Wird hinzugefügt:",
+      "untouched": "Bleibt, wie du es gelassen hast:",
+      "changes": "Was sich in ihren Unterhaltungen ändert:",
+      "change": {
+        "budget": "Das Lorebook bekommt einen Anteil am Kontext statt einer festen Größe.",
+        "order": "Einträge werden nach ihrer Reihenfolge und ihrem Platz eingefügt, vor oder nach der Beschreibung.",
+        "wholeWords": "Schlüsselwörter finden nur ganze Wörter, außer ein Eintrag sagt etwas anderes.",
+        "recursion": "Der Text eines Eintrags kann andere Einträge aufrufen.",
+        "examples": "Beispieldialoge werden als getrennte Blöcke gesendet.",
+        "instructions": "Die Anweisungen der Karte für das Kontextende ersetzen die Rollenerinnerung.",
+        "macros": "Platzhalter wie Zufallsauswahl und Würfelwürfe werden ersetzt.",
+        "depth": "Die Notiz und die Einträge in einer Tiefe kommen in einen Zug der Person, als nicht von ihr markiert."
+      },
+      "kind": "Charakter oder Szenario",
+      "lore": "{count} Lorebook-Einträge",
+      "lore_one": "{count} Lorebook-Eintrag",
+      "reread": "Karte neu lesen und zu den neuen Regeln wechseln",
+      "keep": "Nur die Originalkarte für den Export behalten",
+      "keepHint": "Das ändert nichts an ihren Unterhaltungen; dieser Hinweis bleibt, um später zu den neuen Regeln zu wechseln.",
+      "switch": "Zu den neuen Regeln wechseln",
+      "saveToKeep": "Speichere, um diese Änderung zu behalten."
     },
     "assist": {
       "heading": "KI-gestützte Erstellung",

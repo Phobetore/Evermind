@@ -354,7 +354,8 @@
       "aboutHeading": "À propos",
       "universeHeading": "L'univers",
       "openingHeading": "Ouverture",
-      "yourConversationsHeading": "Vos conversations"
+      "yourConversationsHeading": "Vos conversations",
+      "rereadable": "Peut être relue avec les nouvelles règles"
     },
     "form": {
       "editCardTitle": "Modifier {name}",
@@ -409,6 +410,30 @@
       "exportError": "La fiche n'a pas pu être exportée.",
       "savingButton": "Enregistrement…",
       "createButton": "Créer la fiche"
+    },
+    "reread": {
+      "title": "Cette fiche a été faite avant qu'Evermind garde les cartes entières.",
+      "added": "Sera ajouté\u00a0:",
+      "untouched": "Restera comme vous l'avez laissé\u00a0:",
+      "changes": "Ce qui changera dans ses conversations\u00a0:",
+      "change": {
+        "budget": "Le carnet reçoit une part du contexte, plutôt qu'une taille fixe.",
+        "order": "Les entrées sont placées selon leur ordre et leur place, avant ou après la description.",
+        "wholeWords": "Les mots-clés ne trouvent que des mots entiers, sauf quand une entrée dit le contraire.",
+        "recursion": "Le texte d'une entrée peut en appeler d'autres.",
+        "examples": "Les exemples de dialogues sont envoyés en blocs séparés.",
+        "instructions": "Les instructions de fin de contexte de la fiche prennent la place du rappel de rôle.",
+        "macros": "Les marques comme les tirages au hasard et les lancers de dés sont remplacées.",
+        "depth": "La note et les entrées placées à une profondeur vont dans un tour de la personne, marqué comme n'étant pas d'elle."
+      },
+      "kind": "Personnage ou scénario",
+      "lore": "{count} entrées du carnet",
+      "lore_one": "{count} entrée du carnet",
+      "reread": "Relire la carte et passer aux nouvelles règles",
+      "keep": "Garder seulement la carte d'origine pour l'export",
+      "keepHint": "La garder ne change rien dans ses conversations\u00a0; ce bandeau reste, pour passer plus tard aux nouvelles règles.",
+      "switch": "Passer aux nouvelles règles",
+      "saveToKeep": "Enregistrez pour garder ce changement."
     },
     "assist": {
       "heading": "Création assistée par IA",

@@ -354,7 +354,8 @@
       "aboutHeading": "Acerca de",
       "universeHeading": "El mundo",
       "openingHeading": "Apertura",
-      "yourConversationsHeading": "Tus conversaciones"
+      "yourConversationsHeading": "Tus conversaciones",
+      "rereadable": "Se puede releer con las nuevas reglas"
     },
     "form": {
       "editCardTitle": "Editar {name}",
@@ -409,6 +410,30 @@
       "exportError": "No se pudo exportar la ficha.",
       "savingButton": "Guardando…",
       "createButton": "Crear la ficha"
+    },
+    "reread": {
+      "title": "Esta ficha se creó antes de que Evermind guardara las tarjetas enteras.",
+      "added": "Se añadirá:",
+      "untouched": "Quedará como lo dejaste:",
+      "changes": "Lo que cambiará en sus conversaciones:",
+      "change": {
+        "budget": "El lorebook recibe una parte del contexto en lugar de un tamaño fijo.",
+        "order": "Las entradas se colocan según su orden y su lugar, antes o después de la descripción.",
+        "wholeWords": "Las palabras clave solo encuentran palabras enteras, salvo que una entrada diga lo contrario.",
+        "recursion": "El texto de una entrada puede llamar a otras.",
+        "examples": "Los ejemplos de diálogo se envían en bloques separados.",
+        "instructions": "Las instrucciones de fin de contexto de la ficha ocupan el lugar del recordatorio de rol.",
+        "macros": "Las marcas como las elecciones al azar y las tiradas de dados se reemplazan.",
+        "depth": "La nota y las entradas a una profundidad van en un turno de la persona, marcado como no escrito por ella."
+      },
+      "kind": "Personaje o escenario",
+      "lore": "{count} entradas del lorebook",
+      "lore_one": "{count} entrada del lorebook",
+      "reread": "Releer la tarjeta y pasar a las nuevas reglas",
+      "keep": "Guardar solo la tarjeta original para la exportación",
+      "keepHint": "Guardarla no cambia nada en sus conversaciones; este aviso se queda, para pasar más tarde a las nuevas reglas.",
+      "switch": "Pasar a las nuevas reglas",
+      "saveToKeep": "Guarda para conservar este cambio."
     },
     "assist": {
       "heading": "Creación asistida por IA",

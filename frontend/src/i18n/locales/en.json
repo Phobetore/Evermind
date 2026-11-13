@@ -354,7 +354,8 @@
       "aboutHeading": "About",
       "universeHeading": "The world",
       "openingHeading": "Opening",
-      "yourConversationsHeading": "Your conversations"
+      "yourConversationsHeading": "Your conversations",
+      "rereadable": "Can be re-read with the new rules"
     },
     "form": {
       "editCardTitle": "Edit {name}",
@@ -409,6 +410,30 @@
       "exportError": "The card could not be exported.",
       "savingButton": "Saving…",
       "createButton": "Create card"
+    },
+    "reread": {
+      "title": "This card was made before Evermind kept cards whole.",
+      "added": "Will be added:",
+      "untouched": "Will stay as you left it:",
+      "changes": "What will change in its conversations:",
+      "change": {
+        "budget": "The lorebook gets a share of the context rather than a fixed size.",
+        "order": "Entries are placed by their order and their place, before or after the description.",
+        "wholeWords": "Keywords only find whole words, unless an entry says otherwise.",
+        "recursion": "An entry's text can call other entries.",
+        "examples": "Example dialogues are sent as separate blocks.",
+        "instructions": "The card's own end-of-context instructions take the place of the role reminder.",
+        "macros": "Marks such as random picks and dice rolls are replaced.",
+        "depth": "The note and the entries set at a depth go into a turn of the person, marked as not theirs."
+      },
+      "kind": "Character or scenario",
+      "lore": "{count} lorebook entries",
+      "lore_one": "{count} lorebook entry",
+      "reread": "Re-read the card and switch to the new rules",
+      "keep": "Keep only the original card for the export",
+      "keepHint": "Keeping it changes nothing in its conversations; this notice stays, to switch to the new rules later.",
+      "switch": "Switch to the new rules",
+      "saveToKeep": "Save to keep this change."
     },
     "assist": {
       "heading": "AI-assisted creation",

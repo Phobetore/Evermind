@@ -2,16 +2,17 @@ import { AssistProgress } from "@/components/editor/AssistProgress";
 import { Field } from "@/components/editor/Field";
 import { LorebookSection } from "@/components/editor/LorebookSection";
 import { NumberField, ROLES } from "@/components/editor/LoreEntrySettings";
+import { RereadBanner } from "@/components/editor/RereadBanner";
 import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
-import { data, DataError, type AssistField, type AssistState, type CharacterInput } from "@/data";
+import { data, DataError, type AssistField, type AssistState, type CharacterInput, type OriginalCard } from "@/data";
 import { useT } from "@/i18n/useT";
 import {
   clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, moveJob, outcome, rememberJob, rememberedJob,
   scopeOf,
 } from "@/lib/assist";
-import { cardFile, type ExportWarning } from "@/lib/cards";
+import { cardFile, findOriginal, rereadPlan, type ExportWarning, type FoundCard, type RereadMode } from "@/lib/cards";
 import { newLoreEntry } from "@/lib/loreEntry";
 import { describeError, isUnanswered } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
@@ -21,7 +22,7 @@ import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
   UserRound, X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 type Draft = CharacterInput;
@@ -118,6 +119,12 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [assistConnectionId, setAssistConnectionId] = useState("");
   const [loreEntries, setLoreEntries] = useState<LoreEntry[]>(initial?.lore_entries ?? []);
+  // A card made before cards were kept whole: the card it came from, looked for once (undefined
+  // until then), and what a choice made in the banner leaves for the save to keep.
+  const [original, setOriginal] = useState<FoundCard | null | undefined>(undefined);
+  const [originalFailure, setOriginalFailure] = useState<{ error: unknown } | null>(null);
+  const [pendingCard, setPendingCard] = useState<OriginalCard | null>(null);
+  const [rereadChosen, setRereadChosen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   // A save whose portrait fails has made the new card already.
   const created = useRef("");
@@ -129,6 +136,18 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   useEffect(() => {
     data.connections?.list().then(setConnections).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (initial?.card_rules !== 1) return;
+    let live = true;
+    findOriginal(initial).then(
+      (found) => { if (live) setOriginal(found); },
+      (error) => { if (live) setOriginalFailure({ error }); },
+    );
+    return () => {
+      live = false;
+    };
+  }, [initial]);
 
   const watching = useRef<AbortController | null>(null);
   // The job whose end is in the form already: the two ways to learn of it must not both add its entries.
@@ -232,6 +251,32 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
+  const current = useMemo(() => ({ ...draft, lore_entries: loreEntries }), [draft, loreEntries]);
+
+  /** The name the form gives any field the old reader read. */
+  function fieldLabel(field: string): string {
+    switch (field) {
+      case "kind": return t("characters.reread.kind");
+      case "system_prompt": return t("characters.form.systemPromptLabel");
+      case "post_history_instructions": return t("characters.form.postHistoryLabel");
+      case "creator_notes": return t("characters.creatorNotesLabel");
+      case "creator": return t("characters.form.creatorLabel");
+      case "character_version": return t("characters.form.versionLabel");
+      default: return t(labelKey(field as AssistField, draft.kind));
+    }
+  }
+
+  /** Puts the choice made in the banner in the form; the save keeps it, and nothing else does. */
+  function applyReread(mode: RereadMode) {
+    if (original === undefined) return;
+    const plan = rereadPlan(current, original, mode);
+    setDraft((d) => ({ ...d, ...plan.fields }));
+    // The entries of the form keep their ids; those the card adds, at the end, get new ones.
+    setLoreEntries(plan.lore.map((entry, i) => ({ ...entry, id: loreEntries[i]?.id ?? newId() })));
+    setPendingCard(plan.card);
+    setRereadChosen(true);
+  }
+
   async function generate() {
     if (!brief.trim() || generating) return;
     setGenerating(true);
@@ -276,7 +321,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     setError(null);
     try {
       const id = initial?.id || created.current;
-      const card = { ...draft, lore_entries: loreEntries };
+      // The card a choice in the banner found goes with the save, kept with its reading.
+      const card = { ...draft, lore_entries: loreEntries, ...(pendingCard ? { card: pendingCard } : {}) };
       const saved = id
         ? await data.characters.update(id, card)
         : await data.characters.create(card);
@@ -354,6 +400,18 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
       </header>
 
       <div className="flex flex-col gap-5">
+        {initial?.card_rules === 1 && (
+          <RereadBanner
+            current={current}
+            found={original}
+            failure={originalFailure}
+            hasCard={initial.has_card}
+            applied={rereadChosen}
+            label={fieldLabel}
+            onApply={applyReread}
+          />
+        )}
+
         <div className="flex gap-2">
           {(
             [
