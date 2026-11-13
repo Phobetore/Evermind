@@ -7,6 +7,7 @@ closing block each provider places after the history.
 """
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from .defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
@@ -18,7 +19,7 @@ from .lorebook import (
     strip_decorators,
     within_budget,
 )
-from .macros import has_original_macro, substitute, substitute_original
+from .macros import expand_macros, has_original_macro, substitute, substitute_original
 from .tokens import estimate_tokens
 
 # Enough for what someone marked, without another wall of text.
@@ -75,14 +76,14 @@ def is_out_of_character(message: dict) -> bool:
     return (message.get("meta") or {}).get("mode") == "ooc"
 
 
-def _on_card_rules(character: dict) -> bool:
+def on_card_rules(character: dict) -> bool:
     """Whether the card follows the rules of community cards (2) rather than Evermind's own."""
     return (character.get("card_rules") or 1) == 2
 
 
 def speaking_name(character: dict) -> str:
     """The name the model is told: the nickname on the card rules, when there is one."""
-    if _on_card_rules(character):
+    if on_card_rules(character):
         nickname = (character.get("nickname") or "").strip()
         if nickname:
             return nickname
@@ -184,7 +185,10 @@ def _build_system(character: dict, persona: dict | None, summary: str,
                   lore_before: list[dict] | None = None,
                   facts_budget: int = _FACTS_TOKEN_BUDGET,
                   relevance_scores: dict[str, float] | None = None,
-                  passages: list[dict] | None = None) -> str:
+                  passages: list[dict] | None = None,
+                  card_text: Callable[[str], str] = lambda text: text) -> str:
+    """``card_text`` is what the card's own fields go through first: their markers resolved on
+    the rules of community cards, left as they are on Evermind's own."""
     is_scenario = character.get("kind") == "scenario"
     sections: list[str] = []
 
@@ -202,13 +206,16 @@ def _build_system(character: dict, persona: dict | None, summary: str,
         sections.append(f"### WORLD KNOWLEDGE (background)\n{block}")
 
     identity: list[str] = []
-    if character.get("description"):
-        identity.append(character["description"])
-    if character.get("personality"):
+    description = card_text(character.get("description") or "")
+    personality = card_text(character.get("personality") or "")
+    scenario = card_text(character.get("scenario") or "")
+    if description:
+        identity.append(description)
+    if personality:
         label = "Tone and themes" if is_scenario else f"{char_name}'s personality"
-        identity.append(f"{label}: {character['personality']}")
-    if character.get("scenario"):
-        identity.append(f"Current scenario: {character['scenario']}")
+        identity.append(f"{label}: {personality}")
+    if scenario:
+        identity.append(f"Current scenario: {scenario}")
     if identity:
         header = "SCENARIO" if is_scenario else f"ABOUT {char_name.upper()}"
         sections.append(f"### {header}\n" + "\n\n".join(identity))
@@ -251,7 +258,7 @@ def _build_system(character: dict, persona: dict | None, summary: str,
     default_rules = SCENARIO_RP_RULES if is_scenario else DEFAULT_RP_RULES
     card_prompt = (character.get("system_prompt") or "").strip()
     if card_prompt:
-        rules = (
+        rules = card_text(
             substitute_original(card_prompt, default_rules)
             if has_original_macro(card_prompt)
             else card_prompt
@@ -356,7 +363,15 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     summary = (conversation or {}).get("summary") or ""
-    on_card_rules = _on_card_rules(character)
+    card_rules = on_card_rules(character)
+    # The conversation draws the card's random choices: the same text gives the same choice in
+    # every turn of one story, and may give another in the next story.
+    seed = (conversation or {}).get("id") or ""
+
+    def card_text(text: str) -> str:
+        """What the card says, its markers resolved on the rules of community cards. The
+        player's own texts never go through this: they keep only the names put in."""
+        return expand_macros(text, char_name, user_name, seed) if card_rules else text
 
     context_size = int(connection.get("context_size") or 8192)
     max_tokens = int(connection.get("max_tokens") or 1024)
@@ -369,14 +384,18 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     lore_before: list[dict] = []
     at_depth: list[dict] = []
     depth_texts: dict[int, str] = {}
-    if on_card_rules:
+    if card_rules:
         matched = match_lore(lore_entries or [], messages, rules=2, budget=budget // 4,
                              char_name=char_name, user_name=user_name)
+        # Resolved once they fire, since the keys are read on the turns as they are; an entry
+        # its markers leave blank has nothing for the model, as one of decorators alone.
+        resolved = ({**entry, "content": card_text(entry["content"])} for entry in matched)
+        matched = [entry for entry in resolved if entry["content"].strip()]
         lore_before = [entry for entry in matched if before_the_card(entry)]
         lore = [entry for entry in matched if not before_the_card(entry) and not at_a_depth(entry)]
         if insertions:
             at_depth = [entry for entry in matched if at_a_depth(entry)]
-            note = (character.get("character_note") or "").strip()
+            note = card_text(character.get("character_note") or "").strip()
             # None reads as unset, as the TypeScript engine's ?? does.
             note_depth = character.get("character_note_depth")
             if note_depth is None:
@@ -394,7 +413,7 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     # What the model reads last carries the most weight.
     post_bits = []
     card_note = (character.get("post_history_instructions") or "").strip()
-    if card_note and not on_card_rules:
+    if card_note and not card_rules:
         post_bits.append(card_note)
     pinned = [m for m in (memories or []) if m.get("is_pinned")]
     if pinned:
@@ -405,10 +424,10 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     scene_directive = ((conversation or {}).get("author_note") or "").strip()
     if scene_directive:
         post_bits.append(f"[Scene directive from {user_name}]: {scene_directive}")
-    if card_note and on_card_rules:
+    if card_note and card_rules:
         # As the cards are written for: their instructions take the place of the reminder of
         # who to play, which {{original}} brings back, and the guardrails still come last.
-        post_bits.append(substitute_original(card_note, _ROLE_REMINDER))
+        post_bits.append(card_text(substitute_original(card_note, _ROLE_REMINDER)))
         post_bits.append(f"[{_GUARDRAILS}]")
     else:
         post_bits.append(_POST_HISTORY_REMINDER)
@@ -424,7 +443,14 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         for i, message in enumerate(reversed(ordered)):
             if history_limit and len(turns) >= history_limit:
                 break
-            content = substitute(active_content(message), char_name=char_name, user_name=user_name)
+            # The character's turns speak with the card's voice: a greeting, or a reply that copied
+            # one of its markers. The player's keep what was typed, names put in, so that the
+            # model never reads a roll the player does not see.
+            if message["role"] == "assistant":
+                content = card_text(active_content(message))
+            else:
+                content = active_content(message)
+            content = substitute(content, char_name=char_name, user_name=user_name)
             # Player message modes: stored raw, marked up only for the model.
             message_mode = (message.get("meta") or {}).get("mode")
             if message_mode == "narrate":
@@ -441,8 +467,10 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
 
     # On the rules of community cards the examples are blocks, sent without their <START>;
     # on Evermind's own they go as they were written.
-    if on_card_rules:
-        blocks = split_examples(character.get("example_dialogues") or "")
+    if card_rules:
+        blocks = [block for block in (card_text(part).strip()
+                                      for part in split_examples(character.get("example_dialogues") or ""))
+                  if block]
         examples = _EXAMPLE_SEPARATOR.join(blocks)
     else:
         blocks = []
@@ -453,7 +481,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                              examples=sent, char_name=char_name, user_name=user_name,
                              memories=shown, lore=lore, lore_before=lore_before,
                              facts_budget=facts_budget,
-                             relevance_scores=relevance_scores, passages=retrieved_passages)
+                             relevance_scores=relevance_scores, passages=retrieved_passages,
+                             card_text=card_text)
 
     def fits(system: str) -> bool:
         return estimate_tokens(system) <= budget * _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES

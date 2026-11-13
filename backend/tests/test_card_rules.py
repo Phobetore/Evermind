@@ -12,6 +12,7 @@ from app.prompting.engine import (
     split_examples,
 )
 from app.prompting.lorebook import key_matches, strip_decorators
+from app.prompting.macros import expand_macros, fnv1a
 from app.prompting.payloads import (
     build_consolidation_payload,
     build_extraction_payload,
@@ -603,3 +604,122 @@ def test_examples_are_split_on_start_and_dropped_one_block_at_a_time():
     assert "EXAMPLE OF HOW YOU WRITE" not in chat(
         old, said("Hi."), connection=make_connection(context_size=size))["system"]
     assert "<START>\nAlex: Hi." in chat(old, said("Hi."))["system"]
+
+
+def expanded(text, seed="c1"):
+    return expand_macros(text, "Serana", "Alex", seed)
+
+
+def test_markers_of_the_first_format_are_names():
+    assert expanded("<USER> meets <BOT>; <char> waves at <User>.") == "Alex meets Serana; Serana waves at Alex."
+    # The name the model is told, as {{char}} is.
+    assert expand_macros("<BOT> bows.", "Sera", "Alex", "c1") == "Sera bows."
+
+    character = make_character(card_rules=2, description="<BOT> guards <USER>.")
+    built = chat(character, said("Hi.", "<BOT> bows."))
+    assert "Serana guards Alex." in built["system"]
+    assert built["messages"][-1]["content"] == "Serana bows."
+    # On Evermind's own rules they are left as written.
+    old = chat(make_character(description="<BOT> guards <USER>."), said("Hi.", "<BOT> bows."))
+    assert "<BOT> guards <USER>." in old["system"] and old["messages"][-1]["content"] == "<BOT> bows."
+
+
+def test_comments_never_reach_the_model():
+    assert expanded("Before.{{// secret }} After.") == "Before. After."
+    assert expanded("{{  //secret}}") == ""
+
+    character = make_character(
+        card_rules=2, description="A vampire.{{// secret }}", personality="wry{{//secret}}",
+        scenario="Night.{{//secret}}", system_prompt="{{original}}{{// secret}}",
+        post_history_instructions="Present tense.{{// secret}}", character_note="Storm.{{// secret}}",
+        character_note_depth=1, example_dialogues="<START>\n{{char}}: Hm.{{// secret}}")
+    entries = [entry([], "Lore.{{// secret}}", constant=True),
+               entry([], "Deep.{{// secret}}", constant=True, position=4, depth=2)]
+    built = chat(character, said("Hi.", "Hello.{{// secret}}", "Well?"), entries)
+    assert "secret" not in str(built)
+    assert "Lore." in built["system"] and "Serana: Hm." in built["system"]
+    assert "Storm." in str(built["messages"]) and "Deep." in str(built["messages"])
+
+
+def test_a_random_choice_is_the_same_all_through_a_conversation():
+    text = "She wears {{random:red,green,blue,black,white}} and {{pick::silk::wool}}."
+    first = expanded(text, seed="c1")
+    assert "{{" not in first and first == expanded(text, seed="c1")
+
+    character = make_character(card_rules=2, description=text)
+    conversation = {"summary": "", "id": "c1"}
+    for story in (said("Hi."), said("Hi.", "Hello.", "Again.")):
+        assert first in chat(character, story, conversation=conversation)["system"]
+    # A reply that copied a marker draws the same each time it is sent, however the story goes on.
+    reply = said("Hi.", "I pick {{random:1,2,3,4,5,6,7,8,9}}.")
+    later = reply + [make_message("user", "And?", 2)]
+    turns = [chat(character, story, conversation=conversation)["messages"][1] for story in (reply, later)]
+    assert turns[0] == turns[1] and "{{" not in turns[0]["content"]
+
+
+def test_two_conversations_can_choose_differently():
+    text = "{{random:" + ",".join(str(i) for i in range(100)) + "}}"
+    assert len({expanded(text, seed=f"c{i}") for i in range(20)}) > 1
+    character = make_character(card_rules=2, description=text)
+    systems = {chat(character, said("Hi."), conversation={"summary": "", "id": f"c{i}"})["system"]
+               for i in range(20)}
+    assert len(systems) > 1
+
+
+def test_an_escaped_comma_is_part_of_a_choice():
+    seeds = [f"c{i}" for i in range(40)]
+    assert {expanded(r"{{random:a\, b, c\,d }}", seed) for seed in seeds} == {"a, b", "c,d"}
+    # Split on ::, a comma is only text.
+    assert {expanded("{{random::a, b:: c }}", seed) for seed in seeds} == {"a, b", "c"}
+    assert expanded("{{random:}}") == ""
+
+
+def test_a_roll_stays_between_one_and_its_number():
+    seeds = [f"c{i}" for i in range(200)]
+    for spelled in ("{{roll:d6}}", "{{roll:6}}", "{{roll 1d6}}", "{{ ROLL :: d6 }}"):
+        assert {int(expanded(spelled, seed)) for seed in seeds} == set(range(1, 7))
+    assert {expanded("{{roll:1}}", seed) for seed in seeds} == {"1"}
+    # Nothing to roll, or a roll of several dice: the marker stays.
+    assert expanded("{{roll:0}}") == "{{roll:0}}"
+    assert expanded("{{roll:2d6}}") == "{{roll:2d6}}"
+
+
+def test_the_hash_is_the_one_written_down():
+    # FNV-1a on 32 bits: nothing leaves the offset basis; "a" is (0x811c9dc5 ^ 0x61) * 0x01000193
+    # kept to 32 bits; "foobar" is the published test vector.
+    assert fnv1a("") == 0x811C9DC5
+    assert fnv1a("a") == 0xE40C292C
+    assert fnv1a("foobar") == 0xBF9CF968
+    # Half of a surrogate is hashed as the replacement character UTF-8 writes in its place.
+    assert fnv1a("\ud800") == fnv1a("\ufffd")
+    # A marker draws from the seed, the text as given and its rank in it, each after a NUL.
+    text = "{{roll:999999999}} {{roll:999999999}}"
+    ranks = [1 + fnv1a(f"c1\0{text}\0{k}") % 999999999 for k in (0, 1)]
+    assert expanded(text) == f"{ranks[0]} {ranks[1]}"
+
+
+def test_the_player_s_own_markers_are_left_as_typed():
+    typed = "I roll {{roll:d20}} {{// aside}} for <BOT>, {{char}}."
+    persona = {"name": "Alex", "description": "Alex has {{random:a,b}} eyes."}
+    built = asdict(build_chat_payload(
+        character=make_character(card_rules=2), persona=persona,
+        conversation={"id": "c1", "summary": "Once {{roll:d6}}.", "author_note": "Rain {{random:x,y}}."},
+        messages=said(typed), connection=make_connection(),
+        global_instructions="Be {{random:kind,cruel}}.",
+        memories=[{"id": "f1", "content": "Alex owes {{roll:d6}}.", "is_pinned": True, "source_position": 1}]))
+    # Only the names, as before: the player would otherwise see one thing and the model another.
+    assert built["messages"][0]["content"] == "I roll {{roll:d20}} {{// aside}} for <BOT>, Serana."
+    for text in ("Alex has {{random:a,b}} eyes.", "Once {{roll:d6}}.", "Be {{random:kind,cruel}}.",
+                 "Alex owes {{roll:d6}}."):
+        assert text in built["system"]
+    assert "Rain {{random:x,y}}." in built["post_history"]
+
+
+def test_unclosed_markers_take_linear_time():
+    # A marker's body holds no brace, so an unclosed one ends at the next: otherwise each start
+    # would scan to the end of the text, some 10^12 steps on this one.
+    for unit in ("{{random:", "{{//"):
+        text = unit * (7_000_000 // len(unit))
+        start = time.perf_counter()
+        assert expanded(text) == text
+        assert time.perf_counter() - start < 2

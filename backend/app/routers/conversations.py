@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, UploadFile
 from ..db import get_db
 from ..errors import AppError, NotFoundError
 from ..models.schemas import BranchIn, ConversationIn, ConversationPatch, MessagePatch
-from ..prompting.engine import speaking_name
-from ..prompting.macros import substitute
+from ..prompting.engine import on_card_rules, speaking_name
+from ..prompting.macros import expand_macros, substitute
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as repo
@@ -74,8 +74,13 @@ async def _create_conversation(db: aiosqlite.Connection, payload: ConversationIn
                  if g and g.strip()]
     if greetings:
         user_name = (persona or {}).get("name") or "User"
-        variants = [substitute(g, char_name=speaking_name(character), user_name=user_name)
-                    for g in greetings]
+        char_name = speaking_name(character)
+        # On the rules of community cards a greeting's markers are resolved once, here, with the
+        # conversation's id as the engine draws them: the story then shows what the model reads.
+        if on_card_rules(character):
+            variants = [expand_macros(g, char_name, user_name, convo["id"]) for g in greetings]
+        else:
+            variants = [substitute(g, char_name=char_name, user_name=user_name) for g in greetings]
         await repo.add_message(db, convo["id"], "assistant", variants, meta={"greeting": True})
     return await repo.get(db, convo["id"])
 

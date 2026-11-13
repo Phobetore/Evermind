@@ -3,6 +3,7 @@ conversations (+greeting seeding), settings."""
 
 import pytest
 
+from app.prompting.macros import expand_macros
 from app.providers.base import ProviderEvent
 
 from .conftest import PNG, SAMPLING, FakeProvider, send
@@ -183,6 +184,32 @@ async def test_conversation_created_with_greeting_variants(client):
     assert first["role"] == "assistant"
     assert first["content"] == "*She stirs.* Hello Alex."  # macros resolved with persona name
     assert len(first["variants"]) == 2  # greeting + alternate
+
+
+async def test_a_greeting_on_the_card_rules_has_its_markers_resolved_once_at_creation(client):
+    greeting = "{{// for the reader}}<BOT> rolls {{roll:d1000000}} and greets <USER>."
+    alternate = "{{random:Dawn,Dusk}}, {{user}}."
+    char = await create_character(client, card_rules=2, greeting=greeting, alternate_greetings=[alternate])
+    persona = (await client.post("/api/personas", json={"name": "Alex"})).json()
+    convo = (await client.post("/api/conversations", json={
+        "character_id": char["id"], "persona_id": persona["id"],
+    })).json()
+
+    # Drawn with the conversation's own id, the seed the engine uses on every turn after.
+    variants = convo["messages"][0]["variants"]
+    assert variants == [expand_macros(text, "Serana", "Alex", convo["id"]) for text in (greeting, alternate)]
+    assert variants[0].startswith("Serana rolls ") and variants[0].endswith(" and greets Alex.")
+    assert variants[1] in ("Dawn, Alex.", "Dusk, Alex.")
+    # Stored as drawn: read again, the greeting says the same.
+    again = (await client.get(f"/api/conversations/{convo['id']}")).json()
+    assert again["messages"][0]["variants"] == variants
+
+    # On Evermind's own rules only the names are put in, as before.
+    old = await create_character(client, greeting="<BOT> rolls {{roll:d6}}, {{user}}.")
+    convo = (await client.post("/api/conversations", json={
+        "character_id": old["id"], "persona_id": persona["id"],
+    })).json()
+    assert convo["messages"][0]["content"] == "<BOT> rolls {{roll:d6}}, Alex."
 
 
 async def test_conversation_list_patch_delete(client):

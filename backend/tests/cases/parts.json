@@ -2177,6 +2177,149 @@
    "expected": false
   },
   {
+   "fn": "expand_macros",
+   "name": "comments are taken out, whatever the spaces around their slashes",
+   "input": {
+    "text": "Hi.{{// a note for the reader}} {{  //x }}There.",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "Hi. There."
+  },
+  {
+   "fn": "expand_macros",
+   "name": "the first format's names, whatever their case, and the long s python reads as an s",
+   "input": {
+    "text": "<USER> greets <bot>; <Char> nods to <uſer>.",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "Alex greets Serana; Serana nods to Alex."
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a random choice split on commas, each choice stripped",
+   "input": {
+    "text": "She wears {{random: red , green,blue }}.",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "She wears red."
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a random choice split on :: when that is its separator",
+   "input": {
+    "text": "{{random::a::b}} and {{RANDOM :: x, y :: z}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "a and z"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "an escaped comma is part of a choice, in a pick spelled with the kelvin sign python reads as a k",
+   "input": {
+    "text": "{{picK:a\\, b,c\\,d}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "c,d"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a roll of d20, and one written in other digits",
+   "input": {
+    "text": "{{roll:d20}} {{ ROLL ١٢ }} {{roll::1d6}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "17 12 5"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a roll of zero stays as written",
+   "input": {
+    "text": "{{roll:0}} {{roll:d0}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "{{roll:0}} {{roll:d0}}"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "an unknown marker is left as it is, and a roll of several dice",
+   "input": {
+    "text": "{{time}} {{random}} {{roll:2d6}} {{original}} {{roll:1234567890}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "{{time}} {{random}} {{roll:2d6}} {{original}} {{roll:1234567890}}"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a choice holding a brace leaves its marker as written",
+   "input": {
+    "text": "{{random:a,{b}} {{random:c}d}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "{{random:a,{b}} {{random:c}d}}"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "two markers alike draw in turn, with an empty seed",
+   "input": {
+    "text": "{{roll:100}} {{roll:100}} {{random:x,y,z}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": ""
+   },
+   "expected": "80 61 y"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "an emoji and half of a surrogate are hashed as UTF-8 writes them",
+   "input": {
+    "text": "😀\ud800 {{roll:1000}} {{random:🐱,🐶}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "😀\ud800 856 🐱"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a long run of unclosed random markers is left, and the closed one at its end is drawn",
+   "input": {
+    "text": "{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:a,b}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:a"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "the names are put in after the choices, and a choice empty or without any",
+   "input": {
+    "text": "{{pick::<BOT>::<USER>}} {{char}}: {{random:}}{{random:,}}.",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "Serana Serana: ."
+  },
+  {
    "fn": "estimate_tokens",
    "name": "seven characters",
    "input": {

@@ -15,7 +15,7 @@ import {
   withinBudget,
   type LoreEntrySettings,
 } from "./lorebook";
-import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
+import { expandMacros, hasOriginalMacro, substitute, substituteOriginal } from "./macros";
 import { PY_WS, pyLstrip, pyMin, pyRstrip, pyStrip, sliceCodePoints, stripThought } from "./text";
 import { estimateTokens } from "./tokens";
 
@@ -61,6 +61,8 @@ export interface PromptPersona {
 }
 
 export interface PromptConversation {
+  /** Draws the card's random choices on the rules of community cards; "" when left out. */
+  id?: string;
   summary?: string | null;
   author_note?: string | null;
 }
@@ -345,11 +347,14 @@ interface SystemParts {
   factsBudget: number;
   relevanceScores: Record<string, number> | null;
   passages: readonly PromptPassage[] | null;
+  /** What the card's own fields go through first: their markers resolved on the rules of
+   *  community cards, left as they are on Evermind's own. */
+  cardText: (text: string) => string;
 }
 
 function buildSystem(parts: SystemParts): string {
   const { character, persona, summary, globalInstructions, examples, charName, userName } = parts;
-  const { memories, lore, loreBefore, factsBudget, relevanceScores, passages } = parts;
+  const { memories, lore, loreBefore, factsBudget, relevanceScores, passages, cardText } = parts;
   const isScenario = character.kind === "scenario";
   const sections: string[] = [];
 
@@ -365,12 +370,15 @@ function buildSystem(parts: SystemParts): string {
   }
 
   const identity: string[] = [];
-  if (character.description) identity.push(character.description);
-  if (character.personality) {
+  const description = cardText(character.description || "");
+  const personality = cardText(character.personality || "");
+  const scenario = cardText(character.scenario || "");
+  if (description) identity.push(description);
+  if (personality) {
     const label = isScenario ? "Tone and themes" : `${charName}'s personality`;
-    identity.push(`${label}: ${character.personality}`);
+    identity.push(`${label}: ${personality}`);
   }
-  if (character.scenario) identity.push(`Current scenario: ${character.scenario}`);
+  if (scenario) identity.push(`Current scenario: ${scenario}`);
   if (identity.length) {
     const header = isScenario ? "SCENARIO" : `ABOUT ${charName.toUpperCase()}`;
     sections.push(`### ${header}\n` + identity.join("\n\n"));
@@ -416,7 +424,7 @@ function buildSystem(parts: SystemParts): string {
   const cardPrompt = pyStrip(character.system_prompt || "");
   let rules = defaultRules;
   if (cardPrompt) {
-    rules = hasOriginalMacro(cardPrompt) ? substituteOriginal(cardPrompt, defaultRules) : cardPrompt;
+    rules = cardText(hasOriginalMacro(cardPrompt) ? substituteOriginal(cardPrompt, defaultRules) : cardPrompt);
   }
   sections.push(rules);
 
@@ -537,6 +545,12 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   const userName = persona?.name || "User";
   const summary = conversation?.summary || "";
   const cardRules = onCardRules(character);
+  // The conversation draws the card's random choices: the same text gives the same choice in
+  // every turn of one story, and may give another in the next story.
+  const seed = conversation?.id || "";
+  /** What the card says, its markers resolved on the rules of community cards. The player's
+   *  own texts never go through this: they keep only the names put in. */
+  const cardText = (text: string) => (cardRules ? expandMacros(text, charName, userName, seed) : text);
 
   const contextSize = int(connection.context_size || 8192);
   const maxTokens = int(connection.max_tokens || 1024);
@@ -551,12 +565,16 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   let atDepth: PromptLoreEntry[] = [];
   let depthTexts = new Map<number, string>();
   if (cardRules) {
-    const matched = matchLore(input.lore_entries ?? [], messages, 2, Math.floor(budget / 4), charName, userName);
+    // Resolved once they fire, since the keys are read on the turns as they are; an entry its
+    // markers leave blank has nothing for the model, as one of decorators alone.
+    const matched = matchLore(input.lore_entries ?? [], messages, 2, Math.floor(budget / 4), charName, userName)
+      .map((entry) => ({ ...entry, content: cardText(entry.content || "") }))
+      .filter((entry) => pyStrip(entry.content));
     loreBefore = matched.filter((entry) => beforeTheCard(entry));
     lore = matched.filter((entry) => !beforeTheCard(entry) && !atADepth(entry));
     if (input.insertions ?? true) {
       atDepth = matched.filter((entry) => atADepth(entry));
-      const note = pyStrip(character.character_note || "");
+      const note = pyStrip(cardText(character.character_note || ""));
       depthTexts = textsAtDepths(note, character.character_note_depth ?? NOTE_DEPTH, atDepth, charName, userName);
     }
   } else {
@@ -586,7 +604,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   if (cardNote && cardRules) {
     // As the cards are written for: their instructions take the place of the reminder of who
     // to play, which {{original}} brings back, and the guardrails still come last.
-    postBits.push(substituteOriginal(cardNote, ROLE_REMINDER));
+    postBits.push(cardText(substituteOriginal(cardNote, ROLE_REMINDER)));
     postBits.push(`[${GUARDRAILS}]`);
   } else {
     postBits.push(POST_HISTORY_REMINDER);
@@ -606,7 +624,11 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     for (let i = 0; i < ordered.length; i++) {
       if (historyLimit && turns.length >= historyLimit) break;
       const message = ordered[ordered.length - 1 - i];
-      let content = substitute(activeContent(message), charName, userName);
+      // The character's turns speak with the card's voice: a greeting, or a reply that copied
+      // one of its markers. The player's keep what was typed, names put in, so that the model
+      // never reads a roll the player does not see.
+      const said = message.role === "assistant" ? cardText(activeContent(message)) : activeContent(message);
+      let content = substitute(said, charName, userName);
       // Player message modes: stored raw, marked up only for the model.
       const mode = message.meta?.mode;
       if (mode === "narrate") content = `[Narration] ${content}`;
@@ -621,7 +643,11 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
 
   // On the rules of community cards the examples are blocks, sent without their <START>; on
   // Evermind's own they go as they were written.
-  const blocks = cardRules ? splitExamples(character.example_dialogues || "") : [];
+  const blocks = cardRules
+    ? splitExamples(character.example_dialogues || "")
+        .map((part) => pyStrip(cardText(part)))
+        .filter(Boolean)
+    : [];
   const examples = cardRules ? blocks.join(EXAMPLE_SEPARATOR) : character.example_dialogues || "";
 
   const systemWith = (sent: string, shown: readonly PromptMemory[] | null) =>
@@ -639,6 +665,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
       factsBudget,
       relevanceScores,
       passages,
+      cardText,
     });
 
   // A fact the model drew from a turn it still sees is left out unless pinned or written

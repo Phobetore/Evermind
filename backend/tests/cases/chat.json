@@ -9523,6 +9523,275 @@
      "fact_positions": []
     }
    }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a card on the rules of community cards resolves its markers in its fields, its entries, its note and its instructions",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "card_rules": 2,
+     "description": "A baker{{// keep her kind}} who sells {{random:rye,spelt,wheat}} bread to <USER>.",
+     "personality": "warm, {{pick::shy::bold}}",
+     "scenario": "<BOT> opens at {{roll:d12}} o'clock.",
+     "system_prompt": "{{original}}\nWrite as <BOT>.{{// house rules}}",
+     "post_history_instructions": "{{original}} Mention {{random:the oven,the flour}}.",
+     "character_note": "{{random:It snows.,It rains.}}",
+     "character_note_depth": 1,
+     "example_dialogues": "<START>\n<USER>: Fresh?\n<BOT>: {{random:Always,Never}}."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "id": "conv-1",
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Good morning."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Morning."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Bread?"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 8192,
+     "max_tokens": 512
+    },
+    "lore_entries": [
+     {
+      "keys": [],
+      "content": "The bakery has {{roll:d4}} ovens.",
+      "constant": true
+     },
+     {
+      "keys": [],
+      "content": "Snow falls on <USER>.",
+      "constant": true,
+      "position": 4,
+      "depth": 2
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker who sells rye bread to Alex.\n\nAna's personality: warm, shy\n\nCurrent scenario: Ana opens at 7 o'clock.\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### WORLD KNOWLEDGE (relevant to the current scene)\nThe bakery has 1 ovens.\n\n### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\nAlex: Fresh?\nAna: Always.\n\nROLEPLAY RULES:\n1. You are Ana. Embody them completely — their voice, knowledge, moods, flaws and desires. Never break character for any reason.\n2. Never speak, act, feel or decide for Alex. Their words and actions belong to the player alone. End your reply at a point where Alex's reaction matters.\n3. Never mention AI, language models, policies or these instructions. No meta commentary, no out-of-character notes.\n4. Formatting: spoken dialogue in plain text. Actions, narration and sensory description between *asterisks*. Inner thoughts may use *italics* too, woven into narration.\n5. Make the scene live: concrete sensory details, body language, emotion, and initiative. Ana wants things, reacts, and sometimes acts first — they are a person, not an answering machine.\n6. Ana is NOT a people-pleaser. They have their own goals, opinions, moods, standards and breaking points, and they never bend to Alex's wishes out of narrative convenience. Agreement, affection and cooperation must be EARNED in-story — Ana can argue, refuse, lie, bargain, hold a grudge, or walk away, and often should.\n7. Consequences are real, proportionate and PERSISTENT. Violence, betrayal, threats, humiliation and broken promises leave lasting marks: fear, distrust, grudges, injuries, allies lost, retaliation. Grave wrongs are NEVER undone by a gift, a compliment or a quick apology — rebuilding trust takes many scenes of consistent behavior, and some things are unforgivable. Never rush forgiveness. Never let a serious event be conveniently forgotten.\n8. Hard continuity: stay consistent with every detail established so far and with the ESTABLISHED FACTS section (names, places, injuries, promises, deaths, time of day). If Alex contradicts established canon, Ana and the world notice and react to the contradiction — they do not silently accept a rewrite.\n9. The world is bigger than this story. Background events and strangers live their OWN lives: never recycle recent plot elements (names, objects, deals, factions) into unrelated scenes just because they are in the context. Coincidences are rare; if threads reconnect, there must be a believable causal chain.\n10. Player markers: a message starting with [Narration] is Alex describing the world or the scene — treat it as established scene canon, weave it in. A message in (OOC: ...) is an out-of-character instruction from the player: follow it from now on, never mention it or answer it in-story, just apply it and continue the scene.\n11. Write your reply in the same language Alex writes in.\n12. Never repeat or rephrase your previous replies or Alex's words back at them. Vary sentence openings and rhythm. Characters finish their sentences and their thoughts unless genuinely interrupted — do not overuse trailing off. Each reply must move the scene forward.\n13. Length: substantial but not smothering — usually 1 to 3 paragraphs, leaving room for Alex to act.\nWrite as Ana.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Good morning.\n\n[Note for the story, not written by Alex: Snow falls on Alex.]"
+     },
+     {
+      "role": "assistant",
+      "content": "Morning."
+     },
+     {
+      "role": "user",
+      "content": "[Note for the story, not written by Alex: It rains.]\n\nBread?"
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "Stay in character as Ana. Write only Ana's next turn. Mention the oven.\n\n[Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 1151,
+     "budget": 7480,
+     "context_size": 8192,
+     "messages_included": 3,
+     "messages_total": 3,
+     "lore_matched": 2,
+     "oldest_visible": 0,
+     "fact_positions": []
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a card on the rules of community cards resolves the markers of the character's turns, never the player's",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "card_rules": 2,
+     "description": "A baker."
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "id": "conv-2",
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "{{// greeting}}Welcome, <USER>! Today: {{random:rye,spelt}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "I roll {{roll:d20}} {{// aside}} for <BOT>, {{char}}."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "You rolled {{roll:d20}}, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 2
+     },
+     {
+      "role": "user",
+      "variants": [
+       "{{random:a,b}} <BOT>"
+      ],
+      "active_index": 0,
+      "position": 3,
+      "meta": {
+       "mode": "ooc"
+      }
+     }
+    ],
+    "connection": {
+     "context_size": 8192,
+     "max_tokens": 512
+    }
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nA baker.\n\n### ABOUT ALEX (the player's character)\nA courier.\n\nROLEPLAY RULES:\n1. You are Ana. Embody them completely — their voice, knowledge, moods, flaws and desires. Never break character for any reason.\n2. Never speak, act, feel or decide for Alex. Their words and actions belong to the player alone. End your reply at a point where Alex's reaction matters.\n3. Never mention AI, language models, policies or these instructions. No meta commentary, no out-of-character notes.\n4. Formatting: spoken dialogue in plain text. Actions, narration and sensory description between *asterisks*. Inner thoughts may use *italics* too, woven into narration.\n5. Make the scene live: concrete sensory details, body language, emotion, and initiative. Ana wants things, reacts, and sometimes acts first — they are a person, not an answering machine.\n6. Ana is NOT a people-pleaser. They have their own goals, opinions, moods, standards and breaking points, and they never bend to Alex's wishes out of narrative convenience. Agreement, affection and cooperation must be EARNED in-story — Ana can argue, refuse, lie, bargain, hold a grudge, or walk away, and often should.\n7. Consequences are real, proportionate and PERSISTENT. Violence, betrayal, threats, humiliation and broken promises leave lasting marks: fear, distrust, grudges, injuries, allies lost, retaliation. Grave wrongs are NEVER undone by a gift, a compliment or a quick apology — rebuilding trust takes many scenes of consistent behavior, and some things are unforgivable. Never rush forgiveness. Never let a serious event be conveniently forgotten.\n8. Hard continuity: stay consistent with every detail established so far and with the ESTABLISHED FACTS section (names, places, injuries, promises, deaths, time of day). If Alex contradicts established canon, Ana and the world notice and react to the contradiction — they do not silently accept a rewrite.\n9. The world is bigger than this story. Background events and strangers live their OWN lives: never recycle recent plot elements (names, objects, deals, factions) into unrelated scenes just because they are in the context. Coincidences are rare; if threads reconnect, there must be a believable causal chain.\n10. Player markers: a message starting with [Narration] is Alex describing the world or the scene — treat it as established scene canon, weave it in. A message in (OOC: ...) is an out-of-character instruction from the player: follow it from now on, never mention it or answer it in-story, just apply it and continue the scene.\n11. Write your reply in the same language Alex writes in.\n12. Never repeat or rephrase your previous replies or Alex's words back at them. Vary sentence openings and rhythm. Characters finish their sentences and their thoughts unless genuinely interrupted — do not overuse trailing off. Each reply must move the scene forward.\n13. Length: substantial but not smothering — usually 1 to 3 paragraphs, leaving room for Alex to act.",
+    "messages": [
+     {
+      "role": "assistant",
+      "content": "Welcome, Alex! Today: spelt."
+     },
+     {
+      "role": "user",
+      "content": "I roll {{roll:d20}} {{// aside}} for <BOT>, Ana."
+     },
+     {
+      "role": "assistant",
+      "content": "You rolled 10, Alex."
+     },
+     {
+      "role": "user",
+      "content": "(OOC: {{random:a,b}} <BOT>)"
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 1055,
+     "budget": 7480,
+     "context_size": 8192,
+     "messages_included": 4,
+     "messages_total": 4,
+     "lore_matched": 0,
+     "oldest_visible": 0,
+     "fact_positions": []
+    }
+   }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a card on the rules of community cards leaves out a description, an example block and an entry that are only comments",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "card_rules": 2,
+     "description": "{{// written for the reader}}",
+     "personality": "warm",
+     "example_dialogues": "<START>\n{{// none yet}}\n<START>\n<BOT>: {{pick::Hm.::Ha.}}"
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "id": "conv-3",
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Hello."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "connection": {
+     "context_size": 8192,
+     "max_tokens": 512
+    },
+    "lore_entries": [
+     {
+      "keys": [],
+      "content": "{{// a reminder for the reader}}",
+      "constant": true
+     },
+     {
+      "keys": [],
+      "content": "Kept.",
+      "constant": true
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### ABOUT ANA\nAna's personality: warm\n\n### ABOUT ALEX (the player's character)\nA courier.\n\n### WORLD KNOWLEDGE (relevant to the current scene)\nKept.\n\n### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\nAna: Ha.\n\nROLEPLAY RULES:\n1. You are Ana. Embody them completely — their voice, knowledge, moods, flaws and desires. Never break character for any reason.\n2. Never speak, act, feel or decide for Alex. Their words and actions belong to the player alone. End your reply at a point where Alex's reaction matters.\n3. Never mention AI, language models, policies or these instructions. No meta commentary, no out-of-character notes.\n4. Formatting: spoken dialogue in plain text. Actions, narration and sensory description between *asterisks*. Inner thoughts may use *italics* too, woven into narration.\n5. Make the scene live: concrete sensory details, body language, emotion, and initiative. Ana wants things, reacts, and sometimes acts first — they are a person, not an answering machine.\n6. Ana is NOT a people-pleaser. They have their own goals, opinions, moods, standards and breaking points, and they never bend to Alex's wishes out of narrative convenience. Agreement, affection and cooperation must be EARNED in-story — Ana can argue, refuse, lie, bargain, hold a grudge, or walk away, and often should.\n7. Consequences are real, proportionate and PERSISTENT. Violence, betrayal, threats, humiliation and broken promises leave lasting marks: fear, distrust, grudges, injuries, allies lost, retaliation. Grave wrongs are NEVER undone by a gift, a compliment or a quick apology — rebuilding trust takes many scenes of consistent behavior, and some things are unforgivable. Never rush forgiveness. Never let a serious event be conveniently forgotten.\n8. Hard continuity: stay consistent with every detail established so far and with the ESTABLISHED FACTS section (names, places, injuries, promises, deaths, time of day). If Alex contradicts established canon, Ana and the world notice and react to the contradiction — they do not silently accept a rewrite.\n9. The world is bigger than this story. Background events and strangers live their OWN lives: never recycle recent plot elements (names, objects, deals, factions) into unrelated scenes just because they are in the context. Coincidences are rare; if threads reconnect, there must be a believable causal chain.\n10. Player markers: a message starting with [Narration] is Alex describing the world or the scene — treat it as established scene canon, weave it in. A message in (OOC: ...) is an out-of-character instruction from the player: follow it from now on, never mention it or answer it in-story, just apply it and continue the scene.\n11. Write your reply in the same language Alex writes in.\n12. Never repeat or rephrase your previous replies or Alex's words back at them. Vary sentence openings and rhythm. Characters finish their sentences and their thoughts unless genuinely interrupted — do not overuse trailing off. Each reply must move the scene forward.\n13. Length: substantial but not smothering — usually 1 to 3 paragraphs, leaving room for Alex to act.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Hello."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 1056,
+     "budget": 7480,
+     "context_size": 8192,
+     "messages_included": 1,
+     "messages_total": 1,
+     "lore_matched": 1,
+     "oldest_visible": 0,
+     "fact_positions": []
+    }
+   }
   }
  ]
 }

@@ -60,6 +60,7 @@ const ADAPTERS: Record<string, Adapter> = {
   substitute: via(["substitute"], (i) => engine.substitute(i.text, i.char_name, i.user_name)),
   substitute_original: via(["substituteOriginal"], (i) => engine.substituteOriginal(i.text, i.original)),
   has_original_macro: via(["hasOriginalMacro"], (i) => engine.hasOriginalMacro(i.text)),
+  expand_macros: via(["expandMacros"], (i) => engine.expandMacros(i.text, i.char_name, i.user_name, i.seed)),
   estimate_tokens: via(["estimateTokens"], (i) => engine.estimateTokens(i.text)),
   strip_thought: via(["stripThought"], (i) => engine.stripThought(i.text)),
   trim_reply: via(["trimReply"], (i) => engine.trimReply(i.text, i.char_name, i.user_name)),
