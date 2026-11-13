@@ -397,6 +397,14 @@
       "creatorNotesHint": "Visibles sur la fiche, jamais envoyées au modèle.",
       "creatorLabel": "Créateur",
       "versionLabel": "Version",
+      "nicknameLabel": "Surnom",
+      "nicknameHint": "Remplace le nom dans {{char}} quand il est rempli.",
+      "noteLabel": "Note du personnage",
+      "noteDepthLabel": "Profondeur de la note",
+      "noteDepthHint_one": "Rappelée au modèle à {count} message de la fin.",
+      "noteDepthHint": "Rappelée au modèle à {count} messages de la fin.",
+      "noteRoleLabel": "Rôle de la note",
+      "multilingualLabel": "Présentation par langue",
       "confirmDelete": "Supprimer «\u00a0{name}\u00a0» et toutes ses conversations\u202f?",
       "exportError": "La fiche n'a pas pu être exportée.",
       "savingButton": "Enregistrement…",
@@ -437,7 +445,40 @@
     "keysPlaceholder": "Mots-clés déclencheurs puis Entrée",
     "contentPlaceholder": "Ce que le modèle doit savoir quand ces mots apparaissent…",
     "addEntryButton": "Ajouter l'entrée",
-    "entryRequiredError": "Une entrée demande au moins un mot-clé et un contenu."
+    "entryRequiredError": "Une entrée demande au moins un mot-clé et un contenu.",
+    "titleLabel": "Titre",
+    "titlePlaceholder": "Titre de l'entrée (facultatif)",
+    "settingsButton": "Réglages",
+    "constantLabel": "Toujours active",
+    "secondaryKeysLabel": "Clés secondaires",
+    "secondaryKeysPlaceholder": "Mots-clés secondaires puis Entrée",
+    "selectiveLabel": "Exiger une clé secondaire",
+    "logicLabel": "Effet des clés secondaires",
+    "logic": {
+      "0": "et au moins une",
+      "1": "sauf si toutes",
+      "2": "sauf si une seule",
+      "3": "et toutes"
+    },
+    "orderLabel": "Ordre",
+    "placeLabel": "Place",
+    "place": {
+      "before": "Avant la définition",
+      "after": "Après la définition",
+      "depth": "À une profondeur",
+      "other": "Autre place de SillyTavern ({place}), traitée comme après la définition",
+      "named": "Endroit nommé ({place}), pas inséré"
+    },
+    "depthLabel": "Profondeur",
+    "roleLabel": "Rôle",
+    "role": {
+      "system": "Système",
+      "user": "Personne",
+      "assistant": "Personnage"
+    },
+    "wholeWordsLabel": "Mots entiers",
+    "excludeRecursionLabel": "Ne peut pas être appelée par une autre entrée",
+    "preventRecursionLabel": "N'en appelle pas d'autres"
   },
   "cards": {
     "report": {

@@ -1,6 +1,7 @@
 import { AssistProgress } from "@/components/editor/AssistProgress";
 import { Field } from "@/components/editor/Field";
 import { LorebookSection } from "@/components/editor/LorebookSection";
+import { NumberField, ROLES } from "@/components/editor/LoreEntrySettings";
 import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -14,7 +15,7 @@ import { cardFile } from "@/lib/cards";
 import { newLoreEntry } from "@/lib/loreEntry";
 import { describeError, isUnanswered } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
-import type { CharacterWithLore, Connection, Kind, LoreEntry } from "@/types";
+import type { CharacterWithLore, Connection, Kind, LoreEntry, NoteRole } from "@/types";
 import { clsx } from "clsx";
 import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
@@ -591,7 +592,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           />
         </Field>
 
-        <LorebookSection entries={loreEntries} onChange={setLoreEntries} />
+        <LorebookSection entries={loreEntries} onChange={setLoreEntries} rules={draft.card_rules} />
 
         <button
           type="button"
@@ -630,6 +631,65 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
                 onChange={(e) => set("creator_notes", e.target.value)}
               />
             </Field>
+            {draft.card_rules === 2 && (
+              <>
+                <Field label={t("characters.form.nicknameLabel")} hint={t("characters.form.nicknameHint")}>
+                  <input
+                    className="field"
+                    maxLength={200}
+                    value={draft.nickname}
+                    onChange={(e) => set("nickname", e.target.value)}
+                  />
+                </Field>
+                <Field label={t("characters.form.noteLabel")}>
+                  <textarea
+                    className="field"
+                    value={draft.character_note}
+                    onChange={(e) => set("character_note", e.target.value)}
+                  />
+                </Field>
+                <div className="grid gap-5 md:grid-cols-2">
+                  <Field
+                    label={t("characters.form.noteDepthLabel")}
+                    hint={t("characters.form.noteDepthHint", { count: draft.character_note_depth })}
+                  >
+                    <NumberField
+                      value={draft.character_note_depth}
+                      onChange={(depth) => set("character_note_depth", depth)}
+                    />
+                  </Field>
+                  <Field label={t("characters.form.noteRoleLabel")}>
+                    <select
+                      className="field"
+                      value={draft.character_note_role}
+                      onChange={(e) => set("character_note_role", e.target.value as NoteRole)}
+                    >
+                      {ROLES.map((role) => (
+                        <option key={role} value={role}>{t(`lorebook.role.${role}`)}</option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                {Object.keys(draft.creator_notes_multilingual).length > 0 && (
+                  <div className="flex flex-col gap-4">
+                    <span className="ui-label">{t("characters.form.multilingualLabel")}</span>
+                    {Object.entries(draft.creator_notes_multilingual).map(([language, text]) => (
+                      <Field key={language} label={language}>
+                        <textarea
+                          className="field"
+                          value={text}
+                          onChange={(e) =>
+                            set("creator_notes_multilingual", {
+                              ...draft.creator_notes_multilingual, [language]: e.target.value,
+                            })
+                          }
+                        />
+                      </Field>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
             <div className="grid gap-5 md:grid-cols-2">
               <Field label={t("characters.form.creatorLabel")}>
                 <input

@@ -397,6 +397,14 @@
       "creatorNotesHint": "Auf der Karte sichtbar, wird nie an das Modell gesendet.",
       "creatorLabel": "Ersteller",
       "versionLabel": "Version",
+      "nicknameLabel": "Spitzname",
+      "nicknameHint": "Ersetzt den Namen überall dort, wo {{char}} steht, wenn er ausgefüllt ist.",
+      "noteLabel": "Notiz zur Figur",
+      "noteDepthLabel": "Tiefe der Notiz",
+      "noteDepthHint_one": "Wird dem Modell {count} Nachricht vor dem Ende in Erinnerung gerufen.",
+      "noteDepthHint": "Wird dem Modell {count} Nachrichten vor dem Ende in Erinnerung gerufen.",
+      "noteRoleLabel": "Rolle der Notiz",
+      "multilingualLabel": "Vorstellung je Sprache",
       "confirmDelete": "„{name}“ und alle zugehörigen Unterhaltungen löschen?",
       "exportError": "Die Karte konnte nicht exportiert werden.",
       "savingButton": "Wird gespeichert…",
@@ -437,7 +445,40 @@
     "keysPlaceholder": "Auslösende Stichwörter, dann Enter",
     "contentPlaceholder": "Was das Modell wissen soll, wenn diese Wörter auftauchen…",
     "addEntryButton": "Eintrag hinzufügen",
-    "entryRequiredError": "Ein Eintrag braucht mindestens ein Stichwort und etwas Inhalt."
+    "entryRequiredError": "Ein Eintrag braucht mindestens ein Stichwort und etwas Inhalt.",
+    "titleLabel": "Titel",
+    "titlePlaceholder": "Titel des Eintrags (optional)",
+    "settingsButton": "Einstellungen",
+    "constantLabel": "Immer aktiv",
+    "secondaryKeysLabel": "Zweitstichwörter",
+    "secondaryKeysPlaceholder": "Zweitstichwörter, dann Eingabe",
+    "selectiveLabel": "Ein Zweitstichwort verlangen",
+    "logicLabel": "Wirkung der Zweitstichwörter",
+    "logic": {
+      "0": "und mindestens eines",
+      "1": "außer bei allen",
+      "2": "außer bei einem einzigen",
+      "3": "und alle"
+    },
+    "orderLabel": "Reihenfolge",
+    "placeLabel": "Platz",
+    "place": {
+      "before": "Vor der Beschreibung",
+      "after": "Nach der Beschreibung",
+      "depth": "In einer Tiefe",
+      "other": "Anderer SillyTavern-Platz ({place}), wie nach der Beschreibung behandelt",
+      "named": "Benannte Stelle ({place}), nicht eingefügt"
+    },
+    "depthLabel": "Tiefe",
+    "roleLabel": "Rolle",
+    "role": {
+      "system": "System",
+      "user": "Person",
+      "assistant": "Figur"
+    },
+    "wholeWordsLabel": "Ganze Wörter",
+    "excludeRecursionLabel": "Kann von keinem anderen Eintrag aufgerufen werden",
+    "preventRecursionLabel": "Ruft keine anderen Einträge auf"
   },
   "cards": {
     "report": {

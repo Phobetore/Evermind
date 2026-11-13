@@ -397,6 +397,14 @@
       "creatorNotesHint": "Visible on the card, never sent to the model.",
       "creatorLabel": "Creator",
       "versionLabel": "Version",
+      "nicknameLabel": "Nickname",
+      "nicknameHint": "Stands in for the name wherever {{char}} is written, when filled in.",
+      "noteLabel": "Character's note",
+      "noteDepthLabel": "Note depth",
+      "noteDepthHint_one": "Recalled to the model {count} message from the end.",
+      "noteDepthHint": "Recalled to the model {count} messages from the end.",
+      "noteRoleLabel": "Note role",
+      "multilingualLabel": "Presentation by language",
       "confirmDelete": "Delete \"{name}\" and all its conversations?",
       "exportError": "The card could not be exported.",
       "savingButton": "Saving…",
@@ -437,7 +445,40 @@
     "keysPlaceholder": "Trigger keywords, then Enter",
     "contentPlaceholder": "What the model should know when these words appear…",
     "addEntryButton": "Add entry",
-    "entryRequiredError": "An entry needs at least one keyword and some content."
+    "entryRequiredError": "An entry needs at least one keyword and some content.",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Title of the entry (optional)",
+    "settingsButton": "Settings",
+    "constantLabel": "Always active",
+    "secondaryKeysLabel": "Secondary keys",
+    "secondaryKeysPlaceholder": "Secondary keywords, then Enter",
+    "selectiveLabel": "Require a secondary key",
+    "logicLabel": "How secondary keys apply",
+    "logic": {
+      "0": "and at least one",
+      "1": "unless all of them",
+      "2": "unless any one of them",
+      "3": "and all of them"
+    },
+    "orderLabel": "Order",
+    "placeLabel": "Place",
+    "place": {
+      "before": "Before the definition",
+      "after": "After the definition",
+      "depth": "At a depth",
+      "other": "Another SillyTavern place ({place}), treated as after the definition",
+      "named": "Named spot ({place}), not inserted"
+    },
+    "depthLabel": "Depth",
+    "roleLabel": "Role",
+    "role": {
+      "system": "System",
+      "user": "Person",
+      "assistant": "Character"
+    },
+    "wholeWordsLabel": "Whole words",
+    "excludeRecursionLabel": "Cannot be called by another entry",
+    "preventRecursionLabel": "Does not call other entries"
   },
   "cards": {
     "report": {

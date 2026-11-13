@@ -397,6 +397,14 @@
       "creatorNotesHint": "Visibles en la ficha, nunca se envían al modelo.",
       "creatorLabel": "Creador",
       "versionLabel": "Versión",
+      "nicknameLabel": "Apodo",
+      "nicknameHint": "Sustituye al nombre donde se escribe {{char}}, cuando está rellenado.",
+      "noteLabel": "Nota del personaje",
+      "noteDepthLabel": "Profundidad de la nota",
+      "noteDepthHint_one": "Se recuerda al modelo a {count} mensaje del final.",
+      "noteDepthHint": "Se recuerda al modelo a {count} mensajes del final.",
+      "noteRoleLabel": "Rol de la nota",
+      "multilingualLabel": "Presentación por idioma",
       "confirmDelete": "¿Eliminar «{name}» y todas sus conversaciones?",
       "exportError": "No se pudo exportar la ficha.",
       "savingButton": "Guardando…",
@@ -437,7 +445,40 @@
     "keysPlaceholder": "Palabras clave que la activan, luego Enter",
     "contentPlaceholder": "Lo que el modelo debe saber cuando aparecen estas palabras…",
     "addEntryButton": "Añadir entrada",
-    "entryRequiredError": "Una entrada necesita al menos una palabra clave y algo de contenido."
+    "entryRequiredError": "Una entrada necesita al menos una palabra clave y algo de contenido.",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Título de la entrada (opcional)",
+    "settingsButton": "Ajustes",
+    "constantLabel": "Siempre activa",
+    "secondaryKeysLabel": "Claves secundarias",
+    "secondaryKeysPlaceholder": "Palabras clave secundarias y Intro",
+    "selectiveLabel": "Exigir una clave secundaria",
+    "logicLabel": "Efecto de las claves secundarias",
+    "logic": {
+      "0": "y al menos una",
+      "1": "salvo si están todas",
+      "2": "salvo si hay una sola",
+      "3": "y todas"
+    },
+    "orderLabel": "Orden",
+    "placeLabel": "Lugar",
+    "place": {
+      "before": "Antes de la definición",
+      "after": "Después de la definición",
+      "depth": "A una profundidad",
+      "other": "Otro lugar de SillyTavern ({place}), tratado como después de la definición",
+      "named": "Lugar con nombre ({place}), no se inserta"
+    },
+    "depthLabel": "Profundidad",
+    "roleLabel": "Rol",
+    "role": {
+      "system": "Sistema",
+      "user": "Persona",
+      "assistant": "Personaje"
+    },
+    "wholeWordsLabel": "Palabras completas",
+    "excludeRecursionLabel": "No puede ser llamada por otra entrada",
+    "preventRecursionLabel": "No llama a otras entradas"
   },
   "cards": {
     "report": {
