@@ -77,11 +77,15 @@ async def _create_conversation(db: aiosqlite.Connection, payload: ConversationIn
         char_name = speaking_name(character)
         # On the rules of community cards a greeting's markers are resolved once, here, with the
         # conversation's id as the engine draws them: the story then shows what the model reads.
+        # A greeting its markers leave blank, one that is only a comment, is dropped as an empty
+        # one is: the story would otherwise open on a turn that says nothing.
         if on_card_rules(character):
-            variants = [expand_macros(g, char_name, user_name, convo["id"]) for g in greetings]
+            variants = [v for v in (expand_macros(g, char_name, user_name, convo["id"]) for g in greetings)
+                        if v.strip()]
         else:
             variants = [substitute(g, char_name=char_name, user_name=user_name) for g in greetings]
-        await repo.add_message(db, convo["id"], "assistant", variants, meta={"greeting": True})
+        if variants:
+            await repo.add_message(db, convo["id"], "assistant", variants, meta={"greeting": True})
     return await repo.get(db, convo["id"])
 
 

@@ -189,7 +189,9 @@ async def test_conversation_created_with_greeting_variants(client):
 async def test_a_greeting_on_the_card_rules_has_its_markers_resolved_once_at_creation(client):
     greeting = "{{// for the reader}}<BOT> rolls {{roll:d1000000}} and greets <USER>."
     alternate = "{{random:Dawn,Dusk}}, {{user}}."
-    char = await create_character(client, card_rules=2, greeting=greeting, alternate_greetings=[alternate])
+    # An alternate that is only a comment says nothing once resolved, and is not offered.
+    char = await create_character(client, card_rules=2, greeting=greeting,
+                                  alternate_greetings=[alternate, "{{// todo}}"])
     persona = (await client.post("/api/personas", json={"name": "Alex"})).json()
     convo = (await client.post("/api/conversations", json={
         "character_id": char["id"], "persona_id": persona["id"],
@@ -203,6 +205,10 @@ async def test_a_greeting_on_the_card_rules_has_its_markers_resolved_once_at_cre
     # Stored as drawn: read again, the greeting says the same.
     again = (await client.get(f"/api/conversations/{convo['id']}")).json()
     assert again["messages"][0]["variants"] == variants
+    # A greeting its markers leave blank opens the story on no turn at all.
+    blank = await create_character(client, card_rules=2, greeting="{{// todo}}", alternate_greetings=[" {{//x}} "])
+    convo = (await client.post("/api/conversations", json={"character_id": blank["id"]})).json()
+    assert convo["messages"] == []
 
     # On Evermind's own rules only the names are put in, as before.
     old = await create_character(client, greeting="<BOT> rolls {{roll:d6}}, {{user}}.")
