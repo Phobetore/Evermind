@@ -457,7 +457,7 @@
     "logic": {
       "0": "y al menos una",
       "1": "salvo si están todas",
-      "2": "salvo si hay una sola",
+      "2": "salvo si aparece alguna",
       "3": "y todas"
     },
     "orderLabel": "Orden",

@@ -457,7 +457,7 @@
     "logic": {
       "0": "und mindestens eines",
       "1": "außer bei allen",
-      "2": "außer bei einem einzigen",
+      "2": "außer bei irgendeinem davon",
       "3": "und alle"
     },
     "orderLabel": "Reihenfolge",
