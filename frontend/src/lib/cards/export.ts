@@ -257,6 +257,16 @@ function madeHere(character: CardCharacter, now: Date): ExportedCard {
   return cardsOf(root, data, true, now, "v2");
 }
 
+/** A flat card's `data` of its own, which is no card, would be written over by the card's: it
+ *  moves to the first free name beside it instead. */
+function keepOwnData(root: Fields) {
+  if (!("data" in root)) return;
+  let name = "data_v1";
+  for (let n = 2; name in root; n++) name = `data_v1_${n}`;
+  root[name] = root.data;
+  delete root.data;
+}
+
 const parsed = (text: string): unknown => {
   try {
     return JSON.parse(text);
@@ -290,19 +300,13 @@ export function cardForExport(character: CardCharacter, stored: StoredCard | nul
     }
     // SillyTavern keeps the notes of a V1 card in creatorcomment.
     if (!("creator_notes" in data) && "creatorcomment" in root) data.creator_notes = structuredClone(root.creatorcomment);
-    // A `data` of the card's own, which is no card, would be written over by the card's: it moves
-    // to the first free name beside it instead.
-    if ("data" in root) {
-      let name = "data_v1";
-      for (let n = 2; name in root; n++) name = `data_v1_${n}`;
-      root[name] = root.data;
-      delete root.data;
-    }
+    keepOwnData(root);
   } else {
     // The flat shape of Pygmalion: its fields under the names of a card, and no longer at the root.
     root = structuredClone(card);
     for (const key of PYGMALION_FIELDS) delete root[key];
     data = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined).map(([key, value]) => [key, structuredClone(value)]));
+    keepOwnData(root);
   }
 
   const { written, changed } = writeColumns(data, character, stored.read);

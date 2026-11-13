@@ -197,6 +197,11 @@ describe("an export of a card that was read", () => {
         scenario: pygmalion.world_scenario, mes_example: pygmalion.example_dialogue,
       },
     });
+    // Its own `data`, which is no card either, is kept beside the card's too.
+    const junk = exported(kept(JSON.stringify({ ...pygmalion, data: { junk: 1 } })).kept);
+    expect(junk.v2).toMatchObject({ data_v1: { junk: 1 }, data: { name: "Bellamy" } });
+    expect(junk.v2.data).not.toHaveProperty("junk");
+    expect(junk.v3).toMatchObject({ data_v1: { junk: 1 } });
   });
 
   test("the V1 copies at the root follow their data", () => {
