@@ -145,6 +145,19 @@ async def test_two_entries_cannot_claim_the_same_entry_of_the_card(client):
     assert accepted.status_code == 200, accepted.text
 
 
+async def test_a_nickname_is_bounded_as_the_name_is(client):
+    # In code points, as the interface counts when it cuts a card's name or nickname.
+    longest = "é" * 199 + "\U0001f30a"
+    made = await make(client, name=longest, nickname=longest)
+    assert (made["name"], made["nickname"]) == (longest, longest)
+
+    for field in ("name", "nickname"):
+        refused = await client.post("/api/characters", json={"name": "Serana", field: longest + "x"})
+        assert refused.status_code == 422, field
+        refused = await client.put(f"/api/characters/{made['id']}", json={field: longest + "x"})
+        assert refused.status_code == 422, field
+
+
 async def test_a_card_from_a_page_that_predates_the_rules_keeps_the_old_ones(client):
     assert (await make(client))["card_rules"] == 1
     assert (await make(client, card_rules=2))["card_rules"] == 2
