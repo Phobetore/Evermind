@@ -93,66 +93,82 @@ function harborCard(name: string) {
   }));
 }
 
-async function removeNamed(request: import("@playwright/test").APIRequestContext, name: string) {
-  const listed: { id: string; name: string }[] = await (await request.get(`${API}/api/characters`)).json();
-  for (const made of listed.filter((c) => c.name === name)) {
-    await request.delete(`${API}/api/characters/${made.id}`);
-  }
+type Listed = { id: string; name: string; kind: string; tagline: string };
+
+async function listed(request: import("@playwright/test").APIRequestContext): Promise<Listed[]> {
+  return (await request.get(`${API}/api/characters`)).json();
+}
+
+/** The cards that were not there before: the one this test imported, whatever an earlier run left
+ *  behind under the same name. */
+async function madeSince(request: import("@playwright/test").APIRequestContext, before: Set<string>) {
+  return (await listed(request)).filter((c) => !before.has(c.id));
 }
 
 test("an imported card says what was used and what was only kept", async ({ page, request }) => {
-  const name = "Harbor report";
-  await page.goto("/");
-  await page.waitForLoadState("networkidle");
-  await page.getByTitle(/^import a card/i).click();
-  const dialog = page.getByRole("dialog");
-  await dialog.locator('input[type="file"]').setInputFiles({
-    name: "harbor.json", mimeType: "application/json", buffer: harborCard(name),
-  });
+  const before = new Set((await listed(request)).map((c) => c.id));
+  try {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.getByTitle(/^import a card/i).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.locator('input[type="file"]').setInputFiles({
+      name: "harbor.json", mimeType: "application/json", buffer: harborCard("Harbor report"),
+    });
 
-  const row = dialog.locator("li", { hasText: "harbor.json" });
-  await expect(row).toContainText("3 entries");
-  await expect(row).toContainText("always on");
-  // What is only kept is folded away until asked for.
-  await expect(row.getByText("zz_other_tool")).toBeHidden();
-  await row.getByText("Kept in the card, not used").click();
-  await expect(row.getByText("zz_other_tool")).toBeVisible();
-  await removeNamed(request, name);
+    const row = dialog.locator("li", { hasText: "harbor.json" });
+    await expect(row).toContainText("3 entries");
+    await expect(row).toContainText("always on");
+    // What is only kept is folded away until asked for.
+    await expect(row.getByText("zz_other_tool")).toBeHidden();
+    await row.getByText("Kept in the card, not used").click();
+    await expect(row.getByText("zz_other_tool")).toBeVisible();
+  } finally {
+    // Removed even when the test fails, so that a retry starts from the same data.
+    for (const made of await madeSince(request, before)) await request.delete(`${API}/api/characters/${made.id}`);
+  }
 });
 
 test("the kind and the tagline asked after an import are saved, and only when asked", async ({ page, request }) => {
   const name = "Harbor questions";
-  await page.goto("/");
-  await page.waitForLoadState("networkidle");
-  await page.getByTitle(/^import a card/i).click();
-  const dialog = page.getByRole("dialog");
-  await dialog.locator('input[type="file"]').setInputFiles({
-    name: "harbor.json", mimeType: "application/json", buffer: harborCard(name),
-  });
-  const row = dialog.locator("li", { hasText: "harbor.json" });
-  await expect(row).toContainText("3 entries");
+  const tagline = "A quiet harbor at the end of the world.";
+  const before = new Set((await listed(request)).map((c) => c.id));
+  try {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.getByTitle(/^import a card/i).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.locator('input[type="file"]').setInputFiles({
+      name: "harbor.json", mimeType: "application/json", buffer: harborCard(name),
+    });
+    const row = dialog.locator("li", { hasText: "harbor.json" });
+    await expect(row).toContainText("3 entries");
 
-  const stored = async () => {
-    const listed: { id: string; name: string; kind: string; tagline: string }[] =
-      await (await request.get(`${API}/api/characters`)).json();
-    return listed.find((c) => c.name === name)!;
-  };
-  // The tagline is offered, not written: nothing was clicked.
-  await expect(row.getByRole("textbox")).toHaveValue("A quiet harbor at the end of the world.");
-  expect((await stored()).tagline).toBe("");
-  expect((await stored()).kind).toBe("character");
+    // By the card this import made, not by its name, which a failed earlier run may have left too.
+    const made = await madeSince(request, before);
+    expect(made.map((c) => c.name)).toEqual([name]);
+    const stored = async () => (await listed(request)).find((c) => c.id === made[0].id)!;
+    // The tagline is offered, not written: nothing was clicked.
+    await expect(row.getByRole("textbox")).toHaveValue(tagline);
+    expect((await stored()).tagline).toBe("");
+    expect((await stored()).kind).toBe("character");
 
-  await row.getByRole("button", { name: "Scenario" }).click();
-  await row.getByRole("button", { name: "Save" }).click();
-  await expect(row.getByText("Saved")).toBeVisible();
-  const saved = await stored();
-  expect(saved.kind).toBe("scenario");
-  expect(saved.tagline).toBe("A quiet harbor at the end of the world.");
+    await row.getByRole("button", { name: "Scenario" }).click();
+    await row.getByRole("button", { name: "Save" }).click();
+    await expect(row.getByText("Saved")).toBeVisible();
+    const saved = await stored();
+    expect(saved.kind).toBe("scenario");
+    expect(saved.tagline).toBe(tagline);
 
-  // The list behind the window follows the save, without a reload.
-  await dialog.getByRole("button", { name: "Close" }).click();
-  await page.getByRole("button", { name: /^Scenarios/ }).click();
-  await expect(page.getByText(name)).toBeVisible();
-  await expect(page.getByText("A quiet harbor at the end of the world.")).toBeVisible();
-  await removeNamed(request, name);
+    // The list behind the window follows the save, without a reload.
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await page.getByRole("button", { name: /^Scenarios/ }).click();
+    const card = page.locator(`a[href$="/characters/${made[0].id}"]`);
+    await expect(card).toBeVisible();
+    // Read as text: the card hides its tagline on a phone.
+    await expect(card).toContainText(tagline);
+  } finally {
+    // Removed even when the test fails, so that a retry starts from the same data.
+    for (const made of await madeSince(request, before)) await request.delete(`${API}/api/characters/${made.id}`);
+  }
 });
