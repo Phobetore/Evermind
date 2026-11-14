@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
-import { Mark } from "./Mark";
+import { Mark, maskId } from "./Mark";
 
 const frontend = fileURLToPath(new URL("../../..", import.meta.url));
 
@@ -44,6 +44,15 @@ test("the mark takes its size from its classes and its colour from the text", ()
   expect(svg).toMatch(/^<svg[^>]* class="h-7 w-7 text-ember-400"/);
   expect(svg).toContain('fill="currentColor"');
   expect(svg).toContain('viewBox="0 -4.2 64 64"');
+});
+
+// React 19 gives ids like `_r_1_`; React 18 gave `:r0:` and a canary `«r0»`. A colon or a guillemet
+// in the id would break the unquoted url(#…) that cuts the openings, and the mark would lose its eyes.
+test("the mask's id keeps only what url() reads unquoted, whatever form React gives its ids", () => {
+  expect(maskId(":r0:")).toBe("mark-maskr0");
+  expect(maskId("«r0»")).toBe("mark-maskr0");
+  expect(maskId("_r_1_")).toBe("mark-mask_r_1_");
+  expect(maskId(":r0:")).not.toBe(maskId(":r1:"));
 });
 
 // The browser's tab and a phone's home screen show the same drawing as the page.

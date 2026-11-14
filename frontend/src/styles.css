@@ -311,9 +311,10 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 .stagger > *:nth-child(n + 9) { animation-delay: 0.34s; }
 
 /* The mark (components/ui/Mark.tsx). Nothing moves by itself: the spark winks when the pointer
-   comes over the mark, or over the link or button that holds it, or when that takes the keyboard
-   focus; and it turns while .mark[data-busy="true"]. A busy mark does not wink: the pointer over
-   the login's mark while the password is checked leaves the turning alone. The spark is drawn
+   comes over the link or button that holds the mark (or an element marked data-mark-host), or when
+   that takes the keyboard focus; and it turns while .mark[data-busy="true"]. A mark alone, like the
+   login's, does not wink: a wink says "this leads somewhere", and nothing happens by clicking it.
+   A busy mark does not wink either: whatever holds it, the turning is left alone. The spark is drawn
    around 0,0 and placed by its parent (.mark-spark-at), so each transform here turns or closes it
    about its own centre. */
 .mark-spark {
@@ -329,8 +330,7 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   54%  { transform: scale(1.08, 0.08); animation-timing-function: cubic-bezier(0.2, 0.6, 0.35, 1); }
   100% { transform: scale(1, 1); }
 }
-:is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark,
-svg:hover > .mark:not([data-busy="true"]) .mark-spark {
+:is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark {
   animation: mark-blink 280ms 1;
 }
 
@@ -361,8 +361,7 @@ svg:hover > .mark:not([data-busy="true"]) .mark-spark {
   }
 
   /* The mark does not wink: cut to an instant, the wink would still flick. */
-  :is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark,
-  svg:hover > .mark:not([data-busy="true"]) .mark-spark {
+  :is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark {
     animation: none;
   }
   /* Waiting, it still says so, without moving: its spark dims and comes back, slowly, for as long as

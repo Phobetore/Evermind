@@ -94,7 +94,19 @@ test("asked for less motion, the mark does not wink", { tag: "@desktop" }, async
 test.describe("on the server with a password", () => {
   test.use({ baseURL: GATED });
 
-  test("the login's mark turns while the password is checked, and stops when it is answered", async ({ page }) => {
+  // The login's mark is not a link: nothing happens by coming over it, so it does not wink at rest.
+  test("the login's mark does not wink under the pointer: it is not a link", { tag: "@desktop" }, async ({ page }) => {
+    await countMotion(page);
+    await page.goto("/#/login");
+    const mark = page.locator("svg:has(+ h1) .mark");
+    await expect(mark).toHaveCount(1);
+    await mark.locator("xpath=..").hover();
+    await page.waitForTimeout(350);
+    expect(await sparkAnimations(page, "svg:has(+ h1)")).toEqual([]);
+    expect(await motion(page)).toEqual([]);
+  });
+
+  test("the login's mark turns while the password is checked, and stops when it is answered", { tag: "@desktop" }, async ({ page }) => {
     await countMotion(page);
     let release!: () => void;
     const held = new Promise<void>((resolve) => (release = resolve));
@@ -169,7 +181,7 @@ for (const place of [
   { name: "a character", words: "Loading…" },
   { name: "a character's form", words: "Loading…" },
 ]) {
-  test(`while ${place.name} is read, a turning mark says so above the words, and the page replaces it`, async ({ page, request }) => {
+  test(`while ${place.name} is read, a turning mark says so above the words, and the page replaces it`, { tag: "@desktop" }, async ({ page, request }) => {
     let address: string;
     let path: string;
     let arrived: RegExp;

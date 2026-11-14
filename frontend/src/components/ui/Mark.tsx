@@ -6,14 +6,22 @@ import { useId } from "react";
  * `currentColor`; its size is its classes'.
  *
  * It moves by CSS alone (styles.css, "The mark"): the spark winks when the pointer comes over the
- * mark or over the link or button that holds it, or when that takes the keyboard focus; and it turns
- * while `busy`. A busy mark does not wink. The spark is drawn around 0,0 and placed by its parent, so
+ * link or button that holds it (or an element marked `data-mark-host`), or when that takes the
+ * keyboard focus; and it turns while `busy`. A mark alone, like the login's, does not wink, and a busy
+ * mark does not wink. The spark is drawn around 0,0 and placed by its parent, so
  * a transform turns or closes it about its own centre.
  *
  * The moving spark is inside the mask. An engine that does not repaint a mask's contents under a CSS
  * animation (older WebKit has been known not to) shows the spark still: the mark is whole, it only
  * does not move there.
  */
+/** The id of a mark's mask, from React's `useId()`: kept to what an unquoted url(#…) reads. React 19
+ *  gives `_r_1_`, which needs nothing; React 18 gave `:r0:` and a canary `«r0»`, which would leave the
+ *  mark without its openings. This guards the mark against the next form React picks. */
+export function maskId(reactId: string) {
+  return `mark-mask${reactId.replace(/[^\w-]/g, "")}`;
+}
+
 export function Mark({ className, busy = false, decorative = false }: {
   className?: string;
   /** Evermind is waiting on itself: the spark turns. */
@@ -21,9 +29,8 @@ export function Mark({ className, busy = false, decorative = false }: {
   /** Beside the word Evermind: hidden from a screen reader, which would read the name twice. */
   decorative?: boolean;
 }) {
-  // One mask per mark: two sharing an id would cut both with the first one's. Kept to what an
-  // unquoted url() reference reads, whatever form React gives its ids.
-  const mask = `mark-mask${useId().replace(/[^\w-]/g, "")}`;
+  // One mask per mark: two sharing an id would cut both with the first one's.
+  const mask = maskId(useId());
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
