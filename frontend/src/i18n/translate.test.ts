@@ -44,6 +44,17 @@ describe("a number", () => {
     expect(translate(locale, "chatList.messageCount", { count: 16384 })).toContain("16384");
   });
 
+  it.each([
+    ["en", "Lorebook: 1,500 entries", "12,000 lorebook entries"],
+    ["fr", "1 500", "12 000 entrées"],
+    ["de", "Lorebook: 1.500 Einträge", "12.000 Lorebook-Einträge"],
+    // Spanish groups a number of four digits only from five: "1500", "12.000".
+    ["es", "Lorebook: 1500 entradas", "12.000 entradas del lorebook"],
+  ] as const)("of a card's entries is grouped in %s", (locale, report, banner) => {
+    expect(translate(locale, "cards.report.lore", { count: 1500 })).toContain(report);
+    expect(translate(locale, "characters.reread.lore", { count: 12000 })).toContain(banner);
+  });
+
   it.each(["fr", "de", "es"] as const)("written into a sentence in %s has its decimal comma", (locale) => {
     expect(translate(locale, "connections.temperatureHint")).toMatch(/\b0,8\b/);
   });
