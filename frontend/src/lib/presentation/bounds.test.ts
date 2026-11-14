@@ -27,6 +27,9 @@ test("a long plain text is cut into parts, never inside a character", () => {
 
   // Nothing is walked up to the part asked for.
   const huge = "x".repeat(15 * 1024 * 1024);
+  // repeat() makes a rope that the first read flattens, megabytes copied in one go: done before
+  // the clock starts, so that only plainPart is timed.
+  huge.charCodeAt(0);
   const [part, elapsed] = timed(() => plainPart(huge, 70));
   expect(part.part.length).toBe(PLAIN_PART);
   expect(elapsed).toBeLessThan(5);
