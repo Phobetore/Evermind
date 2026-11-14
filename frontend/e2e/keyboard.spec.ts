@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversation, conversationWithReply, makeCharacter, makeConversation, PNG } from "./fixtures";
+import { conversation, conversationWithReply, makeCharacter, makeConversation, PNG, replyEnds } from "./fixtures";
 
 /** From the keyboard: each press leaves the focus on what the next is for, never on the page itself. */
 
@@ -140,10 +140,12 @@ test("Regenerate from the keyboard leaves the focus on Stop while the reply is w
   const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
   await page.goto(`/#/chat/${convo.id}`);
 
+  const ends = replyEnds(page, convo.id);
   await pressOn(reply.getByTitle("Regenerate"));
 
   await expect(page.getByTitle("Stop generation"), `the focus is on ${await focusIn(page)}`).toBeFocused();
-  await expect(reply).toContainText("endagain", { timeout: 30_000 });
+  await ends;
+  await expect(reply).toContainText("endagain");
   await expect(reply.getByTitle("Regenerate"), `the focus is on ${await focusIn(page)}`).toBeFocused();
 });
 
