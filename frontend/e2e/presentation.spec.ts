@@ -374,24 +374,34 @@ test("the deepest text stays inside the frame", async ({ page }) => {
 });
 
 test("a Show button stays the one that is tapped", async ({ page }) => {
-  const box = await openCard(page, [
-    "![pic](https://pictures.example/a.png)",
-    '<div style="line-height: 1"><a href="https://site.example/x" style="padding: 4px 0; background-color: #16121d">xxxxxxxxxxxxxxxxxxxx</a> <span style="padding: 64px 0; background-color: #16121d">yyyy</span> <div style="display: inline; padding: 64px 0; background-color: #16121d">zzzz</div></div>',
-  ].join("\n"));
+  const cards = [
+    // Paddings that would reach up over the place: cardRules takes them away.
+    [
+      "![pic](https://pictures.example/a.png)",
+      '<div style="line-height: 1"><a href="https://site.example/x" style="padding: 4px 0; background-color: #16121d">xxxxxxxxxxxxxxxxxxxx</a> <span style="padding: 64px 0; background-color: #16121d">yyyy</span> <div style="display: inline; padding: 64px 0; background-color: #16121d">zzzz</div></div>',
+    ].join("\n"),
+    // What cardRules keeps still paints over the line above: the heading's letters, drawn at a
+    // line height of 1, are taller than their line, and a padding and a border of 4 px each are
+    // kept on top of them. Only the place's own stacking keeps its button the one touched.
+    '<div style="line-height: 1"><img src="https://pictures.example/b.png" alt="pic"><br><h1 style="display: inline; font-size: 32px; line-height: 1; padding: 4px 0; border-top: 4px solid #16121d; background-color: #16121d">yyyy</h1></div>',
+  ];
 
-  const show = box.getByRole("button", { name: "Show the image from pictures.example" });
-  // elementFromPoint sees only what is on screen.
-  await show.scrollIntoViewIfNeeded();
-  const r = await rect(show);
-  for (const [x, y] of [[r.x + r.width / 2, r.y + r.height / 2], [r.x + r.width / 2, r.bottom - 2]]) {
-    const onIt = await show.evaluate((button, [px, py]) => {
-      const found = document.elementFromPoint(px, py);
-      return !!found && button.contains(found);
-    }, [x, y]);
-    expect(onIt, `the Show button is not what lies at ${x}, ${y}`).toBe(true);
+  for (const [i, notes] of cards.entries()) {
+    const box = await openCard(page, notes);
+    const show = box.getByRole("button", { name: "Show the image from pictures.example" });
+    // elementFromPoint sees only what is on screen.
+    await show.scrollIntoViewIfNeeded();
+    const r = await rect(show);
+    for (const [x, y] of [[r.x + r.width / 2, r.y + r.height / 2], [r.x + r.width / 2, r.bottom - 2]]) {
+      const onIt = await show.evaluate((button, [px, py]) => {
+        const found = document.elementFromPoint(px, py);
+        return !!found && button.contains(found);
+      }, [x, y]);
+      expect(onIt, `card ${i + 1}: the Show button is not what lies at ${x}, ${y}`).toBe(true);
+    }
+    await show.click();
+    await expect.poll(() => toPictures().length).toBe(i + 1);
   }
-  await show.click();
-  await expect.poll(() => toPictures().length).toBe(1);
   expect(opened).toEqual([]);
 });
 
