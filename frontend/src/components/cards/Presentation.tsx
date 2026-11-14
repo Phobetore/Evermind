@@ -30,6 +30,25 @@ function loadLayout(): Promise<Render> {
   return loading;
 }
 
+/** Hands the layout to `got` once it is here, or tells `failed` it could not be had; the function
+ *  returned stops both. The layout may have arrived between a presentation's first draw and its
+ *  effect, for an import an earlier presentation started: it is then handed over at once, or that
+ *  presentation would stay plain for good. Exported for its test. */
+export function whenLayout(got: (render: Render) => void, failed: () => void): () => void {
+  if (loaded) {
+    got(loaded);
+    return () => {};
+  }
+  let live = true;
+  loadLayout().then(
+    (render) => live && got(render),
+    () => live && failed(),
+  );
+  return () => {
+    live = false;
+  };
+}
+
 const COMPONENTS = { a: PresentationLink, img: PresentationImage } as unknown as Partial<Components>;
 
 /** A site's name for the line of the sites contacted: its last 32 characters, the end of a name
@@ -44,17 +63,14 @@ export function Presentation({ text }: { text: string }) {
   const [missing, setMissing] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
-  useEffect(() => {
-    if (loaded) return;
-    let live = true;
-    loadLayout().then(
-      (got) => live && setRender({ render: got }),
-      () => live && setMissing(true),
-    );
-    return () => {
-      live = false;
-    };
-  }, []);
+  useEffect(
+    () =>
+      whenLayout(
+        (got) => setRender((now) => (now?.render === got ? now : { render: got })),
+        () => setMissing(true),
+      ),
+    [],
+  );
 
   const rendered = useMemo(() => (render ? render.render(text) : null), [render, text]);
   const laidOut = rendered?.kind === "laid-out" ? rendered : null;
