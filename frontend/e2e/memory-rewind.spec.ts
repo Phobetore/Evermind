@@ -304,60 +304,48 @@ test("the summary box shows what a pass wrote when it is entered", { tag: "@desk
   await expect(summary).toHaveValue(/woke the character in a crypt/);
 });
 
-// On a wide screen the panel stays beside the story while its newest reply is written over.
-test("the panel beside the story reads the memory again once a reply written over takes it back", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
-  test.skip(isMobile, "a phone's panel is closed to reach the reply, and reads on opening");
-  const convo = await makeConversation(request);
-  const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
-  await say("First question.");
-  await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
-  const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
-  await say("Second question.");
-
-  await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
-  await page.goto(`/#/chat/${convo.id}`);
-  const panel = page.locator("aside:visible:has(textarea)");
-  const summary = panel.getByPlaceholder(panelText.summary.placeholder);
-  await expect(summary).toHaveValue(first.summary);
-  const reply = page.locator("[data-message-id]").last();
-  // Each with what the panel reads the memory again on: a reply's end, or the swipe's answer.
-  const swipeAnswered = () => page.waitForResponse((r) => r.request().method() === "PATCH"
-    && new URL(r.url()).pathname.includes("/api/messages/"));
-  const writtenOver = {
-    regenerated: [() => reply.getByTitle(en.chat.message.regenerateTitle).click(), () => replyEnds(page, convo.id)],
-    "carried on": [() => reply.getByTitle(en.chat.message.continueTitle).click(), () => replyEnds(page, convo.id)],
-    "swiped back": [() => reply.getByLabel(en.chat.message.prevVariantAriaLabel).click(), swipeAnswered],
-  } as const;
-  for (const [how, [act, heard]] of Object.entries(writtenOver)) {
-    // Remember reads the newest reply, so that writing it over takes the memory back to the first pass.
-    const passed = remembered(page);
-    await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
-    await passed;
-    await expect(summary).not.toHaveValue(first.summary);
+// On a wide screen the panel stays beside the story while its newest reply is written over. One
+// test for each way of writing it over: each is a pass of the memory and a reply, which a loaded
+// machine makes long.
+const writtenOver = {
+  regenerated: { title: en.chat.message.regenerateTitle },
+  "carried on": { title: en.chat.message.continueTitle },
+  "swiped back": { label: en.chat.message.prevVariantAriaLabel },
+} as const;
+for (const [how, button] of Object.entries(writtenOver)) {
+  test(`the panel beside the story reads the memory again once a reply ${how} takes it back`, { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+    test.skip(isMobile, "a phone's panel is closed to reach the reply, and reads on opening");
+    const swiped = how === "swiped back";
+    const { convo, first, panel, summary, reply } = await readToTheNewestReply(page, request, { twice: swiped });
+    // What the panel reads the memory again on: a reply's end, or the swipe's answer.
+    const heard = swiped
+      ? page.waitForResponse((r) => r.request().method() === "PATCH" && new URL(r.url()).pathname.includes("/api/messages/"))
+      : replyEnds(page, convo.id);
     await reply.hover();
-    const reason = heard();
-    await act();
-    await reason;
+    await ("title" in button ? reply.getByTitle(button.title) : reply.getByLabel(button.label)).click();
+    await heard;
     await expect(summary, `the summary once the reply is ${how}`).toHaveValue(first.summary);
-  }
 
-  // Typed over the summary the memory holds, which keeps its place.
-  await summary.fill(`${first.summary} Typed.`);
-  await panel.getByRole("button", { name: panelText.summary.saveButton }).click();
-  await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
-  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
-  expect(read.memory_position).toBe(2);
-});
+    // Typed over the summary the memory holds, which keeps its place.
+    await summary.fill(`${first.summary} Typed.`);
+    await panel.getByRole("button", { name: panelText.summary.saveButton }).click();
+    await expect(panel.getByRole("button", { name: panelText.summary.saveButton })).toBeHidden();
+    const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+    expect(read.memory_position).toBe(2);
+  });
+}
 
 /** A story open on a wide screen, the panel beside it showing a summary that read the newest reply:
- *  asking for that reply again takes the memory back to `first`, the story as the pass before left it. */
-async function readToTheNewestReply(page: Page, request: APIRequestContext) {
+ *  asking for that reply again takes the memory back to `first`, the story as the pass before left it.
+ *  `twice`: that reply was asked for again once already, so that there is a version to swipe back to. */
+async function readToTheNewestReply(page: Page, request: APIRequestContext, { twice = false } = {}) {
   const convo = await makeConversation(request);
   const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
   await say("First question.");
   await request.post(`${API}/api/conversations/${convo.id}/memories/extract`, { timeout: 60_000 });
   const first = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
   await say("Second question.");
+  if (twice) await chat(request, { conversation_id: convo.id, mode: "regenerate" });
 
   await page.addInitScript(() => localStorage.setItem("evermind:locale", "en"));
   await page.goto(`/#/chat/${convo.id}`);
@@ -370,7 +358,7 @@ async function readToTheNewestReply(page: Page, request: APIRequestContext) {
   await passed;
   await expect(summary).not.toHaveValue(first.summary);
   const { revision } = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
-  return { convo, first, summary, revision: revision as number, reply: page.locator("[data-message-id]").last() };
+  return { convo, first, panel, summary, revision: revision as number, reply: page.locator("[data-message-id]").last() };
 }
 
 /** The server takes the next request for a turn; its answer hangs until let go, and is lost then. */
