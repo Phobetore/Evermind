@@ -210,8 +210,9 @@ export function taglineOf(notes: string): string {
     .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name: string) => ENTITIES[name]);
   plain = plain.replace(/\s+/g, " ").trim();
   // A full-width mark ends the sentence whatever follows: Japanese and Chinese put no space after it.
-  const end = /[.!?…](?=\s|$)|[。！？]/.exec(plain);
-  return end ? plain.slice(0, end.index + 1) : plain;
+  // The marks after it and the quotes it closes go with it, or the tagline would end inside a quotation.
+  const end = /[.!?…](?=\s|$)|[。！？]+[」』）】》〉”’"']*/.exec(plain);
+  return end ? plain.slice(0, end.index + end[0].length) : plain;
 }
 
 /** A parsed card and the text it was parsed from; null for what is no card. */

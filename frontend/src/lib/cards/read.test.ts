@@ -232,6 +232,10 @@ describe("the fields of a card", () => {
     expect(tagline("東京の門番。二つ目の文。")).toBe("東京の門番。");
     expect(tagline("門を守れ！二つ目の文")).toBe("門を守れ！");
     expect(tagline("誰が来た？二つ目の文")).toBe("誰が来た？");
+    // A mark inside a quotation ends the sentence with the quote it closes, and a doubled mark stays whole.
+    expect(tagline("「おかえりなさい！」あなたを待つ門番。")).toBe("「おかえりなさい！」");
+    expect(tagline("她说：“门不会开。”然后离开了。")).toBe("她说：“门不会开。”");
+    expect(tagline("すごい！！本当に？")).toBe("すごい！！");
     expect(tagline("Version 1.5 is out? Yes")).toBe("Version 1.5 is out?");
     expect(tagline("No end to this one")).toBe("No end to this one");
     expect(tagline("")).toBe("");
