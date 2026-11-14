@@ -85,6 +85,24 @@ def test_a_card_on_the_old_rules_ignores_every_new_setting():
     assert "Castles stand." not in before["system"]
 
 
+def test_the_recorded_cases_on_the_old_rules_give_the_prompt_of_a_card_without_new_settings():
+    # The TypeScript engine is held to these cases, so they must say what the test above says:
+    # every new setting, a nickname, a note and the markers change nothing on the old rules.
+    from .test_recorded_cases import CASES_DIR, read
+
+    groups = {
+        "chat.json": ["a card on the old rules, without any new setting",
+                      "a card on the old rules ignores every new setting",
+                      "a card that names no rules is on the old ones and ignores every new setting"],
+        "payloads.json": ["impersonation: a card on the old rules, without any new setting",
+                          "impersonation: a card on the old rules ignores its nickname, its note and its markers"],
+    }
+    for file, names in groups.items():
+        cases = {case["name"]: case for case in read(CASES_DIR / file)}
+        plain, *with_settings = [cases[name]["expected"] for name in names]
+        assert all(expected == plain for expected in with_settings), file
+
+
 def test_a_single_word_key_matches_whole_words_only():
     assert not key_matches("ring", "bring it here", True)
     assert key_matches("ring", "a ring, then", True)
