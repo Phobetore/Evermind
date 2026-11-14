@@ -47,6 +47,24 @@ test("Enter as it opens deletes nothing", { tag: "@desktop" }, async ({ page, re
   await expect(row).toBeVisible();
 });
 
+test("a yes from the keyboard is heard at once", { tag: "@desktop" }, async ({ page, request }) => {
+  const { id, row, remove } = await listed(page, request);
+  const deletes: string[] = [];
+  page.on("request", (r) => r.method() === "DELETE" && deletes.push(r.url()));
+  await remove.focus();
+  await page.keyboard.press("Enter");
+  await expect(box(page).getByRole("button", { name: "Cancel" })).toBeFocused();
+
+  // No wait for the box to hear: the half second guards a pointer's second press, and from the
+  // keyboard the focus on Cancel is the guard. Tab and Enter back to back, as a hand that knows
+  // the box presses them.
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(row).toHaveCount(0);
+  expect(deletes.filter((url) => url.endsWith(`/api/conversations/${id}`))).toHaveLength(1);
+});
+
 test("confirming deletes it, once", async ({ page, request }) => {
   const { id, row, remove } = await listed(page, request);
   const deletes: string[] = [];

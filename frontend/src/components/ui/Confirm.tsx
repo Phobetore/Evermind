@@ -84,8 +84,11 @@ function ConfirmBox({ question, action, danger, settle }: Asked) {
           className={`btn min-w-0 whitespace-normal break-words ${danger ? "btn-danger" : "btn-primary"}`}
           // Only the yes waits: Cancel, Escape, the cross and a click outside are heard at once. The
           // press's own time, not the time it is handled: on a busy page a press made inside the
-          // half second is handled after it.
-          onClick={(event) => event.timeStamp - drawn.current >= DEAF_MS && settle(true)}
+          // half second is handled after it. A click no pointer made (detail 0: Enter or Space, or a
+          // screen reader's) is heard at once: the deaf time guards against a pointer's second
+          // press, and from the keyboard the focus on Cancel already does, since reaching this
+          // button takes a move made after the box is there.
+          onClick={(event) => (event.detail === 0 || event.timeStamp - drawn.current >= DEAF_MS) && settle(true)}
         >
           {action}
         </button>
