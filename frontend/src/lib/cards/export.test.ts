@@ -204,6 +204,34 @@ describe("an export of a card that was read", () => {
     expect(junk.v3).toMatchObject({ data_v1: { junk: 1 } });
   });
 
+  test("a retouched card that had no V1 copies at its root gains none", () => {
+    const { kept: card } = kept(fixture("chub-v2.json"));
+    const out = exported(card, (read) => ({
+      ...read, name: "Arisen", description: "Runs the harbor.", tags: ["sea"], creator_notes: "New notes.",
+    }));
+    expect(Object.keys(out.v2)).toEqual(["spec", "spec_version", "data"]);
+    expect(Object.keys(out.v3)).toEqual(["spec", "spec_version", "data"]);
+  });
+
+  test("a note given to a card that had no place for one is written whole", () => {
+    const { kept: card } = kept(fixture("risu-v2-backfill.json"));
+    const out = exported(card, (read) => ({ ...read, character_note_depth: 7 }));
+    expect((out.v2.data.extensions as Record<string, unknown>).depth_prompt).toEqual({ prompt: "", depth: 7, role: "system" });
+  });
+
+  test("an entry whose origin the kept reading does not know is written whole, from the character", () => {
+    const { kept: card, card: original } = kept(fixture("sillytavern-export.json"));
+    const unknown = Object.keys(entriesOf(original.data)[1]).filter((key) => !["keys", "content", "enabled", "comment", "constant",
+      "selective", "secondary_keys", "insertion_order", "position", "use_regex", "extensions"].includes(key));
+    expect(unknown.length).toBeGreaterThan(0);
+    const stranger = { ...card, read: { ...card.read, lore_entries: card.read.lore_entries.filter((entry) => entry.origin !== 1) } };
+    const mine = { ...newLoreEntry(["mine"], "Mine."), origin: 1 };
+    const out = cardForExport({ ...structuredClone(card.read), lore_entries: [mine] }, stranger, NOW);
+    const [entry] = entriesOf(out.v2.data);
+    expect(entry).toMatchObject({ keys: ["mine"], content: "Mine.", use_regex: false });
+    for (const key of unknown) expect(entry, key).not.toHaveProperty(key);
+  });
+
   test("the V1 copies at the root follow their data", () => {
     const { kept: card, card: original } = kept(fixture("sillytavern-export.json"));
     const out = exported(card, (read) => ({

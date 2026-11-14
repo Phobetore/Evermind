@@ -108,7 +108,7 @@ describe("the entries of a card", () => {
   });
 
   test("a malformed setting falls back, and the card imports", () => {
-    const bad = [-1, 2.5, "abc", 1e300, "1234567890123456789012345", null];
+    const bad = [-1, 2.5, "abc", 1e300, "1234567890123456789012345", null, "-0", "-3"];
     const { character } = v2(
       { extensions: { depth_prompt: { prompt: "Note.", depth: -1, role: "narrator" } } },
       [
