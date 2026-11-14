@@ -1,5 +1,4 @@
 import { ModelText } from "@/components/cards/ModelText";
-import { PlainText } from "@/components/ui/PlainText";
 import {
   DEFAULT_RP_RULES,
   ROLE_REMINDER,
@@ -67,12 +66,11 @@ export function WhatTheModelReads({ character, lore, you }: { character: Charact
   if (fields.length === 0 && !hasNote && lore === 0) return null;
 
   const depth = character.character_note_depth;
-  const drawn = (text: string) =>
-    asWritten ? (
-      <PlainText text={text} className="text-sm leading-relaxed text-parchment-dim" />
-    ) : (
-      <ModelText text={text} className="text-sm leading-relaxed text-parchment-dim" />
-    );
+  // The same element either way: the switch keeps each field's layout, and switching back to it
+  // lays nothing out again.
+  const drawn = (text: string) => (
+    <ModelText text={text} asWritten={asWritten} className="text-sm leading-relaxed text-parchment-dim" />
+  );
 
   return (
     <details className="mt-7" onToggle={(event) => setOpen(event.currentTarget.open)}>

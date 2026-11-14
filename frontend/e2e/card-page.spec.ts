@@ -573,6 +573,8 @@ test("the definition is laid out as Markdown alone, and nothing of it is hidden"
   await expect(text.locator("p")).toHaveText(description, { useInnerText: false });
   expect(await text.locator("p").evaluate((el) => el.textContent)).toBe(description);
   await expect(text.locator("strong")).toHaveCount(0);
+  // In the same frame as the laid-out text: the field does not change look at the switch.
+  await expect(text.locator(".card-presentation p")).toHaveCount(1);
 
   await details.getByRole("button", { name: "Laid out" }).click();
   await expect(text.locator("strong", { hasText: "gras" })).toBeVisible();
@@ -601,16 +603,51 @@ test("a long definition written under Markdown headings is laid out section by s
   const ilse = await card(request, { description: text });
   await page.setViewportSize({ width: 390, height: 844 });
   await openPage(page, ilse.id);
-  const details = await openModelReads(page);
+  const details = modelReads(page);
   const laid = field(details, "Description").locator(".card-presentation");
-  await expect(laid.locator("h4, h5, h6")).toHaveCount(55);
+  // Each way the page lays the text out is timed until the headings are drawn: the opening, and
+  // the switch back from the text as written. From a page done with its entrance: a tap waits
+  // until what it touches stops moving, and that wait is not the layout's.
+  await settled(page);
+  const opened = await timed(async () => {
+    await openModelReads(page);
+    await expect(laid.locator("h4, h5, h6")).toHaveCount(55);
+  });
+  expect(opened, "the section took more than a tap to open").toBeLessThan(1_000);
   expect(await sideways(page), "the page scrolls sideways").toBeLessThanOrEqual(0);
 
   const pressed = await timed(async () => {
     await details.getByRole("button", { name: "As written" }).click();
     await expect(details.getByRole("button", { name: "As written" })).toHaveAttribute("aria-pressed", "true");
+    await expect(laid.locator("h4, h5, h6")).toHaveCount(0);
   });
-  expect(pressed, "the switch took a tap").toBeLessThan(1_000);
+  expect(pressed, "the switch took more than a tap").toBeLessThan(1_000);
+
+  const back = await timed(async () => {
+    await details.getByRole("button", { name: "Laid out" }).click();
+    await expect(details.getByRole("button", { name: "Laid out" })).toHaveAttribute("aria-pressed", "true");
+    await expect(laid.locator("h4, h5, h6")).toHaveCount(55);
+  });
+  expect(back, "the switch back took more than a tap").toBeLessThan(1_000);
+});
+
+test("what the model reads is shown as written when the layout cannot be loaded, with a way to reload", async ({ page, request }) => {
+  await page.route("**/assets/renderPresentation-*.js", (route) => route.abort());
+  const ilse = await card(request, { description: "Some **bold** words." });
+  await openPage(page, ilse.id);
+  const details = await openModelReads(page);
+  const text = field(details, "Description");
+  const missing = text.getByText(en.characters.presentation.layoutMissing);
+  await expect(missing).toBeVisible();
+  const reload = text.getByRole("button", { name: en.characters.presentation.reload });
+  await expect(reload).toBeVisible();
+  // The text as written, in the frame the laid-out text has, below the line and its button.
+  const frame = text.locator(".card-presentation");
+  await expect(frame).toHaveText("Some **bold** words.");
+  await expect(frame.locator("strong")).toHaveCount(0);
+  const top = (await frame.boundingBox())!.y;
+  expect((await missing.boundingBox())!.y).toBeLessThan(top);
+  expect((await reload.boundingBox())!.y).toBeLessThan(top);
 });
 
 test("starring a card keeps its lorebook count", async ({ page, request }) => {

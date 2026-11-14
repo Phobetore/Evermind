@@ -25,20 +25,23 @@ function loadLayout(): Promise<Render> {
 }
 
 /** A text the model reads, laid out as Markdown alone, with a presentation's typography and no
- *  style of the card's (there is none without HTML), its headings under the field's h3. Shown as
- *  written until the layout arrives, if it never does, or past the bounds, with the line a
- *  presentation shows then. */
-export function ModelText({ text, className }: { text: string; className?: string }) {
+ *  style of the card's (there is none without HTML), its headings under the field's h3; or as
+ *  written when `asWritten`. Shown as written too until the layout arrives, if it never does (with
+ *  the line and the Reload button a presentation shows then), or past the bounds (with the line a
+ *  presentation shows then). One frame in every case: the field does not jump when the layout
+ *  lands, nor at each switch. The layout is kept while the text is shown as written, so that
+ *  switching back costs nothing. */
+export function ModelText({ text, asWritten = false, className }: { text: string; asWritten?: boolean; className?: string }) {
   const t = useT();
   const [render, setRender] = useState<{ render: Render } | null>(() => (loaded ? { render: loaded } : null));
+  const [missing, setMissing] = useState(false);
 
   useEffect(() => {
     let live = true;
     // Asked for even when the first draw had it not: it may have arrived since, for another text.
     loadLayout().then(
       (got) => live && setRender((now) => (now?.render === got ? now : { render: got })),
-      // The text stays shown as written, which is what the model reads.
-      () => {},
+      () => live && setMissing(true),
     );
     return () => {
       live = false;
@@ -57,8 +60,17 @@ export function ModelText({ text, className }: { text: string; className?: strin
 
   return (
     <div className={className}>
-      {reason && <p className="mb-2 text-sm text-mist">{t(`characters.presentation.${reason}`)}</p>}
-      {content ? <div className="card-presentation">{content}</div> : <PlainText text={text} />}
+      {/* Above the frame, and only when the layout was asked for: as written is what was chosen. */}
+      {!asWritten && missing && (
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-mist">
+          <p>{t("characters.presentation.layoutMissing")}</p>
+          <button type="button" className="btn btn-ghost min-h-11" onClick={() => window.location.reload()}>
+            {t("characters.presentation.reload")}
+          </button>
+        </div>
+      )}
+      {!asWritten && reason && <p className="mb-2 text-sm text-mist">{t(`characters.presentation.${reason}`)}</p>}
+      <div className="card-presentation">{(!asWritten && content) || <PlainText text={text} />}</div>
     </div>
   );
 }
