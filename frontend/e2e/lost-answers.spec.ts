@@ -4,6 +4,14 @@ import { answer, chat, conversation, conversationWithReply, makeCharacter, readO
 
 /** An answer lost or late on a phone's Wi-Fi: the page ends with what the server holds, and makes nothing twice. */
 
+// A route that answers once is taken off the page when it has. When it was the page's only one,
+// the browser is told to stop passing its requests through the test at all, and one the page sends
+// at that instant is never answered: the read that follows the lost answer, often. A route that
+// nothing matches keeps the requests passing through for the whole test.
+test.beforeEach(async ({ page }) => {
+  await page.route("**/asked-of-nobody", (route) => route.fallback());
+});
+
 /** What Evermind does with the request, before its answer is lost on the way back. */
 const answerLost = async (route: Route) => {
   await route.fetch();
