@@ -83,7 +83,7 @@ test("a PNG whose card inflates without end is refused, and the page still answe
     .toContainText("does not contain a character card", { timeout: 5_000 });
   expect(Date.now() - started, "the chunk was inflated far past the bound").toBeLessThan(5_000);
   const given = await page.evaluate(() => (window as unknown as { inflaterGiven: number }).inflaterGiven);
-  expect(given, "the page handed the inflater the whole body, not a slice at a time").toBeGreaterThan(0);
+  expect(given, "the doubling of DecompressionStream saw nothing, so the count below proves nothing").toBeGreaterThan(0);
   expect(given, "the page handed the inflater the whole body, not a slice at a time").toBeLessThan(bomb.length / 10);
 
   const card = JSON.stringify({ spec: "chara_card_v2", spec_version: "2.0", data: { name: "After the bomb" } });
