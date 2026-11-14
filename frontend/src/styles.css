@@ -323,15 +323,21 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   transform-origin: center;
 }
 
-/* The wink: the spark closes like an eyelid, holds a beat, opens again. Once per hover. */
+/* The wink: a slow, soft eyelid. The spark closes with an ease-in-out to a thin line (it never
+   vanishes), rests closed a moment, then opens a little slower than it closed. Every segment starts
+   and ends at rest: no jump, no overshoot. Once per hover. A pointer that leaves before the end would
+   take the animation away and snap the spark open, so the mark's host also sets
+   .mark[data-wink="true"] when the pointer or the keyboard arrives, and Mark.tsx removes it on the
+   wink's animationend: the same animation keeps running to its end. The duration is here alone. */
 @keyframes mark-blink {
-  0%   { transform: scale(1, 1);       animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6); }
-  38%  { transform: scale(1.08, 0.08); animation-timing-function: linear; }
-  54%  { transform: scale(1.08, 0.08); animation-timing-function: cubic-bezier(0.2, 0.6, 0.35, 1); }
+  0%   { transform: scale(1, 1);       animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  42%  { transform: scale(1.05, 0.1);  animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  55%  { transform: scale(1.05, 0.1);  animation-timing-function: cubic-bezier(0.4, 0, 0.5, 1); }
   100% { transform: scale(1, 1); }
 }
-:is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark {
-  animation: mark-blink 280ms 1;
+:is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark,
+.mark[data-wink="true"]:not([data-busy="true"]) .mark-spark {
+  animation: mark-blink 560ms 1;
 }
 
 /* Waiting: the spark turns a quarter while it draws in a breath, then rests a beat. Its four arms
@@ -361,7 +367,8 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   }
 
   /* The mark does not wink: cut to an instant, the wink would still flick. */
-  :is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark {
+  :is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark,
+  .mark[data-wink="true"]:not([data-busy="true"]) .mark-spark {
     animation: none;
   }
   /* Waiting, it still says so, without moving: its spark dims and comes back, slowly, for as long as

@@ -40,7 +40,7 @@ test("the tab's icon is Evermind's own mark", async ({ request }) => {
   expect(icon.ok()).toBe(true);
   const drawing = await icon.text();
   // Its spark: a four-pointed star cut in the mask, which no stock icon draws here.
-  expect(drawing).toContain("M45 19.4C48.6 26.4 48.6 26.4 55 30");
+  expect(drawing).toContain("M45 20.5C48.3 26.7 48.3 26.7 54 30");
   expect(drawing).not.toMatch(/lucide|venetian/i);
 });
 
@@ -58,6 +58,57 @@ test("the mark beside the name winks once when the pointer comes over the name",
   // It closes and opens again once, and does not go on while the pointer stays.
   await expect.poll(() => sparkAnimations(page, BRAND)).toEqual([]);
   expect(await motion(page)).toEqual(["start mark-blink", "end mark-blink"]);
+});
+
+test("the wink is a slow eyelid of about 560 ms, not a flick", { tag: "@desktop" }, async ({ page }, testInfo) => {
+  besideTheName(testInfo.project.name);
+  await page.goto("/#/personas");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.getByRole("link", { name: "Evermind", exact: true }).hover();
+  const duration = await page.evaluate(() =>
+    document.getAnimations()
+      .filter((a) => (a as CSSAnimation).animationName === "mark-blink")
+      .map((a) => a.effect!.getTiming().duration));
+  expect(duration).toEqual([560]);
+});
+
+test("a pointer that leaves half-way lets the wink finish", { tag: "@desktop" }, async ({ page }, testInfo) => {
+  besideTheName(testInfo.project.name);
+  await countMotion(page);
+  await page.goto("/#/personas");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const header = page.getByRole("link", { name: "Evermind", exact: true });
+  const mark = page.locator(BRAND);
+
+  await header.hover();
+  await page.waitForTimeout(100);
+  // Away to the middle of the page, far from the header.
+  await page.mouse.move(800, 500);
+  await page.waitForTimeout(200);
+  // At about 300 ms the eyelid is still on its way: it did not snap open when the pointer left.
+  expect(await sparkAnimations(page, BRAND)).toEqual(["mark-blink"]);
+  await expect(mark).toHaveAttribute("data-wink", "true");
+
+  await expect.poll(() => motion(page)).toEqual(["start mark-blink", "end mark-blink"]);
+  await expect(mark).not.toHaveAttribute("data-wink");
+  expect(await sparkAnimations(page, BRAND)).toEqual([]);
+});
+
+test("coming over the name twice winks twice, and never more", { tag: "@desktop" }, async ({ page }, testInfo) => {
+  besideTheName(testInfo.project.name);
+  await countMotion(page);
+  await page.goto("/#/personas");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const header = page.getByRole("link", { name: "Evermind", exact: true });
+
+  await header.hover();
+  await expect.poll(() => motion(page)).toEqual(["start mark-blink", "end mark-blink"]);
+  await page.mouse.move(800, 500);
+  await header.hover();
+  // The second time the pointer stays over the name, more than two winks long: one wink, no loop.
+  await page.waitForTimeout(1300);
+  expect(await motion(page)).toEqual(["start mark-blink", "end mark-blink", "start mark-blink", "end mark-blink"]);
+  await expect(page.locator(BRAND)).not.toHaveAttribute("data-wink");
 });
 
 test("the mark beside the name winks when the keyboard reaches its link", { tag: "@desktop" }, async ({ page }, testInfo) => {
@@ -87,8 +138,10 @@ test("asked for less motion, the mark does not wink", { tag: "@desktop" }, async
   // Not a wink cut to an instant by the page-wide rule for less motion, which would still flick: none.
   expect(await page.locator(`${BRAND} .mark-spark`).evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
   await page.keyboard.press("Tab");
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(700);
   expect(await motion(page)).toEqual([]);
+  // Nothing that would wink it later either.
+  await expect(page.locator(BRAND)).not.toHaveAttribute("data-wink");
 });
 
 test.describe("on the server with a password", () => {

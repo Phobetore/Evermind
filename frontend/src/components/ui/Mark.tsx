@@ -1,15 +1,26 @@
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
+import { winkOnHost } from "./wink";
+
+/** The spark's size, in the mark's 64-unit square: the tip of each arm, and the waist between two. */
+export const SPARK = { arm: 8.2, waist: 2.7 };
+
+/** A four-pointed star around 0,0: four tips at `arm`, each side bowed in through (±waist, ±waist). */
+export function sparkPath(arm: number, waist: number) {
+  const [a, w] = [arm, waist];
+  return `M0 ${-a}C${w} ${-w} ${w} ${-w} ${a} 0C${w} ${w} ${w} ${w} 0 ${a}C${-w} ${w} ${-w} ${w} ${-a} 0C${-w} ${-w} ${-w} ${-w} 0 ${-a}Z`;
+}
 
 /**
  * Evermind's mark: a ball half-mask whose one eye is an almond and whose other is a four-pointed
  * spark. Both eyes are openings cut by a <mask>, so the mark sits on any surface in one colour,
  * `currentColor`; its size is its classes'.
  *
- * It moves by CSS alone (styles.css, "The mark"): the spark winks when the pointer comes over the
- * link or button that holds it (or an element marked `data-mark-host`), or when that takes the
- * keyboard focus; and it turns while `busy`. A mark alone, like the login's, does not wink, and a busy
- * mark does not wink. The spark is drawn around 0,0 and placed by its parent, so
- * a transform turns or closes it about its own centre.
+ * It moves by CSS (styles.css, "The mark"): the spark winks when the pointer comes over the link or
+ * button that holds it (or an element marked `data-mark-host`), or when that takes the keyboard
+ * focus; and it turns while `busy`. A mark alone, like the login's, does not wink, and a busy mark
+ * does not wink. The mark finds its host itself and lets each wink finish there (wink.ts), so nothing
+ * is wired where it is used. The spark is drawn around 0,0 and placed by its parent, so a transform
+ * turns or closes it about its own centre.
  *
  * The moving spark is inside the mask. An engine that does not repaint a mask's contents under a CSS
  * animation (older WebKit has been known not to) shows the spark still: the mark is whole, it only
@@ -31,6 +42,13 @@ export function Mark({ className, busy = false, decorative = false }: {
 }) {
   // One mask per mark: two sharing an id would cut both with the first one's.
   const mask = maskId(useId());
+  const group = useRef<SVGGElement>(null);
+  useEffect(() => {
+    const mark = group.current;
+    const host = mark?.closest("a, button, [data-mark-host]");
+    if (!mark || !host) return;
+    return winkOnHost(host, mark, () => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }, []);
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -39,16 +57,12 @@ export function Mark({ className, busy = false, decorative = false }: {
       focusable="false"
       {...(decorative ? { "aria-hidden": true } : { role: "img", "aria-label": "Evermind" })}
     >
-      <g className="mark mark--perce" data-busy={busy ? "true" : undefined}>
+      <g ref={group} className="mark mark--perce" data-busy={busy ? "true" : undefined}>
         <mask id={mask} maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
           <rect width="64" height="64" fill="#fff" />
           <path className="mark-eye" d="M26.5 30C24 23.4 17 21.9 12 26.5C15.5 33.9 23 34.9 26.5 30Z" fill="#000" />
           <g className="mark-spark-at" transform="translate(45 29.5)">
-            <path
-              className="mark-spark"
-              d="M0 -10C3.3 -3.3 3.3 -3.3 10 0C3.3 3.3 3.3 3.3 0 10C-3.3 3.3 -3.3 3.3 -10 0C-3.3 -3.3 -3.3 -3.3 0 -10Z"
-              fill="#000"
-            />
+            <path className="mark-spark" d={sparkPath(SPARK.arm, SPARK.waist)} fill="#000" />
           </g>
         </mask>
         <path

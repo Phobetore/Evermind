@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
-import { Mark, maskId } from "./Mark";
+import { Mark, maskId, SPARK, sparkPath } from "./Mark";
 
 const frontend = fileURLToPath(new URL("../../..", import.meta.url));
 
@@ -55,10 +55,17 @@ test("the mask's id keeps only what url() reads unquoted, whatever form React gi
   expect(maskId(":r0:")).not.toBe(maskId(":r1:"));
 });
 
+// The spark is drawn from its arm and its waist alone, so that another size is one edit.
+test("the spark is a four-pointed star of the arm and waist it is given, drawn around 0,0", () => {
+  expect(sparkPath(8.2, 2.7)).toBe("M0 -8.2C2.7 -2.7 2.7 -2.7 8.2 0C2.7 2.7 2.7 2.7 0 8.2C-2.7 2.7 -2.7 2.7 -8.2 0C-2.7 -2.7 -2.7 -2.7 0 -8.2Z");
+  expect(sparkPath(9, 3)).toBe("M0 -9C3 -3 3 -3 9 0C3 3 3 3 0 9C-3 3 -3 3 -9 0C-3 -3 -3 -3 0 -9Z");
+  expect(draw({})).toContain(`class="mark-spark" d="${sparkPath(SPARK.arm, SPARK.waist)}"`);
+});
+
 // The browser's tab and a phone's home screen show the same drawing as the page.
 test("the tab icon is the mark, with its spark", () => {
   const favicon = readFileSync(`${frontend}/public/favicon.svg`, "utf8");
-  // The spark's outline, which only this drawing has.
-  expect(favicon).toContain("M45 19.4C48.6 26.4 48.6 26.4 55 30");
+  // The spark's outline, which only this drawing has: a little fuller than the page's, so it holds at 16 px.
+  expect(favicon).toContain("M45 20.5C48.3 26.7 48.3 26.7 54 30");
   expect(favicon).toContain("Evermind");
 });
