@@ -475,6 +475,7 @@
     "textTooShort_one": "Dieser Text darf nicht leer bleiben.",
     "briefTooLong": "Dieser Text ist zu lang für dieses Modell: Mit den Anweisungen des Assistenten, dem, was die Karte schon enthält, und Platz für die Antwort braucht er etwa {needed:grouped} Tokens, die Verbindung fasst {context:grouped}. Kürze ihn, erhöhe den Kontext der Verbindung in den Einstellungen, wenn das Modell mehr verkraftet, oder wähle eine Verbindung mit größerem Kontext.",
     "cardTooLong": "Was die Karte schon enthält, ist zu lang für dieses Modell: Mit den Anweisungen des Assistenten und Platz für die Antwort braucht es etwa {needed:grouped} Tokens, die Verbindung fasst {context:grouped}. Kürze die längsten Felder der Karte, erhöhe den Kontext der Verbindung in den Einstellungen, wenn das Modell mehr verkraftet, oder wähle eine Verbindung mit größerem Kontext.",
+    "contextTooSmall": "Der Kontext dieses Modells ist zu klein für den Kartenassistenten: Seine Anweisungen und Platz für eine Karte brauchen allein etwa {needed:grouped} Tokens, die Verbindung fasst {context:grouped}. Erhöhe den Kontext der Verbindung in den Einstellungen, wenn das Modell mehr verkraftet, oder wähle eine Verbindung mit größerem Kontext.",
     "locked": "Deine Sitzung ist beendet. Melde dich erneut an.",
     "wrongPassword": "Zugriff verweigert.",
     "tooLarge": "Zu lang für das Passwort, oder ein Reverse-Proxy hat die Anmeldung ohne Längenangabe weitergereicht.",

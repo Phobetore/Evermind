@@ -475,6 +475,7 @@
     "textTooShort_one": "This text cannot be left empty.",
     "briefTooLong": "This text is too long for this model: with the assistant's instructions, what the card already holds and room for its answer, it needs about {needed:grouped} tokens, and the connection holds {context:grouped}. Shorten it, raise the connection's context in Settings if the model can take more, or choose a connection with a larger context.",
     "cardTooLong": "What this card already holds is too long for this model: with the assistant's instructions and room for its answer, it needs about {needed:grouped} tokens, and the connection holds {context:grouped}. Shorten the card's longest fields, raise the connection's context in Settings if the model can take more, or choose a connection with a larger context.",
+    "contextTooSmall": "This model's context is too small for the card assistant: its instructions and room for a card alone need about {needed:grouped} tokens, and the connection holds {context:grouped}. Raise the connection's context in Settings if the model can take more, or choose a connection with a larger context.",
     "locked": "Your session has ended. Sign in again.",
     "wrongPassword": "Access denied.",
     "tooLarge": "Too long to be the password, or a reverse proxy passed it on without saying its length.",

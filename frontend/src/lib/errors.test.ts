@@ -110,6 +110,7 @@ describe("a text refused for its length", () => {
     ["text_too_long", "errors.textTooLong", { limit: 200, length: 201 }],
     ["brief_too_long", "errors.briefTooLong", { needed: 31000, context: 16384 }],
     ["card_too_long", "errors.cardTooLong", { needed: 31000, context: 16384 }],
+    ["context_too_small", "errors.contextTooSmall", { needed: 1900, context: 1024 }],
   ])("%s says its numbers", (kind, key, params) => {
     const error = new DataError("words", { kind, status: 422, params });
     expect(describeError(error, t)).toBe(`${key} ${JSON.stringify({ message: "words", ...params })}`);
@@ -141,7 +142,7 @@ describe("a text refused for its length", () => {
     ["de", "etwa 31.000 Tokens", "fasst 16.384"],
     ["es", "unos 31.000 tokens", "admite 16.384"],
   ] as const)("in %s, the tokens a brief needs are grouped as the language groups them", (locale, needed, context) => {
-    for (const kind of ["brief_too_long", "card_too_long"]) {
+    for (const kind of ["brief_too_long", "card_too_long", "context_too_small"]) {
       const error = new DataError("words", { kind, status: 422, params: { needed: 31000, context: 16384 } });
       const sentence = describeError(error, (k, vars) => translate(locale, k, vars));
       expect(sentence).toContain(needed);
@@ -156,6 +157,7 @@ describe("a text refused for its length", () => {
       expect(errors.textTooShort, locale).toMatch(/\{limit\}/);
       expect(errors.briefTooLong, locale).toMatch(/\{needed:grouped\}[^]*\{context:grouped\}/);
       expect(errors.cardTooLong, locale).toMatch(/\{needed:grouped\}[^]*\{context:grouped\}/);
+      expect(errors.contextTooSmall, locale).toMatch(/\{needed:grouped\}[^]*\{context:grouped\}/);
     }
   });
 });
@@ -260,6 +262,7 @@ describe("the sentences exist", () => {
     "model_empty", "model_unreadable", "model_only_thought", "empty_message", "nothing_to_regenerate",
     "nothing_to_continue", "turn_running", "internal", "http_error", "network", "offline", "not_sent",
     "not_found", "text_too_long", "text_too_short", "brief_too_long", "card_too_long",
+    "context_too_small",
   ];
   const resources = [
     "character", "conversation", "message", "persona", "connection", "fact", "illustration", "file",

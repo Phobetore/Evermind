@@ -56,6 +56,9 @@ const KIND_KEYS: Record<string, string> = {
   brief_too_long: "errors.briefTooLong",
   // The same, where the card's own fields outgrow the context whatever the brief.
   card_too_long: "errors.cardTooLong",
+  // The same, where the assistant's instructions and room for a card alone outgrow it: only a
+  // larger context helps, so the sentence names no text to shorten.
+  context_too_small: "errors.contextTooSmall",
   internal: "errors.internal",
   // No answer from Evermind itself.
   network: "errors.unreachable",
