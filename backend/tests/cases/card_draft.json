@@ -1,0 +1,782 @@
+{
+ "cases": [
+  {
+   "fn": "clean_card_draft",
+   "name": "an empty draft",
+   "input": {
+    "draft": {}
+   },
+   "expected": {}
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "every text field",
+   "input": {
+    "draft": {
+     "name": "The name.",
+     "tagline": "The tagline.",
+     "description": "The description.",
+     "personality": "The personality.",
+     "scenario": "The scenario.",
+     "greeting": "The greeting.",
+     "example_dialogues": "The example_dialogues."
+    }
+   },
+   "expected": {
+    "name": "The name.",
+    "tagline": "The tagline.",
+    "description": "The description.",
+    "personality": "The personality.",
+    "scenario": "The scenario.",
+    "greeting": "The greeting.",
+    "example_dialogues": "The example_dialogues."
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "text fields are stripped like Python strips",
+   "input": {
+    "draft": {
+     "name": "  Kenji  ",
+     "tagline": "\u00a0Nbsp\u00a0",
+     "description": "\u0085Nel\u0085",
+     "personality": "\u001cFs\u001f",
+     "scenario": "\u3000Ideographic\u3000",
+     "greeting": "\u2028Line\u2029",
+     "example_dialogues": "\u000b\fVertical\r\n"
+    }
+   },
+   "expected": {
+    "name": "Kenji",
+    "tagline": "Nbsp",
+    "description": "Nel",
+    "personality": "Fs",
+    "scenario": "Ideographic",
+    "greeting": "Line",
+    "example_dialogues": "Vertical"
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "text fields keep a byte order mark and a zero width space",
+   "input": {
+    "draft": {
+     "name": "\ufeffKenji",
+     "tagline": "\u200bZero width\u200b"
+    }
+   },
+   "expected": {
+    "name": "\ufeffKenji",
+    "tagline": "\u200bZero width\u200b"
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a string in place of a list is a list of one",
+   "input": {
+    "draft": {
+     "tags": "yakuza",
+     "alternate_greetings": "*Rain.*"
+    }
+   },
+   "expected": {
+    "alternate_greetings": [
+     "*Rain.*"
+    ],
+    "tags": [
+     "yakuza"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "only text and whole numbers are words of a list",
+   "input": {
+    "draft": {
+     "tags": [
+      "a",
+      null,
+      true,
+      1984,
+      1.5,
+      [
+       "x"
+      ],
+      {
+       "b": 1
+      },
+      false,
+      "  Clan  ",
+      0,
+      -7
+     ],
+     "alternate_greetings": [
+      null,
+      "*Rain.*",
+      false,
+      7,
+      2.5,
+      [],
+      {}
+     ]
+    }
+   },
+   "expected": {
+    "alternate_greetings": [
+     "*Rain.*",
+     "7"
+    ],
+    "tags": [
+     "a",
+     "1984",
+     "clan",
+     "0",
+     "-7"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "tags with a final sigma",
+   "input": {
+    "draft": {
+     "tags": [
+      "ΟΔΟΣ",
+      "Σ",
+      "ΣΑ",
+      "ΑΣ.",
+      "ΣΣ",
+      "ΑΣΑ",
+      "ΑΣ Α"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "οδος",
+     "σ",
+     "σα",
+     "ας.",
+     "σς",
+     "ασα",
+     "ας α"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "tags with the dotted capital I",
+   "input": {
+    "draft": {
+     "tags": [
+      "İ",
+      "İİ",
+      "AİB",
+      "I",
+      "ı"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "i\u0307",
+     "i\u0307i\u0307",
+     "ai\u0307b",
+     "i",
+     "ı"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag cut through a pair of characters that lower-casing made",
+   "input": {
+    "draft": {
+     "tags": [
+      "İİİİİİİİİİİİİİİİİİİİİ",
+      "aİİİİİİİİİİİİİİİİİİİİ"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307",
+     "ai\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i\u0307i"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag cut before an emoji",
+   "input": {
+    "draft": {
+     "tags": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "9 tags are cut to 8",
+   "input": {
+    "draft": {
+     "tags": [
+      "Tag0",
+      "Tag1",
+      "Tag2",
+      "Tag3",
+      "Tag4",
+      "Tag5",
+      "Tag6",
+      "Tag7",
+      "Tag8"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "tag0",
+     "tag1",
+     "tag2",
+     "tag3",
+     "tag4",
+     "tag5",
+     "tag6",
+     "tag7"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "lore entries as the model writes them",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "Kabukicho",
+        "kabukicho"
+       ],
+       "content": "The red-light district of Shinjuku."
+      },
+      {
+       "keys": [
+        "clan Sato"
+       ],
+       "content": "The family that runs the docks."
+      },
+      {
+       "keys": [],
+       "content": "Entry with no keyword, to discard."
+      },
+      {
+       "keys": [
+        "vide"
+       ],
+       "content": "   "
+      },
+      "not an object"
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "Kabukicho",
+       "kabukicho"
+      ],
+      "content": "The red-light district of Shinjuku."
+     },
+     {
+      "keys": [
+       "clan Sato"
+      ],
+      "content": "The family that runs the docks."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a bare string is one lore keyword",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": "yakuza",
+       "content": "A crime syndicate."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "yakuza"
+      ],
+      "content": "A crime syndicate."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "6 and 7 lore keywords",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "key0",
+        "key1",
+        "key2",
+        "key3",
+        "key4",
+        "key5"
+       ],
+       "content": "Six."
+      },
+      {
+       "keys": [
+        "key0",
+        "key1",
+        "key2",
+        "key3",
+        "key4",
+        "key5",
+        "key6"
+       ],
+       "content": "Seven."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "key0",
+       "key1",
+       "key2",
+       "key3",
+       "key4",
+       "key5"
+      ],
+      "content": "Six."
+     },
+     {
+      "keys": [
+       "key0",
+       "key1",
+       "key2",
+       "key3",
+       "key4",
+       "key5"
+      ],
+      "content": "Seven."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "the cut counts the entries that are not usable",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      "junk",
+      5,
+      null,
+      {
+       "keys": [
+        "k0"
+       ],
+       "content": "Entry 0."
+      },
+      {
+       "keys": [
+        "k1"
+       ],
+       "content": "Entry 1."
+      },
+      {
+       "keys": [
+        "k2"
+       ],
+       "content": "Entry 2."
+      },
+      {
+       "keys": [
+        "k3"
+       ],
+       "content": "Entry 3."
+      },
+      {
+       "keys": [
+        "k4"
+       ],
+       "content": "Entry 4."
+      },
+      {
+       "keys": [
+        "k5"
+       ],
+       "content": "Entry 5."
+      },
+      {
+       "keys": [
+        "k6"
+       ],
+       "content": "Entry 6."
+      },
+      {
+       "keys": [
+        "k7"
+       ],
+       "content": "Entry 7."
+      },
+      {
+       "keys": [
+        "k8"
+       ],
+       "content": "Entry 8."
+      },
+      {
+       "keys": [
+        "k9"
+       ],
+       "content": "Entry 9."
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "k0"
+      ],
+      "content": "Entry 0."
+     },
+     {
+      "keys": [
+       "k1"
+      ],
+      "content": "Entry 1."
+     },
+     {
+      "keys": [
+       "k2"
+      ],
+      "content": "Entry 2."
+     },
+     {
+      "keys": [
+       "k3"
+      ],
+      "content": "Entry 3."
+     },
+     {
+      "keys": [
+       "k4"
+      ],
+      "content": "Entry 4."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "an entry keeps no other field",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "a"
+       ],
+       "content": "Text.",
+       "id": "x",
+       "priority": 3,
+       "enabled": false
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "a"
+      ],
+      "content": "Text."
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "keys named __proto__ and constructor are not card fields",
+   "input": {
+    "draft": {
+     "__proto__": {
+      "name": "Hidden"
+     },
+     "constructor": "x",
+     "name": "Ana",
+     "lore_entries": [
+      {
+       "__proto__": {
+        "keys": [
+         "k"
+        ]
+       },
+       "keys": [
+        "a"
+       ],
+       "content": "c"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "name": "Ana",
+    "lore_entries": [
+     {
+      "keys": [
+       "a"
+      ],
+      "content": "c"
+     }
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a long tag of emoji is cut at 40 characters, not 40 halves",
+   "input": {
+    "draft": {
+     "tags": [
+      "🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉"
+     ]
+    }
+   },
+   "expected": {
+    "tags": [
+     "🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉🐉"
+    ]
+   }
+  },
+  {
+   "fn": "with_room_for_a_card",
+   "name": "a connection with no ceiling is left as it is",
+   "input": {
+    "connection": {
+     "id": "c1",
+     "context_size": 8192,
+     "max_tokens": null
+    },
+    "payload": {
+     "system": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+     "messages": [
+      {
+       "role": "user",
+       "content": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "id": "c1",
+    "context_size": 8192,
+    "max_tokens": null
+   }
+  },
+  {
+   "fn": "with_room_for_a_card",
+   "name": "a ceiling is raised to 4096",
+   "input": {
+    "connection": {
+     "id": "c1",
+     "context_size": 32768,
+     "max_tokens": 1024
+    },
+    "payload": {
+     "system": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+     "messages": [
+      {
+       "role": "user",
+       "content": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "id": "c1",
+    "context_size": 32768,
+    "max_tokens": 4096
+   }
+  },
+  {
+   "fn": "with_room_for_a_card",
+   "name": "the ceiling stays within what the context leaves",
+   "input": {
+    "connection": {
+     "context_size": 2000,
+     "max_tokens": 512
+    },
+    "payload": {
+     "system": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+     "messages": [
+      {
+       "role": "user",
+       "content": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "context_size": 2000,
+    "max_tokens": 1760
+   }
+  },
+  {
+   "fn": "with_room_for_a_card",
+   "name": "a ceiling is never lowered",
+   "input": {
+    "connection": {
+     "context_size": 600,
+     "max_tokens": 512
+    },
+    "payload": {
+     "system": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+     "messages": [
+      {
+       "role": "user",
+       "content": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "context_size": 600,
+    "max_tokens": 512
+   }
+  },
+  {
+   "fn": "with_room_for_a_card",
+   "name": "a ceiling above 4096 stays",
+   "input": {
+    "connection": {
+     "context_size": 65536,
+     "max_tokens": 8000
+    },
+    "payload": {
+     "system": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+     "messages": [
+      {
+       "role": "user",
+       "content": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "context_size": 65536,
+    "max_tokens": 8000
+   }
+  },
+  {
+   "fn": "with_room_for_a_card",
+   "name": "a connection with no context size keeps its own ceiling",
+   "input": {
+    "connection": {
+     "max_tokens": 1024
+    },
+    "payload": {
+     "system": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+     "messages": [
+      {
+       "role": "user",
+       "content": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "max_tokens": 1024
+   }
+  },
+  {
+   "fn": "with_room_for_a_card",
+   "name": "the prompt is counted in characters, not in UTF-16 units",
+   "input": {
+    "connection": {
+     "context_size": 2000,
+     "max_tokens": 512
+    },
+    "payload": {
+     "system": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+     "messages": []
+    }
+   },
+   "expected": {
+    "context_size": 2000,
+    "max_tokens": 1771
+   }
+  },
+  {
+   "fn": "with_room_for_a_card",
+   "name": "a message with no content costs nothing",
+   "input": {
+    "connection": {
+     "context_size": 1000,
+     "max_tokens": 100
+    },
+    "payload": {
+     "system": "",
+     "messages": [
+      {
+       "role": "user"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "context_size": 1000,
+    "max_tokens": 872
+   }
+  },
+  {
+   "fn": "with_room_for_a_card",
+   "name": "a ceiling of zero is no ceiling",
+   "input": {
+    "connection": {
+     "context_size": 8192,
+     "max_tokens": 0
+    },
+    "payload": {
+     "system": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+     "messages": [
+      {
+       "role": "user",
+       "content": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "context_size": 8192,
+    "max_tokens": 0
+   }
+  }
+ ]
+}
