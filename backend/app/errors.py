@@ -31,13 +31,20 @@ MEMORY_BUSY = "memory_busy"
 FACTS_CHANGED = "facts_changed"
 CONVERSATION_CHANGED = "conversation_changed"
 TOO_FEW_FACTS = "too_few_facts"
+# A text refused for its length, with the bound and its own length in `params`.
+TEXT_TOO_LONG = "text_too_long"
+TEXT_TOO_SHORT = "text_too_short"
+
+_LENGTH_BOUNDS = {"string_too_long": (TEXT_TOO_LONG, "max_length"),
+                  "string_too_short": (TEXT_TOO_SHORT, "min_length")}
 
 
 class AppError(Exception):
     status_code = 400
 
     def __init__(self, message: str, status_code: int | None = None,
-                 kind: str | None = None, resource: str | None = None):
+                 kind: str | None = None, resource: str | None = None,
+                 params: dict | None = None):
         super().__init__(message)
         self.message = message
         # A name for what went wrong, which the interface has a sentence for in
@@ -46,6 +53,8 @@ class AppError(Exception):
         self.kind = kind
         # What a "not_found" did not find: "character", "conversation"...
         self.resource = resource
+        # The numbers the interface's sentence for this kind is made of.
+        self.params = params
         if status_code is not None:
             self.status_code = status_code
 
@@ -63,7 +72,22 @@ def error_body(exc: AppError) -> dict:
         body["kind"] = exc.kind
     if exc.resource:
         body["resource"] = exc.resource
+    if exc.params:
+        body["params"] = exc.params
     return body
+
+
+def _length_refusal(errors: list[dict]) -> dict:
+    """The first text refused for its length, as a kind the interface has a sentence for.
+
+    Only the bound and the length are told, never the text, which can be anything."""
+    for error in errors:
+        bound = _LENGTH_BOUNDS.get(error.get("type"))
+        text = error.get("input")
+        if bound and isinstance(text, str) and bound[1] in (error.get("ctx") or {}):
+            return {"kind": bound[0],
+                    "params": {"limit": error["ctx"][bound[1]], "length": len(text)}}
+    return {}
 
 
 def register_error_handlers(app: FastAPI) -> None:
@@ -80,5 +104,6 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def _invalid(_: Request, exc: RequestValidationError) -> JSONResponse:
         # FastAPI's own echoes what was sent, which can be anything, nested thousands deep.
-        problems = [{key: error[key] for key in ("type", "loc", "msg")} for error in exc.errors()]
-        return JSONResponse(status_code=422, content={"detail": problems})
+        errors = exc.errors()
+        problems = [{key: error[key] for key in ("type", "loc", "msg")} for error in errors]
+        return JSONResponse(status_code=422, content={"detail": problems, **_length_refusal(errors)})

@@ -470,6 +470,8 @@
     "offline": "Dieses Gerät ist offline.",
     "notSent": "Diese Nachricht wurde nicht gesendet. Drücke auf Senden, um sie noch einmal zu schicken.",
     "invalid": "Evermind konnte diese Anfrage nicht verarbeiten: Es fehlen Angaben, oder sie sind ungültig.",
+    "textTooLong": "Dieser Text ist zu lang: {length} Zeichen, erlaubt sind höchstens {limit}.",
+    "textTooShort": "Dieser Text ist zu kurz: {length} Zeichen, nötig sind mindestens {limit}.",
     "locked": "Deine Sitzung ist beendet. Melde dich erneut an.",
     "wrongPassword": "Zugriff verweigert.",
     "tooLarge": "Zu lang für das Passwort, oder ein Reverse-Proxy hat die Anmeldung ohne Längenangabe weitergereicht.",
