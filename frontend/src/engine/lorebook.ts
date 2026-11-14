@@ -5,7 +5,7 @@
 // depends on neither language's dialect.
 
 import { substitute } from "./macros";
-import { pyStrip } from "./text";
+import { pyLower, pyStrip } from "./text";
 import { estimateTokens } from "./tokens";
 
 /** What makes a key several words, and so a plain substring. */
@@ -93,7 +93,7 @@ function found(key: string, text: string, substring: boolean, start = 0): boolea
 /** Whether a key is in a text already in lower case. Its {{char}} and {{user}} are put in
  *  by the caller, which knows the names. */
 export function keyMatches(key: string, text: string, wholeWords: boolean): boolean {
-  const cleaned = pyStrip(key).toLowerCase();
+  const cleaned = pyLower(pyStrip(key));
   return !!cleaned && !isRegex(cleaned) && found(cleaned, text, isSubstring(cleaned, wholeWords));
 }
 
@@ -194,7 +194,7 @@ export function activated<E extends LoreEntryLike>(
   userName: string,
 ): E[] {
   const prepared = (keys: readonly string[] | null | undefined) =>
-    (keys || []).map((key) => pyStrip(substitute(key, charName, userName)).toLowerCase()).filter((key) => key);
+    (keys || []).map((key) => pyLower(pyStrip(substitute(key, charName, userName)))).filter((key) => key);
 
   let candidates: Candidate<E>[] = [];
   entries.forEach((entry, index) => {
@@ -207,7 +207,7 @@ export function activated<E extends LoreEntryLike>(
   const fired: Candidate<E>[] = [];
   // `text` is what earlier passes looked at, `added` what this one looks at for the first time.
   let text = "";
-  let added = scan.toLowerCase();
+  let added = pyLower(scan);
   for (;;) {
     const tried = candidates.map((c) => ({ c, fires: c.fires(text, added) }));
     const newly = tried.filter((t) => t.fires).map((t) => t.c);
@@ -217,7 +217,7 @@ export function activated<E extends LoreEntryLike>(
     candidates = tried.filter((t) => !t.fires && !t.c.excludeRecursion).map((t) => t.c);
     const pieces = newly
       .filter((c) => !setting(c.entry, "prevent_recursion"))
-      .map((c) => stripDecorators(c.entry.content || "").toLowerCase());
+      .map((c) => pyLower(stripDecorators(c.entry.content || "")));
     if (!pieces.length) break;
     text += added;
     added = "\n" + pieces.join("\n");

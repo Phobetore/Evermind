@@ -5359,6 +5359,98 @@
     }
    },
    "expected": "Arisen of the Gate"
+  },
+  {
+   "fn": "key_matches",
+   "name": "a letter given a case after Unicode 15.1 is lowered as Python lowers it",
+   "input": {
+    "key": "Ꟍ",
+    "text": "ana: ꟍ",
+    "whole_words": true
+   },
+   "expected": false
+  },
+  {
+   "fn": "key_matches",
+   "name": "a Garay capital in a key is not lowered to the text's small letter",
+   "input": {
+    "key": "𐵐",
+    "text": "𐵰 ΣꟌ",
+    "whole_words": false
+   },
+   "expected": false
+  },
+  {
+   "fn": "match_lore",
+   "name": "a letter given a case after Unicode 15.1 does not fire a key of its other case",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "ꟍ"
+      ],
+      "content": "lore"
+     },
+     {
+      "keys": [
+       "ᲊ"
+      ],
+      "content": "more"
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Ꟍ Ᲊ"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": []
+  },
+  {
+   "fn": "match_lore",
+   "name": "on the old rules too, a letter given a case after Unicode 15.1 fires no key of its other case",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "ꟍ"
+      ],
+      "content": "lore"
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Ꟍ"
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "rules": 1,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": []
+  },
+  {
+   "fn": "key_matches",
+   "name": "a sigma before a letter Python does not know a case of is final",
+   "input": {
+    "key": "ΑΣꟌ Σα",
+    "text": "x αςꟌ σα",
+    "whole_words": true
+   },
+   "expected": true
   }
  ]
 }

@@ -87,6 +87,27 @@ const hex = (point: number) => `\\u{${point.toString(16)}}`;
  *  brackets) for a pattern with the `u` flag. */
 export const PY_DIGIT = DIGIT_ZEROS.map((zero) => `${hex(zero)}-${hex(zero + 9)}`).join("");
 
+// The letters whose small or capital form came with Unicode 16, which Python 3.13 (Unicode 15.1)
+// does not know and leaves as they are, while a runtime on Unicode 16 (Node 22, recent browsers)
+// maps them: measured by comparing every code point's lower() and upper() in both. Each list holds
+// the letters one mapping would change: Latin and Cyrillic additions, and Garay (U+10D50).
+// A runtime on a later Unicode may map more; one on an older Unicode maps none of these already.
+const NEW_LOWERED = /([ᲉꟋꟌꟚꟜ\u{10d50}-\u{10d65}]+)/u;
+const NEW_UPPERED = /([ƛɤᲊꟍꟛ\u{10d70}-\u{10d85}]+)/u;
+
+/** `mapped` over the text, the letters `kept` left as they are; split on them, so that the final
+ *  sigma still reads its neighbours within each piece, as Python reads letters it does not know. */
+function keeping(s: string, kept: RegExp, mapped: (piece: string) => string): string {
+  if (!kept.test(s)) return mapped(s);
+  return s.split(kept).map((piece, i) => (i % 2 === 1 ? piece : mapped(piece))).join("");
+}
+
+/** Python's `str.lower()`. */
+export const pyLower = (s: string): string => keeping(s, NEW_LOWERED, (piece) => piece.toLowerCase());
+
+/** Python's `str.upper()`. */
+export const pyUpper = (s: string): string => keeping(s, NEW_UPPERED, (piece) => piece.toUpperCase());
+
 /** Python's `int()` of a run of `\d` digits, whatever their script: "١٢" is 12 there too. */
 export function pyInt(digits: string): number {
   let value = 0;

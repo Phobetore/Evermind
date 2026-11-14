@@ -16,7 +16,7 @@ import {
   type LoreEntrySettings,
 } from "./lorebook";
 import { expandMacros, hasOriginalMacro, substitute, substituteOriginal } from "./macros";
-import { PY_WS, pyLstrip, pyMin, pyRstrip, pyStrip, sliceCodePoints, stripThought } from "./text";
+import { PY_WS, pyLower, pyLstrip, pyMin, pyRstrip, pyStrip, pyUpper, sliceCodePoints, stripThought } from "./text";
 import { estimateTokens } from "./tokens";
 
 // Python has it in engine.py, beside the reply's cleanup: so does the engine's door.
@@ -284,12 +284,12 @@ function matchLoreBeforeCards<E extends PromptLoreEntry>(
 ): E[] {
   if (!entries.length) return [];
   const recent = sortedBy(messages, (m) => m.position ?? 0).slice(-LORE_SCAN_MESSAGES);
-  const text = recent.map(activeContent).join("\n").toLowerCase();
+  const text = pyLower(recent.map(activeContent).join("\n"));
 
   const matched = entries.filter(
     (entry) =>
       (entry.enabled === undefined || entry.enabled) &&
-      (entry.keys || []).some((key) => key && text.includes(key.toLowerCase())),
+      (entry.keys || []).some((key) => key && text.includes(pyLower(key))),
   );
   const kept: E[] = [];
   let budget = LORE_TOKEN_BUDGET;
@@ -380,13 +380,13 @@ function buildSystem(parts: SystemParts): string {
   }
   if (scenario) identity.push(`Current scenario: ${scenario}`);
   if (identity.length) {
-    const header = isScenario ? "SCENARIO" : `ABOUT ${charName.toUpperCase()}`;
+    const header = isScenario ? "SCENARIO" : `ABOUT ${pyUpper(charName)}`;
     sections.push(`### ${header}\n` + identity.join("\n\n"));
   }
 
   if (persona && (persona.name || persona.description)) {
     const body = persona.description || "";
-    sections.push(pyRstrip(`### ABOUT ${userName.toUpperCase()} (the player's character)\n${body}`));
+    sections.push(pyRstrip(`### ABOUT ${pyUpper(userName)} (the player's character)\n${body}`));
   }
 
   if (summary) sections.push(`### STORY SO FAR\n${summary}`);
