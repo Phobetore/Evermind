@@ -293,4 +293,25 @@ describe("an import whose answer is lost", () => {
     }
   });
 
+  test("still fails when two of that name are new: neither is taken at random", async () => {
+    vi.spyOn(data.characters, "create").mockRejectedValue(lost());
+    vi.spyOn(data.characters, "list").mockResolvedValue([character("a", "Vane"), character("b", "Vane")]);
+    try {
+      await expect(installCard(read, null, new Set(["old"]))).rejects.toMatchObject({ kind: "network" });
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  test("a creation the server answered and refused is not looked for", async () => {
+    const refused = new DataError("Refused.", { status: 422 });
+    vi.spyOn(data.characters, "create").mockRejectedValue(refused);
+    const list = vi.spyOn(data.characters, "list").mockResolvedValue([character("new", "Vane")]);
+    try {
+      await expect(installCard(read, null, new Set(["old"]))).rejects.toBe(refused);
+      expect(list).not.toHaveBeenCalled();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
 });
