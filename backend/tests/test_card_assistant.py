@@ -455,6 +455,15 @@ async def test_a_card_with_no_lorebook_that_got_none_still_lacks_one(client, fak
     assert "lore_entries" in state["missing"]
 
 
+async def test_an_empty_entry_left_in_the_editor_is_not_a_lorebook(client, fake_provider):
+    # "Add entry" pressed and nothing written: the card still has no lorebook.
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Kenji"})
+    state = await assist(client, prompt="yakuza", existing={
+        "lore_entries": [{"keys": [], "content": ""}, {"keys": [" "], "content": "no key"}]})
+    assert "lore_entries" in state["missing"], state["missing"]
+
+
 async def test_assist_avoids_duplicating_existing_lore(client, fake_provider):
     await add_connection(client)
     await assist(client, prompt="yakuza",

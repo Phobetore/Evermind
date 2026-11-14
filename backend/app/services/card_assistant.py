@@ -298,8 +298,7 @@ def _progress(job: Job) -> dict:
     if job.progress is None or job.progress[0] != job.written:
         parsed, writing = partial_json(job.text())
         cleaned = clean_card_draft(parsed)
-        lore_written = "lore_entries" in cleaned
-        if lore_written:
+        if "lore_entries" in cleaned:
             cleaned["lore_entries"] = _new_entries(cleaned["lore_entries"], job.existing)
             if not cleaned["lore_entries"]:
                 del cleaned["lore_entries"]
@@ -308,7 +307,6 @@ def _progress(job: Job) -> dict:
             "cleaned": cleaned,
             "fields": [k for k in parsed if k in CARD_FIELDS and k in cleaned and k != writing],
             "lore": len(cleaned.get("lore_entries", [])),
-            "lore_written": lore_written,
             "writing": writing if writing in CARD_FIELDS else None,
         })
     return job.progress[1]
@@ -356,11 +354,11 @@ def _end(job: Job, error: BaseException | None) -> None:
     if draft:
         # never overwrite what the creator already wrote
         job.draft = {**draft, **kept}
-    # A lorebook the card has, or entries the model wrote that it already had, is no lorebook
-    # missing: asked again, the model would only write the same subjects.
+    # A card whose lorebook has a keyed entry lacks none: asked again, the model would only write
+    # the same subjects. An entry with no key is one added in the editor and never filled.
     book = job.existing.get("lore_entries")
-    has_lore = progress["lore_written"] or (
-        isinstance(book, list) and any(isinstance(raw, dict) for raw in book))
+    has_lore = isinstance(book, list) and any(
+        isinstance(raw, dict) and words(raw.get("keys")) for raw in book)
     job.missing = [f for f in CARD_FIELDS if f not in (job.draft or {}) and f not in kept
                    and not (f == "lore_entries" and has_lore)]
     if not whole and job.draft is not None and not job.stopped and not job.error:
