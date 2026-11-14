@@ -148,15 +148,16 @@ function measure(panel: Locator) {
     // The area added around a small control on a touch screen is meant to stick
     // out of it (and the panel's padding takes it up), so it is left out of the
     // question of which text runs out of its box. Everything else is measured
-    // with it in.
-    const hideReach = document.createElement("style");
-    hideReach.textContent = ".touch-target::after { display: none !important }";
-    document.head.append(hideReach);
+    // with it in. A sheet built in the page rather than a <style> element: the
+    // app's security policy refuses inline style, and the reach would stay.
+    const hideReach = new CSSStyleSheet();
+    hideReach.replaceSync(".touch-target::after { display: none !important }");
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, hideReach];
     const spilling = all
       .filter((el) => !["TEXTAREA", "INPUT", "SELECT", "SVG", "OPTION"].includes(el.tagName.toUpperCase()))
       .filter((el) => el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1)
       .map((el) => `${describe(el)} is ${el.clientWidth}px wide and holds ${el.scrollWidth}px`);
-    hideReach.remove();
+    document.adoptedStyleSheets = document.adoptedStyleSheets.filter((sheet) => sheet !== hideReach);
     return {
       scrollWidth: aside.scrollWidth,
       clientWidth: aside.clientWidth,
