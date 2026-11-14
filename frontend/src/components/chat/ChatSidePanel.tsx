@@ -1,5 +1,6 @@
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
+import { PlainText } from "@/components/ui/PlainText";
 import { data, DataError } from "@/data";
 import { speakingName } from "@/engine";
 import { useT } from "@/i18n/useT";
@@ -630,9 +631,11 @@ export function ChatSidePanel({
       {character.scenario && (
         <div>
           <span className="ui-label mb-1.5 block">{t("chat.panel.sceneAnchor.title")}</span>
-          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-mist">
-            {cardText(character.scenario, character.card_rules, speakingName(character), persona?.name ?? t("chat.panel.sceneAnchor.youFallback"))}
-          </p>
+          {/* The API bounds no scenario, and it is drawn on every visit to a conversation. */}
+          <PlainText
+            text={cardText(character.scenario, character.card_rules, speakingName(character), persona?.name ?? t("chat.panel.sceneAnchor.youFallback"))}
+            className="text-sm leading-relaxed text-mist"
+          />
         </div>
       )}
     </aside>

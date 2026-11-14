@@ -21,6 +21,7 @@ import {
   inlineImagesLength,
   layoutLength,
   rawTagCost,
+  renderModelText,
   renderPresentation,
 } from "./renderPresentation";
 
@@ -984,4 +985,34 @@ test("one broken image leaves the rest laid out", () => {
   const tree = laidOut('Hello **there**\n\n<img src="data:image/png;base64,iVBORw0KG">');
   expect(tags(tree, "strong")).toHaveLength(1);
   expect(tags(tree, "img")).toHaveLength(1);
+});
+
+test("the model's text is laid out as Markdown alone", () => {
+  const rendered = renderModelText(
+    "# Titre\n\n**gras** <img src=x onerror=1> <!-- caché --> [lien](https://example.com) " +
+      "![image](https://pictures.example/x.png)\n\n<script>alert(1)</script>",
+  );
+  if (rendered.kind !== "laid-out") throw new Error("not laid out: " + JSON.stringify(rendered));
+  const found = walk(rendered.tree).map(([, tag]) => tag);
+  expect(found.filter((tag) => /^h[1-6]$/.test(tag))).toHaveLength(1);
+  expect(found).toContain("strong");
+  for (const tag of ["img", "a", "script"]) expect(found).not.toContain(tag);
+  const text = textOf(rendered.tree);
+  for (const written of [
+    "<img src=x onerror=1>",
+    "<!-- caché -->",
+    "[lien](https://example.com)",
+    "![image](https://pictures.example/x.png)",
+    "<script>alert(1)</script>",
+  ])
+    expect(text).toContain(written);
+  expect(rendered.remoteHosts).toEqual([]);
+});
+
+test("a model's text too dense to lay out is shown as written", () => {
+  // A table of a hundred columns over rows without pipes: no HTML, a cost all the same.
+  const text = COSTLIEST["a hundred columns over rows without pipes"](1_000);
+  expect(text.length).toBeLessThan(LAYOUT_BOUND);
+  expect(layoutRefusal(text)).toBe("tooDense");
+  expect(renderModelText(text)).toEqual({ kind: "plain", reason: "tooDense" });
 });

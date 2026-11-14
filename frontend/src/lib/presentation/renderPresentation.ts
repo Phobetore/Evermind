@@ -19,7 +19,7 @@ import {
 } from "./bounds";
 import { INLINE_IMAGE, imageSource } from "./images";
 import { linkTarget, misleadingHost } from "./links";
-import { boundDepth, noDefinitions } from "./markdown";
+import { boundDepth, modelDialect, noDefinitions } from "./markdown";
 import { PRESENTATION_SCHEMA } from "./schema";
 import { INHERITED_COLOR, cleanDeclarations, colorAlpha } from "./style";
 
@@ -1034,6 +1034,47 @@ export function renderPresentation(text: string): RenderedPresentation {
     return { kind: "laid-out", tree, remoteHosts: found.remoteHosts };
   } catch (error) {
     if (error instanceof Refused) return { kind: "plain", reason: error.reason };
+    return { kind: "plain", reason: "failed" };
+  }
+}
+
+// Below the h3 that names each field of what the model reads.
+const MODEL_HEADINGS: Record<string, string> = { h1: "h4", h2: "h5", h3: "h6", h4: "h6", h5: "h6", h6: "h6" };
+
+/** The headings of the model's text, under its field's; then its depth bounded. A walk by a
+ *  stack: the tree is not yet bounded in depth. */
+function modelTree() {
+  return (tree: Root) => {
+    const stack: RootContent[] = [...tree.children];
+    while (stack.length > 0) {
+      const node = stack.pop()!;
+      if (node.type !== "element") continue;
+      if (node.tagName in MODEL_HEADINGS) node.tagName = MODEL_HEADINGS[node.tagName];
+      for (const child of node.children) stack.push(child);
+    }
+    boundDepth()(tree);
+  };
+}
+
+/** A text the model reads (a field of a card's definition), laid out as Markdown alone: the
+ *  presentation's dialect without HTML, links nor images, which stay written as they are, the
+ *  sanitizer behind it all the same. Bounded as a presentation is; never throws. */
+export function renderModelText(text: string): RenderedPresentation {
+  try {
+    // A presentation's bounds, but no image is ever drawn from this text: a data: payload is
+    // text like any other, and its whole length counts, as it does after a presentation's parse.
+    const refusal = text.length > LAYOUT_BOUND ? "tooLong" : layoutRefusal(text, layoutLength(text));
+    if (refusal !== null) return { kind: "plain", reason: refusal };
+    const processor = unified()
+      .use(remarkParse)
+      .use(dialect)
+      .use(modelDialect)
+      .use(remarkRehype)
+      .use(rehypeSanitize, PRESENTATION_SCHEMA)
+      .use(modelTree);
+    const tree = processor.runSync(processor.parse(text)) as Root;
+    return { kind: "laid-out", tree, remoteHosts: [] };
+  } catch {
     return { kind: "plain", reason: "failed" };
   }
 }

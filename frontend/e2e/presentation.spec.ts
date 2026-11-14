@@ -389,8 +389,19 @@ test("a Show button stays the one that is tapped", async ({ page }) => {
   for (const [i, notes] of cards.entries()) {
     const box = await openCard(page, notes);
     const show = box.getByRole("button", { name: "Show the image from pictures.example" });
-    // elementFromPoint sees only what is on screen.
-    await show.scrollIntoViewIfNeeded();
+    // The page rises into place as it opens: measured while it moves, the button would no longer
+    // be where it was looked for. A looping animation never ends, and moves nothing here.
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity)
+          .map((animation) => animation.finished),
+      ),
+    );
+    // elementFromPoint sees only what is on screen, and the phone's bottom bar covers its last
+    // lines: brought to the middle.
+    await show.evaluate((button) => button.scrollIntoView({ block: "center" }));
     const r = await rect(show);
     if (i === 1) {
       // The second card guards the place's stacking only while the heading really reaches over the

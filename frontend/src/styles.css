@@ -268,7 +268,9 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   box-shadow: var(--shadow-card);
 }
 
-.rp-prose { font-size: 1.05rem; }
+/* Clipped at the bubble's edge: thousands of combining marks stacked on one letter would paint
+   over the messages and sections around it. */
+.rp-prose { font-size: 1.05rem; overflow: clip; }
 /* Lines as they were typed. A hard break ends its line too, so its <br> would add a second. */
 .rp-prose p { margin: 0 0 0.65em; white-space: pre-line; }
 .rp-prose p br { display: none; }

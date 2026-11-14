@@ -1,4 +1,19 @@
+import { firstCodePoints } from "@/lib/utils";
 import { clsx } from "clsx";
+
+/** A tag's own text, on one line at most, cut with an ellipsis, its first 2 000 code points in
+ *  `title` as in the text. A block: an inline box in Tag's flex row would be clipped without the
+ *  ellipsis. Only what is drawn is cut: the tag's value (a filter, a removal) stays the whole tag.
+ *  Truncation hides what overflows but the browser still lays it out, and a card's tag has no
+ *  bound of length. For every chip that shows a tag of a card; the chip takes max-w-full. */
+export function TagText({ tag }: { tag: string }) {
+  const shown = firstCodePoints(tag, 2_000);
+  return (
+    <span className="block min-w-0 truncate" title={shown}>
+      {shown}
+    </span>
+  );
+}
 
 export function Tag({
   children,

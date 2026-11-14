@@ -14,6 +14,21 @@ export function noDefinitions(this: Processor): void {
   data.micromarkExtensions.push({ disable: { null: ["definition"] } });
 }
 
+/** What micromark does not read in the model's own text: written HTML, links, images, automatic
+ *  links and reference definitions. The model reads them as written, and so they are shown: no
+ *  element of the card's, nothing fetched, nothing to follow, no text hidden from the person. */
+const NOT_IN_MODEL_TEXT = ["htmlFlow", "htmlText", "labelStartLink", "labelStartImage", "labelEnd", "autolink", "definition"];
+
+/** A remark plugin, used after the presentation's dialect (which keeps tables, strikethrough and
+ *  single line breaks): the model's text is laid out in that dialect without the constructs of
+ *  NOT_IN_MODEL_TEXT. The presentation's dialect stays in the layout's own file, with the
+ *  extensions it imports: this one keeps types as its only imports. */
+export function modelDialect(this: Processor): void {
+  const data = this.data() as { micromarkExtensions?: unknown[] };
+  if (!data.micromarkExtensions) data.micromarkExtensions = [];
+  data.micromarkExtensions.push({ disable: { null: NOT_IN_MODEL_TEXT } });
+}
+
 /** A rehype plugin, and what cardRules calls on its tree: an element more than DEPTH_BOUND
  *  elements from the root is replaced by its children. It never calls itself deeper than
  *  DEPTH_BOUND: what lies below is flattened in a loop. Rendering and the browser's layout are
