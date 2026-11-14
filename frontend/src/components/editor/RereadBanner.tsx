@@ -90,21 +90,22 @@ export function RereadBanner({
               {CHANGES.map((change) => <li key={change}>{t(`characters.reread.change.${change}`)}</li>)}
             </ul>
           </div>
-          <div className="flex flex-wrap gap-2">
+          {/* The labels are whole sentences: on a phone they wrap, each button the width of the banner. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             {found ? (
               <>
-                <button type="button" className="btn btn-primary !py-2 text-sm" onClick={() => onApply("reread")}>
+                <button type="button" className="btn btn-primary !py-2 text-sm !whitespace-normal text-center" onClick={() => onApply("reread")}>
                   {t("characters.reread.reread")}
                 </button>
                 {/* Once kept, the card is there: only the new rules are left to offer. */}
                 {!hasCard && (
-                  <button type="button" className="btn btn-ghost !py-2 text-sm" onClick={() => onApply("keep")}>
+                  <button type="button" className="btn btn-ghost !py-2 text-sm !whitespace-normal text-center" onClick={() => onApply("keep")}>
                     {t("characters.reread.keep")}
                   </button>
                 )}
               </>
             ) : (
-              <button type="button" className="btn btn-primary !py-2 text-sm" onClick={() => onApply("reread")}>
+              <button type="button" className="btn btn-primary !py-2 text-sm !whitespace-normal text-center" onClick={() => onApply("reread")}>
                 {t("characters.reread.switch")}
               </button>
             )}

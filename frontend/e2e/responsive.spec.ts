@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
-import { conversationWithReply, makeCharacter } from "./fixtures";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { API } from "../playwright.config";
+import { cardPortrait, conversationWithReply, makeCharacter } from "./fixtures";
 
 /** What runs off the right edge of a page this wide: elements past it, the page's width, how far <main> slides. */
 function pastTheEdge(page: Page, width: number) {
@@ -104,6 +107,41 @@ test.describe("a card's pages and the personas fit a phone in every language", (
       await page.addInitScript((chosen) => localStorage.setItem("evermind:locale", chosen), locale);
 
       await expectTheCardPagesFit(page, card.id, [320, 360]);
+    });
+  }
+});
+
+// The offer to re-read a card made before has two buttons whose labels are whole sentences.
+test.describe("the offer to re-read a card fits a phone in every language", () => {
+  for (const locale of ["en", "fr", "de", "es"]) {
+    test(`in ${locale}`, async ({ page, request }) => {
+      const strings = JSON.parse(readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`), "utf8"));
+      const card = await makeCharacter(request, { name: "Mirela", description: "A lighthouse keeper.", greeting: "The lamp is lit." });
+      await request.post(`${API}/api/characters/${card.id}/avatar`, {
+        multipart: { file: { name: "mirela.png", mimeType: "image/png", buffer: cardPortrait({
+          spec: "chara_card_v2", spec_version: "2.0",
+          data: { name: "Mirela", description: "A lighthouse keeper.", first_mes: "The lamp is lit." },
+        }) } },
+      });
+      await page.addInitScript((chosen) => localStorage.setItem("evermind:locale", chosen), locale);
+
+      for (const width of [320, 360, 390]) {
+        await page.setViewportSize({ width, height: 800 });
+        await page.goto(`/#/characters/${card.id}/edit`);
+        const keep = page.getByRole("button", { name: strings.characters.reread.keep });
+        await expect(keep).toBeVisible();
+        await page.waitForLoadState("networkidle");
+
+        const overflow = await pastTheEdge(page, width);
+        expect.soft(overflow.guilty, `at ${width}px: elements past the right edge`).toEqual([]);
+        expect.soft(overflow.page, `at ${width}px`).toBeLessThanOrEqual(width);
+        expect.soft(overflow.sideways, `at ${width}px slides sideways`).toBeLessThanOrEqual(1);
+        for (const button of [keep, page.getByRole("button", { name: strings.characters.reread.reread })]) {
+          // A label cut by the button's own edge stays inside the page, so it is measured too.
+          const cut = await button.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+          expect.soft(cut, `at ${width}px a button's label is cut`).toBe(false);
+        }
+      }
     });
   }
 });
