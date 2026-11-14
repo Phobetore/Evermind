@@ -6,6 +6,7 @@ import { newLoreEntry } from "../loreEntry";
 import { cardForExport } from "./export";
 import { cardFile, cardToCharacter, readCardFile } from "./index";
 import { withCards } from "./png";
+import { oldReading } from "./reread";
 
 const PNG = Uint8Array.from(
   atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="),
@@ -164,6 +165,51 @@ describe("a card file", () => {
     } finally {
       vi.restoreAllMocks();
     }
+  });
+
+  describe("a card not yet re-read, its book changed by its owner", () => {
+    const book = {
+      spec: "chara_card_v2", spec_version: "2.0",
+      data: {
+        name: "Mirela", description: "A lighthouse keeper.", first_mes: "The lamp is lit.",
+        character_book: { entries: [
+          { keys: ["lamp"], content: "The lamp burns whale oil.", comment: "The lamp", insertion_order: 5, extensions: { position: 4, depth: 2, other: 1 } },
+          { keys: [], content: "The fog never lifts.", constant: true },
+          { keys: ["boat"], content: "The boat is red.", selective: true, secondary_keys: ["sea"], extensions: { b: 1 } },
+          { keys: ["gull"], content: "A gull named Pell.", enabled: false, extensions: { g: 1 } },
+          { keys: ["fog"], content: "" },
+        ] },
+      },
+    };
+    /** The character the import of the time made of the card, its entries as `edit` leaves them. */
+    async function exported(edit: (entries: CardCharacter["lore_entries"]) => CardCharacter["lore_entries"]) {
+      const old = oldReading(book)!;
+      vi.spyOn(data, "file").mockResolvedValue(withText(PNG, ["chara", base64(book)]));
+      const character = {
+        ...old, id: "c1", has_card: false, avatar_url: "api/media/face.png",
+        lore_entries: edit(old.lore_entries.map((entry) => ({ ...entry, origin: null }))),
+      };
+      try {
+        const card = JSON.parse(await (await cardFile(character, "json")).blob.text());
+        return card.data.character_book.entries as Record<string, unknown>[];
+      } finally {
+        vi.restoreAllMocks();
+      }
+    }
+
+    test("one deleted and one written here, as many as before: each goes over its own", async () => {
+      const entries = await exported(([lamp, , gull]) => [lamp, gull, newLoreEntry(["keeper"], "Made here.")]);
+      expect(entries.find((entry) => (entry.keys as string[])[0] === "gull")).toEqual(book.data.character_book.entries[3]);
+      expect(entries.find((entry) => (entry.keys as string[])[0] === "keeper")?.extensions).not.toHaveProperty("g");
+      expect(entries.some((entry) => (entry.keys as string[])[0] === "boat")).toBe(false);
+      expect(entries[0]).toEqual(book.data.character_book.entries[0]);
+    });
+
+    test("one retouched beside one deleted keeps the card's entry", async () => {
+      const entries = await exported(([lamp, , gull]) => [{ ...lamp, content: "The lamp burns seal oil now." }, gull]);
+      expect(entries[0]).toEqual({ ...book.data.character_book.entries[0], content: "The lamp burns seal oil now." });
+      expect(entries.filter((entry) => (entry.keys as string[])[0] === "lamp")).toHaveLength(1);
+    });
   });
 
   test("ccv3 is read first, and chara when ccv3 is not a card", async () => {

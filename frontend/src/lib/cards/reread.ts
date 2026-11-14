@@ -236,19 +236,30 @@ function placesNow(found: FoundCard): Map<number, number> {
   return places;
 }
 
-/** The entry of the old reading each entry of the character is, if any: by rank when there are as
- *  many, so that an entry changed since stays itself; else the first one not taken that says the
- *  same. An entry of the old reading left without one was deleted by its owner. */
+/** The entry of the old reading each entry of the character is, if any, on what the two still
+ *  share, never on rank alone: an entry deleted beside one written here must not hand the new one
+ *  its settings. First an entry that already names its origin (one kept with its card before);
+ *  then the same keys (as a set) and the same text; then the same keys or the same text, the
+ *  first not taken in order, so that an entry changed in one of the two stays itself. An entry of
+ *  the old reading left without one was deleted by its owner; an entry of the character left
+ *  without one was made here, or rewritten whole. */
 function pairs(current: LoreEntryInput[], old: LoreEntryInput[]): (LoreEntryInput | null)[] {
-  if (current.length === old.length) return [...old];
   const taken = new Set<number>();
-  return current.map((entry) => {
-    const at = old.findIndex((candidate, i) => !taken.has(i)
-      && sameKeys(candidate.keys, entry.keys) && candidate.content.trim() === entry.content.trim());
-    if (at < 0) return null;
-    taken.add(at);
-    return old[at];
-  });
+  const paired: (LoreEntryInput | null)[] = current.map(() => null);
+  const pass = (fits: (entry: LoreEntryInput, candidate: LoreEntryInput) => boolean) => {
+    current.forEach((entry, i) => {
+      if (paired[i]) return;
+      const at = old.findIndex((candidate, j) => !taken.has(j) && fits(entry, candidate));
+      if (at < 0) return;
+      taken.add(at);
+      paired[i] = old[at];
+    });
+  };
+  const sameText = (a: LoreEntryInput, b: LoreEntryInput) => a.content.trim() === b.content.trim();
+  pass((entry, candidate) => entry.origin !== null && entry.origin === candidate.origin);
+  pass((entry, candidate) => sameKeys(candidate.keys, entry.keys) && sameText(candidate, entry));
+  pass((entry, candidate) => sameKeys(candidate.keys, entry.keys) || sameText(candidate, entry));
+  return paired;
 }
 
 /** What re-reading changes, against the form as it is now: it adds, it never overwrites a retouch. */

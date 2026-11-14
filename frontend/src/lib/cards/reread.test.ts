@@ -67,6 +67,48 @@ const MIRELA = v2({
   },
 });
 
+/** A book that says which entry is which by more than its rank: lamp with a comment and a place,
+ *  one always on that the old import dropped, boat with a second key, gull switched off, and one
+ *  with no text that nothing keeps. */
+const BOOK = v2({
+  name: "Mirela", description: "A lighthouse keeper.", first_mes: "The lamp is lit.",
+  character_book: { entries: [
+    { keys: ["lamp"], content: "The lamp burns whale oil.", comment: "The lamp", insertion_order: 5, extensions: { position: 4, depth: 2, other: 1 } },
+    { keys: [], content: "The fog never lifts.", constant: true },
+    { keys: ["boat"], content: "The boat is red.", selective: true, secondary_keys: ["sea"], extensions: { b: 1 } },
+    { keys: ["gull"], content: "A gull named Pell.", enabled: false, extensions: { g: 1 } },
+    { keys: ["fog"], content: "" },
+  ] },
+});
+
+/** A PNG of RisuRealm: ccv3 with decorators, in another order than its chara copy without them. */
+const TWO_CHUNKS = {
+  ccv3: v3({
+    name: "Mirela", description: "A lighthouse keeper.",
+    character_book: { entries: [
+      { keys: ["boat"], content: "@@activate\nThe boat is red.", constant: true, extensions: { position: 0 } },
+      { keys: ["lamp"], content: "The lamp burns whale oil.", selective: true, secondary_keys: ["oil"], extensions: { position: 4, depth: 2 } },
+      { keys: ["gull"], content: "A gull named Pell." },
+    ] },
+  }),
+  chara: v2({
+    name: "Mirela", description: "A lighthouse keeper.",
+    character_book: { entries: [
+      { keys: ["lamp"], content: "The lamp burns whale oil." },
+      { keys: ["boat"], content: "The boat is red." },
+      { keys: ["gull"], content: "A gull named Pell." },
+      { keys: ["fog"], content: "" },
+    ] },
+  }),
+};
+
+/** A character once a plan is saved: the form with the plan in it, its card kept as the server keeps it. */
+function saved(character: CardCharacter, plan: ReturnType<typeof rereadPlan>) {
+  const after: CardCharacter = { ...character, ...plan.fields, lore_entries: plan.lore };
+  vi.spyOn(data.characters, "card").mockResolvedValue(plan.card && { ...plan.card, read_at: "" });
+  return { character: after, looked: { ...looked(after), has_card: Boolean(plan.card) } };
+}
+
 describe("re-reading a card", () => {
   test("a retouched field is left as it is and said so", () => {
     const plan = rereadPlan({ ...madeBefore(MIRELA), description: "Mine now." }, found(MIRELA), "reread");
@@ -234,6 +276,63 @@ describe("re-reading a card", () => {
     expect(read.lore_entries.map(({ keys, content, enabled, origin }) => ({ keys, content, enabled, origin }))).toEqual(
       old.lore_entries.map(({ keys, content, enabled, origin }) => ({ keys, content, enabled, origin })),
     );
+  });
+
+  test("one entry deleted and one written here, as many as before, hand nothing to each other", () => {
+    const current = madeBefore(BOOK);
+    // boat deleted, an entry written here at the end: three entries, as many as the old reading.
+    current.lore_entries = [current.lore_entries[0], current.lore_entries[2], newLoreEntry(["keeper"], "Made here.")];
+    expect(current.lore_entries).toHaveLength(oldReading(BOOK)!.lore_entries.length);
+    const plan = rereadPlan(current, found(BOOK), "reread");
+    const [lamp, gull, keeper] = plan.lore.filter((entry) => entry.content !== "The fog never lifts.");
+    expect(gull).toMatchObject({ keys: ["gull"], origin: 3, selective: false, secondary_keys: [] });
+    expect(keeper).toMatchObject({ keys: ["keeper"], origin: null, constant: false });
+    expect(lamp).toMatchObject({ origin: 0, comment: "The lamp" });
+  });
+
+  test("one entry retouched beside one deleted keeps its origin", () => {
+    const current = madeBefore(BOOK);
+    current.lore_entries = [{ ...current.lore_entries[0], content: "The lamp burns seal oil now." }, current.lore_entries[2]];
+    const plan = rereadPlan(current, found(BOOK), "reread");
+    expect(plan.lore[0]).toMatchObject({
+      origin: 0, content: "The lamp burns seal oil now.", comment: "The lamp", insertion_order: 5, position: 4, depth: 2,
+    });
+    expect(plan.lore.find((entry) => entry.keys[0] === "gull")).toMatchObject({ origin: 3, enabled: false });
+  });
+
+  test("keeping the card, then re-reading it, leaves each entry its own settings", async () => {
+    const before = madeBefore(TWO_CHUNKS.chara);
+    portraitIs(pngWith(["ccv3", TWO_CHUNKS.ccv3], ["chara", TWO_CHUNKS.chara]));
+    const kept = saved(before, rereadPlan(before, await findOriginal(looked(before)), "keep"));
+    const plan = rereadPlan(kept.character, await findOriginal(kept.looked), "reread");
+    expect(plan.lore.map(({ keys, content, origin, constant, selective, secondary_keys, position }) =>
+      ({ keys, content, origin, constant, selective, secondary_keys, position }))).toEqual([
+      { keys: ["lamp"], content: "The lamp burns whale oil.", origin: 1, constant: false, selective: true, secondary_keys: ["oil"], position: 4 },
+      { keys: ["boat"], content: "@@activate\nThe boat is red.", origin: 0, constant: true, selective: false, secondary_keys: [], position: 0 },
+      { keys: ["gull"], content: "A gull named Pell.", origin: 2, constant: false, selective: false, secondary_keys: [], position: 1 },
+    ]);
+  });
+
+  test("keeping the card, deleting an entry and writing one, then re-reading, pairs each entry with its own", async () => {
+    const card = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["lamp"], content: "The lamp burns whale oil.", comment: "The lamp", insertion_order: 5, extensions: { position: 4, depth: 2 } },
+        { keys: ["boat"], content: "The boat is red.", selective: true, secondary_keys: ["sea"] },
+        { keys: ["gull"], content: "A gull named Pell.", constant: true },
+      ] },
+    });
+    const before = madeBefore(card);
+    portraitIs(pngWith(["chara", card]));
+    const kept = saved(before, rereadPlan(before, await findOriginal(looked(before)), "keep"));
+    kept.character.lore_entries = [...kept.character.lore_entries.slice(1), newLoreEntry(["keeper"], "Made here.")];
+    const plan = rereadPlan(kept.character, await findOriginal(kept.looked), "reread");
+    expect(plan.lore.map(({ keys, origin, constant, selective, secondary_keys, comment }) =>
+      ({ keys, origin, constant, selective, secondary_keys, comment }))).toEqual([
+      { keys: ["boat"], origin: 1, constant: false, selective: true, secondary_keys: ["sea"], comment: "" },
+      { keys: ["gull"], origin: 2, constant: true, selective: false, secondary_keys: [], comment: "" },
+      { keys: ["keeper"], origin: null, constant: false, selective: false, secondary_keys: [], comment: "" },
+    ]);
   });
 
   test("without a card the plan only changes the rules", () => {

@@ -1,7 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { crc32 } from "node:zlib";
 import { API } from "../playwright.config";
-import { makeCharacter, PNG } from "./fixtures";
+import { cardPortrait, makeCharacter } from "./fixtures";
 
 /** A card made before Evermind kept cards whole: it keeps the rules it had until its owner asks,
  *  and a re-reading adds what the import of the time left out without undoing what was changed. */
@@ -24,23 +23,13 @@ const CARD = {
   },
 };
 
-/** The PNG with the card in a tEXt chunk, before its end. */
-function portrait() {
-  const body = Buffer.from(`tEXtchara\0${Buffer.from(JSON.stringify(CARD)).toString("base64")}`, "latin1");
-  const chunk = Buffer.alloc(body.length + 8);
-  chunk.writeUInt32BE(body.length - 4, 0);
-  body.copy(chunk, 4);
-  chunk.writeUInt32BE(crc32(body), body.length + 4);
-  return Buffer.concat([PNG.subarray(0, -12), chunk, PNG.subarray(-12)]);
-}
-
 const made: string[] = [];
 test.afterEach(async ({ request }) => {
   for (const id of made.splice(0)) await request.delete(`${API}/api/characters/${id}`);
 });
 
 /** The character the import of the time made of the card, on the old rules, its portrait the card's PNG. */
-async function madeBefore(request: APIRequestContext, fields: Record<string, unknown> = {}) {
+async function madeBefore(request: APIRequestContext, fields: Record<string, unknown> = {}, card: unknown = CARD) {
   const character = await makeCharacter(request, {
     name: "Mirela", tagline: "", description: "A lighthouse keeper.", greeting: "The lamp is lit.",
     lore_entries: [{ keys: ["lamp"], content: "The lamp burns whale oil." }],
@@ -48,7 +37,7 @@ async function madeBefore(request: APIRequestContext, fields: Record<string, unk
   });
   made.push(character.id);
   await request.post(`${API}/api/characters/${character.id}/avatar`, {
-    multipart: { file: { name: "mirela.png", mimeType: "image/png", buffer: portrait() } },
+    multipart: { file: { name: "mirela.png", mimeType: "image/png", buffer: cardPortrait(card) } },
   });
   return character as { id: string };
 }
@@ -137,4 +126,42 @@ test("a card with nothing to re-read can still change its rules", async ({ page,
   await save(page, character.id);
 
   expect(await read(request, character.id)).toMatchObject({ card_rules: 2, has_card: false });
+});
+
+test("keeping, then re-reading, leaves each entry its own settings", async ({ page, request }) => {
+  const card = {
+    spec: "chara_card_v2", spec_version: "2.0",
+    data: {
+      name: "Mirela", description: "A lighthouse keeper.", first_mes: "The lamp is lit.",
+      character_book: { entries: [
+        { keys: ["lamp"], content: "The lamp burns whale oil.", comment: "The lamp", extensions: { position: 4, depth: 2 } },
+        { keys: ["boat"], content: "The boat is red.", selective: true, secondary_keys: ["sea"] },
+        { keys: ["gull"], content: "A gull named Pell.", constant: true },
+      ] },
+    },
+  };
+  const { id } = await madeBefore(request, {
+    lore_entries: card.data.character_book.entries.map(({ keys, content }) => ({ keys, content })),
+  }, card);
+  await page.goto(`/#/characters/${id}/edit`);
+  await page.getByRole("button", { name: "Keep only the original card for the export" }).click();
+  await save(page, id);
+
+  // Its owner deletes the lamp and writes an entry of their own, as many entries as before.
+  const kept = await read(request, id);
+  const entries = kept.lore_entries.slice(1);
+  await request.put(`${API}/api/characters/${id}`, {
+    data: { lore_entries: [...entries, { keys: ["keeper"], content: "Made here." }] },
+  });
+  await page.goto(`/#/characters/${id}/edit`);
+  await page.getByRole("button", { name: "Re-read the card and switch to the new rules" }).click();
+  await save(page, id);
+
+  const after = await read(request, id);
+  expect(after.lore_entries.map(({ keys, origin, constant, selective, secondary_keys, position }: Record<string, unknown>) =>
+    ({ keys, origin, constant, selective, secondary_keys, position }))).toEqual([
+    { keys: ["boat"], origin: 1, constant: false, selective: true, secondary_keys: ["sea"], position: 1 },
+    { keys: ["gull"], origin: 2, constant: true, selective: false, secondary_keys: [], position: 1 },
+    { keys: ["keeper"], origin: null, constant: false, selective: false, secondary_keys: [], position: 1 },
+  ]);
 });

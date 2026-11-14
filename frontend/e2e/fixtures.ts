@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { crc32 } from "node:zlib";
 import { API } from "../playwright.config";
 
 export const MOCK = `http://127.0.0.1:${process.env.E2E_MOCK_PORT ?? 5699}/v1`;
@@ -121,6 +122,16 @@ export const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
   "base64",
 );
+
+/** The tiny PNG carrying a card in a tEXt chunk named `chara`, before its end, as an old import found one. */
+export function cardPortrait(card: unknown) {
+  const body = Buffer.from(`tEXtchara\0${Buffer.from(JSON.stringify(card)).toString("base64")}`, "latin1");
+  const chunk = Buffer.alloc(body.length + 8);
+  chunk.writeUInt32BE(body.length - 4, 0);
+  body.copy(chunk, 4);
+  chunk.writeUInt32BE(crc32(body), body.length + 4);
+  return Buffer.concat([PNG.subarray(0, -12), chunk, PNG.subarray(-12)]);
+}
 
 /** Answers the confirmation box a click has just opened: the button that confirms (the last one) or
  *  Cancel, and waits for the box to close. */
