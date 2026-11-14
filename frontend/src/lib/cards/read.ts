@@ -47,6 +47,10 @@ export interface ReadCard {
 export const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+/** Whether a card says it is a V3 of a version after 3.0, which Evermind reads, and writes back, all the same. */
+export const isNewerV3 = (card: Record<string, unknown>) =>
+  card.spec === "chara_card_v3" && Number.parseFloat(String(card.spec_version)) > 3;
+
 export const isText = (value: unknown) => typeof value === "string" || (typeof value === "number" && Number.isFinite(value));
 
 /** A field as text: anything but a string or a number counts as absent. Half of an emoji, which

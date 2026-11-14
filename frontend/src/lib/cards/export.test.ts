@@ -64,6 +64,14 @@ describe("an export of a card that was read", () => {
       expect(data).toEqual(v3 ? original.data : withBookExtensions(original.data));
       expect(data.modification_date).toBe(original.data.modification_date);
     }
+    // A V3 of a newer version keeps the version its author wrote, and what it has of its own.
+    const newer = JSON.parse(fixture("risu-v3.json"));
+    newer.spec_version = "3.1";
+    newer.data.of_its_own = { kept: true };
+    const out = exported(kept(JSON.stringify(newer)).kept);
+    expect(out.v3).toEqual(newer);
+    // Untouched or not, it is the same card, of the version it says.
+    expect(exported(kept(JSON.stringify(newer)).kept, (read) => ({ ...read, name: "Arisen" })).v3.spec_version).toBe("3.1");
   });
 
   test("an entry keeps what Evermind does not read through an edit, a deletion and an addition", () => {

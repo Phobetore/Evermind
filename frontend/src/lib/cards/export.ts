@@ -1,6 +1,6 @@
 import type { CardCharacter, LoreEntryInput, StoredCard } from "@/data";
 import type { NoteRole } from "@/types";
-import { bookEntries, cardFields, FIELDS, isObject, isText } from "./read";
+import { bookEntries, cardFields, FIELDS, isNewerV3, isObject, isText } from "./read";
 
 // The card a character is exported as. A card that was read is written back as it came in, with
 // what was changed here written over it: a column is written only where it differs from the
@@ -13,8 +13,8 @@ type Card<Spec extends string, Version extends string> =
 export interface ExportedCard {
   /** For the chara chunk, and for a JSON file whose card was V2, or made here. */
   v2: Card<"chara_card_v2", "2.0">;
-  /** For the ccv3 chunk, and for a JSON file whose card was V3. */
-  v3: Card<"chara_card_v3", "3.0">;
+  /** For the ccv3 chunk, and for a JSON file whose card was V3: 3.0, or the newer version it said. */
+  v3: Card<"chara_card_v3", string>;
   json: "v2" | "v3";
 }
 
@@ -226,11 +226,12 @@ function asV2(data: Fields): Fields {
   return out;
 }
 
-/** Both cards, around the same data and the same root. */
-function cardsOf(root: Fields, data: Fields, changed: boolean, now: Date, json: "v2" | "v3"): ExportedCard {
+/** Both cards, around the same data and the same root. A V3 of a newer version keeps it: Evermind
+ *  writes only what 3.0 has, and leaves the rest of the card as its author wrote it. */
+function cardsOf(root: Fields, data: Fields, changed: boolean, now: Date, json: "v2" | "v3", version = "3.0"): ExportedCard {
   return {
     v2: { ...root, spec: "chara_card_v2", spec_version: "2.0", data: asV2(data) },
-    v3: { ...root, spec: "chara_card_v3", spec_version: "3.0", data: asV3(data, changed, now) },
+    v3: { ...root, spec: "chara_card_v3", spec_version: version, data: asV3(data, changed, now) },
     json,
   };
 }
@@ -313,5 +314,5 @@ export function cardForExport(character: CardCharacter, stored: StoredCard | nul
   const { written, changed } = writeColumns(data, character, stored.read);
   followCopies(root, data, written);
   const v3 = card.spec === "chara_card_v3";
-  return cardsOf(root, data, changed, now, v3 ? "v3" : "v2");
+  return cardsOf(root, data, changed, now, v3 ? "v3" : "v2", isNewerV3(card) ? String(card.spec_version) : "3.0");
 }

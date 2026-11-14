@@ -1,6 +1,6 @@
 import type { CardCharacter, CardText, LoreEntryInput } from "@/data";
 import { splitExamples } from "@/engine";
-import { bookEntries, cardFields, FIELDS, isObject, isStorable, isText, NAME_LENGTH, text, texts } from "./read";
+import { bookEntries, cardFields, FIELDS, isNewerV3, isObject, isStorable, isText, NAME_LENGTH, text, texts } from "./read";
 
 // What an import says it did with a card: what Evermind uses, and what it only keeps for the export.
 
@@ -175,6 +175,6 @@ export function reportOf(card: Record<string, unknown>, character: CardCharacter
   return {
     used,
     kept,
-    newer: card.spec === "chara_card_v3" && Number.parseFloat(String(card.spec_version)) > 3,
+    newer: isNewerV3(card),
   };
 }
