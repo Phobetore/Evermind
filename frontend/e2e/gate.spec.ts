@@ -50,7 +50,24 @@ test("a locked page asks for the password, then opens where it was going", async
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
-test("a wrong password is refused and stays on the login", async ({ page }) => {
+test("an address written without its first slash is remembered as the router reads it", async ({ page }) => {
+  // "#settings" opens the settings page: the login returns there, not to the home page.
+  await page.goto("/#settings");
+  await expect(page).toHaveURL(/#\/login\?from=%2Fsettings$/);
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/settings$/);
+  await page.request.delete(`${GATED}/api/gate`);
+
+  // "#login" is the login itself, not a page to come back to.
+  await page.goto("about:blank");
+  await page.goto("/#login");
+  await expect(page.getByLabel(/password/i)).toBeVisible();
+  expect(page.url()).not.toContain("from=");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(`${GATED}/#/`);
+});
+
+test("a wrong password is refused and stays on the login",async ({ page }) => {
   await page.goto("/#/login");
   await enter(page, "not-the-password");
 

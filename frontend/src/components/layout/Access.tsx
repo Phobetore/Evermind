@@ -62,7 +62,8 @@ export function useAccess(): Ctx {
  *  Where it was going is read from the address at the moment it is sent, not
  *  from the page last drawn: a link followed as the session ends changes the
  *  address before the router has drawn the new page, and the page left behind
- *  would otherwise be remembered in its place. */
+ *  would otherwise be remembered in its place. That address is the hash, so
+ *  this holds only as long as router.tsx uses createHashRouter. */
 export function AccessGate({ children }: { children: React.ReactNode }) {
   const { status } = useAccess();
   const { pathname, search } = useLocation();
@@ -72,8 +73,11 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!locked) return;
     const asked = parsePath(window.location.hash.slice(1));
-    const path = (asked.pathname || "/") + (asked.search ?? "");
-    if (asked.pathname === "/login") return;
+    // Read as the hash router reads it: "#settings" is /settings.
+    const p = asked.pathname || "/";
+    const where = p.startsWith("/") ? p : "/" + p;
+    if (where === "/login") return;
+    const path = where + (asked.search ?? "");
     navigate("/login?from=" + encodeURIComponent(path), { replace: true });
   }, [locked, pathname, search, navigate]);
 
