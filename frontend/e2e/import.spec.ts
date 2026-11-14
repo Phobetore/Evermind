@@ -46,6 +46,30 @@ test("a PNG whose card inflates without end is refused, and the page still answe
   await makeCharacter(request);
   const bomb = withZtxt("chara", zerosDeflated(3 * 1024));
   expect(bomb.length).toBeLessThan(15 * 1024 * 1024);
+  // Time alone does not hold the bound: Chromium inflates 3 GB given at once in about two seconds.
+  // What the page hands the inflater is counted instead, behind the real stream.
+  await page.addInitScript(() => {
+    const Inflate = globalThis.DecompressionStream;
+    const counted = window as unknown as { inflaterGiven: number };
+    counted.inflaterGiven = 0;
+    globalThis.DecompressionStream = class {
+      readonly readable: ReadableStream<Uint8Array>;
+      readonly writable: WritableStream<BufferSource>;
+      constructor(format: CompressionFormat) {
+        const inflate = new Inflate(format);
+        const writer = inflate.writable.getWriter();
+        this.readable = inflate.readable;
+        this.writable = new WritableStream<BufferSource>({
+          write(piece) {
+            counted.inflaterGiven += piece.byteLength;
+            return writer.write(piece);
+          },
+          close: () => writer.close(),
+          abort: (reason) => writer.abort(reason),
+        });
+      }
+    } as typeof DecompressionStream;
+  });
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
@@ -58,6 +82,9 @@ test("a PNG whose card inflates without end is refused, and the page still answe
   await expect(dialog.locator("li", { hasText: "bomb.png" }))
     .toContainText("does not contain a character card", { timeout: 5_000 });
   expect(Date.now() - started, "the chunk was inflated far past the bound").toBeLessThan(5_000);
+  const given = await page.evaluate(() => (window as unknown as { inflaterGiven: number }).inflaterGiven);
+  expect(given, "the page handed the inflater the whole body, not a slice at a time").toBeGreaterThan(0);
+  expect(given, "the page handed the inflater the whole body, not a slice at a time").toBeLessThan(bomb.length / 10);
 
   const card = JSON.stringify({ spec: "chara_card_v2", spec_version: "2.0", data: { name: "After the bomb" } });
   await input.setInputFiles({ name: "after.json", mimeType: "application/json", buffer: Buffer.from(card) });
