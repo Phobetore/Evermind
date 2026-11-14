@@ -44,8 +44,8 @@ const entry = (page: Page, key: string) =>
 
 /** Opens the settings of an entry and gives the panel, which is only what it holds. */
 const openSettings = async (page: Page, key = "harbour") => {
-  await entry(page, key).getByRole("button", { name: "Settings", exact: true }).click();
-  return entry(page, key).getByRole("group", { name: "Settings" });
+  await entry(page, key).getByRole("button", { name: /^Settings: / }).click();
+  return entry(page, key).getByRole("group", { name: /^Settings: / });
 };
 
 const save = async (page: Page, id: string) => {
@@ -142,7 +142,7 @@ test("a card on the old rules shows none of this", { tag: "@desktop" }, async ({
   const card = await seed(request, { card_rules: 1 });
   await page.goto(`/#/characters/${card.id}/edit`);
   await expect(entry(page, "harbour")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Settings: / })).toHaveCount(0);
   await expect(page.getByLabel("Title")).toHaveCount(0);
   await page.getByRole("button", { name: "Advanced settings" }).click();
   await expect(page.getByLabel("Custom system prompt")).toBeVisible();
@@ -163,9 +163,13 @@ test("the settings can be reached on a phone", async ({ page, request }) => {
   await page.goto(`/#/characters/${card.id}/edit`);
   const panel = await openSettings(page);
   await expect(panel.getByLabel("Always active")).toBeVisible();
+  // Each entry's button and panel say whose settings they are, by the entry's title.
+  await expect(panel).toHaveAccessibleName("Settings: The frozen quay");
+  await expect(entry(page, "harbour").getByRole("button", { name: "Settings: The frozen quay" }))
+    .toHaveAttribute("aria-controls", (await panel.getAttribute("id"))!);
 
   const controls = [
-    entry(page, "harbour").getByRole("button", { name: "Settings", exact: true }),
+    entry(page, "harbour").getByRole("button", { name: /^Settings: / }),
     panel.locator("select"),
     panel.locator("input[type=number]"),
     // The box around the line typed in is what is touched.

@@ -68,7 +68,8 @@ export function ImportReport({
   }
 
   return (
-    <div className="mt-2 flex flex-col gap-3 text-xs leading-relaxed text-mist">
+    // One report per file imported: its name tells a screen reader which card these buttons save.
+    <div role="group" aria-label={character.name} className="mt-2 flex flex-col gap-3 text-xs leading-relaxed text-mist">
       {used.length > 0 && (
         <div>
           <p className="font-semibold text-parchment-dim">{t("cards.report.used")}</p>
@@ -143,7 +144,7 @@ export function ImportReport({
               <Check className="h-3.5 w-3.5" /> {t("cards.report.saved")}
             </span>
           )}
-          {error && <span className="text-blood">{error}</span>}
+          {error && <span role="alert" className="text-blood">{error}</span>}
         </div>
       </div>
     </div>

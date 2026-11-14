@@ -45,6 +45,12 @@ export function LorebookSection({
       return now;
     });
 
+  // Every entry has its "Settings": a screen reader is told whose, by the entry's title, else its
+  // first key, else its number.
+  const settingsName = (entry: LoreEntry, i: number) => t("lorebook.settingsFor", {
+    name: entry.comment.trim() || entry.keys[0] || t("lorebook.entryNumber", { number: i + 1 }),
+  });
+
   const change = (entry: LoreEntry, changes: Partial<LoreEntry>) =>
     onChange(entries.map((e) => (e.id === entry.id ? { ...e, ...changes } : e)));
 
@@ -60,7 +66,7 @@ export function LorebookSection({
       </p>
 
       <div className="flex flex-col gap-2">
-        {entries.map((entry) => (
+        {entries.map((entry, i) => (
           <div key={entry.id} className="rounded-lg border border-ink-700 bg-ink-900/60 p-3">
             {rules === 2 && (
               <input
@@ -115,13 +121,20 @@ export function LorebookSection({
                   type="button"
                   onClick={() => toggle(entry.id)}
                   aria-expanded={open.has(entry.id)}
+                  aria-controls={`lore-settings-${entry.id}`}
+                  aria-label={settingsName(entry, i)}
                   className="mt-2 flex items-center gap-1.5 font-display text-xs font-medium pointer-coarse:min-h-11 text-mist transition-colors hover:text-parchment"
                 >
                   <ChevronDown className={clsx("h-3.5 w-3.5 transition-transform", open.has(entry.id) && "rotate-180")} />
                   {t("lorebook.settingsButton")}
                 </button>
                 {open.has(entry.id) && (
-                  <LoreEntrySettings entry={entry} onChange={(changes) => change(entry, changes)} />
+                  <LoreEntrySettings
+                    entry={entry}
+                    id={`lore-settings-${entry.id}`}
+                    label={settingsName(entry, i)}
+                    onChange={(changes) => change(entry, changes)}
+                  />
                 )}
               </>
             )}

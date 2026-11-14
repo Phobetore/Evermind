@@ -475,6 +475,8 @@
     "titleLabel": "Título",
     "titlePlaceholder": "Título de la entrada (opcional)",
     "settingsButton": "Ajustes",
+    "settingsFor": "Ajustes: {name}",
+    "entryNumber": "entrada {number}",
     "constantLabel": "Siempre activa",
     "secondaryKeysLabel": "Claves secundarias",
     "secondaryKeysPlaceholder": "Palabras clave secundarias y Intro",

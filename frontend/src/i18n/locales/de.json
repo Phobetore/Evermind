@@ -475,6 +475,8 @@
     "titleLabel": "Titel",
     "titlePlaceholder": "Titel des Eintrags (optional)",
     "settingsButton": "Einstellungen",
+    "settingsFor": "Einstellungen: {name}",
+    "entryNumber": "Eintrag {number}",
     "constantLabel": "Immer aktiv",
     "secondaryKeysLabel": "Zweitstichwörter",
     "secondaryKeysPlaceholder": "Zweitstichwörter, dann Eingabe",

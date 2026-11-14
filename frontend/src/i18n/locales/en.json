@@ -475,6 +475,8 @@
     "titleLabel": "Title",
     "titlePlaceholder": "Title of the entry (optional)",
     "settingsButton": "Settings",
+    "settingsFor": "Settings: {name}",
+    "entryNumber": "entry {number}",
     "constantLabel": "Always active",
     "secondaryKeysLabel": "Secondary keys",
     "secondaryKeysPlaceholder": "Secondary keywords, then Enter",

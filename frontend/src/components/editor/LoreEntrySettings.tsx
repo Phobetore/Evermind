@@ -77,9 +77,13 @@ function Switch({
  *  where it is put. Every change goes up as the fields it changes; the rest of the entry is
  *  the caller's, and stays as it was read. */
 export function LoreEntrySettings({
-  entry, onChange,
+  entry, id, label, onChange,
 }: {
   entry: LoreEntry;
+  /** For the button that opens it to name it. */
+  id: string;
+  /** Says which entry these are the settings of: every entry has a panel of the same name. */
+  label: string;
   onChange: (changes: Partial<LoreEntry>) => void;
 }) {
   const t = useT();
@@ -90,8 +94,9 @@ export function LoreEntrySettings({
 
   return (
     <div
+      id={id}
       role="group"
-      aria-label={t("lorebook.settingsButton")}
+      aria-label={label}
       className="mt-3 flex flex-col gap-4 rounded-md border border-ink-700 bg-ink-850/60 p-3 animate-fade"
     >
       <Switch

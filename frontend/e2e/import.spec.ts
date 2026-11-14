@@ -180,6 +180,14 @@ test("the kind and the tagline asked after an import are saved, and only when as
     expect((await stored()).tagline).toBe("");
     expect((await stored()).kind).toBe("character");
 
+    // The report's buttons are told apart from another file's by the card's name.
+    await expect(dialog.getByRole("group", { name })).toBeVisible();
+    // A save that fails is said aloud, not only shown.
+    await page.route(`**/api/characters/${made[0].id}`, (route) =>
+      route.request().method() === "PUT" ? route.abort("connectionfailed") : route.continue(), { times: 1 });
+    await row.getByRole("button", { name: "Save" }).click();
+    await expect(row.getByRole("alert")).toBeVisible();
+
     await row.getByRole("button", { name: "Scenario" }).click();
     await row.getByRole("button", { name: "Save" }).click();
     await expect(row.getByText("Saved")).toBeVisible();
