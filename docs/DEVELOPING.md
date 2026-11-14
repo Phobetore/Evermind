@@ -22,7 +22,9 @@ backend/   FastAPI + SQLite (aiosqlite, plain SQL migrations)
 frontend/  Vite + React 19 + Tailwind v4, a single-page app routed by hash
   src/pages/       one page per route
   src/router.tsx   the routes, which live after the "#" of the address
-  src/data/        index.ts: `data`, every call the interface makes to the server
+  src/data/        contract.ts: what the interface asks of its data source
+                   http/: the calls to the server, and what the browser keeps
+                   index.ts: `data`, the one door to both
   src/lib/cards.ts Character Card V2 codec (JSON + PNG "chara" chunk), in the browser
   src/components/  layout/Access.tsx keeps the pages behind the access password
   src/i18n/        homemade i18n: JSON dictionaries + useT() hook (en, fr, de, es)
