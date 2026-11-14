@@ -1,0 +1,55 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { createElement, Fragment } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { expect, test } from "vitest";
+import { Mark } from "./Mark";
+
+const frontend = fileURLToPath(new URL("../../..", import.meta.url));
+
+function draw(...marks: Parameters<typeof Mark>[0][]) {
+  return renderToStaticMarkup(createElement(Fragment, null, ...marks.map((props, i) => createElement(Mark, { key: i, ...props }))));
+}
+
+// The openings are cut by a <mask> found by its id: two marks on one page sharing an id would cut
+// both with the first one's mask, and whichever of them turns would turn the other's spark too.
+test("two marks on a page each cut their openings with a mask of their own", () => {
+  const page = draw({}, { busy: true });
+  const ids = [...page.matchAll(/<mask id="([^"]+)"/g)].map((m) => m[1]);
+  expect(ids).toHaveLength(2);
+  expect(new Set(ids).size).toBe(2);
+  for (const id of ids) expect(page).toContain(`mask="url(#${id})"`);
+  // An id the url() reference can carry unquoted.
+  for (const id of ids) expect(id).toMatch(/^[A-Za-z][\w-]*$/);
+});
+
+test("busy is said on the mark the motion rules read, and only while busy", () => {
+  expect(draw({ busy: true })).toMatch(/<g class="mark mark--perce" data-busy="true">/);
+  expect(draw({ busy: false })).not.toContain("data-busy");
+  expect(draw({})).not.toContain("data-busy");
+});
+
+test("beside the word Evermind the mark is hidden from a screen reader; alone it is named", () => {
+  const beside = draw({ decorative: true });
+  expect(beside).toContain('aria-hidden="true"');
+  expect(beside).not.toContain("role=");
+  const alone = draw({});
+  expect(alone).toContain('role="img"');
+  expect(alone).toContain('aria-label="Evermind"');
+  expect(alone).not.toContain("aria-hidden");
+});
+
+test("the mark takes its size from its classes and its colour from the text", () => {
+  const svg = draw({ className: "h-7 w-7 text-ember-400" });
+  expect(svg).toMatch(/^<svg[^>]* class="h-7 w-7 text-ember-400"/);
+  expect(svg).toContain('fill="currentColor"');
+  expect(svg).toContain('viewBox="0 -4.2 64 64"');
+});
+
+// The browser's tab and a phone's home screen show the same drawing as the page.
+test("the tab icon is the mark, with its spark", () => {
+  const favicon = readFileSync(`${frontend}/public/favicon.svg`, "utf8");
+  // The spark's outline, which only this drawing has.
+  expect(favicon).toContain("M45 19.4C48.6 26.4 48.6 26.4 55 30");
+  expect(favicon).toContain("Evermind");
+});

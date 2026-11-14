@@ -310,6 +310,43 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 .stagger > *:nth-child(8) { animation-delay: 0.3s; }
 .stagger > *:nth-child(n + 9) { animation-delay: 0.34s; }
 
+/* The mark (components/ui/Mark.tsx). Nothing moves by itself: the spark winks when the pointer
+   comes over the mark, or over the link or button that holds it, or when that takes the keyboard
+   focus; and it turns while .mark[data-busy="true"]. A busy mark does not wink: the pointer over
+   the login's mark while the password is checked leaves the turning alone. The spark is drawn
+   around 0,0 and placed by its parent (.mark-spark-at), so each transform here turns or closes it
+   about its own centre. */
+.mark-spark {
+  /* Symmetric about 0,0, so the centre of its own box is 0,0: no engine has to resolve the view box. */
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* The wink: the spark closes like an eyelid, holds a beat, opens again. Once per hover. */
+@keyframes mark-blink {
+  0%   { transform: scale(1, 1);       animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6); }
+  38%  { transform: scale(1.08, 0.08); animation-timing-function: linear; }
+  54%  { transform: scale(1.08, 0.08); animation-timing-function: cubic-bezier(0.2, 0.6, 0.35, 1); }
+  100% { transform: scale(1, 1); }
+}
+:is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark,
+svg:hover > .mark:not([data-busy="true"]) .mark-spark {
+  animation: mark-blink 280ms 1;
+}
+
+/* Waiting: the spark turns a quarter while it draws in a breath, then rests a beat. Its four arms
+   are equal, so it is the same every quarter turn and the loop is seamless; it rests as a star,
+   where a steady turn would show it half the time on its diagonal and seem to wobble. */
+@keyframes mark-busy {
+  0%   { transform: rotate(0deg) scale(1);    animation-timing-function: cubic-bezier(0.55, 0, 0.45, 1); }
+  30%  { transform: rotate(45deg) scale(0.8); animation-timing-function: cubic-bezier(0.55, 0, 0.45, 1); }
+  62%  { transform: rotate(90deg) scale(1); }
+  100% { transform: rotate(90deg) scale(1); }
+}
+.mark[data-busy="true"] .mark-spark {
+  animation: mark-busy 1300ms infinite;
+}
+
 } /* end @layer components */
 
 /* Less motion: animations are cut to an instant rather than removed, so that what they end on is
@@ -321,5 +358,22 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* The mark does not wink: cut to an instant, the wink would still flick. */
+  :is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark,
+  svg:hover > .mark:not([data-busy="true"]) .mark-spark {
+    animation: none;
+  }
+  /* Waiting, it still says so, without moving: its spark dims and comes back, slowly, for as long as
+     it waits (hence !important, over the rule above that would cut it to one instant). The spark is
+     an opening: a deep fade would fill it with a muddy half-ember, so it only goes down to 0.7 and
+     reads as an opening that dims. */
+  @keyframes mark-busy-calm {
+    from { opacity: 1; }
+    to   { opacity: 0.7; }
+  }
+  .mark[data-busy="true"] .mark-spark {
+    animation: mark-busy-calm 1400ms ease-in-out infinite alternate !important;
   }
 }
