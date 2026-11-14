@@ -249,13 +249,33 @@ function placesNow(found: FoundCard): Map<number, number> {
   return places;
 }
 
+// A pairing in doubt is no pairing. A wrong one hands another entry's settings (always on, place,
+// depth) to the entry without a word, and makes the export write over the wrong entry of the card;
+// an entry left alone keeps its own behaviour exactly and only loses, at the export, what the card
+// held of the entry it came from. The two numbers below were measured, not chosen. On 24,000 random
+// cards of real sentences (English, Japanese) whose entries share their keys, an entry written here
+// under the keys of another, about the same character, was at most 0.352 alike to it; an entry
+// retouched (a word, both ends, every third word, sentences added before or after, cut down) was at
+// least 0.371 alike to its own, but for one short line of Japanese with a character changed in its
+// middle. LEAST is halfway: below it, two texts are no more alike than two written apart.
+const LEAST = 0.36;
+/** How far ahead of every rival with as many keys in common the best must be. Closer, the texts no
+ *  longer say which entry is which (an entry cut down to one of its sentences, beside a deleted one
+ *  that was that sentence with a word changed: 0.18 apart), and nothing is paired. On the same
+ *  cards, with sentences on one frame and a vocabulary of 24 words added, of 0.1, 0.15 and 0.2
+ *  only 0.2 leaves no entry paired with another's settings where the texts decide. */
+const MARGIN = 0.2;
+
 /** The entry of the old reading each entry of the character is, if any, on what the two still
- *  share, never on rank alone: an entry deleted beside one written here must not hand the new one
- *  its settings. First an entry that already names its origin (one kept with its card before);
- *  then the same keys (as a set) and the same text; then the same keys or the same text, the
- *  closest not taken, so that an entry changed in one of the two stays itself. An entry of
+ *  share, never on rank alone, and never in doubt. First an entry that already names its origin
+ *  (one kept with its card before); then the same keys (as a set) and the same text, never in
+ *  doubt; then, among the entries of before that share the keys or the text and whose text is at
+ *  least LEAST alike, the one with the most keys in common, then the most alike text. It is taken
+ *  only when each of the two is the other's clear best, MARGIN ahead of every rival with as many
+ *  keys in common, among the entries not yet paired; a pair settled removes its two entries from
+ *  the others' rivals, and the rest is weighed again until nothing more is settled. An entry of
  *  the old reading left without one was deleted by its owner; an entry of the character left
- *  without one was made here, or rewritten whole. */
+ *  without one was made here, rewritten past recognition, or could be taken for two. */
 function pairs(current: LoreEntryInput[], old: LoreEntryInput[]): (LoreEntryInput | null)[] {
   const taken = new Set<number>();
   const paired: (LoreEntryInput | null)[] = current.map(() => null);
@@ -271,54 +291,78 @@ function pairs(current: LoreEntryInput[], old: LoreEntryInput[]): (LoreEntryInpu
   const sameText = (a: LoreEntryInput, b: LoreEntryInput) => a.content.trim() === b.content.trim();
   pass((entry, candidate) => entry.origin !== null && entry.origin === candidate.origin);
   pass((entry, candidate) => sameKeys(candidate.keys, entry.keys) && sameText(candidate, entry));
-  // Two entries of before can share the keys (or the text) of one changed since: the first in
-  // order would hand a deleted entry's settings to its retouched neighbour, so take the closest.
+
+  interface Candidate { i: number; j: number; keys: number; alike: number }
+  const byEntry = current.map((): Candidate[] => []);
+  const byOld = old.map((): Candidate[] => []);
+  const texts = old.map((entry) => Array.from(entry.content.trim()));
   current.forEach((entry, i) => {
     if (paired[i]) return;
-    let best = -1;
-    let bestScore: [number, number] = [-1, -1];
+    const text = Array.from(entry.content.trim());
+    const ownKeys = new Set(entry.keys);
     old.forEach((candidate, j) => {
       if (taken.has(j) || !(sameKeys(candidate.keys, entry.keys) || sameText(candidate, entry))) return;
-      const score = closeness(entry, candidate);
-      if (score[0] > bestScore[0] || (score[0] === bestScore[0] && score[1] > bestScore[1])) {
-        best = j;
-        bestScore = score;
-      }
+      const alike = likeness(text, texts[j]);
+      if (alike < LEAST) return;
+      const found: Candidate = { i, j, keys: new Set(candidate.keys.filter((key) => ownKeys.has(key))).size, alike };
+      byEntry[i].push(found);
+      byOld[j].push(found);
     });
-    if (best < 0) return;
-    taken.add(best);
-    paired[i] = old[best];
   });
+  const open = (found: Candidate) => !paired[found.i] && !taken.has(found.j);
+  /** The best of a list, when no rival with as many keys in common comes within MARGIN of it. */
+  const clearBest = (list: Candidate[]) => {
+    let best: Candidate | null = null;
+    for (const found of list) {
+      if (!best || found.keys > best.keys || (found.keys === best.keys && found.alike > best.alike)) best = found;
+    }
+    const doubt = list.some((found) => found !== best && found.keys === best!.keys && best!.alike - found.alike < MARGIN);
+    return best && !doubt ? best : null;
+  };
+  // A pair settled only takes rivals away from the others, never adds one: what is clear stays
+  // clear, and the result does not depend on the order the entries are weighed in.
+  for (let settled = true; settled;) {
+    settled = false;
+    current.forEach((_, i) => {
+      if (paired[i]) return;
+      const best = clearBest(byEntry[i].filter(open));
+      if (!best || clearBest(byOld[best.j].filter(open)) !== best) return;
+      taken.add(best.j);
+      paired[i] = old[best.j];
+      settled = true;
+    });
+  }
   return paired;
 }
 
-/** How near two entries are: the keys they have in common, then how much of their texts is the
- *  same, wherever it is. A retouch can touch both ends of a text (a first word and a full stop),
- *  so a shared start and end would tie it with a deleted neighbour; the pairs of neighbouring
- *  characters it leaves untouched still tell them apart. The share is 2 x shared / (pairs of one +
- *  pairs of the other), counted with repeats, so a longer text does not count for more. */
-function closeness(a: LoreEntryInput, b: LoreEntryInput): [number, number] {
-  const keys = new Set(b.keys);
-  const common = new Set(a.keys.filter((key) => keys.has(key))).size;
-  // By code point, so a character outside the basic plane is one character, not two halves.
-  const one = Array.from(a.content.trim());
-  const other = Array.from(b.content.trim());
-  if (one.length < 2 || other.length < 2) return [common, one.join("") === other.join("") ? 1 : 0];
+/** How alike two texts are, from 0 to 1, wherever what they share is and however much was written
+ *  around it: by the runs of four neighbouring characters they have in common, counted with
+ *  repeats (a text shorter than four characters is one run of its own length). Pairs will not do:
+ *  two texts about the same character share a third of theirs whoever wrote them. Half the score
+ *  is the share of the runs of both, 2 x shared / (runs of one + runs of the other), what a retouch
+ *  keeps; half is the share of the runs of the shorter, which an entry keeps whole when sentences
+ *  were added around it, or when it was cut down to one of its own. Characters are code points,
+ *  so one outside the basic plane is one character, not two halves. */
+function likeness(one: string[], other: string[]): number {
+  const length = Math.min(4, one.length, other.length);
+  if (length === 0) return one.length === other.length ? 1 : 0;
   const left = new Map<string, number>();
-  for (let i = 0; i < one.length - 1; i++) {
-    const pair = one[i] + one[i + 1];
-    left.set(pair, (left.get(pair) ?? 0) + 1);
+  for (let i = 0; i + length <= one.length; i++) {
+    const run = one.slice(i, i + length).join("");
+    left.set(run, (left.get(run) ?? 0) + 1);
   }
   let shared = 0;
-  for (let i = 0; i < other.length - 1; i++) {
-    const pair = other[i] + other[i + 1];
-    const count = left.get(pair) ?? 0;
+  for (let i = 0; i + length <= other.length; i++) {
+    const run = other.slice(i, i + length).join("");
+    const count = left.get(run) ?? 0;
     if (count > 0) {
-      left.set(pair, count - 1);
+      left.set(run, count - 1);
       shared++;
     }
   }
-  return [common, (2 * shared) / (one.length + other.length - 2)];
+  const runsOfOne = one.length - length + 1;
+  const runsOfOther = other.length - length + 1;
+  return shared / (runsOfOne + runsOfOther) + shared / (2 * Math.min(runsOfOne, runsOfOther));
 }
 
 /** The entries of `lore`, with each of `more` after the entry from the nearest index of the card

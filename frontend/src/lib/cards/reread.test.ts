@@ -110,6 +110,45 @@ function saved(character: CardCharacter, plan: ReturnType<typeof rereadPlan>) {
   return { character: after, looked: { ...looked(after), has_card: Boolean(plan.card) } };
 }
 
+// Every case of pairing found so far, with the pairing a person expects; each is a test below.
+// Four rules, in three reviews, each fixed the case it was given and broke another: the rule now
+// in reread.ts was chosen against all of them at once, and against the harness of random cards.
+//
+//  #  case (where it came from)                                          paired with
+//  1  keys rewritten, text the same (plan)                                its own
+//  2  text retouched, "The boat is red." -> "The boat is blue now." (plan) its own
+//  3  one entry deleted (plan)                                            the others, their own
+//  4  an entry written here under other keys (plan)                       none
+//  5  two equal entries, keys written in another order (plan)             one to one
+//  6  ccv3 with decorators, chara without, in another order (plan)        its own, across chunks
+//  7  "Red." rewritten whole as "Blue, now." (plan, keep mode)            none: nothing of it is left
+//  8  one deleted, one written here, as many as before (review 1)         the rest their own; the new none
+//  9  one retouched beside one deleted (review 1)                         its own
+// 10  kept with the card, then re-read; then one deleted, one written     its own, by its origin
+// 11  A deleted, B "She hums at night." -> "She hums at dawn." (review 2) B
+// 12  the same text under other keys (review 2)                          the most keys in common
+// 13  B retouched at both ends: "Mirela hums at dawn.", "Mirela hums at
+//     night", "Mirela hums at night." -> "She hums at dusk.", in Japanese,
+//     beside a long A (review 3)                                          B
+// 14  B grown by a sentence after or before, in English, French and
+//     Japanese, or a long B cut to its first sentence (review 4)          B
+// 15  a long B cut to "She hums at night." beside a deleted "She sings
+//     at night." (review 4)                                               none: in doubt (0.59 to 0.585)
+// 16  an entry written here under the keys of a deleted one (ruling)      none
+// 17  two entries written from one (ruling)                               none: in doubt
+// 18  one in doubt between two, the other clearly one of them (ruling)    each its own, in any order
+// 19  "boat A ship." -> "Changed A anew." (harness of review 2)           none: no run of four left
+// 20  keys retouched until keys and text equal another entry of before
+//     exactly (harness of review 2)                                       that other entry: an exact
+//                                                                         match is never in doubt, and
+//                                                                         nothing tells the two apart
+//
+// The rule: an entry that names its origin goes with it; then the same keys (as a set) and the same
+// text, never in doubt; then, among the entries of before that share the keys or the text and are
+// at least LEAST alike (runs of four neighbouring characters in common, half over both texts and
+// half over the shorter), the most keys in common, then the most alike, taken only when each is the
+// other's best by MARGIN over every rival with as many keys in common, again and again as pairs
+// settled take rivals away. Anything else is left as it is, with no origin.
 describe("re-reading a card", () => {
   test("a retouched field is left as it is and said so", () => {
     const plan = rereadPlan({ ...madeBefore(MIRELA), description: "Mine now." }, found(MIRELA), "reread");
@@ -268,7 +307,10 @@ describe("re-reading a card", () => {
     expect(ruled(kept)).toEqual(ruled(current));
     expect(kept.card_rules).toBe(1);
     expect(kept.character_note).toBe("Mirela never lies.");
-    expect(plan.lore.map((entry) => entry.origin)).toEqual([0, 2]);
+    // "Red." rewritten whole as "Blue, now." keeps nothing of its text: it can no longer be told
+    // from an entry written here under the same keys, so it is left as it is (case 7 below).
+    expect(plan.lore.map((entry) => entry.origin)).toEqual([0, null]);
+    expect(plan.lore[1]).toMatchObject({ content: "Blue, now.", enabled: false });
     expect(plan.lore[0]).toMatchObject({ insertion_order: 7, position: 0 });
     const read = plan.card!.read;
     for (const field of ["kind", "tagline", ...Object.values(FIELDS), "alternate_greetings", "tags"] as const) {
@@ -360,6 +402,122 @@ describe("re-reading a card", () => {
     // Rewritten to start like the deleted one: what it keeps of its own text still wins.
     expect(retouched(tallAndHums("Mirela hums at night."), "She hums at dusk.")[0])
       .toMatchObject({ origin: 1, constant: false, position: 4 });
+    // In Japanese, and beside a long deleted entry.
+    const japanese = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["ミレラ"], content: "彼女は背が高い。", constant: true },
+        { keys: ["ミレラ"], content: "彼女は夜に歌を口ずさむ。", extensions: { position: 4 } },
+      ] },
+    });
+    expect(retouched(japanese, "ミレラは夜に歌を口ずさむよ。")[0]).toMatchObject({ origin: 1, constant: false, position: 4 });
+    const long = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["Mirela"], content: `She is tall and ${"walks the gallery every night with the lamp. ".repeat(12)}`, constant: true },
+        { keys: ["Mirela"], content: "She hums at night.", extensions: { position: 4 } },
+      ] },
+    });
+    expect(retouched(long, "Mirela hums at dawn.")[0]).toMatchObject({ origin: 1, constant: false, position: 4 });
+  });
+
+  /** A card of two entries under one key, A always on, B at a depth; the owner deleted A. */
+  const deletedBeside = (a: string, b: string) => v2({
+    name: "Mirela", description: "A lighthouse keeper.",
+    character_book: { entries: [
+      { keys: ["Mirela"], content: a, constant: true, extensions: { a: 1 } },
+      { keys: ["Mirela"], content: b, extensions: { position: 4, depth: 0, b: 1 } },
+    ] },
+  });
+  /** The plan for B with its text changed, A deleted. */
+  const onlyB = (card: unknown, content: string, mode: "reread" | "keep" = "reread") => {
+    const current = madeBefore(card);
+    current.lore_entries = [{ ...current.lore_entries[1], content }];
+    return { current, plan: rereadPlan(current, found(card), mode) };
+  };
+
+  test("an entry that grew, or was cut down, beside a deleted one under the same keys, keeps its own settings", () => {
+    const keeper = "Mirela is the keeper of the Saltmarsh lighthouse. She has kept the lamp for sixty years and knows every reef by name.";
+    const hums = "She hums at night.";
+    const cases: [a: string, b: string, retouched: string][] = [
+      [keeper, hums, "She hums at night. It is a shanty her mother taught her, and nobody else knows the words."],
+      [keeper, hums, "Once the lamp is lit and the gallery is swept, the keeper sits by the window with her tea. She hums at night."],
+      ["She is tall.", "She hums at night. The tune is an old shanty her mother taught her, about a ship that never came home, and she hums it while she trims the wick and watches the tide.", hums],
+      ["Mirela garde le phare de Saltmarsh depuis soixante ans. Elle connaît chaque récif par son nom et se méfie des étrangers.",
+        "Elle fredonne la nuit.", "Elle fredonne la nuit. C'est une chanson de marin que sa mère lui a apprise, et personne d'autre n'en connaît les paroles."],
+      ["ミレラは六十年間、灯台を守ってきた。冬には補給船が何週間も接岸できない。", "彼女は夜に歌を口ずさむ。",
+        "彼女は夜に歌を口ずさむ。それは母から教わった古い船乗りの歌で、ほかに歌詞を知る者はいない。"],
+    ];
+    for (const [a, b, content] of cases) {
+      const card = deletedBeside(a, b);
+      for (const mode of ["reread", "keep"] as const) {
+        expect(onlyB(card, content, mode).plan.lore, `${mode}: ${content}`).toEqual([
+          expect.objectContaining({ origin: 1, content, constant: false, position: 4, depth: 0 }),
+        ]);
+      }
+    }
+  });
+
+  test("a pairing in doubt is no pairing: the entry keeps its own settings, and the export writes it as new", () => {
+    // B cut down to its first sentence, beside a deleted A that is that sentence with one word
+    // changed: the texts no longer say which one it was.
+    const card = deletedBeside("She sings at night.",
+      "She hums at night. The tune is an old shanty her mother taught her, about a ship that never came home, and she hums it while she trims the wick and watches the tide.");
+    const { current, plan } = onlyB(card, "She hums at night.");
+    expect(plan.lore).toEqual([{ ...current.lore_entries[0], origin: null }]);
+    const read = { ...plan.card!.read, lore_entries: plan.card!.read.lore_entries.filter(isStorable) };
+    const exported = cardForExport({ ...current, ...plan.fields, lore_entries: plan.lore }, { ...plan.card!, read, read_at: "" }, new Date("2026-11-14T00:00:00Z"));
+    const entries = (exported.v2.data.character_book as { entries: Record<string, unknown>[] }).entries;
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ content: "She hums at night." });
+    expect(entries[0].constant ?? false).toBe(false);
+    expect(entries[0].extensions ?? {}).not.toHaveProperty("a");
+    expect(entries[0].extensions ?? {}).not.toHaveProperty("b");
+  });
+
+  test("an entry written here under the keys of a deleted one is not taken for it", () => {
+    const card = deletedBeside("Mirela has kept the Saltmarsh lighthouse for sixty years.", "She hums at night.");
+    const current = madeBefore(card);
+    const mine = newLoreEntry(["Mirela"], "She keeps a loaded flare pistol in the kitchen drawer.");
+    current.lore_entries = [current.lore_entries[1], mine];
+    const plan = rereadPlan(current, found(card), "reread");
+    expect(plan.lore.map((entry) => entry.origin)).toEqual([1, null]);
+    expect(plan.lore[1]).toEqual(mine);
+  });
+
+  test("two entries written from one leave it to neither", () => {
+    const card = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [{ keys: ["Mirela"], content: "She hums at night.", constant: true }] },
+    });
+    const current = madeBefore(card);
+    current.lore_entries = [
+      { ...current.lore_entries[0], content: "She hums at night, softly." },
+      { ...current.lore_entries[0], content: "She hums at night, loudly." },
+    ];
+    expect(rereadPlan(current, found(card), "reread").lore.map((entry) => entry.origin)).toEqual([null, null]);
+  });
+
+  test("an entry whose rival was paired with its own is weighed again, whatever their order", () => {
+    const card = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["lamp"], content: "The lamp burns whale oil.", insertion_order: 1 },
+        { keys: ["lamp"], content: "The lamp burns seal oil.", insertion_order: 2 },
+      ] },
+    });
+    const current = madeBefore(card);
+    // Alone, the first is as near the one as the other; the second is clearly the seal oil one.
+    const [whale, seal] = current.lore_entries;
+    for (const lore of [
+      [{ ...whale, content: "The lamp burns at night." }, { ...seal, content: "The lamp burns seal oil and smokes in the fog." }],
+      [{ ...seal, content: "The lamp burns seal oil and smokes in the fog." }, { ...whale, content: "The lamp burns at night." }],
+    ]) {
+      const plan = rereadPlan({ ...current, lore_entries: lore }, found(card), "reread");
+      expect(Object.fromEntries(plan.lore.map((entry) => [entry.content, entry.insertion_order]))).toEqual({
+        "The lamp burns at night.": 1, "The lamp burns seal oil and smokes in the fog.": 2,
+      });
+    }
   });
 
   test("an entry the old import dropped goes after the entry of the index below it", () => {
