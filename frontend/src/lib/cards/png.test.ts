@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { crc32 } from "node:zlib";
+import { randomBytes } from "node:crypto";
+import { crc32, deflateSync } from "node:zlib";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { readCardBytes } from "./index";
 import { chunks, pngTexts, withCards } from "./png";
@@ -81,6 +82,27 @@ describe("the chunks of a PNG", () => {
     const card = await read(withChunks(zTXt("chara", await deflate(utf8(base64(BACKFILL))))));
     expect(card.character.name).toBe("Arisen of the Gate");
     expect(card.original.text).toBe(BACKFILL);
+  });
+
+  test("a card whose compressed text is longer than a slice reads whole", async () => {
+    // Random bytes do not compress: this card stays many slices long once deflated.
+    const noise = JSON.stringify({
+      spec: "chara_card_v2", data: { name: "Noisy", extensions: { noise: randomBytes(300 * 1024).toString("base64") } },
+    });
+    const long = deflateSync(utf8(base64(noise)));
+    expect(long.length).toBeGreaterThan(3 * 16384);
+    const noisy = await read(withChunks(zTXt("chara", long)));
+    expect(noisy.original.text).toBe(noise);
+
+    // Stored without compression and padded so that the body ends exactly on the second slice.
+    const padded = (pad: number) => JSON.stringify({ spec: "chara_card_v2", data: { name: "Edge", extensions: { pad: "x".repeat(pad) } } });
+    let pad = 0;
+    for (let tries = 0; deflateSync(utf8(padded(pad)), { level: 0 }).length !== 2 * 16384; tries++) {
+      expect(tries).toBeLessThan(10);
+      pad += 2 * 16384 - deflateSync(utf8(padded(pad)), { level: 0 }).length;
+    }
+    const edge = await read(withChunks(zTXt("chara", deflateSync(utf8(padded(pad)), { level: 0 }))));
+    expect(edge.original.text).toBe(padded(pad));
   });
 
   test("a card in a compressed iTXt chunk reads", async () => {
