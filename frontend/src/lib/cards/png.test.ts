@@ -172,6 +172,15 @@ describe("the chunks of a PNG", () => {
     expect(texts.get("comment")).toBe(String.fromCharCode(...other));
   });
 
+  test("a card chunk given up at the bound is told as a card too large, not as no card", async () => {
+    // deflateSync: a stream of 61 MB of zeros, in well under a megabyte.
+    const zeros = deflateSync(new Uint8Array(61 * 1024 * 1024));
+    expect(await kindOf(withChunks(zTXt("chara", zeros)))).toBe("card_too_large");
+    // A card beside it is read all the same.
+    expect((await read(withChunks(zTXt("ccv3", zeros), tEXt("chara", base64(BACKFILL))))).character.name).toBe("Arisen of the Gate");
+    expect(await kindOf(withChunks(tEXt("comment", "no card")))).toBe("png_without_card");
+  });
+
   test("a PNG with two cards that read differently keeps the other one", async () => {
     const other = BACKFILL.replace('"name": "Arisen of the Gate"', '"name": "Arisen, retold"');
     const card = await read(withChunks(tEXt("ccv3", base64(RISU_V3)), tEXt("chara", base64(other))));

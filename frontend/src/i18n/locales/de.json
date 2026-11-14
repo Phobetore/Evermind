@@ -558,6 +558,8 @@
     },
     "exportWarning": {
       "tooLarge": "Dieses PNG ist größer als 15 MB: Evermind kann es nicht wieder einlesen. Das JSON behält alles.",
+      "tooLargeBoth": "Dieses PNG ist größer als 15 MB: Evermind kann es nicht wieder einlesen, ebenso wenig das JSON dieser Karte, das auch größer als 15 MB ist.",
+      "jsonTooLarge": "Diese Datei ist größer als 15 MB: Evermind kann sie nicht wieder einlesen.",
       "assetsLeft": "Die an diese Karte angehängten Bilder sind nicht in dieser Datei: Sie bleiben nur im ursprünglichen PNG."
     },
     "startChatModal": {
@@ -613,6 +615,7 @@
       "other": "Dieses Element gibt es nicht mehr."
     },
     "pngWithoutCard": "Dieses PNG-Bild enthält keine Charakterkarte.",
+    "cardTooLarge": "Diese Charakterkarte ist zu groß, um hier gelesen zu werden (entpackt mehr als 60 MB Text).",
     "unrecognizedCardFile": "Diese Datei ist keine Karte. Wähle eine JSON-Karte oder eine PNG-Karte.",
     "variantOutOfRange": "Diese Variante der Antwort gibt es nicht.",
     "factExists": "Diesen Fakt gibt es schon.",

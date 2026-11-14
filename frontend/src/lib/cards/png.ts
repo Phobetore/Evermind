@@ -38,9 +38,12 @@ function binary(bytes: Uint8Array) {
 /** How much compressed text goes into the stream at a time. */
 const SLICE = 16384;
 
-/** A zlib stream inflated as UTF-8 text; null for one that is broken, or that grows past `bound`,
- *  which is given up as soon as it does rather than read to its end. */
-async function inflate(data: Uint8Array, bound: number): Promise<string | null> {
+/** What `inflate` gives for a stream that grows past its bound. */
+const PAST_BOUND = Symbol("past the bound");
+
+/** A zlib stream inflated as UTF-8 text; null for one that is broken, PAST_BOUND for one that grows
+ *  past `bound`, which is given up as soon as it does rather than read to its end. */
+async function inflate(data: Uint8Array, bound: number): Promise<string | null | typeof PAST_BOUND> {
   // In slices, each pulled only once the last is used: a browser inflates a whole piece before
   // the first read gives anything, so a body given at once would inflate whole past the bound.
   let sent = 0;
@@ -64,7 +67,7 @@ async function inflate(data: Uint8Array, bound: number): Promise<string | null> 
       size += value.length;
       if (size > bound) {
         await reader.cancel().catch(() => {});
-        return null;
+        return PAST_BOUND;
       }
       parts.push(value);
     }
@@ -81,8 +84,9 @@ async function inflate(data: Uint8Array, bound: number): Promise<string | null> 
 }
 
 /** Every text chunk, keyword lowercased → its first text. Only a chara or ccv3 zTXt/iTXt is
- *  decompressed, and never past INFLATE_BOUND; one that goes past it is refused. */
-export async function pngTexts(png: Uint8Array, bound = INFLATE_BOUND): Promise<Map<string, string>> {
+ *  decompressed, and never past INFLATE_BOUND; one that goes past it is refused, and its keyword
+ *  added to `pastBound`, so that a card too large to read is not told as no card. */
+export async function pngTexts(png: Uint8Array, bound = INFLATE_BOUND, pastBound?: Set<string>): Promise<Map<string, string>> {
   const found = new Map<string, string>();
   // A keyword met before counts even when its text was refused: the first one is the one read.
   const seen = new Set<string>();
@@ -115,7 +119,8 @@ export async function pngTexts(png: Uint8Array, bound = INFLATE_BOUND): Promise<
       found.set(keyword, binary(body));
     } else {
       const text = await inflate(body, bound);
-      if (text !== null) found.set(keyword, text);
+      if (text === PAST_BOUND) pastBound?.add(keyword);
+      else if (text !== null) found.set(keyword, text);
     }
   }
   return found;

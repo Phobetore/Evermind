@@ -21,6 +21,7 @@ const KIND_KEYS: Record<string, string> = {
   cross_origin: "errors.crossOrigin",
   unknown_host: "errors.unknownHost",
   png_without_card: "errors.pngWithoutCard",
+  card_too_large: "errors.cardTooLarge",
   unrecognized_card_file: "errors.unrecognizedCardFile",
   variant_out_of_range: "errors.variantOutOfRange",
   fact_exists: "errors.factExists",

@@ -70,7 +70,8 @@ function sameNotes(winner: string, other: string) {
 /** The card a PNG carries: `ccv3` first, as the V3 specification and SillyTavern read it, else
  *  `chara`. The other one is kept too when it is also a card that reads differently. */
 async function pngCard(png: Uint8Array): Promise<ReadCard | null> {
-  const texts = await pngTexts(png);
+  const pastBound = new Set<string>();
+  const texts = await pngTexts(png, undefined, pastBound);
   const found = ["ccv3", "chara"].flatMap((keyword) => {
     const value = texts.get(keyword);
     if (value === undefined) return [];
@@ -79,7 +80,11 @@ async function pngCard(png: Uint8Array): Promise<ReadCard | null> {
     const read = readCardJson(card, json, "png");
     return read ? [{ card: card as Record<string, unknown>, read }] : [];
   });
-  if (found.length === 0) return null;
+  if (found.length === 0) {
+    // A card is there, larger than a phone's tab can read: not "no card".
+    if (pastBound.size > 0) throw new DataError("This card is too large to be read here.", { kind: "card_too_large" });
+    return null;
+  }
   const [{ card, read }, other] = found;
   if (!other || (readingOf(other.read.character) === readingOf(read.character)
     && sameNotes(read.character.creator_notes, other.read.character.creator_notes))) return read;
@@ -159,7 +164,9 @@ async function portraitPng(avatarUrl: string | null): Promise<Uint8Array<ArrayBu
 const fileStem = (name: string) =>
   name.replace(/[\p{Cc}\u200e\u200f\u202a-\u202e\u2066-\u2069\\/:*?"<>|]/gu, "").trim() || "card";
 
-export type ExportWarning = "tooLarge" | "assetsLeft";
+/** `tooLarge`: a PNG Evermind will not take back, whose JSON it will; `tooLargeBoth`: a PNG whose
+ *  JSON is too large as well; `jsonTooLarge`: a JSON Evermind will not take back. */
+export type ExportWarning = "tooLarge" | "tooLargeBoth" | "jsonTooLarge" | "assetsLeft";
 
 /** The images a card points to in the chunks of its PNG, by the keyword of their chunk. */
 function assetKeywords(data: Record<string, unknown>): string[] {
@@ -170,11 +177,17 @@ function assetKeywords(data: Record<string, unknown>): string[] {
   });
 }
 
-/** What a written file cannot do: be taken back (size in bytes, PNG only), carry the images its card points to. */
-export function exportWarnings(format: "json" | "png", size: number, data: Record<string, unknown>, carriesAssets: boolean): ExportWarning[] {
+/** What a written file cannot do: be taken back (sizes in bytes: the file written, and the JSON of
+ *  the same card), carry the images its card points to. */
+export function exportWarnings(
+  format: "json" | "png", sizes: { file: number; json: number }, data: Record<string, unknown>, carriesAssets: boolean,
+): ExportWarning[] {
   const warnings: ExportWarning[] = [];
-  // The file is written all the same: a JSON keeps everything, and other applications take larger PNGs.
-  if (format === "png" && size > MAX_BYTES) warnings.push("tooLarge");
+  // The file is written all the same: other applications take larger files. Evermind refuses any
+  // file over MAX_BYTES before reading it, a JSON as much as a PNG.
+  if (sizes.file > MAX_BYTES) {
+    warnings.push(format === "json" ? "jsonTooLarge" : sizes.json > MAX_BYTES ? "tooLargeBoth" : "tooLarge");
+  }
   // The V3 specification asks a tool to say so when it cannot keep the images joined to a card.
   if (assetKeywords(data).length > 0 && !carriesAssets) warnings.push("assetsLeft");
   return warnings;
@@ -205,10 +218,11 @@ export async function cardFile(
     }
   }
   const card = cardForExport(exported, stored, new Date());
+  const json = () => new Blob([JSON.stringify(card.json === "v3" ? card.v3 : card.v2, null, 2)], { type: "application/json" });
   let blob: Blob;
   let carriesAssets = false;
   if (format === "json") {
-    blob = new Blob([JSON.stringify(card.json === "v3" ? card.v3 : card.v2, null, 2)], { type: "application/json" });
+    blob = json();
   } else {
     const portrait = await portraitPng(character.avatar_url);
     carriesAssets = carries(portrait, assetKeywords(card.v3.data));
@@ -217,6 +231,9 @@ export async function cardFile(
   return {
     blob,
     filename: `${fileStem(character.name)}.${format}`,
-    warnings: exportWarnings(format, blob.size, card.v3.data, carriesAssets),
+    // The JSON of a PNG is written out only when the PNG is too large, to say whether it would do.
+    warnings: exportWarnings(format, {
+      file: blob.size, json: format === "json" || blob.size <= MAX_BYTES ? blob.size : json().size,
+    }, card.v3.data, carriesAssets),
   };
 }

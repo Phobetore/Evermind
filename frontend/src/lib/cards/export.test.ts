@@ -319,30 +319,40 @@ describe("what an exported file cannot do", () => {
       data: { name: "Large", extensions: { risuai: { image: "A".repeat(megabytes * 1024 * 1024) } } },
     });
     const out = exported(stored(read));
-    return { read, out, png: withCards(PNG, out.v2, out.v3) };
+    const json = new Blob([JSON.stringify(out.v2, null, 2)]);
+    return { read, out, png: withCards(PNG, out.v2, out.v3), json };
   }
 
   test("Evermind takes back its own PNG export of a card of four megabytes", async () => {
-    const { read, out, png } = large(4);
+    const { read, out, png, json } = large(4);
     const back = await readCardBytes(new Uint8Array(await png.arrayBuffer()), "large.png");
     expect(back.read.character).toEqual(read.character);
-    expect(exportWarnings("png", png.size, out.v3.data, false)).toEqual([]);
+    expect(exportWarnings("png", { file: png.size, json: json.size }, out.v3.data, false)).toEqual([]);
   });
 
   test("a PNG export too large to take back says so", async () => {
-    const { out, png } = large(6);
+    const { out, png, json } = large(6);
     expect(png.size).toBeGreaterThan(15 * 1024 * 1024);
-    expect(exportWarnings("png", png.size, out.v3.data, false)).toEqual(["tooLarge"]);
+    expect(json.size).toBeLessThan(15 * 1024 * 1024);
+    // The PNG sends the person to the JSON, which Evermind takes back.
+    expect(exportWarnings("png", { file: png.size, json: json.size }, out.v3.data, false)).toEqual(["tooLarge"]);
     await expect(readCardBytes(new Uint8Array(await png.arrayBuffer()), "large.png")).rejects.toMatchObject({ kind: "file_too_large" });
-    // The JSON, which Evermind takes back whatever its size, is not said to be too large.
-    expect(exportWarnings("json", png.size, out.v3.data, false)).toEqual([]);
+    expect(exportWarnings("json", { file: json.size, json: json.size }, out.v3.data, false)).toEqual([]);
+  });
+
+  test("a JSON export too large to take back says so, and the PNG of it does not send the person there", async () => {
+    const { out, png, json } = large(16);
+    expect(json.size).toBeGreaterThan(15 * 1024 * 1024);
+    expect(exportWarnings("json", { file: json.size, json: json.size }, out.v3.data, false)).toEqual(["jsonTooLarge"]);
+    await expect(readCardBytes(new Uint8Array(await json.arrayBuffer()), "large.json")).rejects.toMatchObject({ kind: "file_too_large" });
+    expect(exportWarnings("png", { file: png.size, json: json.size }, out.v3.data, false)).toEqual(["tooLargeBoth"]);
   });
 
   test("images joined to a V3 card are said to be left behind", () => {
     const data = { name: "N", assets: [{ type: "icon", uri: "ccdefault:", name: "main", ext: "png" }, { type: "emotion", uri: "__asset:0", name: "smile", ext: "png" }] };
-    expect(exportWarnings("json", 100, data, false)).toEqual(["assetsLeft"]);
-    expect(exportWarnings("png", 100, data, false)).toEqual(["assetsLeft"]);
-    expect(exportWarnings("png", 100, data, true)).toEqual([]);
-    expect(exportWarnings("json", 100, { name: "N", assets: [{ type: "icon", uri: "ccdefault:" }] }, false)).toEqual([]);
+    expect(exportWarnings("json", { file: 100, json: 100 }, data, false)).toEqual(["assetsLeft"]);
+    expect(exportWarnings("png", { file: 100, json: 100 }, data, false)).toEqual(["assetsLeft"]);
+    expect(exportWarnings("png", { file: 100, json: 100 }, data, true)).toEqual([]);
+    expect(exportWarnings("json", { file: 100, json: 100 }, { name: "N", assets: [{ type: "icon", uri: "ccdefault:" }] }, false)).toEqual([]);
   });
 });

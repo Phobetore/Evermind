@@ -558,6 +558,8 @@
     },
     "exportWarning": {
       "tooLarge": "This PNG is over 15 MB: Evermind will not be able to take it back. The JSON keeps everything.",
+      "tooLargeBoth": "This PNG is over 15 MB: Evermind will not be able to take it back, nor the JSON of this card, which is over 15 MB too.",
+      "jsonTooLarge": "This file is over 15 MB: Evermind will not be able to take it back.",
       "assetsLeft": "The images attached to this card are not in this file: they remain only in the original PNG."
     },
     "startChatModal": {
@@ -613,6 +615,7 @@
       "other": "This item no longer exists."
     },
     "pngWithoutCard": "This PNG image does not contain a character card.",
+    "cardTooLarge": "This card is too large to be read here (over 60 MB of text once unpacked).",
     "unrecognizedCardFile": "This file is not a card. Choose a JSON card or a PNG card.",
     "variantOutOfRange": "That variant of the reply does not exist.",
     "factExists": "This fact already exists.",

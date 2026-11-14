@@ -558,6 +558,8 @@
     },
     "exportWarning": {
       "tooLarge": "Este PNG supera los 15 MB: Evermind no podrá volver a importarlo. El JSON lo conserva todo.",
+      "tooLargeBoth": "Este PNG supera los 15 MB: Evermind no podrá volver a importarlo, ni tampoco el JSON de esta ficha, que también supera los 15 MB.",
+      "jsonTooLarge": "Este archivo supera los 15 MB: Evermind no podrá volver a importarlo.",
       "assetsLeft": "Las imágenes adjuntas a esta ficha no están en este archivo: solo quedan en el PNG original."
     },
     "startChatModal": {
@@ -613,6 +615,7 @@
       "other": "Este elemento ya no existe."
     },
     "pngWithoutCard": "Esta imagen PNG no contiene una ficha de personaje.",
+    "cardTooLarge": "Esta ficha es demasiado grande para leerse aquí (más de 60 MB de texto una vez descomprimida).",
     "unrecognizedCardFile": "Este archivo no es una ficha. Elige una ficha JSON o una ficha PNG.",
     "variantOutOfRange": "Esa variante de la respuesta no existe.",
     "factExists": "Este hecho ya existe.",

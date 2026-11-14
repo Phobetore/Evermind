@@ -20,6 +20,7 @@ describe("an error the server named", () => {
     ["cross_origin", "errors.crossOrigin"],
     ["unknown_host", "errors.unknownHost"],
     ["png_without_card", "errors.pngWithoutCard"],
+    ["card_too_large", "errors.cardTooLarge"],
     ["unrecognized_card_file", "errors.unrecognizedCardFile"],
     ["variant_out_of_range", "errors.variantOutOfRange"],
     ["fact_exists", "errors.factExists"],
@@ -254,7 +255,7 @@ describe("the sentences exist", () => {
   };
   const kinds = [
     "locked", "wrong_password", "too_large", "rate_limited", "cross_origin", "unknown_host",
-    "png_without_card", "unrecognized_card_file", "variant_out_of_range", "fact_exists",
+    "png_without_card", "card_too_large", "unrecognized_card_file", "variant_out_of_range", "fact_exists",
     "fact_empty", "memory_busy", "facts_changed", "conversation_changed", "too_few_facts",
     "file_too_large", "unsupported_image",
     "conversation_empty", "no_connection", "unreachable", "model_connection_lost",
