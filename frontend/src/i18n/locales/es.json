@@ -412,7 +412,7 @@
       "createButton": "Crear la ficha"
     },
     "reread": {
-      "title": "Esta ficha se creó antes de que Evermind guardara las tarjetas enteras.",
+      "title": "Esta ficha se creó antes de que Evermind guardara enteras las fichas originales.",
       "added": "Se añadirá o se pondrá al día:",
       "untouched": "Quedará como lo dejaste:",
       "changes": "Lo que cambiará en sus conversaciones:",
@@ -429,12 +429,12 @@
       "kind": "Personaje o escenario",
       "lore": "{count:grouped} entradas del lorebook",
       "lore_one": "{count:grouped} entrada del lorebook",
-      "reread": "Releer la tarjeta y pasar a las nuevas reglas",
-      "keep": "Guardar solo la tarjeta original para la exportación",
+      "reread": "Releer la ficha original y pasar a las nuevas reglas",
+      "keep": "Guardar solo la ficha original para la exportación",
       "keepHint": "Guardarla no cambia nada en sus conversaciones; este aviso se queda, para pasar más tarde a las nuevas reglas.",
       "switch": "Pasar a las nuevas reglas",
       "saveToKeep": "Guarda para conservar este cambio.",
-      "retry": "Buscar la tarjeta de nuevo"
+      "retry": "Buscar de nuevo la ficha original"
     },
     "assist": {
       "heading": "Creación asistida por IA",
