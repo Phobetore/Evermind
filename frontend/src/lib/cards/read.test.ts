@@ -285,7 +285,8 @@ describe("the fields of a card", () => {
       .toBe("Une gardienne.");
     // A clickable banner and a comment show nothing either.
     expect(taglineOf("[![b](x.png)](y)\n# Mirela\n\nText here. More.")).toBe("Text here.");
-    expect(taglineOf("<!-- c --><h1>Mirela</h1><p>Une gardienne. Toujours.</p>")).toBe("Une gardienne.");    // A name marker shows a name: it is the sentence's start, not a wrapper.
+    expect(taglineOf("<!-- c --><h1>Mirela</h1><p>Une gardienne. Toujours.</p>")).toBe("Une gardienne.");
+    // A name marker shows a name: it is the sentence's start, not a wrapper.
     expect(taglineOf("<BOT> garde le phare. Depuis toujours.")).toBe("<BOT> garde le phare.");
   });
 });
