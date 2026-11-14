@@ -1,4 +1,5 @@
 import type { Element, ElementContent, Properties, Root, RootContent } from "hast";
+import type { TableRow } from "mdast";
 import { gfmStrikethroughFromMarkdown } from "mdast-util-gfm-strikethrough";
 import { gfmTableFromMarkdown } from "mdast-util-gfm-table";
 import { gfmStrikethrough } from "micromark-extension-gfm-strikethrough";
@@ -6,7 +7,7 @@ import { gfmTable } from "micromark-extension-gfm-table";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import remarkParse from "remark-parse";
-import remarkRehype from "remark-rehype";
+import remarkRehype, { defaultHandlers } from "remark-rehype";
 import { type Processor, unified } from "unified";
 import {
   ATTRIBUTE_NAMES_BOUND,
@@ -1041,20 +1042,46 @@ export function renderPresentation(text: string): RenderedPresentation {
 // Below the h3 that names each field of what the model reads.
 const MODEL_HEADINGS: Record<string, string> = { h1: "h4", h2: "h5", h3: "h6", h4: "h6", h5: "h6", h6: "h6" };
 
-/** The headings of the model's text, under its field's; then its depth bounded. A walk by a
- *  stack: the tree is not yet bounded in depth. */
+// The number written before an item of an ordered list, read where the item starts.
+const ITEM_NUMBER = /\d{1,9}/y;
+
+/** The headings of the model's text, under its field's; each item of an ordered list numbered as
+ *  it is written (the layout would count on from the first, and show 2 where the model reads 7);
+ *  then its depth bounded. A walk by a stack: the tree is not yet bounded in depth. */
 function modelTree() {
-  return (tree: Root) => {
+  return (tree: Root, file: { value: unknown }) => {
+    const source = String(file.value);
     const stack: RootContent[] = [...tree.children];
     while (stack.length > 0) {
       const node = stack.pop()!;
       if (node.type !== "element") continue;
       if (node.tagName in MODEL_HEADINGS) node.tagName = MODEL_HEADINGS[node.tagName];
+      if (node.tagName === "ol") {
+        for (const item of node.children) {
+          if (item.type !== "element" || item.tagName !== "li") continue;
+          ITEM_NUMBER.lastIndex = item.position?.start.offset ?? -1;
+          const written = ITEM_NUMBER.lastIndex >= 0 ? ITEM_NUMBER.exec(source) : null;
+          if (written) item.properties.value = String(Number(written[0]));
+        }
+      }
       for (const child of node.children) stack.push(child);
     }
     boundDepth()(tree);
   };
 }
+
+/** Every cell a row of the model's text writes is laid out. The layout would stop each row at
+ *  the delimiter row's count and drop the cells after it: text the model reads that the person
+ *  would not. Only the longer rows are widened, each to its own count: padding every row to the
+ *  longest would draw rows × columns cells, which the layout's cost does not count. */
+const allCells: typeof defaultHandlers.tableRow = (state, node: TableRow, parent) => {
+  if (parent?.type === "table" && node.children.length > (parent.align ?? []).length) {
+    const align = [...(parent.align ?? [])];
+    while (align.length < node.children.length) align.push(null);
+    return defaultHandlers.tableRow(state, node, { ...parent, align });
+  }
+  return defaultHandlers.tableRow(state, node, parent);
+};
 
 /** A text the model reads (a field of a card's definition), laid out as Markdown alone: the
  *  presentation's dialect without HTML, links nor images, which stay written as they are, the
@@ -1070,10 +1097,11 @@ export function renderModelText(text: string): RenderedPresentation {
       .use(remarkParse)
       .use(dialect)
       .use(modelDialect)
-      .use(remarkRehype)
+      .use(remarkRehype, { handlers: { tableRow: allCells } })
       .use(rehypeSanitize, PRESENTATION_SCHEMA)
       .use(modelTree);
-    const tree = processor.runSync(processor.parse(text)) as Root;
+    // The text goes along as the file: modelTree reads each list item's number in it.
+    const tree = processor.runSync(processor.parse(text), text) as Root;
     return { kind: "laid-out", tree, remoteHosts: [] };
   } catch {
     return { kind: "plain", reason: "failed" };

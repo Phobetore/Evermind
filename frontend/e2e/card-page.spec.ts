@@ -542,6 +542,7 @@ test("the definition is laid out as Markdown alone, and nothing of it is hidden"
     "# Titre\n\n**gras** <img src=x onerror=1> <!-- caché --> [lien](https://example.com) " +
     "![image](https://pictures.example/x.png)\n\n<script>alert(1)</script>\n\n" +
     '**bold** <img src="https://pictures.example/d.png"> <script>window.__hit=1</script>\n\n' +
+    "```js HIDDEN-INFO-WORDS\ncode\n```\n\n| a |\n|---|\n| b | HIDDEN-CELL |\n\n3. three\n7. seven\n\n" +
     "&#x202E;x&#8203;&lt;b&gt;";
   const ilse = await card(request, { description });
   await openPage(page, ilse.id);
@@ -562,8 +563,17 @@ test("the definition is laid out as Markdown alone, and nothing of it is hidden"
     // Character references as the model reads them: decoded, one would hide a space, another turn
     // the line backwards on screen, the last draw a tag.
     "&#x202E;x&#8203;&lt;b&gt;",
+    // The words after a fence's marks, and a cell past the delimiter row's count.
+    "js HIDDEN-INFO-WORDS",
+    "HIDDEN-CELL",
   ])
     await expect(text).toContainText(written);
+  await expect(text.locator("pre", { hasText: "HIDDEN-INFO-WORDS" })).toBeVisible();
+  await expect(text.locator("td", { hasText: "HIDDEN-CELL" })).toBeVisible();
+  // Each item keeps the number written before it, not one counted on from the first.
+  expect(await text.locator("ol > li").evaluateAll((items) => items.map((li) => (li as HTMLLIElement).value))).toEqual([
+    3, 7,
+  ]);
   await expect(details.locator("img, a, script")).toHaveCount(0);
   await expect(text.locator("b")).toHaveCount(0);
 
