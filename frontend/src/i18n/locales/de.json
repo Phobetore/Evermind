@@ -349,8 +349,8 @@
     "presentation": {
       "showImages": "Bilder anzeigen",
       "contacts": "Kontaktiert: {hosts}",
-      "contactsMore": "Kontaktiert: {hosts} und {count} weitere",
-      "contactsMore_one": "Kontaktiert: {hosts} und {count} weitere",
+      "contactsMore": "Kontaktiert: {hosts} und {count} weitere Seiten",
+      "contactsMore_one": "Kontaktiert: {hosts} und {count} weitere Seite",
       "imageFrom": "Bild von {host}",
       "show": "Anzeigen",
       "showFrom": "Bild von {host} anzeigen",
