@@ -586,14 +586,17 @@ test("what looks like an image but is no image's source counts after all", () =>
     `<img src="${run}">`,
     // An indented code block: the measure after the parse is what sees it.
     "Code:\n\n    " + run,
+    // A fenced code block whose run stands between blank lines: its fence is followed only to the
+    // end of its own block, and the run reaches the parse.
+    "```\n\n" + run + "\n\n```",
   ]) {
     expect(layoutRefusal(text, layoutLength(text))).toBeNull();
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooLong" });
     expect(elapsed).toBeLessThan(2_000);
   }
-  // Between backticks, the run is refused before the parse already: the code span is followed
-  // across all of it (layoutCost).
+  // On the line right after its fence, or in a code span, the run is refused before the parse
+  // already: the backticks are followed across all of it (layoutCost).
   const fenced = "```\n" + run + "\n```";
   expect(renderPresentation(fenced)).toEqual({ kind: "plain", reason: "tooDense" });
   const spanned = "`" + run + "`";
