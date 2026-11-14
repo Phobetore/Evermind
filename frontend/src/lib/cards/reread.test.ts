@@ -812,6 +812,50 @@ describe("re-reading a card", () => {
     expect(rereadOffer(current, null)).toEqual({ added: [], untouched: [] });
   });
 
+  test("a switch its owner turned stays as he left it", () => {
+    const card = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["crab"], content: "A crab under the rocks.", insertion_order: 3, extensions: { position: 4, depth: 1, c: 1 } },
+        { keys: ["gull"], content: "A gull named Pell.", enabled: false, insertion_order: 8, extensions: { g: 1 } },
+      ] },
+    });
+    const current = madeBefore(card);
+    current.lore_entries = current.lore_entries.map((entry) => ({ ...entry, enabled: !entry.enabled }));
+    for (const mode of ["reread", "keep"] as const) {
+      const plan = rereadPlan(current, found(card), mode);
+      expect(plan.lore.map(({ keys, enabled, origin }) => ({ keys, enabled, origin })), mode).toEqual([
+        { keys: ["crab"], enabled: false, origin: 0 },
+        { keys: ["gull"], enabled: true, origin: 1 },
+      ]);
+      expect(plan.lore[0], mode).toMatchObject({ insertion_order: 3, position: 4, depth: 1 });
+      expect(plan.lore[1], mode).toMatchObject({ insertion_order: 8 });
+    }
+    const plan = rereadPlan(current, found(card), "keep");
+    const entries = bookAfter(current, plan);
+    expect(entries.map(({ keys, enabled, extensions }) => ({ keys, enabled, extensions }))).toEqual([
+      { keys: ["crab"], enabled: false, extensions: { position: 4, depth: 1, c: 1 } },
+      { keys: ["gull"], enabled: true, extensions: { g: 1 } },
+    ]);
+  });
+
+  test("a nickname, a note or a note depth the character already holds is not replaced by the card's", () => {
+    const card = v3({
+      name: "Mirela", nickname: "Mira", description: "A lighthouse keeper.",
+      extensions: { depth_prompt: { prompt: "Mirela never lies.", depth: 2, role: "assistant" } },
+    });
+    const current: CardCharacter = {
+      ...madeBefore(card), nickname: "Mine", character_note: "My note", character_note_depth: 7, character_note_role: "user",
+    };
+    for (const mode of ["reread", "keep"] as const) {
+      const plan = rereadPlan(current, found(card), mode);
+      for (const field of ["nickname", "character_note", "character_note_depth", "character_note_role"]) {
+        expect(plan.fields, `${mode}: ${field}`).not.toHaveProperty(field);
+      }
+      expect(plan.added.map((line) => line.key), mode).not.toEqual(expect.arrayContaining(["nickname", "characterNote"]));
+    }
+  });
+
   test("without a card the plan only changes the rules", () => {
     const current = madeBefore(MIRELA);
     expect(rereadPlan(current, null, "reread")).toEqual({
