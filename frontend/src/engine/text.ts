@@ -87,16 +87,33 @@ const hex = (point: number) => `\\u{${point.toString(16)}}`;
  *  brackets) for a pattern with the `u` flag. */
 export const PY_DIGIT = DIGIT_ZEROS.map((zero) => `${hex(zero)}-${hex(zero + 9)}`).join("");
 
-// The letters whose small or capital form came with Unicode 16, which Python 3.13 (Unicode 15.1)
-// does not know and leaves as they are, while a runtime on Unicode 16 (Node 22, recent browsers)
-// maps them: measured by comparing every code point's lower() and upper() in both. Each list holds
-// the letters one mapping would change: Latin and Cyrillic additions, and Garay (U+10D50).
-// A runtime on a later Unicode may map more; one on an older Unicode maps none of these already.
-const NEW_LOWERED = /([ᲉꟋꟌꟚꟜ\u{10d50}-\u{10d65}]+)/u;
-const NEW_UPPERED = /([ƛɤᲊꟍꟛ\u{10d70}-\u{10d85}]+)/u;
+// These lists follow Python 3.13 (Unicode 15.1), the version the tests, the Docker image and the
+// releases run; a server on another Python lowers what its own Unicode adds or keeps differently.
+// Every code point Unicode 16 assigned, which Python 3.13 does not know: it leaves each as it is,
+// and reads it as neither a cased letter nor one a case passes over, so a final sigma next to it is
+// final. A runtime on Unicode 16 (Node 22, recent browsers) knows them: it maps the new letters
+// (Latin and Cyrillic additions, Garay) and passes over the new marks (U+0897). Measured by listing
+// the code points Node 22.16 assigns and Python 3.13 does not: 5,185, in these 47 runs.
+const UNICODE_16: readonly (readonly [number, number])[] = [
+  [0x897, 0x897], [0x1b4e, 0x1b4f], [0x1b7f, 0x1b7f], [0x1c89, 0x1c8a], [0x2427, 0x2429], [0x31e4, 0x31e5],
+  [0xa7cb, 0xa7cd], [0xa7da, 0xa7dc], [0x105c0, 0x105f3], [0x10d40, 0x10d65], [0x10d69, 0x10d85],
+  [0x10d8e, 0x10d8f], [0x10ec2, 0x10ec4], [0x10efc, 0x10efc], [0x11380, 0x11389], [0x1138b, 0x1138b],
+  [0x1138e, 0x1138e], [0x11390, 0x113b5], [0x113b7, 0x113c0], [0x113c2, 0x113c2], [0x113c5, 0x113c5],
+  [0x113c7, 0x113ca], [0x113cc, 0x113d5], [0x113d7, 0x113d8], [0x113e1, 0x113e2], [0x116d0, 0x116e3],
+  [0x11bc0, 0x11be1], [0x11bf0, 0x11bf9], [0x11f5a, 0x11f5a], [0x13460, 0x143fa], [0x16100, 0x16139],
+  [0x16d40, 0x16d79], [0x18cff, 0x18cff], [0x1cc00, 0x1ccf9], [0x1cd00, 0x1ceb3], [0x1e5d0, 0x1e5fa],
+  [0x1e5ff, 0x1e5ff], [0x1f8b2, 0x1f8bb], [0x1f8c0, 0x1f8c1], [0x1fa89, 0x1fa89], [0x1fa8f, 0x1fa8f],
+  [0x1fabe, 0x1fabe], [0x1fac6, 0x1fac6], [0x1fadc, 0x1fadc], [0x1fadf, 0x1fadf], [0x1fae9, 0x1fae9],
+  [0x1fbcb, 0x1fbef],
+];
+const UNICODE_16_CLASS = UNICODE_16.map(([from, to]) => (from === to ? hex(from) : `${hex(from)}-${hex(to)}`)).join("");
+const NEW_LOWERED = new RegExp(`([${UNICODE_16_CLASS}]+)`, "u");
+// Two older letters whose capital came with Unicode 16 (ƛ to U+A7DC, ɤ to U+A7CB): Python 3.13
+// has no capital for them and keeps them small.
+const NEW_UPPERED = new RegExp(`([ƛɤ${UNICODE_16_CLASS}]+)`, "u");
 
-/** `mapped` over the text, the letters `kept` left as they are; split on them, so that the final
- *  sigma still reads its neighbours within each piece, as Python reads letters it does not know. */
+/** `mapped` over the text, the code points `kept` left as they are; split on them, so that the
+ *  final sigma reads its neighbours within each piece, as Python reads code points it does not know. */
 function keeping(s: string, kept: RegExp, mapped: (piece: string) => string): string {
   if (!kept.test(s)) return mapped(s);
   return s.split(kept).map((piece, i) => (i % 2 === 1 ? piece : mapped(piece))).join("");

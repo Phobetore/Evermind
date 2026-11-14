@@ -5451,6 +5451,26 @@
     "whole_words": true
    },
    "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a sigma before a small letter that came with Unicode 16 is final",
+   "input": {
+    "key": "ΑΣꟍ",
+    "text": "x αςꟍ y",
+    "whole_words": false
+   },
+   "expected": true
+  },
+  {
+   "fn": "key_matches",
+   "name": "a sigma before a mark that came with Unicode 16 is final, the mark not passed over",
+   "input": {
+    "key": "ΑΣࢗΑ",
+    "text": "x αςࢗα y",
+    "whole_words": false
+   },
+   "expected": true
   }
  ]
 }
