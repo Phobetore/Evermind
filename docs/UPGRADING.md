@@ -21,6 +21,12 @@ to know what changes.
   read the card again from the portrait.
 - **The first start copies your database** to `evermind.before-3.4.0.db`, next
   to it, and then adds what the update needs. Nothing in it is removed.
+- **To go back to 3.3.x, put that copy back**, as
+  [Going back after an update](../INSTALL.md#going-back-after-an-update) says.
+  Never start 3.3.x on the updated database: it starts without a word, but a
+  character saved from it loses the settings of its entries and its entries that
+  are always on, yet keeps its rules and its card: back on 3.4.0, its entries
+  behave differently and its export leaves out the card's own.
 - **Your characters give the same prompt as before, word for word.** Each one
   stays on the old rules (`card_rules` 1) until you accept, in its form, to read
   its card again or to move to the new rules. Its lorebook keeps its order: each
@@ -35,6 +41,12 @@ to know what changes.
   - Example dialogue is cut on `<START>`, and kept block by block.
   - The card's own instructions replace the role reminder. The safeguards stay.
   - A character can have a nickname and a character note.
+  - The lorebook looks at the last 6 messages, each under the name of who wrote
+    it (SillyTavern looks at 2).
+  - A character note and the entries set at a depth are placed at that depth
+    inside one of your turns, marked as not written by you. Their role (system,
+    you, character) is kept and exported, but not followed: Evermind never adds a
+    message to the story.
   - Markers such as `{{roll}}` are replaced, and random choices are fixed for
     each conversation. This applies to what the card and the character write,
     not to what you write.
@@ -62,9 +74,9 @@ to know what changes.
   A V1 card goes out as V2, with the keys of its root. A character made in
   Evermind goes out with the settings of its entries and the V1 copies at its
   root. One imported from a PNG before the update, and not yet read again,
-  is exported from the card in its portrait. Evermind warns you when a PNG is
-  past 15 MB, since it will not take it back, and when the images joined to a V3
-  card are not in the file.
+  is exported from the card in its portrait. Evermind warns you when a file it
+  exports is past 15 MB, since it will not take it back (a PNG holds the card
+  twice), and when the images joined to a V3 card are not in the file.
 - **The form shows more.** A character on the new rules shows its nickname,
   character note, presentation by language, and the settings of each entry.
   One on the old rules shows a banner: read the card again and move to the new
