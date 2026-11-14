@@ -14,7 +14,7 @@ export { cardForExport, type ExportedCard } from "./export";
 export { INFLATE_BOUND, pngTexts, withCards } from "./png";
 export { cardToCharacter, isStorable, readCardJson, readEntry, type ReadCard } from "./read";
 export { reportOf, type ImportReport, type ReportKey, type ReportLine } from "./report";
-export { findOriginal, oldReading, rereadPlan, type FoundCard, type RereadMode, type RereadPlan } from "./reread";
+export { findOriginal, oldReading, rereadOffer, rereadPlan, type FoundCard, type RereadMode, type RereadPlan } from "./reread";
 
 const parsed = (json: string): unknown => {
   try {

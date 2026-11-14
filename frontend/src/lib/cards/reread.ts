@@ -3,6 +3,7 @@ import { stripDecorators } from "@/engine";
 import { pyStrip } from "@/engine/text";
 import type { Character } from "@/types";
 import { NEW_LORE_ENTRY } from "../loreEntry";
+import { pairEntries } from "./pairing";
 import { readCardBytes } from "./index";
 import { chunks } from "./png";
 import { bookEntries, cardFields, FIELDS, isObject, isStorable, readCardJson, type ReadCard } from "./read";
@@ -225,8 +226,17 @@ function bookLength(read: ReadCard) {
   return fields ? bookEntries(fields).length : 0;
 }
 
+/** The places of a card found, worked out once: the banner asks for them at each keystroke. */
+const placesOf = new WeakMap<FoundCard, Map<number, number>>();
+
 /** Where each entry of the old reading sits in the card read now, by its index in its own book. */
 function placesNow(found: FoundCard): Map<number, number> {
+  let places = placesOf.get(found);
+  if (!places) placesOf.set(found, (places = findPlaces(found)));
+  return places;
+}
+
+function findPlaces(found: FoundCard): Map<number, number> {
   const now = found.read.character.lore_entries;
   const read = new Set(now.flatMap((entry) => (entry.origin === null ? [] : [entry.origin])));
   // The same card, or two chunks whose books are as long: the same index.
@@ -249,122 +259,6 @@ function placesNow(found: FoundCard): Map<number, number> {
   return places;
 }
 
-// A pairing in doubt is no pairing. A wrong one hands another entry's settings (always on, place,
-// depth) to the entry without a word, and makes the export write over the wrong entry of the card;
-// an entry left alone keeps its own behaviour exactly and only loses, at the export, what the card
-// held of the entry it came from. The two numbers below were measured, not chosen. On 24,000 random
-// cards of real sentences (English, Japanese) whose entries share their keys, an entry written here
-// under the keys of another, about the same character, was at most 0.352 alike to it; an entry
-// retouched (a word, both ends, every third word, sentences added before or after, cut down) was at
-// least 0.371 alike to its own, but for one short line of Japanese with a character changed in its
-// middle. LEAST is halfway: below it, two texts are no more alike than two written apart.
-const LEAST = 0.36;
-/** How far ahead of every rival with as many keys in common the best must be. Closer, the texts no
- *  longer say which entry is which (an entry cut down to one of its sentences, beside a deleted one
- *  that was that sentence with a word changed: 0.18 apart), and nothing is paired. On the same
- *  cards, with sentences on one frame and a vocabulary of 24 words added, of 0.1, 0.15 and 0.2
- *  only 0.2 leaves no entry paired with another's settings where the texts decide. */
-const MARGIN = 0.2;
-
-/** The entry of the old reading each entry of the character is, if any, on what the two still
- *  share, never on rank alone, and never in doubt. First an entry that already names its origin
- *  (one kept with its card before); then the same keys (as a set) and the same text, never in
- *  doubt; then, among the entries of before that share the keys or the text and whose text is at
- *  least LEAST alike, the one with the most keys in common, then the most alike text. It is taken
- *  only when each of the two is the other's clear best, MARGIN ahead of every rival with as many
- *  keys in common, among the entries not yet paired; a pair settled removes its two entries from
- *  the others' rivals, and the rest is weighed again until nothing more is settled. An entry of
- *  the old reading left without one was deleted by its owner; an entry of the character left
- *  without one was made here, rewritten past recognition, or could be taken for two. */
-function pairs(current: LoreEntryInput[], old: LoreEntryInput[]): (LoreEntryInput | null)[] {
-  const taken = new Set<number>();
-  const paired: (LoreEntryInput | null)[] = current.map(() => null);
-  const pass = (fits: (entry: LoreEntryInput, candidate: LoreEntryInput) => boolean) => {
-    current.forEach((entry, i) => {
-      if (paired[i]) return;
-      const at = old.findIndex((candidate, j) => !taken.has(j) && fits(entry, candidate));
-      if (at < 0) return;
-      taken.add(at);
-      paired[i] = old[at];
-    });
-  };
-  const sameText = (a: LoreEntryInput, b: LoreEntryInput) => a.content.trim() === b.content.trim();
-  pass((entry, candidate) => entry.origin !== null && entry.origin === candidate.origin);
-  pass((entry, candidate) => sameKeys(candidate.keys, entry.keys) && sameText(candidate, entry));
-
-  interface Candidate { i: number; j: number; keys: number; alike: number }
-  const byEntry = current.map((): Candidate[] => []);
-  const byOld = old.map((): Candidate[] => []);
-  const texts = old.map((entry) => Array.from(entry.content.trim()));
-  current.forEach((entry, i) => {
-    if (paired[i]) return;
-    const text = Array.from(entry.content.trim());
-    const ownKeys = new Set(entry.keys);
-    old.forEach((candidate, j) => {
-      if (taken.has(j) || !(sameKeys(candidate.keys, entry.keys) || sameText(candidate, entry))) return;
-      const alike = likeness(text, texts[j]);
-      if (alike < LEAST) return;
-      const found: Candidate = { i, j, keys: new Set(candidate.keys.filter((key) => ownKeys.has(key))).size, alike };
-      byEntry[i].push(found);
-      byOld[j].push(found);
-    });
-  });
-  const open = (found: Candidate) => !paired[found.i] && !taken.has(found.j);
-  /** The best of a list, when no rival with as many keys in common comes within MARGIN of it. */
-  const clearBest = (list: Candidate[]) => {
-    let best: Candidate | null = null;
-    for (const found of list) {
-      if (!best || found.keys > best.keys || (found.keys === best.keys && found.alike > best.alike)) best = found;
-    }
-    const doubt = list.some((found) => found !== best && found.keys === best!.keys && best!.alike - found.alike < MARGIN);
-    return best && !doubt ? best : null;
-  };
-  // A pair settled only takes rivals away from the others, never adds one: what is clear stays
-  // clear, and the result does not depend on the order the entries are weighed in.
-  for (let settled = true; settled;) {
-    settled = false;
-    current.forEach((_, i) => {
-      if (paired[i]) return;
-      const best = clearBest(byEntry[i].filter(open));
-      if (!best || clearBest(byOld[best.j].filter(open)) !== best) return;
-      taken.add(best.j);
-      paired[i] = old[best.j];
-      settled = true;
-    });
-  }
-  return paired;
-}
-
-/** How alike two texts are, from 0 to 1, wherever what they share is and however much was written
- *  around it: by the runs of four neighbouring characters they have in common, counted with
- *  repeats (a text shorter than four characters is one run of its own length). Pairs will not do:
- *  two texts about the same character share a third of theirs whoever wrote them. Half the score
- *  is the share of the runs of both, 2 x shared / (runs of one + runs of the other), what a retouch
- *  keeps; half is the share of the runs of the shorter, which an entry keeps whole when sentences
- *  were added around it, or when it was cut down to one of its own. Characters are code points,
- *  so one outside the basic plane is one character, not two halves. */
-function likeness(one: string[], other: string[]): number {
-  const length = Math.min(4, one.length, other.length);
-  if (length === 0) return one.length === other.length ? 1 : 0;
-  const left = new Map<string, number>();
-  for (let i = 0; i + length <= one.length; i++) {
-    const run = one.slice(i, i + length).join("");
-    left.set(run, (left.get(run) ?? 0) + 1);
-  }
-  let shared = 0;
-  for (let i = 0; i + length <= other.length; i++) {
-    const run = other.slice(i, i + length).join("");
-    const count = left.get(run) ?? 0;
-    if (count > 0) {
-      left.set(run, count - 1);
-      shared++;
-    }
-  }
-  const runsOfOne = one.length - length + 1;
-  const runsOfOther = other.length - length + 1;
-  return shared / (runsOfOne + runsOfOther) + shared / (2 * Math.min(runsOfOne, runsOfOther));
-}
-
 /** The entries of `lore`, with each of `more` after the entry from the nearest index of the card
  *  below its own (at the head when there is none), in the order of the card. */
 function withAdded(lore: LoreEntryInput[], more: LoreEntryInput[]): LoreEntryInput[] {
@@ -384,12 +278,8 @@ function withAdded(lore: LoreEntryInput[], more: LoreEntryInput[]): LoreEntryInp
   return out;
 }
 
-/** What re-reading changes, against the form as it is now: it adds, it never overwrites a retouch. */
-export function rereadPlan(current: CardCharacter, found: FoundCard | null, mode: RereadMode): RereadPlan {
-  const reread = mode === "reread";
-  if (!found) {
-    return { fields: reread ? { card_rules: 2 } : {}, lore: current.lore_entries, added: [], untouched: [], card: null };
-  }
+/** What re-reading changes in the fields, and what of them it lists, against the form as it is now. */
+function fieldsPlan(current: CardCharacter, found: FoundCard, reread: boolean) {
   const { read, old } = found;
   const now = read.character;
   const fields: Partial<CharacterInput> = {};
@@ -425,10 +315,38 @@ export function rereadPlan(current: CardCharacter, found: FoundCard | null, mode
     fields.creator_notes_multilingual = now.creator_notes_multilingual;
     added.push({ key: "multilingualNotes", names: Object.keys(now.creator_notes_multilingual) });
   }
+  return { fields, added, untouched };
+}
 
+/** The entries of the card the old import never gave Evermind: always on with no keyword, or only
+ *  in ccv3. */
+function neverGiven(found: FoundCard, places: Map<number, number>): LoreEntryInput[] {
+  const designated = new Set(places.values());
+  return found.read.character.lore_entries.filter((entry) => entry.origin !== null && !designated.has(entry.origin) && isStorable(entry));
+}
+
+/** What the banner lists: what a re-reading would add and what it would leave as it is. It pairs
+ *  no entry, as neither list depends on the pairing: it runs at each keystroke in the form, where
+ *  pairing a long book would hold the page on a phone. */
+export function rereadOffer(current: CardCharacter, found: FoundCard | null): Pick<RereadPlan, "added" | "untouched"> {
+  if (!found) return { added: [], untouched: [] };
+  const { added, untouched } = fieldsPlan(current, found, true);
+  const more = neverGiven(found, placesNow(found)).length;
+  return { added: more > 0 ? [...added, { key: "lore", count: more }] : added, untouched };
+}
+
+/** What re-reading changes, against the form as it is now: it adds, it never overwrites a retouch. */
+export function rereadPlan(current: CardCharacter, found: FoundCard | null, mode: RereadMode): RereadPlan {
+  const reread = mode === "reread";
+  if (!found) {
+    return { fields: reread ? { card_rules: 2 } : {}, lore: current.lore_entries, added: [], untouched: [], card: null };
+  }
+  const { read, old } = found;
+  const now = read.character;
+  const { fields, added, untouched } = fieldsPlan(current, found, reread);
   const places = placesNow(found);
   const byOrigin = new Map(now.lore_entries.flatMap((entry) => (entry.origin === null ? [] : [[entry.origin, entry] as const])));
-  const paired = pairs(current.lore_entries, old.lore_entries);
+  const paired = pairEntries(current.lore_entries, old.lore_entries);
   const lore = current.lore_entries.map((entry, i): LoreEntryInput => {
     const before = paired[i];
     const at = before?.origin == null ? undefined : places.get(before.origin);
@@ -451,8 +369,7 @@ export function rereadPlan(current: CardCharacter, found: FoundCard | null, mode
     // The entries the old import never gave Evermind: always on with no keyword, or only in ccv3.
     // Each goes after the entry of the nearest index below it, as the export places what Evermind
     // never received, so that a card re-read and left alone keeps its author's order.
-    const designated = new Set(places.values());
-    const more = now.lore_entries.filter((entry) => entry.origin !== null && !designated.has(entry.origin) && isStorable(entry));
+    const more = neverGiven(found, places);
     if (more.length > 0) added.push({ key: "lore", count: more.length });
     fields.card_rules = 2;
     return { fields, lore: withAdded(lore, more), added, untouched, card: { ...read.original, read: now } };

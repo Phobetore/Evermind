@@ -1,7 +1,7 @@
 import type { CardCharacter } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import { rereadPlan, type FoundCard, type ReportLine, type RereadMode } from "@/lib/cards";
+import { rereadOffer, type FoundCard, type ReportLine, type RereadMode } from "@/lib/cards";
 import { History } from "lucide-react";
 import { useMemo } from "react";
 
@@ -37,7 +37,9 @@ export function RereadBanner({
   onRetry: () => void;
 }) {
   const t = useT();
-  const plan = useMemo(() => (found === undefined ? null : rereadPlan(current, found, "reread")), [current, found]);
+  // Weighed again at each keystroke in the form: what it lists needs no pairing of the entries,
+  // which only the click and the export do.
+  const plan = useMemo(() => (found === undefined ? null : rereadOffer(current, found)), [current, found]);
 
   const said = (line: ReportLine): string[] => {
     switch (line.key) {

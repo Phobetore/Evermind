@@ -5,7 +5,7 @@ import type { LibraryItem } from "@/types";
 import { newLoreEntry } from "../loreEntry";
 import { cardForExport } from "./export";
 import { FIELDS, isStorable, readCardJson } from "./read";
-import { findOriginal, oldReading, rereadPlan, type FoundCard } from "./reread";
+import { findOriginal, oldReading, rereadOffer, rereadPlan, type FoundCard } from "./reread";
 
 // A PNG of one pixel, without any card.
 const PNG = Uint8Array.from(
@@ -520,6 +520,32 @@ describe("re-reading a card", () => {
     }
   });
 
+  test("re-reading a book of 300 entries under one key, half retouched, takes a moment", () => {
+    // Each text's runs are counted once. Counted again for each candidate, as they once were, this
+    // took 7 s on the machine it was measured on, where it now takes half a second; a phone is four
+    // to six times slower.
+    let seed = 7;
+    const next = () => {
+      seed = (seed + 0x6d2b79f5) >>> 0;
+      let t = Math.imul(seed ^ (seed >>> 15), seed | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const word = () => Array.from({ length: 3 + Math.floor(next() * 6) }, () => "abcdefghijklmnopqrstuvwxyz"[Math.floor(next() * 26)]).join("");
+    const text = () => {
+      let out = "";
+      while (out.length < 1200) out += `${Array.from({ length: 8 }, word).join(" ")}. `;
+      return out.trim();
+    };
+    const card = v2({ name: "Mirela", description: "A lighthouse keeper.", character_book: { entries: Array.from({ length: 300 }, () => ({ keys: ["Mirela"], content: text() })) } });
+    const current = madeBefore(card);
+    current.lore_entries = current.lore_entries.map((entry, i) => (i % 2 ? { ...entry, content: `${entry.content} And more.` } : entry));
+    const start = performance.now();
+    const plan = rereadPlan(current, found(card), "reread");
+    expect(performance.now() - start).toBeLessThan(3000);
+    expect(plan.lore.filter((entry) => entry.origin !== null)).toHaveLength(300);
+  });
+
   test("an entry the old import dropped goes after the entry of the index below it", () => {
     const plan = rereadPlan(madeBefore(BOOK), found(BOOK), "reread");
     // The card's order: lamp, the always-on entry, boat, gull; the empty one is not stored.
@@ -584,6 +610,14 @@ describe("re-reading a card", () => {
     vi.spyOn(data, "file").mockRejectedValue(new DataError("Offline.", { kind: "network" }));
     libraryIs([]);
     await expect(findOriginal(looked(madeBefore(MIRELA)))).rejects.toMatchObject({ kind: "network" });
+  });
+
+  test("the banner's offer lists what the plan adds and what it leaves", () => {
+    const current = { ...madeBefore(BOOK), description: "Mine now." };
+    const plan = rereadPlan(current, found(BOOK), "reread");
+    expect(plan.added).toContainEqual({ key: "lore", count: 1 });
+    expect(rereadOffer(current, found(BOOK))).toEqual({ added: plan.added, untouched: plan.untouched });
+    expect(rereadOffer(current, null)).toEqual({ added: [], untouched: [] });
   });
 
   test("without a card the plan only changes the rules", () => {
