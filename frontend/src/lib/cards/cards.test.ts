@@ -142,6 +142,23 @@ describe("a card file", () => {
     expect((await cardFile({ ...made, name: refused }, "json")).filename).toBe("card.json");
   });
 
+  test("a PNG too large to take back whose JSON fits sends the person to the JSON", async () => {
+    // About 6.5 MB of card: its JSON fits under the 15 MB a file may weigh, while the PNG writes
+    // it twice in base64 (chara and ccv3, 4/3 each) and goes over.
+    vi.spyOn(data, "file").mockResolvedValue(new File([PNG], "face.png", { type: "image/png" }));
+    const character = {
+      ...VANE, description: "x".repeat(6_500_000), id: "c1", has_card: false, avatar_url: "api/media/face.png",
+      lore_entries: [],
+    };
+    try {
+      const png = await cardFile(character, "png");
+      expect(png.blob.size).toBeGreaterThan(15 * 1024 * 1024);
+      expect(png.warnings).toEqual(["tooLarge"]);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   test("a card not yet re-read exports from the card in its portrait, unchanged", async () => {
     const card = {
       spec: "chara_card_v2", spec_version: "2.0",
@@ -275,4 +292,5 @@ describe("an import whose answer is lost", () => {
       vi.restoreAllMocks();
     }
   });
+
 });
