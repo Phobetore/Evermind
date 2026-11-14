@@ -491,7 +491,7 @@ type Parent = { children: Array<RootContent | ElementContent> };
 /** The values of the raw nodes, in document order, each with the table cell Markdown made that
  *  holds it, weighed before parse5 reads any of them. A walk by a stack: the tree is not yet
  *  bounded in depth. */
-function rawTagBound() {
+function rawTagBound(found: Found) {
   return (tree: Root) => {
     const values: string[] = [];
     const cells: number[] = [];
@@ -503,6 +503,11 @@ function rawTagBound() {
       if (node.type === "raw") {
         values.push(node.value);
         cells.push(cell);
+        const start = node.position?.start.offset;
+        if (start !== undefined) {
+          found.rawStarts.push(start);
+          found.rawValues.push(node.value);
+        }
       } else if (node.type === "element") {
         // parse5 never lets an end tag written in a cell close an element opened before the table.
         const own = node.tagName === "td" || node.tagName === "th" ? cellCount++ : cell;
@@ -588,6 +593,10 @@ function dialect(this: Processor) {
 interface Found {
   remoteHosts: string[];
   keptPayload: number;
+  /** The raw HTML handed to parse5, each value with the offset parse5 counts its characters from,
+   *  in document order: where an attribute can be read as it was written. */
+  rawStarts: number[];
+  rawValues: string[];
 }
 
 // Below this, a text is barely seen and can carry a hidden message (decision 1).
@@ -808,10 +817,72 @@ function placeStyle(element: Element, context: Context): Context {
   return inner;
 }
 
-function wholeNumber(value: unknown): number | null {
-  if (typeof value === "number") return Number.isInteger(value) && value >= 0 ? value : null;
-  if (typeof value === "string" && /^\d+$/.test(value)) return Number(value);
+/** The value of an attribute as the card wrote it in the start tag of an element parse5 made, or
+ *  null when that tag cannot be found or does not carry it. hastscript has already turned a width
+ *  or a span into a number with Number(), which reads "1e3", "0x10" or " 7 " as numbers a browser
+ *  reads otherwise; only the written text tells them apart. parse5 counts an element's offset from
+ *  the start of the raw value that holds it, so the tag is read there, never in the Markdown text,
+ *  where a quote's or a list's own marks would shift it. The first of two attributes of one name
+ *  wins, as in parse5; a character reference is left undecoded, and is not digits. */
+function writtenAttribute(found: Found, element: Element, name: string): string | null {
+  const offset = element.position?.start.offset;
+  if (offset === undefined) return null;
+  let low = 0;
+  let high = found.rawStarts.length - 1;
+  let at = -1;
+  while (low <= high) {
+    const middle = (low + high) >> 1;
+    if (found.rawStarts[middle] <= offset) {
+      at = middle;
+      low = middle + 1;
+    } else high = middle - 1;
+  }
+  if (at < 0) return null;
+  const html = found.rawValues[at];
+  let i = offset - found.rawStarts[at];
+  if (html.charCodeAt(i) !== 60) return null;
+  const nameStart = ++i;
+  while (i < html.length && !isTagBlank(html.charCodeAt(i)) && html[i] !== "/" && html[i] !== ">") i++;
+  const tag = html.slice(nameStart, i).toLowerCase();
+  // parse5 makes an img of <image>.
+  if (tag !== element.tagName && !(tag === "image" && element.tagName === "img")) return null;
+  while (i < html.length) {
+    const code = html.charCodeAt(i);
+    if (isTagBlank(code) || code === 47) {
+      i++;
+      continue;
+    }
+    if (code === 62) return null;
+    const start = i++;
+    while (i < html.length && !isTagBlank(html.charCodeAt(i)) && !"/>=".includes(html[i])) i++;
+    const attribute = html.slice(start, i).toLowerCase();
+    while (i < html.length && isTagBlank(html.charCodeAt(i))) i++;
+    let value = "";
+    if (html[i] === "=") {
+      i++;
+      while (i < html.length && isTagBlank(html.charCodeAt(i))) i++;
+      const quote = html[i];
+      if (quote === '"' || quote === "'") {
+        const end = html.indexOf(quote, i + 1);
+        if (end < 0) return null;
+        value = html.slice(i + 1, end);
+        i = end + 1;
+      } else {
+        const valueStart = i;
+        while (i < html.length && !isTagBlank(html.charCodeAt(i)) && html[i] !== ">") i++;
+        value = html.slice(valueStart, i);
+      }
+    }
+    if (attribute === name) return value;
+  }
   return null;
+}
+
+/** A width, a height or a span kept only when written in digits alone, the only form HTML reads
+ *  as the number it shows. */
+function wholeNumber(found: Found, element: Element, name: string): number | null {
+  const written = writtenAttribute(found, element, name);
+  return written !== null && /^\d+$/.test(written) ? Number(written) : null;
 }
 
 /** The card's own rules, on the tree already sanitized, in one walk that knows the ancestors. */
@@ -872,7 +943,8 @@ function cardRules(found: Found) {
 
       if (element.tagName === "img") {
         for (const name of ["width", "height"]) {
-          const value = wholeNumber(properties[name]);
+          if (properties[name] === undefined) continue;
+          const value = wholeNumber(found, element, name);
           if (value === null) delete properties[name];
           else properties[name] = value;
         }
@@ -899,7 +971,7 @@ function cardRules(found: Found) {
       for (const name of ["colSpan", "rowSpan"]) {
         if (properties[name] === undefined) continue;
         // A cell spread over a million columns freezes the layout.
-        const value = wholeNumber(properties[name]);
+        const value = wholeNumber(found, element, name.toLowerCase());
         if (value === null || value < 1 || value > 100) delete properties[name];
         else properties[name] = value;
       }
@@ -945,12 +1017,12 @@ export function renderPresentation(text: string): RenderedPresentation {
     if (refusal !== null) return { kind: "plain", reason: refusal };
     if (text.length - length > INLINE_IMAGES_BOUND) return { kind: "plain", reason: "tooLong" };
 
-    const found: Found = { remoteHosts: [], keptPayload: 0 };
+    const found: Found = { remoteHosts: [], keptPayload: 0, rawStarts: [], rawValues: [] };
     const processor = unified()
       .use(remarkParse)
       .use(dialect)
       .use(remarkRehype, { allowDangerousHtml: true })
-      .use(rawTagBound)
+      .use(rawTagBound, found)
       .use(rehypeRaw)
       .use(copiedAttributes, text.length + LAYOUT_BOUND)
       .use(rehypeSanitize, PRESENTATION_SCHEMA)

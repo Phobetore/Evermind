@@ -143,6 +143,34 @@ test("markdown and the short list of tags are laid out", () => {
   expect(wrapper?.properties.className).toEqual(["card-table"]);
 });
 
+test("an image's size and a cell's span are kept only when written in digits alone", () => {
+  const picture = png(800, 600);
+  const sizes = (text: string) =>
+    tags(laidOut(text), "img").map((properties) => [properties.width, properties.height]);
+  expect(sizes(`<img src="${picture}" width=640 height='480'>`)).toEqual([[640, 480]]);
+  expect(sizes(`<img src="${picture}" WIDTH="12">`)).toEqual([[12, undefined]]);
+  // Number() reads all of these as whole numbers; a browser does not.
+  expect(sizes(`<img src="${picture}" width="1e3" height="0x10">`)).toEqual([[undefined, undefined]]);
+  expect(sizes(`<img src="${picture}" width=" 7 " height="+5">`)).toEqual([[undefined, undefined]]);
+  expect(sizes(`<img src="${picture}" width="&#49;2">`)).toEqual([[undefined, undefined]]);
+  // The first of two attributes of one name is the one parse5 keeps.
+  expect(sizes(`<img src="${picture}" width=12 width=1e3>`)).toEqual([[12, undefined]]);
+  expect(sizes(`<img src="${picture}" width=1e3 width=12>`)).toEqual([[undefined, undefined]]);
+  // In a quote, the tag is read where parse5 read it, not where the quote's marks would put it.
+  expect(sizes(`> <div>\n> <img\n>  width="320" height="1e2" src="${picture}">\n> </div>`)).toEqual([[320, undefined]]);
+  expect(sizes(`- a\n\n  <p><image width=50 src="${picture}"></p>`)).toEqual([[50, undefined]]);
+
+  const cells = tags(
+    laidOut('<table><tr><td colspan="1e2">a</td><td colspan=3 rowspan="0x2">b</td><td rowspan=2 colspan=101>c</td></tr></table>'),
+    "td",
+  ).map((properties) => [properties.colSpan, properties.rowSpan]);
+  expect(cells).toEqual([
+    [undefined, undefined],
+    [3, undefined],
+    [undefined, 2],
+  ]);
+});
+
 test("nothing that runs survives, in any spelling", () => {
   const hostile = [
     "<img src=x onerror=alert(1)>",
