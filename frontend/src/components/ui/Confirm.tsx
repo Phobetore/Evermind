@@ -68,12 +68,14 @@ function ConfirmBox({ question, action, danger, settle }: Asked) {
 
   return (
     <Modal title={question} role="alertdialog" onClose={() => settle(false)}>
-      <div className="flex justify-end gap-2">
-        <button ref={cancel} className="btn btn-ghost" onClick={() => settle(false)}>
+      {/* The word for what is confirmed can be a sentence, wider than a phone in some languages:
+          the buttons go one under the other, then their words break, before either leaves the box. */}
+      <div className="flex flex-wrap justify-end gap-2">
+        <button ref={cancel} className="btn btn-ghost min-w-0 whitespace-normal break-words" onClick={() => settle(false)}>
           {t("common.cancel")}
         </button>
         <button
-          className={`btn ${danger ? "btn-danger" : "btn-primary"}`}
+          className={`btn min-w-0 whitespace-normal break-words ${danger ? "btn-danger" : "btn-primary"}`}
           // Only the yes waits: Cancel, Escape, the cross and a click outside are heard at once.
           onClick={() => performance.now() - opened.current >= DEAF_MS && settle(true)}
         >
