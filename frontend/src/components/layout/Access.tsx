@@ -1,6 +1,6 @@
 import { data, onLocked } from "@/data";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Navigate, useLocation } from "react-router";
+import { parsePath, useLocation, useNavigate } from "react-router";
 
 type AccessStatus = { enabled: boolean; authenticated: boolean };
 type Ctx = {
@@ -57,13 +57,31 @@ export function useAccess(): Ctx {
 
 /** Shows the pages only once this device may see them, and sends it to the
  *  login otherwise, remembering where it was going. A session that ends while
- *  a page is open, signed out here or elsewhere, lands here too. */
+ *  a page is open, signed out here or elsewhere, lands here too.
+ *
+ *  Where it was going is read from the address at the moment it is sent, not
+ *  from the page last drawn: a link followed as the session ends changes the
+ *  address before the router has drawn the new page, and the page left behind
+ *  would otherwise be remembered in its place. That address is the hash, so
+ *  this holds only as long as router.tsx uses createHashRouter. */
 export function AccessGate({ children }: { children: React.ReactNode }) {
   const { status } = useAccess();
   const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+  const locked = status !== null && status.enabled && !status.authenticated;
+
+  useEffect(() => {
+    if (!locked) return;
+    const asked = parsePath(window.location.hash.slice(1));
+    // Read as the hash router reads it: "#settings" is /settings.
+    const p = asked.pathname || "/";
+    const where = p.startsWith("/") ? p : "/" + p;
+    if (where === "/login") return;
+    const path = where + (asked.search ?? "");
+    navigate("/login?from=" + encodeURIComponent(path), { replace: true });
+  }, [locked, pathname, search, navigate]);
+
   if (status === null) return null;
-  if (status.enabled && !status.authenticated && pathname !== "/login") {
-    return <Navigate to={"/login?from=" + encodeURIComponent(pathname + search)} replace />;
-  }
+  if (locked && pathname !== "/login") return null;
   return <>{children}</>;
 }
