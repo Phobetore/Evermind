@@ -18,6 +18,7 @@ import aiosqlite
 
 from ..errors import (
     BRIEF_TOO_LONG,
+    CARD_TOO_LONG,
     MODEL_EMPTY,
     MODEL_ONLY_THOUGHT,
     MODEL_UNREADABLE,
@@ -142,19 +143,27 @@ def _prompt_tokens(payload: PromptPayload) -> int:
         estimate_tokens(m.get("content") or "") for m in payload.messages)
 
 
-def _check_fits(connection: dict, payload: PromptPayload) -> None:
+def _check_fits(connection: dict, payload: PromptPayload, brief: str, existing: dict | None) -> None:
     """Refuses a brief the connection's context cannot hold along with the instructions and room
     for a card, before the model is asked: past it, a server refuses the request, or quietly drops
-    the start of the brief and writes a card from what is left. The room is the connection's own
-    ceiling when it sets one, which a server will not let the prompt eat into."""
+    the start of the brief and writes a card from what is left.
+
+    The room counted is the least a card is written in, not the connection's own ceiling: people
+    are told to raise that one, often close to the context, and chat still works with it, so it
+    must not refuse every brief. When the card's own fields, sent along, outgrow the context
+    whatever the brief, that is said instead: shortening the brief would not help."""
     context = connection.get("context_size") or 0
-    answer = max(connection.get("max_tokens") or 0, _SMALLEST_CARD)
-    needed = _prompt_tokens(payload) + answer + _CONTEXT_MARGIN
-    if context and needed > context:
-        raise AppError(
-            f"The brief is too long for this connection: about {needed} tokens with the "
-            f"instructions and the card, where its context holds {context}.",
-            422, kind=BRIEF_TOO_LONG, params={"needed": needed, "context": context})
+    needed = _prompt_tokens(payload) + _SMALLEST_CARD + _CONTEXT_MARGIN
+    if not context or needed <= context:
+        return
+    the_card = existing_fields(existing) and needed - estimate_tokens(brief.strip()) > context
+    # An estimate, told as one: to the hundred above, so that it never reads as fitting.
+    about = -(-needed // 100) * 100
+    raise AppError(
+        f"The {'card' if the_card else 'brief'} is too long for this connection: about {about} "
+        f"tokens with the instructions and the card, where its context holds {context}.",
+        422, kind=CARD_TOO_LONG if the_card else BRIEF_TOO_LONG,
+        params={"needed": about, "context": context})
 
 
 def with_room_for_a_card(connection: dict, payload: PromptPayload) -> dict:
@@ -237,7 +246,7 @@ async def start(db: aiosqlite.Connection, request: CardAssistRequest) -> str:
     if job := _joined(request.client_id):
         return job.id
     payload = build_card_payload(request.prompt, request.kind, request.existing)
-    _check_fits(connection, payload)
+    _check_fits(connection, payload, request.prompt, request.existing)
     provider = get_provider(with_room_for_a_card(connection, payload))
     job = Job(uuid.uuid4().hex, request.client_id, dict(request.existing or {}), _now())
     _jobs[job.id] = job

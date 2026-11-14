@@ -36,6 +36,8 @@ TEXT_TOO_LONG = "text_too_long"
 TEXT_TOO_SHORT = "text_too_short"
 # A brief for the card assistant that the connection's context cannot hold with the card.
 BRIEF_TOO_LONG = "brief_too_long"
+# The same, where the card's own fields sent along outgrow the context whatever the brief.
+CARD_TOO_LONG = "card_too_long"
 
 _LENGTH_BOUNDS = {"string_too_long": (TEXT_TOO_LONG, "max_length"),
                   "string_too_short": (TEXT_TOO_SHORT, "min_length")}
