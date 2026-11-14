@@ -50,6 +50,23 @@ test("a locked page asks for the password, then opens where it was going", async
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
+test("an address written without its first slash is remembered as the router reads it", async ({ page }) => {
+  // "#settings" opens the settings page: the login returns there, not to the home page.
+  await page.goto("/#settings");
+  await expect(page).toHaveURL(/#\/login\?from=%2Fsettings$/);
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/settings$/);
+  await page.request.delete(`${GATED}/api/gate`);
+
+  // "#login" is the login itself, not a page to come back to.
+  await page.goto("about:blank");
+  await page.goto("/#login");
+  await expect(page.getByLabel(/password/i)).toBeVisible();
+  expect(page.url()).not.toContain("from=");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(`${GATED}/#/`);
+});
+
 test("a wrong password is refused and stays on the login", async ({ page }) => {
   await page.goto("/#/login");
   await enter(page, "not-the-password");
@@ -240,6 +257,67 @@ test("a session ended from another device leads to the login, and back", async (
   await expect(page).toHaveURL(/#\/login\?from=%2Fpersonas$/);
   await enter(page, GATE_PASSWORD);
   await expect(page).toHaveURL(/#\/personas$/);
+});
+
+test("a page asked for as the session ends elsewhere is the one the login returns to", async ({ page, context, request }) => {
+  // The order the race above can take, forced: the settings page's own call is held until every
+  // session has ended, and the person asks for another page as its refusal comes back.
+  await page.addInitScript(() => {
+    const original = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await original(...args);
+      if (/(^|\/)api\/settings$/.test(String(args[0])) && response.status === 401) {
+        const read = response.json.bind(response);
+        response.json = () => {
+          const body = read();
+          // Before the page hears of the refusal, the address is already elsewhere.
+          void body.then(() => (location.hash = "#/personas"));
+          return body;
+        };
+      }
+      return response;
+    };
+  });
+  let release!: () => void;
+  const held = new Promise<void>((heard) => {
+    let first = true;
+    void page.route("**/api/settings", async (route) => {
+      if (!first || route.request().method() !== "GET") return route.continue();
+      first = false;
+      heard();
+      await new Promise<void>((go) => (release = go));
+      await route.continue();
+    });
+  });
+
+  await page.goto("/#/settings");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/settings$/);
+  await held;
+  const cookie = (await context.cookies()).find((c) => c.name === "evermind_session");
+  const elsewhere = { cookie: `evermind_session=${cookie!.value}` };
+  expect((await request.delete(`${GATED}/api/gate/sessions`, { headers: elsewhere })).status()).toBe(204);
+  release();
+
+  await expect(page).toHaveURL(/#\/login\?from=%2Fpersonas$/);
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/personas$/);
+});
+
+test("the login sends nobody to another site", async ({ page }) => {
+  // Each a path to a browser that reads it as an address of its own: a tab in it is dropped.
+  for (const from of ["//evil.example", "https://evil.example", "/\\evil.example", "/%09/evil.example"]) {
+    // Opened afresh each time: within the page, a hash alone changes nothing the page has heard.
+    await page.goto("about:blank");
+    await page.goto(`/#/login?from=${from}`);
+    await enter(page, GATE_PASSWORD);
+    await expect(page).toHaveURL(`${GATED}/#/`);
+    // Signed in already, the login moves on at once: to the same place.
+    await page.goto("about:blank");
+    await page.goto(`/#/login?from=${from}`);
+    await expect(page).toHaveURL(`${GATED}/#/`);
+    await page.request.delete(`${GATED}/api/gate`);
+  }
 });
 
 test("a question open when the session ends goes with the page", async ({ page, context }) => {
