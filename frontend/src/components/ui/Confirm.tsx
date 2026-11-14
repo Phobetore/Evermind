@@ -1,11 +1,12 @@
 import { Modal } from "@/components/ui/Modal";
 import { useT } from "@/i18n/useT";
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { oneQuestion, type Asked as AskedOf } from "@/lib/question";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 
 type Options = { action: string; danger?: boolean };
 type Ask = (question: string, options: Options) => Promise<boolean>;
-type Asked = Options & { question: string; settle: (answer: boolean) => void };
+type Asked = AskedOf<Options>;
 
 const ConfirmContext = createContext<{ ask: Ask; drop: () => void } | null>(null);
 
@@ -13,32 +14,8 @@ const ConfirmContext = createContext<{ ask: Ask; drop: () => void } | null>(null
  *  to open that one, and it looks like nothing else here. */
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [asked, setAsked] = useState<Asked | null>(null);
-  // Read at once, not through state: two clicks in the same frame must not open two questions.
-  const open = useRef(false);
-  const current = useRef<Asked | null>(null);
-
-  const ask = useCallback<Ask>((question, options) => {
-    if (open.current) return Promise.resolve(false);
-    open.current = true;
-    return new Promise<boolean>((resolve) => {
-      const next: Asked = {
-        question,
-        ...options,
-        settle: (answer) => {
-          if (!open.current) return;
-          open.current = false;
-          current.current = null;
-          setAsked(null);
-          resolve(answer);
-        },
-      };
-      current.current = next;
-      setAsked(next);
-    });
-  }, []);
-
-  const drop = useCallback(() => current.current?.settle(false), []);
-  const value = useMemo(() => ({ ask, drop }), [ask, drop]);
+  const [questions] = useState(() => oneQuestion<Options>(setAsked));
+  const value = useMemo(() => ({ ask: questions.ask, drop: questions.drop }), [questions]);
 
   return (
     <ConfirmContext.Provider value={value}>
