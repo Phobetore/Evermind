@@ -392,6 +392,23 @@ test("a Show button stays the one that is tapped", async ({ page }) => {
     // elementFromPoint sees only what is on screen.
     await show.scrollIntoViewIfNeeded();
     const r = await rect(show);
+    if (i === 1) {
+      // The second card guards the place's stacking only while the heading really reaches over the
+      // bottom of the button: a font with other metrics could pull it back, and the check below
+      // would then pass with or without the rule. Without the place's stacking, the heading must be
+      // what lies there.
+      const covered = await show.evaluate((button, [px, py]) => {
+        const place = button.closest<HTMLElement>(".card-placeholder")!;
+        // Static, not only z-index auto: a positioned place would still paint after the inline
+        // heading, so this is what taking the rule away leaves.
+        place.style.position = "static";
+        const found = document.elementFromPoint(px, py);
+        place.style.position = "";
+        // The frame shows an h1 as an h3 (renderPresentation's HEADINGS).
+        return !!found && !button.contains(found) && !!found.closest(".card-presentation h3");
+      }, [r.x + r.width / 2, r.bottom - 2]);
+      expect(covered, "card 2: the heading no longer reaches over the Show button, so nothing is tested").toBe(true);
+    }
     for (const [x, y] of [[r.x + r.width / 2, r.y + r.height / 2], [r.x + r.width / 2, r.bottom - 2]]) {
       const onIt = await show.evaluate((button, [px, py]) => {
         const found = document.elementFromPoint(px, py);
