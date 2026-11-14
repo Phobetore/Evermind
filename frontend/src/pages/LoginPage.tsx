@@ -7,6 +7,18 @@ import { KeyRound, Loader2, VenetianMask } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 
+/** `from` when it is a path of this app, "/" otherwise. Read as the browser reads an address, which
+ *  drops tabs and line breaks and takes "\" for "/": "/\host" and "/<tab>/host" are "//host",
+ *  another site, which the router refuses by throwing, and the login would break on it. */
+function ownPath(asked: string): string {
+  const here = "http://evermind.invalid";
+  try {
+    return asked.startsWith("/") && new URL(asked, here).origin === here ? asked : "/";
+  } catch {
+    return "/";
+  }
+}
+
 export function LoginPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -15,9 +27,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
-  // Only a path of this app: the router throws on "//host", and a browser reads "/\host" the same.
-  const asked = params.get("from") ?? "";
-  const from = /^\/(?![\\/])/.test(asked) ? asked : "/";
+  const from = ownPath(params.get("from") ?? "");
 
   // Nothing to unlock: no password is set, or this device is already in.
   if (!data.access || (status && (!status.enabled || status.authenticated))) {

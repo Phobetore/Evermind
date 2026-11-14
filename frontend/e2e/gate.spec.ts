@@ -287,6 +287,22 @@ test("a page asked for as the session ends elsewhere is the one the login return
   await expect(page).toHaveURL(/#\/personas$/);
 });
 
+test("the login sends nobody to another site", async ({ page }) => {
+  // Each a path to a browser that reads it as an address of its own: a tab in it is dropped.
+  for (const from of ["//evil.example", "https://evil.example", "/\\evil.example", "/%09/evil.example"]) {
+    // Opened afresh each time: within the page, a hash alone changes nothing the page has heard.
+    await page.goto("about:blank");
+    await page.goto(`/#/login?from=${from}`);
+    await enter(page, GATE_PASSWORD);
+    await expect(page).toHaveURL(`${GATED}/#/`);
+    // Signed in already, the login moves on at once: to the same place.
+    await page.goto("about:blank");
+    await page.goto(`/#/login?from=${from}`);
+    await expect(page).toHaveURL(`${GATED}/#/`);
+    await page.request.delete(`${GATED}/api/gate`);
+  }
+});
+
 test("a question open when the session ends goes with the page", async ({ page, context }) => {
   await page.goto("/#/login");
   await enter(page, GATE_PASSWORD);
