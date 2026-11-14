@@ -374,6 +374,21 @@ and inside « », and a narrow one (U+202F) before ; ! and ?; French, German and
 Spanish put a no-break space between a number and %. `npm test` fails on a plain
 space in those places.
 
+## The mark
+
+Evermind's mark, a half-mask whose one eye is an almond and whose other is a
+four-pointed spark, is the application's own drawing. In the interface it is
+`frontend/src/components/ui/Mark.tsx`, an inline SVG coloured by `currentColor`
+and sized by its classes (`<Mark decorative className="h-7 w-7 text-ember-400" />`;
+`decorative` hides it from a screen reader when the word Evermind is beside it).
+The tab and home-screen icons are `frontend/public/favicon.svg` and
+`apple-touch-icon.png`. It moves by CSS alone (`styles.css`, "The mark"): the
+spark winks when the pointer or the keyboard comes to the mark or to the link
+or button holding it (or an element marked `data-mark-host`), and `busy` turns
+it, for as long as Evermind waits on itself with a whole page or moment to show
+for it: `<Mark busy />`, or `PageWait` for a page that has nothing yet. A
+spinner stays the sign of a button at work, and a busy mark does not wink.
+
 ## Docker
 
 There is one image, `ghcr.io/phobetore/evermind`, built from the **repository
