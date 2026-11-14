@@ -284,14 +284,19 @@ async def test_a_context_that_cannot_hold_the_instructions_and_a_card_is_said_be
         client, fake_provider):
     """The instructions and the least room a card is written in are past a context of 1024."""
     await add_connection(client, max_tokens=900, context_size=1024)
-    # Neither the brief nor the card is to blame, and shortening either would not help.
+    # Neither the brief nor the card is to blame, and shortening either would not help: the number
+    # told is what the instructions and an empty card need, whatever was typed.
+    told = set()
     for existing in ({}, {"existing": {"name": "Lia"}}):
-        resp = await client.post("/api/characters/assist",
-                                 json={"prompt": "An elf who sells maps", **existing})
-        assert resp.status_code == 422, resp.text
-        body = resp.json()
-        assert body["kind"] == "context_too_small", (existing, body)
-        assert body["params"]["context"] == 1024 and body["params"]["needed"] > 1024
+        for prompt in ("An elf who sells maps", "An elf who sells maps. " * 5000):
+            resp = await client.post("/api/characters/assist",
+                                     json={"prompt": prompt, **existing})
+            assert resp.status_code == 422, resp.text
+            body = resp.json()
+            assert body["kind"] == "context_too_small", (existing, len(prompt), body)
+            assert body["params"]["context"] == 1024 and body["params"]["needed"] > 1024
+            told.add(body["params"]["needed"])
+    assert len(told) == 1, told
     assert fake_provider.captured == {}
 
 
