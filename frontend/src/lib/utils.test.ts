@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { cardText, cssUrl, firstCodePoints, namesFit, previewMacros } from "./utils";
+import { SHOWN_TEXT_BOUND, cardText, cssUrl, firstCodePoints, namesFit, previewMacros } from "./utils";
 
 describe("cssUrl", () => {
   test("an address with parentheses, an apostrophe and quotes stays one string", () => {
@@ -44,6 +44,16 @@ describe("a card's text for people", () => {
     const commas = "{{random:" + ",".repeat(6_000_000) + "}}";
     timed(() => expect(namesFit(commas, "", "")).toBe(false));
     timed(() => expect(previewMacros(commas, "", "")).toBe(commas));
+    // A long run is counted to its last separator: a third of the bound in commas fits, one more not.
+    const third = ",".repeat(SHOWN_TEXT_BOUND / 3);
+    expect(namesFit(third, "", "")).toBe(true);
+    expect(namesFit(third + ":", "", "")).toBe(false);
+    // And the markers around a run still count: 62 characters, two names and sixty separators.
+    const around = "<" + ",".repeat(20) + ":".repeat(20) + "<" + ",:".repeat(10);
+    expect(around.length).toBe(62);
+    const exact = "n".repeat((SHOWN_TEXT_BOUND - 62 - 120) / 2);
+    expect(namesFit(around, exact, "Tom")).toBe(true);
+    expect(namesFit(around, exact + "n", "Tom")).toBe(false);
 
     // An ordinary text stays far below the bound: a hundred thousand characters, ten thousand "<"
     // and ten thousand commas among them.

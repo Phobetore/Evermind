@@ -31,6 +31,9 @@ const BRACE = 0x7b; // "{"
 const LESS = 0x3c; // "<"
 const COMMA = 0x2c;
 const COLON = 0x3a;
+const COMMAS = ",".repeat(16);
+const COLONS = ":".repeat(16);
+const SEPARATORS = /[,:]+/y;
 
 /** How many times "{{" starts in a text, two that overlap counted twice. */
 function openings(text: string): number {
@@ -50,11 +53,22 @@ export function namesFit(text: string, charName: string, userName: string): bool
   const perMarker = Math.max(charName.length, userName.length) * (1 + k) ** 2;
   let length = text.length;
   if (length > SHOWN_TEXT_BOUND) return false;
+  // No character adds more than this: a text short enough fits without being read.
+  if (length * (1 + Math.max(perMarker, 2)) <= SHOWN_TEXT_BOUND) return true;
   for (let i = 0; i < text.length; i++) {
     const unit = text.charCodeAt(i);
     if (unit === LESS || (unit === BRACE && text.charCodeAt(i + 1) === BRACE)) length += perMarker;
-    else if (unit === COMMA || unit === COLON) length += 2;
-    else continue;
+    else if (unit === COMMA || unit === COLON) {
+      // A long run of separators, the shape of a hostile choice, is measured by the regular
+      // expression engine in one call: a character at a time, millions of them outlast the time
+      // the page has. Only a run of sixteen or more is handed over, so short ones cost no call.
+      if (text.startsWith(COMMAS, i) || text.startsWith(COLONS, i)) {
+        SEPARATORS.lastIndex = i;
+        SEPARATORS.test(text);
+        length += 2 * (SEPARATORS.lastIndex - i);
+        i = SEPARATORS.lastIndex - 1;
+      } else length += 2;
+    } else continue;
     // Stopped as soon as it is past: the rest of a long text would not bring it back.
     if (length > SHOWN_TEXT_BOUND) return false;
   }
