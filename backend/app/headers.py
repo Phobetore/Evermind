@@ -58,7 +58,7 @@ class SecurityHeaders:
 
         async def send_with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
-                # Ours replace any a route set, so that none is ever sent twice.
+                # Ours replace any that a route set, so that none is ever sent twice.
                 kept = [(name, value) for name, value in message.get("headers", [])
                         if name.lower() not in _NAMES]
                 message = {**message, "headers": [*kept, *HEADERS]}

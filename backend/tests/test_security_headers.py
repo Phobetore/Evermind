@@ -144,6 +144,33 @@ async def test_the_headers_do_not_hold_back_a_stream():
     assert [m.get("more_body", False) for m in sent[1:]] == [True, False]
 
 
+async def test_ours_replace_the_ones_a_route_set():
+    # No route sets them today, but a route that answers with a card's link will set nosniff
+    # itself: each of the four still goes out once, with our value, and the route's others stay.
+    sent: list[dict] = []
+
+    async def setting_its_own(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": [
+            (b"x-content-type-options", b"nosniff"),
+            (b"Content-Security-Policy", b"default-src *"),
+            (b"content-type", b"text/plain"),
+        ]})
+        await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {"type": "http", "method": "GET", "path": "/", "headers": []}
+    await SecurityHeaders(setting_its_own)(scope, receive, send)
+    headers = sent[0]["headers"]
+    for name, value in EXPECTED.items():
+        assert [v for n, v in headers if n.lower() == name.encode()] == [value.encode()], name
+    assert (b"content-type", b"text/plain") in headers
+
+
 async def test_a_script_and_a_stylesheet_are_served_with_their_types(ui_client):
     for path, kind in [("/assets/app-3f2a1b.js", "text/javascript"),
                        ("/assets/app-3f2a1b.mjs", "text/javascript"),
