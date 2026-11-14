@@ -242,6 +242,51 @@ test("a session ended from another device leads to the login, and back", async (
   await expect(page).toHaveURL(/#\/personas$/);
 });
 
+test("a page asked for as the session ends elsewhere is the one the login returns to", async ({ page, context, request }) => {
+  // The order the race above can take, forced: the settings page's own call is held until every
+  // session has ended, and the person asks for another page as its refusal comes back.
+  await page.addInitScript(() => {
+    const original = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await original(...args);
+      if (/(^|\/)api\/settings$/.test(String(args[0])) && response.status === 401) {
+        const read = response.json.bind(response);
+        response.json = () => {
+          const body = read();
+          // Before the page hears of the refusal, the address is already elsewhere.
+          void body.then(() => (location.hash = "#/personas"));
+          return body;
+        };
+      }
+      return response;
+    };
+  });
+  let release!: () => void;
+  const held = new Promise<void>((heard) => {
+    let first = true;
+    void page.route("**/api/settings", async (route) => {
+      if (!first || route.request().method() !== "GET") return route.continue();
+      first = false;
+      heard();
+      await new Promise<void>((go) => (release = go));
+      await route.continue();
+    });
+  });
+
+  await page.goto("/#/settings");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/settings$/);
+  await held;
+  const cookie = (await context.cookies()).find((c) => c.name === "evermind_session");
+  const elsewhere = { cookie: `evermind_session=${cookie!.value}` };
+  expect((await request.delete(`${GATED}/api/gate/sessions`, { headers: elsewhere })).status()).toBe(204);
+  release();
+
+  await expect(page).toHaveURL(/#\/login\?from=%2Fpersonas$/);
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/personas$/);
+});
+
 test("a question open when the session ends goes with the page", async ({ page, context }) => {
   await page.goto("/#/login");
   await enter(page, GATE_PASSWORD);
