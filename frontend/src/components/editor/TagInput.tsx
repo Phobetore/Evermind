@@ -1,4 +1,5 @@
 import { useT } from "@/i18n/useT";
+import { addTag } from "@/lib/tags";
 import { X } from "lucide-react";
 import { useState } from "react";
 
@@ -20,8 +21,8 @@ export function TagInput({
   const [draft, setDraft] = useState("");
 
   function commit() {
-    const tag = draft.trim();
-    if (tag && !value.includes(tag)) onChange([...value, tag]);
+    const tags = addTag(value, draft);
+    if (tags !== value) onChange(tags);
     setDraft("");
   }
 

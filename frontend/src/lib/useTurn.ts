@@ -101,11 +101,16 @@ function askFor(id: string, request: TurnRequest): Promise<void> {
 
 /** The reply being written: ask the server how it stands, read when what is shown may be behind,
  *  follow the words until that ends for any reason, ask again. `read` fetches the conversation
- *  with what shows it, which says whether it did; `add` shows a message the server has taken. */
+ *  with what shows it, which says whether it did; `add` shows a message the server has taken;
+ *  `settled` is told, once for each time the page has shown the story, when nothing is being
+ *  written: at the end of a turn the page saw run, and otherwise once nothing asked for is still
+ *  on its way. That is how the page learns a turn has ended, whether it saw it run or, its answer
+ *  lost, only found it over. */
 export function useTurn(
   id: string,
   read: (asking: Asking) => Promise<{ conversation: Conversation; show: () => boolean }>,
   add: (message: Message) => void,
+  settled: () => void = () => {},
 ) {
   // The message being written, "" until the server says which.
   const [writing, setWriting] = useState<string | null>(null);
@@ -119,9 +124,13 @@ export function useTurn(
   const shown = useRef({ writing: null as string | null, revision: null as number | null, behind: true });
   // Until when a message on its way that no request here waits for, sent before a reload say, may land.
   const unsure = useRef(0);
+  // Whether the story has been shown since `settled` was last told.
+  const owed = useRef(false);
   const adding = useRef(add);
+  const settling = useRef(settled);
   useEffect(() => {
     adding.current = add;
+    settling.current = settled;
   });
 
   const watch = useCallback(async (quietly = false) => {
@@ -143,6 +152,7 @@ export function useTurn(
           if (signal.aborted) return;
           // Older than a change made by hand meanwhile, it is not shown, and another is sent.
           if (!show()) continue;
+          owed.current = true;
           shown.current.behind = false;
           shown.current.revision = conversation.revision ?? null;
           if (settleSending(id, conversation.messages ?? [])) {
@@ -159,6 +169,13 @@ export function useTurn(
           ? (loadSending(id) ? NOT_SENT : null)
           : refusal));
         if (!state.running) {
+          // A turn this pass saw end is told at once. A story found with nothing being written is
+          // not told while a request for a turn is still unanswered, which may be yet to begin
+          // one: it is told on the first pass once none is, and this loop goes on until then.
+          if (owed.current && (shown.current.writing !== null || !waiting.has(id))) {
+            owed.current = false;
+            settling.current();
+          }
           shown.current.writing = null;
           setWriting(null);
           text.set("");

@@ -5,6 +5,7 @@ import {
   clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, formatClock, kept, moveJob, outcome, progress,
   rememberJob, rememberedJob, scopeOf, type Followed,
 } from "./assist";
+import { blockStorage, MemoryStorage, useStorage } from "./storage.fake";
 
 /** A state as the server gives it, a job just begun unless said otherwise. */
 function aState(changes: Partial<AssistState> = {}): AssistState {
@@ -12,34 +13,6 @@ function aState(changes: Partial<AssistState> = {}): AssistState {
     id: "j1", running: true, seconds: 0, thought: 0, written: 0, fields: [], lore: 0, writing: null,
     draft: null, missing: [], cut: false, stopped: false, error: null, ...changes,
   };
-}
-
-/** Kept items are own properties, the methods are not: as the browser's own storage behaves. */
-class MemoryStorage {
-  [key: string]: unknown;
-  getItem(key: string): string | null {
-    return Object.hasOwn(this, key) ? String(this[key]) : null;
-  }
-  setItem(key: string, value: string): void {
-    this[key] = String(value);
-  }
-  removeItem(key: string): void {
-    delete this[key];
-  }
-}
-
-function useStorage(storage: unknown) {
-  Object.defineProperty(globalThis, "localStorage", { value: storage, configurable: true });
-}
-
-/** What a browser that keeps no site data does: reaching for the storage at all throws. */
-function blockStorage() {
-  Object.defineProperty(globalThis, "localStorage", {
-    get() {
-      throw new DOMException("The operation is insecure.", "SecurityError");
-    },
-    configurable: true,
-  });
 }
 
 afterEach(() => {

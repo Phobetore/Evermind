@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply, makeConversation, stopTurn } from "./fixtures";
+import { conversationWithReply, makeConversation, replyEnds, stopTurn } from "./fixtures";
 
 /** That the path works at all, on every project. What it does when things go wrong
  *  is in the specs that playwright.config.ts runs on the phone. */
@@ -32,6 +32,7 @@ test("a reply that ends while the story is scrolled up leaves it where it is bei
   const story = page.locator("div.overflow-y-auto:has(> div > [data-message-id])");
   await page.locator("textarea").first().fill("Go on.");
   const send = page.getByTitle("Send", { exact: true });
+  const ends = replyEnds(page, convo.id);
   await (isMobile ? send.tap() : send.click());
   await expect(page.getByTitle("Stop generation")).toBeVisible();
 
@@ -42,7 +43,8 @@ test("a reply that ends while the story is scrolled up leaves it where it is bei
   });
 
   const reply = page.locator("[data-message-id]").last();
-  await expect(reply).toContainText("endback", { timeout: 30_000 });
+  await ends;
+  await expect(reply).toContainText("endback");
   await expect(reply.getByTitle("Regenerate")).toBeFocused();
   expect(await story.evaluate((el) => el.scrollTop), "taken down to the reply from what was being read").toBe(0);
 });

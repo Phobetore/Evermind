@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { makeCharacter } from "./fixtures";
+import { cardEnds, makeCharacter } from "./fixtures";
 
 /**
  * The card assistant is a job the server owns (see scripts/mock_llm.py for the stand-in model's
@@ -11,11 +11,6 @@ import { makeCharacter } from "./fixtures";
  * while the job runs. SLOWLY is for a test that needs a job still going when it looks and does not
  * wait for the end: it stops it.
  */
-
-/** How long to wait for a card to end, by its own pace rather than the suite's ten seconds: the
- *  stand-in model's reasoning and writing together come near those ten seconds when the whole
- *  suite loads the machine, and a card that ends late still ends. */
-const CARD = { timeout: 30_000 };
 
 const NAME = "Nyra the Cartographer";
 const TAGLINE = "She sells maps of places that do not exist yet.";
@@ -45,36 +40,45 @@ test.afterEach(async ({ page, request }) => {
 });
 
 test("a card is written under the eyes of the person, and fills the form", { tag: "@desktop" }, async ({ page, request }) => {
+  const ended = cardEnds(page);
   await ask(page, request, "A seller of maps");
 
   await expect(stop(page)).toBeVisible();
   await expect(brief(page)).toBeDisabled();
   await expect(done(page).first(), "no field turned done before the end").toBeVisible();
-  await expect(nameField(page)).toHaveValue(NAME, CARD);
-  await expect(taglineField(page)).toHaveValue(TAGLINE, CARD);
-  await expect(stop(page)).toHaveCount(0, CARD);
+  await ended;
+  await expect(nameField(page)).toHaveValue(NAME);
+  await expect(taglineField(page)).toHaveValue(TAGLINE);
+  await expect(stop(page)).toHaveCount(0);
   await expect(brief(page)).toBeEnabled();
 });
 
 test("a card goes on being written while the page is away", async ({ page, request }) => {
+  const ended = cardEnds(page);
   await ask(page, request, "A seller of maps MOCK_THINKS");
   await expect(stop(page)).toBeVisible();
+  // Stop shows at the click; the job is found again once the server's answer has been written down.
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("evermind:assist:new")),
+    { message: "the job written down" }).not.toBeNull();
 
   await page.reload();
 
   await expect(brief(page)).toHaveValue("A seller of maps MOCK_THINKS");
   await expect(brief(page)).toBeDisabled();
   await expect(stop(page)).toBeVisible();
-  await expect(nameField(page)).toHaveValue(NAME, CARD);
-  await expect(stop(page)).toHaveCount(0, CARD);
+  await ended;
+  await expect(nameField(page)).toHaveValue(NAME);
+  await expect(stop(page)).toHaveCount(0);
   const found = await page.evaluate(() => localStorage.getItem("evermind:assist:new"));
   expect(found, "the job was still remembered after its end").toBeNull();
 });
 
 test("a card cut short keeps what was written and says what is missing", async ({ page, request }) => {
+  const ended = cardEnds(page);
   await ask(page, request, "A seller of maps MOCK_CUT");
 
-  await expect(nameField(page)).toHaveValue(NAME, CARD);
+  await ended;
+  await expect(nameField(page)).toHaveValue(NAME);
   await expect(page.getByLabel("First message")).toHaveValue(/There you are/);
   const sentence = said(page);
   await expect(sentence).toContainText("ran out of room");
@@ -85,35 +89,96 @@ test("a card cut short keeps what was written and says what is missing", async (
 });
 
 test("stopping keeps what was complete", async ({ page, request }) => {
+  const ended = cardEnds(page);
   await ask(page, request, "A seller of maps SLOWLY");
 
   await expect(done(page).first()).toBeVisible();
   await stop(page).click();
 
-  await expect(stop(page)).toHaveCount(0, CARD);
-  await expect(nameField(page)).toHaveValue(NAME, CARD);
+  await ended;
+  await expect(stop(page)).toHaveCount(0);
+  await expect(nameField(page)).toHaveValue(NAME);
   await expect(said(page)).toContainText("Stopped before the end");
   expect(await page.evaluate(() => localStorage.getItem("evermind:assist:new"))).toBeNull();
 });
 
 test("what is typed while the card is written is kept", async ({ page, request }) => {
+  const ended = cardEnds(page);
   await ask(page, request, "A seller of maps MOCK_THINKS");
   await expect(stop(page)).toBeVisible();
 
   await nameField(page).fill("Typed meanwhile");
 
-  await expect(taglineField(page)).toHaveValue(TAGLINE, CARD);
-  await expect(stop(page)).toHaveCount(0, CARD);
+  await ended;
+  await expect(taglineField(page)).toHaveValue(TAGLINE);
+  await expect(stop(page)).toHaveCount(0);
   await expect(nameField(page)).toHaveValue("Typed meanwhile");
 });
 
 test("a model that only thinks is said so", async ({ page, request }) => {
+  const ended = cardEnds(page);
   await ask(page, request, "A seller of maps MOCK_ONLY_THINKS");
 
   await expect(page.getByText(/The model is thinking/)).toBeVisible();
-  await expect(said(page)).toContainText("spent its whole answer thinking", CARD);
-  await expect(stop(page)).toHaveCount(0, CARD);
+  await ended;
+  await expect(said(page)).toContainText("spent its whole answer thinking");
+  await expect(stop(page)).toHaveCount(0);
   await expect(nameField(page)).toHaveValue("");
+});
+
+test("a tag typed again in another case is there once", async ({ page, request }) => {
+  await makeCharacter(request);
+  await page.goto("/#/characters/new");
+  const box = page.getByPlaceholder("Add a tag, then Enter");
+  await box.fill("Fantasy");
+  await box.press("Enter");
+  // The placeholder goes once there is a tag; the box keeps the focus, as for a person typing on.
+  await page.keyboard.type(" fantasy ");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: /^Remove\s+fantasy$/i })).toHaveCount(1);
+  // exact: a name given as text otherwise matches in any case, and would pass a lost spelling.
+  await expect(page.getByRole("button", { name: "Remove Fantasy", exact: true })).toHaveCount(1);
+});
+
+test("a card that has tags keeps each of them once", async ({ page, request }) => {
+  // Passes on the code before the fix too: the card's own tags replace the model's whole list, so
+  // this path never doubled. It pins that it stays so. The stand-in model writes "fantasy" and
+  // "mystery": the card's own spelling of the same tags.
+  const card = await makeCharacter(request, { tags: ["Fantasy", " Mystery "] });
+  await page.goto(`/#/characters/${card.id}/edit`);
+  await brief(page).fill("A seller of maps");
+  await generate(page).click();
+
+  // The card ended: a field it had empty is filled, the ones it had are its own.
+  await expect(page.getByLabel("Personality")).toHaveValue(/sly/);
+  await expect(nameField(page)).toHaveValue("Vane");
+  const tags = page.getByRole("button", { name: /^Remove\s+(fantasy|mystery)\s*$/i });
+  await expect(tags).toHaveCount(2);
+});
+
+test("a brief of a hundred thousand characters is kept whole, and said too long for the model", async ({ page, request }, info) => {
+  await makeCharacter(request);
+  await page.goto("/#/characters/new");
+  const text = "A seller of maps who draws tomorrow. ".repeat(2_800).slice(0, 100_000);
+
+  let started = Date.now();
+  await brief(page).fill(text);
+  const pasted = Date.now() - started;
+  started = Date.now();
+  await brief(page).press("End");
+  await brief(page).pressSequentially("!");
+  const typed = Date.now() - started;
+  info.annotations.push({ type: "timing", description: `pasted in ${pasted} ms, one key after it in ${typed} ms` });
+  expect(pasted, "pasting froze the page").toBeLessThan(3_000);
+  expect(typed, "a key pressed in a long brief froze the page").toBeLessThan(1_000);
+  expect((await brief(page).inputValue()).length).toBe(100_001);
+
+  await generate(page).click();
+  // The stand-in model's connection holds 16384 tokens, which the brief alone outgrows.
+  const refused = page.getByText(/too long for this model/);
+  await expect(refused).toBeVisible();
+  await expect(refused).toContainText("the connection holds 16,384");
+  await expect(brief(page)).toBeEnabled();
 });
 
 test("the panel fits a narrow phone", async ({ page, request }) => {

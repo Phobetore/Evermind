@@ -50,7 +50,7 @@ class OpenAICompatProvider(Provider):
             body["stop"] = payload.stop[:4]
         return body
 
-    async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
+    async def _events(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
         usage = stop = None
         async with aclosing(self._sse("/chat/completions", self._build_body(payload))) as events:
             async for event in events:
@@ -65,7 +65,7 @@ class OpenAICompatProvider(Provider):
                 # Servers that show a model's reasoning do not agree on where they put it.
                 thought = delta.get("reasoning_content") or delta.get("reasoning")
                 if isinstance(thought, str) and thought:
-                    yield ProviderEvent(type="thought", count=len(thought))
+                    yield ProviderEvent(type="thought", text=thought)
                 text = delta.get("content")
                 if text:
                     yield ProviderEvent(type="delta", text=text)

@@ -97,6 +97,42 @@ export async function turnRunning(request: APIRequestContext, id: string): Promi
   return (await (await request.get(`${API}/api/conversations/${id}/turn`)).json()).running;
 }
 
+/** Settles once the page has heard that the reply it asked for has ended: the server's answer to
+ *  the request, then its word, read by the page, that nothing is being written any more. What the
+ *  page does at a reply's end is looked for from there, not from the click: how long the reply
+ *  takes is the model's and the machine's. Called before the click. */
+export function replyEnds(page: Page, id: string): Promise<unknown> {
+  let asked = false;
+  return page.waitForResponse(async (r) => {
+    const method = r.request().method();
+    const where = new URL(r.url()).pathname;
+    if (method === "POST" && where.endsWith("/api/chat")) asked = true;
+    else if (asked && method === "GET" && where.endsWith(`/api/conversations/${id}/turn`)) {
+      // A read the page gave up on brings no word.
+      return (await r.json().catch(() => ({ running: true }))).running === false;
+    }
+    return false;
+  });
+}
+
+/** Settles once the page has heard that the card it follows has ended: the server's word, read by
+ *  the page, that the job no longer runs, or the answer to its Stop. What the form shows at a card's
+ *  end is looked for from there: how long the card takes is the model's and the machine's. Called
+ *  before what begins the job. */
+export function cardEnds(page: Page): Promise<unknown> {
+  return page.waitForResponse(async (r) => {
+    const method = r.request().method();
+    if (method !== "GET" && method !== "DELETE") return false;
+    if (!/\/api\/characters\/assist\/[^/]+$/.test(new URL(r.url()).pathname)) return false;
+    // A read the page gave up on brings no word.
+    return (await r.json().catch(() => ({ running: true }))).running === false;
+  });
+}
+
+/** Settles once the server has answered the page's Remember, which is when the panel shows what it wrote. */
+export const remembered = (page: Page) =>
+  page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith("/memories/extract"));
+
 /** A turn asked for as another device would, and its reply written: the server answers as soon
  *  as it has the message. */
 export async function chat(request: APIRequestContext, data: { conversation_id: string } & Record<string, unknown>) {
@@ -133,11 +169,22 @@ export function cardPortrait(card: unknown) {
   return Buffer.concat([PNG.subarray(0, -12), chunk, PNG.subarray(-12)]);
 }
 
+/** Settles once the confirmation box a click has just opened hears its button that confirms. The
+ *  box is deaf to it for half a second from the frame that draws it (DEAF_MS in Confirm.tsx), when
+ *  the second press of a double tap would land there. The wait begins once a frame has passed since
+ *  the box was in the page, so that one has drawn it: a slow machine only makes this longer. */
+export async function boxHears(page: Page): Promise<void> {
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await page.evaluate(() => new Promise((framed) => requestAnimationFrame(() => requestAnimationFrame(framed))));
+  await page.waitForTimeout(600);
+}
+
 /** Answers the confirmation box a click has just opened: the button that confirms (the last one) or
  *  Cancel, and waits for the box to close. */
 export async function answer(page: Page, accept: boolean): Promise<void> {
   const box = page.getByRole("alertdialog");
   const buttons = box.getByRole("button");
+  if (accept) await boxHears(page);
   // The cross is a button too, ahead of the two answers; the answer that confirms comes last.
   await (accept ? buttons.last() : box.getByRole("button", { name: "Cancel" })).click();
   await expect(box).toHaveCount(0);

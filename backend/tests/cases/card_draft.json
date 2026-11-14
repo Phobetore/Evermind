@@ -289,8 +289,7 @@
     "lore_entries": [
      {
       "keys": [
-       "Kabukicho",
-       "kabukicho"
+       "Kabukicho"
       ],
       "content": "The red-light district of Shinjuku."
      },
@@ -776,6 +775,80 @@
    "expected": {
     "context_size": 8192,
     "max_tokens": 0
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a tag or a greeting written twice, in another case or spacing, comes once",
+   "input": {
+    "draft": {
+     "tags": [
+      "Fantasy",
+      "fantasy ",
+      " FANTASY",
+      "Noir",
+      "noir",
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g"
+     ],
+     "alternate_greetings": [
+      "*The shop is empty.*",
+      "*the shop is empty.* ",
+      "*Rain.*"
+     ]
+    }
+   },
+   "expected": {
+    "alternate_greetings": [
+     "*The shop is empty.*",
+     "*Rain.*"
+    ],
+    "tags": [
+     "fantasy",
+     "noir",
+     "a",
+     "b",
+     "c",
+     "d",
+     "e",
+     "f"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a keyword written twice in one entry, in another case or spacing, comes once",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "Dragon",
+        "dragon",
+        "Dragon",
+        "DRAGON ",
+        "Wyrm"
+       ],
+       "content": "c"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "Dragon",
+       "Wyrm"
+      ],
+      "content": "c"
+     }
+    ]
    }
   }
  ]

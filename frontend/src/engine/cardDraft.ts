@@ -58,6 +58,17 @@ export function words(value: unknown): string[] {
   return found;
 }
 
+/** Each item the first time it comes, as it was first written: case and the spaces around it
+ *  do not make another. */
+function once(items: string[]): string[] {
+  const first = new Map<string, string>();
+  for (const item of items) {
+    const same = pyStrip(item).toLowerCase();
+    if (!first.has(same)) first.set(same, item);
+  }
+  return [...first.values()];
+}
+
 export interface DraftLoreEntry {
   keys: string[];
   content: string;
@@ -74,17 +85,19 @@ export function cleanCardDraft(draft: Record<string, unknown>): CardDraft {
     if (value) out[name] = value;
   }
   for (const name of LIST_FIELDS) {
-    const found = words(field(draft, name));
+    let found = words(field(draft, name));
+    if (name === "tags") found = found.map((tag) => sliceCodePoints(tag.toLowerCase(), MAX_TAG_LENGTH));
+    // A model repeats itself, and lowercasing makes "Fantasy" and "fantasy" one tag.
+    found = once(found);
+    if (name === "tags") found = found.slice(0, MAX_TAGS);
     if (found.length) out[name] = found;
-  }
-  if (out.tags) {
-    out.tags = out.tags.map((tag) => sliceCodePoints(tag.toLowerCase(), MAX_TAG_LENGTH)).slice(0, MAX_TAGS);
   }
 
   const entries: DraftLoreEntry[] = [];
   const lore = field(draft, "lore_entries");
   for (const raw of (Array.isArray(lore) ? lore : []).slice(0, MAX_LORE_ENTRIES)) {
-    const keys = words(field(raw, "keys"));
+    // A keyword written twice shows as two chips, and triggers the entry no more often.
+    const keys = once(words(field(raw, "keys")));
     const content = textOf(field(raw, "content"));
     if (keys.length && content) entries.push({ keys: keys.slice(0, MAX_KEYS), content });
   }

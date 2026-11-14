@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { chat, conversationWithReply } from "./fixtures";
+import { chat, conversationWithReply, replyEnds } from "./fixtures";
 
 /**
  * A model whose connection breaks after four words (see scripts/mock_llm.py). What had
@@ -24,7 +24,10 @@ async function failedMidway(page: Page, request: APIRequestContext) {
   const convo = await conversationWithReply(request, { says: "alpha", failsMidway: true });
   await page.goto(`/#/chat/${convo.id}`);
   await page.locator("textarea").first().fill("Go on.");
+  // The failure is said once the page hears the reply has ended.
+  const over = replyEnds(page, convo.id);
   await page.locator('button[title="Send"]').click();
+  await over;
   await expect(failure(page)).toBeVisible();
   return convo;
 }
@@ -60,7 +63,10 @@ test("Retry adds a whole reply, without the label that stays on the one cut shor
   const convo = await failedMidway(page, request);
   await mendModel(request, convo.id);
 
+  const over = replyEnds(page, convo.id);
   await page.getByRole("button", { name: "Retry" }).click();
+  // The whole reply shows as it arrives, before it is saved: what the server holds is read at its end.
+  await over;
 
   const message = page.locator("[data-message-id]", { hasText: WHOLE });
   await expect(message).toBeVisible();
@@ -90,7 +96,10 @@ test("a regeneration cut short labels its own version, not the whole one", async
   const last = page.locator("[data-message-id]").last();
   await expect(last).toContainText(WHOLE);
 
+  // The failure is said once the page hears the reply has ended.
+  const over = replyEnds(page, convo.id);
   await last.getByRole("button", { name: "Regenerate" }).click();
+  await over;
   await expect(failure(page)).toBeVisible();
   await expect(last).toContainText("interrupted");
 
