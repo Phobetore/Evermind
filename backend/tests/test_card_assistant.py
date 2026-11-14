@@ -395,6 +395,27 @@ async def test_a_lore_entry_the_card_already_has_is_not_added_again(client, fake
     assert state["lore"] == 2
 
 
+@pytest.mark.parametrize("drafted", [
+    # The model wrote the entries the book has: dropped as repeats, they were written all the same.
+    [{"keys": ["Kabukicho"], "content": "The district, again."}],
+    # The model wrote none: the card has a lorebook already.
+    [],
+])
+async def test_a_card_that_has_a_lorebook_is_not_told_it_lacks_one(client, fake_provider, drafted):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Kenji", "lore_entries": drafted})
+    state = await assist(client, prompt="yakuza", existing={
+        "lore_entries": [{"keys": ["Kabukicho"], "content": "already written"}]})
+    assert "lore_entries" not in state["missing"], state["missing"]
+
+
+async def test_a_card_with_no_lorebook_that_got_none_still_lacks_one(client, fake_provider):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Kenji"})
+    state = await assist(client, prompt="yakuza")
+    assert "lore_entries" in state["missing"]
+
+
 async def test_assist_avoids_duplicating_existing_lore(client, fake_provider):
     await add_connection(client)
     await assist(client, prompt="yakuza",
