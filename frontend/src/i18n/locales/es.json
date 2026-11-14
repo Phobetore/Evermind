@@ -472,6 +472,7 @@
     "invalid": "Evermind no ha podido procesar la petición: falta información o algún dato no es válido.",
     "textTooLong": "Este texto es demasiado largo: {length} caracteres, y se aceptan {limit} como máximo.",
     "textTooShort": "Este texto es demasiado corto: {length} caracteres, y hacen falta al menos {limit}.",
+    "briefTooLong": "Este texto es demasiado largo para este modelo: con las instrucciones del asistente y el espacio para la ficha, necesita unos {needed} tokens, y la conexión admite {context}. Acórtalo o elige una conexión con un contexto más grande.",
     "locked": "Tu sesión ha terminado. Vuelve a iniciar sesión.",
     "wrongPassword": "Acceso denegado.",
     "tooLarge": "Demasiado largo para ser la contraseña, o un proxy inverso lo ha transmitido sin indicar su longitud.",

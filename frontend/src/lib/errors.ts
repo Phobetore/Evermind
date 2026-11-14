@@ -52,6 +52,8 @@ const KIND_KEYS: Record<string, string> = {
   // A text refused for its length, wherever it was typed: `limit` is the bound, `length` its own.
   text_too_long: "errors.textTooLong",
   text_too_short: "errors.textTooShort",
+  // A brief the card assistant's connection cannot hold along with the card: `needed` and `context`.
+  brief_too_long: "errors.briefTooLong",
   internal: "errors.internal",
   // No answer from Evermind itself.
   network: "errors.unreachable",

@@ -34,6 +34,8 @@ TOO_FEW_FACTS = "too_few_facts"
 # A text refused for its length, with the bound and its own length in `params`.
 TEXT_TOO_LONG = "text_too_long"
 TEXT_TOO_SHORT = "text_too_short"
+# A brief for the card assistant that the connection's context cannot hold with the card.
+BRIEF_TOO_LONG = "brief_too_long"
 
 _LENGTH_BOUNDS = {"string_too_long": (TEXT_TOO_LONG, "max_length"),
                   "string_too_short": (TEXT_TOO_SHORT, "min_length")}

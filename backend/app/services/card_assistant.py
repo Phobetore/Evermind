@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 import aiosqlite
 
 from ..errors import (
+    BRIEF_TOO_LONG,
     MODEL_EMPTY,
     MODEL_ONLY_THOUGHT,
     MODEL_UNREADABLE,
@@ -53,6 +54,9 @@ CARD_FIELDS = ("name", "tagline", "description", "personality", "scenario", "gre
 _CEILING = 4096
 # What the estimate of the prompt may miss: a ceiling past the context is refused by most servers.
 _CONTEXT_MARGIN = 128
+# The least room a card is written in: its fields at the lengths the prompt asks for, the lorebook
+# aside. A brief that leaves less would come back as a name and little else.
+_SMALLEST_CARD = 1024
 
 _KEEP_SECONDS = 30 * 60
 _KEEP_AT_MOST = 20
@@ -100,6 +104,26 @@ def clean_card_draft(draft: dict) -> dict:
     return out
 
 
+def _prompt_tokens(payload: PromptPayload) -> int:
+    return estimate_tokens(payload.system) + sum(
+        estimate_tokens(m.get("content") or "") for m in payload.messages)
+
+
+def _check_fits(connection: dict, payload: PromptPayload) -> None:
+    """Refuses a brief the connection's context cannot hold along with the instructions and room
+    for a card, before the model is asked: past it, a server refuses the request, or quietly drops
+    the start of the brief and writes a card from what is left. The room is the connection's own
+    ceiling when it sets one, which a server will not let the prompt eat into."""
+    context = connection.get("context_size") or 0
+    answer = max(connection.get("max_tokens") or 0, _SMALLEST_CARD)
+    needed = _prompt_tokens(payload) + answer + _CONTEXT_MARGIN
+    if context and needed > context:
+        raise AppError(
+            f"The brief is too long for this connection: about {needed} tokens with the "
+            f"instructions and the card, where its context holds {context}.",
+            422, kind=BRIEF_TOO_LONG, params={"needed": needed, "context": context})
+
+
 def with_room_for_a_card(connection: dict, payload: PromptPayload) -> dict:
     """The connection with a ceiling on the answer that a whole card fits under.
 
@@ -109,9 +133,7 @@ def with_room_for_a_card(connection: dict, payload: PromptPayload) -> dict:
     own = connection.get("max_tokens")
     if not own:
         return connection
-    prompt = estimate_tokens(payload.system) + sum(
-        estimate_tokens(m.get("content") or "") for m in payload.messages)
-    room = (connection.get("context_size") or 0) - prompt - _CONTEXT_MARGIN
+    room = (connection.get("context_size") or 0) - _prompt_tokens(payload) - _CONTEXT_MARGIN
     return dict(connection, max_tokens=max(own, min(_CEILING, room)))
 
 
@@ -182,6 +204,7 @@ async def start(db: aiosqlite.Connection, request: CardAssistRequest) -> str:
     if job := _joined(request.client_id):
         return job.id
     payload = build_card_payload(request.prompt, request.kind, request.existing)
+    _check_fits(connection, payload)
     provider = get_provider(with_room_for_a_card(connection, payload))
     job = Job(uuid.uuid4().hex, request.client_id, dict(request.existing or {}), _now())
     _jobs[job.id] = job

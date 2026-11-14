@@ -472,6 +472,7 @@
     "invalid": "Evermind could not accept this: something in it is missing or not valid.",
     "textTooLong": "This text is too long: {length} characters, where {limit} at most are accepted.",
     "textTooShort": "This text is too short: {length} characters, where at least {limit} are needed.",
+    "briefTooLong": "This text is too long for this model: with the assistant's instructions and room for the card, it needs about {needed} tokens, and the connection takes {context}. Shorten it, or choose a connection with a larger context.",
     "locked": "Your session has ended. Sign in again.",
     "wrongPassword": "Access denied.",
     "tooLarge": "Too long to be the password, or a reverse proxy passed it on without saying its length.",

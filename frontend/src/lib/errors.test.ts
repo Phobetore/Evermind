@@ -108,6 +108,7 @@ describe("a text refused for its length", () => {
   test.each([
     ["text_too_long", "errors.textTooLong", { limit: 200, length: 201 }],
     ["text_too_short", "errors.textTooShort", { limit: 3, length: 2 }],
+    ["brief_too_long", "errors.briefTooLong", { needed: 31000, context: 16384 }],
   ])("%s says its numbers", (kind, key, params) => {
     const error = new DataError("words", { kind, status: 422, params });
     expect(describeError(error, t)).toBe(`${key} ${JSON.stringify({ message: "words", ...params })}`);
@@ -121,6 +122,7 @@ describe("a text refused for its length", () => {
         expect(sentence, `${locale} ${key}`).toMatch(/\{limit\}/);
         expect(sentence, `${locale} ${key}`).toMatch(/\{length\}/);
       }
+      expect(errors.briefTooLong, locale).toMatch(/\{needed\}[^]*\{context\}/);
     }
   });
 });
@@ -224,7 +226,7 @@ describe("the sentences exist", () => {
     "model_auth_refused", "model_not_found", "model_rate_limited", "model_error", "model_no_text",
     "model_empty", "model_unreadable", "model_only_thought", "empty_message", "nothing_to_regenerate",
     "nothing_to_continue", "turn_running", "internal", "http_error", "network", "offline", "not_sent",
-    "not_found", "text_too_long", "text_too_short",
+    "not_found", "text_too_long", "text_too_short", "brief_too_long",
   ];
   const resources = [
     "character", "conversation", "message", "persona", "connection", "fact", "illustration", "file",

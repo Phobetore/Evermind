@@ -472,6 +472,7 @@
     "invalid": "Evermind konnte diese Anfrage nicht verarbeiten: Es fehlen Angaben, oder sie sind ungültig.",
     "textTooLong": "Dieser Text ist zu lang: {length} Zeichen, erlaubt sind höchstens {limit}.",
     "textTooShort": "Dieser Text ist zu kurz: {length} Zeichen, nötig sind mindestens {limit}.",
+    "briefTooLong": "Dieser Text ist zu lang für dieses Modell: Mit den Anweisungen des Assistenten und Platz für die Karte braucht er etwa {needed} Tokens, die Verbindung nimmt {context}. Kürze ihn, oder wähle eine Verbindung mit größerem Kontext.",
     "locked": "Deine Sitzung ist beendet. Melde dich erneut an.",
     "wrongPassword": "Zugriff verweigert.",
     "tooLarge": "Zu lang für das Passwort, oder ein Reverse-Proxy hat die Anmeldung ohne Längenangabe weitergereicht.",

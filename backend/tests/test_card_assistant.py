@@ -7,6 +7,7 @@ import re
 
 import pytest
 
+from app.prompting.defaults import CARD_ASSISTANT_PROMPT
 from app.prompting.tokens import estimate_tokens
 from app.providers.base import ProviderError, ProviderEvent
 from app.services import card_assistant
@@ -279,10 +280,13 @@ async def test_the_raised_ceiling_stays_within_what_the_context_leaves(client, f
     assert sent_ceiling(fake_provider) + prompt <= 4096
 
 
-async def test_the_ceiling_is_never_lowered_under_the_connections_own(client, fake_provider):
+async def test_a_context_that_cannot_hold_the_connections_own_ceiling_is_said_before_the_model(
+        client, fake_provider):
+    """The prompt and a ceiling of 900 past a context of 1024: the model's server would refuse it."""
     await add_connection(client, max_tokens=900, context_size=1024)
-    await assist(client, prompt="japanese gangster")
-    assert sent_ceiling(fake_provider) == 900
+    resp = await client.post("/api/characters/assist", json={"prompt": "japanese gangster"})
+    assert resp.status_code == 422 and resp.json()["params"]["context"] == 1024, resp.text
+    assert fake_provider.captured == {}
 
 
 async def test_assist_returns_lore_entries(client, fake_provider):
@@ -305,6 +309,39 @@ async def test_assist_returns_lore_entries(client, fake_provider):
     assert "Shinjuku" in draft["lore_entries"][0]["content"]
     # A lone surrogate, which an escape in the answer gives, cannot be written to the response.
     assert "tagline" not in draft and draft["lore_entries"][1]["keys"] == ["clan Sato"]
+
+
+async def test_a_long_brief_that_fits_the_connections_context_is_accepted(client, fake_provider):
+    # A community card's « about » runs well past ten thousand characters.
+    await add_connection(client, context_size=128_000)
+    state = await assist(client, prompt="A pirate. " * 4_000)
+    assert state["draft"]["name"] == "Nyra"
+    assert ("A pirate. " * 4_000).strip() in fake_provider.captured["payload"].messages[0]["content"]
+
+
+async def test_a_brief_the_connections_context_cannot_hold_is_refused_before_the_model(
+        client, fake_provider):
+    await add_connection(client, context_size=16_384)
+    jobs = len(card_assistant._jobs)
+    resp = await client.post("/api/characters/assist", json={"prompt": "x" * 100_000})
+    assert resp.status_code == 422, resp.text
+    body = resp.json()
+    assert body["kind"] == "brief_too_long"
+    # What the request would need: the brief, the assistant's instructions, and room for the card.
+    assert body["params"]["context"] == 16_384
+    assert body["params"]["needed"] > estimate_tokens("x" * 100_000)
+    assert fake_provider.captured == {}  # the model was never asked
+    assert len(card_assistant._jobs) == jobs
+
+
+async def test_the_room_left_for_the_card_counts_in_what_a_brief_may_take(client, fake_provider):
+    """A brief that leaves the card no room would come back cut, or be refused by the model's server."""
+    await add_connection(client, context_size=16_384)
+    instructions = estimate_tokens(CARD_ASSISTANT_PROMPT)
+    # Fits with the instructions alone, not once the room for a card is counted.
+    words = int((16_384 - instructions - 1_000) * 3.5)
+    resp = await client.post("/api/characters/assist", json={"prompt": "x" * words})
+    assert resp.status_code == 422 and resp.json()["kind"] == "brief_too_long", resp.text
 
 
 async def test_assist_avoids_duplicating_existing_lore(client, fake_provider):
