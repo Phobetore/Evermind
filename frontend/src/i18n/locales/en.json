@@ -536,7 +536,7 @@
       "examples": "Example dialogues: {count:grouped} blocks",
       "examples_one": "Example dialogues: {count:grouped} block",
       "nickname": "Nickname",
-      "extensions": "Data from other applications: {names}",
+      "extensions": "Data Evermind does not use: {names}",
       "loreNotStored": "{count:grouped} lorebook items with no text, or with no keyword and not always on: kept, not used",
       "loreNotStored_one": "{count:grouped} lorebook item with no text, or with no keyword and not always on: kept, not used",
       "outletEntries": "{count:grouped} entries placed in a named place of SillyTavern",

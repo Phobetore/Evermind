@@ -3,6 +3,7 @@ import { Field } from "@/components/editor/Field";
 import { LorebookSection } from "@/components/editor/LorebookSection";
 import { NumberField, ROLES } from "@/components/editor/LoreEntrySettings";
 import { RereadBanner } from "@/components/editor/RereadBanner";
+import { fieldLabelKey, KIND_COPY, labelKey } from "@/components/editor/fieldLabels";
 import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -16,7 +17,7 @@ import { cardFile, findOriginal, rereadPlan, type ExportWarning, type FoundCard,
 import { newLoreEntry } from "@/lib/loreEntry";
 import { describeError, isUnanswered } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
-import type { CharacterWithLore, Connection, Kind, LoreEntry, NoteRole } from "@/types";
+import type { CharacterWithLore, Connection, LoreEntry, NoteRole } from "@/types";
 import { clsx } from "clsx";
 import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
@@ -50,40 +51,6 @@ const EMPTY: Draft = {
   creator_notes_multilingual: {},
   card_rules: 2,
 };
-
-const KIND_COPY: Record<Kind, Record<string, { labelKey: string; hintKey: string }>> = {
-  character: {
-    description: {
-      labelKey: "characters.form.descriptionLabel",
-      hintKey: "characters.form.descriptionHint",
-    },
-    personality: { labelKey: "characters.form.personalityLabel", hintKey: "characters.form.personalityHint" },
-    scenario: { labelKey: "characters.form.startingSituationLabel", hintKey: "characters.form.startingSituationHint" },
-    greeting: { labelKey: "characters.form.greetingLabel", hintKey: "characters.form.greetingHint" },
-  },
-  scenario: {
-    description: {
-      labelKey: "characters.form.worldLabel",
-      hintKey: "characters.form.worldHint",
-    },
-    personality: { labelKey: "characters.form.toneLabel", hintKey: "characters.form.toneHint" },
-    scenario: { labelKey: "characters.form.playerRoleLabel", hintKey: "characters.form.playerRoleHint" },
-    greeting: { labelKey: "characters.form.openingSceneLabel", hintKey: "characters.form.openingSceneHint" },
-  },
-};
-
-/** The name the form gives a field of the card, which the assistant's words use for it. */
-function labelKey(field: AssistField, kind: Kind): string {
-  switch (field) {
-    case "name": return "personas.nameLabel";
-    case "tagline": return "characters.form.taglineLabel";
-    case "alternate_greetings": return "characters.form.alternateGreetingsLabel";
-    case "example_dialogues": return "characters.form.exampleDialoguesLabel";
-    case "tags": return "characters.form.tagsLabel";
-    case "lore_entries": return "lorebook.title";
-    default: return KIND_COPY[kind][field].labelKey;
-  }
-}
 
 export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const navigate = useNavigate();
@@ -256,17 +223,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const current = useMemo(() => ({ ...draft, lore_entries: loreEntries }), [draft, loreEntries]);
 
   /** The name the form gives any field the old reader read. */
-  function fieldLabel(field: string): string {
-    switch (field) {
-      case "kind": return t("characters.reread.kind");
-      case "system_prompt": return t("characters.form.systemPromptLabel");
-      case "post_history_instructions": return t("characters.form.postHistoryLabel");
-      case "creator_notes": return t("characters.creatorNotesLabel");
-      case "creator": return t("characters.form.creatorLabel");
-      case "character_version": return t("characters.form.versionLabel");
-      default: return t(labelKey(field as AssistField, draft.kind));
-    }
-  }
+  const fieldLabel = (field: string) => t(fieldLabelKey(field, draft.kind));
 
   /** Puts the choice made in the banner in the form; the save keeps it, and nothing else does. */
   function applyReread(mode: RereadMode) {

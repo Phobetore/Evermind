@@ -536,7 +536,7 @@
       "examples": "Dialogues d'exemple\u00a0: {count:grouped} blocs",
       "examples_one": "Dialogues d'exemple\u00a0: {count:grouped} bloc",
       "nickname": "Surnom",
-      "extensions": "Données d'autres applications\u00a0: {names}",
+      "extensions": "Données qu'Evermind n'utilise pas\u00a0: {names}",
       "loreNotStored": "{count:grouped} éléments du lorebook sans texte, ou sans clé et pas toujours actifs, gardés sans être utilisés",
       "loreNotStored_one": "{count:grouped} élément du lorebook sans texte, ou sans clé et pas toujours actif, gardé sans être utilisé",
       "outletEntries": "{count:grouped} entrées placées à un endroit nommé de SillyTavern",

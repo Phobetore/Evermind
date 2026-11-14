@@ -6,6 +6,7 @@ import type { Character } from "@/types";
 import { clsx } from "clsx";
 import { BookOpenText, Check, UserRound } from "lucide-react";
 import { useState } from "react";
+import { unreadLabels } from "./unreadLabels";
 
 /** The names of `unreadFields` that say something of their own: a name, or a nickname, that was
  *  cut. They get a sentence each, apart from the fields that held something that is no text. */
@@ -47,11 +48,11 @@ export function ImportReport({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const say = ({ key, line }: Sentence) => (
-    <li key={key}>
-      {t(`cards.report.${key}`, { count: line.count ?? 0, names: (line.names ?? []).join(", ") })}
-    </li>
-  );
+  const say = ({ key, line }: Sentence) => {
+    // The places of a card are said as the form names them, not by their paths in the file.
+    const names = key === "unreadFields" ? unreadLabels(line.names ?? [], read.character, t) : line.names ?? [];
+    return <li key={key}>{t(`cards.report.${key}`, { count: line.count ?? 0, names: names.join(", ") })}</li>;
+  };
   const used = sentences(read.report.used);
   const kept = sentences(read.report.kept);
 

@@ -536,7 +536,7 @@
       "examples": "Diálogos de ejemplo: {count:grouped} bloques",
       "examples_one": "Diálogos de ejemplo: {count:grouped} bloque",
       "nickname": "Apodo",
-      "extensions": "Datos de otras aplicaciones: {names}",
+      "extensions": "Datos que Evermind no usa: {names}",
       "loreNotStored": "{count:grouped} elementos del lorebook sin texto, o sin clave y no siempre activos: conservados, sin usar",
       "loreNotStored_one": "{count:grouped} elemento del lorebook sin texto, o sin clave y no siempre activo: conservado, sin usar",
       "outletEntries": "{count:grouped} entradas colocadas en un lugar con nombre de SillyTavern",

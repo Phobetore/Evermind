@@ -536,7 +536,7 @@
       "examples": "Beispieldialoge: {count:grouped} Blöcke",
       "examples_one": "Beispieldialoge: {count:grouped} Block",
       "nickname": "Spitzname",
-      "extensions": "Daten anderer Anwendungen: {names}",
+      "extensions": "Daten, die Evermind nicht nutzt: {names}",
       "loreNotStored": "{count:grouped} Lorebook-Elemente ohne Text oder ohne Stichwort und nicht immer aktiv: behalten, nicht genutzt",
       "loreNotStored_one": "{count:grouped} Lorebook-Element ohne Text oder ohne Stichwort und nicht immer aktiv: behalten, nicht genutzt",
       "outletEntries": "{count:grouped} Einträge an einem benannten Ort von SillyTavern",
