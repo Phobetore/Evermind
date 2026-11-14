@@ -1007,6 +1007,13 @@ test("the model's text is laid out as Markdown alone", () => {
   ])
     expect(text).toContain(written);
   expect(rendered.remoteHosts).toEqual([]);
+
+  // A character reference stays written: decoded, it would draw an invisible space, a line turned
+  // backwards or a tag, none of which the model reads.
+  const references = "&#x202E;x&#8203;&lt;b&gt;";
+  const kept = renderModelText(`a ${references} &amp;`);
+  if (kept.kind !== "laid-out") throw new Error("not laid out: " + JSON.stringify(kept));
+  expect(textOf(kept.tree)).toBe(`a ${references} &amp;`);
 });
 
 test("a model's text too dense to lay out is shown as written", () => {

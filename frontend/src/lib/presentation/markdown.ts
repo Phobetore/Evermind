@@ -15,9 +15,22 @@ export function noDefinitions(this: Processor): void {
 }
 
 /** What micromark does not read in the model's own text: written HTML, links, images, automatic
- *  links and reference definitions. The model reads them as written, and so they are shown: no
- *  element of the card's, nothing fetched, nothing to follow, no text hidden from the person. */
-const NOT_IN_MODEL_TEXT = ["htmlFlow", "htmlText", "labelStartLink", "labelStartImage", "labelEnd", "autolink", "definition"];
+ *  links, reference definitions and character references. The model reads them as written, and
+ *  so they are shown: no element of the card's, nothing fetched, nothing to follow, no text hidden
+ *  from the person. A reference decoded would draw what the model never reads: `&#8203;` an
+ *  invisible space, `&#x202E;` a line turned backwards on screen, `&lt;b&gt;` a tag that is not
+ *  in the text. A backslash escape stays read: like `**`, it is markup the layout takes away, it
+ *  draws no character the text does not hold, and « As written » shows it. */
+const NOT_IN_MODEL_TEXT = [
+  "htmlFlow",
+  "htmlText",
+  "labelStartLink",
+  "labelStartImage",
+  "labelEnd",
+  "autolink",
+  "definition",
+  "characterReference",
+];
 
 /** A remark plugin, used after the presentation's dialect (which keeps tables, strikethrough and
  *  single line breaks): the model's text is laid out in that dialect without the constructs of

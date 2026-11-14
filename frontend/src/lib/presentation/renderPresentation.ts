@@ -1062,8 +1062,9 @@ function modelTree() {
 export function renderModelText(text: string): RenderedPresentation {
   try {
     // A presentation's bounds, but no image is ever drawn from this text: a data: payload is
-    // text like any other, and its whole length counts, as it does after a presentation's parse.
-    const refusal = text.length > LAYOUT_BOUND ? "tooLong" : layoutRefusal(text, layoutLength(text));
+    // text like any other, and its whole length counts (text.length, layoutRefusal's default), as
+    // it does after a presentation's parse.
+    const refusal = layoutRefusal(text);
     if (refusal !== null) return { kind: "plain", reason: refusal };
     const processor = unified()
       .use(remarkParse)

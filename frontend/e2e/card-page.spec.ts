@@ -541,7 +541,8 @@ test("the definition is laid out as Markdown alone, and nothing of it is hidden"
   const description =
     "# Titre\n\n**gras** <img src=x onerror=1> <!-- caché --> [lien](https://example.com) " +
     "![image](https://pictures.example/x.png)\n\n<script>alert(1)</script>\n\n" +
-    '**bold** <img src="https://pictures.example/d.png"> <script>window.__hit=1</script>';
+    '**bold** <img src="https://pictures.example/d.png"> <script>window.__hit=1</script>\n\n' +
+    "&#x202E;x&#8203;&lt;b&gt;";
   const ilse = await card(request, { description });
   await openPage(page, ilse.id);
   const details = await openModelReads(page);
@@ -558,9 +559,13 @@ test("the definition is laid out as Markdown alone, and nothing of it is hidden"
     "<script>alert(1)</script>",
     '<img src="https://pictures.example/d.png">',
     "<script>window.__hit=1</script>",
+    // Character references as the model reads them: decoded, one would hide a space, another turn
+    // the line backwards on screen, the last draw a tag.
+    "&#x202E;x&#8203;&lt;b&gt;",
   ])
     await expect(text).toContainText(written);
   await expect(details.locator("img, a, script")).toHaveCount(0);
+  await expect(text.locator("b")).toHaveCount(0);
 
   // As written: the text word for word, and nothing laid out.
   await details.getByRole("button", { name: "As written" }).click();
