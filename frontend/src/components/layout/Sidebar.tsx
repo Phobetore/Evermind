@@ -1,6 +1,7 @@
 import { clsx } from "clsx";
-import { Flame, MessagesSquare, Settings, UserRound, VenetianMask } from "lucide-react";
+import { Flame, MessagesSquare, Settings, UserRound } from "lucide-react";
 import { Link, useLocation } from "react-router";
+import { Mark } from "@/components/ui/Mark";
 import { useT } from "@/i18n/useT";
 import { LanguageSelect } from "./LanguageSelect";
 
@@ -17,11 +18,9 @@ export function Sidebar() {
   const t = useT();
   return (
     <aside className="hidden w-56 shrink-0 flex-col border-r border-ink-700 bg-ink-900/70 md:flex">
-      <Link to="/" className="group flex items-center gap-2.5 px-5 pt-6 pb-7">
-        <VenetianMask
-          className="h-7 w-7 text-ember-400 transition-transform duration-300 group-hover:-rotate-12"
-          strokeWidth={1.6}
-        />
+      {/* The link is what winks the mark: over the word Evermind too, and from the keyboard. */}
+      <Link to="/" className="flex items-center gap-2.5 px-5 pt-6 pb-7">
+        <Mark decorative className="h-7 w-7 shrink-0 text-ember-400" />
         <span className="font-display text-2xl font-semibold tracking-tight">Evermind</span>
       </Link>
 
