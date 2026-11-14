@@ -433,7 +433,8 @@
       "keep": "Garder seulement la carte d'origine pour l'export",
       "keepHint": "La garder ne change rien dans ses conversations\u00a0; ce bandeau reste, pour passer plus tard aux nouvelles règles.",
       "switch": "Passer aux nouvelles règles",
-      "saveToKeep": "Enregistrez pour garder ce changement."
+      "saveToKeep": "Enregistrez pour garder ce changement.",
+      "retry": "Chercher la carte à nouveau"
     },
     "assist": {
       "heading": "Création assistée par IA",

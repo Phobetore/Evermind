@@ -1,6 +1,6 @@
 import { crc32 } from "node:zlib";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { data, type CardCharacter } from "@/data";
+import { data, DataError, type CardCharacter } from "@/data";
 import type { LibraryItem } from "@/types";
 import { newLoreEntry } from "../loreEntry";
 import { cardForExport } from "./export";
@@ -351,6 +351,20 @@ describe("re-reading a card", () => {
       { keys: ["gull"], origin: 2, constant: true, selective: false, secondary_keys: [], comment: "" },
       { keys: ["keeper"], origin: null, constant: false, selective: false, secondary_keys: [], comment: "" },
     ]);
+  });
+
+  test("a portrait the server no longer has is a portrait without a card", async () => {
+    vi.spyOn(data, "file").mockRejectedValue(new DataError("Not found.", { kind: "not_found", status: 404 }));
+    libraryIs([]);
+    expect(await findOriginal(looked(madeBefore(MIRELA)))).toBeNull();
+    libraryIs([{ filename: "mirela.json", has_avatar: false, card: MIRELA }]);
+    expect((await findOriginal(looked(madeBefore(MIRELA))))?.old.name).toBe("Mirela");
+  });
+
+  test("a failure to reach the portrait is not taken for a missing card", async () => {
+    vi.spyOn(data, "file").mockRejectedValue(new DataError("Offline.", { kind: "network" }));
+    libraryIs([]);
+    await expect(findOriginal(looked(madeBefore(MIRELA)))).rejects.toMatchObject({ kind: "network" });
   });
 
   test("without a card the plan only changes the rules", () => {

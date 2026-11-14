@@ -19,6 +19,7 @@ export function RereadBanner({
   applied,
   label,
   onApply,
+  onRetry,
 }: {
   /** The form as it is now: what a re-reading is weighed against. */
   current: CardCharacter;
@@ -32,6 +33,8 @@ export function RereadBanner({
   /** The name the form gives a field of the card. */
   label: (field: string) => string;
   onApply: (mode: RereadMode) => void;
+  /** Looks for the card again, after a failure. */
+  onRetry: () => void;
 }) {
   const t = useT();
   const plan = useMemo(() => (found === undefined ? null : rereadPlan(current, found, "reread")), [current, found]);
@@ -53,7 +56,12 @@ export function RereadBanner({
         <History className="h-4 w-4 shrink-0" /> {t("characters.reread.title")}
       </p>
       {failure ? (
-        <p role="alert" className="break-words text-blood">{describeError(failure.error, t)}</p>
+        <div className="flex flex-col items-start gap-2">
+          <p role="alert" className="break-words text-blood">{describeError(failure.error, t)}</p>
+          <button type="button" className="btn btn-ghost !py-2 text-sm" onClick={onRetry}>
+            {t("characters.reread.retry")}
+          </button>
+        </div>
       ) : !plan ? (
         <p className="animate-pulse-soft">{t("common.loading")}</p>
       ) : applied ? (

@@ -433,7 +433,8 @@
       "keep": "Guardar solo la tarjeta original para la exportación",
       "keepHint": "Guardarla no cambia nada en sus conversaciones; este aviso se queda, para pasar más tarde a las nuevas reglas.",
       "switch": "Pasar a las nuevas reglas",
-      "saveToKeep": "Guarda para conservar este cambio."
+      "saveToKeep": "Guarda para conservar este cambio.",
+      "retry": "Buscar la tarjeta de nuevo"
     },
     "assist": {
       "heading": "Creación asistida por IA",

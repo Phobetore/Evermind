@@ -160,6 +160,18 @@ const isFromLibrary = (old: CardCharacter, character: Looked) =>
   && ((Boolean(old.description) && old.description === character.description)
     || (Boolean(old.greeting) && old.greeting === character.greeting));
 
+/** A portrait's bytes; null when the server no longer has the file (a database restored without its
+ *  images), which is a portrait without a card: the library may still have it, and a character
+ *  must not lose its way to the new rules, or its export, for a missing image. */
+async function portraitBytes(url: string): Promise<Uint8Array | null> {
+  try {
+    return new Uint8Array(await (await data.file(url)).arrayBuffer());
+  } catch (error) {
+    if (error instanceof DataError && (error.kind === "not_found" || error.status === 404)) return null;
+    throw error;
+  }
+}
+
 /** Where a card made before the update can be read again, if it is this character's. */
 export async function findOriginal(character: Looked): Promise<FoundCard | null> {
   if (character.has_card) {
@@ -169,8 +181,8 @@ export async function findOriginal(character: Looked): Promise<FoundCard | null>
       return { read: { ...read, original: { ...read.original, other_text: stored.other_text } }, old: stored.read };
     }
   }
-  if (character.avatar_url?.endsWith(".png")) {
-    const bytes = new Uint8Array(await (await data.file(character.avatar_url)).arrayBuffer());
+  const bytes = character.avatar_url?.endsWith(".png") ? await portraitBytes(character.avatar_url) : null;
+  if (bytes) {
     const card = oldPngCard(bytes);
     const old = oldReading(card);
     if (old && isTheirs(old, character)) {

@@ -137,6 +137,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     data.connections?.list().then(setConnections).catch(() => {});
   }, []);
 
+  // Bumped by the banner's "try again": a failure of the road says nothing of the card.
+  const [lookAgain, setLookAgain] = useState(0);
   useEffect(() => {
     if (initial?.card_rules !== 1) return;
     let live = true;
@@ -147,7 +149,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     return () => {
       live = false;
     };
-  }, [initial]);
+  }, [initial, lookAgain]);
 
   const watching = useRef<AbortController | null>(null);
   // The job whose end is in the form already: the two ways to learn of it must not both add its entries.
@@ -410,6 +412,10 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
             applied={rereadChosen}
             label={fieldLabel}
             onApply={applyReread}
+            onRetry={() => {
+              setOriginalFailure(null);
+              setLookAgain((n) => n + 1);
+            }}
           />
         )}
 

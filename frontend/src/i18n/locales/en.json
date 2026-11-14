@@ -433,7 +433,8 @@
       "keep": "Keep only the original card for the export",
       "keepHint": "Keeping it changes nothing in its conversations; this notice stays, to switch to the new rules later.",
       "switch": "Switch to the new rules",
-      "saveToKeep": "Save to keep this change."
+      "saveToKeep": "Save to keep this change.",
+      "retry": "Look for the card again"
     },
     "assist": {
       "heading": "AI-assisted creation",

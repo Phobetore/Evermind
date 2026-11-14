@@ -433,7 +433,8 @@
       "keep": "Nur die Originalkarte für den Export behalten",
       "keepHint": "Das ändert nichts an ihren Unterhaltungen; dieser Hinweis bleibt, um später zu den neuen Regeln zu wechseln.",
       "switch": "Zu den neuen Regeln wechseln",
-      "saveToKeep": "Speichere, um diese Änderung zu behalten."
+      "saveToKeep": "Speichere, um diese Änderung zu behalten.",
+      "retry": "Erneut nach der Karte suchen"
     },
     "assist": {
       "heading": "KI-gestützte Erstellung",

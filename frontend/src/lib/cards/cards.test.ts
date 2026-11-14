@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { crc32 } from "node:zlib";
 import { describe, expect, test, vi } from "vitest";
-import { data, type CardCharacter } from "@/data";
+import { data, DataError, type CardCharacter } from "@/data";
 import { newLoreEntry } from "../loreEntry";
 import { cardForExport } from "./export";
 import { cardFile, cardToCharacter, readCardFile } from "./index";
@@ -210,6 +210,22 @@ describe("a card file", () => {
       expect(entries[0]).toEqual({ ...book.data.character_book.entries[0], content: "The lamp burns seal oil now." });
       expect(entries.filter((entry) => (entry.keys as string[])[0] === "lamp")).toHaveLength(1);
     });
+  });
+
+  test("a card whose portrait the server no longer has still exports as it did", async () => {
+    vi.spyOn(data, "file").mockRejectedValue(new DataError("Not found.", { kind: "not_found", status: 404 }));
+    vi.spyOn(data.library, "list").mockResolvedValue([]);
+    const character = {
+      ...VANE, card_rules: 1 as const, id: "c1", has_card: false, avatar_url: "api/media/gone.png", lore_entries: LORE,
+    };
+    try {
+      const exported = JSON.parse(await (await cardFile(character, "json")).blob.text());
+      expect(exported.data.name).toBe("Vane");
+      expect(exported.data.character_book.entries.map((entry: { content: string }) => entry.content))
+        .toEqual(LORE.map((entry) => entry.content));
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   test("ccv3 is read first, and chara when ccv3 is not a card", async () => {

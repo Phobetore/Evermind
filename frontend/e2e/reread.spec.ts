@@ -165,3 +165,20 @@ test("keeping, then re-reading, leaves each entry its own settings", async ({ pa
     { keys: ["keeper"], origin: null, constant: false, selective: false, secondary_keys: [], position: 1 },
   ]);
 });
+
+test("a card that could not be looked for can be looked for again", async ({ page, request }) => {
+  const { id } = await madeBefore(request);
+  let failed = false;
+  // The first time the page asks for the portrait's bytes, the road fails.
+  await page.route("**/api/media/**", (route) => {
+    if (failed || route.request().resourceType() !== "fetch") return route.continue();
+    failed = true;
+    return route.abort("connectionfailed");
+  });
+  await page.goto(`/#/characters/${id}/edit`);
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Re-read the card and switch to the new rules" })).toBeHidden();
+  await page.getByRole("button", { name: "Look for the card again" }).click();
+  await expect(page.getByRole("button", { name: "Re-read the card and switch to the new rules" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Keep only the original card for the export" })).toBeVisible();
+});
