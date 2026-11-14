@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply } from "./fixtures";
+import { conversationWithReply, replyEnds } from "./fixtures";
 
 /** What a screen reader is told, which hears nothing of what is only drawn. */
 
@@ -9,18 +9,22 @@ test("a reply that comes in is told", async ({ page, request }) => {
   await page.goto(`/#/chat/${convo.id}`);
   await page.getByPlaceholder(/^Write to Vane/).fill("And then?");
 
+  const ends = replyEnds(page, convo.id);
   await page.getByRole("button", { name: "Send", exact: true }).click();
 
-  await expect(page.getByRole("status")).toHaveText("Vane replied.", { timeout: 30_000 });
+  await ends;
+  await expect(page.getByRole("status")).toHaveText("Vane replied.");
 });
 
 test("a reply that fails is told at once", async ({ page, request }) => {
   const convo = await conversationWithReply(request, { failing: true });
   await page.goto(`/#/chat/${convo.id}`);
 
+  const ends = replyEnds(page, convo.id);
   await page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`).getByTitle("Regenerate").click();
 
-  await expect(page.getByRole("alert")).toContainText("The mock was told to fail.", { timeout: 30_000 });
+  await ends;
+  await expect(page.getByRole("alert")).toContainText("The mock was told to fail.");
 });
 
 /** As a stopped AI server looks: an address where nothing listens. */
@@ -36,9 +40,11 @@ test("a model that does not answer is told at once", async ({ page, request }) =
   await noModel(request, convo.id);
   await page.goto(`/#/chat/${convo.id}`);
 
+  const ends = replyEnds(page, convo.id);
   await page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`).getByTitle("Regenerate").click();
 
-  await expect(page.getByRole("alert")).toContainText(/no answer from the model/i, { timeout: 30_000 });
+  await ends;
+  await expect(page.getByRole("alert")).toContainText(/no answer from the model/i);
 });
 
 test("the side panel's boxes are named by their titles, not by their examples", async ({ page, request }) => {

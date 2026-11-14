@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { API } from "../playwright.config";
-import { makeCharacter, makeConversation, PNG } from "./fixtures";
+import { answer, makeCharacter, makeConversation, PNG } from "./fixtures";
 
 /** What does not go through is said where it was asked for, and what is shown is what
  *  the server holds. */
@@ -138,8 +138,8 @@ test("a rename that does not go through says so on its row, which shows the titl
 test("a removal that does not go through says so on its row, which goes only if the server removed it", { tag: "@desktop" }, async ({ page, request }) => {
   const { id, row, said } = await listed(page, request);
   const remove = async () => {
-    page.once("dialog", (dialog) => dialog.accept());
     await row.getByRole("button", { name: "Delete" }).click();
+    await answer(page, true);
   };
 
   await page.route("**/api/**", offline);
@@ -170,8 +170,8 @@ test("a persona that is not removed says so in its window, and stays", async ({ 
   await page.getByRole("button", { name: persona.name }).click();
   const dialog = page.getByRole("dialog");
   await page.route(`**/api/personas/${persona.id}`, refused);
-  page.once("dialog", (confirm) => confirm.accept());
   await dialog.getByRole("button", { name: "Delete" }).click();
+  await answer(page, true);
   await expect(dialog.getByText("HTTP 500")).toBeInViewport();
 
   await dialog.getByRole("button", { name: "Close" }).click();
@@ -186,8 +186,8 @@ test("a card that is not removed says so on its form, and stays", async ({ page,
   await page.goto(`/#/characters/${card.id}/edit`);
   await expect(page.getByLabel("Name", { exact: true })).toHaveValue(card.name);
   await failing(page, "DELETE", `/api/characters/${card.id}`, offline);
-  page.once("dialog", (confirm) => confirm.accept());
   await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await answer(page, true);
   await expect(page.getByText("Evermind is not answering")).toBeInViewport();
   await expect(page).toHaveURL(new RegExp(`#/characters/${card.id}/edit$`));
   expect((await request.get(`${API}/api/characters/${card.id}`)).ok()).toBe(true);
@@ -201,8 +201,8 @@ test("a connection that is not removed says so in its window, and stays", async 
   await page.getByRole("button", { name: new RegExp(`^${made.name}`) }).click();
   const dialog = page.getByRole("dialog");
   await page.route(`**/api/connections/${made.id}`, refused);
-  page.once("dialog", (confirm) => confirm.accept());
   await dialog.getByRole("button", { name: "Delete" }).click();
+  await answer(page, true);
   await expect(dialog.getByText("HTTP 500")).toBeInViewport();
 
   await dialog.getByRole("button", { name: "Close" }).click();

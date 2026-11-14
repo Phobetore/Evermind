@@ -22,7 +22,9 @@ backend/   FastAPI + SQLite (aiosqlite, plain SQL migrations)
 frontend/  Vite + React 19 + Tailwind v4, a single-page app routed by hash
   src/pages/       one page per route
   src/router.tsx   the routes, which live after the "#" of the address
-  src/data/        index.ts: `data`, every call the interface makes to the server
+  src/data/        contract.ts: what the interface asks of its data source
+                   http/: the calls to the server, and what the browser keeps
+                   index.ts: `data`, the one door to both
   src/lib/cards.ts Character Card V2 codec (JSON + PNG "chara" chunk), in the browser
   src/components/  layout/Access.tsx keeps the pages behind the access password
   src/i18n/        homemade i18n: JSON dictionaries + useT() hook (en, fr, de, es)
@@ -239,7 +241,7 @@ do: without a password, Evermind answers only to an address or `localhost`
 The prefix needs nothing more, since nothing is addressed from the root of the
 host: the build uses relative asset paths (`base: "./"`) and routes after the
 `#`, so the address of the page, without the fragment, is the root of the app;
-every call in `frontend/src/data/index.ts` is for `api/...`, without a leading
+every call in `frontend/src/data/http/index.ts` is for `api/...`, without a leading
 slash, resolved against that address; and the server writes the addresses of
 images the same way, `api/media/<file>`. The one thing that does not follow the
 prefix is the redirect of an old 2.x bookmark such as `/chat/<id>`, to
@@ -388,8 +390,9 @@ be changed without rebuilding.
 
 - Migrations are append-only; never edit one that has shipped.
 - Components never call `fetch`. Every call to the server goes through `data` in
-  `src/data/index.ts` (its type is `DataSource`), with its error handling, and its
-  address never starts with a slash ([why](#serving-under-a-path-prefix)).
+  `src/data/http/index.ts` (typed by the `DataSource` contract in
+  `src/data/contract.ts`), with its error handling, and its address never starts
+  with a slash ([why](#serving-under-a-path-prefix)).
 - Repositories return plain dicts, which the routes answer with; there is no ORM,
   and Pydantic validates input only.
 - Bytes columns (`embedding`) must never reach a JSON response. The `to_out`

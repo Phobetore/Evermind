@@ -10,7 +10,7 @@ import { useT } from "@/i18n/useT";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
-import { newId, nothingFocused } from "@/lib/utils";
+import { cssUrl, newId, nothingFocused } from "@/lib/utils";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -197,7 +197,17 @@ function ChatView({ id }: { id: string }) {
     setMessages((now) => [...now.filter((m) => m.id !== sent.id), sent].sort((a, b) => a.position - b.position));
   }, []);
 
-  const turn = useTurn(id, read, add);
+  // A reply asked for again or carried on takes back a memory that read it: an open panel reads it at
+  // the turn's end, once the page shows the story with nothing being written. That is also when the
+  // request's answer was lost and the page found the turn already over, never having seen it run.
+  const rewriting = useRef(false);
+  const settled = useCallback(() => {
+    if (!rewriting.current) return;
+    rewriting.current = false;
+    setStoryCuts((n) => n + 1);
+  }, []);
+
+  const turn = useTurn(id, read, add, settled);
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
 
@@ -230,17 +240,6 @@ function ChatView({ id }: { id: string }) {
     const takeSummary = summaryTaker();
     data.conversations.withoutMessages(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
   }, [id, summaryTaker]);
-
-  // A reply asked for again or carried on takes back a memory that read it: an open panel reads it at the turn's end.
-  const rewriting = useRef(false);
-  const wasWriting = useRef(writing);
-  useEffect(() => {
-    if (wasWriting.current !== null && writing === null && rewriting.current) {
-      rewriting.current = false;
-      setStoryCuts((n) => n + 1);
-    }
-    wasWriting.current = writing;
-  }, [writing]);
 
   useEffect(() => {
     const personaId = conversation?.persona_id;
@@ -315,7 +314,6 @@ function ChatView({ id }: { id: string }) {
 
   /** The server ends a reply being written before it cuts the story. */
   async function deleteFrom(message: Message) {
-    if (!confirm(t("chat.message.confirmDeleteFrom"))) return;
     await data.messages.removeFrom(message.id);
     changesByHand.current += 1;
     setMessages((prev) => prev.filter((m) => m.position < message.position));
@@ -332,7 +330,6 @@ function ChatView({ id }: { id: string }) {
   // Each message's branch keeps its id, so that one asked for again after its answer was lost is the one made.
   const branchIds = useRef(new Map<string, string>());
   async function branchFrom(message: Message) {
-    if (!confirm(t("chat.message.confirmBranch"))) return;
     const clientId = branchIds.current.get(message.id) ?? newId();
     branchIds.current.set(message.id, clientId);
     const branch = await data.messages.branch(message.id, clientId);
@@ -485,7 +482,7 @@ function ChatView({ id }: { id: string }) {
               <div
                 className="h-[100dvh] w-full bg-cover bg-center bg-no-repeat"
                 style={{
-                  backgroundImage: `url(${conversation.wallpaper_url})`,
+                  backgroundImage: cssUrl(conversation.wallpaper_url),
                   opacity: conversation.wallpaper_opacity ?? 0.25,
                 }}
               />

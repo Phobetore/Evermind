@@ -1,5 +1,6 @@
-/** What is typed and not yet known to the server, kept per conversation in the browser. */
+/** What is typed and not yet known to the server, kept per conversation on this device. */
 
+import { data } from "@/data";
 import { newId } from "@/lib/utils";
 
 const PREFIX = "evermind:draft:";
@@ -19,21 +20,14 @@ interface Sending {
 // The same, for as long as this page lives: all there is where storage may not be used.
 const sending = new Map<string, Sending>();
 
+// Storage this site may not use keeps no draft: the device store reads as empty, and never throws.
 export function loadDraft(conversationId: string): string {
-  try {
-    return localStorage.getItem(PREFIX + conversationId) ?? "";
-  } catch {
-    return ""; // storage this site may not use keeps no draft
-  }
+  return data.device.get(PREFIX + conversationId) ?? "";
 }
 
 export function saveDraft(conversationId: string, text: string): void {
-  try {
-    if (text.trim()) localStorage.setItem(PREFIX + conversationId, text);
-    else localStorage.removeItem(PREFIX + conversationId);
-  } catch {
-    /* quota exceeded or storage disabled: drafts are a convenience, never fail */
-  }
+  if (text.trim()) data.device.set(PREFIX + conversationId, text);
+  else data.device.remove(PREFIX + conversationId);
 }
 
 export function clearDraft(conversationId: string): void {
@@ -48,9 +42,9 @@ function parsed(json: string | null): Sending | null {
 
 function stored(conversationId: string): Sending | null {
   try {
-    return parsed(localStorage.getItem(SENDING + conversationId));
+    return parsed(data.device.get(SENDING + conversationId));
   } catch {
-    return null; // nothing readable was kept, or storage this site may not use
+    return null; // nothing readable was kept
   }
 }
 
@@ -62,22 +56,15 @@ export function beginSending(conversationId: string, text: string, mode: Message
   const before = loadSending(conversationId);
   const message = { clientId: before?.text === text ? before.clientId : newId(), text, mode };
   sending.set(conversationId, message);
-  try {
-    localStorage.setItem(SENDING + conversationId, JSON.stringify(message));
-  } catch {
-    /* quota exceeded or storage disabled: it lasts as long as the page, then */
-  }
+  // Where the device keeps nothing, it lasts as long as the page.
+  data.device.set(SENDING + conversationId, JSON.stringify(message));
   return message.clientId;
 }
 
 /** The server has this message. */
 export function forgetSending(conversationId: string, clientId: string): void {
   if (sending.get(conversationId)?.clientId === clientId) sending.delete(conversationId);
-  try {
-    if (stored(conversationId)?.clientId === clientId) localStorage.removeItem(SENDING + conversationId);
-  } catch {
-    /* storage this site may not use has nothing to clear */
-  }
+  if (stored(conversationId)?.clientId === clientId) data.device.remove(SENDING + conversationId);
 }
 
 /** What is left of a text without a message at its start, if the message is there. */
@@ -132,16 +119,16 @@ export function settleSending(
 }
 
 // Another tab's message that arrived leaves the box of this tab too.
-globalThis.addEventListener?.("storage", (event) => {
-  if (!event.key?.startsWith(SENDING) || event.newValue !== null) return;
+data.device.onChange((key, oldValue, newValue) => {
+  if (!key.startsWith(SENDING) || newValue !== null) return;
   let message: Sending | null = null;
   try {
-    message = parsed(event.oldValue);
+    message = parsed(oldValue);
   } catch {
     /* nothing readable was kept */
   }
   if (!message) return;
-  const conversationId = event.key.slice(SENDING.length);
+  const conversationId = key.slice(SENDING.length);
   if (sending.get(conversationId)?.clientId === message.clientId) sending.delete(conversationId);
   const box = boxes.get(conversationId);
   const rest = box ? without(box.read(), message.text) : null;
@@ -153,16 +140,12 @@ globalThis.addEventListener?.("storage", (event) => {
 export function pruneDrafts(existingIds: string[]): Set<string> {
   const alive = new Set(existingIds);
   const withDraft = new Set<string>();
-  try {
-    for (const key of Object.keys(localStorage)) {
-      const prefix = [PREFIX, SENDING].find((p) => key.startsWith(p));
-      if (!prefix) continue;
+  for (const prefix of [PREFIX, SENDING]) {
+    for (const key of data.device.keys(prefix)) {
       const id = key.slice(prefix.length);
-      if (!alive.has(id)) localStorage.removeItem(key);
+      if (!alive.has(id)) data.device.remove(key);
       else if (prefix === PREFIX) withDraft.add(id);
     }
-  } catch {
-    /* storage this site may not use keeps no draft */
   }
   return withDraft;
 }

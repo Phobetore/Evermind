@@ -1,6 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import http from "node:http";
+import path from "node:path";
 import { GATE_PASSWORD, GATED } from "../playwright.config";
+import { answer } from "./fixtures";
 
 /**
  * Everything here runs against the second server, the one started with an
@@ -174,10 +177,54 @@ test("signing out every device signs this one out too", async ({ page, context }
   await enter(page, GATE_PASSWORD);
   await expect(page).toHaveURL(/#\/settings$/);
 
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: /sign out every device/i }).click();
+  await answer(page, true);
   await expect(page).toHaveURL(/#\/login\?from=%2Fsettings$/);
   expect((await context.cookies()).find((c) => c.name === "evermind_session")).toBeUndefined();
+});
+
+// The longest words any box has on its button that confirms: in Spanish, wider than a phone.
+test("the box that asks before every device is signed out fits a phone, in each language", async ({ page }) => {
+  await page.goto("/#/settings");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(/#\/settings$/);
+
+  // This phone, a small one, and the narrowest still in use.
+  for (const screen of [page.viewportSize()!, { width: 360, height: 740 }, { width: 320, height: 568 }]) {
+    await page.setViewportSize(screen);
+    for (const locale of ["en", "fr", "de", "es"]) {
+      const words = JSON.parse(
+        readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`), "utf8"),
+      );
+      await page.evaluate((chosen) => localStorage.setItem("evermind:locale", chosen), locale);
+      await page.reload();
+      await page.getByRole("button", { name: words.settings.access.logoutEverywhere }).click();
+      const box = page.getByRole("alertdialog");
+      await expect(box).toBeVisible();
+
+      // The dialog covers the screen; the box drawn is the panel in it, and the buttons' row its width.
+      const panel = (await box.locator("> div").boundingBox())!;
+      const where = `at ${screen.width}px in ${locale}`;
+      expect(panel.x, `the box leaves the screen ${where}`).toBeGreaterThanOrEqual(0);
+      expect(panel.x + panel.width, `the box leaves the screen ${where}`).toBeLessThanOrEqual(screen.width);
+      for (const name of [words.common.cancel, words.settings.access.logoutEverywhere]) {
+        const button = box.getByRole("button", { name, exact: true });
+        const at = (await button.boundingBox())!;
+        const row = (await button.locator("xpath=..").boundingBox())!;
+        expect(at.x, `"${name}" leaves the box on the left ${where}`).toBeGreaterThanOrEqual(row.x - 0.5);
+        expect(at.x + at.width, `"${name}" leaves the box on the right ${where}`)
+          .toBeLessThanOrEqual(row.x + row.width + 0.5);
+        expect(row.x, `the buttons leave the box ${where}`).toBeGreaterThanOrEqual(panel.x);
+        expect(row.x + row.width, `the buttons leave the box ${where}`).toBeLessThanOrEqual(panel.x + panel.width);
+        expect(at.y, `"${name}" leaves the box at the top ${where}`).toBeGreaterThanOrEqual(panel.y);
+        expect(at.y + at.height, `"${name}" leaves the box at the bottom ${where}`)
+          .toBeLessThanOrEqual(Math.min(panel.y + panel.height, screen.height));
+        expect(at.height, `"${name}" is too small to hit ${where}`).toBeGreaterThanOrEqual(43.5);
+      }
+      await box.getByRole("button", { name: words.common.cancel, exact: true }).click();
+      await expect(box).toHaveCount(0);
+    }
+  }
 });
 
 test("a session ended from another device leads to the login, and back", async ({ page, context, request }) => {
@@ -193,6 +240,33 @@ test("a session ended from another device leads to the login, and back", async (
   await expect(page).toHaveURL(/#\/login\?from=%2Fpersonas$/);
   await enter(page, GATE_PASSWORD);
   await expect(page).toHaveURL(/#\/personas$/);
+});
+
+test("a question open when the session ends goes with the page", async ({ page, context }) => {
+  await page.goto("/#/login");
+  await enter(page, GATE_PASSWORD);
+  await expect(page).toHaveURL(`${GATED}/#/`);
+
+  // Seeded through the page's own cookie: this server has a password, and data of its own.
+  const api = page.request;
+  const character = await (await api.post(`${GATED}/api/characters`, {
+    data: { name: "Vane", kind: "character", greeting: "The door was already open." },
+  })).json();
+  const convo = await (await api.post(`${GATED}/api/conversations`, { data: { character_id: character.id } })).json();
+
+  await page.goto(`/#/chat/${convo.id}`);
+  const greeting = page.locator("[data-message-id]").first();
+  await expect(greeting).toBeVisible();
+  await greeting.getByTitle("Delete from here").click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+
+  // The phone put away while asked, and the session ended meanwhile: on coming back the page asks
+  // the server, is refused, and the router moves to the login without the browser saying so.
+  await context.clearCookies();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page).toHaveURL(/#\/login\?from=/);
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(page.getByLabel(/password/i)).toBeEditable();
 });
 
 test("the API is locked without a session", async ({ request }) => {

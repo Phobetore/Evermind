@@ -3,35 +3,7 @@ import {
   arrived, beginSending, clearDraft, forgetSending, loadDraft, openBox, pruneDrafts, saveDraft, settleSending,
   type MessageMode,
 } from "./drafts";
-
-/** Kept items are own properties, the methods are not, so `Object.keys` lists
- *  what is stored, as it does for the browser's own storage. */
-class MemoryStorage {
-  [key: string]: unknown;
-  getItem(key: string): string | null {
-    return Object.hasOwn(this, key) ? String(this[key]) : null;
-  }
-  setItem(key: string, value: string): void {
-    this[key] = String(value);
-  }
-  removeItem(key: string): void {
-    delete this[key];
-  }
-}
-
-function useStorage(storage: unknown) {
-  Object.defineProperty(globalThis, "localStorage", { value: storage, configurable: true });
-}
-
-/** What a browser that keeps no site data does: reaching for the storage at all throws. */
-function blockStorage() {
-  Object.defineProperty(globalThis, "localStorage", {
-    get() {
-      throw new DOMException("The operation is insecure.", "SecurityError");
-    },
-    configurable: true,
-  });
-}
+import { blockStorage, MemoryStorage, useStorage } from "./storage.fake";
 
 afterEach(() => {
   Reflect.deleteProperty(globalThis, "localStorage");
@@ -272,6 +244,34 @@ describe("a message the server has taken", () => {
     const clientId = sent(id, "Taken.");
     expect(arrived(id, clientId)).toBe(true);
     expect(loadDraft(id)).toBe("");
+  });
+
+  test("in another tab leaves the box of this one too", async () => {
+    // Node has no window: one is put where the page's own would be, before the page listens on it.
+    const page = new EventTarget();
+    vi.stubGlobal("addEventListener", page.addEventListener.bind(page));
+    vi.stubGlobal("removeEventListener", page.removeEventListener.bind(page));
+    try {
+      const next = await anotherPage();
+      const id = aConversation();
+      next.saveDraft(id, "Taken elsewhere.");
+      next.beginSending(id, "Taken elsewhere.", "narrate");
+      const box = aBox("Taken elsewhere.");
+      const close = next.openBox(id, box);
+
+      // The other tab, told the server has it, forgets it in the storage both tabs share.
+      const key = `evermind:sending:${id}`;
+      const kept = localStorage.getItem(key);
+      localStorage.removeItem(key);
+      page.dispatchEvent(Object.assign(new Event("storage"), { key, oldValue: kept, newValue: null }));
+
+      expect(box.shown).toBe("");
+      expect(box.mode).toBe("say");
+      expect(next.loadSending(id)).toBeNull();
+      close();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   test("does so once: the same words typed again after it stay", () => {

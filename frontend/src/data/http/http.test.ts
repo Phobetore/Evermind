@@ -34,6 +34,15 @@ afterEach(() => vi.unstubAllGlobals());
 
 const failureOf = () => data.settings.get().catch((e) => e);
 
+describe("the contract", () => {
+  test("offers what the contract names, and nothing else", () => {
+    expect(Object.keys(data).sort()).toEqual([
+      "access", "characters", "connections", "conversations", "device", "file", "library", "memories",
+      "messages", "personas", "settings", "turns", "updates",
+    ]);
+  });
+});
+
 describe("what is sent", () => {
   test("an address is relative, its segments are encoded, and its query is there only when set", async () => {
     replies.push(json({}), json([]), json([]));
@@ -172,7 +181,7 @@ describe("a session that ended", () => {
     const handler = vi.fn();
     onLocked(handler);
     replies.push(json({ error: "Wrong password.", kind: "wrong_password" }, 401));
-    expect(await data.access.login("nope").catch((e) => e)).toMatchObject({ kind: "wrong_password" });
+    expect(await data.access!.login("nope").catch((e) => e)).toMatchObject({ kind: "wrong_password" });
     expect(handler).not.toHaveBeenCalled();
   });
 });

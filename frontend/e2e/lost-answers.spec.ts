@@ -1,14 +1,31 @@
-import { expect, test, type APIRequestContext, type Locator, type Page, type Route } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { API } from "../playwright.config";
-import { chat, conversation, conversationWithReply, makeCharacter, readOf } from "./fixtures";
+import { answer, chat, conversation, conversationWithReply, makeCharacter, readOf } from "./fixtures";
 
 /** An answer lost or late on a phone's Wi-Fi: the page ends with what the server holds, and makes nothing twice. */
+
+// A route that answers once is taken off the page when it has. When it was the page's only one,
+// the browser is told to stop passing its requests through the test at all, and one the page sends
+// at that instant is never answered: the read that follows the lost answer, often. A route that
+// nothing matches keeps the requests passing through for the whole test.
+test.beforeEach(async ({ page }) => {
+  await page.route("**/asked-of-nobody", (route) => route.fallback());
+});
 
 /** What Evermind does with the request, before its answer is lost on the way back. */
 const answerLost = async (route: Route) => {
   await route.fetch();
   await route.abort("connectionreset");
 };
+
+/** A promise and what settles it: for a route to say its answer is lost. What the page says of a
+ *  lost answer can only come from there, and how long the server takes first is the machine's, so
+ *  a test waits for this before it looks. */
+function signal() {
+  let done = () => {};
+  const given = new Promise<void>((resolve) => (done = resolve));
+  return { given, done };
+}
 
 /** The next request like this one waits until let go, as on a Wi-Fi that is slow to come back. */
 async function held(page: Page, url: string, method: string) {
@@ -20,6 +37,23 @@ async function held(page: Page, url: string, method: string) {
     await route.fallback();
   }, { times: 1 });
   return letGo;
+}
+
+/** Settles once the page's read of the conversation, sent after the answer to a `method` on a
+ *  message was lost or refused, has come back: what the server holds shows from there, and how long
+ *  the server takes over both is the machine's. Called before what sends the change. */
+function storyReadAfter(page: Page, id: string, method: string): Promise<unknown> {
+  let over = false;
+  const ended = (r: Request) => {
+    if (r.method() === method && new URL(r.url()).pathname.includes("/api/messages/")) over = true;
+  };
+  page.on("requestfailed", ended);
+  page.on("requestfinished", ended);
+  return page.waitForResponse((r) => over && r.request().method() === "GET" && readOf(id)(r.url()))
+    .finally(() => {
+      page.off("requestfailed", ended);
+      page.off("requestfinished", ended);
+    });
 }
 
 /** A reply in three versions told apart, the last of them shown: [another, alpha, beta]. */
@@ -43,7 +77,9 @@ test("a swipe whose answer was lost shows the version the server holds, and an e
   await expect(reply).toContainText("3/3");
 
   await page.route("**/api/messages/*", answerLost, { times: 1 });
+  const readAfter = storyReadAfter(page, convo.id, "PATCH");
   await reply.getByLabel("Previous variant").click();
+  await readAfter;
 
   await expect(reply).toContainText("2/3");
   await expect(reply).toContainText("alpha one two");
@@ -89,10 +125,13 @@ test("Delete from here whose answer was lost shows the story the server holds, a
   const [asked, answered] = convo.messages.slice(-2);
   await page.goto(`/#/chat/${convo.id}`);
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toBeVisible();
-  page.on("dialog", (dialog) => dialog.accept());
 
   await page.route("**/api/messages/*", answerLost, { times: 1 });
+  // What the server holds shows once the read that follows the lost answer has come back.
+  const readAfter = storyReadAfter(page, convo.id, "DELETE");
   await page.locator(`[data-message-id="${asked.id}"]`).getByTitle("Delete from here").click();
+  await answer(page, true);
+  await readAfter;
 
   await expect(page.locator(`[data-message-id="${asked.id}"]`)).toHaveCount(0);
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toHaveCount(0);
@@ -107,9 +146,11 @@ test("Delete from here on a message already gone shows the story as it is, and s
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toBeVisible();
   // Gone already: deleted from another device, or by a first tap whose answer was lost.
   await request.delete(`${API}/api/messages/${answered.id}`);
-  page.on("dialog", (dialog) => dialog.accept());
 
+  const readAfter = storyReadAfter(page, convo.id, "DELETE");
   await page.locator(`[data-message-id="${answered.id}"]`).getByTitle("Delete from here").click();
+  await answer(page, true);
+  await readAfter;
 
   await expect(page.locator(`[data-message-id="${answered.id}"]`)).toHaveCount(0);
   await expect(page.getByRole("alert"), "a message on screen said to be gone").toHaveCount(0);
@@ -124,11 +165,11 @@ test("Branch shows that it is under way, and a second tap makes no second branch
   const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
   await page.goto(`/#/chat/${convo.id}`);
   await expect(reply).toBeVisible();
-  page.on("dialog", (dialog) => dialog.accept());
 
   const letGo = await held(page, "**/api/messages/*/branch", "POST");
   const branch = reply.getByTitle("Branch the story from here");
   await branch.click();
+  await answer(page, true);
   await expect(branch, "nothing shows the branch is being made").toBeDisabled();
   await branch.click({ force: true });
   letGo();
@@ -143,12 +184,18 @@ test("Branch whose answer was lost, tried again, makes one branch", async ({ pag
   const reply = page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`);
   await page.goto(`/#/chat/${convo.id}`);
   await expect(reply).toBeVisible();
-  page.on("dialog", (dialog) => dialog.accept());
 
-  await page.route("**/api/messages/*/branch", answerLost, { times: 1 });
+  const lost = signal();
+  await page.route("**/api/messages/*/branch", async (route) => {
+    await answerLost(route);
+    lost.done();
+  }, { times: 1 });
   await reply.getByTitle("Branch the story from here").click();
+  await answer(page, true);
+  await lost.given;
   await expect(page.getByRole("alert")).toContainText("Evermind is not answering");
   await reply.getByTitle("Branch the story from here").click();
+  await answer(page, true);
 
   await expect(page).not.toHaveURL(new RegExp(convo.id));
   expect(await branchesOf(request, convo.id)).toBe(1);
@@ -162,9 +209,14 @@ test("Enter the story whose answer was lost, tried again, makes one conversation
   const enter = dialog.getByRole("button", { name: "Enter the story" });
   await expect(enter).toBeEnabled();
 
-  await page.route("**/api/conversations", (route) =>
-    route.request().method() === "POST" ? answerLost(route) : route.fallback(), { times: 1 });
+  const lost = signal();
+  await page.route("**/api/conversations", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    await answerLost(route);
+    lost.done();
+  }, { times: 1 });
   await enter.click();
+  await lost.given;
   await expect(dialog).toContainText("Evermind is not answering");
   await enter.click();
 
@@ -200,15 +252,13 @@ async function expectWhatThePassWrote(panel: Locator, request: APIRequestContext
 
 test("Remember whose answer was lost ends with what the pass wrote, and says nothing once Evermind answers", async ({ page, request }) => {
   const { convo, panel } = await withThePanel(page, request);
-  let lost = () => {};
-  const passDone = new Promise<void>((resolve) => (lost = resolve));
-
+  const lost = signal();
   await page.route("**/memories/extract", async (route) => {
     await answerLost(route);
-    lost();
+    lost.done();
   }, { times: 1 });
   await panel.getByRole("button", { name: "Remember" }).click();
-  await passDone;
+  await lost.given;
 
   await expectWhatThePassWrote(panel, request, convo.id);
 });
@@ -216,12 +266,15 @@ test("Remember whose answer was lost ends with what the pass wrote, and says not
 test("Remember on a phone that went offline ends, once it is back, with what the pass wrote", async ({ page, request }) => {
   const { convo, panel } = await withThePanel(page, request);
 
+  const lost = signal();
   await page.route("**/memories/extract", async (route) => {
     await route.fetch();
     await page.context().setOffline(true);
     await route.abort("internetdisconnected");
+    lost.done();
   }, { times: 1 });
   await panel.getByRole("button", { name: "Remember" }).click();
+  await lost.given;
   await expect(panel).toContainText("This device is offline.");
   await page.context().setOffline(false);
 

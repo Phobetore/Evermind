@@ -264,7 +264,8 @@
       "prevVariantAriaLabel": "Variante précédente",
       "nextVariantAriaLabel": "Variante suivante ou régénérer",
       "confirmDeleteFrom": "Supprimer ce message et tous les suivants\u202f?",
-      "confirmBranch": "Créer une branche de l'histoire à partir d'ici\u202f?"
+      "confirmBranch": "Créer une branche de l'histoire à partir d'ici\u202f?",
+      "branchAction": "Créer la branche"
     },
     "panel": {
       "closeAriaLabel": "Fermer le panneau",

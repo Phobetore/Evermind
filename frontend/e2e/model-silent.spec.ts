@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply } from "./fixtures";
+import { conversationWithReply, replyEnds } from "./fixtures";
 
 /** A conversation with something already in it, then pointed at an address
  *  where nothing is listening — which is what a stopped AI server looks like.
@@ -42,9 +42,11 @@ test("a reply that never comes says so too", async ({ page, request }) => {
   await expect(page.locator("textarea").first()).toBeVisible();
 
   await page.locator("textarea").first().fill("Bonjour ?");
+  const ends = replyEnds(page, convo.id);
   await page.locator('button[title="Send"]').click();
 
-  await expect(page.getByText(/no answer from the model/i)).toBeVisible({ timeout: 30_000 });
+  await ends;
+  await expect(page.getByText(/no answer from the model/i)).toBeVisible();
   // Once, not twice: one for the reply, and not the leftover from a suggestion.
   await expect(page.getByText(/no answer from the model/i),
     "the notice was on screen twice at once").toHaveCount(1);

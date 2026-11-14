@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { chat, conversation, conversationWithReply, makeConversation } from "./fixtures";
+import { answer as confirmBox, chat, conversation, conversationWithReply, makeConversation } from "./fixtures";
 
 /** What a conversation shows of its messages, and what can be done to them. */
 
@@ -38,8 +38,8 @@ test("what the server does not take of a change to a message is said, and a rewr
   await expect(page.getByRole("button", { name: "Retry" })).toHaveCount(0);
 
   await reply.getByRole("button", { name: "Cancel" }).click();
-  page.once("dialog", (dialog) => dialog.accept());
   await reply.getByTitle("Delete from here").click();
+  await confirmBox(page, true);
   await expect(said).toBeVisible();
   await expect(reply).toBeVisible();
 
@@ -72,8 +72,8 @@ test("a message whose reply was deleted can be given another", { tag: "@desktop"
   const convo = await conversationWithReply(request);
   const [question, answer] = convo.messages.slice(-2);
   await page.goto(`/#/chat/${convo.id}`);
-  page.once("dialog", (dialog) => dialog.accept());
   await page.locator(`[data-message-id="${answer.id}"]`).getByTitle("Delete from here").click();
+  await confirmBox(page, true);
   await expect(page.locator(`[data-message-id="${answer.id}"]`)).toHaveCount(0);
 
   await page.locator(`[data-message-id="${question.id}"]`).getByTitle("Regenerate").click();

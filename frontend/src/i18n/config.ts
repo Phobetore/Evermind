@@ -1,3 +1,5 @@
+import { data } from "@/data";
+
 export const LOCALES = ["en", "de", "es", "fr"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
@@ -17,27 +19,30 @@ export function isLocale(value: string | undefined | null): value is Locale {
   return !!value && (LOCALES as readonly string[]).includes(value);
 }
 
-/** First supported locale in a list of language tags such as an
- *  Accept-Language header or the browser's own languages, else the default. */
-export function resolveLocale(acceptLanguage: string | null | undefined): Locale {
-  if (!acceptLanguage) return DEFAULT_LOCALE;
-  for (const part of acceptLanguage.split(",")) {
+/** First supported locale in a list of language tags, if there is one. */
+function supportedLocale(tags: string): Locale | null {
+  for (const part of tags.split(",")) {
     const code = part.trim().split(";")[0].split("-")[0].toLowerCase();
     if (isLocale(code)) return code;
   }
-  return DEFAULT_LOCALE;
+  return null;
+}
+
+/** First supported locale in a list of language tags such as an
+ *  Accept-Language header or the browser's own languages, else the default. */
+export function resolveLocale(acceptLanguage: string | null | undefined): Locale {
+  return (acceptLanguage && supportedLocale(acceptLanguage)) || DEFAULT_LOCALE;
 }
 
 /** The language to open in: the one chosen on this device, else the one the
- *  browser asks for. Reading storage can throw (private browsing, blocked site
- *  data, a sandboxed frame), and then it is as if nothing was chosen. */
+ *  host suggests, else the one the browser asks for. A device that keeps
+ *  nothing reads as if nothing was chosen. */
 export function initialLocale(): Locale {
-  try {
-    const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
-    if (isLocale(stored)) return stored;
-  } catch {
-    /* nothing chosen, as far as we can tell */
-  }
+  const stored = data.device.get(LOCALE_STORAGE_KEY);
+  if (isLocale(stored)) return stored;
+  // The host's word is taken as it comes: only the four languages here are kept of it.
+  const suggested = data.device.suggestedLocale && supportedLocale(data.device.suggestedLocale);
+  if (suggested) return suggested;
   try {
     const cookie = document.cookie
       .split(";")
@@ -46,7 +51,7 @@ export function initialLocale(): Locale {
     const value = cookie?.slice(LOCALE_COOKIE.length + 1);
     if (isLocale(value)) return value;
   } catch {
-    /* same as above */
+    /* a cookie that cannot be read is no choice */
   }
   return resolveLocale(navigator.languages?.join(",") || navigator.language);
 }

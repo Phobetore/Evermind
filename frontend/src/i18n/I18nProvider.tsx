@@ -1,3 +1,4 @@
+import { data } from "@/data";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { LOCALE_STORAGE_KEY, type Locale } from "./config";
 import { translate } from "./translate";
@@ -18,11 +19,8 @@ export function I18nProvider({
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
-    try {
-      localStorage.setItem(LOCALE_STORAGE_KEY, next);
-    } catch {
-      // Not kept for next time, but the page still changes language now.
-    }
+    // Where the device keeps nothing, it is not kept for next time, but the page still changes now.
+    data.device.set(LOCALE_STORAGE_KEY, next);
     document.documentElement.lang = next;
   }, []);
 

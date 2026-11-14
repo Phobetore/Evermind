@@ -69,3 +69,9 @@ export function copyText(text: string): boolean {
     active?.focus();
   }
 }
+
+/** An address as the value of a CSS `url()`. Left bare, a parenthesis or a quote in it ends the
+ *  function early and the picture silently does not show; line breaks are not allowed in a quoted string. */
+export function cssUrl(url: string): string {
+  return `url("${url.replace(/[\r\n]/g, "").replace(/[\\"]/g, "\\$&")}")`;
+}

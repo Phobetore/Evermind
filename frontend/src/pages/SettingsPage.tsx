@@ -2,6 +2,7 @@ import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
 import { LanguageSelect } from "@/components/layout/LanguageSelect";
 import { ConnectionForm } from "@/components/settings/ConnectionForm";
+import { useConfirm } from "@/components/ui/Confirm";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Tag } from "@/components/ui/Tag";
@@ -282,12 +283,19 @@ function GlobalInstructions({
 /** Signing out, for the devices that had to give the password to get in. */
 function Access() {
   const t = useT();
+  const confirm = useConfirm();
   const { signOut: leave } = useAccess();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function signOut(everywhere: boolean) {
-    if (everywhere && !confirm(t("settings.access.logoutEverywhereConfirm"))) return;
+    if (everywhere) {
+      const sure = await confirm(t("settings.access.logoutEverywhereConfirm"), {
+        action: t("settings.access.logoutEverywhere"),
+        danger: true,
+      });
+      if (!sure) return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -336,7 +344,7 @@ function About({
   asks,
   onAsksChange,
 }: {
-  updates: DataSource["updates"];
+  updates: NonNullable<DataSource["updates"]>;
   /** Whether the page asks GitHub on its own when it opens. */
   asks: boolean;
   onAsksChange: (asks: boolean) => void;
