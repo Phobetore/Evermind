@@ -1,4 +1,4 @@
-import { expect, test, type Request } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page, type Request } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
@@ -349,10 +349,9 @@ test("the panel beside the story reads the memory again once a reply written ove
   expect(read.memory_position).toBe(2);
 });
 
-// A phone's link can drop the answer to a reply asked for again once the server has written it: the
-// page then finds the turn over without ever seeing it run, and the panel beside it reads all the same.
-test("the panel beside the story reads the memory again when a reply written over is found over, its answer lost", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
-  test.skip(isMobile, "a phone's panel is closed to reach the reply, and reads on opening");
+/** A story open on a wide screen, the panel beside it showing a summary that read the newest reply:
+ *  asking for that reply again takes the memory back to `first`, the story as the pass before left it. */
+async function readToTheNewestReply(page: Page, request: APIRequestContext) {
   const convo = await makeConversation(request);
   const say = (content: string) => chat(request, { conversation_id: convo.id, mode: "send", content });
   await say("First question.");
@@ -370,6 +369,47 @@ test("the panel beside the story reads the memory again when a reply written ove
   await panel.getByRole("button", { name: panelText.facts.extractButton, exact: true }).click();
   await passed;
   await expect(summary).not.toHaveValue(first.summary);
+  const { revision } = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  return { convo, first, summary, revision: revision as number, reply: page.locator("[data-message-id]").last() };
+}
+
+/** The server takes the next request for a turn; its answer hangs until let go, and is lost then. */
+async function answerHangs(page: Page) {
+  let letGo = () => {};
+  const hanging = new Promise<void>((resolve) => (letGo = resolve));
+  await page.route("**/api/chat", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    await route.fetch();
+    await hanging;
+    await route.abort("connectionreset");
+  });
+  return letGo;
+}
+
+/** Settles once the page has read from the server that nothing is being written and the story is no
+ *  longer the one of revision `before`: the turn asked for has ended, whichever way the page learned
+ *  it. Called before the click, so that a word the page has at once is not missed. */
+function foundOver(page: Page, id: string, before: number) {
+  return page.waitForResponse(async (r) => {
+    if (r.request().method() !== "GET" || !new URL(r.url()).pathname.endsWith(`/api/conversations/${id}/turn`)) {
+      return false;
+    }
+    // A read the page gave up on brings no word.
+    const state = await r.json().catch(() => ({ running: true }));
+    return state.running === false && state.revision !== before;
+  });
+}
+
+/** Settles once the page's request for a turn has failed. Called before what makes it fail. */
+const answerLost = (page: Page) => page.waitForEvent("requestfailed", {
+  predicate: (r) => r.method() === "POST" && new URL(r.url()).pathname.endsWith("/api/chat"),
+});
+
+// A phone's link can drop the answer to a reply asked for again once the server has written it: the
+// page then finds the turn over without ever seeing it run, and the panel beside it reads all the same.
+test("the panel beside the story reads the memory again when a reply written over is found over, its answer lost", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+  test.skip(isMobile, "a phone's panel is closed to reach the reply, and reads on opening");
+  const { convo, first, summary, revision, reply } = await readToTheNewestReply(page, request);
 
   // The server takes the request and writes the reply; its answer is lost on the way back.
   await page.route("**/api/chat", async (route) => {
@@ -378,21 +418,70 @@ test("the panel beside the story reads the memory again when a reply written ove
     await expect.poll(() => turnRunning(request, convo.id), { timeout: 30_000 }).toBe(false);
     await route.abort("connectionreset");
   });
-  const lostAnswer = page.waitForEvent("requestfailed", {
-    predicate: (r) => r.method() === "POST" && new URL(r.url()).pathname.endsWith("/api/chat"),
-  });
-  const reply = page.locator("[data-message-id]").last();
+  const lostAnswer = answerLost(page);
+  // What the page asks once it hears of the failure finds the reply already written.
+  const over = foundOver(page, convo.id, revision);
   await reply.hover();
   await reply.getByTitle(en.chat.message.regenerateTitle).click();
   await lostAnswer;
-  // What the page asks next finds the reply already written.
-  const foundOver = page.waitForResponse(async (r) => r.request().method() === "GET"
-    && new URL(r.url()).pathname.endsWith(`/api/conversations/${convo.id}/turn`)
-    && (await r.json().catch(() => ({ running: true }))).running === false);
-  await foundOver;
+  await over;
   await expect(reply.getByText("2/2")).toBeVisible();
   await expect(summary, "the summary the server went back to").toHaveValue(first.summary);
   expect((await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).summary).toBe(first.summary);
+});
+
+// A link that leaves a request hanging: the page stops waiting, finds the reply written, and the
+// answer dies later still. Nothing is said to the page then; its next look is what tells the panel.
+test("the panel beside the story reads the memory again when the answer to a reply written over is lost after the page stopped waiting for it", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+  test.skip(isMobile, "a phone's panel is closed to reach the reply, and reads on opening");
+  test.setTimeout(120_000); // the page's patience alone is ten seconds
+  const { convo, first, summary, revision, reply } = await readToTheNewestReply(page, request);
+
+  const letGo = await answerHangs(page);
+  const over = foundOver(page, convo.id, revision);
+  await reply.hover();
+  await reply.getByTitle(en.chat.message.regenerateTitle).click();
+  // Its patience over, the page looks, and shows the reply already written: the request is unanswered still.
+  await over;
+  await expect(reply.getByText("2/2")).toBeVisible();
+  const lostAnswer = answerLost(page);
+  letGo();
+  await lostAnswer;
+
+  await expect(summary, "the summary the server went back to").toHaveValue(first.summary);
+  expect((await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).summary).toBe(first.summary);
+});
+
+// The same link, and a reply slow enough to be still going when the page stops waiting: the page
+// watches it to its end, which is when the panel reads, however long the request stays unanswered.
+test("the panel beside the story reads the memory again at the end of a slow reply written over, its request unanswered still", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+  test.skip(isMobile, "a phone's panel is closed to reach the reply, and reads on opening");
+  test.setTimeout(120_000); // the page's patience, then the rest of a reply at a crawl
+  const { convo, first, summary, reply } = await readToTheNewestReply(page, request);
+  // After the pass, which a slow model would crawl through too.
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "SLOWLY" } });
+
+  const letGo = await answerHangs(page);
+  // The page hears that the reply is being written, then that it no longer is.
+  let watched = false;
+  const over = page.waitForResponse(async (r) => {
+    if (r.request().method() !== "GET") return false;
+    if (!new URL(r.url()).pathname.endsWith(`/api/conversations/${convo.id}/turn`)) return false;
+    // A read the page gave up on brings no word.
+    const { running } = await r.json().catch(() => ({ running: null }));
+    if (running) watched = true;
+    return watched && running === false;
+  });
+  await reply.hover();
+  await reply.getByTitle(en.chat.message.regenerateTitle).click();
+  await over;
+
+  await expect(reply.getByText("2/2")).toBeVisible();
+  await expect(summary, "the summary the server went back to").toHaveValue(first.summary);
+  expect((await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).summary).toBe(first.summary);
+  const lostAnswer = answerLost(page);
+  letGo();
+  await lostAnswer;
 });
 
 // A read is the whole story: the one that ends the turn brings the summary a closed panel opens on.
