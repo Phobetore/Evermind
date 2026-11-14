@@ -121,7 +121,8 @@ test("a tag typed again in another case is there once", async ({ page, request }
   await page.keyboard.type(" fantasy ");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: /^Remove\s+fantasy$/i })).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Remove Fantasy" })).toHaveCount(1);
+  // exact: a name given as text otherwise matches in any case, and would pass a lost spelling.
+  await expect(page.getByRole("button", { name: "Remove Fantasy", exact: true })).toHaveCount(1);
 });
 
 test("a card that has tags keeps each of them once", async ({ page, request }) => {
