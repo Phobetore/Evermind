@@ -290,13 +290,21 @@ function withoutLeadingHeadings(text: string): string {
 }
 
 const MARKDOWN_IMAGE = /!\[[^[\]]*\]\([^()]*\)/y;
+// A banner people can click, the shape card sites most often put first.
+const LINKED_IMAGE = /\[!\[[^[\]]*\]\([^()]*\)\]\([^()]*\)/y;
 // Any tag but a heading's opening, which is a title to leave out with its text.
 const NO_HEADING_TAG = /<\/[A-Za-z][^<>]*>|<(?!h[1-6][\s>/])[A-Za-z][^<>]*>/iy;
 
-/** Where a piece that shows no text, starting at `at`, ends: a Markdown image, or a tag other than
- *  a heading's opening; `at` itself when there is none. A marker of a name shows a name, and stays. */
+/** Where a piece that shows no text, starting at `at`, ends: a Markdown image, linked or not, an
+ *  HTML comment, or a tag other than a heading's opening; `at` itself when there is none. A marker
+ *  of a name shows a name, and stays. */
 function shownNothing(text: string, at: number): number {
-  for (const piece of [MARKDOWN_IMAGE, NO_HEADING_TAG]) {
+  // A comment left open is not skipped: what follows it is all there is to read.
+  if (text.startsWith("<!--", at)) {
+    const close = text.indexOf("-->", at + 4);
+    return close < 0 ? at : close + 3;
+  }
+  for (const piece of [MARKDOWN_IMAGE, LINKED_IMAGE, NO_HEADING_TAG]) {
     piece.lastIndex = at;
     const found = piece.exec(text);
     if (found && !NAME_TAG.test(found[0])) return piece.lastIndex;
