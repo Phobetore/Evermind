@@ -256,6 +256,9 @@ describe("the fields of a card", () => {
     expect(tagline("L'été 冒険が始まる！'やあ'と彼は言った。")).toBe("L'été 冒険が始まる！");
     expect(tagline("José's 冒険が始まる！'やあ'と彼は言った。")).toBe("José's 冒険が始まる！");
     expect(tagline("Renée's '行こう！'そして去った。")).toBe("Renée's '行こう！'");
+    // Or the accent written after its letter, as a mark of its own.
+    expect(tagline("Chloé's 冒険が始まる！'やあ'と彼は言った。")).toBe("Chloé's 冒険が始まる！");
+    expect(tagline("José's '行こう！'そして去った。")).toBe("José's '行こう！'");
     expect(tagline("Version 1.5 is out? Yes")).toBe("Version 1.5 is out?");
     expect(tagline("No end to this one")).toBe("No end to this one");
     expect(tagline("")).toBe("");
