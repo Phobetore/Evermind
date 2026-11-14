@@ -220,8 +220,10 @@ export function taglineOf(notes: string): string {
     if (next === '"' || next === "'") {
       // A straight quote opens as it closes: it goes with the sentence only when one of its kind is
       // open before it, or the quote that opens the next sentence would end this one. An apostrophe
-      // within a Latin word (Tom's) opens nothing, so it is left out of the count.
-      const before = plain.slice(0, stop).replace(/([A-Za-z])'(?=[A-Za-z])/g, "$1");
+      // within a Latin word (Tom's, Chloé's, L'été) opens nothing, so it is left out of the count.
+      // The Latin script, not any letter: the quote that closes 'やあ'と sits between two kana.
+      // A plural possessive (the girls') still counts as a quote: nothing in the text tells it apart.
+      const before = plain.slice(0, stop).replace(/(\p{Script=Latin})'(?=\p{Script=Latin})/gu, "$1");
       if (before.split(next).length % 2 !== 0) break;
     } else if (next === undefined || !"」』）】》〉”’)]".includes(next)) {
       break;

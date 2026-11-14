@@ -251,6 +251,11 @@ describe("the fields of a card", () => {
     // An apostrophe within a word opens no quotation.
     expect(tagline("Tom's '行こう！'そして去った。")).toBe("Tom's '行こう！'");
     expect(tagline("Tom's 冒険が始まる！'やあ'と彼は言った。")).toBe("Tom's 冒険が始まる！");
+    // Accented Latin letters are Latin letters too.
+    expect(tagline("Chloé's 冒険が始まる！'やあ'と彼は言った。")).toBe("Chloé's 冒険が始まる！");
+    expect(tagline("L'été 冒険が始まる！'やあ'と彼は言った。")).toBe("L'été 冒険が始まる！");
+    expect(tagline("José's 冒険が始まる！'やあ'と彼は言った。")).toBe("José's 冒険が始まる！");
+    expect(tagline("Renée's '行こう！'そして去った。")).toBe("Renée's '行こう！'");
     expect(tagline("Version 1.5 is out? Yes")).toBe("Version 1.5 is out?");
     expect(tagline("No end to this one")).toBe("No end to this one");
     expect(tagline("")).toBe("");
