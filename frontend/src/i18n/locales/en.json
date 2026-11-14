@@ -49,7 +49,8 @@
       "acceptsLorebook": "An attached lorebook comes along with it.",
       "dropTitle": "Drop a card here",
       "dropHint": "or click to choose one. Several at once is fine.",
-      "sizeNote": "Up to 15 MB per file. Nothing is uploaded anywhere: the file is read by your own copy of Evermind."
+      "sizeNote": "Up to 15 MB per file. Nothing is uploaded anywhere: the file is read by your own copy of Evermind.",
+      "maybeMade": "A copy of this card may be on the home page already: look there before importing it again."
     }
   },
   "chatList": {

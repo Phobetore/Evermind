@@ -49,7 +49,8 @@
       "acceptsLorebook": "Ein angehängtes Lorebook kommt mit.",
       "dropTitle": "Karte hier ablegen",
       "dropHint": "oder klicken, um eine auszuwählen. Mehrere auf einmal geht auch.",
-      "sizeNote": "Höchstens 15 MB pro Datei. Nichts wird irgendwohin hochgeladen: die Datei liest dein eigenes Evermind."
+      "sizeNote": "Höchstens 15 MB pro Datei. Nichts wird irgendwohin hochgeladen: die Datei liest dein eigenes Evermind.",
+      "maybeMade": "Eine Kopie dieser Karte ist vielleicht schon auf der Startseite: Sieh dort nach, bevor du sie erneut importierst."
     }
   },
   "chatList": {

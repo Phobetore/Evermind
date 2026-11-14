@@ -1,4 +1,5 @@
 import { data, DataError, type CardCharacter, type StoredCard } from "@/data";
+import { isUnanswered } from "@/lib/errors";
 import type { Character } from "@/types";
 import { cardForExport } from "./export";
 import { chunks, isPng, MAX_BYTES, pngTexts, textKeyword, withCards } from "./png";
@@ -117,10 +118,27 @@ export async function readCardFile(file: File): Promise<{ read: ReadCard; portra
   return readCardBytes(new Uint8Array(await file.arrayBuffer()), file.name);
 }
 
+/** The character a creation whose answer was lost made after all: the one of this name among
+ *  those `known` did not hold. None when there is no telling, or no such one, or several. */
+async function madeMeanwhile(name: string, known: ReadonlySet<string>): Promise<Character | null> {
+  const fresh = await data.characters.list()
+    .then((list) => list.filter((c) => !known.has(c.id) && c.name === name), () => []);
+  return fresh.length === 1 ? fresh[0] : null;
+}
+
 /** The card, then its portrait; one whose portrait does not go is taken away, so a retry makes one.
- *  The card's text goes with it, and what was read from it, for its export and a later reading. */
-export async function installCard(read: ReadCard, portrait: File | null): Promise<Character> {
-  const made = await data.characters.create({ ...read.character, card: { ...read.original, read: read.character } });
+ *  The card's text goes with it, and what was read from it, for its export and a later reading.
+ *  `known`, the characters there were before: when the answer to the creation is lost on a slow
+ *  road, the character it made is found among the others rather than made a second time. */
+export async function installCard(read: ReadCard, portrait: File | null, known?: ReadonlySet<string>): Promise<Character> {
+  let made: Character;
+  try {
+    made = await data.characters.create({ ...read.character, card: { ...read.original, read: read.character } });
+  } catch (error) {
+    const found = isUnanswered(error) && known ? await madeMeanwhile(read.character.name, known) : null;
+    if (!found) throw error;
+    made = found;
+  }
   if (!portrait) return made;
   try {
     return await data.characters.uploadAvatar(made.id, portrait);
@@ -130,9 +148,9 @@ export async function installCard(read: ReadCard, portrait: File | null): Promis
   }
 }
 
-export async function importCard(file: File): Promise<{ character: Character; read: ReadCard }> {
+export async function importCard(file: File, known?: ReadonlySet<string>): Promise<{ character: Character; read: ReadCard }> {
   const { read, portrait } = await readCardFile(file);
-  return { character: await installCard(read, portrait), read };
+  return { character: await installCard(read, portrait, known), read };
 }
 
 /** The portrait as a PNG: its own bytes when it is one, its size and every chunk kept; else drawn

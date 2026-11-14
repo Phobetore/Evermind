@@ -1,7 +1,8 @@
 import { Modal } from "@/components/ui/Modal";
 import { useT } from "@/i18n/useT";
 import { importCard, type ReadCard } from "@/lib/cards";
-import { describeError } from "@/lib/errors";
+import { data } from "@/data";
+import { describeError, isUnanswered } from "@/lib/errors";
 import type { Character } from "@/types";
 import { Check, FileUp, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
@@ -34,15 +35,21 @@ export function ImportModal({
     setBusy(true);
     setResults([]);
     const done: Result[] = [];
+    // The characters there are, once for the batch: a creation whose answer is lost on a slow road
+    // is found among the new ones rather than made twice. Without them, an import still goes.
+    const known = await data.characters.list().then((list) => new Set(list.map((c) => c.id)), () => undefined);
     // One at a time: a failure part way through should not cost the ones that already worked.
     for (const file of files) {
       try {
-        const { character, read } = await importCard(file);
+        const { character, read } = await importCard(file, known);
+        known?.add(character.id);
         done.push({ name: file.name, character, read });
       } catch (e) {
+        const said = describeError(e, t, t("home.importError"));
         done.push({
           name: file.name,
-          error: describeError(e, t, t("home.importError")),
+          // The card may have gone in all the same: dropping the file again would make a second.
+          error: isUnanswered(e) ? `${said} ${t("home.importModal.maybeMade")}` : said,
         });
       }
       setResults([...done]);

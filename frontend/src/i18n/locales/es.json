@@ -49,7 +49,8 @@
       "acceptsLorebook": "Un lorebook adjunto viene con ella.",
       "dropTitle": "Suelta una ficha aquí",
       "dropHint": "o haz clic para elegir una. Varias a la vez también vale.",
-      "sizeNote": "Hasta 15 MB por archivo. Nada se sube a ningún sitio: el archivo lo lee tu propio Evermind."
+      "sizeNote": "Hasta 15 MB por archivo. Nada se sube a ningún sitio: el archivo lo lee tu propio Evermind.",
+      "maybeMade": "Puede que ya haya una copia de esta ficha en la página de inicio: mira allí antes de volver a importarla."
     }
   },
   "chatList": {

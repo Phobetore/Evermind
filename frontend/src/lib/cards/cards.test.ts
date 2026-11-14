@@ -4,9 +4,11 @@ import { describe, expect, test, vi } from "vitest";
 import { data, DataError, type CardCharacter } from "@/data";
 import { newLoreEntry } from "../loreEntry";
 import { cardForExport } from "./export";
-import { cardFile, cardToCharacter, readCardFile } from "./index";
+import { cardFile, cardToCharacter, installCard, readCardFile } from "./index";
 import { withCards } from "./png";
+import { readCardJson } from "./read";
 import { oldReading } from "./reread";
+import type { Character } from "@/types";
 
 const PNG = Uint8Array.from(
   atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="),
@@ -235,5 +237,42 @@ describe("a card file", () => {
     expect((await readCardFile(withText(PNG, ["chara", "not base64!"], ["ccv3", card("V3")]))).read.character.name).toBe("V3");
     expect((await readCardFile(withText(PNG, ["ccv3", "not base64!"], ["chara", card("V2")]))).read.character.name).toBe("V2");
     expect(await kindOf(withText(PNG, ["chara", base64("Vane")]))).toBe("png_without_card");
+  });
+});
+
+describe("an import whose answer is lost", () => {
+  const read = readCardJson({ spec: "chara_card_v2", spec_version: "2.0", data: { name: "Vane" } }, "{}", "json")!;
+  const lost = () => new DataError("Offline.", { kind: "network" });
+  const character = (id: string, name: string, avatar_url: string | null = null) => ({ id, name, avatar_url }) as Character;
+
+  test("finds the character the server made, and gives it its portrait", async () => {
+    const server = [character("old", "Vane")];
+    vi.spyOn(data.characters, "create").mockImplementation(async () => {
+      server.push(character("new", "Vane"));
+      throw lost();
+    });
+    vi.spyOn(data.characters, "list").mockImplementation(async () => server);
+    const upload = vi.spyOn(data.characters, "uploadAvatar").mockImplementation(async (id) => character(id, "Vane", "api/media/v.png"));
+    const portrait = new File([PNG], "vane.png", { type: "image/png" });
+    try {
+      const made = await installCard(read, portrait, new Set(["old"]));
+      expect(made.id).toBe("new");
+      expect(upload).toHaveBeenCalledWith("new", portrait);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  test("still fails when the server made none, or when it cannot be known", async () => {
+    vi.spyOn(data.characters, "create").mockRejectedValue(lost());
+    const list = vi.spyOn(data.characters, "list").mockResolvedValue([character("old", "Vane")]);
+    try {
+      await expect(installCard(read, null, new Set(["old"]))).rejects.toMatchObject({ kind: "network" });
+      list.mockRejectedValue(lost());
+      await expect(installCard(read, null, new Set(["old"]))).rejects.toMatchObject({ kind: "network" });
+      await expect(installCard(read, null)).rejects.toMatchObject({ kind: "network" });
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 });

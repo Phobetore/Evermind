@@ -49,7 +49,8 @@
       "acceptsLorebook": "Un lorebook attaché à la fiche vient avec.",
       "dropTitle": "Déposez une fiche ici",
       "dropHint": "ou cliquez pour en choisir une. Plusieurs à la fois, c'est possible.",
-      "sizeNote": "15 Mo maximum par fichier. Rien n'est envoyé nulle part\u00a0: le fichier est lu par votre propre Evermind."
+      "sizeNote": "15 Mo maximum par fichier. Rien n'est envoyé nulle part\u00a0: le fichier est lu par votre propre Evermind.",
+      "maybeMade": "Une copie de cette carte est peut-être déjà sur l'accueil\u00a0: regardez-y avant de l'importer à nouveau."
     }
   },
   "chatList": {

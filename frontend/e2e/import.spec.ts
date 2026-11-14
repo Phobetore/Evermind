@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { crc32, deflateRawSync, constants } from "node:zlib";
 import { API } from "../playwright.config";
-import { makeCharacter, PNG } from "./fixtures";
+import { cardPortrait, makeCharacter, PNG } from "./fixtures";
 
 test("Import explains itself before asking for a file", async ({ page, request }) => {
   await makeCharacter(request);
@@ -204,6 +204,38 @@ test("the kind and the tagline asked after an import are saved, and only when as
     await expect(card).toContainText(tagline);
   } finally {
     // Removed even when the test fails, so that a retry starts from the same data.
+    for (const made of await madeSince(request, before)) await request.delete(`${API}/api/characters/${made.id}`);
+  }
+});
+
+// Over a slow road the server may make the character and its answer never come back.
+test("an import whose answer is lost finds what it made rather than make it twice", async ({ page, request }) => {
+  const name = "Lost answer";
+  const before = new Set((await listed(request)).map((c) => c.id));
+  try {
+    let lost = false;
+    await page.route("**/api/characters", async (route) => {
+      if (lost || route.request().method() !== "POST") return route.continue();
+      lost = true;
+      await route.fetch();
+      await route.abort("connectionfailed");
+    });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.getByTitle(/^import a card/i).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.locator('input[type="file"]').setInputFiles({
+      name: "lost.png", mimeType: "image/png",
+      buffer: cardPortrait({ spec: "chara_card_v2", spec_version: "2.0", data: { name, description: "Gone and back." } }),
+    });
+    await expect(dialog.getByRole("group", { name })).toBeVisible();
+    expect(lost).toBe(true);
+    const made = await madeSince(request, before);
+    expect(made.map((c) => c.name)).toEqual([name]);
+    // Its portrait went too, the upload sent once the character was found.
+    expect(((await (await request.get(`${API}/api/characters/${made[0].id}`)).json()) as { avatar_url: string | null }).avatar_url)
+      .toBeTruthy();
+  } finally {
     for (const made of await madeSince(request, before)) await request.delete(`${API}/api/characters/${made.id}`);
   }
 });
