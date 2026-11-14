@@ -4,6 +4,7 @@ import { data, DataError, type CardCharacter } from "@/data";
 import type { LibraryItem } from "@/types";
 import { newLoreEntry } from "../loreEntry";
 import { cardForExport } from "./export";
+import { likeness } from "./pairing";
 import { FIELDS, isStorable, readCardJson } from "./read";
 import { findOriginal, oldReading, rereadOffer, rereadPlan, type FoundCard } from "./reread";
 
@@ -110,9 +111,10 @@ function saved(character: CardCharacter, plan: ReturnType<typeof rereadPlan>) {
   return { character: after, looked: { ...looked(after), has_card: Boolean(plan.card) } };
 }
 
-// Every case of pairing found so far, with the pairing a person expects; each is a test below.
-// Four rules, in three reviews, each fixed the case it was given and broke another: the rule now
-// in reread.ts was chosen against all of them at once, and against the harness of random cards.
+// Every case of pairing found so far, with the pairing a person expects. Cases 1 to 27 are tests
+// below; the two shapes after them stay, and the plan says so. Five rules, in five reviews, each
+// fixed the case it was given and broke another: the rule now in pairing.ts was chosen against all
+// of them at once, and against harnesses of random cards (see the comment on its numbers).
 //
 //  #  case (where it came from)                                          paired with
 //  1  keys rewritten, text the same (plan)                                its own
@@ -127,28 +129,50 @@ function saved(character: CardCharacter, plan: ReturnType<typeof rereadPlan>) {
 // 10  kept with the card, then re-read; then one deleted, one written     its own, by its origin
 // 11  A deleted, B "She hums at night." -> "She hums at dawn." (review 2) B
 // 12  the same text under other keys (review 2)                          the most keys in common
-// 13  B retouched at both ends: "Mirela hums at dawn.", "Mirela hums at
-//     night", "Mirela hums at night." -> "She hums at dusk.", in Japanese,
-//     beside a long A (review 3)                                          B
+// 13  B retouched at both ends: "Mirela hums at dawn." (0.388 alike),
+//     "Mirela hums at night", "Mirela hums at night." -> "She hums at
+//     dusk.", in Japanese, beside a long A (review 3)                    B
 // 14  B grown by a sentence after or before, in English, French and
 //     Japanese, or a long B cut to its first sentence (review 4)          B
 // 15  a long B cut to "She hums at night." beside a deleted "She sings
-//     at night." (review 4)                                               none: in doubt (0.59 to 0.585)
+//     at night." (review 4)                                               none: in doubt, 0.590 and
+//                                                                         0.585 alike, 0.005 apart
 // 16  an entry written here under the keys of a deleted one (ruling)      none
 // 17  two entries written from one (ruling)                               none: in doubt
 // 18  one in doubt between two, the other clearly one of them (ruling)    each its own, in any order
 // 19  "boat A ship." -> "Changed A anew." (harness of review 2)           none: no run of four left
 // 20  keys retouched until keys and text equal another entry of before
-//     exactly (harness of review 2)                                       that other entry: an exact
-//                                                                         match is never in doubt, and
-//                                                                         nothing tells the two apart
+//     exactly, that one deleted (harness of review 2)                     that other entry: an exact
+//                                                                         match is never in doubt
+// 21  B's text untouched, given the keys of a deleted A whose text is
+//     like it (1.000 alike to B, 0.723 to A) (review 5)                   none: one by its keys,
+//                                                                         another by its very text
+// 22  "Yes." rewritten "yes" beside "Grey eyes.", whose keys became
+//     ["eyes"] (review 5)                                                 "yes" none; "Grey eyes." its own
+// 23  "a", "old", "...", "17", "猫が", "eyes" written here under the keys
+//     of a deleted entry that holds them (review 5)                      none: a single run in common
+//                                                                         is chance
+// 24  "Red." rewritten "Red" (review 5)                                  its own (0.667)
+// 25  written here under the keys of a deleted one, in English (0.375)
+//     and French (0.367, 0.375) (review 5)                                none: under the floor, 0.38
+// 26  B retouched, beside a deleted A 0.174 behind it, or 0.214 (review 5) none at 0.174; B at 0.214
+// 27  written here, 0.445 alike by runs of three, 0.348 by runs of four
+//     (review 5)                                                          none
+//  -  a few words of an entry of before written here under its keys
+//     ("She is" beside "She is the keeper of…")                          that entry: for all its text
+//                                                                         says, it was cut down
+//  -  lines on one frame that differ by a number, one written here
+//     under the keys of a deleted one                                     that one: as alike as a
+//                                                                         number retouched
 //
 // The rule: an entry that names its origin goes with it; then the same keys (as a set) and the same
 // text, never in doubt; then, among the entries of before that share the keys or the text and are
-// at least LEAST alike (runs of four neighbouring characters in common, half over both texts and
-// half over the shorter), the most keys in common, then the most alike, taken only when each is the
-// other's best by MARGIN over every rival with as many keys in common, again and again as pairs
-// settled take rivals away. Anything else is left as it is, with no origin.
+// at least 0.38 alike, the most keys in common, then the most alike. Likeness is the share of the
+// runs of four neighbouring characters the two texts have in common, half over both texts and half
+// over the shorter, or over both only when the shorter is a single run (four characters or fewer).
+// The best is taken when no rival with as many keys in common is within 0.2 of it, no rival has
+// the entry's very text when the best has not, and it is the other's best by the same rule; again
+// and again as pairs settled take rivals away. Anything else is left as it is, with no origin.
 describe("re-reading a card", () => {
   test("a retouched field is left as it is and said so", () => {
     const plan = rereadPlan({ ...madeBefore(MIRELA), description: "Mine now." }, found(MIRELA), "reread");
@@ -518,6 +542,165 @@ describe("re-reading a card", () => {
         "The lamp burns at night.": 1, "The lamp burns seal oil and smokes in the fog.": 2,
       });
     }
+  });
+
+  /** The book an export writes, from the character with the plan in it. */
+  const bookAfter = (current: CardCharacter, plan: ReturnType<typeof rereadPlan>) => {
+    const read = { ...plan.card!.read, lore_entries: plan.card!.read.lore_entries.filter(isStorable) };
+    const exported = cardForExport({ ...current, ...plan.fields, lore_entries: plan.lore }, { ...plan.card!, read, read_at: "" }, new Date("2026-11-14T00:00:00Z"));
+    return (exported.v2.data.character_book as { entries: Record<string, unknown>[] }).entries;
+  };
+  /** The origins a plan gives, in both modes: the re-read, and the export of a card not re-read. */
+  const origins = (current: CardCharacter, card: unknown) =>
+    (["reread", "keep"] as const).map((mode) => rereadPlan(current, found(card), mode).lore.map((entry) => entry.origin));
+
+  test("an entry whose text is untouched, given the keys of a deleted one like it, is in doubt and left as it is", () => {
+    const card = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["lighthouse"], content: "The Saltmarsh lighthouse is sixty feet tall and burns whale oil.", constant: true, extensions: { a: 1 } },
+        { keys: ["tower"], content: "The Saltmarsh lighthouse is sixty feet tall and leans toward the sea.", extensions: { position: 4, depth: 0, b: 1 } },
+      ] },
+    });
+    const current = madeBefore(card);
+    current.lore_entries = [{ ...current.lore_entries[1], keys: ["lighthouse"] }];
+    // One entry of before by its keys, another by its very text: either may be it.
+    expect(likeness(current.lore_entries[0].content, oldReading(card)!.lore_entries[0].content)).toBeCloseTo(0.723, 3);
+    for (const mode of ["reread", "keep"] as const) {
+      const plan = rereadPlan(current, found(card), mode);
+      expect(plan.lore, mode).toEqual([{ ...current.lore_entries[0], origin: null }]);
+      const book = bookAfter(current, plan);
+      expect(book, mode).toHaveLength(1);
+      expect(book[0], mode).toMatchObject({ content: "The Saltmarsh lighthouse is sixty feet tall and leans toward the sea." });
+      expect(book[0].constant ?? false, mode).toBe(false);
+      expect(book[0].extensions ?? {}, mode).not.toHaveProperty("a");
+    }
+  });
+
+  test("a short entry retouched does not take the settings of the one whose text it now holds", () => {
+    const card = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["Brask"], content: "Yes.", extensions: { y: 1 } },
+        { keys: ["Brask"], content: "Grey eyes.", constant: true, extensions: { g: 1 } },
+      ] },
+    });
+    const current = madeBefore(card);
+    current.lore_entries = [{ ...current.lore_entries[0], content: "yes" }, { ...current.lore_entries[1], keys: ["eyes"] }];
+    expect(origins(current, card)).toEqual([[null, 1], [null, 1]]);
+    expect(rereadPlan(current, found(card), "reread").lore[1]).toMatchObject({ keys: ["eyes"], constant: true });
+  });
+
+  test("an entry of a few characters written here is not taken for a deleted one that holds them", () => {
+    for (const [deleted, written] of [
+      ["She waits and watches the tide.", "a"], ["She is old and tired, and keeps the lamp.", "old"],
+      ["She waits... and watches the tide.", "..."], ["Tomas drowned in 1917 off the Needle.", "17"],
+      ["彼女は猫が好きだ。", "猫が"], ["Grey eyes.", "eyes"],
+    ]) {
+      const card = v2({
+        name: "Mirela", description: "A lighthouse keeper.",
+        character_book: { entries: [
+          { keys: ["Mirela"], content: deleted, constant: true, extensions: { a: 1 } },
+          { keys: ["boat"], content: "The boat is red." },
+        ] },
+      });
+      const current = madeBefore(card);
+      current.lore_entries = [current.lore_entries[1], newLoreEntry(["Mirela"], written)];
+      expect(origins(current, card), written).toEqual([[1, null], [1, null]]);
+      const book = bookAfter(current, rereadPlan(current, found(card), "keep"));
+      expect(book.find((entry) => entry.content === written), written).toMatchObject({ constant: false });
+      expect(book.find((entry) => entry.content === written)!.extensions ?? {}, written).not.toHaveProperty("a");
+    }
+    // A short entry retouched keeps its own: its few characters are most of what both texts hold.
+    const red = v2({ name: "Mirela", description: "A lighthouse keeper.", character_book: { entries: [{ keys: ["boat"], content: "Red.", extensions: { position: 4 } }] } });
+    const current = madeBefore(red);
+    current.lore_entries = [{ ...current.lore_entries[0], content: "Red" }];
+    expect(likeness("Red", "Red.")).toBeCloseTo(0.667, 3);
+    expect(origins(current, red)).toEqual([[0], [0]]);
+  });
+
+  test("an entry written here, under the floor of likeness, is not taken for the deleted one", () => {
+    const keys = ["council", "company"];
+    const card = v2({
+      name: "Kaede", description: "A sellsword captain.",
+      character_book: { entries: [
+        { keys, content: "Old Marrow runs the infirmary and charges nothing for burns. The winter contract pays double if the pass is held until the thaw. The northern campaign ended at Garrow Ford, where the company lost half its number in one morning.", constant: true, extensions: { a: 1 } },
+        { keys, content: "A foreign envoy has rented the whole top floor of the Gilded Carp and receives no visitors." },
+      ] },
+    });
+    const written = "Nobody in the company says the word Garrow inside the tannery. Old Marrow lost two fingers to frostbite on the northern campaign.";
+    const current = madeBefore(card);
+    current.lore_entries = [current.lore_entries[1], newLoreEntry(keys, written)];
+    expect(likeness(written, oldReading(card)!.lore_entries[0].content)).toBeCloseTo(0.375, 3);
+    expect(origins(current, card)).toEqual([[1, null], [1, null]]);
+    // In French, an entry deleted, or one whose text its owner moved into the entry written here.
+    for (const [key, before, now, alike] of [
+      ["conseil", "Le capitaine du guet s'appelle Teodric Vane et il a jadis appartenu à la Compagnie des Cendres.",
+        "Le portier s'appelle Wick, et il a dit son nom à la moitié de la ville. La Compagnie des Cendres partage sa solde en parts égales, avec deux parts pour les blessés. Une lettre scellée du conseil est arrivée la semaine dernière et Kaede ne l'a pas ouverte.", 0.367],
+      ["guet", "Le capitaine du guet prélève sa part sur chaque tripot à l'est du marché aux poissons.",
+        "Le capitaine du guet s'appelle Teodric Vane et il a jadis appartenu à la Compagnie des Cendres. Le marché aux poissons vend plus de secrets que de poissons une fois la nuit tombée.", 0.375],
+    ] as const) {
+      const french = v2({ name: "Kaede", description: "A sellsword captain.", character_book: { entries: [{ keys: [key], content: before, constant: true }] } });
+      const mine = madeBefore(french);
+      mine.lore_entries = [newLoreEntry([key], now)];
+      expect(likeness(now, before), key).toBeCloseTo(alike, 3);
+      expect(origins(mine, french), key).toEqual([[null], [null]]);
+    }
+  });
+
+  test("an entry retouched is taken for its own only 0.2 ahead of a rival with as many keys in common", () => {
+    const card = (rival: string) => v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["lamp"], content: `The lamp burns ${rival} until dawn, and smokes in the fog.`, constant: true },
+        { keys: ["lamp"], content: "The lamp burns whale oil until dawn, and smokes in the fog.", extensions: { position: 4 } },
+      ] },
+    });
+    const retouched = "The lamp burns whale oil and smokes at night.";
+    const own = likeness(retouched, "The lamp burns whale oil until dawn, and smokes in the fog.");
+    for (const [rival, gap, origin] of [["fish oil", 0.174, null], ["tallow", 0.214, 1]] as const) {
+      const current = madeBefore(card(rival));
+      current.lore_entries = [{ ...current.lore_entries[1], content: retouched }];
+      expect(own - likeness(retouched, `The lamp burns ${rival} until dawn, and smokes in the fog.`), rival).toBeCloseTo(gap, 3);
+      expect(origins(current, card(rival)), rival).toEqual([[origin], [origin]]);
+    }
+  });
+
+  test("an entry written here that shares only runs of fewer than four characters is not taken", () => {
+    const card = v2({
+      name: "Kaede", description: "A sellsword captain.",
+      character_book: { entries: [
+        { keys: ["company"], content: "The northern campaign ended at Garrow Ford, where the company lost half its number in one morning.", constant: true },
+      ] },
+    });
+    const current = madeBefore(card);
+    current.lore_entries = [newLoreEntry(["company"], "Vane left the company the night before Garrow Ford.")];
+    // By runs of three they would be 0.445 alike, over the floor.
+    expect(likeness(current.lore_entries[0].content, oldReading(card)!.lore_entries[0].content)).toBeCloseTo(0.348, 3);
+    expect(origins(current, card)).toEqual([[null], [null]]);
+  });
+
+  test("an entry rewritten with nothing left of its text is left as it is", () => {
+    const card = v2({ name: "Mirela", description: "A lighthouse keeper.", character_book: { entries: [{ keys: ["boat"], content: "boat A ship.", constant: true }] } });
+    const current = madeBefore(card);
+    current.lore_entries = [{ ...current.lore_entries[0], content: "Changed A anew." }];
+    expect(likeness("Changed A anew.", "boat A ship.")).toBe(0);
+    expect(origins(current, card)).toEqual([[null], [null]]);
+  });
+
+  test("an entry whose keys became those of a deleted one with the same text is taken for it", () => {
+    const card = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["lamp"], content: "Same.", constant: true },
+        { keys: ["oil"], content: "Same.", extensions: { position: 4 } },
+      ] },
+    });
+    const current = madeBefore(card);
+    // The second deleted, the first given its keys: nothing tells the two apart, and an exact
+    // match of keys and text is never in doubt.
+    current.lore_entries = [{ ...current.lore_entries[0], keys: ["oil"] }];
+    expect(origins(current, card)).toEqual([[1], [1]]);
   });
 
   test("re-reading a book of 300 entries under one key, half retouched, takes a moment", () => {
