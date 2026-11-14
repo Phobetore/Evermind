@@ -18,6 +18,15 @@ const answerLost = async (route: Route) => {
   await route.abort("connectionreset");
 };
 
+/** A promise and what settles it: for a route to say its answer is lost. What the page says of a
+ *  lost answer can only come from there, and how long the server takes first is the machine's, so
+ *  a test waits for this before it looks. */
+function signal() {
+  let done = () => {};
+  const given = new Promise<void>((resolve) => (done = resolve));
+  return { given, done };
+}
+
 /** The next request like this one waits until let go, as on a Wi-Fi that is slow to come back. */
 async function held(page: Page, url: string, method: string) {
   let letGo = () => {};
@@ -176,9 +185,14 @@ test("Branch whose answer was lost, tried again, makes one branch", async ({ pag
   await page.goto(`/#/chat/${convo.id}`);
   await expect(reply).toBeVisible();
 
-  await page.route("**/api/messages/*/branch", answerLost, { times: 1 });
+  const lost = signal();
+  await page.route("**/api/messages/*/branch", async (route) => {
+    await answerLost(route);
+    lost.done();
+  }, { times: 1 });
   await reply.getByTitle("Branch the story from here").click();
   await answer(page, true);
+  await lost.given;
   await expect(page.getByRole("alert")).toContainText("Evermind is not answering");
   await reply.getByTitle("Branch the story from here").click();
   await answer(page, true);
@@ -195,9 +209,14 @@ test("Enter the story whose answer was lost, tried again, makes one conversation
   const enter = dialog.getByRole("button", { name: "Enter the story" });
   await expect(enter).toBeEnabled();
 
-  await page.route("**/api/conversations", (route) =>
-    route.request().method() === "POST" ? answerLost(route) : route.fallback(), { times: 1 });
+  const lost = signal();
+  await page.route("**/api/conversations", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    await answerLost(route);
+    lost.done();
+  }, { times: 1 });
   await enter.click();
+  await lost.given;
   await expect(dialog).toContainText("Evermind is not answering");
   await enter.click();
 
@@ -233,15 +252,13 @@ async function expectWhatThePassWrote(panel: Locator, request: APIRequestContext
 
 test("Remember whose answer was lost ends with what the pass wrote, and says nothing once Evermind answers", async ({ page, request }) => {
   const { convo, panel } = await withThePanel(page, request);
-  let lost = () => {};
-  const passDone = new Promise<void>((resolve) => (lost = resolve));
-
+  const lost = signal();
   await page.route("**/memories/extract", async (route) => {
     await answerLost(route);
-    lost();
+    lost.done();
   }, { times: 1 });
   await panel.getByRole("button", { name: "Remember" }).click();
-  await passDone;
+  await lost.given;
 
   await expectWhatThePassWrote(panel, request, convo.id);
 });
@@ -249,12 +266,15 @@ test("Remember whose answer was lost ends with what the pass wrote, and says not
 test("Remember on a phone that went offline ends, once it is back, with what the pass wrote", async ({ page, request }) => {
   const { convo, panel } = await withThePanel(page, request);
 
+  const lost = signal();
   await page.route("**/memories/extract", async (route) => {
     await route.fetch();
     await page.context().setOffline(true);
     await route.abort("internetdisconnected");
+    lost.done();
   }, { times: 1 });
   await panel.getByRole("button", { name: "Remember" }).click();
+  await lost.given;
   await expect(panel).toContainText("This device is offline.");
   await page.context().setOffline(false);
 
