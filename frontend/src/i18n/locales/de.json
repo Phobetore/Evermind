@@ -413,7 +413,7 @@
     },
     "reread": {
       "title": "Diese Karte wurde erstellt, bevor Evermind Karten vollständig aufbewahrt hat.",
-      "added": "Wird hinzugefügt:",
+      "added": "Wird hinzugefügt oder aktualisiert:",
       "untouched": "Bleibt, wie du es gelassen hast:",
       "changes": "Was sich in ihren Unterhaltungen ändert:",
       "change": {

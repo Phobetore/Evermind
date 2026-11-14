@@ -62,7 +62,7 @@ test("nothing changes until the person asks", async ({ page, request }) => {
   await page.getByRole("link", { name: "Can be re-read with the new rules" }).click();
   await expect(page.getByText(BANNER)).toBeVisible();
   // What a re-reading would bring is said before anything is done.
-  await expect(page.getByText("Will be added:")).toBeVisible();
+  await expect(page.getByText("Will be added or brought up to date:")).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page).toHaveURL(new RegExp(`#/characters/${id}$`));
 

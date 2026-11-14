@@ -413,7 +413,7 @@
     },
     "reread": {
       "title": "Esta ficha se creó antes de que Evermind guardara las tarjetas enteras.",
-      "added": "Se añadirá:",
+      "added": "Se añadirá o se pondrá al día:",
       "untouched": "Quedará como lo dejaste:",
       "changes": "Lo que cambiará en sus conversaciones:",
       "change": {

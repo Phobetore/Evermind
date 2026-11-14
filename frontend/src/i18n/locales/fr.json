@@ -413,7 +413,7 @@
     },
     "reread": {
       "title": "Cette fiche a été faite avant qu'Evermind garde les cartes entières.",
-      "added": "Sera ajouté\u00a0:",
+      "added": "Sera ajouté ou mis à jour :",
       "untouched": "Restera comme vous l'avez laissé\u00a0:",
       "changes": "Ce qui changera dans ses conversations\u00a0:",
       "change": {
