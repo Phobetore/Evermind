@@ -67,7 +67,7 @@ test("an address written without its first slash is remembered as the router rea
   await expect(page).toHaveURL(`${GATED}/#/`);
 });
 
-test("a wrong password is refused and stays on the login",async ({ page }) => {
+test("a wrong password is refused and stays on the login", async ({ page }) => {
   await page.goto("/#/login");
   await enter(page, "not-the-password");
 
