@@ -111,8 +111,23 @@ test("a model that only thinks is said so", async ({ page, request }) => {
   await expect(nameField(page)).toHaveValue("");
 });
 
+test("a tag typed again in another case is there once", async ({ page, request }) => {
+  await makeCharacter(request);
+  await page.goto("/#/characters/new");
+  const box = page.getByPlaceholder("Add a tag, then Enter");
+  await box.fill("Fantasy");
+  await box.press("Enter");
+  // The placeholder goes once there is a tag; the box keeps the focus, as for a person typing on.
+  await page.keyboard.type(" fantasy ");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: /^Remove\s+fantasy$/i })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove Fantasy" })).toHaveCount(1);
+});
+
 test("a card that has tags keeps each of them once", async ({ page, request }) => {
-  // The stand-in model writes "fantasy" and "mystery": the card's own spelling of the same tags.
+  // Passes on the code before the fix too: the card's own tags replace the model's whole list, so
+  // this path never doubled. It pins that it stays so. The stand-in model writes "fantasy" and
+  // "mystery": the card's own spelling of the same tags.
   const card = await makeCharacter(request, { tags: ["Fantasy", " Mystery "] });
   await page.goto(`/#/characters/${card.id}/edit`);
   await brief(page).fill("A seller of maps");

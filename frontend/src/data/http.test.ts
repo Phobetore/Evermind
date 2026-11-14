@@ -131,7 +131,10 @@ describe("what comes back", () => {
       json({ detail: [], kind: "text_too_long", params: { limit: 200, length: 201, odd: { a: 1 } } }, 422),
       json({ error: "No.", kind: "brief_too_long", params: "nonsense" }, 422),
     );
-    expect(await failureOf()).toMatchObject({ kind: "text_too_long", params: { limit: 200, length: 201 } });
+    const failure = await failureOf();
+    expect(failure.kind).toBe("text_too_long");
+    // Whole, not a partial match: what is not a number must be gone, not merely beside them.
+    expect(failure.params).toEqual({ limit: 200, length: 201 });
     expect((await failureOf()).params).toBeUndefined();
   });
 

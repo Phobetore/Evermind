@@ -404,6 +404,8 @@ async def test_a_tag_the_model_writes_twice_comes_once(client, fake_provider):
 
 
 async def test_tags_the_card_has_are_its_own_and_come_once(client, fake_provider):
+    # Passes on the code before the fix too: the reported path does not double here, since the
+    # creator's own tags replace the model's whole list. It pins that the card keeps its spelling.
     await add_connection(client)
     await answers(fake_provider, {"name": "Nyra", "tags": ["fantasy", "mystery", "noir"]})
     state = await assist(client, existing={"tags": ["Fantasy", " Mystery "]})
