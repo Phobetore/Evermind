@@ -556,6 +556,9 @@ test("images written into the text do not count toward the bound", () => {
 
 test("past their own bound, images written into the text are not laid out", () => {
   const text = "data:image/png;base64," + pngHeader(1, 1) + "A".repeat(INLINE_IMAGES_BOUND + 1);
+  // Once on a text of the same shape, a megabyte long, first: the budget is the measure's, not the
+  // time the engine takes to compile its expressions the first time they meet megabytes.
+  renderPresentation("data:image/png;base64," + pngHeader(1, 1) + "A".repeat(1_048_576));
   const [rendered, elapsed] = timed(() => renderPresentation(text));
   expect(rendered).toEqual({ kind: "plain", reason: "tooLong" });
   expect(elapsed).toBeLessThan(100);

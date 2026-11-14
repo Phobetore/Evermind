@@ -1,10 +1,25 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
+// The files whose tests hold the layout to a time budget. Run beside the other files, they shared
+// the processor with them, and a budget of 100 ms was passed now and then by the load of the
+// others, not by the code they time: they run after all the rest, one file at a time.
+const TIMED = [
+  "src/lib/presentation/renderPresentation.test.ts",
+  "src/lib/presentation/notes.test.ts",
+  "src/components/chat/RpText.test.ts",
+];
+
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    projects: [
+      { extends: true, test: { name: "unit", include: ["src/**/*.test.ts"], exclude: TIMED, sequence: { groupOrder: 0 } } },
+      {
+        extends: true,
+        test: { name: "timed", include: TIMED, fileParallelism: false, sequence: { groupOrder: 1 } },
+      },
+    ],
   },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
