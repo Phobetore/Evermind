@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { answer, conversationWithReply, makeConversation } from "./fixtures";
+import { answer, boxHears, chat, conversation, conversationWithReply, makeConversation } from "./fixtures";
 
 /** What cannot be taken back is asked about in a box of our own: the browser's `confirm()` is not
  *  there to answer in a frame that forbids modals. */
@@ -53,7 +53,7 @@ test("confirming deletes it, once", async ({ page, request }) => {
   page.on("request", (r) => r.method() === "DELETE" && deletes.push(r.url()));
 
   await remove.click();
-  await expect(box(page)).toBeVisible();
+  await boxHears(page);
   // Two clicks in one task on the button that confirms, before the box can close: the second must
   // not send a second request. (A real second tap would land on the row underneath.)
   await box(page).getByRole("button", { name: "Delete", exact: true }).evaluate((b: HTMLElement) => { b.click(); b.click(); });
@@ -139,4 +139,157 @@ test("Delete from here and Branch stay enabled while asked, and a No gives the f
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
     await expect(opener).toBeFocused();
   }
+});
+
+/** The box opens under the pointer, and on some screens its button that confirms comes up where the
+ *  button that opened it was: the second press of a double tap or a double click falls on it before
+ *  anyone has read the question. */
+
+type Rect = { x: number; y: number; width: number; height: number };
+type Press = { inBox: boolean; on: string };
+
+/** Each click the page hears from here on: the button it fell on, and whether that one is in the box. */
+async function clicksHeard(page: Page): Promise<() => Promise<Press[]>> {
+  await page.evaluate(() => {
+    const heard: { inBox: boolean; on: string }[] = [];
+    Object.assign(window, { clicksHeard: heard });
+    document.addEventListener("click", (event) => {
+      const button = (event.target as Element).closest("button");
+      heard.push({
+        inBox: !!button?.closest('[role="alertdialog"]'),
+        on: button?.title || button?.getAttribute("aria-label") || button?.textContent || "",
+      });
+    }, true);
+  });
+  return () => page.evaluate(() => (window as unknown as { clicksHeard: Press[] }).clicksHeard);
+}
+
+/** Stops the page's clock: however long this machine takes between two presses, the second comes
+ *  as soon after the box opened as a hand's would. */
+async function stopTheClock(page: Page) {
+  await page.clock.install();
+  await page.clock.pauseAt(Date.now() + 60_000);
+}
+
+/** The box is drawn where it stays, not rising to it: where its button was measured is where a
+ *  press finds it, however soon after it opened. */
+const boxStaysPut = (page: Page) => page.emulateMedia({ reducedMotion: "reduce" });
+
+/** A point on both the button that opens the box and, once it is open, the one that confirms. */
+function onBoth(opener: Rect, confirms: Rect) {
+  const left = Math.max(opener.x, confirms.x);
+  const right = Math.min(opener.x + opener.width, confirms.x + confirms.width);
+  const top = Math.max(opener.y, confirms.y);
+  const bottom = Math.min(opener.y + opener.height, confirms.y + confirms.height);
+  expect(Math.min(right - left, bottom - top), "the button that opens the box is not under the one that confirms")
+    .toBeGreaterThan(4);
+  return { x: (left + right) / 2, y: (top + bottom) / 2 };
+}
+
+test("the second tap of a double tap on a row's Delete lands on the button that confirms, and deletes nothing", async ({ page, request }) => {
+  // Rows enough for one of them to be scrolled to where the box's button comes up.
+  const stamp = Date.now();
+  const ids: string[] = [];
+  for (let n = 0; n < 10; n++) {
+    const convo = await makeConversation(request);
+    await request.patch(`${API}/api/conversations/${convo.id}`, { data: { title: `Asked ${stamp} ${n}` } });
+    ids.push(convo.id);
+  }
+  await boxStaysPut(page);
+  await page.goto("/#/chat");
+  const rows = page.locator('main a[href*="/chat/"]').filter({ hasText: `Asked ${stamp}` });
+  await expect(rows).toHaveCount(ids.length);
+
+  // Where the button that confirms comes up: the same for each of these rows, titled alike.
+  await rows.first().getByRole("button", { name: "Delete" }).click();
+  const confirms = (await box(page).getByRole("button", { name: "Delete", exact: true }).boundingBox())!;
+  await answer(page, false);
+  const height = confirms.y + confirms.height / 2;
+
+  // The first row lying lower is scrolled up to there.
+  const lower = await rows.evaluateAll((all, y) => all.findIndex((row) => {
+    const remove = row.querySelector('button[aria-label="Delete"]')!.getBoundingClientRect();
+    return remove.top + remove.height / 2 >= y;
+  }), height);
+  expect(lower, "no row lies as low as the button that confirms").toBeGreaterThanOrEqual(0);
+  const id = (await rows.nth(lower).getAttribute("href"))!.split("/").pop()!;
+  const row = page.locator(`main a[href$="/chat/${id}"]`);
+  const remove = row.getByRole("button", { name: "Delete" });
+  const before = (await remove.boundingBox())!;
+  await page.locator("main").evaluate((main, by) => { main.scrollTop += by; }, before.y + before.height / 2 - height);
+  const point = onBoth((await remove.boundingBox())!, confirms);
+
+  const deletes: string[] = [];
+  page.on("request", (r) => r.method() === "DELETE" && deletes.push(r.url()));
+  const clicks = await clicksHeard(page);
+  await stopTheClock(page);
+  await page.touchscreen.tap(point.x, point.y);
+  await expect(box(page)).toBeVisible();
+  await page.touchscreen.tap(point.x, point.y);
+  await expect.poll(clicks).toEqual([{ inBox: false, on: "Delete" }, { inBox: true, on: "Delete" }]);
+  await expect(box(page), "a yes to a question nobody had the time to read").toBeVisible();
+  expect(deletes).toHaveLength(0);
+
+  // Once there has been time to read it, the same button is heard.
+  await page.clock.fastForward(1000);
+  await page.touchscreen.tap(point.x, point.y);
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(row).toHaveCount(0);
+  expect(deletes.filter((url) => url.endsWith(`/api/conversations/${id}`))).toHaveLength(1);
+  for (const other of ids.filter((seeded) => seeded !== id)) await request.delete(`${API}/api/conversations/${other}`);
+});
+
+test("the second click of a double click on Delete from here lands on the button that confirms, and cuts nothing", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
+  test.skip(isMobile, "a phone has no double click: its double tap is the test before this one");
+  // A width at which the box's button comes up over the buttons of a message.
+  await page.setViewportSize({ width: 1024, height: 768 });
+  const convo = await conversationWithReply(request);
+  // A story longer than the screen, for a message to be scrolled to where the box's button comes up.
+  for (const content of ["And then?", "Go on.", "What else?"]) {
+    await chat(request, { conversation_id: convo.id, mode: "send", content });
+  }
+  const story = (await conversation(request, convo.id)).messages as { id: string }[];
+  await boxStaysPut(page);
+  await page.goto(`/#/chat/${convo.id}`);
+  const messages = page.locator("[data-message-id]");
+  await expect(messages).toHaveCount(story.length);
+
+  await messages.last().hover();
+  await messages.last().getByTitle("Delete from here").click();
+  const confirms = (await page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).boundingBox())!;
+  await answer(page, false);
+
+  // The first message whose own button can be brought to that height is scrolled there.
+  const placed = await page.evaluate((y) => {
+    const buttons = [...document.querySelectorAll<HTMLElement>('[data-message-id] button[title="Delete from here"]')];
+    let scroller = buttons[0].parentElement!;
+    while (scroller.scrollHeight <= scroller.clientHeight || getComputedStyle(scroller).overflowY === "visible") {
+      scroller = scroller.parentElement!;
+    }
+    for (const button of buttons) {
+      const at = button.getBoundingClientRect();
+      const to = scroller.scrollTop + at.top + at.height / 2 - y;
+      if (to >= 0 && to <= scroller.scrollHeight - scroller.clientHeight) {
+        scroller.scrollTop = to;
+        return button.closest("[data-message-id]")!.getAttribute("data-message-id");
+      }
+    }
+    return null;
+  }, confirms.y + confirms.height / 2);
+  expect(placed, "no message can be scrolled to where the button that confirms comes up").not.toBeNull();
+  const opener = page.locator(`[data-message-id="${placed}"]`).getByTitle("Delete from here");
+  const point = onBoth((await opener.boundingBox())!, confirms);
+
+  const deletes: string[] = [];
+  page.on("request", (r) => r.method() === "DELETE" && deletes.push(r.url()));
+  const clicks = await clicksHeard(page);
+  await stopTheClock(page);
+  await page.mouse.dblclick(point.x, point.y);
+  await expect.poll(clicks).toEqual([{ inBox: false, on: "Delete from here" }, { inBox: true, on: "Delete" }]);
+  await expect(page.getByRole("alertdialog"), "a yes to a question nobody had the time to read").toBeVisible();
+  expect(deletes).toHaveLength(0);
+
+  await answer(page, false);
+  await expect(messages).toHaveCount(story.length);
+  expect((await conversation(request, convo.id)).messages).toHaveLength(story.length);
 });

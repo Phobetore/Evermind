@@ -158,11 +158,21 @@ export const PNG = Buffer.from(
   "base64",
 );
 
+/** Settles once the confirmation box a click has just opened hears its button that confirms. The
+ *  box is deaf to it for half a second (DEAF_MS in Confirm.tsx), when the second press of a double
+ *  tap would land there; counted from when the box is seen, which is after it opened, so a slow
+ *  machine only makes this longer. */
+export async function boxHears(page: Page): Promise<void> {
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await page.waitForTimeout(600);
+}
+
 /** Answers the confirmation box a click has just opened: the button that confirms (the last one) or
  *  Cancel, and waits for the box to close. */
 export async function answer(page: Page, accept: boolean): Promise<void> {
   const box = page.getByRole("alertdialog");
   const buttons = box.getByRole("button");
+  if (accept) await boxHears(page);
   // The cross is a button too, ahead of the two answers; the answer that confirms comes last.
   await (accept ? buttons.last() : box.getByRole("button", { name: "Cancel" })).click();
   await expect(box).toHaveCount(0);

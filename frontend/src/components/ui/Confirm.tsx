@@ -8,6 +8,11 @@ type Options = { action: string; danger?: boolean };
 type Ask = (question: string, options: Options) => Promise<boolean>;
 type Asked = AskedOf<Options>;
 
+/** How long the button that confirms hears nothing once the box is up. The box opens under the
+ *  pointer, and on some screens that button comes up where the one that opened it was: the second
+ *  press of a double tap or a double click would be a yes to a question nobody has read. */
+const DEAF_MS = 500;
+
 const ConfirmContext = createContext<{ ask: Ask; drop: () => void } | null>(null);
 
 /** Our own box in place of the browser's `confirm()`: a page in a sandboxed frame is not allowed
@@ -53,9 +58,11 @@ export function DropQuestionOnLeave() {
 function ConfirmBox({ question, action, danger, settle }: Asked) {
   const t = useT();
   const cancel = useRef<HTMLButtonElement>(null);
+  const opened = useRef(0);
   // After the layout effect of Modal, which opens the box and would otherwise take the focus
   // for the first thing in it: Enter on opening must never be a yes.
   useLayoutEffect(() => {
+    opened.current = performance.now();
     cancel.current?.focus();
   }, []);
 
@@ -65,7 +72,11 @@ function ConfirmBox({ question, action, danger, settle }: Asked) {
         <button ref={cancel} className="btn btn-ghost" onClick={() => settle(false)}>
           {t("common.cancel")}
         </button>
-        <button className={`btn ${danger ? "btn-danger" : "btn-primary"}`} onClick={() => settle(true)}>
+        <button
+          className={`btn ${danger ? "btn-danger" : "btn-primary"}`}
+          // Only the yes waits: Cancel, Escape, the cross and a click outside are heard at once.
+          onClick={() => performance.now() - opened.current >= DEAF_MS && settle(true)}
+        >
           {action}
         </button>
       </div>
