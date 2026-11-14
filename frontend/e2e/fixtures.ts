@@ -159,11 +159,12 @@ export const PNG = Buffer.from(
 );
 
 /** Settles once the confirmation box a click has just opened hears its button that confirms. The
- *  box is deaf to it for half a second (DEAF_MS in Confirm.tsx), when the second press of a double
- *  tap would land there; counted from when the box is seen, which is after it opened, so a slow
- *  machine only makes this longer. */
+ *  box is deaf to it for half a second from the frame that draws it (DEAF_MS in Confirm.tsx), when
+ *  the second press of a double tap would land there. The wait begins once a frame has passed since
+ *  the box was in the page, so that one has drawn it: a slow machine only makes this longer. */
 export async function boxHears(page: Page): Promise<void> {
   await expect(page.getByRole("alertdialog")).toBeVisible();
+  await page.evaluate(() => new Promise((framed) => requestAnimationFrame(() => requestAnimationFrame(framed))));
   await page.waitForTimeout(600);
 }
 

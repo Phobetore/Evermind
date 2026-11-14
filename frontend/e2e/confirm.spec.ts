@@ -164,11 +164,21 @@ async function clicksHeard(page: Page): Promise<() => Promise<Press[]>> {
   return () => page.evaluate(() => (window as unknown as { clicksHeard: Press[] }).clicksHeard);
 }
 
-/** Stops the page's clock: however long this machine takes between two presses, the second comes
- *  as soon after the box opened as a hand's would. */
-async function stopTheClock(page: Page) {
-  await page.clock.install();
-  await page.clock.pauseAt(Date.now() + 60_000);
+/** Presses as a finger or a mouse does, each sent the moment it is asked for, whatever the page is
+ *  doing: the browser stamps a press with when it came, as it does a hand's, and the page reads that
+ *  stamp, however late it gets round to the press. Each call settles once the page has had it. */
+async function presses(page: Page) {
+  const cdp = await page.context().newCDPSession(page);
+  return {
+    tap: (at: { x: number; y: number }) => Promise.all([
+      cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [at] }),
+      cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }),
+    ]),
+    click: (at: { x: number; y: number }, clickCount: number) => Promise.all([
+      cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", ...at, button: "left", clickCount }),
+      cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", ...at, button: "left", clickCount }),
+    ]),
+  };
 }
 
 /** The box is drawn where it stays, not rising to it: where its button was measured is where a
@@ -186,7 +196,9 @@ function onBoth(opener: Rect, confirms: Rect) {
   return { x: (left + right) / 2, y: (top + bottom) / 2 };
 }
 
-test("the second tap of a double tap on a row's Delete lands on the button that confirms, and deletes nothing", async ({ page, request }) => {
+/** Conversations listed, and one of them scrolled to where its Delete lies under the button that
+ *  confirms once the box is open. */
+async function rowUnderTheYes(page: Page, request: APIRequestContext) {
   // Rows enough for one of them to be scrolled to where the box's button comes up.
   const stamp = Date.now();
   const ids: string[] = [];
@@ -221,22 +233,59 @@ test("the second tap of a double tap on a row's Delete lands on the button that 
 
   const deletes: string[] = [];
   page.on("request", (r) => r.method() === "DELETE" && deletes.push(r.url()));
+  return {
+    id, row, point, deletes,
+    /** Once there has been time to read it, the same button is heard. */
+    async heardOnceRead(tap: (at: { x: number; y: number }) => Promise<unknown>) {
+      await boxHears(page);
+      await tap(point);
+      await expect(page.getByRole("alertdialog")).toHaveCount(0);
+      await expect(row).toHaveCount(0);
+      expect(deletes.filter((url) => url.endsWith(`/api/conversations/${id}`))).toHaveLength(1);
+      for (const other of ids.filter((seeded) => seeded !== id)) await request.delete(`${API}/api/conversations/${other}`);
+    },
+  };
+}
+
+test("the second tap of a double tap on a row's Delete lands on the button that confirms, and deletes nothing", async ({ page, request }) => {
+  const { point, deletes, heardOnceRead } = await rowUnderTheYes(page, request);
   const clicks = await clicksHeard(page);
-  await stopTheClock(page);
-  await page.touchscreen.tap(point.x, point.y);
-  await expect(box(page)).toBeVisible();
-  await page.touchscreen.tap(point.x, point.y);
+  const press = await presses(page);
+  // Back to back, neither waiting for the page: however slow this machine, the two are as close
+  // as a hand's.
+  await Promise.all([press.tap(point), press.tap(point)]);
   await expect.poll(clicks).toEqual([{ inBox: false, on: "Delete" }, { inBox: true, on: "Delete" }]);
   await expect(box(page), "a yes to a question nobody had the time to read").toBeVisible();
   expect(deletes).toHaveLength(0);
 
-  // Once there has been time to read it, the same button is heard.
-  await page.clock.fastForward(1000);
-  await page.touchscreen.tap(point.x, point.y);
-  await expect(page.getByRole("alertdialog")).toHaveCount(0);
-  await expect(row).toHaveCount(0);
-  expect(deletes.filter((url) => url.endsWith(`/api/conversations/${id}`))).toHaveLength(1);
-  for (const other of ids.filter((seeded) => seeded !== id)) await request.delete(`${API}/api/conversations/${other}`);
+  await heardOnceRead(press.tap);
+});
+
+test("a tap made before a busy page has drawn the box is no yes, however late the page hears it", async ({ page, request }) => {
+  const { point, deletes, heardOnceRead } = await rowUnderTheYes(page, request);
+  // The page is held up for longer than the box stays deaf, as it opens: as a slow phone with a
+  // long list is, where the box comes up a second after the press that opened it.
+  await page.evaluate(() => {
+    const watching = new MutationObserver(() => {
+      if (!document.querySelector('[role="alertdialog"]')) return;
+      watching.disconnect();
+      const until = performance.now() + 1000;
+      while (performance.now() < until) { /* busy */ }
+    });
+    watching.observe(document.body, { childList: true, subtree: true });
+  });
+  const clicks = await clicksHeard(page);
+  const press = await presses(page);
+  // The second press comes while the page is still busy, from someone who taps again because
+  // nothing happened; neither waits for the page.
+  const first = press.tap(point);
+  await new Promise((later) => setTimeout(later, 300));
+  await Promise.all([first, press.tap(point)]);
+  await expect.poll(clicks).toEqual([{ inBox: false, on: "Delete" }, { inBox: true, on: "Delete" }]);
+  await expect(box(page), "a yes to a question nobody could see").toBeVisible();
+  expect(deletes).toHaveLength(0);
+
+  await heardOnceRead(press.tap);
 });
 
 test("the second click of a double click on Delete from here lands on the button that confirms, and cuts nothing", { tag: "@desktop" }, async ({ page, request, isMobile }) => {
@@ -283,8 +332,10 @@ test("the second click of a double click on Delete from here lands on the button
   const deletes: string[] = [];
   page.on("request", (r) => r.method() === "DELETE" && deletes.push(r.url()));
   const clicks = await clicksHeard(page);
-  await stopTheClock(page);
-  await page.mouse.dblclick(point.x, point.y);
+  const press = await presses(page);
+  await page.mouse.move(point.x, point.y);
+  // Both clicks of the double click sent back to back, neither waiting for the page.
+  await Promise.all([press.click(point, 1), press.click(point, 2)]);
   await expect.poll(clicks).toEqual([{ inBox: false, on: "Delete from here" }, { inBox: true, on: "Delete" }]);
   await expect(page.getByRole("alertdialog"), "a yes to a question nobody had the time to read").toBeVisible();
   expect(deletes).toHaveLength(0);

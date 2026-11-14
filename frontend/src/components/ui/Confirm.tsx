@@ -8,7 +8,7 @@ type Options = { action: string; danger?: boolean };
 type Ask = (question: string, options: Options) => Promise<boolean>;
 type Asked = AskedOf<Options>;
 
-/** How long the button that confirms hears nothing once the box is up. The box opens under the
+/** How long the button that confirms hears nothing once the box is drawn. The box opens under the
  *  pointer, and on some screens that button comes up where the one that opened it was: the second
  *  press of a double tap or a double click would be a yes to a question nobody has read. */
 const DEAF_MS = 500;
@@ -58,12 +58,18 @@ export function DropQuestionOnLeave() {
 function ConfirmBox({ question, action, danger, settle }: Asked) {
   const t = useT();
   const cancel = useRef<HTMLButtonElement>(null);
-  const opened = useRef(0);
+  // When the box was first drawn, on the clock of an event's own timeStamp; never, until it is.
+  const drawn = useRef(Infinity);
   // After the layout effect of Modal, which opens the box and would otherwise take the focus
   // for the first thing in it: Enter on opening must never be a yes.
   useLayoutEffect(() => {
-    opened.current = performance.now();
     cancel.current?.focus();
+    // Counted from the frame that draws the box, not from its mount: a page busy as the box comes
+    // up draws it late, and a press made before anyone could see it must not be a yes.
+    const frame = requestAnimationFrame(() => {
+      drawn.current = performance.now();
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   return (
@@ -76,8 +82,10 @@ function ConfirmBox({ question, action, danger, settle }: Asked) {
         </button>
         <button
           className={`btn min-w-0 whitespace-normal break-words ${danger ? "btn-danger" : "btn-primary"}`}
-          // Only the yes waits: Cancel, Escape, the cross and a click outside are heard at once.
-          onClick={() => performance.now() - opened.current >= DEAF_MS && settle(true)}
+          // Only the yes waits: Cancel, Escape, the cross and a click outside are heard at once. The
+          // press's own time, not the time it is handled: on a busy page a press made inside the
+          // half second is handled after it.
+          onClick={(event) => event.timeStamp - drawn.current >= DEAF_MS && settle(true)}
         >
           {action}
         </button>
