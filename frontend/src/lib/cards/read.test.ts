@@ -236,6 +236,13 @@ describe("the fields of a card", () => {
     expect(tagline("「おかえりなさい！」あなたを待つ門番。")).toBe("「おかえりなさい！」");
     expect(tagline("她说：“门不会开。”然后离开了。")).toBe("她说：“门不会开。”");
     expect(tagline("すごい！！本当に？")).toBe("すごい！！");
+    // A straight quote goes with the sentence only when it closes one: here it opens the next.
+    expect(tagline('她笑了。"你好。"她说。')).toBe("她笑了。");
+    expect(tagline("港は静かだ。'ようこそ。'と彼女。")).toBe("港は静かだ。");
+    expect(tagline('她说："门不会开。"然后离开了。')).toBe('她说："门不会开。"');
+    expect(tagline("'行こう！'そして去った。")).toBe("'行こう！'");
+    expect(tagline("(笑！)次の文。")).toBe("(笑！)");
+    expect(tagline("[注意！]次の文。")).toBe("[注意！]");
     expect(tagline("Version 1.5 is out? Yes")).toBe("Version 1.5 is out?");
     expect(tagline("No end to this one")).toBe("No end to this one");
     expect(tagline("")).toBe("");

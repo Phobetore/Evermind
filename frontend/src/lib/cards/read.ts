@@ -211,8 +211,15 @@ export function taglineOf(notes: string): string {
   plain = plain.replace(/\s+/g, " ").trim();
   // A full-width mark ends the sentence whatever follows: Japanese and Chinese put no space after it.
   // The marks after it and the quotes it closes go with it, or the tagline would end inside a quotation.
-  const end = /[.!?…](?=\s|$)|[。！？]+[」』）】》〉”’"']*/.exec(plain);
-  return end ? plain.slice(0, end.index + end[0].length) : plain;
+  const end = /[.!?…](?=\s|$)|[。！？]+[」』）】》〉”’)\]]*/.exec(plain);
+  if (!end) return plain;
+  let stop = end.index + end[0].length;
+  // A straight quote opens as it closes: it goes with the sentence only when one of its kind is open
+  // before it, or the quote that opens the next sentence would end this one.
+  for (const quote of ['"', "'"]) {
+    if (plain[stop] === quote && plain.slice(0, stop).split(quote).length % 2 === 0) stop++;
+  }
+  return plain.slice(0, stop);
 }
 
 /** A parsed card and the text it was parsed from; null for what is no card. */
