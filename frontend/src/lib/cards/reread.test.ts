@@ -162,9 +162,13 @@ function saved(character: CardCharacter, plan: ReturnType<typeof rereadPlan>) {
 //  -  a few words of an entry of before written here under its keys
 //     ("She is" beside "She is the keeper of…")                          that entry: for all its text
 //                                                                         says, it was cut down
-//  -  lines on one frame that differ by a number, one written here
-//     under the keys of a deleted one                                     that one: as alike as a
-//                                                                         number retouched
+//  -  written here under the keys of a deleted one: a line on its frame
+//     that differs by a number, or a short text that differs by one word
+//     or one letter ("Red crab." beside "Oil crab.", 0.500; "Coat."
+//     beside "Boat.") (review 6)                                          that one: as alike as a
+//                                                                         number, a word or a letter
+//                                                                         retouched ("Grey eyes." to
+//                                                                         "Blue eyes.")
 //
 // The rule: an entry that names its origin goes with it; then the same keys (as a set) and the same
 // text, never in doubt; then, among the entries of before that share the keys or the text and are

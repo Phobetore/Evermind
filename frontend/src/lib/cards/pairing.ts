@@ -18,9 +18,12 @@ import type { LoreEntryInput } from "@/data";
 //   two written apart, on these corpora only.
 // - Of the gaps tried between the best and a rival with as many keys in common, 0.15 left one
 //   entry with another's settings, 0.2 none; 0.25 leaves 10,344 entries unpaired against 9,035.
-// Two shapes stay that no number tells apart, as their texts do not: lines on one frame that
-// differ by a number ("Guard: level 3…"), and a few words of an entry of before written here as an
-// entry of their own under its keys, which is that entry cut down for all its text says.
+// Two shapes stay that no number tells apart, as their texts do not. An entry written here under
+// the keys of a deleted one that differs from it as a retouch would: a line on the same frame but
+// for a number ("Guard: level 3…"), or a short text but for one word or one letter ("Red crab."
+// beside "Oil crab.", 0.500, as alike as "Grey eyes." retouched into "Blue eyes.", 0.429). And a
+// few words of an entry of before written here as an entry of their own under its keys, which is
+// that entry cut down for all its text says.
 const LEAST = 0.38;
 const MARGIN = 0.2;
 
