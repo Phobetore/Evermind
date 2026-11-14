@@ -46,14 +46,21 @@ const ADAPTERS: Record<string, Adapter> = {
   ),
 
   build_chat_payload: via(["buildChatPayload"], (i) => engine.buildChatPayload(i)),
-  match_lore: via(["matchLore"], (i) => engine.matchLore(i.entries, i.messages)),
+  match_lore: via(["matchLore"], (i) =>
+    engine.matchLore(i.entries, i.messages, i.rules, i.budget, i.char_name, i.user_name),
+  ),
+  key_matches: via(["keyMatches"], (i) => engine.keyMatches(i.key, i.text, i.whole_words)),
+  strip_decorators: via(["stripDecorators"], (i) => engine.stripDecorators(i.content)),
   select_facts: via(["selectFacts"], (i) => engine.selectFacts(i.memories, i.token_budget, i.relevance_scores)),
   active_content: via(["activeContent"], (i) => engine.activeContent(i.message)),
   is_out_of_character: via(["isOutOfCharacter"], (i) => engine.isOutOfCharacter(i.message)),
+  split_examples: via(["splitExamples"], (i) => engine.splitExamples(i.text)),
+  speaking_name: via(["speakingName"], (i) => engine.speakingName(i.character)),
 
   substitute: via(["substitute"], (i) => engine.substitute(i.text, i.char_name, i.user_name)),
   substitute_original: via(["substituteOriginal"], (i) => engine.substituteOriginal(i.text, i.original)),
   has_original_macro: via(["hasOriginalMacro"], (i) => engine.hasOriginalMacro(i.text)),
+  expand_macros: via(["expandMacros"], (i) => engine.expandMacros(i.text, i.char_name, i.user_name, i.seed)),
   estimate_tokens: via(["estimateTokens"], (i) => engine.estimateTokens(i.text)),
   strip_thought: via(["stripThought"], (i) => engine.stripThought(i.text)),
   trim_reply: via(["trimReply"], (i) => engine.trimReply(i.text, i.char_name, i.user_name)),

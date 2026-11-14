@@ -9,7 +9,7 @@ import { request, send } from "./request";
 import type {
   Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConnectionInput,
   ConnectionTestResult, ConsolidateResult, ConversationInput, ConversationPatch, ExtractResult,
-  LoreEntryInput, PersonaInput, TurnRequest,
+  LoreEntryInput, OriginalCard, PersonaInput, StoredCard, TurnRequest,
 } from "../types";
 
 export { onLocked } from "./request";
@@ -39,12 +39,13 @@ export const data: DataSource = {
     list: () => get<Character[]>("api/characters"),
     get: (id: string) => get<CharacterWithLore>(`api/characters/${seg(id)}`),
     /** `lore_entries` is the whole lorebook: an entry with no keyword or no text is left out. */
-    create: (input: CharacterInput & { lore_entries?: LoreEntryInput[] }) =>
+    create: (input: CharacterInput & { lore_entries?: LoreEntryInput[]; card?: OriginalCard }) =>
       post<Character>("api/characters", input),
     update: (
       id: string,
-      input: Partial<CharacterInput> & { is_favorite?: boolean; lore_entries?: LoreEntryInput[] },
+      input: Partial<CharacterInput> & { is_favorite?: boolean; lore_entries?: LoreEntryInput[]; card?: OriginalCard },
     ) => put<Character>(`api/characters/${seg(id)}`, input),
+    card: (id: string) => get<StoredCard | null>(`api/characters/${seg(id)}/card`),
     remove: (id: string) => del(`api/characters/${seg(id)}`),
     uploadAvatar: (id: string, file: File) => upload<Character>(`api/characters/${seg(id)}/avatar`, file),
     /** The card is written by a job the server owns, which outlives the page: `start` answers at

@@ -26,6 +26,7 @@ from ..prompting.engine import (
     active_content,
     build_chat_payload,
     is_out_of_character,
+    speaking_name,
     trim_reply,
 )
 from ..prompting.payloads import build_impersonate_payload
@@ -99,7 +100,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     """Writes one reply, and says how it ended if it failed or added nothing. A request it cannot
     run raises before anything is saved."""
     convo, character, persona, connection, settings = await _resolve(db, request.conversation_id)
-    char_name = character.get("name") or "Character"
+    char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     messages = await convo_repo.list_messages(db, convo["id"])
 
@@ -326,7 +327,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Ghost-write the player's next message. Returns {"text": ...}."""
     convo, character, persona, connection, _ = await _resolve(db, convo_id)
-    char_name = character.get("name") or "Character"
+    char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     messages = await convo_repo.list_messages(db, convo_id)
     if not messages:

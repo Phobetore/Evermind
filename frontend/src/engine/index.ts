@@ -7,9 +7,12 @@ export {
   selectFacts,
   activeContent,
   isOutOfCharacter,
+  speakingName,
+  splitExamples,
   stripThought,
   trimReply,
 } from "./chat";
+export { keyMatches, stripDecorators } from "./lorebook";
 export {
   buildImpersonatePayload,
   buildExtractionPayload,
@@ -28,7 +31,7 @@ export {
 } from "./memoryChanges";
 export { parseLlmJson, partialJson } from "./llmJson";
 export { cleanCardDraft, withRoomForACard } from "./cardDraft";
-export { substitute, substituteOriginal, hasOriginalMacro } from "./macros";
+export { substitute, substituteOriginal, hasOriginalMacro, expandMacros } from "./macros";
 export { estimateTokens } from "./tokens";
 export * from "./defaults";
 export { CONTINUE_INSTRUCTION, autoTitle } from "./chat";

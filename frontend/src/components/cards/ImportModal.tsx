@@ -1,13 +1,19 @@
 import { Modal } from "@/components/ui/Modal";
 import { useT } from "@/i18n/useT";
-import { importCard } from "@/lib/cards";
-import { describeError } from "@/lib/errors";
+import { importCard, type ReadCard } from "@/lib/cards";
+import { data } from "@/data";
+import { describeError, isUnanswered } from "@/lib/errors";
+import type { Character } from "@/types";
 import { Check, FileUp, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { ImportReport } from "./ImportReport";
 
 interface Result {
   name: string;
   error?: string;
+  /** What a file that went in made, and what was read of it. */
+  character?: Character;
+  read?: ReadCard;
 }
 
 /** Says what Evermind takes before asking for a file, which comes by drop or by click. */
@@ -29,15 +35,21 @@ export function ImportModal({
     setBusy(true);
     setResults([]);
     const done: Result[] = [];
+    // The characters there are, once for the batch: a creation whose answer is lost on a slow road
+    // is found among the new ones rather than made twice. Without them, an import still goes.
+    const known = await data.characters.list().then((list) => new Set(list.map((c) => c.id)), () => undefined);
     // One at a time: a failure part way through should not cost the ones that already worked.
     for (const file of files) {
       try {
-        await importCard(file);
-        done.push({ name: file.name });
+        const { character, read } = await importCard(file, known);
+        known?.add(character.id);
+        done.push({ name: file.name, character, read });
       } catch (e) {
+        const said = describeError(e, t, t("home.importError"));
         done.push({
           name: file.name,
-          error: describeError(e, t, t("home.importError")),
+          // The card may have gone in all the same: dropping the file again would make a second.
+          error: isUnanswered(e) ? `${said} ${t("home.importModal.maybeMade")}` : said,
         });
       }
       setResults([...done]);
@@ -103,17 +115,34 @@ export function ImportModal({
 
       {results.length > 0 && (
         <ul className="mt-4 flex flex-col gap-2">
-          {results.map((r) => (
-            <li key={r.name} className="flex items-start gap-2 text-sm">
+          {results.map((r, index) => (
+            <li key={`${index}:${r.name}`} className="flex items-start gap-2 text-sm">
               {r.error ? (
                 <X className="mt-0.5 h-4 w-4 shrink-0 text-blood" />
               ) : (
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-moss" />
               )}
-              <span className="min-w-0">
+              <div className="min-w-0">
                 <span className="break-all text-parchment-dim">{r.name}</span>
                 {r.error && <span className="block text-blood">{r.error}</span>}
-              </span>
+                {r.character && r.read && (
+                  <ImportReport
+                    character={r.character}
+                    read={r.read}
+                    // Found by the character, not by the row's place: a batch dropped while a save is
+                    // in flight must not receive the answer of the old one. The home list is
+                    // refreshed too, so a kind or tagline saved here shows behind the window.
+                    onSaved={(saved) => {
+                      setResults((all) =>
+                        all.map((other) =>
+                          other.character?.id === saved.id ? { ...other, character: saved } : other,
+                        ),
+                      );
+                      onImported();
+                    }}
+                  />
+                )}
+              </div>
             </li>
           ))}
         </ul>

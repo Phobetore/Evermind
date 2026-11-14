@@ -48,6 +48,14 @@ async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)
     return {**character, "lore_entries": await lore_repo.list_for_character(db, char_id)}
 
 
+@router.get("/{char_id}/card")
+async def get_card(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    """The card file the character was read from, apart from it for its weight; null when made here."""
+    if not await repo.get(db, char_id):
+        raise NotFoundError("Character not found.", "character")
+    return await repo.get_card(db, char_id)
+
+
 @router.put("/{char_id}")
 async def update_character(char_id: str, payload: CharacterUpdate,
                            db: aiosqlite.Connection = Depends(get_db)):

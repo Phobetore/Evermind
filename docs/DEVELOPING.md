@@ -316,6 +316,25 @@ Some things cannot be the same between Python and JavaScript:
   integer;
 - an object key that reads as an integer, which JavaScript lists first.
 
+## Cards kept whole
+
+A character imported from a card keeps the card. `character_cards` holds the
+file as it came (`text`, in `format` `png` or `json`), what the reader made of it
+(`read`, as stored), and the PNG's second card when it held a different one
+(`other_text`). It is a table of its own so that the list of characters stays
+light, and `GET /api/characters/{id}/card` is the only way to it. An entry made
+from the card carries its index there in `lore_entries.origin`. The export
+(`frontend/src/lib/cards/export.ts`) writes over the kept card only what differs
+from `read`, column by column and setting by setting. So a change to the rules of
+reading never passes for an edit, and whatever Evermind does not read stays as
+its author wrote it. `characters.card_rules` is 1 for a character made before
+this, whose prompt stays what it was (the engine checks it with
+`on_card_rules`), and 2 for the rules community cards are written for. A
+character made before has no kept card: `reread.ts` finds it again in the
+portrait, and `pairing.ts` says which entry of the card each entry now is, only
+when the two still share their keys or their text and nothing puts the pairing
+in doubt.
+
 ## Optional semantic memory
 
 Installing the `semantic` extra swaps recency-based recall for meaning-based

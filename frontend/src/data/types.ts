@@ -10,7 +10,7 @@ export interface Asking {
  *  the server assigns. */
 export type CharacterInput = Omit<
   Character,
-  "id" | "avatar_url" | "is_favorite" | "created_at" | "updated_at"
+  "id" | "avatar_url" | "is_favorite" | "created_at" | "updated_at" | "has_card"
 >;
 
 /** What a person asks for with "write this card for me", together with
@@ -62,6 +62,26 @@ export interface AssistState {
 }
 
 export type LoreEntryInput = Omit<LoreEntry, "id">;
+
+/** A character and its whole lorebook, as a card gives them (moved here from lib/cards, which re-exports it). */
+export type CardCharacter = CharacterInput & { lore_entries: LoreEntryInput[] };
+
+/** A card's file text; other_text is the PNG's second card chunk when it reads differently. */
+export interface CardText {
+  text: string;
+  format: "png" | "json";
+  other_text: string | null;
+}
+
+/** What is sent to keep a card: its text, and what the reader made of it. */
+export interface OriginalCard extends CardText {
+  read: CardCharacter;
+}
+
+/** What the server kept: `read` as it stored it, entries it does not keep left out. */
+export interface StoredCard extends OriginalCard {
+  read_at: string;
+}
 
 export interface PersonaInput {
   name: string;

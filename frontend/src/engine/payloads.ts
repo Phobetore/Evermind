@@ -8,6 +8,7 @@ import {
   activeContent,
   buildChatPayload,
   isOutOfCharacter,
+  speakingName,
   type ChatInput,
   type PromptCharacter,
   type PromptMessage,
@@ -53,9 +54,11 @@ export type ImpersonateInput = Pick<
 export function buildImpersonatePayload(input: ImpersonateInput): PlainPayload {
   // Only these five: a fact given along would take room from the turns in the chat payload.
   const { character, persona, conversation, messages, connection } = input;
-  const charName = character.name || "Character";
+  const charName = speakingName(character);
   const userName = persona?.name || "User";
-  const base = buildChatPayload({ character, persona, conversation, messages, connection });
+  // Without what the card says to the character among the turns: the player's pen reads no
+  // reminder meant for the character.
+  const base = buildChatPayload({ character, persona, conversation, messages, connection, insertions: false });
 
   const contextBits: string[] = [];
   if (persona?.description) contextBits.push(`ABOUT ${userName}: ${persona.description}`);
@@ -94,7 +97,7 @@ export function buildExtractionPayload<M extends ExtractionMessage>(
   input: ExtractionInput<M>,
 ): { payload: PlainPayload; turns: M[] } | null {
   const { character, persona, conversation, messages, memories } = input;
-  const charName = character.name || "Character";
+  const charName = speakingName(character);
   const userName = persona?.name || "User";
   const memoryPosition = conversation.memory_position || 0;
 
@@ -143,7 +146,7 @@ export interface ConsolidationInput {
 /** The prompt that merges these facts into a shorter, denser set. */
 export function buildConsolidationPayload(input: ConsolidationInput): PlainPayload {
   const { character, persona, movable } = input;
-  const charName = character.name || "Character";
+  const charName = speakingName(character);
   const userName = persona?.name || "User";
   const factsBlock = movable.map((m) => `- ${m.content}`).join("\n");
   return plain(

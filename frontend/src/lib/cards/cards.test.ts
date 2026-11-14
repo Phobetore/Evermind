@@ -1,0 +1,317 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { crc32 } from "node:zlib";
+import { describe, expect, test, vi } from "vitest";
+import { data, DataError, type CardCharacter } from "@/data";
+import { newLoreEntry } from "../loreEntry";
+import { cardForExport } from "./export";
+import { cardFile, cardToCharacter, installCard, readCardFile } from "./index";
+import { withCards } from "./png";
+import { readCardJson } from "./read";
+import { oldReading } from "./reread";
+import type { Character } from "@/types";
+
+const PNG = Uint8Array.from(
+  atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="),
+  (c) => c.charCodeAt(0),
+);
+
+const VANE = {
+  kind: "scenario" as const, name: "Vane", tagline: "The ferry", description: "Terse.", personality: "Dry",
+  scenario: "A dock.", greeting: "Late.", alternate_greetings: ["Early."], example_dialogues: "<START>",
+  system_prompt: "S", post_history_instructions: "P", creator_notes: "N", tags: ["sea"], creator: "C",
+  character_version: "2", nickname: "", character_note: "", character_note_depth: 4,
+  character_note_role: "system" as const, creator_notes_multilingual: {}, card_rules: 2 as const,
+};
+const LORE = [
+  { ...newLoreEntry(["tide"], "It turns at noon."), enabled: false, insertion_order: 20 },
+  { ...newLoreEntry(["bell", "Bell"], "It rings."), insertion_order: 10 },
+];
+/** The card a character made here exports. */
+const cardOf = (character: CardCharacter) => cardForExport(character, null, new Date("2026-11-12T00:00:00Z"));
+
+/** A tEXt chunk, put before the end of the PNG. */
+function withText(png: Uint8Array<ArrayBuffer>, ...texts: [keyword: string, text: string][]) {
+  const chunks = texts.map(([keyword, text]) => {
+    const body = new TextEncoder().encode(`tEXt${keyword}\0${text}`);
+    const chunk = new Uint8Array(body.length + 8);
+    new DataView(chunk.buffer).setUint32(0, body.length - 4);
+    chunk.set(body, 4);
+    new DataView(chunk.buffer).setUint32(body.length + 4, crc32(body));
+    return chunk;
+  });
+  return new File([png.subarray(0, -12), ...chunks, png.subarray(-12)], "card.png");
+}
+
+/** What a card made of VANE and LORE gives back: the fields, each entry's keys, text and switch,
+ *  its index in the card, and its own order, which the card writes as it is. */
+function survives(character: CardCharacter) {
+  expect(character).toMatchObject(VANE);
+  expect(character.lore_entries.map(({ keys, content, enabled }) => ({ keys, content, enabled })))
+    .toEqual(LORE.map(({ keys, content, enabled }) => ({ keys, content, enabled })));
+  expect(character.lore_entries.map((entry) => entry.origin)).toEqual([0, 1]);
+  expect(character.lore_entries.map((entry) => entry.insertion_order)).toEqual([20, 10]);
+}
+
+const base64 = (value: unknown) => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(value))));
+const kindOf = (file: File) => readCardFile(file).catch((error) => error.kind);
+
+describe("the card codec", () => {
+  test("a character and its lorebook come back from the card made of them", () => {
+    const card = cardOf({ ...VANE, lore_entries: LORE }).v2;
+    expect(card.spec).toBe("chara_card_v2");
+    expect((card.data.character_book as { entries: { insertion_order: number }[] }).entries
+      .map((e) => e.insertion_order)).toEqual([20, 10]);
+    survives(cardToCharacter(JSON.parse(JSON.stringify(card)))!);
+  });
+
+  test("a flat card reads, and a name is never empty nor longer than the server takes", () => {
+    expect(cardToCharacter({ name: " ", first_mes: "Hi." })).toMatchObject({ name: "Unnamed", greeting: "Hi.", kind: "character" });
+    expect(cardToCharacter({ name: "😀".repeat(250) })!.name).toBe("😀".repeat(200));
+  });
+
+  test.each([[[1]], [{}], ["Vane"], [null], [{ data: {} }], [{ spec: "chara_card_v2", data: { tags: ["x"] } }]])(
+    "%j is no card", (value) => expect(cardToCharacter(value)).toBeNull(),
+  );
+
+  test("a field of another type is absent, a number is text, and one text is a list of one", () => {
+    expect(cardToCharacter({
+      name: "N", tags: 5, description: { a: 1 }, alternate_greetings: "Hi.", creator: 7, personality: true,
+      character_book: { entries: [1, { keys: " k ", content: "c", insertion_order: "abc" }, { keys: [], content: "x" }] },
+    })).toMatchObject({
+      tags: ["5"], description: "", alternate_greetings: ["Hi."], creator: "7", personality: "",
+      lore_entries: [{ keys: ["k"], content: "c", enabled: true, origin: 1, insertion_order: 100 }, { keys: [], content: "x", origin: 2 }],
+    });
+  });
+});
+
+test("every card the library ships reads, with its JPEG portrait beside it", () => {
+  const shelf = new URL("../../../../library/", import.meta.url);
+  const cards = readdirSync(shelf).filter((name) => name.endsWith(".json"));
+  expect(cards.length).toBeGreaterThan(0);
+  for (const name of cards) {
+    expect(cardToCharacter(JSON.parse(readFileSync(new URL(name, shelf), "utf8")))?.name, name).toBeTruthy();
+    expect(existsSync(new URL(name.replace(".json", ".jpg"), shelf)), name).toBe(true);
+  }
+});
+
+describe("a card file", () => {
+  test("a JSON card reads, with a byte order mark too", async () => {
+    const file = new File(["\uFEFF" + JSON.stringify({ name: "Vane" })], "vane.json");
+    expect(await readCardFile(file)).toMatchObject({ read: { character: { name: "Vane" } }, portrait: null });
+  });
+
+  test("half of an emoji, where a card site cut one, reads as the replacement character", async () => {
+    // The escapes as the file holds them: a high surrogate with no partner, and a low one alone.
+    const file = new File([String.raw`{"spec":"chara_card_v2","data":{"name":"Broken \ud83d",
+      "description":"She smiles \ud83d","first_mes":"Hello \uD83D\uDE00","tags":["\ude00"],
+      "character_book":{"entries":[{"keys":["k\ud83d"],"content":"\ud83d"}]}}}`], "broken-emoji.json");
+    expect((await readCardFile(file)).read.character).toMatchObject({
+      name: "Broken \uFFFD", description: "She smiles \uFFFD", greeting: "Hello \u{1F600}", tags: ["\uFFFD"],
+      lore_entries: [{ keys: ["k\uFFFD"], content: "\uFFFD", enabled: true, origin: 0 }],
+    });
+  });
+
+  test("what is no card says so, and so does a file too large, before it is read", async () => {
+    expect(await kindOf(new File(["[1]"], "a.json"))).toBe("unrecognized_card_file");
+    expect(await kindOf(new File([new Uint8Array([0xff, 0xd8, 0xff])], "a.jpg"))).toBe("unrecognized_card_file");
+    expect(await kindOf(new File([PNG], "a.png"))).toBe("png_without_card");
+    expect(await kindOf(new File([new Uint8Array(15 * 1024 * 1024 + 1)], "a.json"))).toBe("file_too_large");
+  });
+
+  test("a card written into a PNG reads back, and the PNG is its portrait", async () => {
+    const { v2, v3 } = cardOf({ ...VANE, lore_entries: LORE });
+    const png = new Uint8Array(await withCards(PNG, v2, v3).arrayBuffer());
+    for (let at = 8; at < png.length;) {
+      const view = new DataView(png.buffer, at);
+      const length = view.getUint32(0);
+      expect(view.getUint32(length + 8), "a chunk whose CRC is wrong").toBe(crc32(png.subarray(at + 4, at + 8 + length)));
+      at += length + 12;
+    }
+    const { read, portrait } = await readCardFile(new File([png], "vane.png"));
+    survives(read.character);
+    expect(portrait!.type).toBe("image/png");
+  });
+
+  test("a card's file is named after it, less what a file name cannot hold", async () => {
+    // A backslash, the mark that turns text around, and a bell.
+    const refused = '/:*?"<>|' + String.fromCharCode(92, 0x202e, 7);
+    const made = { ...VANE, id: "c1", has_card: false, avatar_url: null, lore_entries: [] };
+    const json = await cardFile({ ...made, name: `Va${refused}ne` }, "json");
+    expect(json.filename).toBe("Vane.json");
+    expect(JSON.parse(await json.blob.text()).data.first_mes).toBe("Late.");
+    expect((await cardFile({ ...made, name: refused }, "json")).filename).toBe("card.json");
+  });
+
+  test("a PNG too large to take back whose JSON fits sends the person to the JSON", async () => {
+    // About 6.5 MB of card: its JSON fits under the 15 MB a file may weigh, while the PNG writes
+    // it twice in base64 (chara and ccv3, 4/3 each) and goes over.
+    vi.spyOn(data, "file").mockResolvedValue(new File([PNG], "face.png", { type: "image/png" }));
+    const character = {
+      ...VANE, description: "x".repeat(6_500_000), id: "c1", has_card: false, avatar_url: "api/media/face.png",
+      lore_entries: [],
+    };
+    try {
+      const png = await cardFile(character, "png");
+      expect(png.blob.size).toBeGreaterThan(15 * 1024 * 1024);
+      expect(png.warnings).toEqual(["tooLarge"]);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  test("a card not yet re-read exports from the card in its portrait, unchanged", async () => {
+    const card = {
+      spec: "chara_card_v2", spec_version: "2.0",
+      data: {
+        name: "Vane", description: "Terse.", first_mes: "Late.", extensions: { other_app: { mood: "grey" } },
+        character_book: { entries: [{ keys: ["tide"], content: "It turns at noon.", extensions: { other_app: 1 } }] },
+      },
+    };
+    const portrait = withText(PNG, ["chara", base64(card)]);
+    vi.spyOn(data, "file").mockResolvedValue(portrait);
+    const update = vi.spyOn(data.characters, "update");
+    const character = {
+      ...VANE, ...cardToCharacter(card)!, card_rules: 1 as const, id: "c1", has_card: false, avatar_url: "api/media/face.png",
+      lore_entries: [{ ...newLoreEntry(["tide"], "It turns at noon."), insertion_order: 0 }],
+    };
+    const before = structuredClone(character);
+    try {
+      const exported = JSON.parse(await (await cardFile(character, "json")).blob.text());
+      expect(exported.data.extensions.other_app).toEqual({ mood: "grey" });
+      expect(exported.data.character_book.entries).toEqual([card.data.character_book.entries[0]]);
+      expect(character).toEqual(before);
+      expect(update).not.toHaveBeenCalled();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  describe("a card not yet re-read, its book changed by its owner", () => {
+    const book = {
+      spec: "chara_card_v2", spec_version: "2.0",
+      data: {
+        name: "Mirela", description: "A lighthouse keeper.", first_mes: "The lamp is lit.",
+        character_book: { entries: [
+          { keys: ["lamp"], content: "The lamp burns whale oil.", comment: "The lamp", insertion_order: 5, extensions: { position: 4, depth: 2, other: 1 } },
+          { keys: [], content: "The fog never lifts.", constant: true },
+          { keys: ["boat"], content: "The boat is red.", selective: true, secondary_keys: ["sea"], extensions: { b: 1 } },
+          { keys: ["gull"], content: "A gull named Pell.", enabled: false, extensions: { g: 1 } },
+          { keys: ["fog"], content: "" },
+        ] },
+      },
+    };
+    /** The character the import of the time made of the card, its entries as `edit` leaves them. */
+    async function exported(edit: (entries: CardCharacter["lore_entries"]) => CardCharacter["lore_entries"]) {
+      const old = oldReading(book)!;
+      vi.spyOn(data, "file").mockResolvedValue(withText(PNG, ["chara", base64(book)]));
+      const character = {
+        ...old, id: "c1", has_card: false, avatar_url: "api/media/face.png",
+        lore_entries: edit(old.lore_entries.map((entry) => ({ ...entry, origin: null }))),
+      };
+      try {
+        const card = JSON.parse(await (await cardFile(character, "json")).blob.text());
+        return card.data.character_book.entries as Record<string, unknown>[];
+      } finally {
+        vi.restoreAllMocks();
+      }
+    }
+
+    test("one deleted and one written here, as many as before: each goes over its own", async () => {
+      const entries = await exported(([lamp, , gull]) => [lamp, gull, newLoreEntry(["keeper"], "Made here.")]);
+      expect(entries.find((entry) => (entry.keys as string[])[0] === "gull")).toEqual(book.data.character_book.entries[3]);
+      expect(entries.find((entry) => (entry.keys as string[])[0] === "keeper")?.extensions).not.toHaveProperty("g");
+      expect(entries.some((entry) => (entry.keys as string[])[0] === "boat")).toBe(false);
+      expect(entries[0]).toEqual(book.data.character_book.entries[0]);
+    });
+
+    test("one retouched beside one deleted keeps the card's entry", async () => {
+      const entries = await exported(([lamp, , gull]) => [{ ...lamp, content: "The lamp burns seal oil now." }, gull]);
+      expect(entries[0]).toEqual({ ...book.data.character_book.entries[0], content: "The lamp burns seal oil now." });
+      expect(entries.filter((entry) => (entry.keys as string[])[0] === "lamp")).toHaveLength(1);
+    });
+  });
+
+  test("a card whose portrait the server no longer has still exports as it did", async () => {
+    vi.spyOn(data, "file").mockRejectedValue(new DataError("Not found.", { kind: "not_found", status: 404 }));
+    vi.spyOn(data.library, "list").mockResolvedValue([]);
+    const character = {
+      ...VANE, card_rules: 1 as const, id: "c1", has_card: false, avatar_url: "api/media/gone.png", lore_entries: LORE,
+    };
+    try {
+      const exported = JSON.parse(await (await cardFile(character, "json")).blob.text());
+      expect(exported.data.name).toBe("Vane");
+      expect(exported.data.character_book.entries.map((entry: { content: string }) => entry.content))
+        .toEqual(LORE.map((entry) => entry.content));
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  test("ccv3 is read first, and chara when ccv3 is not a card", async () => {
+    const card = (name: string) => base64({ data: { name } });
+    expect((await readCardFile(withText(PNG, ["ccv3", card("V3")], ["chara", card("V2")]))).read.character.name).toBe("V3");
+    expect((await readCardFile(withText(PNG, ["chara", base64([1])], ["ccv3", card("V3")]))).read.character.name).toBe("V3");
+    expect((await readCardFile(withText(PNG, ["chara", "not base64!"], ["ccv3", card("V3")]))).read.character.name).toBe("V3");
+    expect((await readCardFile(withText(PNG, ["ccv3", "not base64!"], ["chara", card("V2")]))).read.character.name).toBe("V2");
+    expect(await kindOf(withText(PNG, ["chara", base64("Vane")]))).toBe("png_without_card");
+  });
+});
+
+describe("an import whose answer is lost", () => {
+  const read = readCardJson({ spec: "chara_card_v2", spec_version: "2.0", data: { name: "Vane" } }, "{}", "json")!;
+  const lost = () => new DataError("Offline.", { kind: "network" });
+  const character = (id: string, name: string, avatar_url: string | null = null) => ({ id, name, avatar_url }) as Character;
+
+  test("finds the character the server made, and gives it its portrait", async () => {
+    const server = [character("old", "Vane")];
+    vi.spyOn(data.characters, "create").mockImplementation(async () => {
+      server.push(character("new", "Vane"));
+      throw lost();
+    });
+    vi.spyOn(data.characters, "list").mockImplementation(async () => server);
+    const upload = vi.spyOn(data.characters, "uploadAvatar").mockImplementation(async (id) => character(id, "Vane", "api/media/v.png"));
+    const portrait = new File([PNG], "vane.png", { type: "image/png" });
+    try {
+      const made = await installCard(read, portrait, new Set(["old"]));
+      expect(made.id).toBe("new");
+      expect(upload).toHaveBeenCalledWith("new", portrait);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  test("still fails when the server made none, or when it cannot be known", async () => {
+    vi.spyOn(data.characters, "create").mockRejectedValue(lost());
+    const list = vi.spyOn(data.characters, "list").mockResolvedValue([character("old", "Vane")]);
+    try {
+      await expect(installCard(read, null, new Set(["old"]))).rejects.toMatchObject({ kind: "network" });
+      list.mockRejectedValue(lost());
+      await expect(installCard(read, null, new Set(["old"]))).rejects.toMatchObject({ kind: "network" });
+      await expect(installCard(read, null)).rejects.toMatchObject({ kind: "network" });
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  test("still fails when two of that name are new: neither is taken at random", async () => {
+    vi.spyOn(data.characters, "create").mockRejectedValue(lost());
+    vi.spyOn(data.characters, "list").mockResolvedValue([character("a", "Vane"), character("b", "Vane")]);
+    try {
+      await expect(installCard(read, null, new Set(["old"]))).rejects.toMatchObject({ kind: "network" });
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  test("a creation the server answered and refused is not looked for", async () => {
+    const refused = new DataError("Refused.", { status: 422 });
+    vi.spyOn(data.characters, "create").mockRejectedValue(refused);
+    const list = vi.spyOn(data.characters, "list").mockResolvedValue([character("new", "Vane")]);
+    try {
+      await expect(installCard(read, null, new Set(["old"]))).rejects.toBe(refused);
+      expect(list).not.toHaveBeenCalled();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+});

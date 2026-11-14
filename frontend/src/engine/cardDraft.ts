@@ -3,12 +3,12 @@
 // with `words` and the card fields of backend/app/prompting/payloads.py, which the card
 // prompt reads too.
 //
-// `toLowerCase()` and Python's `lower()` agree on the final sigma and the dotted capital I,
-// which the recorded cases hold.
+// `pyLower` is Python's `lower()`: on the final sigma and the dotted capital I as well, which the
+// recorded cases hold.
 
 import { field, numberSource } from "./llmJson";
 import { estimateTokens } from "./tokens";
-import { isWritable, pyStrip, sliceCodePoints, textOf } from "./text";
+import { isWritable, pyLower, pyStrip, sliceCodePoints, textOf } from "./text";
 
 export const TEXT_FIELDS = [
   "name",
@@ -63,7 +63,7 @@ export function words(value: unknown): string[] {
 function once(items: string[]): string[] {
   const first = new Map<string, string>();
   for (const item of items) {
-    const same = pyStrip(item).toLowerCase();
+    const same = pyLower(pyStrip(item));
     if (!first.has(same)) first.set(same, item);
   }
   return [...first.values()];
@@ -86,7 +86,7 @@ export function cleanCardDraft(draft: Record<string, unknown>): CardDraft {
   }
   for (const name of LIST_FIELDS) {
     let found = words(field(draft, name));
-    if (name === "tags") found = found.map((tag) => sliceCodePoints(tag.toLowerCase(), MAX_TAG_LENGTH));
+    if (name === "tags") found = found.map((tag) => sliceCodePoints(pyLower(tag), MAX_TAG_LENGTH));
     // A model repeats itself, and lowercasing makes "Fantasy" and "fantasy" one tag.
     found = once(found);
     if (name === "tags") found = found.slice(0, MAX_TAGS);

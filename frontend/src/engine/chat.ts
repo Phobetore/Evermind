@@ -6,8 +6,17 @@
 // order it was given, reversed or not.
 
 import { DEFAULT_RP_RULES, SCENARIO_RP_RULES } from "./defaults";
-import { hasOriginalMacro, substitute, substituteOriginal } from "./macros";
-import { PY_WS, pyLstrip, pyMin, pyRstrip, pyStrip, sliceCodePoints, stripThought } from "./text";
+import {
+  activated,
+  atADepth,
+  beforeTheCard,
+  depthOf,
+  stripDecorators,
+  withinBudget,
+  type LoreEntrySettings,
+} from "./lorebook";
+import { expandMacros, hasOriginalMacro, substitute, substituteOriginal } from "./macros";
+import { PY_WS, pyLower, pyLstrip, pyMin, pyRstrip, pyStrip, pyUpper, sliceCodePoints, stripThought } from "./text";
 import { estimateTokens } from "./tokens";
 
 // Python has it in engine.py, beside the reply's cleanup: so does the engine's door.
@@ -35,6 +44,15 @@ export interface PromptCharacter {
   example_dialogues?: string | null;
   system_prompt?: string | null;
   post_history_instructions?: string | null;
+  /** 1, Evermind's rules from before community cards were read whole, when left out. */
+  card_rules?: 1 | 2;
+  /** The name the model is told on the rules of community cards, when it says something. */
+  nickname?: string;
+  /** Said among the turns at its depth, 4 when left out, on the rules of community cards. */
+  character_note?: string | null;
+  character_note_depth?: number | null;
+  /** Kept with the card, but not followed: the note always goes in a turn of the player's. */
+  character_note_role?: string | null;
 }
 
 export interface PromptPersona {
@@ -43,6 +61,8 @@ export interface PromptPersona {
 }
 
 export interface PromptConversation {
+  /** Draws the card's random choices on the rules of community cards; "" when left out. */
+  id?: string;
   summary?: string | null;
   author_note?: string | null;
 }
@@ -80,7 +100,7 @@ export interface PromptMemory {
   source_position?: number;
 }
 
-export interface PromptLoreEntry {
+export interface PromptLoreEntry extends LoreEntrySettings {
   keys?: string[] | null;
   content?: string | null;
   enabled?: boolean | null;
@@ -107,6 +127,9 @@ export interface ChatInput {
   relevance_scores?: Record<string, number> | null;
   retrieved_passages?: readonly PromptPassage[] | null;
   fold_leading_assistant?: boolean;
+  /** False leaves out what the card says to the character among the turns (its note, its
+   *  entries at a depth): the ghostwriter, who writes as the player, has no use for them. */
+  insertions?: boolean;
 }
 
 /** What the builder reports about the prompt it made: the first six are shown, the last
@@ -135,15 +158,24 @@ export interface PromptPayload<S = PromptStats> {
 // Enough for what someone marked, without another wall of text.
 const MAX_PINNED_RESTATED = 8;
 
-// Said again at generation time, since a rule weighs less the further back it is.
-const POST_HISTORY_REMINDER =
-  "[Stay in character as {{char}}. Write only {{char}}'s next turn. Every line " +
-  "of dialogue and every action must be a COMPLETE sentence — never leave " +
+// Said again at generation time, since a rule weighs less the further back it is. In two
+// parts: who to play, which a card's own instructions after the story replace, and the
+// guardrails, which stay whatever the card says.
+const ROLE_REMINDER = "Stay in character as {{char}}. Write only {{char}}'s next turn.";
+const GUARDRAILS =
+  "Every line of dialogue and every action must be a COMPLETE sentence — never leave " +
   "{{char}} trailing off mid-thought as a tic, and never END your reply on an " +
   "unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, " +
   "images or sentence structures from your recent replies — especially not " +
   "how they ended; vary them. Move the scene forward with something new. " +
-  "Never write or decide {{user}}'s actions.]";
+  "Never write or decide {{user}}'s actions.";
+const POST_HISTORY_REMINDER = `[${ROLE_REMINDER} ${GUARDRAILS}]`;
+
+// SillyTavern's separator of example dialogues, whatever its case: spelled out in classes, as
+// in macros.ts, since Python's IGNORECASE also takes U+017F (long s) for an "s".
+const EXAMPLE_START = /<[sSſ][tT][aA][rR][tT]>/;
+const EXAMPLE_SEPARATOR = "\n\n***\n\n";
+const EXAMPLES_HEADER = "### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\n";
 
 const BUDGET_MARGIN = 200;
 const SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6;
@@ -153,6 +185,7 @@ const MAX_FACTS_TOKEN_BUDGET = 2000; // cap, so facts never dominate the window
 const FACTS_BUDGET_SHARE = 0.12; // of the budget, between the two
 const LORE_SCAN_MESSAGES = 6;
 const LORE_TOKEN_BUDGET = 800;
+const NOTE_DEPTH = 4; // CharacterIn's default, for a character that says nothing of it
 
 /** The instruction a continuation sends as the player's turn, after the reply it extends. */
 export const CONTINUE_INSTRUCTION =
@@ -178,6 +211,24 @@ export function activeContent(message: ActiveMessage): string {
 
 export function isOutOfCharacter(message: { meta?: MessageMeta | null }): boolean {
   return message.meta?.mode === "ooc";
+}
+
+/** Whether the card follows the rules of community cards (2) rather than Evermind's own. */
+const onCardRules = (character: PromptCharacter) => (character.card_rules || 1) === 2;
+
+/** The name the model is told: the nickname on the card rules, when there is one. */
+export function speakingName(character: PromptCharacter): string {
+  if (onCardRules(character)) {
+    const nickname = pyStrip(character.nickname ?? "");
+    if (nickname) return nickname;
+  }
+  return character.name || "Character";
+}
+
+/** The example dialogues as blocks, as SillyTavern reads them: split on <START> whatever its
+ *  case, the text before the first one a block too, each stripped, the empty ones left out. */
+export function splitExamples(text: string): string[] {
+  return text.split(EXAMPLE_START).map(pyStrip).filter(Boolean);
 }
 
 /** Which facts get injected: pinned always survive, the rest fill the budget by relevance
@@ -227,18 +278,18 @@ function formatFacts(
 
 /** Entries whose keywords appear in the recent turns, whatever the case, in the
  *  lorebook's order, within the lore token budget. */
-export function matchLore<E extends PromptLoreEntry>(
+function matchLoreBeforeCards<E extends PromptLoreEntry>(
   entries: readonly E[],
   messages: readonly PromptMessage[],
 ): E[] {
   if (!entries.length) return [];
   const recent = sortedBy(messages, (m) => m.position ?? 0).slice(-LORE_SCAN_MESSAGES);
-  const text = recent.map(activeContent).join("\n").toLowerCase();
+  const text = pyLower(recent.map(activeContent).join("\n"));
 
   const matched = entries.filter(
     (entry) =>
       (entry.enabled === undefined || entry.enabled) &&
-      (entry.keys || []).some((key) => key && text.includes(key.toLowerCase())),
+      (entry.keys || []).some((key) => key && text.includes(pyLower(key))),
   );
   const kept: E[] = [];
   let budget = LORE_TOKEN_BUDGET;
@@ -251,24 +302,59 @@ export function matchLore<E extends PromptLoreEntry>(
   return kept;
 }
 
+/** The lorebook entries that reach the prompt. Rules 1, Evermind's from before community
+ *  cards were read whole, are kept as they were, so that an older card gives the prompt it
+ *  gave; rules 2 are those the cards are written for (lorebook.ts). */
+export function matchLore<E extends PromptLoreEntry>(
+  entries: readonly E[],
+  messages: readonly PromptMessage[],
+  rules = 1,
+  budget = LORE_TOKEN_BUDGET,
+  charName = "Character",
+  userName = "User",
+): E[] {
+  if (rules !== 2) return matchLoreBeforeCards(entries, messages);
+  if (!entries.length) return [];
+  const recent = sortedBy(messages, (m) => m.position ?? 0).slice(-LORE_SCAN_MESSAGES);
+  // Each turn under the name of who speaks, as SillyTavern reads them: a key {{char}} then
+  // fires on any of the character's turns, as the cards expect.
+  const scan = recent.map((m) => `${m.role === "assistant" ? charName : userName}: ${activeContent(m)}`).join("\n");
+
+  const fired = activated(entries, scan, charName, userName).map((entry) => ({
+    ...entry,
+    content: stripDecorators(entry.content || ""),
+  }));
+  // An entry that is only decorators, or blank, has nothing for the model: kept, it would
+  // leave a heading with nothing under it, or an empty gap between two entries.
+  return withinBudget(
+    fired.filter((entry) => pyStrip(entry.content)),
+    budget,
+  );
+}
+
 interface SystemParts {
   character: PromptCharacter;
   persona: PromptPersona | null;
   summary: string;
   globalInstructions: string;
-  includeExamples: boolean;
+  /** The examples as they are sent, "" for none. */
+  examples: string;
   charName: string;
   userName: string;
   memories: readonly PromptMemory[] | null;
   lore: readonly PromptLoreEntry[];
+  loreBefore: readonly PromptLoreEntry[];
   factsBudget: number;
   relevanceScores: Record<string, number> | null;
   passages: readonly PromptPassage[] | null;
+  /** What the card's own fields go through first: their markers resolved on the rules of
+   *  community cards, left as they are on Evermind's own. */
+  cardText: (text: string) => string;
 }
 
 function buildSystem(parts: SystemParts): string {
-  const { character, persona, summary, globalInstructions, includeExamples, charName, userName } = parts;
-  const { memories, lore, factsBudget, relevanceScores, passages } = parts;
+  const { character, persona, summary, globalInstructions, examples, charName, userName } = parts;
+  const { memories, lore, loreBefore, factsBudget, relevanceScores, passages, cardText } = parts;
   const isScenario = character.kind === "scenario";
   const sections: string[] = [];
 
@@ -278,21 +364,29 @@ function buildSystem(parts: SystemParts): string {
       : `You are ${charName} in an endless immersive roleplay with ${userName}.`,
   );
 
-  const identity: string[] = [];
-  if (character.description) identity.push(character.description);
-  if (character.personality) {
-    const label = isScenario ? "Tone and themes" : `${charName}'s personality`;
-    identity.push(`${label}: ${character.personality}`);
+  if (loreBefore.length) {
+    const block = loreBefore.map((entry) => pyStrip(entry.content || "")).join("\n\n");
+    sections.push(`### WORLD KNOWLEDGE (background)\n${block}`);
   }
-  if (character.scenario) identity.push(`Current scenario: ${character.scenario}`);
+
+  const identity: string[] = [];
+  const description = cardText(character.description || "");
+  const personality = cardText(character.personality || "");
+  const scenario = cardText(character.scenario || "");
+  if (description) identity.push(description);
+  if (personality) {
+    const label = isScenario ? "Tone and themes" : `${charName}'s personality`;
+    identity.push(`${label}: ${personality}`);
+  }
+  if (scenario) identity.push(`Current scenario: ${scenario}`);
   if (identity.length) {
-    const header = isScenario ? "SCENARIO" : `ABOUT ${charName.toUpperCase()}`;
+    const header = isScenario ? "SCENARIO" : `ABOUT ${pyUpper(charName)}`;
     sections.push(`### ${header}\n` + identity.join("\n\n"));
   }
 
   if (persona && (persona.name || persona.description)) {
     const body = persona.description || "";
-    sections.push(pyRstrip(`### ABOUT ${userName.toUpperCase()} (the player's character)\n${body}`));
+    sections.push(pyRstrip(`### ABOUT ${pyUpper(userName)} (the player's character)\n${body}`));
   }
 
   if (summary) sections.push(`### STORY SO FAR\n${summary}`);
@@ -324,20 +418,18 @@ function buildSystem(parts: SystemParts): string {
     );
   }
 
-  if (includeExamples && character.example_dialogues) {
-    sections.push(
-      "### EXAMPLE OF HOW YOU WRITE\n(style reference only — never quote or reuse verbatim)\n" +
-        character.example_dialogues,
-    );
-  }
+  if (examples) sections.push(EXAMPLES_HEADER + examples);
 
   const defaultRules = isScenario ? SCENARIO_RP_RULES : DEFAULT_RP_RULES;
-  const cardPrompt = pyStrip(character.system_prompt || "");
-  let rules = defaultRules;
+  let cardPrompt = pyStrip(character.system_prompt || "");
   if (cardPrompt) {
-    rules = hasOriginalMacro(cardPrompt) ? substituteOriginal(cardPrompt, defaultRules) : cardPrompt;
+    cardPrompt = pyStrip(
+      cardText(hasOriginalMacro(cardPrompt) ? substituteOriginal(cardPrompt, defaultRules) : cardPrompt),
+    );
   }
-  sections.push(rules);
+  // A prompt its markers leave blank, a comment alone, is no prompt: without the default rules
+  // the model would get no rules at all.
+  sections.push(cardPrompt || defaultRules);
 
   if (pyStrip(globalInstructions)) {
     sections.push(`### PLAYER'S STANDING INSTRUCTIONS\n${pyStrip(globalInstructions)}`);
@@ -363,6 +455,80 @@ interface Turn {
   position: number;
 }
 
+/** What is said among the turns, by depth: the character's note, then the entries at that
+ *  depth in the order they are placed, as one text. It is marked as not the player's, since
+ *  it goes in one of the player's turns: unmarked, a card could speak in the player's voice,
+ *  and a reminder written as an order would read as something the player said. */
+function textsAtDepths(
+  note: string,
+  noteDepth: number,
+  entries: readonly PromptLoreEntry[],
+  charName: string,
+  userName: string,
+): Map<number, string> {
+  const parts = new Map<number, string[]>();
+  if (note) parts.set(noteDepth, [note]);
+  for (const entry of entries) {
+    const depth = depthOf(entry);
+    const texts = parts.get(depth) ?? [];
+    texts.push(pyStrip(entry.content || ""));
+    parts.set(depth, texts);
+  }
+  const marked = new Map<number, string>();
+  for (const [depth, texts] of parts) {
+    marked.set(
+      depth,
+      `[Note for the story, not written by ${userName}: ` + substitute(texts.join("\n"), charName, userName) + "]",
+    );
+  }
+  return marked;
+}
+
+/** Puts each text in a turn of the player's, as near its depth as one is, and returns those
+ *  that open the closing block instead, the deepest first. No message is ever added: local
+ *  models drop or move a system message in the middle of the story and want the turns to
+ *  alternate, and Anthropic's API takes none there.
+ *
+ *  Depth d is the point before the last d turns sent. The text opens the turn just after the
+ *  point when that is the player's, else ends the one just before it; between two of the
+ *  character's turns, it opens the player's next turn, else ends the player's last one.
+ *  Depth 0, or a story with no turn of the player's, opens the closing block, which keeps
+ *  the guardrails after it. The instruction to continue a reply is a turn sent like any
+ *  other, so while a reply is continued every depth sits one turn nearer the end. */
+function placeAtDepths(turns: { role: string; content: string }[], texts: Map<number, string>): string[] {
+  const count = turns.length;
+  const isPlayer = (i: number) => turns[i].role === "user";
+  // The player's first turn at or after each index, and last turn before it: one pass each,
+  // however many depths there are.
+  const nextPlayer: (number | null)[] = new Array(count + 1).fill(null);
+  for (let i = count - 1; i >= 0; i--) nextPlayer[i] = isPlayer(i) ? i : nextPlayer[i + 1];
+  const lastPlayer: (number | null)[] = new Array(count + 1).fill(null);
+  for (let i = 0; i < count; i++) lastPlayer[i + 1] = isPlayer(i) ? i : lastPlayer[i];
+
+  const heads: string[][] = turns.map(() => []);
+  const tails: string[][] = turns.map(() => []);
+  const closing: string[] = [];
+  // Deepest first, so that two texts in one turn keep their order in the story.
+  for (const depth of [...texts.keys()].sort((a, b) => b - a)) {
+    const text = texts.get(depth) as string;
+    const point = count - Math.min(depth, count);
+    const next = nextPlayer[point];
+    const last = lastPlayer[point];
+    if (depth === 0) closing.push(text);
+    else if (point < count && isPlayer(point)) heads[point].push(text);
+    else if (point > 0 && isPlayer(point - 1)) tails[point - 1].push(text);
+    else if (next !== null) heads[next].push(text);
+    else if (last !== null) tails[last].push(text);
+    else closing.push(text);
+  }
+  turns.forEach((turn, i) => {
+    if (heads[i].length || tails[i].length) {
+      turn.content = [...heads[i], turn.content, ...tails[i]].join("\n\n");
+    }
+  });
+  return closing;
+}
+
 /** Python's `min((t["position"] for t in turns), default=fallback)`. */
 const oldestPosition = (turns: readonly Turn[], fallback: number) =>
   pyMin(turns.map((turn) => turn.position), fallback);
@@ -378,15 +544,60 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   const passages = input.retrieved_passages ?? null;
   let globalInstructions = input.global_instructions ?? "";
 
-  const charName = character.name || "Character";
+  const charName = speakingName(character);
   const userName = persona?.name || "User";
   const summary = conversation?.summary || "";
+  const cardRules = onCardRules(character);
+  // The conversation draws the card's random choices: the same text gives the same choice in
+  // every turn of one story, and may give another in the next story.
+  const seed = conversation?.id || "";
+  /** What the card says, its markers resolved on the rules of community cards. The player's
+   *  own texts never go through this: they keep only the names put in. */
+  // The system prompt is built several times while the examples are fitted, and the turns
+  // twice: each text of the card is resolved once, since resolving reads the whole text and a
+  // card's description can run to megabytes.
+  const resolvedTexts = new Map<string, string>();
+  const cardText = (text: string) => {
+    if (!cardRules) return text;
+    let resolved = resolvedTexts.get(text);
+    if (resolved === undefined) {
+      resolved = expandMacros(text, charName, userName, seed);
+      resolvedTexts.set(text, resolved);
+    }
+    return resolved;
+  };
 
   const contextSize = int(connection.context_size || 8192);
   const maxTokens = int(connection.max_tokens || 1024);
   const budget = Math.max(512, contextSize - maxTokens - BUDGET_MARGIN);
 
-  const lore = matchLore(input.lore_entries ?? [], messages);
+  // A card keeps the rules it was made with until its owner agrees to have it read again.
+  // On those of community cards the lorebook has a share of the prompt, not a fixed amount,
+  // and an entry can go before the character's definition or among the turns, as the note
+  // to the character does.
+  let lore: PromptLoreEntry[];
+  let loreBefore: PromptLoreEntry[] = [];
+  let atDepth: PromptLoreEntry[] = [];
+  let depthTexts = new Map<number, string>();
+  if (cardRules) {
+    // Resolved once they fire, since the keys are read on the turns as they are; an entry its
+    // markers leave blank has nothing for the model, as one of decorators alone.
+    const matched = matchLore(input.lore_entries ?? [], messages, 2, Math.floor(budget / 4), charName, userName)
+      .map((entry) => ({ ...entry, content: cardText(entry.content || "") }))
+      .filter((entry) => pyStrip(entry.content));
+    loreBefore = matched.filter((entry) => beforeTheCard(entry));
+    lore = matched.filter((entry) => !beforeTheCard(entry) && !atADepth(entry));
+    if (input.insertions ?? true) {
+      atDepth = matched.filter((entry) => atADepth(entry));
+      const note = pyStrip(cardText(character.character_note || ""));
+      depthTexts = textsAtDepths(note, character.character_note_depth ?? NOTE_DEPTH, atDepth, charName, userName);
+    }
+  } else {
+    lore = matchLore(input.lore_entries ?? [], messages);
+  }
+  // Said among the turns or in the closing block, these texts take their room from the story.
+  let depthCost = 0;
+  for (const text of depthTexts.values()) depthCost += estimateTokens(text);
 
   const lengthOverride = LENGTH_OVERRIDES.get(input.reply_length ?? "medium");
   if (lengthOverride) globalInstructions = pyStrip(globalInstructions + "\n\n" + lengthOverride);
@@ -394,7 +605,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   // What the model reads last carries the most weight.
   const postBits: string[] = [];
   const cardNote = pyStrip(character.post_history_instructions || "");
-  if (cardNote) postBits.push(cardNote);
+  if (cardNote && !cardRules) postBits.push(cardNote);
   const pinned = (memories ?? []).filter((m) => m.is_pinned);
   if (pinned.length) {
     const lines = pinned
@@ -405,8 +616,19 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   }
   const sceneDirective = pyStrip(conversation?.author_note || "");
   if (sceneDirective) postBits.push(`[Scene directive from ${userName}]: ${sceneDirective}`);
-  postBits.push(POST_HISTORY_REMINDER);
-  const postHistory = substitute(postBits.join("\n\n"), charName, userName);
+  // Instructions their markers leave blank, a comment alone, are none: the reminder of who to
+  // play stays.
+  const inPlaceOfReminder =
+    cardNote && cardRules ? pyStrip(cardText(substituteOriginal(cardNote, ROLE_REMINDER))) : "";
+  if (inPlaceOfReminder) {
+    // As the cards are written for: their instructions take the place of the reminder of who
+    // to play, which {{original}} brings back, and the guardrails still come last.
+    postBits.push(inPlaceOfReminder);
+    postBits.push(`[${GUARDRAILS}]`);
+  } else {
+    postBits.push(POST_HISTORY_REMINDER);
+  }
+  let postHistory = substitute(postBits.join("\n\n"), charName, userName);
 
   const factsBudget = Math.min(
     MAX_FACTS_TOKEN_BUDGET,
@@ -421,7 +643,11 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     for (let i = 0; i < ordered.length; i++) {
       if (historyLimit && turns.length >= historyLimit) break;
       const message = ordered[ordered.length - 1 - i];
-      let content = substitute(activeContent(message), charName, userName);
+      // The character's turns speak with the card's voice: a greeting, or a reply that copied
+      // one of its markers. The player's keep what was typed, names put in, so that the model
+      // never reads a roll the player does not see.
+      const said = message.role === "assistant" ? cardText(activeContent(message)) : activeContent(message);
+      let content = substitute(said, charName, userName);
       // Player message modes: stored raw, marked up only for the model.
       const mode = message.meta?.mode;
       if (mode === "narrate") content = `[Narration] ${content}`;
@@ -434,39 +660,63 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     return turns.reverse();
   };
 
-  const systemWith = (includeExamples: boolean, shown: readonly PromptMemory[] | null) =>
+  // On the rules of community cards the examples are blocks, sent without their <START>; on
+  // Evermind's own they go as they were written.
+  const blocks = cardRules
+    ? splitExamples(character.example_dialogues || "")
+        .map((part) => pyStrip(cardText(part)))
+        .filter(Boolean)
+    : [];
+  const examples = cardRules ? blocks.join(EXAMPLE_SEPARATOR) : character.example_dialogues || "";
+
+  const systemWith = (sent: string, shown: readonly PromptMemory[] | null) =>
     buildSystem({
       character,
       persona,
       summary,
       globalInstructions,
-      includeExamples,
+      examples: sent,
       charName,
       userName,
       memories: shown,
       lore,
+      loreBefore,
       factsBudget,
       relevanceScores,
       passages,
+      cardText,
     });
 
   // A fact the model drew from a turn it still sees is left out unless pinned or written
   // by hand: an echo feeds repetition loops. Which turns stay is first estimated with
   // every fact in the system prompt.
-  const everyFact = systemWith(true, memories);
-  const provisional = renderTurns(budget - estimateTokens(everyFact) - estimateTokens(postHistory));
+  const fits = (system: string) => estimateTokens(system) <= budget * SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES;
+
+  const everyFact = systemWith(examples, memories);
+  const provisional = renderTurns(budget - estimateTokens(everyFact) - estimateTokens(postHistory) - depthCost);
   const oldestVisible = oldestPosition(provisional, 0);
   const relevantMemories = (memories ?? []).filter(
     (m) => m.is_pinned || m.source === "user" || (m.source_position || 0) < oldestVisible,
   );
   const factsShown = selectFacts(relevantMemories, factsBudget, relevanceScores);
 
-  let system = systemWith(true, relevantMemories);
-  if (estimateTokens(system) > budget * SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES) {
-    system = systemWith(false, relevantMemories);
+  let system = systemWith(examples, relevantMemories);
+  if (!fits(system)) {
+    // On Evermind's own rules the examples go whole or not at all. On those of community cards
+    // they are kept a block at a time, in order, for as long as the system prompt fits: it only
+    // grows with each block, so the longest prefix that fits is found by halving, in a few
+    // builds of the prompt rather than one for each block.
+    let kept = 0;
+    let over = blocks.length;
+    while (over - kept > 1) {
+      const middle = Math.floor((kept + over) / 2);
+      if (fits(systemWith(blocks.slice(0, middle).join(EXAMPLE_SEPARATOR), relevantMemories))) kept = middle;
+      else over = middle;
+    }
+    system = systemWith(blocks.slice(0, kept).join(EXAMPLE_SEPARATOR), relevantMemories);
   }
 
-  const rendered = renderTurns(budget - estimateTokens(system) - estimateTokens(postHistory));
+  const rendered = renderTurns(budget - estimateTokens(system) - estimateTokens(postHistory) - depthCost);
   // The oldest turn actually sent: the estimate above, with every fact, may leave out older ones.
   const visibleOldest = oldestPosition(rendered, oldestVisible);
   const turns = rendered.map(({ role, content }) => ({ role, content }));
@@ -488,6 +738,10 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     }
   }
 
+  // Placed in the turns as sent, cut and folded, so that a depth counts what the model reads.
+  const closing = placeAtDepths(turns, depthTexts);
+  if (closing.length) postHistory = [...closing, postHistory].join("\n\n");
+
   const used =
     estimateTokens(system) +
     estimateTokens(postHistory) +
@@ -498,7 +752,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     context_size: contextSize,
     messages_included: turns.length,
     messages_total: messages.length,
-    lore_matched: lore.length,
+    lore_matched: loreBefore.length + lore.length + atDepth.length,
     oldest_visible: visibleOldest,
     fact_positions: factsShown.map((m) => m.source_position ?? null),
   };

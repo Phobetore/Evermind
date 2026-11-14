@@ -3,7 +3,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
-import { cardToCharacter, installCard, type CardCharacter } from "@/lib/cards";
+import { installCard, readCardJson, type ReadCard } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
 import { previewMacros } from "@/lib/utils";
 import { BookMarked, Check, Download, Loader2 } from "lucide-react";
@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 interface Shelved {
   filename: string;
   has_avatar: boolean;
-  character: CardCharacter;
+  read: ReadCard;
   installed: boolean;
 }
 
@@ -34,8 +34,9 @@ export function LibraryModal({
     Promise.all([data.library.list(), data.characters.list()]).then(([shelf, characters]) => {
       const names = new Set(characters.map((c) => c.name));
       setItems(shelf.flatMap(({ filename, card, has_avatar }) => {
-        const character = cardToCharacter(card);
-        return character ? [{ filename, has_avatar, character, installed: names.has(character.name) }] : [];
+        // Read as a file of its text would be, so that it is installed with its card kept whole.
+        const read = readCardJson(card, JSON.stringify(card), "json");
+        return read ? [{ filename, has_avatar, read, installed: names.has(read.character.name) }] : [];
       }));
       setFailure(null);
     }, (error) => setFailure({ error }));
@@ -49,7 +50,7 @@ export function LibraryModal({
     try {
       // The portrait first: one that cannot be had leaves nothing made.
       const portrait = item.has_avatar ? await data.file(data.library.avatarUrl(item.filename)) : null;
-      await installCard(item.character, portrait);
+      await installCard(item.read, portrait);
       await load();
       onInstalled();
     } catch (e) {
@@ -80,18 +81,18 @@ export function LibraryModal({
               {item.has_avatar && (
                 <img
                   src={data.library.avatarUrl(item.filename)}
-                  alt={item.character.name}
+                  alt={item.read.character.name}
                   className="h-[4.5rem] w-14 shrink-0 rounded-lg border border-ink-600 object-cover sm:h-24 sm:w-[4.5rem]"
                   draggable={false}
                 />
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-display font-semibold">{item.character.name}</h3>
-                  <Tag tone={item.character.kind === "scenario" ? "arcane" : "ember"}>
-                    {item.character.kind === "scenario" ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}
+                  <h3 className="font-display font-semibold">{item.read.character.name}</h3>
+                  <Tag tone={item.read.character.kind === "scenario" ? "arcane" : "ember"}>
+                    {item.read.character.kind === "scenario" ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}
                   </Tag>
-                  {item.character.lore_entries.length > 0 && (
+                  {item.read.character.lore_entries.length > 0 && (
                     <Tag tone="arcane">
                       <span className="inline-flex items-center gap-1">
                         <BookMarked className="h-3 w-3" /> {t("cards.libraryModal.lorebookTag")}
@@ -100,11 +101,11 @@ export function LibraryModal({
                   )}
                 </div>
                 <p className="mt-1 text-sm italic leading-snug text-parchment-dim">
-                  {previewMacros(item.character.tagline, item.character.name, t("chat.panel.sceneAnchor.youFallback"))}
+                  {previewMacros(item.read.character.tagline, item.read.character.name, t("chat.panel.sceneAnchor.youFallback"))}
                 </p>
-                {item.character.tags.length > 0 && (
+                {item.read.character.tags.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
-                    {item.character.tags.map((tag) => (
+                    {item.read.character.tags.map((tag) => (
                       <Tag key={tag}>{tag}</Tag>
                     ))}
                   </div>

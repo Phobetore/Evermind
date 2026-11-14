@@ -112,6 +112,11 @@ function CharacterDetail({ id }: { id: string }) {
               {character.is_favorite ? t("characters.favoritedLabel") : t("characters.addFavoriteTitle")}
             </button>
           </div>
+          {character.card_rules === 1 && (
+            <Link to={`/characters/${character.id}/edit`} className="mt-3 inline-block text-xs text-mist-dim underline-offset-2 hover:text-parchment hover:underline">
+              {t("characters.detail.rereadable")}
+            </Link>
+          )}
           {favoriteFailure && (
             <p role="alert" className="mt-3 rounded-lg border border-blood/40 bg-blood/10 px-4 py-2.5 text-sm text-blood">
               {describeError(favoriteFailure.error, t)}

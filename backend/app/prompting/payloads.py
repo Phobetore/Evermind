@@ -10,7 +10,13 @@ from .defaults import (
     MEMORY_CONSOLIDATION_PROMPT,
     MEMORY_EXTRACTION_PROMPT,
 )
-from .engine import PromptPayload, active_content, build_chat_payload, is_out_of_character
+from .engine import (
+    PromptPayload,
+    active_content,
+    build_chat_payload,
+    is_out_of_character,
+    speaking_name,
+)
 from .macros import substitute
 from .memory_changes import MAX_TURNS_PER_RUN, is_movable
 from .text import is_writable
@@ -25,10 +31,12 @@ LIST_FIELDS = ("alternate_greetings", "tags")
 def build_impersonate_payload(character: dict, persona: dict | None, conversation: dict,
                               messages: list[dict], connection: dict) -> PromptPayload:
     """The prompt that ghost-writes the player's next message."""
-    char_name = character.get("name") or "Character"
+    char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
+    # Without what the card says to the character among the turns: the player's pen reads no
+    # reminder meant for the character.
     base = build_chat_payload(character=character, persona=persona, conversation=conversation,
-                              messages=messages, connection=connection)
+                              messages=messages, connection=connection, insertions=False)
 
     context_bits = []
     if (persona or {}).get("description"):
@@ -55,7 +63,7 @@ def build_extraction_payload(character: dict, persona: dict | None, conversation
 
     A memory position of 0 means nothing was read, so the first turn is one to read, unless
     it is the greeting, which is the card's and not the story's."""
-    char_name = character.get("name") or "Character"
+    char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     memory_position = conversation.get("memory_position") or 0
 
@@ -102,7 +110,7 @@ def movable_facts(memories: list[dict]) -> list[dict]:
 def build_consolidation_payload(character: dict, persona: dict | None,
                                 movable: list[dict]) -> PromptPayload:
     """The prompt that merges these facts into a shorter, denser set."""
-    char_name = character.get("name") or "Character"
+    char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     facts_block = "\n".join(f"- {m['content']}" for m in movable)
     return PromptPayload(

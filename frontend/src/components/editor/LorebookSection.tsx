@@ -1,19 +1,28 @@
+import { LoreEntrySettings } from "@/components/editor/LoreEntrySettings";
 import { TagInput } from "@/components/editor/TagInput";
 import { useT } from "@/i18n/useT";
+import { newLoreEntry } from "@/lib/loreEntry";
 import { newId } from "@/lib/utils";
 import type { LoreEntry } from "@/types";
-import { BookMarked, Plus, Trash2 } from "lucide-react";
+import { BookMarked, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { clsx } from "clsx";
 import { useState } from "react";
 
 /** The lorebook as it will be saved, with the rest of the card. */
 export function LorebookSection({
   entries,
   onChange,
+  rules,
 }: {
   entries: LoreEntry[];
   onChange: (entries: LoreEntry[]) => void;
+  /** The rules of the card: the title and the settings of an entry are shown on the second only,
+   *  the only ones that read them. The first sends back what it was given. */
+  rules: 1 | 2;
 }) {
   const t = useT();
+  // The entries whose settings are open. Not saved: opening is only looking.
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const [newKeys, setNewKeys] = useState<string[]>([]);
   const [newContent, setNewContent] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,11 +32,24 @@ export function LorebookSection({
       setError(t("lorebook.entryRequiredError"));
       return;
     }
-    onChange([...entries, { id: newId(), keys: newKeys, content: newContent.trim(), enabled: true }]);
+    onChange([...entries, { ...newLoreEntry(newKeys, newContent.trim()), id: newId() }]);
     setNewKeys([]);
     setNewContent("");
     setError(null);
   }
+
+  const toggle = (id: string) =>
+    setOpen((was) => {
+      const now = new Set(was);
+      if (!now.delete(id)) now.add(id);
+      return now;
+    });
+
+  // Every entry has its "Settings": a screen reader is told whose, by the entry's title, else its
+  // first key, else its number.
+  const settingsName = (entry: LoreEntry, i: number) => t("lorebook.settingsFor", {
+    name: entry.comment.trim() || entry.keys[0] || t("lorebook.entryNumber", { number: i + 1 }),
+  });
 
   const change = (entry: LoreEntry, changes: Partial<LoreEntry>) =>
     onChange(entries.map((e) => (e.id === entry.id ? { ...e, ...changes } : e)));
@@ -44,10 +66,19 @@ export function LorebookSection({
       </p>
 
       <div className="flex flex-col gap-2">
-        {entries.map((entry) => (
+        {entries.map((entry, i) => (
           <div key={entry.id} className="rounded-lg border border-ink-700 bg-ink-900/60 p-3">
-            {/* Further from the text box below on a touch screen: the reachable
-                area of the delete button is 44px, and must not be over it. */}
+            {rules === 2 && (
+              <input
+                className="field mb-2 text-sm pointer-coarse:mb-3"
+                value={entry.comment}
+                onChange={(e) => change(entry, { comment: e.target.value })}
+                placeholder={t("lorebook.titlePlaceholder")}
+                aria-label={t("lorebook.titleLabel")}
+              />
+            )}
+            {/* Further from the text boxes above and below on a touch screen: the reachable
+                area of the delete button is 44px, and must not be over them. */}
             <div className="mb-1.5 flex items-center justify-between gap-2 pointer-coarse:mb-3">
               <div className="flex flex-wrap gap-1.5">
                 {entry.keys.map((k) => (
@@ -84,6 +115,29 @@ export function LorebookSection({
               value={entry.content}
               onChange={(e) => change(entry, { content: e.target.value })}
             />
+            {rules === 2 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => toggle(entry.id)}
+                  aria-expanded={open.has(entry.id)}
+                  aria-controls={`lore-settings-${entry.id}`}
+                  aria-label={settingsName(entry, i)}
+                  className="mt-2 flex items-center gap-1.5 font-display text-xs font-medium pointer-coarse:min-h-11 text-mist transition-colors hover:text-parchment"
+                >
+                  <ChevronDown className={clsx("h-3.5 w-3.5 transition-transform", open.has(entry.id) && "rotate-180")} />
+                  {t("lorebook.settingsButton")}
+                </button>
+                {open.has(entry.id) && (
+                  <LoreEntrySettings
+                    entry={entry}
+                    id={`lore-settings-${entry.id}`}
+                    label={settingsName(entry, i)}
+                    onChange={(changes) => change(entry, changes)}
+                  />
+                )}
+              </>
+            )}
           </div>
         ))}
         {entries.length === 0 && (

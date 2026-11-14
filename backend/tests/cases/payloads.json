@@ -794,6 +794,82 @@
    }
   },
   {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: a card's note is not for the player's pen",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2,
+     "character_note": "Keep the oven warm for {{user}}.",
+     "character_note_depth": 1,
+     "character_note_role": "system"
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": ""
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "I come in from the cold."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She looks up.* Early again."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Is the bread ready?"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Ana.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Ana's last message and moves the scene forward.\nNever write Ana's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT Alex: A courier.",
+    "messages": [
+     {
+      "role": "assistant",
+      "content": "I come in from the cold."
+     },
+     {
+      "role": "user",
+      "content": "*She looks up.* Early again."
+     },
+     {
+      "role": "assistant",
+      "content": "Is the bread ready?"
+     }
+    ],
+    "stop": [
+     "\nAna:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
    "fn": "build_extraction_payload",
    "name": "extraction: turns since the last pass",
    "input": {
@@ -4460,6 +4536,376 @@
      }
     ],
     "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_extraction_payload",
+   "name": "extraction: a card on the rules of community cards is read under its nickname",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2,
+     "nickname": "Annie"
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier."
+    },
+    "conversation": {
+     "summary": "",
+     "memory_position": 0
+    },
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "Good morning."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Morning, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Is the bread ready?"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "memories": []
+   },
+   "expected": {
+    "payload": {
+     "system": "You are the memory-keeper of a roleplay between Alex (the player) and Annie.\nYou will receive: the current summary, the list of facts already recorded, and the newest turns of the story.\n\nDo three things:\n1. Extract NEW durable facts from the newest turns — things that must never be forgotten or contradicted later: events (deaths, injuries, crimes, revelations), relationship changes (trust gained or destroyed, debts, feelings), promises and threats, physical states, and important world details. Write each fact as one short, past-tense, self-contained sentence in the language of the conversation. Do NOT restate facts already recorded. If nothing new is durable, return an empty list.\n2. Maintain the recorded facts: if a recorded fact is now outdated or contradicted by newer events, put its EXACT text in \"replaces\" with the corrected \"content\"; if several recorded facts say the same thing, keep one merged version and list the redundant exact texts in \"obsolete_facts\". When nothing needs maintenance, return empty lists.\n3. Update the running summary so it covers everything up to and including the newest turns (max 300 words, plain factual prose, same language as the conversation).\n\nReply with ONLY this JSON object. No markdown fences, no commentary. Escape every newline inside string values as \\n:\n{\"facts\": [{\"content\": \"...\"}], \"updated_facts\": [{\"replaces\": \"...\", \"content\": \"...\"}], \"obsolete_facts\": [\"...\"], \"summary\": \"...\"}",
+     "messages": [
+      {
+       "role": "user",
+       "content": "CURRENT SUMMARY:\n(empty)\n\nFACTS ALREADY RECORDED:\n(none yet)\n\nNEWEST TURNS:\nAlex (turn 0): Good morning.\n\nAnnie (turn 1): Morning, Alex.\n\nAlex (turn 2): Is the bread ready?\n\nReply with the JSON now."
+      }
+     ],
+     "stop": [],
+     "post_history": "",
+     "stats": {}
+    },
+    "turns": [
+     {
+      "role": "user",
+      "variants": [
+       "Good morning."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "Morning, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Is the bread ready?"
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ]
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: a card on the rules of community cards is written for under its nickname",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2,
+     "nickname": "Annie"
+    },
+    "persona": null,
+    "conversation": {
+     "summary": "A storm."
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays User; their partner plays Annie.\nWrite ONLY User's next message: first person as User, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Annie's last message and moves the scene forward.\nNever write Annie's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nSTORY SO FAR: A storm.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, User."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Annie the keeper?"
+     },
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nAnnie:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_consolidation_payload",
+   "name": "consolidation: a card on the rules of community cards is read under its nickname",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Ana",
+     "description": "A baker.",
+     "personality": "warm",
+     "scenario": "{{user}} comes in at dawn.",
+     "card_rules": 2,
+     "nickname": "Annie"
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "movable": [
+     {
+      "id": "f1",
+      "content": "Fact 1.",
+      "source_position": 1,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f2",
+      "content": "Fact 2.",
+      "source_position": 2,
+      "is_pinned": false,
+      "source": "auto"
+     },
+     {
+      "id": "f3",
+      "content": "Fact 3.",
+      "source_position": 3,
+      "is_pinned": false,
+      "source": "auto"
+     }
+    ]
+   },
+   "expected": {
+    "system": "You are the memory-keeper of a roleplay between Alex and Annie. The list of recorded facts has grown long and needs consolidating.\nMerge and compress the facts below into a SHORTER list that loses NO important information: combine related facts into single dense sentences, drop pure redundancy, and keep every consequential event, relationship state, promise, injury, death and revelation. Preserve chronology. Aim for at most 20 facts. Write each as one short past-tense sentence in the language of the facts.\nReply with ONLY this JSON object, no other text:\n{\"facts\": [{\"content\": \"...\"}]}",
+    "messages": [
+     {
+      "role": "user",
+      "content": "FACTS TO CONSOLIDATE:\n- Fact 1.\n- Fact 2.\n- Fact 3.\n\nReply with the JSON now."
+     }
+    ],
+    "stop": [],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: a card on the old rules, without any new setting",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A keeper. {{random:a,b}} <BOT>{{// secret }}",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": ""
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "Alex came ashore in a storm."
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Mira.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira's last message and moves the scene forward.\nNever write Mira's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT Alex: A courier with a limp.\n\nSTORY SO FAR: Alex came ashore in a storm.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, Alex."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Mira the keeper?"
+     },
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nMira:"
+    ],
+    "post_history": "",
+    "stats": {}
+   }
+  },
+  {
+   "fn": "build_impersonate_payload",
+   "name": "impersonation: a card on the old rules ignores its nickname, its note and its markers",
+   "input": {
+    "character": {
+     "kind": "character",
+     "name": "Mira",
+     "description": "A keeper. {{random:a,b}} <BOT>{{// secret }}",
+     "personality": "dry, patient",
+     "scenario": "{{user}} washes ashore.",
+     "example_dialogues": "",
+     "system_prompt": "",
+     "post_history_instructions": "",
+     "card_rules": 1,
+     "nickname": "Mi",
+     "character_note": "Storm. <USER>",
+     "character_note_depth": 0,
+     "character_note_role": "user"
+    },
+    "persona": {
+     "name": "Alex",
+     "description": "A courier with a limp."
+    },
+    "conversation": {
+     "summary": "Alex came ashore in a storm."
+    },
+    "messages": [
+     {
+      "role": "assistant",
+      "variants": [
+       "*The lamp turns.* Welcome, {{user}}."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "user",
+      "variants": [
+       "Thanks. Is {{char}} the keeper?"
+      ],
+      "active_index": 0,
+      "position": 1
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "*She nods.* Sit down, you are dripping."
+      ],
+      "active_index": 0,
+      "position": 2
+     }
+    ],
+    "connection": {
+     "context_size": 4096,
+     "max_tokens": 256
+    }
+   },
+   "expected": {
+    "system": "You are ghost-writing the PLAYER's next message in a roleplay. The player plays Alex; their partner plays Mira.\nWrite ONLY Alex's next message: first person as Alex, matching their persona and the current scene, in the same language as the conversation. Actions and narration between *asterisks*, dialogue in plain text. One short paragraph that reacts to Mira's last message and moves the scene forward.\nNever write Mira's words, thoughts or reactions. Never add commentary. Reply with the message text only.\n\nABOUT Alex: A courier with a limp.\n\nSTORY SO FAR: Alex came ashore in a storm.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "*The lamp turns.* Welcome, Alex."
+     },
+     {
+      "role": "assistant",
+      "content": "Thanks. Is Mira the keeper?"
+     },
+     {
+      "role": "user",
+      "content": "*She nods.* Sit down, you are dripping."
+     }
+    ],
+    "stop": [
+     "\nMira:"
+    ],
     "post_history": "",
     "stats": {}
    }

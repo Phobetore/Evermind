@@ -1,25 +1,29 @@
 import { AssistProgress } from "@/components/editor/AssistProgress";
 import { Field } from "@/components/editor/Field";
 import { LorebookSection } from "@/components/editor/LorebookSection";
+import { NumberField, ROLES } from "@/components/editor/LoreEntrySettings";
+import { RereadBanner } from "@/components/editor/RereadBanner";
+import { fieldLabelKey, KIND_COPY, labelKey } from "@/components/editor/fieldLabels";
 import { TagInput } from "@/components/editor/TagInput";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
-import { data, DataError, type AssistField, type AssistState, type CharacterInput } from "@/data";
+import { data, DataError, type AssistField, type AssistState, type CharacterInput, type OriginalCard } from "@/data";
 import { useT } from "@/i18n/useT";
 import {
   clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, moveJob, outcome, rememberJob, rememberedJob,
   scopeOf,
 } from "@/lib/assist";
-import { cardFile } from "@/lib/cards";
+import { cardFile, findOriginal, rereadPlan, type ExportWarning, type FoundCard, type RereadMode } from "@/lib/cards";
+import { newLoreEntry } from "@/lib/loreEntry";
 import { describeError, isUnanswered } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
-import type { CharacterWithLore, Connection, Kind, LoreEntry } from "@/types";
+import type { CharacterWithLore, Connection, LoreEntry, NoteRole } from "@/types";
 import { clsx } from "clsx";
 import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
   UserRound, X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 type Draft = CharacterInput;
@@ -40,41 +44,13 @@ const EMPTY: Draft = {
   tags: [],
   creator: "",
   character_version: "",
+  nickname: "",
+  character_note: "",
+  character_note_depth: 4,
+  character_note_role: "system",
+  creator_notes_multilingual: {},
+  card_rules: 2,
 };
-
-const KIND_COPY: Record<Kind, Record<string, { labelKey: string; hintKey: string }>> = {
-  character: {
-    description: {
-      labelKey: "characters.form.descriptionLabel",
-      hintKey: "characters.form.descriptionHint",
-    },
-    personality: { labelKey: "characters.form.personalityLabel", hintKey: "characters.form.personalityHint" },
-    scenario: { labelKey: "characters.form.startingSituationLabel", hintKey: "characters.form.startingSituationHint" },
-    greeting: { labelKey: "characters.form.greetingLabel", hintKey: "characters.form.greetingHint" },
-  },
-  scenario: {
-    description: {
-      labelKey: "characters.form.worldLabel",
-      hintKey: "characters.form.worldHint",
-    },
-    personality: { labelKey: "characters.form.toneLabel", hintKey: "characters.form.toneHint" },
-    scenario: { labelKey: "characters.form.playerRoleLabel", hintKey: "characters.form.playerRoleHint" },
-    greeting: { labelKey: "characters.form.openingSceneLabel", hintKey: "characters.form.openingSceneHint" },
-  },
-};
-
-/** The name the form gives a field of the card, which the assistant's words use for it. */
-function labelKey(field: AssistField, kind: Kind): string {
-  switch (field) {
-    case "name": return "personas.nameLabel";
-    case "tagline": return "characters.form.taglineLabel";
-    case "alternate_greetings": return "characters.form.alternateGreetingsLabel";
-    case "example_dialogues": return "characters.form.exampleDialoguesLabel";
-    case "tags": return "characters.form.tagsLabel";
-    case "lore_entries": return "lorebook.title";
-    default: return KIND_COPY[kind][field].labelKey;
-  }
-}
 
 export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const navigate = useNavigate();
@@ -96,6 +72,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   // Apart from `error`, which is about saving or deleting: an export that fails
   // must not wipe out a save that did too, and its message belongs by the buttons.
   const [exportError, setExportError] = useState<string | null>(null);
+  // What the file just written cannot do; it was written all the same.
+  const [exportWarnings, setExportWarnings] = useState<ExportWarning[]>([]);
   const [brief, setBrief] = useState(remembered?.brief ?? "");
   const [generating, setGenerating] = useState(Boolean(remembered));
   const [assistError, setAssistError] = useState<string | null>(null);
@@ -108,6 +86,12 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [assistConnectionId, setAssistConnectionId] = useState("");
   const [loreEntries, setLoreEntries] = useState<LoreEntry[]>(initial?.lore_entries ?? []);
+  // A card made before cards were kept whole: the card it came from, looked for once (undefined
+  // until then), and what a choice made in the banner leaves for the save to keep.
+  const [original, setOriginal] = useState<FoundCard | null | undefined>(undefined);
+  const [originalFailure, setOriginalFailure] = useState<{ error: unknown } | null>(null);
+  const [pendingCard, setPendingCard] = useState<OriginalCard | null>(null);
+  const [rereadChosen, setRereadChosen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   // A save whose portrait fails has made the new card already.
   const created = useRef("");
@@ -119,6 +103,20 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   useEffect(() => {
     data.connections?.list().then(setConnections).catch(() => {});
   }, []);
+
+  // Bumped by the banner's "try again": a failure of the road says nothing of the card.
+  const [lookAgain, setLookAgain] = useState(0);
+  useEffect(() => {
+    if (initial?.card_rules !== 1) return;
+    let live = true;
+    findOriginal(initial).then(
+      (found) => { if (live) setOriginal(found); },
+      (error) => { if (live) setOriginalFailure({ error }); },
+    );
+    return () => {
+      live = false;
+    };
+  }, [initial, lookAgain]);
 
   const watching = useRef<AbortController | null>(null);
   // The job whose end is in the form already: the two ways to learn of it must not both add its entries.
@@ -140,7 +138,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     // What was typed while the model wrote stays: only a field still empty takes what it wrote.
     setDraft((d) => ({ ...d, ...fieldsToTake(d, ended.fields) }));
     if (ended.lore.length) {
-      const additions = ended.lore.map((entry) => ({ ...entry, id: newId(), enabled: true }));
+      const additions = ended.lore.map((entry) => ({ ...newLoreEntry(entry.keys, entry.content), id: newId() }));
       setLoreEntries((prev) => [...prev, ...additions]);
     }
     forgetJob(scopeNow());
@@ -222,6 +220,23 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
+  const current = useMemo(() => ({ ...draft, lore_entries: loreEntries }), [draft, loreEntries]);
+
+  /** The name the form gives any field the old reader read. */
+  const fieldLabel = (field: string) => t(fieldLabelKey(field, draft.kind));
+
+  /** Puts the choice made in the banner in the form; the save keeps it, and nothing else does. */
+  function applyReread(mode: RereadMode) {
+    if (original === undefined) return;
+    const plan = rereadPlan(current, original, mode);
+    setDraft((d) => ({ ...d, ...plan.fields }));
+    // The entries of the form keep their ids, which the plan carries over; those the card adds,
+    // among them at their place, get new ones.
+    setLoreEntries(plan.lore.map((entry) => ({ ...entry, id: "id" in entry && typeof entry.id === "string" ? entry.id : newId() })));
+    setPendingCard(plan.card);
+    setRereadChosen(true);
+  }
+
   async function generate() {
     if (!brief.trim() || generating) return;
     setGenerating(true);
@@ -266,7 +281,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     setError(null);
     try {
       const id = initial?.id || created.current;
-      const card = { ...draft, lore_entries: loreEntries };
+      // The card a choice in the banner found goes with the save, kept with its reading.
+      const card = { ...draft, lore_entries: loreEntries, ...(pendingCard ? { card: pendingCard } : {}) };
       const saved = id
         ? await data.characters.update(id, card)
         : await data.characters.create(card);
@@ -297,9 +313,11 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   async function exportCard(format: "json" | "png") {
     if (!initial) return;
     setExportError(null);
+    setExportWarnings([]);
     try {
-      const { blob, filename } = await cardFile(initial, format);
+      const { blob, filename, warnings } = await cardFile(initial, format);
       downloadBlob(blob, filename);
+      setExportWarnings(warnings);
     } catch (e) {
       // Called from a click, so a rejection would reach nobody: say it here.
       setExportError(`${t("characters.form.exportError")} ${describeError(e, t)}`);
@@ -330,9 +348,34 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
             {exportError}
           </p>
         )}
+        {exportWarnings.map((warning) => (
+          <p
+            key={warning}
+            role="status"
+            className="w-full rounded-lg border border-ember-600/40 bg-ember-glow px-4 py-2.5 text-sm text-ember-300"
+          >
+            {t(`cards.exportWarning.${warning}`)}
+          </p>
+        ))}
       </header>
 
       <div className="flex flex-col gap-5">
+        {initial?.card_rules === 1 && (
+          <RereadBanner
+            current={current}
+            found={original}
+            failure={originalFailure}
+            hasCard={initial.has_card}
+            applied={rereadChosen}
+            label={fieldLabel}
+            onApply={applyReread}
+            onRetry={() => {
+              setOriginalFailure(null);
+              setLookAgain((n) => n + 1);
+            }}
+          />
+        )}
+
         <div className="flex gap-2">
           {(
             [
@@ -584,7 +627,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           />
         </Field>
 
-        <LorebookSection entries={loreEntries} onChange={setLoreEntries} />
+        <LorebookSection entries={loreEntries} onChange={setLoreEntries} rules={draft.card_rules} />
 
         <button
           type="button"
@@ -623,6 +666,65 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
                 onChange={(e) => set("creator_notes", e.target.value)}
               />
             </Field>
+            {draft.card_rules === 2 && (
+              <>
+                <Field label={t("characters.form.nicknameLabel")} hint={t("characters.form.nicknameHint")}>
+                  <input
+                    className="field"
+                    maxLength={200}
+                    value={draft.nickname}
+                    onChange={(e) => set("nickname", e.target.value)}
+                  />
+                </Field>
+                <Field label={t("characters.form.noteLabel")}>
+                  <textarea
+                    className="field"
+                    value={draft.character_note}
+                    onChange={(e) => set("character_note", e.target.value)}
+                  />
+                </Field>
+                <div className="grid gap-5 md:grid-cols-2">
+                  <Field
+                    label={t("characters.form.noteDepthLabel")}
+                    hint={t("characters.form.noteDepthHint", { count: draft.character_note_depth })}
+                  >
+                    <NumberField
+                      value={draft.character_note_depth}
+                      onChange={(depth) => set("character_note_depth", depth)}
+                    />
+                  </Field>
+                  <Field label={t("characters.form.noteRoleLabel")}>
+                    <select
+                      className="field"
+                      value={draft.character_note_role}
+                      onChange={(e) => set("character_note_role", e.target.value as NoteRole)}
+                    >
+                      {ROLES.map((role) => (
+                        <option key={role} value={role}>{t(`lorebook.role.${role}`)}</option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                {Object.keys(draft.creator_notes_multilingual).length > 0 && (
+                  <div className="flex flex-col gap-4">
+                    <span className="ui-label">{t("characters.form.multilingualLabel")}</span>
+                    {Object.entries(draft.creator_notes_multilingual).map(([language, text]) => (
+                      <Field key={language} label={language}>
+                        <textarea
+                          className="field"
+                          value={text}
+                          onChange={(e) =>
+                            set("creator_notes_multilingual", {
+                              ...draft.creator_notes_multilingual, [language]: e.target.value,
+                            })
+                          }
+                        />
+                      </Field>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
             <div className="grid gap-5 md:grid-cols-2">
               <Field label={t("characters.form.creatorLabel")}>
                 <input
