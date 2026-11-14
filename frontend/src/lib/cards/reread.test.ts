@@ -150,7 +150,8 @@ function saved(character: CardCharacter, plan: ReturnType<typeof rereadPlan>) {
 // 22  "Yes." rewritten "yes" beside "Grey eyes.", whose keys became
 //     ["eyes"] (review 5)                                                 "yes" none; "Grey eyes." its own
 // 23  "a", "old", "...", "17", "猫が", "eyes" written here under the keys
-//     of a deleted entry that holds them (review 5)                      none: a single run in common
+//     of a deleted entry that holds them (review 5), and "🐉🔥🌙",
+//     three characters counted as code points, six as halves (review 6)  none: a single run in common
 //                                                                         is chance
 // 24  "Red." rewritten "Red" (review 5)                                  its own (0.667)
 // 25  written here under the keys of a deleted one, in English (0.375)
@@ -596,6 +597,9 @@ describe("re-reading a card", () => {
       ["She waits and watches the tide.", "a"], ["She is old and tired, and keeps the lamp.", "old"],
       ["She waits... and watches the tide.", "..."], ["Tomas drowned in 1917 off the Needle.", "17"],
       ["彼女は猫が好きだ。", "猫が"], ["Grey eyes.", "eyes"],
+      // Three emoji are three characters, a single run: counted as the six halves a string holds
+      // them in, they would be three runs all found in the deleted entry, 0.575 alike, and paired.
+      ["Her sign is 🐉🔥🌙, drawn on every door.", "🐉🔥🌙"],
     ]) {
       const card = v2({
         name: "Mirela", description: "A lighthouse keeper.",
@@ -611,6 +615,7 @@ describe("re-reading a card", () => {
       expect(book.find((entry) => entry.content === written), written).toMatchObject({ constant: false });
       expect(book.find((entry) => entry.content === written)!.extensions ?? {}, written).not.toHaveProperty("a");
     }
+    expect(likeness("🐉🔥🌙", "Her sign is 🐉🔥🌙, drawn on every door.")).toBeCloseTo(0.056, 3);
     // A short entry retouched keeps its own: its few characters are most of what both texts hold.
     const red = v2({ name: "Mirela", description: "A lighthouse keeper.", character_book: { entries: [{ keys: ["boat"], content: "Red.", extensions: { position: 4 } }] } });
     const current = madeBefore(red);
