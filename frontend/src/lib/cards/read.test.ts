@@ -271,6 +271,20 @@ describe("the fields of a card", () => {
     // A heading alone is all the presentation says.
     expect(taglineOf("# Gardienne du phare.")).toBe("Gardienne du phare.");
     expect(taglineOf("# Mirela\n## The keeper\nShe keeps the light. Always.")).toBe("She keeps the light.");
+    // A letter that grows when lowered moves nothing: the text is cut where it was found.
+    expect(taglineOf("<h1>İzmir</h1><p>Rest here. More.</p>")).toBe("Rest here.");
+    expect(taglineOf("<h1>İİİİzmir</h1><p>Rest here. More.</p>")).toBe("Rest here.");
+    expect(taglineOf("# İzmir\n<h2>x</h2><p>Rest here. More.</p>")).toBe("Rest here.");
+    expect(plainPresentation("İ<style>p {}</style>Rest")).toBe("İRest");
+    // A banner or a wrapper before the title shows nothing: the title is still left out.
+    expect(taglineOf("![banner](b.png)\n# Mirela\n\nUne gardienne de phare. Depuis toujours."))
+      .toBe("Une gardienne de phare.");
+    expect(taglineOf("<center><h1>Mirela</h1></center><p>Une gardienne de phare. Depuis toujours.</p>"))
+      .toBe("Une gardienne de phare.");
+    expect(taglineOf('<div align="center"><img src="b.png"></div>\n<h2>Mirela</h2>Une gardienne. Depuis toujours.'))
+      .toBe("Une gardienne.");
+    // A name marker shows a name: it is the sentence's start, not a wrapper.
+    expect(taglineOf("<BOT> garde le phare. Depuis toujours.")).toBe("<BOT> garde le phare.");
   });
 });
 

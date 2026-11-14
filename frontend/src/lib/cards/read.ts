@@ -186,16 +186,21 @@ const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"'
  *  searching rather than by a lazy pattern, which would go over the rest of the text once for
  *  every opening it fails to close. */
 function withoutBlocks(html: string, name: string) {
-  const lower = html.toLowerCase();
+  // Searched in the text as written: a lower-case copy can be longer ("İ" becomes two units), and
+  // its places would cut the text elsewhere.
+  const opening = new RegExp(`<${name}`, "gi");
+  const closing = new RegExp(`</${name}`, "gi");
   let out = "";
   let at = 0;
   for (;;) {
-    const open = lower.indexOf(`<${name}`, at);
+    opening.lastIndex = at;
+    const open = opening.exec(html)?.index ?? -1;
     if (open < 0) return out + html.slice(at);
     out += html.slice(at, open);
-    const close = lower.indexOf(`</${name}`, open);
+    closing.lastIndex = open;
+    const close = closing.exec(html)?.index ?? -1;
     if (close < 0) return out;
-    const end = lower.indexOf(">", close);
+    const end = html.indexOf(">", close);
     if (end < 0) return out;
     at = end + 1;
   }
@@ -252,8 +257,10 @@ export function plainPresentation(text: string): string {
 /** The text after the headings it opens with, Markdown's or HTML's: a heading is a title, not the
  *  first sentence. Searched rather than matched, so that an unclosed one takes a single pass. */
 function withoutLeadingHeadings(text: string): string {
-  const lower = text.toLowerCase();
-  const htmlHeading = /<h([1-6])(?=[\s>/])/y;
+  // Searched in the text as written, never in a lower-case copy: lowering is not length-preserving
+  // ("İ" becomes two units), and a place found in the copy would cut the text elsewhere.
+  const htmlHeading = /<h([1-6])(?=[\s>/])/iy;
+  const closings = [1, 2, 3, 4, 5, 6].map((level) => new RegExp(`</h${level}`, "gi"));
   let at = 0;
   for (;;) {
     while (at < text.length && /\s/.test(text[at])) at++;
@@ -264,14 +271,37 @@ function withoutLeadingHeadings(text: string): string {
       at = end < 0 ? text.length : end + 1;
       continue;
     }
+    // A banner or a wrapper before the title shows no text of its own: the title is still first.
+    const empty = shownNothing(text, at);
+    if (empty > at) {
+      at = empty;
+      continue;
+    }
     htmlHeading.lastIndex = at;
-    const open = htmlHeading.exec(lower);
+    const open = htmlHeading.exec(text);
     if (!open) return text.slice(at);
-    const close = lower.indexOf(`</h${open[1]}`, at);
-    const end = close < 0 ? -1 : lower.indexOf(">", close);
+    const closing = closings[Number(open[1]) - 1];
+    closing.lastIndex = at;
+    const close = closing.exec(text);
+    const end = close ? text.indexOf(">", close.index) : -1;
     if (end < 0) return text.slice(at);
     at = end + 1;
   }
+}
+
+const MARKDOWN_IMAGE = /!\[[^[\]]*\]\([^()]*\)/y;
+// Any tag but a heading's opening, which is a title to leave out with its text.
+const NO_HEADING_TAG = /<\/[A-Za-z][^<>]*>|<(?!h[1-6][\s>/])[A-Za-z][^<>]*>/iy;
+
+/** Where a piece that shows no text, starting at `at`, ends: a Markdown image, or a tag other than
+ *  a heading's opening; `at` itself when there is none. A marker of a name shows a name, and stays. */
+function shownNothing(text: string, at: number): number {
+  for (const piece of [MARKDOWN_IMAGE, NO_HEADING_TAG]) {
+    piece.lastIndex = at;
+    const found = piece.exec(text);
+    if (found && !NAME_TAG.test(found[0])) return piece.lastIndex;
+  }
+  return at;
 }
 
 /** The first sentence of the creator's notes, as plain text: what a card says of itself first.
