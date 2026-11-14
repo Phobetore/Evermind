@@ -72,8 +72,10 @@ test("nothing changes until the person asks", async ({ page, request }) => {
 test("re-reading fills the form and the save keeps it", async ({ page, request }) => {
   const { id } = await madeBefore(request);
   await page.goto(`/#/characters/${id}/edit`);
-  await page.getByRole("button", { name: "Re-read the card and switch to the new rules" }).click();
-  await expect(page.getByText("Save to keep this change.")).toBeVisible();
+  await page.getByRole("button", { name: "Re-read the card and switch to the new rules" }).focus();
+  await page.keyboard.press("Enter");
+  // The line that takes the button's place takes its focus: a keyboard is not sent to the top.
+  await expect(page.getByText("Save to keep this change.")).toBeFocused();
   // Nothing is written by the click itself.
   expect((await read(request, id)).card_rules).toBe(1);
   await save(page, id);
@@ -178,7 +180,10 @@ test("a card that could not be looked for can be looked for again", async ({ pag
   await page.goto(`/#/characters/${id}/edit`);
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.getByRole("button", { name: "Re-read the card and switch to the new rules" })).toBeHidden();
-  await page.getByRole("button", { name: "Look for the card again" }).click();
+  await page.getByRole("button", { name: "Look for the card again" }).focus();
+  await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Re-read the card and switch to the new rules" })).toBeVisible();
+  // The focus stays in the banner, through the loading line that took the button's place.
+  expect(await page.evaluate(() => document.activeElement?.closest("section")?.textContent ?? "")).toContain(BANNER);
   await expect(page.getByRole("button", { name: "Keep only the original card for the export" })).toBeVisible();
 });

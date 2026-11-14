@@ -146,6 +146,42 @@ test.describe("the offer to re-read a card fits a phone in every language", () =
   }
 });
 
+// Text set twice as large, as a person who reads with large text sets it: long German and Spanish
+// words then fill a line of their own, and must break inside the banner rather than run past it.
+test.describe("the offer to re-read a card keeps its words inside it with large text", () => {
+  for (const locale of ["de", "es"]) {
+    test(`in ${locale}`, async ({ page, request }) => {
+      const strings = JSON.parse(readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`), "utf8"));
+      const card = await makeCharacter(request, { name: "Mirela", description: "A lighthouse keeper.", greeting: "The lamp is lit." });
+      await request.post(`${API}/api/characters/${card.id}/avatar`, {
+        multipart: { file: { name: "mirela.png", mimeType: "image/png", buffer: cardPortrait({
+          spec: "chara_card_v2", spec_version: "2.0",
+          data: { name: "Mirela", description: "A lighthouse keeper.", first_mes: "The lamp is lit.", scenario: "A tower." },
+        }) } },
+      });
+      await page.addInitScript((chosen) => {
+        localStorage.setItem("evermind:locale", chosen);
+        document.addEventListener("DOMContentLoaded", () => { document.documentElement.style.fontSize = "200%"; });
+      }, locale);
+      await page.setViewportSize({ width: 320, height: 800 });
+      await page.goto(`/#/characters/${card.id}/edit`);
+      await expect(page.getByRole("button", { name: strings.characters.reread.keep })).toBeVisible();
+      await page.waitForLoadState("networkidle");
+
+      const banner = page.locator("section", { hasText: strings.characters.reread.title });
+      const outside = await banner.evaluate((section) => {
+        const edge = section.getBoundingClientRect().right;
+        return [...section.querySelectorAll("*")].flatMap((el) => {
+          const box = el.getBoundingClientRect();
+          const cut = el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX === "visible";
+          return box.right > edge + 1 || cut ? [`${el.tagName.toLowerCase()} "${(el.textContent ?? "").slice(0, 40)}"`] : [];
+        });
+      });
+      expect(outside, "past the banner's edge, or past their own").toEqual([]);
+    });
+  }
+});
+
 // Typed by hand from a phone, "--pull" broken across two lines reads as "-- pull", which fails.
 test("the update command stays on one line, to be read and typed as it is", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });

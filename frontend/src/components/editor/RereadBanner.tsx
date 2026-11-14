@@ -3,7 +3,7 @@ import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
 import { rereadOffer, type FoundCard, type ReportLine, type RereadMode } from "@/lib/cards";
 import { History } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 /** What changes in the conversations of a card that moves to the new rules, whatever its card holds. */
 const CHANGES = ["budget", "order", "wholeWords", "recursion", "examples", "instructions", "macros", "depth"] as const;
@@ -40,6 +40,28 @@ export function RereadBanner({
   // Weighed again at each keystroke in the form: what it lists needs no pairing of the entries,
   // which only the click and the export do.
   const plan = useMemo(() => (found === undefined ? null : rereadOffer(current, found)), [current, found]);
+  // A pressed button leaves the page with what it changed: the line that takes its place takes
+  // its focus, or the banner does, or a keyboard or a screen reader would be thrown back to the
+  // top of the page. Only after a press: as the page loads, the focus stays where it is.
+  const section = useRef<HTMLElement>(null);
+  const pressed = useRef(false);
+  // The banner holds the focus it took until the person moves it: a line it gave it to, such as
+  // "Loading…", may go in turn.
+  const holding = useRef(false);
+  useEffect(() => {
+    const active = document.activeElement;
+    // The button is still there, the answer to come: wait for the render that removes it.
+    if (active && section.current?.contains(active)) return;
+    if (!pressed.current && !holding.current) return;
+    pressed.current = false;
+    // Moved elsewhere by the person: left there.
+    holding.current = !active || active === document.body;
+    if (holding.current) (section.current?.querySelector<HTMLElement>("[data-takes-focus]") ?? section.current)?.focus();
+  });
+  const press = (act: () => void) => () => {
+    pressed.current = true;
+    act();
+  };
 
   const said = (line: ReportLine): string[] => {
     switch (line.key) {
@@ -53,27 +75,29 @@ export function RereadBanner({
   };
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-arcane-500/40 bg-arcane-glow/40 p-4 text-sm leading-relaxed text-mist">
+    <section ref={section} tabIndex={-1} className="flex flex-col break-words outline-none gap-3 [&>*]:min-w-0 rounded-xl border border-arcane-500/40 bg-arcane-glow/40 p-4 text-sm leading-relaxed text-mist">
       <p className="flex items-center gap-2 font-display font-semibold text-arcane-300">
-        <History className="h-4 w-4 shrink-0" /> {t("characters.reread.title")}
+        <History className="h-4 w-4 shrink-0" /> <span className="min-w-0 break-words">{t("characters.reread.title")}</span>
       </p>
       {failure ? (
         <div className="flex flex-col items-start gap-2">
           <p role="alert" className="break-words text-blood">{describeError(failure.error, t)}</p>
-          <button type="button" className="btn btn-ghost !py-2 text-sm" onClick={onRetry}>
+          <button type="button" className="btn btn-ghost !py-2 text-sm min-w-0 !whitespace-normal wrap-anywhere" onClick={press(onRetry)}>
             {t("characters.reread.retry")}
           </button>
         </div>
       ) : !plan ? (
-        <p className="animate-pulse-soft">{t("common.loading")}</p>
+        <p data-takes-focus tabIndex={-1} className="animate-pulse-soft outline-none">{t("common.loading")}</p>
       ) : applied ? (
-        <p role="status" className="font-semibold text-parchment">{t("characters.reread.saveToKeep")}</p>
+        <p data-takes-focus tabIndex={-1} role="status" className="font-semibold text-parchment outline-none">
+          {t("characters.reread.saveToKeep")}
+        </p>
       ) : (
         <>
           {plan.added.length > 0 && (
             <div>
               <p className="font-semibold text-parchment-dim">{t("characters.reread.added")}</p>
-              <ul className="mt-1 list-disc pl-4 marker:text-arcane-500/70">
+              <ul className="mt-1 list-disc break-words pl-4 marker:text-arcane-500/70">
                 {plan.added.flatMap(said).map((item) => <li key={item}>{item}</li>)}
               </ul>
             </div>
@@ -81,14 +105,14 @@ export function RereadBanner({
           {plan.untouched.length > 0 && (
             <div>
               <p className="font-semibold text-parchment-dim">{t("characters.reread.untouched")}</p>
-              <ul className="mt-1 list-disc pl-4 marker:text-arcane-500/70">
+              <ul className="mt-1 list-disc break-words pl-4 marker:text-arcane-500/70">
                 {plan.untouched.map((field) => <li key={field}>{label(field)}</li>)}
               </ul>
             </div>
           )}
           <div>
             <p className="font-semibold text-parchment-dim">{t("characters.reread.changes")}</p>
-            <ul className="mt-1 list-disc pl-4 marker:text-arcane-500/70">
+            <ul className="mt-1 list-disc break-words pl-4 marker:text-arcane-500/70">
               {CHANGES.map((change) => <li key={change}>{t(`characters.reread.change.${change}`)}</li>)}
             </ul>
           </div>
@@ -96,18 +120,18 @@ export function RereadBanner({
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             {found ? (
               <>
-                <button type="button" className="btn btn-primary !py-2 text-sm !whitespace-normal text-center" onClick={() => onApply("reread")}>
+                <button type="button" className="btn btn-primary !py-2 text-sm min-w-0 !whitespace-normal wrap-anywhere text-center" onClick={press(() => onApply("reread"))}>
                   {t("characters.reread.reread")}
                 </button>
                 {/* Once kept, the card is there: only the new rules are left to offer. */}
                 {!hasCard && (
-                  <button type="button" className="btn btn-ghost !py-2 text-sm !whitespace-normal text-center" onClick={() => onApply("keep")}>
+                  <button type="button" className="btn btn-ghost !py-2 text-sm min-w-0 !whitespace-normal wrap-anywhere text-center" onClick={press(() => onApply("keep"))}>
                     {t("characters.reread.keep")}
                   </button>
                 )}
               </>
             ) : (
-              <button type="button" className="btn btn-primary !py-2 text-sm !whitespace-normal text-center" onClick={() => onApply("reread")}>
+              <button type="button" className="btn btn-primary !py-2 text-sm min-w-0 !whitespace-normal wrap-anywhere text-center" onClick={press(() => onApply("reread"))}>
                 {t("characters.reread.switch")}
               </button>
             )}
