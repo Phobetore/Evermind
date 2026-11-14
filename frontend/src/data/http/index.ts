@@ -141,6 +141,9 @@ export const data: DataSource = {
 
   device,
 
+  // The browser loads an image of another site itself: nothing between it and the site blocks one.
+  remoteImages: true,
+
   connections: {
     list: () => get<Connection[]>("api/connections"),
     create: (input: ConnectionInput) => post<Connection>("api/connections", input),

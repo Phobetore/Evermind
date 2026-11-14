@@ -4,7 +4,8 @@ import { oneQuestion, type Asked as AskedOf } from "@/lib/question";
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 
-type Options = { action: string; danger?: boolean };
+// details: shown under the question, which stays a string: it is the box's title and its name.
+type Options = { action: string; danger?: boolean; details?: React.ReactNode };
 type Ask = (question: string, options: Options) => Promise<boolean>;
 type Asked = AskedOf<Options>;
 
@@ -55,7 +56,7 @@ export function DropQuestionOnLeave() {
   return null;
 }
 
-function ConfirmBox({ question, action, danger, settle }: Asked) {
+function ConfirmBox({ question, action, danger, details, settle }: Asked) {
   const t = useT();
   const cancel = useRef<HTMLButtonElement>(null);
   // When the box was first drawn, on the clock of an event's own timeStamp; never, until it is.
@@ -74,6 +75,7 @@ function ConfirmBox({ question, action, danger, settle }: Asked) {
 
   return (
     <Modal title={question} role="alertdialog" onClose={() => settle(false)}>
+      {details && <div className="mb-4 min-w-0 space-y-1 text-sm text-mist [overflow-wrap:anywhere]">{details}</div>}
       {/* The word for what is confirmed can be a sentence, wider than a phone in some languages:
           the buttons go one under the other, then their words break, before either leaves the box. */}
       <div className="flex flex-wrap justify-end gap-2">

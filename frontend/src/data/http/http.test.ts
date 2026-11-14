@@ -38,7 +38,7 @@ describe("the contract", () => {
   test("offers what the contract names, and nothing else", () => {
     expect(Object.keys(data).sort()).toEqual([
       "access", "characters", "connections", "conversations", "device", "file", "library", "memories",
-      "messages", "personas", "settings", "turns", "updates",
+      "messages", "personas", "remoteImages", "settings", "turns", "updates",
     ]);
   });
 });

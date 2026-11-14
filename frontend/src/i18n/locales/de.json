@@ -346,6 +346,30 @@
     "removeFavoriteTitle": "Aus Favoriten entfernen",
     "favoritedLabel": "Favorisiert",
     "creatorNotesLabel": "Notizen des Erstellers",
+    "presentation": {
+      "showImages": "Bilder anzeigen",
+      "contacts": "Kontaktiert: {hosts}",
+      "contactsMore": "Kontaktiert: {hosts} und {count} weitere",
+      "contactsMore_one": "Kontaktiert: {hosts} und {count} weitere",
+      "imageFrom": "Bild von {host}",
+      "show": "Anzeigen",
+      "showFrom": "Bild von {host} anzeigen",
+      "imageUnavailable": "Bild nicht verfügbar ({host})",
+      "imageRefused": "Bild nicht angezeigt",
+      "imageTooLarge": "Bild zu groß zum Anzeigen ({width} × {height} Pixel)",
+      "imageOverBudget": "Bild nicht angezeigt: Zusammen mit den vorherigen würde es den Speicher eines Telefons übersteigen.",
+      "layoutMissing": "Das Layout konnte nicht geladen werden.",
+      "reload": "Neu laden",
+      "noRemoteImages": "Bilder anderer Websites werden in dieser Ausgabe nicht angezeigt.",
+      "tooLong": "Zu lang für das Layout: ohne Formatierung angezeigt.",
+      "tooDense": "Zu dicht für das Layout: ohne Formatierung angezeigt.",
+      "linkElsewhere": "Dieser Link führt nicht zu der Website, die sein Text zeigt. Öffnen?",
+      "linkUnclear": "Der Text dieses Links kann als andere Website gelesen werden. Öffnen?",
+      "linkPicture": "Dieser Link enthält ein Bild. Öffnen?",
+      "linkLeadsTo": "Er führt zu {host}",
+      "linkShows": "Sein Text zeigt {host}",
+      "openLink": "Öffnen"
+    },
     "card": {
       "startButton": "Starten"
     },
@@ -587,6 +611,15 @@
     "tagInput": {
       "placeholder": "Tag hinzufügen, dann Enter",
       "removeAriaLabel": "{tag} entfernen"
+    },
+    "folded": {
+      "more": "Weiterlesen",
+      "less": "Weniger anzeigen"
+    },
+    "plainText": {
+      "part": "Teil {index} von {count}",
+      "previous": "Vorheriger Teil",
+      "next": "Nächster Teil"
     }
   },
   "errors": {

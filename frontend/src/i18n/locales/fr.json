@@ -346,6 +346,30 @@
     "removeFavoriteTitle": "Retirer des favoris",
     "favoritedLabel": "Favori",
     "creatorNotesLabel": "Notes du créateur",
+    "presentation": {
+      "showImages": "Afficher les images",
+      "contacts": "Contacte : {hosts}",
+      "contactsMore": "Contacte : {hosts} et {count} autres",
+      "contactsMore_one": "Contacte : {hosts} et {count} autre",
+      "imageFrom": "Image de {host}",
+      "show": "Afficher",
+      "showFrom": "Afficher l'image de {host}",
+      "imageUnavailable": "Image indisponible ({host})",
+      "imageRefused": "Image non affichée",
+      "imageTooLarge": "Image trop grande pour être affichée ({width} × {height} pixels)",
+      "imageOverBudget": "Image non affichée : avec les précédentes, elle dépasserait la mémoire d'un téléphone.",
+      "layoutMissing": "La mise en forme n'a pas pu être chargée.",
+      "reload": "Recharger",
+      "noRemoteImages": "Les images d'autres sites ne s'affichent pas dans cette édition.",
+      "tooLong": "Trop long pour être mis en page : montré sans sa mise en forme.",
+      "tooDense": "Trop chargé pour être mis en page : montré sans sa mise en forme.",
+      "linkElsewhere": "Ce lien ne mène pas au site que montre son texte. L'ouvrir ?",
+      "linkUnclear": "Le texte de ce lien peut se lire comme un autre site. L'ouvrir ?",
+      "linkPicture": "Ce lien porte une image. L'ouvrir ?",
+      "linkLeadsTo": "Il mène à {host}",
+      "linkShows": "Son texte montre {host}",
+      "openLink": "Ouvrir"
+    },
     "card": {
       "startButton": "Commencer"
     },
@@ -587,6 +611,15 @@
     "tagInput": {
       "placeholder": "Ajouter un tag puis Entrée",
       "removeAriaLabel": "Retirer {tag}"
+    },
+    "folded": {
+      "more": "Lire la suite",
+      "less": "Réduire"
+    },
+    "plainText": {
+      "part": "Partie {index} sur {count}",
+      "previous": "Partie précédente",
+      "next": "Partie suivante"
     }
   },
   "errors": {

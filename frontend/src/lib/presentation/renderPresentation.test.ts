@@ -921,8 +921,9 @@ test("a single line break stays a line break", () => {
     const [paragraph] = elementsOf(tree);
     // The line ending the tree writes after each break is only a blank.
     const shape = paragraph.children
-      .filter((child) => child.type === "element" || child.value.trim() !== "")
-      .map((child) => (child.type === "element" ? child.tagName : child.value.trim()));
+      // "value" in child: hast-util-to-jsx-runtime adds the MDX nodes, which have none, to hast's types.
+      .filter((child) => child.type === "element" || ("value" in child && child.value.trim() !== ""))
+      .map((child) => (child.type === "element" ? child.tagName : "value" in child ? child.value.trim() : child.type));
     expect(shape).toEqual(["a", "br", "b"]);
   }
   const apart = laidOut("a\n\nb");

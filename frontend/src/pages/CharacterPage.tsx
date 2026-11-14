@@ -1,8 +1,11 @@
+import { Presentation } from "@/components/cards/Presentation";
 import { StartChatModal } from "@/components/cards/StartChatModal";
 import { Avatar } from "@/components/ui/Avatar";
+import { Folded } from "@/components/ui/Folded";
 import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
+import { speakingName } from "@/engine";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
 import { previewMacros, timeAgo } from "@/lib/utils";
@@ -150,9 +153,11 @@ function CharacterDetail({ id }: { id: string }) {
           {character.creator_notes && (
             <section className="mt-6">
               <h2 className="ui-label mb-2">{t("characters.creatorNotesLabel")}</h2>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-mist">
-                {character.creator_notes}
-              </p>
+              <Folded>
+                <Presentation
+                  text={previewMacros(character.creator_notes, speakingName(character), t("chat.panel.sceneAnchor.youFallback"))}
+                />
+              </Folded>
             </section>
           )}
 

@@ -292,6 +292,94 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   margin: 0.65em 0;
 }
 
+/* A card's presentation. Its frame says that what it holds comes from the card, but for the
+   places of images, drawn here with a dashed border and their Show button. A leftover of a style
+   the filter let through stays in its box (contain, overflow). Tailwind's base sheet flattens
+   headings, lists, links, tables and images: these rules give a presentation back the look it had
+   on its site. A card's inline style, kept by the filter, goes before them, but for !important. */
+.card-presentation { contain: layout paint; overflow: hidden; overflow-wrap: anywhere;
+  border: 1px solid var(--color-ink-700); border-radius: 1rem; padding: 1rem;
+  line-height: 1.6; color: var(--color-parchment); }
+/* Not !important: it would silence a card's own max-width, which cardRules already writes as
+   min(100%, …). */
+.card-presentation * { max-width: 100%; }
+.card-presentation :is(p, ul, ol, blockquote, pre, .card-table, details, hr) { margin: 0 0 0.75em; }
+.card-presentation > :last-child { margin-bottom: 0; }
+/* In rem, never em: HTML keeps a heading in a span in a heading, and ten levels in em would grow
+   to near 29 times the size. The smallest is the size of the text, told apart by weight and colour. */
+.card-presentation :is(h3, h4, h5, h6) { font-family: var(--font-display); font-weight: 600;
+  line-height: 1.3; margin: 1em 0 0.4em; }
+.card-presentation > :is(h3, h4, h5, h6):first-child { margin-top: 0; }
+.card-presentation h3 { font-size: 1.4rem; }
+.card-presentation h4 { font-size: 1.25rem; }
+.card-presentation h5 { font-size: 1.125rem; }
+.card-presentation h6 { font-size: 1.0625rem; color: var(--color-parchment-dim); }
+/* Indents in px, which cardRules counts to the pixel, and none past the third level: twenty
+   quotes or lists without any style would push the text out of the frame. */
+.card-presentation ul { list-style: disc; padding-left: 24px; }
+.card-presentation ol { list-style: decimal; padding-left: 24px; }
+.card-presentation :is(ul, ol) :is(ul, ol) { margin: 0.25em 0 0; }
+.card-presentation ul ul { list-style: circle; }
+.card-presentation li + li { margin-top: 0.25em; }
+.card-presentation blockquote { border-left: 2px solid var(--color-ember-600); padding-left: 14px;
+  color: var(--color-parchment-dim); }
+.card-presentation :is(ul, ol, blockquote) :is(ul, ol, blockquote) :is(ul, ol, blockquote)
+  :is(ul, ol, blockquote) { padding-left: 0; border-left-width: 0; }
+.card-presentation :is(strong, b) { font-weight: 700; }
+.card-presentation :is(em, i) { font-style: italic; }
+.card-presentation :is(u, ins) { text-decoration: underline; }
+.card-presentation :is(s, del) { text-decoration: line-through; }
+/* Our inner spacings of mark, code and pre in px, and only on the first of each nested: sixty
+   nested code elements would otherwise take most of the column, uncounted. */
+.card-presentation mark { background: rgba(226, 154, 62, 0.28); color: inherit; padding: 0 2px; }
+.card-presentation mark mark { padding: 0; }
+.card-presentation code { font-size: max(11px, 0.9em) !important; background: var(--color-ink-800); padding: 0.1em 4px;
+  border-radius: 0.3em; }
+.card-presentation code code { padding: 0; }
+.card-presentation pre { background: var(--color-ink-800); padding: 12px; border-radius: 0.5rem;
+  overflow-x: auto; white-space: pre; }
+.card-presentation pre pre { padding: 0; }
+.card-presentation pre code { background: none; padding: 0; }
+.card-presentation .card-table { overflow-x: auto; }
+.card-presentation table { border-collapse: collapse; }
+/* break-word, not the frame's anywhere: under anywhere a cell's narrowest width falls to one
+   letter, and a table of ten columns would squeeze into a phone instead of scrolling in its box. */
+.card-presentation :is(th, td) { border: 1px solid var(--color-ink-600); padding: 0.35em 0.6em;
+  text-align: start; vertical-align: top; overflow-wrap: break-word; }
+.card-presentation th { font-weight: 600; background: var(--color-ink-800); }
+.card-presentation hr { border: 0; border-top: 1px solid var(--color-ink-600); margin: 1em 0; }
+/* A summary is the one element a card can dress as a real control. It keeps the triangle of a
+   disclosure, in the app's colours that no inline style reaches: no button of the app has it.
+   24px of line and 2 × 10px make the 44px of a control. */
+.card-presentation summary { display: block !important; list-style: none !important;
+  cursor: pointer; padding-block: 10px; }
+.card-presentation summary::-webkit-details-marker { display: none; }
+.card-presentation summary::before { content: "▸"; display: inline-block;
+  color: var(--color-parchment) !important; background: var(--color-ink-800) !important;
+  font: 600 1rem/1.5 var(--font-body) !important; padding: 0 0.4em !important;
+  margin-inline-end: 0.5em !important; border-radius: 0.3em !important;
+  text-decoration: none !important; text-shadow: none !important; }
+.card-presentation details[open] > summary::before { content: "▾"; }
+/* Inline, as on the card sites (an image in a sentence, or centred); never taller than three
+   screens, shown whole and shrunk past that: a picture of 1 × 16,000,000 pixels would otherwise
+   make a page out of reach. */
+.card-presentation img { display: inline; vertical-align: middle; height: auto !important;
+  max-height: 300vh; object-fit: contain; }
+/* The underline is forced on the link and on each of its descendants: CSS does not carry a link's
+   decoration to a child in inline-block, which could then dress the link as a button. */
+.card-presentation a { color: var(--color-ember-300); text-underline-offset: 0.15em; }
+.card-presentation :is(a, a *) { text-decoration: underline !important; }
+/* A floor in place of the base sheet's 80 % and 75 %, and no shift of sub and sup, which adds up
+   from one level to the next and paints over the lines around. */
+.card-presentation small { font-size: max(11px, 0.8em) !important; }
+.card-presentation :is(sub, sup) { font-size: max(11px, 0.75em) !important; position: static; }
+.card-presentation sup { vertical-align: super; }
+.card-presentation sub { vertical-align: sub; }
+.card-presentation :is(sub, sup) :is(sub, sup) { vertical-align: baseline; }
+/* Above whatever the card paints in the frame, its own stacking context where the card can set
+   neither position nor z-index: a place's Show button is always the one touched. */
+.card-presentation .card-placeholder { position: relative; z-index: 1; }
+
 .stream-caret::after {
   content: "▋";
   color: var(--color-ember-400);

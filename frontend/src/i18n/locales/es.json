@@ -346,6 +346,30 @@
     "removeFavoriteTitle": "Quitar de favoritos",
     "favoritedLabel": "En favoritos",
     "creatorNotesLabel": "Notas del creador",
+    "presentation": {
+      "showImages": "Mostrar imágenes",
+      "contacts": "Contactará con: {hosts}",
+      "contactsMore": "Contactará con: {hosts} y {count} más",
+      "contactsMore_one": "Contactará con: {hosts} y {count} más",
+      "imageFrom": "Imagen de {host}",
+      "show": "Mostrar",
+      "showFrom": "Mostrar la imagen de {host}",
+      "imageUnavailable": "Imagen no disponible ({host})",
+      "imageRefused": "Imagen no mostrada",
+      "imageTooLarge": "Imagen demasiado grande para mostrarla ({width} × {height} píxeles)",
+      "imageOverBudget": "Imagen no mostrada: junto con las anteriores, no cabría en la memoria de un teléfono.",
+      "layoutMissing": "No se pudo cargar el formato.",
+      "reload": "Recargar",
+      "noRemoteImages": "Las imágenes de otros sitios no se muestran en esta edición.",
+      "tooLong": "Demasiado largo para darle formato: se muestra sin él.",
+      "tooDense": "Demasiado cargado para darle formato: se muestra sin él.",
+      "linkElsewhere": "Este enlace no lleva al sitio que muestra su texto. ¿Abrirlo?",
+      "linkUnclear": "El texto de este enlace puede leerse como otro sitio. ¿Abrirlo?",
+      "linkPicture": "Este enlace contiene una imagen. ¿Abrirlo?",
+      "linkLeadsTo": "Lleva a {host}",
+      "linkShows": "Su texto muestra {host}",
+      "openLink": "Abrir"
+    },
     "card": {
       "startButton": "Empezar"
     },
@@ -587,6 +611,15 @@
     "tagInput": {
       "placeholder": "Añade una etiqueta y pulsa Enter",
       "removeAriaLabel": "Quitar {tag}"
+    },
+    "folded": {
+      "more": "Leer más",
+      "less": "Mostrar menos"
+    },
+    "plainText": {
+      "part": "Parte {index} de {count}",
+      "previous": "Parte anterior",
+      "next": "Parte siguiente"
     }
   },
   "errors": {
