@@ -126,6 +126,61 @@ test("a model that only thinks is said so", async ({ page, request }) => {
   await expect(nameField(page)).toHaveValue("");
 });
 
+test("a tag typed again in another case is there once", async ({ page, request }) => {
+  await makeCharacter(request);
+  await page.goto("/#/characters/new");
+  const box = page.getByPlaceholder("Add a tag, then Enter");
+  await box.fill("Fantasy");
+  await box.press("Enter");
+  // The placeholder goes once there is a tag; the box keeps the focus, as for a person typing on.
+  await page.keyboard.type(" fantasy ");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: /^Remove\s+fantasy$/i })).toHaveCount(1);
+  // exact: a name given as text otherwise matches in any case, and would pass a lost spelling.
+  await expect(page.getByRole("button", { name: "Remove Fantasy", exact: true })).toHaveCount(1);
+});
+
+test("a card that has tags keeps each of them once", async ({ page, request }) => {
+  // Passes on the code before the fix too: the card's own tags replace the model's whole list, so
+  // this path never doubled. It pins that it stays so. The stand-in model writes "fantasy" and
+  // "mystery": the card's own spelling of the same tags.
+  const card = await makeCharacter(request, { tags: ["Fantasy", " Mystery "] });
+  await page.goto(`/#/characters/${card.id}/edit`);
+  await brief(page).fill("A seller of maps");
+  await generate(page).click();
+
+  // The card ended: a field it had empty is filled, the ones it had are its own.
+  await expect(page.getByLabel("Personality")).toHaveValue(/sly/);
+  await expect(nameField(page)).toHaveValue("Vane");
+  const tags = page.getByRole("button", { name: /^Remove\s+(fantasy|mystery)\s*$/i });
+  await expect(tags).toHaveCount(2);
+});
+
+test("a brief of a hundred thousand characters is kept whole, and said too long for the model", async ({ page, request }, info) => {
+  await makeCharacter(request);
+  await page.goto("/#/characters/new");
+  const text = "A seller of maps who draws tomorrow. ".repeat(2_800).slice(0, 100_000);
+
+  let started = Date.now();
+  await brief(page).fill(text);
+  const pasted = Date.now() - started;
+  started = Date.now();
+  await brief(page).press("End");
+  await brief(page).pressSequentially("!");
+  const typed = Date.now() - started;
+  info.annotations.push({ type: "timing", description: `pasted in ${pasted} ms, one key after it in ${typed} ms` });
+  expect(pasted, "pasting froze the page").toBeLessThan(3_000);
+  expect(typed, "a key pressed in a long brief froze the page").toBeLessThan(1_000);
+  expect((await brief(page).inputValue()).length).toBe(100_001);
+
+  await generate(page).click();
+  // The stand-in model's connection holds 16384 tokens, which the brief alone outgrows.
+  const refused = page.getByText(/too long for this model/);
+  await expect(refused).toBeVisible();
+  await expect(refused).toContainText("the connection holds 16,384");
+  await expect(brief(page)).toBeEnabled();
+});
+
 test("the panel fits a narrow phone", async ({ page, request }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await ask(page, request, "A seller of maps SLOWLY");

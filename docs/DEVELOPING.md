@@ -172,8 +172,12 @@ through.
 
 An error is `{"error": "<English sentence>", "kind": "<name>"}`, and a `not_found`
 adds `"resource"` (`character`, `conversation`, `message`, `persona`,
-`connection`, `fact`, `illustration`, `file`). The sentence is for whoever reads
-the API; the interface shows its own text for the `kind`, and for how a reply
+`connection`, `fact`, `illustration`, `file`). An error may also carry
+`"params"`, the numbers its sentence is made of: the card assistant's refusals
+before the model is asked, `brief_too_long`, `card_too_long` and
+`context_too_small`, carry `needed` (the tokens the request would take, to the
+hundred above) and `context` (what the connection holds). The sentence is for
+whoever reads the API; the interface shows its own text for the `kind`, and for how a reply
 failed, which `GET /api/conversations/{id}/turn` tells, in the person's language
 (`frontend/src/lib/errors.ts`, sentences under `errors` in the locale files). A
 new `AppError` needs a `kind`, and a test fails without one.
@@ -193,6 +197,11 @@ connection test and the benchmark fail the same way.
 FastAPI's own answers have no `kind`: `{"detail": ...}` for a route that does not
 exist (`404`), a method a route does not take (`405`) or a body that does not
 validate (`422`, each problem's `type`, `loc` and `msg`, never what was sent).
+One validation answer does: a `422` for a text refused for its length carries,
+beside `detail`, `"kind": "text_too_long"` or `"text_too_short"` with
+`"params": {"limit": <the bound>, "length": <its own length>}`, so that the
+person reads how long the text is and may be. Any other validation answer still
+has no kind.
 Neither has a proxy's, often not JSON, which the request layer gives the kind
 `http_error` and the message `HTTP <status>`. The interface shows a sentence of
 its own for their status, never their words. A kind it does not know yet shows

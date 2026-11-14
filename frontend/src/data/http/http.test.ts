@@ -135,6 +135,18 @@ describe("what comes back", () => {
     expect(await failureOf()).toMatchObject({ message: JSON.stringify(detail), status: 422, kind: undefined });
   });
 
+  test("a refusal keeps the numbers its sentence is made of, and nothing that is not one", async () => {
+    replies.push(
+      json({ detail: [], kind: "text_too_long", params: { limit: 200, length: 201, odd: { a: 1 } } }, 422),
+      json({ error: "No.", kind: "brief_too_long", params: "nonsense" }, 422),
+    );
+    const failure = await failureOf();
+    expect(failure.kind).toBe("text_too_long");
+    // Whole, not a partial match: what is not a number must be gone, not merely beside them.
+    expect(failure.params).toEqual({ limit: 200, length: 201 });
+    expect((await failureOf()).params).toBeUndefined();
+  });
+
   test.each([
     ["HTML from a proxy", new Response("<html>Bad gateway</html>", { status: 502 }), 502],
     ["an empty answer", new Response("", { status: 500 }), 500],

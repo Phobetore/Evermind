@@ -17,6 +17,9 @@ from dataclasses import dataclass, field
 import aiosqlite
 
 from ..errors import (
+    BRIEF_TOO_LONG,
+    CARD_TOO_LONG,
+    CONTEXT_TOO_SMALL,
     MODEL_EMPTY,
     MODEL_ONLY_THOUGHT,
     MODEL_UNREADABLE,
@@ -53,6 +56,9 @@ CARD_FIELDS = ("name", "tagline", "description", "personality", "scenario", "gre
 _CEILING = 4096
 # What the estimate of the prompt may miss: a ceiling past the context is refused by most servers.
 _CONTEXT_MARGIN = 128
+# The least room a card is written in: its fields at the lengths the prompt asks for, the lorebook
+# aside. A brief that leaves less would come back as a name and little else.
+_SMALLEST_CARD = 1024
 
 _KEEP_SECONDS = 30 * 60
 _KEEP_AT_MOST = 20
@@ -72,6 +78,34 @@ async def _resolve_connection(db: aiosqlite.Connection, connection_id: str | Non
     return connection
 
 
+def _same(text: str) -> str:
+    """What two spellings of one item share: case and the spaces around it do not make another."""
+    return text.strip().lower()
+
+
+def _once(items: list[str]) -> list[str]:
+    """Each item the first time it comes, as it was first written."""
+    first: dict[str, str] = {}
+    for item in items:
+        first.setdefault(_same(item), item)
+    return list(first.values())
+
+
+def _new_entries(entries: list[dict], existing: dict) -> list[dict]:
+    """The entries that cover something the lorebook does not: one whose every key the book, or
+    an entry before it, already has is the same subject written again, and would sit in it twice."""
+    book = existing.get("lore_entries")
+    known = {_same(key) for raw in (book if isinstance(book, list) else [])
+             if isinstance(raw, dict) for key in words(raw.get("keys"))}
+    fresh = []
+    for entry in entries:
+        keys = {_same(key) for key in entry["keys"]}
+        if not keys <= known:
+            fresh.append(entry)
+            known |= keys
+    return fresh
+
+
 def clean_card_draft(draft: dict) -> dict:
     """Whitelist and normalize what the model returned."""
     out: dict = {}
@@ -81,23 +115,64 @@ def clean_card_draft(draft: dict) -> dict:
             out[field_name] = value
     for field_name in LIST_FIELDS:
         items = words(draft.get(field_name))
+        if field_name == "tags":
+            items = [t.lower()[:40] for t in items]
+        # A model repeats itself, and lowercasing makes "Fantasy" and "fantasy" one tag.
+        items = _once(items)
+        if field_name == "tags":
+            items = items[:8]
         if items:
             out[field_name] = items
-    if "tags" in out:
-        out["tags"] = [t.lower()[:40] for t in out["tags"]][:8]
 
     entries = []
     lore = draft.get("lore_entries")
     for raw in (lore if isinstance(lore, list) else [])[:_MAX_LORE_ENTRIES]:
         if not isinstance(raw, dict):
             continue
-        keys = words(raw.get("keys"))
+        # A keyword written twice shows as two chips, and triggers the entry no more often.
+        keys = _once(words(raw.get("keys")))
         content = text_of(raw.get("content"))
         if keys and content:
             entries.append({"keys": keys[:6], "content": content})
     if entries:
         out["lore_entries"] = entries
     return out
+
+
+def _prompt_tokens(payload: PromptPayload) -> int:
+    return estimate_tokens(payload.system) + sum(
+        estimate_tokens(m.get("content") or "") for m in payload.messages)
+
+
+def _check_fits(connection: dict, payload: PromptPayload, request: CardAssistRequest) -> None:
+    """Refuses a brief the connection's context cannot hold along with the instructions and room
+    for a card, before the model is asked: past it, a server refuses the request, or quietly drops
+    the start of the brief and writes a card from what is left.
+
+    The room counted is the least a card is written in, not the connection's own ceiling: people
+    are told to raise that one, often close to the context, and chat still works with it, so it
+    must not refuse every brief. When the card's own fields, sent along, outgrow the context
+    whatever the brief, that is said instead: shortening the brief would not help. And when the
+    instructions and that room alone outgrow it, on an empty card and an empty brief, neither is
+    to blame: only a larger context helps."""
+    context = connection.get("context_size") or 0
+    needed = _prompt_tokens(payload) + _SMALLEST_CARD + _CONTEXT_MARGIN
+    if not context or needed <= context:
+        return
+    floor = _prompt_tokens(build_card_payload("", request.kind, None)) + _SMALLEST_CARD + _CONTEXT_MARGIN
+    if floor > context:
+        kind, what = CONTEXT_TOO_SMALL, "context is too small for the assistant"
+        needed = floor
+    elif existing_fields(request.existing) and (
+            needed - estimate_tokens(request.prompt.strip()) > context):
+        kind, what = CARD_TOO_LONG, "card is too long for this connection"
+    else:
+        kind, what = BRIEF_TOO_LONG, "brief is too long for this connection"
+    # An estimate, told as one: to the hundred above, so that it never reads as fitting.
+    about = -(-needed // 100) * 100
+    raise AppError(
+        f"The {what}: about {about} tokens with the instructions and the card, where its context "
+        f"holds {context}.", 422, kind=kind, params={"needed": about, "context": context})
 
 
 def with_room_for_a_card(connection: dict, payload: PromptPayload) -> dict:
@@ -109,9 +184,7 @@ def with_room_for_a_card(connection: dict, payload: PromptPayload) -> dict:
     own = connection.get("max_tokens")
     if not own:
         return connection
-    prompt = estimate_tokens(payload.system) + sum(
-        estimate_tokens(m.get("content") or "") for m in payload.messages)
-    room = (connection.get("context_size") or 0) - prompt - _CONTEXT_MARGIN
+    room = (connection.get("context_size") or 0) - _prompt_tokens(payload) - _CONTEXT_MARGIN
     return dict(connection, max_tokens=max(own, min(_CEILING, room)))
 
 
@@ -182,6 +255,7 @@ async def start(db: aiosqlite.Connection, request: CardAssistRequest) -> str:
     if job := _joined(request.client_id):
         return job.id
     payload = build_card_payload(request.prompt, request.kind, request.existing)
+    _check_fits(connection, payload, request)
     provider = get_provider(with_room_for_a_card(connection, payload))
     job = Job(uuid.uuid4().hex, request.client_id, dict(request.existing or {}), _now())
     _jobs[job.id] = job
@@ -233,6 +307,10 @@ def _progress(job: Job) -> dict:
     if job.progress is None or job.progress[0] != job.written:
         parsed, writing = partial_json(job.text())
         cleaned = clean_card_draft(parsed)
+        if "lore_entries" in cleaned:
+            cleaned["lore_entries"] = _new_entries(cleaned["lore_entries"], job.existing)
+            if not cleaned["lore_entries"]:
+                del cleaned["lore_entries"]
         job.progress = (job.written, {
             "parsed": parsed,
             "cleaned": cleaned,
@@ -285,7 +363,13 @@ def _end(job: Job, error: BaseException | None) -> None:
     if draft:
         # never overwrite what the creator already wrote
         job.draft = {**draft, **kept}
-    job.missing = [f for f in CARD_FIELDS if f not in (job.draft or {}) and f not in kept]
+    # A card whose lorebook has a keyed entry lacks none: asked again, the model would only write
+    # the same subjects. An entry with no key is one added in the editor and never filled.
+    book = job.existing.get("lore_entries")
+    has_lore = isinstance(book, list) and any(
+        isinstance(raw, dict) and words(raw.get("keys")) for raw in book)
+    job.missing = [f for f in CARD_FIELDS if f not in (job.draft or {}) and f not in kept
+                   and not (f == "lore_entries" and has_lore)]
     if not whole and job.draft is not None and not job.stopped and not job.error:
         logger.info("card assistant: a card was not finished (%s), missing %s; %s",
                     job.stop_reason, job.missing, describe_answer(text))
