@@ -1,9 +1,10 @@
 import { useAccess } from "@/components/layout/Access";
+import { Mark } from "@/components/ui/Mark";
 import { data } from "@/data";
 import { DataError } from "@/data/errors";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import { KeyRound, Loader2, VenetianMask } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 
@@ -62,7 +63,8 @@ export function LoginPage() {
 
       <div className="relative w-full max-w-sm animate-rise">
         <div className="mb-9 flex flex-col items-center text-center">
-          <VenetianMask className="mb-4 h-11 w-11 text-ember-400" strokeWidth={1.4} />
+          {/* Turning while the password is checked: the one moment the whole page is Evermind waiting on itself. */}
+          <Mark decorative busy={checking} className="mb-4 h-11 w-11 text-ember-400" />
           <h1 className="font-display text-4xl font-semibold tracking-tight">Evermind</h1>
           <p className="mt-2 text-sm leading-relaxed text-mist">{t("login.tagline")}</p>
         </div>
