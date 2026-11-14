@@ -2,6 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!-- The server sends both as headers; Vite's own server and the Anna edition do not. The second
+         is read before React puts any link in the page. -->
+    <meta name="referrer" content="same-origin" />
+    <meta http-equiv="x-dns-prefetch-control" content="off" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0f0d12" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

@@ -3,6 +3,7 @@ never makes a cross-origin request and a phone on the network needs one URL."""
 
 import errno
 import logging
+import mimetypes
 import os
 from urllib.parse import quote
 
@@ -32,6 +33,15 @@ class _WithoutChromeProbe(logging.Filter):
 
 
 logging.getLogger("uvicorn.access").addFilter(_WithoutChromeProbe())
+
+# Under nosniff a browser refuses a script whose type is not a JavaScript type, and a stylesheet
+# that is not text/css; StaticFiles takes its types from mimetypes, which on Windows reads the
+# registry. There it can give application/javascript for .js (still accepted), text/plain for
+# .mjs (refused), and after some editor has changed the registry text/plain for .js: the whole
+# interface would stop loading. Set here, the answer is the same everywhere.
+mimetypes.add_type("text/javascript", ".js")
+mimetypes.add_type("text/javascript", ".mjs")
+mimetypes.add_type("text/css", ".css")
 
 
 class UIFiles(StaticFiles):
