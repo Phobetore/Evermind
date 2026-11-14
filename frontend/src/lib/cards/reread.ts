@@ -26,7 +26,8 @@ export interface FoundCard {
 export interface RereadPlan {
   /** What changes in the form. */
   fields: Partial<CharacterInput>;
-  /** The lorebook after the re-reading, in today's order, the additions at the end. */
+  /** The lorebook after the re-reading, in today's order, each addition after the entry of the
+   *  card's nearest index below its own. */
   lore: LoreEntryInput[];
   /** What will be added or brought up to date, for the banner. */
   added: ReportLine[];
@@ -262,6 +263,25 @@ function pairs(current: LoreEntryInput[], old: LoreEntryInput[]): (LoreEntryInpu
   return paired;
 }
 
+/** The entries of `lore`, with each of `more` after the entry from the nearest index of the card
+ *  below its own (at the head when there is none), in the order of the card. */
+function withAdded(lore: LoreEntryInput[], more: LoreEntryInput[]): LoreEntryInput[] {
+  const placeOf = new Map<number, number>();
+  lore.forEach((entry, i) => { if (entry.origin !== null) placeOf.set(entry.origin, i); });
+  const after = new Map<number, LoreEntryInput[]>();
+  for (const entry of [...more].sort((a, b) => a.origin! - b.origin!)) {
+    let anchor = -1;
+    for (const [origin, at] of placeOf) {
+      if (origin < entry.origin! && (anchor < 0 || origin > lore[anchor].origin!)) anchor = at;
+    }
+    if (!after.has(anchor)) after.set(anchor, []);
+    after.get(anchor)!.push(entry);
+  }
+  const out = [...(after.get(-1) ?? [])];
+  lore.forEach((entry, i) => out.push(entry, ...(after.get(i) ?? [])));
+  return out;
+}
+
 /** What re-reading changes, against the form as it is now: it adds, it never overwrites a retouch. */
 export function rereadPlan(current: CardCharacter, found: FoundCard | null, mode: RereadMode): RereadPlan {
   const reread = mode === "reread";
@@ -327,12 +347,13 @@ export function rereadPlan(current: CardCharacter, found: FoundCard | null, mode
 
   if (reread) {
     // The entries the old import never gave Evermind: always on with no keyword, or only in ccv3.
+    // Each goes after the entry of the nearest index below it, as the export places what Evermind
+    // never received, so that a card re-read and left alone keeps its author's order.
     const designated = new Set(places.values());
     const more = now.lore_entries.filter((entry) => entry.origin !== null && !designated.has(entry.origin) && isStorable(entry));
-    lore.push(...more);
     if (more.length > 0) added.push({ key: "lore", count: more.length });
     fields.card_rules = 2;
-    return { fields, lore, added, untouched, card: { ...read.original, read: now } };
+    return { fields, lore: withAdded(lore, more), added, untouched, card: { ...read.original, read: now } };
   }
 
   // Kept for the export only: the reading kept with the card is the old one wherever the old

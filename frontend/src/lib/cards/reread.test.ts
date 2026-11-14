@@ -3,7 +3,8 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { data, type CardCharacter } from "@/data";
 import type { LibraryItem } from "@/types";
 import { newLoreEntry } from "../loreEntry";
-import { FIELDS, readCardJson } from "./read";
+import { cardForExport } from "./export";
+import { FIELDS, isStorable, readCardJson } from "./read";
 import { findOriginal, oldReading, rereadPlan, type FoundCard } from "./reread";
 
 // A PNG of one pixel, without any card.
@@ -169,7 +170,7 @@ describe("re-reading a card", () => {
     expect(plan.added.filter((line) => line.key === "lore")).toEqual([]);
   });
 
-  test("an always-on entry the old import dropped is added at the end", () => {
+  test("an always-on entry the old import dropped is added at its place", () => {
     const card = v2({
       name: "Mirela", description: "A lighthouse keeper.",
       character_book: { entries: [{ keys: ["lamp"], content: "Whale oil." }, { keys: [], content: "The sea is loud.", constant: true }] },
@@ -298,6 +299,23 @@ describe("re-reading a card", () => {
       origin: 0, content: "The lamp burns seal oil now.", comment: "The lamp", insertion_order: 5, position: 4, depth: 2,
     });
     expect(plan.lore.find((entry) => entry.keys[0] === "gull")).toMatchObject({ origin: 3, enabled: false });
+  });
+
+  test("an entry the old import dropped goes after the entry of the index below it", () => {
+    const plan = rereadPlan(madeBefore(BOOK), found(BOOK), "reread");
+    // The card's order: lamp, the always-on entry, boat, gull; the empty one is not stored.
+    expect(plan.lore.map((entry) => entry.origin)).toEqual([0, 1, 2, 3]);
+  });
+
+  test("a card re-read and left alone exports its book in its author's order", () => {
+    const current = madeBefore(BOOK);
+    const plan = rereadPlan(current, found(BOOK), "reread");
+    const after = { ...current, ...plan.fields, lore_entries: plan.lore };
+    // The server keeps the reading without the entries it does not store, as the empty one.
+    const read = { ...plan.card!.read, lore_entries: plan.card!.read.lore_entries.filter(isStorable) };
+    const card = cardForExport(after, { ...plan.card!, read, read_at: "" }, new Date("2026-11-14T00:00:00Z"));
+    expect((card.v2.data.character_book as { entries: unknown[] }).entries)
+      .toEqual((BOOK.data.character_book as { entries: unknown[] }).entries);
   });
 
   test("keeping the card, then re-reading it, leaves each entry its own settings", async () => {

@@ -271,8 +271,9 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     if (original === undefined) return;
     const plan = rereadPlan(current, original, mode);
     setDraft((d) => ({ ...d, ...plan.fields }));
-    // The entries of the form keep their ids; those the card adds, at the end, get new ones.
-    setLoreEntries(plan.lore.map((entry, i) => ({ ...entry, id: loreEntries[i]?.id ?? newId() })));
+    // The entries of the form keep their ids, which the plan carries over; those the card adds,
+    // among them at their place, get new ones.
+    setLoreEntries(plan.lore.map((entry) => ({ ...entry, id: "id" in entry && typeof entry.id === "string" ? entry.id : newId() })));
     setPendingCard(plan.card);
     setRereadChosen(true);
   }
