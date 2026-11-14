@@ -1,3 +1,7 @@
+import { substitute } from "@/engine";
+// Not offered by the engine's door, which offers only what the recorded cases reach: display only.
+import { describeMarkers } from "@/engine/macros";
+
 export function timeAgo(
   iso: string | null | undefined,
   t: (key: string, vars?: Record<string, string | number>) => string,
@@ -18,13 +22,67 @@ export function timeAgo(
   return t("time.yearsAgo", { count: Math.floor(months / 12) });
 }
 
-/** Resolve {{char}}/{{user}} macros for display (outside the chat flow,
-    where the backend already substitutes them). */
+/** No text is made longer than this by the names put in for its markers: a length the page
+ *  already draws (a dropped 15 MB JSON brings one), far below the longest string JavaScript holds.
+ *  Not a card's longest text: a PNG chunk inflates up to INFLATE_BOUND. */
+export const SHOWN_TEXT_BOUND = 15 * 1024 * 1024;
+
+const BRACE = 0x7b; // "{"
+const LESS = 0x3c; // "<"
+const COMMA = 0x2c;
+const COLON = 0x3a;
+
+/** How many times "{{" starts in a text, two that overlap counted twice. */
+function openings(text: string): number {
+  let count = 0;
+  for (let i = 0; i + 1 < text.length; i++) if (text.charCodeAt(i) === BRACE && text.charCodeAt(i + 1) === BRACE) count++;
+  return count;
+}
+
+/** Whether putting the names in could keep the text within SHOWN_TEXT_BOUND: text.length plus,
+ *  for each "{{" and each "<" of the text, the longer of the two names times (1 + k)², plus 2 for
+ *  each "," and each ":" (a choice of random or pick shown as " / "); k is the greater of the
+ *  counts of "{{" in charName and in userName, since the engine replaces {{char}} and {{user}}
+ *  after it has put the names in, inside them too. An upper bound, counted in one pass over the
+ *  text and one over each name, without the engine's patterns. */
+export function namesFit(text: string, charName: string, userName: string): boolean {
+  const k = Math.max(openings(charName), openings(userName));
+  const perMarker = Math.max(charName.length, userName.length) * (1 + k) ** 2;
+  let length = text.length;
+  if (length > SHOWN_TEXT_BOUND) return false;
+  for (let i = 0; i < text.length; i++) {
+    const unit = text.charCodeAt(i);
+    if (unit === LESS || (unit === BRACE && text.charCodeAt(i + 1) === BRACE)) length += perMarker;
+    else if (unit === COMMA || unit === COLON) length += 2;
+    else continue;
+    // Stopped as soon as it is past: the rest of a long text would not bring it back.
+    if (length > SHOWN_TEXT_BOUND) return false;
+  }
+  return true;
+}
+
+/** A card's markers for display, outside the conversation: comments out, every choice shown,
+ *  names in. Left as written when the names would make the text too long (SHOWN_TEXT_BOUND). */
 export function previewMacros(text: string, charName: string, userName: string): string {
   if (!text) return "";
-  return text
-    .replace(/\{\{\s*char\s*\}\}/gi, charName)
-    .replace(/\{\{\s*user\s*\}\}/gi, userName);
+  if (!namesFit(text, charName, userName)) return text;
+  return describeMarkers(text, charName, userName);
+}
+
+/** A card's own text (a field of its definition, a greeting) as the model or the conversation gets
+ *  it: markers described on the card rules (2), only {{char}} and {{user}} replaced on the old
+ *  ones (1), where the engine leaves the other markers as written. */
+export function cardText(text: string, cardRules: number, charName: string, userName: string): string {
+  if (!text) return "";
+  if (!namesFit(text, charName, userName)) return text;
+  return cardRules === 2 ? describeMarkers(text, charName, userName) : substitute(text, charName, userName);
+}
+
+/** The first `count` code points of a text, never half of a pair. For a text drawn under
+ *  line-clamp, which hides the lines past the clamp but still has the browser break every one of
+ *  them. Only twice `count` units are spread, however long the text. */
+export function firstCodePoints(text: string, count: number): string {
+  return [...text.slice(0, 2 * count)].slice(0, count).join("");
 }
 
 export function downloadBlob(blob: Blob, filename: string) {

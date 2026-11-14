@@ -1,4 +1,5 @@
 import type { CardCharacter, CardText, LoreEntryInput } from "@/data";
+import { NAME_TAG_RE } from "@/engine/macros";
 import { pyStrip } from "@/engine/text";
 import type { NoteRole } from "@/types";
 import { reportOf, type ImportReport } from "./report";
@@ -200,18 +201,85 @@ function withoutBlocks(html: string, name: string) {
   }
 }
 
-/** The first sentence of the creator's notes, as plain text: what a card says of itself first.
- *  Nothing is cut at a length. Every pattern stops at the next mark it could start on, so that a
- *  note full of unclosed marks still takes one pass. */
-export function taglineOf(notes: string): string {
-  let plain = withoutBlocks(withoutBlocks(notes, "style"), "script")
-    .replace(/<[^<>]*>/g, "")
+// The ends of a block, kept while the tags go: a line, or a paragraph for <p>. Two code points
+// Unicode keeps out of every text, taken out of a card's first, so that they are only ever ours.
+const LINE = "\ufdd0";
+const PARAGRAPH = "\ufdd1";
+const MARKS = /[\ufdd0\ufdd1]/g;
+const BLOCKS = new Set(["div", "li", "ul", "ol", "h1", "h2", "h3", "h4", "h5", "h6", "tr", "table", "blockquote", "pre", "center", "details", "summary", "hr"]);
+// The markers of the names, which become names once shown: the engine's own pattern, whole.
+const NAME_TAG = new RegExp(`^${NAME_TAG_RE.source}$`);
+
+/** What a tag leaves in the plain text. */
+function tagText(tag: string): string {
+  if (NAME_TAG.test(tag)) return tag;
+  const name = /^<\/?([A-Za-z][A-Za-z0-9]*)/.exec(tag)?.[1].toLowerCase();
+  if (name === "p") return PARAGRAPH;
+  if (name === "br") return "\n";
+  if (name === "td" || name === "th") return " ";
+  return name && BLOCKS.has(name) ? LINE : "";
+}
+
+/** A run of block ends and blanks between them, as one break: two blocks that meet are one line
+ *  apart (the items of a list), or a paragraph when one of them is a paragraph or the text itself
+ *  left an empty line there. */
+function blockBreak(run: string): string {
+  if (!run.includes(LINE) && !run.includes(PARAGRAPH)) return run;
+  const lines = run.split("\n").length - 1;
+  return run.includes(PARAGRAPH) || lines >= 2 ? "\n\n" : "\n";
+}
+
+/** The presentation without its layout, its paragraphs kept: for a summary, the page's fallback,
+ *  and the tagline offered at import. The markers of the names stay, to become names when shown.
+ *  Every pattern stops at the next mark it could start on, so that a note full of unclosed marks
+ *  still takes one pass. */
+export function plainPresentation(text: string): string {
+  return withoutBlocks(withoutBlocks(text.replace(MARKS, ""), "style"), "script")
+    .replace(/<[^<>]*>/g, tagText)
+    .replace(/[\s\ufdd0\ufdd1]+/g, blockBreak)
     .replace(/!\[[^[\]]*\]\([^()]*\)/g, "")
     .replace(/\[([^[\]]*)\]\([^()]*\)/g, "$1")
     .replace(/[*_`~]/g, "")
     // Every mark at the start of a line, so that a quote within a quote loses both.
     .replace(/^(?:[^\S\n]*(?:#+|>))+/gm, "")
-    .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name: string) => ENTITIES[name]);
+    .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name: string) => ENTITIES[name])
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/ ?\n ?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** The text after the headings it opens with, Markdown's or HTML's: a heading is a title, not the
+ *  first sentence. Searched rather than matched, so that an unclosed one takes a single pass. */
+function withoutLeadingHeadings(text: string): string {
+  const lower = text.toLowerCase();
+  const htmlHeading = /<h([1-6])(?=[\s>/])/y;
+  let at = 0;
+  for (;;) {
+    while (at < text.length && /\s/.test(text[at])) at++;
+    let marks = 0;
+    while (text[at + marks] === "#") marks++;
+    if (marks >= 1 && marks <= 6 && /^[ \t\r\n]?$/.test(text[at + marks] ?? "")) {
+      const end = text.indexOf("\n", at);
+      at = end < 0 ? text.length : end + 1;
+      continue;
+    }
+    htmlHeading.lastIndex = at;
+    const open = htmlHeading.exec(lower);
+    if (!open) return text.slice(at);
+    const close = lower.indexOf(`</h${open[1]}`, at);
+    const end = close < 0 ? -1 : lower.indexOf(">", close);
+    if (end < 0) return text.slice(at);
+    at = end + 1;
+  }
+}
+
+/** The first sentence of the creator's notes, as plain text: what a card says of itself first.
+ *  Nothing is cut at a length. The headings it opens with are left out, unless they are all it
+ *  says. */
+export function taglineOf(notes: string): string {
+  const visible = withoutBlocks(withoutBlocks(notes, "style"), "script");
+  let plain = plainPresentation(withoutLeadingHeadings(visible)) || plainPresentation(visible);
   plain = plain.replace(/\s+/g, " ").trim();
   // A full-width mark ends the sentence whatever follows: Japanese and Chinese put no space after it.
   // The marks after it and the quotes it closes go with it, in whatever order they close, or the

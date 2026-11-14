@@ -160,8 +160,9 @@ const MAX_PINNED_RESTATED = 8;
 
 // Said again at generation time, since a rule weighs less the further back it is. In two
 // parts: who to play, which a card's own instructions after the story replace, and the
-// guardrails, which stay whatever the card says.
-const ROLE_REMINDER = "Stay in character as {{char}}. Write only {{char}}'s next turn.";
+// guardrails, which stay whatever the card says. The first part takes the place of {{original}}
+// in a card's post-history instructions, and the page shows it there as the model reads it.
+export const ROLE_REMINDER = "Stay in character as {{char}}. Write only {{char}}'s next turn.";
 const GUARDRAILS =
   "Every line of dialogue and every action must be a COMPLETE sentence — never leave " +
   "{{char}} trailing off mid-thought as a tic, and never END your reply on an " +

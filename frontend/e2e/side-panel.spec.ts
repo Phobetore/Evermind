@@ -282,3 +282,21 @@ test("the panel beside the story closes when the screen narrows under it, and le
   await expect(page.locator("header button:has(svg.lucide-sliders-horizontal)")).toBeVisible();
   await expect(box, "a phone's keyboard closed on a sentence being typed").toBeFocused();
 });
+
+const made: string[] = [];
+test.afterEach(async ({ request }) => {
+  for (const id of made.splice(0)) await request.delete(`${API}/api/characters/${id}`);
+});
+
+// The model reads a card on the old rules with only its two names put in: the panel shows the
+// scenario the same way, and does not make it look resolved when the model will read it as written.
+test("the scene anchor shows the scenario as the model reads it", async ({ page, request }) => {
+  const convo = await makeConversation(request, { scenario: "{{// x}} <USER> at {{random:dawn,dusk}}" });
+  made.push(convo.character_id);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  await expect(panel.getByText("{{// x}} <USER> at {{random:dawn,dusk}}", { exact: true })).toBeVisible();
+});

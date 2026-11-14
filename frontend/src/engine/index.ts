@@ -34,6 +34,6 @@ export { cleanCardDraft, withRoomForACard } from "./cardDraft";
 export { substitute, substituteOriginal, hasOriginalMacro, expandMacros } from "./macros";
 export { estimateTokens } from "./tokens";
 export * from "./defaults";
-export { CONTINUE_INSTRUCTION, autoTitle } from "./chat";
+export { CONTINUE_INSTRUCTION, ROLE_REMINDER, autoTitle } from "./chat";
 export type { PromptPayload, PromptStats, ChatInput, PromptMemory, PromptLoreEntry } from "./chat";
 export type { MemoryPlan, KnownFact } from "./memoryChanges";

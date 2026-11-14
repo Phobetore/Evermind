@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import type { CardCharacter, LoreEntryInput } from "@/data";
 import { readCardFile } from "./index";
-import { readCardJson } from "./read";
+import { plainPresentation, readCardJson, taglineOf } from "./read";
 
 const fixture = (name: string) => readFileSync(new URL(`fixtures/${name}`, import.meta.url), "utf8");
 const readText = (text: string) => readCardJson(JSON.parse(text), text, "json")!;
@@ -222,7 +222,7 @@ describe("the fields of a card", () => {
   test("the tagline offered is the first sentence of the presentation, without its layout", () => {
     const tagline = (creator_notes: string) => v2({ creator_notes }).suggestedTagline;
     expect(tagline("<style>p { color: red }</style><p><b>Oyelaran</b> keeps the harbor.</p> More text.")).toBe("Oyelaran keeps the harbor.");
-    expect(tagline("<script>alert(1)</script># A *keeper* of _light_\n> Quoted ~~text~~ and `code`! Then more.")).toBe("A keeper of light Quoted text and code!");
+    expect(tagline("<script>alert(1)</script># A *keeper* of _light_\n> Quoted ~~text~~ and `code`! Then more.")).toBe("Quoted text and code!");
     expect(tagline("> > A quote within a quote. More.")).toBe("A quote within a quote.");
     expect(tagline("  ## > Heading and quote. More.")).toBe("Heading and quote.");
     expect(tagline("![portrait](https://example.com/a.png)Read [the guide](https://example.com) first... or not")).toBe("Read the guide first...");
@@ -262,5 +262,49 @@ describe("the fields of a card", () => {
     expect(tagline("Version 1.5 is out? Yes")).toBe("Version 1.5 is out?");
     expect(tagline("No end to this one")).toBe("No end to this one");
     expect(tagline("")).toBe("");
+  });
+
+  test("a heading is a title, not the first sentence", () => {
+    expect(taglineOf("# Mirela\n\nUne gardienne de phare pour des histoires **lentes**.\n\n- Aime : le thé"))
+      .toBe("Une gardienne de phare pour des histoires lentes.");
+    expect(taglineOf("<h1>Mirela</h1><p>Elle garde le phare. Depuis toujours.</p>")).toBe("Elle garde le phare.");
+    // A heading alone is all the presentation says.
+    expect(taglineOf("# Gardienne du phare.")).toBe("Gardienne du phare.");
+    expect(taglineOf("# Mirela\n## The keeper\nShe keeps the light. Always.")).toBe("She keeps the light.");
+  });
+});
+
+describe("the presentation without its layout", () => {
+  test("the presentation without its layout keeps its paragraphs", () => {
+    expect(plainPresentation("# Mirela\n\nA *keeper*   _of_ [the light](https://example.com).\n\n\n\n> Quiet.\n![a](b.png)"))
+      .toBe("Mirela\n\nA keeper of the light.\n\nQuiet.");
+    expect(plainPresentation("<style>p { color: red }</style>First line\nsecond &amp; last")).toBe("First line\nsecond & last");
+  });
+
+  test("blocks of a presentation stay apart without their layout", () => {
+    expect(plainPresentation("<p>Hello</p><p>World</p>")).toBe("Hello\n\nWorld");
+    expect(plainPresentation("a<br>b")).toBe("a\nb");
+    expect(plainPresentation("<ul><li>x</li><li>y</li></ul>")).toBe("x\ny");
+    expect(plainPresentation("<b>x</b>y")).toBe("xy");
+    expect(plainPresentation("<td>a</td><td>b</td>")).toBe("a b");
+  });
+
+  test("the name markers survive the plain text", () => {
+    const notes = "<p><BOT> opens the door for <user></p>";
+    expect(plainPresentation(notes)).toBe("<BOT> opens the door for <user>");
+    expect(taglineOf(notes)).toBe("<BOT> opens the door for <user>");
+    expect(taglineOf("<p>a</p><p>b.</p> c")).toBe("a b.");
+    expect(plainPresentation("<b>x</b> <botany>y</botany> <CHAR>")).toBe("x y <CHAR>");
+  });
+
+  test("a presentation of seven megabytes of unclosed markup strips in linear time", () => {
+    // A proof of linear time, not a budget for a visit: only a hostile card carries this.
+    for (const unit of ["<style>", "[", "![", "<"]) {
+      const text = unit.repeat(Math.floor(7_000_000 / unit.length));
+      const start = performance.now();
+      plainPresentation(text);
+      taglineOf(text);
+      expect(performance.now() - start, unit).toBeLessThan(2000);
+    }
   });
 });

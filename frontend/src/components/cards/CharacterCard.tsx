@@ -4,6 +4,7 @@ import { BookOpenText, MessageCircle, Star } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
+import { speakingName } from "@/engine";
 import { useT } from "@/i18n/useT";
 import { previewMacros } from "@/lib/utils";
 
@@ -89,7 +90,7 @@ export function CharacterCard({
         </h2>
         {character.tagline && (
           <p className="line-clamp-2 hidden text-sm italic leading-snug text-parchment-dim sm:block">
-            {previewMacros(character.tagline, character.name, t("chat.panel.sceneAnchor.youFallback"))}
+            {previewMacros(character.tagline, speakingName(character), t("chat.panel.sceneAnchor.youFallback"))}
           </p>
         )}
         {character.tags.length > 0 && (

@@ -2,6 +2,7 @@ import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Modal } from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
+import { speakingName } from "@/engine";
 import { useT } from "@/i18n/useT";
 import { installCard, readCardJson, type ReadCard } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
@@ -101,7 +102,7 @@ export function LibraryModal({
                   )}
                 </div>
                 <p className="mt-1 text-sm italic leading-snug text-parchment-dim">
-                  {previewMacros(item.read.character.tagline, item.read.character.name, t("chat.panel.sceneAnchor.youFallback"))}
+                  {previewMacros(item.read.character.tagline, speakingName(item.read.character), t("chat.panel.sceneAnchor.youFallback"))}
                 </p>
                 {item.read.character.tags.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
