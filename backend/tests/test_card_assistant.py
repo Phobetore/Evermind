@@ -7,6 +7,7 @@ import re
 
 import pytest
 
+from app.prompting.defaults import CARD_ASSISTANT_PROMPT
 from app.prompting.tokens import estimate_tokens
 from app.providers.base import ProviderError, ProviderEvent
 from app.services import card_assistant
@@ -279,10 +280,24 @@ async def test_the_raised_ceiling_stays_within_what_the_context_leaves(client, f
     assert sent_ceiling(fake_provider) + prompt <= 4096
 
 
-async def test_the_ceiling_is_never_lowered_under_the_connections_own(client, fake_provider):
+async def test_a_context_that_cannot_hold_the_instructions_and_a_card_is_said_before_the_model(
+        client, fake_provider):
+    """The instructions and the least room a card is written in are past a context of 1024."""
     await add_connection(client, max_tokens=900, context_size=1024)
-    await assist(client, prompt="japanese gangster")
-    assert sent_ceiling(fake_provider) == 900
+    # Neither the brief nor the card is to blame, and shortening either would not help: the number
+    # told is what the instructions and an empty card need, whatever was typed.
+    told = set()
+    for existing in ({}, {"existing": {"name": "Lia"}}):
+        for prompt in ("An elf who sells maps", "An elf who sells maps. " * 5000):
+            resp = await client.post("/api/characters/assist",
+                                     json={"prompt": prompt, **existing})
+            assert resp.status_code == 422, resp.text
+            body = resp.json()
+            assert body["kind"] == "context_too_small", (existing, len(prompt), body)
+            assert body["params"]["context"] == 1024 and body["params"]["needed"] > 1024
+            told.add(body["params"]["needed"])
+    assert len(told) == 1, told
+    assert fake_provider.captured == {}
 
 
 async def test_assist_returns_lore_entries(client, fake_provider):
@@ -301,10 +316,163 @@ async def test_assist_returns_lore_entries(client, fake_provider):
     state = await assist(client, prompt="yakuza")
     draft = state["draft"]
     assert len(draft["lore_entries"]) == 2 and state["lore"] == 2  # invalid entries filtered out
-    assert draft["lore_entries"][0]["keys"] == ["Kabukicho", "kabukicho"]
+    assert draft["lore_entries"][0]["keys"] == ["Kabukicho"]  # one keyword, in two cases
     assert "Shinjuku" in draft["lore_entries"][0]["content"]
     # A lone surrogate, which an escape in the answer gives, cannot be written to the response.
     assert "tagline" not in draft and draft["lore_entries"][1]["keys"] == ["clan Sato"]
+
+
+async def test_a_keyword_the_model_writes_twice_in_an_entry_comes_once(client, fake_provider):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Kenji", "lore_entries": [
+        {"keys": ["Dragon", "dragon", "Dragon", "DRAGON ", "Wyrm"], "content": "c"}]})
+    state = await assist(client, prompt="yakuza")
+    assert state["draft"]["lore_entries"][0]["keys"] == ["Dragon", "Wyrm"]
+
+
+async def test_a_long_brief_that_fits_the_connections_context_is_accepted(client, fake_provider):
+    # A community card's « about » runs well past ten thousand characters.
+    await add_connection(client, context_size=128_000)
+    state = await assist(client, prompt="A pirate. " * 4_000)
+    assert state["draft"]["name"] == "Nyra"
+    assert ("A pirate. " * 4_000).strip() in fake_provider.captured["payload"].messages[0]["content"]
+
+
+async def test_a_brief_the_connections_context_cannot_hold_is_refused_before_the_model(
+        client, fake_provider):
+    await add_connection(client, context_size=16_384)
+    jobs = len(card_assistant._jobs)
+    resp = await client.post("/api/characters/assist", json={"prompt": "x" * 100_000})
+    assert resp.status_code == 422, resp.text
+    body = resp.json()
+    assert body["kind"] == "brief_too_long"
+    # What the request would need: the brief, the assistant's instructions, and room for the card.
+    assert body["params"]["context"] == 16_384
+    assert body["params"]["needed"] > estimate_tokens("x" * 100_000)
+    assert fake_provider.captured == {}  # the model was never asked
+    assert len(card_assistant._jobs) == jobs
+
+
+@pytest.mark.parametrize(("context", "ceiling"), [(16_384, 16_000), (4_096, 4_096), (16_384, 8_192)])
+async def test_a_connections_own_ceiling_takes_no_room_from_the_brief(client, fake_provider,
+                                                                       context, ceiling):
+    """The app tells people to raise max tokens; a ceiling close to the context, as chat does with
+    it, still lets a brief through, and is sent as the connection sets it."""
+    await add_connection(client, context_size=context, max_tokens=ceiling)
+    # What fits the context with the instructions and the least room a card is written in.
+    brief = "x" * int((context - estimate_tokens(CARD_ASSISTANT_PROMPT) - 1_400) * 3.5)
+    for prompt in ("A seller of maps", brief):
+        resp = await client.post("/api/characters/assist", json={"prompt": prompt})
+        assert resp.status_code == 202, (context, ceiling, len(prompt), resp.text)
+        await within(2, card_assistant._jobs[resp.json()["id"]].finished.wait())
+        assert sent_ceiling(fake_provider) == ceiling
+
+
+async def test_what_the_card_already_holds_is_told_apart_from_the_brief(client, fake_provider):
+    """A short brief on a card whose fields alone outgrow the context: shortening the brief would
+    not help, and the person is told it is the card."""
+    await add_connection(client, context_size=16_384)
+    resp = await client.post("/api/characters/assist", json={
+        "prompt": "A seller of maps", "existing": {"description": "y" * 60_000}})
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["kind"] == "card_too_long"
+    assert resp.json()["params"]["context"] == 16_384
+    # The same overflow from the brief alone is the brief's.
+    resp = await client.post("/api/characters/assist", json={"prompt": "y" * 60_000})
+    assert resp.json()["kind"] == "brief_too_long"
+
+
+async def test_the_tokens_needed_are_told_to_the_hundred(client, fake_provider):
+    """An estimate, said as one: "about 28 700", not "about 28 659"."""
+    await add_connection(client, context_size=16_384)
+    resp = await client.post("/api/characters/assist", json={"prompt": "x" * 100_000})
+    needed = resp.json()["params"]["needed"]
+    assert needed % 100 == 0 and needed > estimate_tokens("x" * 100_000)
+
+
+async def test_the_room_left_for_the_card_counts_in_what_a_brief_may_take(client, fake_provider):
+    """A brief that leaves the card no room would come back cut, or be refused by the model's server."""
+    await add_connection(client, context_size=16_384)
+    instructions = estimate_tokens(CARD_ASSISTANT_PROMPT)
+    # Fits with the instructions alone, not once the room for a card is counted.
+    words = int((16_384 - instructions - 1_000) * 3.5)
+    resp = await client.post("/api/characters/assist", json={"prompt": "x" * words})
+    assert resp.status_code == 422 and resp.json()["kind"] == "brief_too_long", resp.text
+
+
+async def answers(fake_provider, card: dict) -> None:
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(card)),
+                            ProviderEvent(type="done")]
+
+
+async def test_a_tag_the_model_writes_twice_comes_once(client, fake_provider):
+    """Tags are lowercased: "Fantasy" and "fantasy " are then the same tag, which the form showed twice."""
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Nyra",
+                                  "tags": ["Fantasy", "fantasy ", " FANTASY", "Mystery", "fantasy"]})
+    state = await assist(client)
+    assert state["draft"]["tags"] == ["fantasy", "mystery"]
+
+
+async def test_tags_the_card_has_are_its_own_and_come_once(client, fake_provider):
+    # Passes on the code before the fix too: the reported path does not double here, since the
+    # creator's own tags replace the model's whole list. It pins that the card keeps its spelling.
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Nyra", "tags": ["fantasy", "mystery", "noir"]})
+    state = await assist(client, existing={"tags": ["Fantasy", " Mystery "]})
+    assert state["draft"]["tags"] == ["Fantasy", " Mystery "]
+
+
+async def test_an_alternate_greeting_the_model_writes_twice_comes_once(client, fake_provider):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Nyra", "alternate_greetings": [
+        "*The shop is empty.*", "*the shop is empty.* ", "*Rain on the glass.*"]})
+    state = await assist(client)
+    assert state["draft"]["alternate_greetings"] == ["*The shop is empty.*", "*Rain on the glass.*"]
+
+
+async def test_a_lore_entry_the_card_already_has_is_not_added_again(client, fake_provider):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Kenji", "lore_entries": [
+        {"keys": ["kabukicho "], "content": "The red-light district, again."},
+        {"keys": ["Docks"], "content": "Where the clan sells salt."},
+        {"keys": ["docks"], "content": "The docks, twice in one answer."},
+        {"keys": ["Kabukicho", "Shinjuku"], "content": "Covers a subject the book lacks."},
+    ]})
+    state = await assist(client, prompt="yakuza", existing={
+        "lore_entries": [{"keys": ["Kabukicho"], "content": "already written"}]})
+    assert [e["keys"] for e in state["draft"]["lore_entries"]] == [["Docks"], ["Kabukicho", "Shinjuku"]]
+    assert state["lore"] == 2
+
+
+@pytest.mark.parametrize("drafted", [
+    # The model wrote the entries the book has: dropped as repeats, they were written all the same.
+    [{"keys": ["Kabukicho"], "content": "The district, again."}],
+    # The model wrote none: the card has a lorebook already.
+    [],
+])
+async def test_a_card_that_has_a_lorebook_is_not_told_it_lacks_one(client, fake_provider, drafted):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Kenji", "lore_entries": drafted})
+    state = await assist(client, prompt="yakuza", existing={
+        "lore_entries": [{"keys": ["Kabukicho"], "content": "already written"}]})
+    assert "lore_entries" not in state["missing"], state["missing"]
+
+
+async def test_a_card_with_no_lorebook_that_got_none_still_lacks_one(client, fake_provider):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Kenji"})
+    state = await assist(client, prompt="yakuza")
+    assert "lore_entries" in state["missing"]
+
+
+async def test_an_empty_entry_left_in_the_editor_is_not_a_lorebook(client, fake_provider):
+    # "Add entry" pressed and nothing written: the card still has no lorebook.
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Kenji"})
+    state = await assist(client, prompt="yakuza", existing={
+        "lore_entries": [{"keys": [], "content": ""}, {"keys": [" "], "content": "no key"}]})
+    assert "lore_entries" in state["missing"], state["missing"]
 
 
 async def test_assist_avoids_duplicating_existing_lore(client, fake_provider):

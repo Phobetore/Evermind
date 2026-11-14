@@ -19,6 +19,7 @@ async function raiseFor(resp: Response): Promise<never> {
   let message: string | undefined;
   let kind: string | undefined;
   let resource: string | undefined;
+  let params: Record<string, number> | undefined;
   try {
     const body = await resp.json();
     const said = body.error ?? body.detail;
@@ -27,6 +28,11 @@ async function raiseFor(resp: Response): Promise<never> {
     }
     if (typeof body.kind === "string") kind = body.kind;
     if (typeof body.resource === "string") resource = body.resource;
+    if (body.params && typeof body.params === "object") {
+      // Only numbers: they go into a sentence, and anything else would show as it was sent.
+      const numbers = Object.entries(body.params).filter(([, v]) => typeof v === "number" && Number.isFinite(v));
+      if (numbers.length > 0) params = Object.fromEntries(numbers) as Record<string, number>;
+    }
   } catch {
     /* nothing readable: the status is all there is */
   }
@@ -36,7 +42,7 @@ async function raiseFor(resp: Response): Promise<never> {
   }
   if (resp.status === 401 && kind === "locked") lockedHandler();
   const retryAfter = Number(resp.headers.get("Retry-After")) || undefined;
-  throw new DataError(message, { kind, resource, status: resp.status, retryAfter });
+  throw new DataError(message, { kind, resource, status: resp.status, retryAfter, params });
 }
 
 /** What a call that got no answer at all is: the browser's own failure, whose

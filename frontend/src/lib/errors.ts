@@ -8,6 +8,8 @@ export interface Failure {
   status?: number;
   retryAfter?: number;
   message?: string;
+  /** The numbers the sentence for the kind is made of: a bound and a length. */
+  params?: Record<string, number>;
 }
 
 /** The sentence for each kind the server names, in `errors.*`. One with `{message}` in it quotes
@@ -47,6 +49,16 @@ const KIND_KEYS: Record<string, string> = {
   nothing_to_regenerate: "errors.nothingToRegenerate",
   nothing_to_continue: "errors.nothingToContinue",
   turn_running: "errors.turnRunning",
+  // A text refused for its length, wherever it was typed: `limit` is the bound, `length` its own.
+  text_too_long: "errors.textTooLong",
+  text_too_short: "errors.textTooShort",
+  // A brief the card assistant's connection cannot hold along with the card: `needed` and `context`.
+  brief_too_long: "errors.briefTooLong",
+  // The same, where the card's own fields outgrow the context whatever the brief.
+  card_too_long: "errors.cardTooLong",
+  // The same, where the assistant's instructions and room for a card alone outgrow it: only a
+  // larger context helps, so the sentence names no text to shorten.
+  context_too_small: "errors.contextTooSmall",
   internal: "errors.internal",
   // No answer from Evermind itself.
   network: "errors.unreachable",
@@ -68,9 +80,14 @@ const NOT_FOUND_KEYS: Record<string, string> = {
 
 /** The sentence to show for a failure, in the person's language. */
 export function describeFailure(failure: Failure, t: Translate): string {
-  const { kind, resource, status, message } = failure;
+  const { kind, resource, status, message, params } = failure;
   const known = kind ? KIND_KEYS[kind] : undefined;
-  if (known) return t(known, { message: message ?? "" });
+  if (known) {
+    // "At least 1 characters": the sentence for a bound too short takes the form its bound takes.
+    const vars: Record<string, string | number> = { message: message ?? "", ...params };
+    if (kind === "text_too_short" && params?.limit !== undefined) vars.count = params.limit;
+    return t(known, vars);
+  }
   if (kind === "not_found") {
     return t((resource && NOT_FOUND_KEYS[resource]) || "errors.notFound.other");
   }

@@ -34,6 +34,16 @@ describe("a number", () => {
     expect(translate(locale, "chat.context.percent", { pct: 19 })).toBe(share);
   });
 
+  it.each([
+    ["en", "about 31,000 tokens"],
+    ["fr", "environ 31 000 tokens"],
+    ["de", "etwa 31.000 Tokens"],
+    ["es", "unos 31.000 tokens"],
+  ] as const)("asked for grouped is grouped in %s, where a plain one is not", (locale, said) => {
+    expect(translate(locale, "errors.briefTooLong", { needed: 31000, context: 16384 })).toContain(said);
+    expect(translate(locale, "chatList.messageCount", { count: 16384 })).toContain("16384");
+  });
+
   it.each(["fr", "de", "es"] as const)("written into a sentence in %s has its decimal comma", (locale) => {
     expect(translate(locale, "connections.temperatureHint")).toMatch(/\b0,8\b/);
   });

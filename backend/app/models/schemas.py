@@ -77,7 +77,8 @@ class CharacterUpdate(Input):
 
 
 class CardAssistRequest(Input):
-    prompt: str = Field(min_length=3, max_length=8000)
+    # No upper bound here: what bounds a brief is the context of the connection that reads it.
+    prompt: str = Field(min_length=3)
     kind: Kind = "character"
     connection_id: str | None = None
     existing: dict = {}
