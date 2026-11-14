@@ -1,6 +1,6 @@
 import type { CardCharacter, LoreEntryInput, StoredCard } from "@/data";
 import type { NoteRole } from "@/types";
-import { bookEntries, cardFields, FIELDS, isObject } from "./read";
+import { bookEntries, cardFields, FIELDS, isObject, isText } from "./read";
 
 // The card a character is exported as. A card that was read is written back as it came in, with
 // what was changed here written over it: a column is written only where it differs from the
@@ -298,8 +298,9 @@ export function cardForExport(character: CardCharacter, stored: StoredCard | nul
     for (const key of [...FLAT_FIELDS, "alternate_greetings", "tags", "character_book", "extensions"]) {
       if (key in root) data[key] = structuredClone(root[key]);
     }
-    // SillyTavern keeps the notes of a V1 card in creatorcomment.
-    if (!("creator_notes" in data) && "creatorcomment" in root) data.creator_notes = structuredClone(root.creatorcomment);
+    // SillyTavern keeps the notes of a V1 card in creatorcomment, which the reader takes whenever
+    // creator_notes is no text: the export goes by the same rule, or the notes read would be lost.
+    if (!isText(data.creator_notes) && "creatorcomment" in root) data.creator_notes = structuredClone(root.creatorcomment);
     keepOwnData(root);
   } else {
     // The flat shape of Pygmalion: its fields under the names of a card, and no longer at the root.

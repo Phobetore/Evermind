@@ -232,6 +232,16 @@ describe("an export of a card that was read", () => {
     for (const key of unknown) expect(entry, key).not.toHaveProperty(key);
   });
 
+  test("a flat card whose creator_notes is no text exports its creatorcomment as its notes", () => {
+    const flat = { name: "Flat odd", description: "d", first_mes: "g", creator_notes: null, creatorcomment: "Only here." };
+    const { kept: card } = kept(JSON.stringify(flat));
+    expect(card.read.creator_notes).toBe("Only here.");
+    const out = exported(card);
+    expect(out.v2.data.creator_notes).toBe("Only here.");
+    expect(out.v2).toMatchObject({ creator_notes: null, creatorcomment: "Only here." });
+    expect(readObject(out.v2).character.creator_notes).toBe("Only here.");
+  });
+
   test("the V1 copies at the root follow their data", () => {
     const { kept: card, card: original } = kept(fixture("sillytavern-export.json"));
     const out = exported(card, (read) => ({
