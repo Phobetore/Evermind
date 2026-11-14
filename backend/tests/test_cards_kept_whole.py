@@ -120,6 +120,26 @@ async def test_saving_the_lorebook_keeps_each_entry_s_origin_and_settings(client
     assert [{name: e[name] for name in entries[0]} for e in stored] == entries
 
 
+async def test_secondary_keys_are_cleaned_as_keys_are(client):
+    made = await make(client)
+    entry = {"keys": ["sea"], "content": "Waves.", "secondary_keys": [" night ", ""], "origin": 0}
+    resp = await client.put(f"/api/characters/{made['id']}", json={
+        "lore_entries": [entry], "card": card(read={"name": "Serana", "lore_entries": [entry]})})
+    assert resp.status_code == 200, resp.text
+
+    stored = (await client.get(f"/api/characters/{made['id']}")).json()["lore_entries"]
+    assert [e["secondary_keys"] for e in stored] == [["night"]]
+    read = (await client.get(f"/api/characters/{made['id']}/card")).json()["read"]
+    assert [e["secondary_keys"] for e in read["lore_entries"]] == [["night"]]
+
+
+async def test_a_card_file_is_at_least_the_shortest_json_object(client):
+    for text in ("", "{"):
+        resp = await client.post("/api/characters", json={"name": "Serana", "card": card(text=text)})
+        assert resp.status_code == 422, text
+    await make(client, card=card(text="{}"))
+
+
 async def test_an_always_on_entry_needs_no_keyword_but_every_entry_needs_text(client):
     made = await make(client, lore_entries=[
         {"keys": [], "constant": True, "content": "x"},

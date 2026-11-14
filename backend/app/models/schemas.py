@@ -34,7 +34,7 @@ class Input(BaseModel):
 
 
 class OriginalCardIn(Input):
-    text: str = Field(min_length=2)   # the card's JSON as its file held it, decoded from UTF-8
+    text: str = Field(min_length=2)   # the card's JSON as its file held it, decoded from UTF-8; "{}" at the least
     format: Literal["png", "json"]
     other_text: str | None = None     # the PNG's other card chunk, when it reads differently
     read: "CharacterIn"               # what the reader made of the card; its own `card` is ignored
