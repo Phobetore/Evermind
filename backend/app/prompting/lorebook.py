@@ -8,6 +8,7 @@ it step for step without depending on either language's dialect.
 import re
 
 from .macros import substitute
+from .tokens import estimate_tokens
 
 # What makes a key several words, and so a plain substring.
 SPACES = " \t\n\r\f\v                 　"
@@ -29,6 +30,8 @@ ENTRY_DEFAULTS = {
     "prevent_recursion": False,
 }
 
+_BEFORE_THE_CARD = 0  # "before the character's definition", SillyTavern's first place
+_AT_A_DEPTH = 4  # "@ depth": among the turns of the story, so many from the end
 _OUTLET = 7  # shown only where a {{outlet}} macro asks for it, which Evermind does not have
 _REGEX_KEY = re.compile(r"/([\s\S]+?)/([gimsuy]*)")
 _WORD = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
@@ -175,3 +178,35 @@ def activated(entries: list[dict], scan: str, char_name: str, user_name: str) ->
         text += added
         added = "\n" + "\n".join(pieces)
     return [c.entry for c in sorted(fired, key=lambda c: c.index)]
+
+
+def within_budget(entries: list[dict], budget: int) -> list[dict]:
+    """Of the entries that fired, in the lorebook's order, those the budget holds, as they
+    are to be placed. The highest insertion order goes first, the lorebook's order deciding
+    a tie; one that does not fit is passed over for the next, so that a large entry does not
+    silence small ones. They are placed lowest order first, as SillyTavern does, the highest
+    nearest the end where the model reads last; the sorts are stable, so a tie keeps the
+    lorebook's order both times."""
+    kept = []
+    for entry in sorted(entries, key=lambda e: _setting(e, "insertion_order"), reverse=True):
+        cost = estimate_tokens(entry.get("content") or "")
+        if cost > budget:
+            continue
+        budget -= cost
+        kept.append(entry)
+    return sorted(kept, key=lambda e: _setting(e, "insertion_order"))
+
+
+def before_the_card(entry: dict) -> bool:
+    """Whether an entry goes before the character's definition rather than after it."""
+    return _setting(entry, "position") == _BEFORE_THE_CARD
+
+
+def at_a_depth(entry: dict) -> bool:
+    """Whether an entry is said among the turns of the story, at its depth."""
+    return _setting(entry, "position") == _AT_A_DEPTH
+
+
+def depth_of(entry: dict) -> int:
+    """How many turns from the end an entry at a depth is said."""
+    return _setting(entry, "depth")

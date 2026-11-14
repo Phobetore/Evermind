@@ -2177,6 +2177,149 @@
    "expected": false
   },
   {
+   "fn": "expand_macros",
+   "name": "comments are taken out, whatever the spaces around their slashes",
+   "input": {
+    "text": "Hi.{{// a note for the reader}} {{  //x }}There.",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "Hi. There."
+  },
+  {
+   "fn": "expand_macros",
+   "name": "the first format's names, whatever their case, and the long s python reads as an s",
+   "input": {
+    "text": "<USER> greets <bot>; <Char> nods to <uſer>.",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "Alex greets Serana; Serana nods to Alex."
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a random choice split on commas, each choice stripped",
+   "input": {
+    "text": "She wears {{random: red , green,blue }}.",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "She wears red."
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a random choice split on :: when that is its separator",
+   "input": {
+    "text": "{{random::a::b}} and {{RANDOM :: x, y :: z}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "a and z"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "an escaped comma is part of a choice, in a pick spelled with the kelvin sign python reads as a k",
+   "input": {
+    "text": "{{picK:a\\, b,c\\,d}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "c,d"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a roll of d20, and one written in other digits",
+   "input": {
+    "text": "{{roll:d20}} {{ ROLL ١٢ }} {{roll::1d6}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "17 12 5"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a roll of zero stays as written",
+   "input": {
+    "text": "{{roll:0}} {{roll:d0}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "{{roll:0}} {{roll:d0}}"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "an unknown marker is left as it is, and a roll of several dice",
+   "input": {
+    "text": "{{time}} {{random}} {{roll:2d6}} {{original}} {{roll:1234567890}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "{{time}} {{random}} {{roll:2d6}} {{original}} {{roll:1234567890}}"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a choice holding a brace leaves its marker as written",
+   "input": {
+    "text": "{{random:a,{b}} {{random:c}d}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "{{random:a,{b}} {{random:c}d}}"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "two markers alike draw in turn, with an empty seed",
+   "input": {
+    "text": "{{roll:100}} {{roll:100}} {{random:x,y,z}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": ""
+   },
+   "expected": "80 61 y"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "an emoji and half of a surrogate are hashed as UTF-8 writes them",
+   "input": {
+    "text": "😀\ud800 {{roll:1000}} {{random:🐱,🐶}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "😀\ud800 856 🐱"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "a long run of unclosed random markers is left, and the closed one at its end is drawn",
+   "input": {
+    "text": "{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:a,b}}",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:{{random:a"
+  },
+  {
+   "fn": "expand_macros",
+   "name": "the names are put in after the choices, and a choice empty or without any",
+   "input": {
+    "text": "{{pick::<BOT>::<USER>}} {{char}}: {{random:}}{{random:,}}.",
+    "char_name": "Serana",
+    "user_name": "Alex",
+    "seed": "c1"
+   },
+   "expected": "Serana Serana: ."
+  },
+  {
    "fn": "estimate_tokens",
    "name": "seven characters",
    "input": {
@@ -4602,6 +4745,620 @@
      "content": "Across."
     }
    ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "under a small budget the highest order goes first and a large entry is passed over",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word ",
+      "insertion_order": 10
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word word word word ",
+      "insertion_order": 50
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+      "insertion_order": 30
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Tiny.",
+      "insertion_order": 5
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex",
+    "budget": 20
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Tiny.",
+     "insertion_order": 5
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "word word word word word word word word word word word ",
+     "insertion_order": 50
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "under the budget a tie of orders goes to the first in the lorebook",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word "
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word "
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Third, short."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex",
+    "budget": 15
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "word word word word word word word word "
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "entries of the same order are placed in the lorebook's order",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "One.",
+      "insertion_order": 3
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Two.",
+      "insertion_order": 1
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Three.",
+      "insertion_order": 3
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Four.",
+      "insertion_order": 1
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Five."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Two.",
+     "insertion_order": 1
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Four.",
+     "insertion_order": 1
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "One.",
+     "insertion_order": 3
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Three.",
+     "insertion_order": 3
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Five."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "a negative order is placed before the default",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Default."
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Minus one.",
+      "insertion_order": -1
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Minus fifty.",
+      "insertion_order": -50
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Zero.",
+      "insertion_order": 0
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Minus fifty.",
+     "insertion_order": -50
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Minus one.",
+     "insertion_order": -1
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Zero.",
+     "insertion_order": 0
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Default."
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "entries before and after the definition come back together, by order",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "After, last.",
+      "position": 2,
+      "insertion_order": 200
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Before.",
+      "position": 0,
+      "insertion_order": 150
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "After, first.",
+      "position": 2,
+      "insertion_order": 50
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Before, first.",
+      "position": 0
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "After, first.",
+     "position": 2,
+     "insertion_order": 50
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Before, first.",
+     "position": 0
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Before.",
+     "position": 0,
+     "insertion_order": 150
+    },
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "After, last.",
+     "position": 2,
+     "insertion_order": 200
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an entry that fills the budget exactly, then one that would go one token over",
+   "input": {
+    "entries": [
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "word word word word word word word word word word word word word word ",
+      "insertion_order": 2
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Over.",
+      "insertion_order": 1
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     },
+     {
+      "role": "assistant",
+      "variants": [
+       "I draw my bow."
+      ],
+      "active_index": 0,
+      "position": 1
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex",
+    "budget": 21
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "word word word word word word word word word word word word word word ",
+     "insertion_order": 2
+    }
+   ]
+  },
+  {
+   "fn": "match_lore",
+   "name": "an entry that is only decorators, or blank, does not reach the prompt",
+   "input": {
+    "entries": [
+     {
+      "keys": [],
+      "content": "@@depth 4",
+      "constant": true,
+      "position": 0
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "@@activate\r\n   \n",
+      "insertion_order": 50
+     },
+     {
+      "keys": [
+       "dragon"
+      ],
+      "content": "Dragons hoard gold."
+     }
+    ],
+    "messages": [
+     {
+      "role": "user",
+      "variants": [
+       "A dragon lands on the tower."
+      ],
+      "active_index": 0,
+      "position": 0
+     }
+    ],
+    "rules": 2,
+    "char_name": "Ana",
+    "user_name": "Alex"
+   },
+   "expected": [
+    {
+     "keys": [
+      "dragon"
+     ],
+     "content": "Dragons hoard gold."
+    }
+   ]
+  },
+  {
+   "fn": "split_examples",
+   "name": "no examples give no block",
+   "input": {
+    "text": ""
+   },
+   "expected": []
+  },
+  {
+   "fn": "split_examples",
+   "name": "a lone <START> gives no block",
+   "input": {
+    "text": "  <START>\n"
+   },
+   "expected": []
+  },
+  {
+   "fn": "split_examples",
+   "name": "examples without <START> are one block, stripped",
+   "input": {
+    "text": "\n{{char}}: Fresh bread.\n{{user}}: Thanks.\n "
+   },
+   "expected": [
+    "{{char}}: Fresh bread.\n{{user}}: Thanks."
+   ]
+  },
+  {
+   "fn": "split_examples",
+   "name": "<START> is read whatever its case",
+   "input": {
+    "text": "<start>\nOne.\n<Start>\nTwo.\n<sTaRt>Three."
+   },
+   "expected": [
+    "One.",
+    "Two.",
+    "Three."
+   ]
+  },
+  {
+   "fn": "split_examples",
+   "name": "a long s reads as the s of <START>, as python reads it",
+   "input": {
+    "text": "One.\n<ſtart>\nTwo."
+   },
+   "expected": [
+    "One.",
+    "Two."
+   ]
+  },
+  {
+   "fn": "split_examples",
+   "name": "the text before the first <START> is a block of its own",
+   "input": {
+    "text": "Before.\n<START>\nAfter."
+   },
+   "expected": [
+    "Before.",
+    "After."
+   ]
+  },
+  {
+   "fn": "split_examples",
+   "name": "blocks of only spaces python strips are left out",
+   "input": {
+    "text": "<START>\n\u2003\u0085\n<START><START>\nKept.\n<START>\u3000"
+   },
+   "expected": [
+    "Kept."
+   ]
+  },
+  {
+   "fn": "speaking_name",
+   "name": "the nickname, stripped, on the rules of community cards",
+   "input": {
+    "character": {
+     "name": "Arisen of the Gate",
+     "nickname": "\u00a0Ari\u3000",
+     "card_rules": 2
+    }
+   },
+   "expected": "Ari"
+  },
+  {
+   "fn": "speaking_name",
+   "name": "a nickname of only spaces leaves the name",
+   "input": {
+    "character": {
+     "name": "Arisen of the Gate",
+     "nickname": " \u2028\t",
+     "card_rules": 2
+    }
+   },
+   "expected": "Arisen of the Gate"
+  },
+  {
+   "fn": "speaking_name",
+   "name": "the name on Evermind's own rules, whatever the nickname",
+   "input": {
+    "character": {
+     "name": "Arisen of the Gate",
+     "nickname": "Ari",
+     "card_rules": 1
+    }
+   },
+   "expected": "Arisen of the Gate"
   }
  ]
 }

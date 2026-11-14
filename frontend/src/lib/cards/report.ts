@@ -1,5 +1,5 @@
 import type { CardCharacter, CardText, LoreEntryInput } from "@/data";
-import { pyStrip } from "@/engine/text";
+import { splitExamples } from "@/engine";
 import { bookEntries, cardFields, FIELDS, isObject, isStorable, isText, NAME_LENGTH, text, texts } from "./read";
 
 // What an import says it did with a card: what Evermind uses, and what it only keeps for the export.
@@ -22,13 +22,6 @@ export interface ImportReport {
   kept: ReportLine[];
   /** The card says it is of a version newer than 3.0: read all the same. */
   newer: boolean;
-}
-
-/** The example dialogues as blocks: split on <START> whatever its case, the text before the first
- *  one a block too, each stripped, the empty ones left out. It is the rule the engine will follow
- *  when it sends the examples; once it does, its own split counts here and this copy goes. */
-function exampleBlocks(examples: string): string[] {
-  return examples.split(/<START>/i).map(pyStrip).filter(Boolean);
 }
 
 /** The entry settings SillyTavern honours and Evermind does not, in `extensions` but for the two
@@ -158,7 +151,9 @@ export function reportOf(card: Record<string, unknown>, character: CardCharacter
   if (character.character_note.trim()) used.push({ key: "characterNote", count: character.character_note_depth });
   say(used, "postHistory", Boolean(character.post_history_instructions.trim()));
   say(used, "systemPrompt", Boolean(character.system_prompt.trim()));
-  say(used, "examples", exampleBlocks(character.example_dialogues).length);
+  // Counted as the engine sends them: split on <START>, the text before the first one a block too,
+  // the empty ones left out.
+  say(used, "examples", splitExamples(character.example_dialogues).length);
   say(used, "nickname", Boolean(character.nickname.trim()));
 
   say(kept, "extensions", Object.keys(extensions).filter((key) => key !== "evermind" && key !== "depth_prompt"));

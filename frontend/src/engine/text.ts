@@ -67,6 +67,37 @@ export function sliceCodePoints(s: string, end: number): string {
   return s.slice(0, i);
 }
 
+// Each script's zero among the digits Python's `\d` takes (Unicode 15.1, Python 3.13's), each
+// followed by its nine others: JavaScript's \p{Nd} follows a newer Unicode, and takes more.
+// Python 3.12 takes the same digits. Python 3.11, which a server may still run on, has Unicode 14
+// and does not count Kawi's (U+11F50) or Nag Mundari's (U+1E4F0): there, a roll written in those
+// digits stays as written while this engine rolls it. The tests and the releases run on 3.13.
+const DIGIT_ZEROS = [
+  0x30, 0x660, 0x6f0, 0x7c0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6, 0xc66, 0xce6, 0xd66, 0xde6, 0xe50, 0xed0,
+  0xf20, 0x1040, 0x1090, 0x17e0, 0x1810, 0x1946, 0x19d0, 0x1a80, 0x1a90, 0x1b50, 0x1bb0, 0x1c40, 0x1c50, 0xa620,
+  0xa8d0, 0xa900, 0xa9d0, 0xa9f0, 0xaa50, 0xabf0, 0xff10, 0x104a0, 0x10d30, 0x11066, 0x110f0, 0x11136, 0x111d0,
+  0x112f0, 0x11450, 0x114d0, 0x11650, 0x116c0, 0x11730, 0x118e0, 0x11950, 0x11c50, 0x11d50, 0x11da0, 0x11f50,
+  0x16a60, 0x16ac0, 0x16b50, 0x1d7ce, 0x1d7d8, 0x1d7e2, 0x1d7ec, 0x1d7f6, 0x1e140, 0x1e2f0, 0x1e4f0, 0x1e950,
+  0x1fbf0,
+];
+
+const hex = (point: number) => `\\u{${point.toString(16)}}`;
+
+/** What Python's `\d` matches in a pattern on text, as the inside of a RegExp class (no
+ *  brackets) for a pattern with the `u` flag. */
+export const PY_DIGIT = DIGIT_ZEROS.map((zero) => `${hex(zero)}-${hex(zero + 9)}`).join("");
+
+/** Python's `int()` of a run of `\d` digits, whatever their script: "١٢" is 12 there too. */
+export function pyInt(digits: string): number {
+  let value = 0;
+  for (const digit of digits) {
+    const point = digit.codePointAt(0) as number;
+    const zero = DIGIT_ZEROS.find((start) => point >= start && point <= start + 9) as number;
+    value = value * 10 + (point - zero);
+  }
+  return value;
+}
+
 /** Python's `min(values, default=fallback)`: the first of the smallest, by `<`. Not
  *  Math.min, which prefers -0 to 0 and NaN to any number, where `<` keeps the first. */
 export function pyMin(values: readonly number[], fallback: number): number {

@@ -6,6 +6,7 @@
 
 import { substitute } from "./macros";
 import { pyStrip } from "./text";
+import { estimateTokens } from "./tokens";
 
 /** What makes a key several words, and so a plain substring. */
 export const SPACES =
@@ -52,6 +53,8 @@ export const ENTRY_DEFAULTS = {
 
 type Defaulted = keyof typeof ENTRY_DEFAULTS;
 
+const BEFORE_THE_CARD = 0; // "before the character's definition", SillyTavern's first place
+const AT_A_DEPTH = 4; // "@ depth": among the turns of the story, so many from the end
 const OUTLET = 7; // shown only where a {{outlet}} macro asks for it, which Evermind does not have
 const REGEX_KEY = /^\/([\s\S]+?)\/([gimsuy]*)$/;
 const WORD = new Set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
@@ -221,3 +224,41 @@ export function activated<E extends LoreEntryLike>(
   }
   return fired.sort((a, b) => a.index - b.index).map((c) => c.entry);
 }
+
+/** Python's `sorted(entries, key=insertion order, reverse=reverse)`: stable both ways, so a
+ *  tie keeps the order it came in, even reversed. */
+function byOrder<E extends LoreEntryLike>(entries: readonly E[], reverse: boolean): E[] {
+  const sign = reverse ? -1 : 1;
+  return [...entries].sort((a, b) => {
+    const x = setting(a, "insertion_order");
+    const y = setting(b, "insertion_order");
+    return x < y ? -sign : x > y ? sign : 0;
+  });
+}
+
+/** Of the entries that fired, in the lorebook's order, those the budget holds, as they are
+ *  to be placed. The highest insertion order goes first, the lorebook's order deciding a tie;
+ *  one that does not fit is passed over for the next, so that a large entry does not silence
+ *  small ones. They are placed lowest order first, as SillyTavern does, the highest nearest
+ *  the end where the model reads last; the sorts are stable, so a tie keeps the lorebook's
+ *  order both times. */
+export function withinBudget<E extends LoreEntryLike>(entries: readonly E[], budget: number): E[] {
+  const kept: E[] = [];
+  let room = budget;
+  for (const entry of byOrder(entries, true)) {
+    const cost = estimateTokens(entry.content || "");
+    if (cost > room) continue;
+    room -= cost;
+    kept.push(entry);
+  }
+  return byOrder(kept, false);
+}
+
+/** Whether an entry goes before the character's definition rather than after it. */
+export const beforeTheCard = (entry: LoreEntryLike) => setting(entry, "position") === BEFORE_THE_CARD;
+
+/** Whether an entry is said among the turns of the story, at its depth. */
+export const atADepth = (entry: LoreEntryLike) => setting(entry, "position") === AT_A_DEPTH;
+
+/** How many turns from the end an entry at a depth is said. */
+export const depthOf = (entry: LoreEntryLike) => setting(entry, "depth");
