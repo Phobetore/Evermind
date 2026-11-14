@@ -46,9 +46,11 @@ describe("the notes of a card by language", () => {
     for (const key of ["Supprimer la fiche", "x!!", "", tooLong]) expect(isLanguageTag(key), key).toBe(false);
     const versions = notesVersions(card("Main.", { "Supprimer la fiche": "Oops." }));
     expect(versions.map((version) => version.lang)).toEqual([null, "Supprimer la fiche"]);
-    // Its words hold "fr" nowhere a language tag could: it is never chosen for its language.
-    const alone = notesVersions(card("", { "fr la fiche": "Oops.", en: "Keeper." }));
-    expect(alone[chosenNotes(alone, "fr")].lang).toBe("en");
+    // These keys begin as French does, before a "-" or a "_", but are no tags: never chosen for it.
+    for (const key of ["fr-la fiche", "fr_!!"]) {
+      const alone = notesVersions(card("", { [key]: "Oops.", en: "Keeper." }));
+      expect(alone[chosenNotes(alone, "fr")].lang, key).toBe("en");
+    }
   });
 
   test("a card of hundreds of thousands of languages offers two hundred, in time", () => {
