@@ -146,7 +146,7 @@ test("a brief of a hundred thousand characters is kept whole, and said too long 
   // The stand-in model's connection holds 16384 tokens, which the brief alone outgrows.
   const refused = page.getByText(/too long for this model/);
   await expect(refused).toBeVisible();
-  await expect(refused).toContainText("the connection takes 16384");
+  await expect(refused).toContainText("the connection holds 16,384");
   await expect(brief(page)).toBeEnabled();
 });
 

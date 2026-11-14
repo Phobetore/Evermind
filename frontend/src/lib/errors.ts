@@ -54,6 +54,8 @@ const KIND_KEYS: Record<string, string> = {
   text_too_short: "errors.textTooShort",
   // A brief the card assistant's connection cannot hold along with the card: `needed` and `context`.
   brief_too_long: "errors.briefTooLong",
+  // The same, where the card's own fields outgrow the context whatever the brief.
+  card_too_long: "errors.cardTooLong",
   internal: "errors.internal",
   // No answer from Evermind itself.
   network: "errors.unreachable",
@@ -77,7 +79,12 @@ const NOT_FOUND_KEYS: Record<string, string> = {
 export function describeFailure(failure: Failure, t: Translate): string {
   const { kind, resource, status, message, params } = failure;
   const known = kind ? KIND_KEYS[kind] : undefined;
-  if (known) return t(known, { message: message ?? "", ...params });
+  if (known) {
+    // "At least 1 characters": the sentence for a bound too short takes the form its bound takes.
+    const vars: Record<string, string | number> = { message: message ?? "", ...params };
+    if (kind === "text_too_short" && params?.limit !== undefined) vars.count = params.limit;
+    return t(known, vars);
+  }
   if (kind === "not_found") {
     return t((resource && NOT_FOUND_KEYS[resource]) || "errors.notFound.other");
   }

@@ -4,6 +4,7 @@ import de from "@/i18n/locales/de.json";
 import en from "@/i18n/locales/en.json";
 import es from "@/i18n/locales/es.json";
 import fr from "@/i18n/locales/fr.json";
+import { translate } from "@/i18n/translate";
 import { describeError, describeFailure } from "./errors";
 
 /** A translator that shows which key and which values it was asked for, so that
@@ -107,22 +108,54 @@ describe("an error the request layer named", () => {
 describe("a text refused for its length", () => {
   test.each([
     ["text_too_long", "errors.textTooLong", { limit: 200, length: 201 }],
-    ["text_too_short", "errors.textTooShort", { limit: 3, length: 2 }],
     ["brief_too_long", "errors.briefTooLong", { needed: 31000, context: 16384 }],
+    ["card_too_long", "errors.cardTooLong", { needed: 31000, context: 16384 }],
   ])("%s says its numbers", (kind, key, params) => {
     const error = new DataError("words", { kind, status: 422, params });
     expect(describeError(error, t)).toBe(`${key} ${JSON.stringify({ message: "words", ...params })}`);
   });
 
+  test("a text too short takes the form its bound takes", () => {
+    const error = new DataError("words", { kind: "text_too_short", status: 422, params: { limit: 3, length: 2 } });
+    expect(describeError(error, t)).toBe(
+      `errors.textTooShort ${JSON.stringify({ message: "words", limit: 3, length: 2, count: 3 })}`,
+    );
+  });
+
+  test.each([
+    ["en", { limit: 3, length: 1 }, "textTooShort", "This text is too short: it needs at least 3 characters."],
+    ["en", { limit: 1, length: 0 }, "textTooShort", "This text cannot be left empty."],
+    ["fr", { limit: 3, length: 1 }, "textTooShort", "Ce texte est trop court : il lui faut au moins 3 caractères."],
+    ["es", { limit: 1, length: 0 }, "textTooShort", "Este texto no puede quedar vacío."],
+    ["de", { limit: 3, length: 1 }, "textTooShort", "Dieser Text ist zu kurz: Er braucht mindestens 3 Zeichen."],
+    ["en", { limit: 200, length: 201 }, "textTooLong", "This text is too long: it has 201 characters and the limit is 200."],
+  ] as const)("in %s, %j reads right", (locale, params, key, said) => {
+    const kind = key === "textTooShort" ? "text_too_short" : "text_too_long";
+    const error = new DataError("words", { kind, status: 422, params });
+    expect(describeError(error, (k, vars) => translate(locale, k, vars))).toBe(said);
+  });
+
+  test.each([
+    ["en", "about 31,000 tokens", "holds 16,384"],
+    ["fr", "environ 31 000 tokens", "en accepte 16 384"],
+    ["de", "etwa 31.000 Tokens", "fasst 16.384"],
+    ["es", "unos 31.000 tokens", "admite 16.384"],
+  ] as const)("in %s, the tokens a brief needs are grouped as the language groups them", (locale, needed, context) => {
+    for (const kind of ["brief_too_long", "card_too_long"]) {
+      const error = new DataError("words", { kind, status: 422, params: { needed: 31000, context: 16384 } });
+      const sentence = describeError(error, (k, vars) => translate(locale, k, vars));
+      expect(sentence).toContain(needed);
+      expect(sentence).toContain(context);
+    }
+  });
+
   test("in every language, with the numbers in it", () => {
     for (const [locale, dict] of Object.entries({ en, fr, de, es })) {
       const errors = dict.errors as unknown as Record<string, string>;
-      for (const key of ["textTooLong", "textTooShort"]) {
-        const sentence = errors[key];
-        expect(sentence, `${locale} ${key}`).toMatch(/\{limit\}/);
-        expect(sentence, `${locale} ${key}`).toMatch(/\{length\}/);
-      }
-      expect(errors.briefTooLong, locale).toMatch(/\{needed\}[^]*\{context\}/);
+      expect(errors.textTooLong, locale).toMatch(/\{length\}[^]*\{limit\}/);
+      expect(errors.textTooShort, locale).toMatch(/\{limit\}/);
+      expect(errors.briefTooLong, locale).toMatch(/\{needed:grouped\}[^]*\{context:grouped\}/);
+      expect(errors.cardTooLong, locale).toMatch(/\{needed:grouped\}[^]*\{context:grouped\}/);
     }
   });
 });
@@ -226,7 +259,7 @@ describe("the sentences exist", () => {
     "model_auth_refused", "model_not_found", "model_rate_limited", "model_error", "model_no_text",
     "model_empty", "model_unreadable", "model_only_thought", "empty_message", "nothing_to_regenerate",
     "nothing_to_continue", "turn_running", "internal", "http_error", "network", "offline", "not_sent",
-    "not_found", "text_too_long", "text_too_short", "brief_too_long",
+    "not_found", "text_too_long", "text_too_short", "brief_too_long", "card_too_long",
   ];
   const resources = [
     "character", "conversation", "message", "persona", "connection", "fact", "illustration", "file",
