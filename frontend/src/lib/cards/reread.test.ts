@@ -141,7 +141,7 @@ describe("re-reading a card", () => {
     expect(plan.fields.card_rules).toBe(2);
   });
 
-  test("entries are matched by rank, and get the card's settings", () => {
+  test("entries are matched on what they still share, and get the card's settings", () => {
     const current = madeBefore(MIRELA);
     current.lore_entries[0] = { ...current.lore_entries[0], keys: ["oil lamp"] };
     const plan = rereadPlan(current, found(MIRELA), "reread");
@@ -299,6 +299,41 @@ describe("re-reading a card", () => {
       origin: 0, content: "The lamp burns seal oil now.", comment: "The lamp", insertion_order: 5, position: 4, depth: 2,
     });
     expect(plan.lore.find((entry) => entry.keys[0] === "gull")).toMatchObject({ origin: 3, enabled: false });
+  });
+
+  test("of two entries under the same keys, the one deleted does not hand its settings to the one retouched", () => {
+    const card = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["Mirela"], content: "She is tall.", constant: true, extensions: { a: 1 } },
+        { keys: ["Mirela"], content: "She hums at night.", extensions: { position: 4, depth: 0, b: 1 } },
+      ] },
+    });
+    const current = madeBefore(card);
+    current.lore_entries = [{ ...current.lore_entries[1], content: "She hums at dawn." }];
+    const plan = rereadPlan(current, found(card), "reread");
+    expect(plan.lore).toHaveLength(1);
+    expect(plan.lore[0]).toMatchObject({ origin: 1, content: "She hums at dawn.", constant: false, position: 4, depth: 0 });
+    const read = { ...plan.card!.read, lore_entries: plan.card!.read.lore_entries.filter(isStorable) };
+    const after = { ...current, ...plan.fields, lore_entries: plan.lore };
+    const exported = cardForExport(after, { ...plan.card!, read, read_at: "" }, new Date("2026-11-14T00:00:00Z"));
+    const entries = (exported.v2.data.character_book as { entries: Record<string, unknown>[] }).entries;
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ content: "She hums at dawn.", extensions: expect.objectContaining({ b: 1 }) });
+    expect(entries[0].constant ?? false).toBe(false);
+    expect(entries[0].extensions).not.toHaveProperty("a");
+
+    // The same text under other keys: the one whose keys changed least is the one kept.
+    const same = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["tall"], content: "She is here.", constant: true },
+        { keys: ["hum", "night"], content: "She is here.", extensions: { position: 4, depth: 0 } },
+      ] },
+    });
+    const mine = madeBefore(same);
+    mine.lore_entries = [{ ...mine.lore_entries[1], keys: ["hum", "dawn"] }];
+    expect(rereadPlan(mine, found(same), "reread").lore[0]).toMatchObject({ origin: 1, constant: false, position: 4 });
   });
 
   test("an entry the old import dropped goes after the entry of the index below it", () => {

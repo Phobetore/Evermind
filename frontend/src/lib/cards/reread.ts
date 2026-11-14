@@ -253,7 +253,7 @@ function placesNow(found: FoundCard): Map<number, number> {
  *  share, never on rank alone: an entry deleted beside one written here must not hand the new one
  *  its settings. First an entry that already names its origin (one kept with its card before);
  *  then the same keys (as a set) and the same text; then the same keys or the same text, the
- *  first not taken in order, so that an entry changed in one of the two stays itself. An entry of
+ *  closest not taken, so that an entry changed in one of the two stays itself. An entry of
  *  the old reading left without one was deleted by its owner; an entry of the character left
  *  without one was made here, or rewritten whole. */
 function pairs(current: LoreEntryInput[], old: LoreEntryInput[]): (LoreEntryInput | null)[] {
@@ -271,8 +271,40 @@ function pairs(current: LoreEntryInput[], old: LoreEntryInput[]): (LoreEntryInpu
   const sameText = (a: LoreEntryInput, b: LoreEntryInput) => a.content.trim() === b.content.trim();
   pass((entry, candidate) => entry.origin !== null && entry.origin === candidate.origin);
   pass((entry, candidate) => sameKeys(candidate.keys, entry.keys) && sameText(candidate, entry));
-  pass((entry, candidate) => sameKeys(candidate.keys, entry.keys) || sameText(candidate, entry));
+  // Two entries of before can share the keys (or the text) of one changed since: the first in
+  // order would hand a deleted entry's settings to its retouched neighbour, so take the closest.
+  current.forEach((entry, i) => {
+    if (paired[i]) return;
+    let best = -1;
+    let bestScore: [number, number] = [-1, -1];
+    old.forEach((candidate, j) => {
+      if (taken.has(j) || !(sameKeys(candidate.keys, entry.keys) || sameText(candidate, entry))) return;
+      const score = closeness(entry, candidate);
+      if (score[0] > bestScore[0] || (score[0] === bestScore[0] && score[1] > bestScore[1])) {
+        best = j;
+        bestScore = score;
+      }
+    });
+    if (best < 0) return;
+    taken.add(best);
+    paired[i] = old[best];
+  });
   return paired;
+}
+
+/** How near two entries are: the keys they have in common, then how long a start and end their
+ *  texts share (a retouch mostly leaves both in place). */
+function closeness(a: LoreEntryInput, b: LoreEntryInput): [number, number] {
+  const keys = new Set(b.keys);
+  const common = new Set(a.keys.filter((key) => keys.has(key))).size;
+  const one = a.content.trim();
+  const other = b.content.trim();
+  const most = Math.min(one.length, other.length);
+  let start = 0;
+  while (start < most && one[start] === other[start]) start++;
+  let end = 0;
+  while (end < most - start && one[one.length - 1 - end] === other[other.length - 1 - end]) end++;
+  return [common, start + end];
 }
 
 /** The entries of `lore`, with each of `more` after the entry from the nearest index of the card
