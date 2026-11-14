@@ -292,19 +292,33 @@ function pairs(current: LoreEntryInput[], old: LoreEntryInput[]): (LoreEntryInpu
   return paired;
 }
 
-/** How near two entries are: the keys they have in common, then how long a start and end their
- *  texts share (a retouch mostly leaves both in place). */
+/** How near two entries are: the keys they have in common, then how much of their texts is the
+ *  same, wherever it is. A retouch can touch both ends of a text (a first word and a full stop),
+ *  so a shared start and end would tie it with a deleted neighbour; the pairs of neighbouring
+ *  characters it leaves untouched still tell them apart. The share is 2 x shared / (pairs of one +
+ *  pairs of the other), counted with repeats, so a longer text does not count for more. */
 function closeness(a: LoreEntryInput, b: LoreEntryInput): [number, number] {
   const keys = new Set(b.keys);
   const common = new Set(a.keys.filter((key) => keys.has(key))).size;
-  const one = a.content.trim();
-  const other = b.content.trim();
-  const most = Math.min(one.length, other.length);
-  let start = 0;
-  while (start < most && one[start] === other[start]) start++;
-  let end = 0;
-  while (end < most - start && one[one.length - 1 - end] === other[other.length - 1 - end]) end++;
-  return [common, start + end];
+  // By code point, so a character outside the basic plane is one character, not two halves.
+  const one = Array.from(a.content.trim());
+  const other = Array.from(b.content.trim());
+  if (one.length < 2 || other.length < 2) return [common, one.join("") === other.join("") ? 1 : 0];
+  const left = new Map<string, number>();
+  for (let i = 0; i < one.length - 1; i++) {
+    const pair = one[i] + one[i + 1];
+    left.set(pair, (left.get(pair) ?? 0) + 1);
+  }
+  let shared = 0;
+  for (let i = 0; i < other.length - 1; i++) {
+    const pair = other[i] + other[i + 1];
+    const count = left.get(pair) ?? 0;
+    if (count > 0) {
+      left.set(pair, count - 1);
+      shared++;
+    }
+  }
+  return [common, (2 * shared) / (one.length + other.length - 2)];
 }
 
 /** The entries of `lore`, with each of `more` after the entry from the nearest index of the card

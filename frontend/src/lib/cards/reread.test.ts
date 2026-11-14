@@ -336,6 +336,32 @@ describe("re-reading a card", () => {
     expect(rereadPlan(mine, found(same), "reread").lore[0]).toMatchObject({ origin: 1, constant: false, position: 4 });
   });
 
+  test("an entry retouched at both ends, beside a deleted one under the same keys, keeps its own settings", () => {
+    const tallAndHums = (hums: string) => v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["Mirela"], content: "She is tall.", constant: true, extensions: { a: 1 } },
+        { keys: ["Mirela"], content: hums, extensions: { position: 4, depth: 0, b: 1 } },
+      ] },
+    });
+    const retouched = (card: unknown, content: string, mode: "reread" | "keep" = "reread") => {
+      const current = madeBefore(card);
+      current.lore_entries = [{ ...current.lore_entries[1], content }];
+      return rereadPlan(current, found(card), mode).lore;
+    };
+    const card = tallAndHums("She hums at night.");
+    for (const content of ["Mirela hums at dawn.", "Mirela hums at night"]) {
+      const lore = retouched(card, content);
+      expect(lore).toHaveLength(1);
+      expect(lore[0]).toMatchObject({ origin: 1, content, constant: false, position: 4, depth: 0 });
+      // The export of a card not re-read pairs the same way: the text goes over B's entry.
+      expect(retouched(card, content, "keep")[0]).toMatchObject({ origin: 1, content });
+    }
+    // Rewritten to start like the deleted one: what it keeps of its own text still wins.
+    expect(retouched(tallAndHums("Mirela hums at night."), "She hums at dusk.")[0])
+      .toMatchObject({ origin: 1, constant: false, position: 4 });
+  });
+
   test("an entry the old import dropped goes after the entry of the index below it", () => {
     const plan = rereadPlan(madeBefore(BOOK), found(BOOK), "reread");
     // The card's order: lamp, the always-on entry, boat, gull; the empty one is not stored.
