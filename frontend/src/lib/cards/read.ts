@@ -210,14 +210,23 @@ export function taglineOf(notes: string): string {
     .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name: string) => ENTITIES[name]);
   plain = plain.replace(/\s+/g, " ").trim();
   // A full-width mark ends the sentence whatever follows: Japanese and Chinese put no space after it.
-  // The marks after it and the quotes it closes go with it, or the tagline would end inside a quotation.
-  const end = /[.!?…](?=\s|$)|[。！？]+[」』）】》〉”’)\]]*/.exec(plain);
+  // The marks after it and the quotes it closes go with it, in whatever order they close, or the
+  // tagline would end inside a quotation.
+  const end = /[.!?…](?=\s|$)|[。！？]+/.exec(plain);
   if (!end) return plain;
   let stop = end.index + end[0].length;
-  // A straight quote opens as it closes: it goes with the sentence only when one of its kind is open
-  // before it, or the quote that opens the next sentence would end this one.
-  for (const quote of ['"', "'"]) {
-    if (plain[stop] === quote && plain.slice(0, stop).split(quote).length % 2 === 0) stop++;
+  for (;;) {
+    const next = plain[stop];
+    if (next === '"' || next === "'") {
+      // A straight quote opens as it closes: it goes with the sentence only when one of its kind is
+      // open before it, or the quote that opens the next sentence would end this one. An apostrophe
+      // within a Latin word (Tom's) opens nothing, so it is left out of the count.
+      const before = plain.slice(0, stop).replace(/([A-Za-z])'(?=[A-Za-z])/g, "$1");
+      if (before.split(next).length % 2 !== 0) break;
+    } else if (next === undefined || !"」』）】》〉”’)]".includes(next)) {
+      break;
+    }
+    stop++;
   }
   return plain.slice(0, stop);
 }

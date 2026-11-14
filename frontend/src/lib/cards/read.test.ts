@@ -243,6 +243,14 @@ describe("the fields of a card", () => {
     expect(tagline("'行こう！'そして去った。")).toBe("'行こう！'");
     expect(tagline("(笑！)次の文。")).toBe("(笑！)");
     expect(tagline("[注意！]次の文。")).toBe("[注意！]");
+    // Closers and closing quotes go with it in whatever order the quotations nest.
+    expect(tagline(`她说："他说'好。'"然后离开了。`)).toBe(`她说："他说'好。'"`);
+    expect(tagline('「彼は"行こう！"」と言った。次。')).toBe('「彼は"行こう！"」');
+    expect(tagline('（他说"好。"）然后。')).toBe('（他说"好。"）');
+    expect(tagline('(他说"好。")然后。')).toBe('(他说"好。")');
+    // An apostrophe within a word opens no quotation.
+    expect(tagline("Tom's '行こう！'そして去った。")).toBe("Tom's '行こう！'");
+    expect(tagline("Tom's 冒険が始まる！'やあ'と彼は言った。")).toBe("Tom's 冒険が始まる！");
     expect(tagline("Version 1.5 is out? Yes")).toBe("Version 1.5 is out?");
     expect(tagline("No end to this one")).toBe("No end to this one");
     expect(tagline("")).toBe("");
