@@ -289,8 +289,7 @@
     "lore_entries": [
      {
       "keys": [
-       "Kabukicho",
-       "kabukicho"
+       "Kabukicho"
       ],
       "content": "The red-light district of Shinjuku."
      },
@@ -818,6 +817,37 @@
      "d",
      "e",
      "f"
+    ]
+   }
+  },
+  {
+   "fn": "clean_card_draft",
+   "name": "a keyword written twice in one entry, in another case or spacing, comes once",
+   "input": {
+    "draft": {
+     "lore_entries": [
+      {
+       "keys": [
+        "Dragon",
+        "dragon",
+        "Dragon",
+        "DRAGON ",
+        "Wyrm"
+       ],
+       "content": "c"
+      }
+     ]
+    }
+   },
+   "expected": {
+    "lore_entries": [
+     {
+      "keys": [
+       "Dragon",
+       "Wyrm"
+      ],
+      "content": "c"
+     }
     ]
    }
   }

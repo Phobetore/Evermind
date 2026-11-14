@@ -96,7 +96,8 @@ export function cleanCardDraft(draft: Record<string, unknown>): CardDraft {
   const entries: DraftLoreEntry[] = [];
   const lore = field(draft, "lore_entries");
   for (const raw of (Array.isArray(lore) ? lore : []).slice(0, MAX_LORE_ENTRIES)) {
-    const keys = words(field(raw, "keys"));
+    // A keyword written twice shows as two chips, and triggers the entry no more often.
+    const keys = once(words(field(raw, "keys")));
     const content = textOf(field(raw, "content"));
     if (keys.length && content) entries.push({ keys: keys.slice(0, MAX_KEYS), content });
   }

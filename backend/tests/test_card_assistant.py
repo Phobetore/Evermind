@@ -305,10 +305,18 @@ async def test_assist_returns_lore_entries(client, fake_provider):
     state = await assist(client, prompt="yakuza")
     draft = state["draft"]
     assert len(draft["lore_entries"]) == 2 and state["lore"] == 2  # invalid entries filtered out
-    assert draft["lore_entries"][0]["keys"] == ["Kabukicho", "kabukicho"]
+    assert draft["lore_entries"][0]["keys"] == ["Kabukicho"]  # one keyword, in two cases
     assert "Shinjuku" in draft["lore_entries"][0]["content"]
     # A lone surrogate, which an escape in the answer gives, cannot be written to the response.
     assert "tagline" not in draft and draft["lore_entries"][1]["keys"] == ["clan Sato"]
+
+
+async def test_a_keyword_the_model_writes_twice_in_an_entry_comes_once(client, fake_provider):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Kenji", "lore_entries": [
+        {"keys": ["Dragon", "dragon", "Dragon", "DRAGON ", "Wyrm"], "content": "c"}]})
+    state = await assist(client, prompt="yakuza")
+    assert state["draft"]["lore_entries"][0]["keys"] == ["Dragon", "Wyrm"]
 
 
 async def test_a_long_brief_that_fits_the_connections_context_is_accepted(client, fake_provider):

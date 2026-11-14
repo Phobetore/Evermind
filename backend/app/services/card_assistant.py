@@ -127,7 +127,8 @@ def clean_card_draft(draft: dict) -> dict:
     for raw in (lore if isinstance(lore, list) else [])[:_MAX_LORE_ENTRIES]:
         if not isinstance(raw, dict):
             continue
-        keys = words(raw.get("keys"))
+        # A keyword written twice shows as two chips, and triggers the entry no more often.
+        keys = _once(words(raw.get("keys")))
         content = text_of(raw.get("content"))
         if keys and content:
             entries.append({"keys": keys[:6], "content": content})
