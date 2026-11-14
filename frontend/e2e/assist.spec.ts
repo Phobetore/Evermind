@@ -111,6 +111,20 @@ test("a model that only thinks is said so", async ({ page, request }) => {
   await expect(nameField(page)).toHaveValue("");
 });
 
+test("a card that has tags keeps each of them once", async ({ page, request }) => {
+  // The stand-in model writes "fantasy" and "mystery": the card's own spelling of the same tags.
+  const card = await makeCharacter(request, { tags: ["Fantasy", " Mystery "] });
+  await page.goto(`/#/characters/${card.id}/edit`);
+  await brief(page).fill("A seller of maps");
+  await generate(page).click();
+
+  // The card ended: a field it had empty is filled, the ones it had are its own.
+  await expect(page.getByLabel("Personality")).toHaveValue(/sly/);
+  await expect(nameField(page)).toHaveValue("Vane");
+  const tags = page.getByRole("button", { name: /^Remove\s+(fantasy|mystery)\s*$/i });
+  await expect(tags).toHaveCount(2);
+});
+
 test("a brief of a hundred thousand characters is kept whole, and said too long for the model", async ({ page, request }, info) => {
   await makeCharacter(request);
   await page.goto("/#/characters/new");

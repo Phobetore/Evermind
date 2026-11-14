@@ -76,6 +76,34 @@ async def _resolve_connection(db: aiosqlite.Connection, connection_id: str | Non
     return connection
 
 
+def _same(text: str) -> str:
+    """What two spellings of one item share: case and the spaces around it do not make another."""
+    return text.strip().lower()
+
+
+def _once(items: list[str]) -> list[str]:
+    """Each item the first time it comes, as it was first written."""
+    first: dict[str, str] = {}
+    for item in items:
+        first.setdefault(_same(item), item)
+    return list(first.values())
+
+
+def _new_entries(entries: list[dict], existing: dict) -> list[dict]:
+    """The entries that cover something the lorebook does not: one whose every key the book, or
+    an entry before it, already has is the same subject written again, and would sit in it twice."""
+    book = existing.get("lore_entries")
+    known = {_same(key) for raw in (book if isinstance(book, list) else [])
+             if isinstance(raw, dict) for key in words(raw.get("keys"))}
+    fresh = []
+    for entry in entries:
+        keys = {_same(key) for key in entry["keys"]}
+        if not keys <= known:
+            fresh.append(entry)
+            known |= keys
+    return fresh
+
+
 def clean_card_draft(draft: dict) -> dict:
     """Whitelist and normalize what the model returned."""
     out: dict = {}
@@ -85,10 +113,14 @@ def clean_card_draft(draft: dict) -> dict:
             out[field_name] = value
     for field_name in LIST_FIELDS:
         items = words(draft.get(field_name))
+        if field_name == "tags":
+            items = [t.lower()[:40] for t in items]
+        # A model repeats itself, and lowercasing makes "Fantasy" and "fantasy" one tag.
+        items = _once(items)
+        if field_name == "tags":
+            items = items[:8]
         if items:
             out[field_name] = items
-    if "tags" in out:
-        out["tags"] = [t.lower()[:40] for t in out["tags"]][:8]
 
     entries = []
     lore = draft.get("lore_entries")
@@ -256,6 +288,10 @@ def _progress(job: Job) -> dict:
     if job.progress is None or job.progress[0] != job.written:
         parsed, writing = partial_json(job.text())
         cleaned = clean_card_draft(parsed)
+        if "lore_entries" in cleaned:
+            cleaned["lore_entries"] = _new_entries(cleaned["lore_entries"], job.existing)
+            if not cleaned["lore_entries"]:
+                del cleaned["lore_entries"]
         job.progress = (job.written, {
             "parsed": parsed,
             "cleaned": cleaned,

@@ -344,6 +344,49 @@ async def test_the_room_left_for_the_card_counts_in_what_a_brief_may_take(client
     assert resp.status_code == 422 and resp.json()["kind"] == "brief_too_long", resp.text
 
 
+async def answers(fake_provider, card: dict) -> None:
+    fake_provider.script = [ProviderEvent(type="delta", text=json.dumps(card)),
+                            ProviderEvent(type="done")]
+
+
+async def test_a_tag_the_model_writes_twice_comes_once(client, fake_provider):
+    """Tags are lowercased: "Fantasy" and "fantasy " are then the same tag, which the form showed twice."""
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Nyra",
+                                  "tags": ["Fantasy", "fantasy ", " FANTASY", "Mystery", "fantasy"]})
+    state = await assist(client)
+    assert state["draft"]["tags"] == ["fantasy", "mystery"]
+
+
+async def test_tags_the_card_has_are_its_own_and_come_once(client, fake_provider):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Nyra", "tags": ["fantasy", "mystery", "noir"]})
+    state = await assist(client, existing={"tags": ["Fantasy", " Mystery "]})
+    assert state["draft"]["tags"] == ["Fantasy", " Mystery "]
+
+
+async def test_an_alternate_greeting_the_model_writes_twice_comes_once(client, fake_provider):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Nyra", "alternate_greetings": [
+        "*The shop is empty.*", "*the shop is empty.* ", "*Rain on the glass.*"]})
+    state = await assist(client)
+    assert state["draft"]["alternate_greetings"] == ["*The shop is empty.*", "*Rain on the glass.*"]
+
+
+async def test_a_lore_entry_the_card_already_has_is_not_added_again(client, fake_provider):
+    await add_connection(client)
+    await answers(fake_provider, {"name": "Kenji", "lore_entries": [
+        {"keys": ["kabukicho "], "content": "The red-light district, again."},
+        {"keys": ["Docks"], "content": "Where the clan sells salt."},
+        {"keys": ["docks"], "content": "The docks, twice in one answer."},
+        {"keys": ["Kabukicho", "Shinjuku"], "content": "Covers a subject the book lacks."},
+    ]})
+    state = await assist(client, prompt="yakuza", existing={
+        "lore_entries": [{"keys": ["Kabukicho"], "content": "already written"}]})
+    assert [e["keys"] for e in state["draft"]["lore_entries"]] == [["Docks"], ["Kabukicho", "Shinjuku"]]
+    assert state["lore"] == 2
+
+
 async def test_assist_avoids_duplicating_existing_lore(client, fake_provider):
     await add_connection(client)
     await assist(client, prompt="yakuza",
