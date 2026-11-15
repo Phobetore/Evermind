@@ -337,7 +337,7 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 }
 :is(a, button, [data-mark-host]):is(:hover, :focus-visible) .mark:not([data-busy="true"]) .mark-spark,
 .mark[data-wink="true"]:not([data-busy="true"]) .mark-spark {
-  animation: mark-blink 560ms 1;
+  animation: mark-blink 420ms 1;
 }
 
 /* Waiting: the spark turns a quarter while it draws in a breath, then rests a beat. Its four arms

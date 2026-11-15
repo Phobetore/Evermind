@@ -67,7 +67,7 @@ test("the mark beside the name winks once when the pointer comes over the name",
   expect(await motion(page)).toEqual(["start mark-blink", "end mark-blink"]);
 });
 
-test("the wink is a slow eyelid of about 560 ms, not a flick", { tag: "@desktop" }, async ({ page }, testInfo) => {
+test("the wink is a soft eyelid of about 420 ms, not a flick", { tag: "@desktop" }, async ({ page }, testInfo) => {
   besideTheName(testInfo.project.name);
   await page.goto("/#/personas");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -76,7 +76,7 @@ test("the wink is a slow eyelid of about 560 ms, not a flick", { tag: "@desktop"
     document.getAnimations()
       .filter((a) => (a as CSSAnimation).animationName === "mark-blink")
       .map((a) => a.effect!.getTiming().duration));
-  expect(duration).toEqual([560]);
+  expect(duration).toEqual([420]);
 });
 
 test("a pointer that leaves half-way lets the wink finish", { tag: "@desktop" }, async ({ page }, testInfo) => {
@@ -88,11 +88,11 @@ test("a pointer that leaves half-way lets the wink finish", { tag: "@desktop" },
   const mark = page.locator(BRAND);
 
   await header.hover();
-  await page.waitForTimeout(100);
+  await page.waitForTimeout(60);
   // Away to the middle of the page, far from the header.
   await page.mouse.move(800, 500);
-  await page.waitForTimeout(200);
-  // At about 300 ms the eyelid is still on its way: it did not snap open when the pointer left.
+  await page.waitForTimeout(100);
+  // Well before its 420 ms are over, the eyelid is still on its way: it did not snap open when the pointer left.
   expect(await sparkAnimations(page, BRAND)).toEqual(["mark-blink"]);
   await expect(mark).toHaveAttribute("data-wink", "true");
 
