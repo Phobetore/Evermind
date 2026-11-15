@@ -76,6 +76,14 @@ export const COSTLIEST: Record<string, (count: number) => string> = {
   "images around letters": around("![", "](a)", "a"),
   "images around words": around("![", "](a)", "word "),
   "images around tabbed letters": around("![", "](a)", "a\t"),
+  // A "[" the parser never takes for a label's start, above its "]": that "]" closes a real "["
+  // far below, over the whole span.
+  "brackets over code spans, around tabbed letters": around("[", "`[`]", "a\t"),
+  "brackets over code spans, around words": around("[", "`[`]", "word "),
+  "brackets over autolinks, around tabbed letters": around("[", "<http://a.example/[>]", "a\t"),
+  "brackets over autolinks, around words": around("[", "<http://a.example/[>]", "word "),
+  "brackets over a tag's attribute, around tabbed letters": around("[", "<b x='['>]", "a\t"),
+  "brackets over a tag's attribute, around words": around("[", "<b x='['>]", "word "),
   // Containers that go on over plain lines.
   "a quote then plain lines": (n) => "> a\n" + lines("b")(n),
   "a list item then plain lines": (n) => "- a\n" + lines("b")(n),

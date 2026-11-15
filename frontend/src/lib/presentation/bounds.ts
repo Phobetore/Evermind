@@ -334,8 +334,13 @@ function pairedOnLine(text: string, lineStart: number, from: number, end: number
  *  the last one waiting, which costs its distance in characters divided by LABEL_CHARACTERS, plus
  *  LABEL_BLANK for each space, tab or line break between them, IMAGE_LABEL times as much for an
  *  image's; the sum, rounded up, is added to the cost. The parser serialises and normalises the
- *  whole span at each "]", piece by piece, and a blank makes a piece. The stack empties at the
- *  end of a block.
+ *  whole span at each "]", piece by piece, and a blank makes a piece. A "[" that something may
+ *  hide from the parser (an odd number of backslashes before it on its line, a run of backticks
+ *  still waiting in the block, a "<" of the block not yet followed by a ">") may be no label's
+ *  start at all: the "]" that closes it also pays, the same way, the distance to the nearest "["
+ *  below it that nothing hides, which stays waiting (in a code span, an autolink or a tag's
+ *  attribute, 200 such "[" around tabbed letters took the parser a second, 15/11). The stack
+ *  empties at the end of a block.
  *  And the link titles opened by a parenthesis. In a block, once "](" has been read in it,
  *  every "(" that follows a blank, or that is the first character of a line after its prefix,
  *  may open a title (micromark opens one only after a destination and a blank, and looks for its
@@ -378,10 +383,13 @@ export function layoutCost(text: string): number {
   let tickDistance = 0;
 
   // The "[" still open in the block, innermost last: where each is, the blanks read before it,
-  // and whether it opens an image.
-  let labels: Array<{ at: number; blanks: number; image: boolean }> = [];
+  // whether it opens an image, whether something may hide it from the parser, and the nearest
+  // "[" below it that nothing hides (-1 when none).
+  let labels: Array<{ at: number; blanks: number; image: boolean; hidden: boolean; below: number }> = [];
   let blanks = 0;
   let labelCost = 0;
+  // A "<" of the block not yet closed by a ">": a tag, an autolink or a comment may hide a "[".
+  let angleOpen = false;
 
   // The link titles waiting for their ")".
   let titleCount = 0;
@@ -419,6 +427,7 @@ export function layoutCost(text: string): number {
       ticks = new Map();
     }
     labels = [];
+    angleOpen = false;
     titleDistance += titleCount * at - titleSum;
     titleCount = 0;
     titleSum = 0;
@@ -570,6 +579,7 @@ export function layoutCost(text: string): number {
 
       // The HTML openers and their ends.
       if (code === 60) {
+        angleOpen = true;
         if (text.startsWith("<!--", k)) {
           waitingCount[Kind.Comment]++;
           waitingSum[Kind.Comment] += k;
@@ -598,12 +608,30 @@ export function layoutCost(text: string): number {
         if (label !== undefined) {
           const cost = (k - label.at) / LABEL_CHARACTERS + (blanks - label.blanks) * LABEL_BLANK;
           labelCost += label.image ? IMAGE_LABEL * cost : cost;
+          // A "[" the parser may never have taken for a label's start does not close here: the
+          // "]" may close the one below it that nothing hides, over the whole span. That one
+          // stays on the stack, as the parser's may (a code span, a tag or an escape hid "[").
+          if (label.hidden && label.below >= 0) {
+            const shown = labels[label.below];
+            const span = (k - shown.at) / LABEL_CHARACTERS + (blanks - shown.blanks) * LABEL_BLANK;
+            labelCost += shown.image ? IMAGE_LABEL * span : span;
+          }
         }
       } else if (code === 91) {
-        labels.push({ at: k, blanks, image: k > 0 && text.charCodeAt(k - 1) === 33 });
+        let escapes = 0;
+        while (k - escapes - 1 >= prefixEnd && text.charCodeAt(k - escapes - 1) === 92) escapes++;
+        const top = labels.length - 1;
+        labels.push({
+          at: k,
+          blanks,
+          image: k > 0 && text.charCodeAt(k - 1) === 33,
+          hidden: escapes % 2 === 1 || ticks.size > 0 || angleOpen,
+          below: top < 0 ? -1 : labels[top].hidden ? labels[top].below : top,
+        });
       } else if (code === 32 || code === 9) {
         blanks++;
       } else if (code === 62) {
+        angleOpen = false;
         settle(Kind.Declaration, k);
       } else if (code === 96) {
         let j = k + 1;

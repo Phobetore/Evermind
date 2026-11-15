@@ -176,3 +176,21 @@ test("the cost of a text is counted without parsing it", () => {
   expect(layoutRefusal("a")).toBeNull();
   expect(layoutRefusal("a".repeat(200_000), 0)).toBeNull();
 }, 30_000);
+
+test("a bracket that something hides from the parser does not shield the one below it", () => {
+  // Measured on 15/11, 100,000 characters each: the parser closes the real "[" at each "]" and
+  // goes over the whole span, 1.0 to 1.5 s, while the count closed the hidden "[" next to it.
+  const shape = (count: number, motif: string) => {
+    const room = LAYOUT_BOUND - count - count * motif.length;
+    return "[".repeat(count) + "a\t".repeat(room / 2) + motif.repeat(count);
+  };
+  expect(layoutRefusal(shape(174, "`[`]"))).toBe("tooDense");
+  expect(layoutRefusal(shape(200, "<http://a.example/[>]"))).toBe("tooDense");
+  expect(layoutRefusal(shape(270, "<b x='['>]"))).toBe("tooDense");
+
+  // An honest text pays nothing more for a code span, a tag or an escape around a bracket, and
+  // little more inside a note in brackets (the same as before these were counted, and 31 more).
+  const honest = "Use `arr[0]` and <span title='[x]'>this</span> or \\[not a link] with [a link](https://a.example). ";
+  expect(layoutCost(honest)).toBe(7_302);
+  expect(layoutCost("[OOC: " + honest + "]")).toBe(8_395);
+});

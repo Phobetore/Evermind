@@ -708,6 +708,11 @@ test("markup too costly to parse is not laid out", () => {
     COSTLIEST["images around words"](436),
     COSTLIEST["images around tabbed letters"](436),
     upTo("x " + "\\`` ".repeat(346)),
+    // Measured at 1.0 to 1.5 s while a "[" in a code span, an autolink or a tag shielded the
+    // real one below it.
+    COSTLIEST["brackets over code spans, around tabbed letters"](174),
+    COSTLIEST["brackets over autolinks, around tabbed letters"](200),
+    COSTLIEST["brackets over a tag's attribute, around tabbed letters"](270),
   ]) {
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooDense" });
