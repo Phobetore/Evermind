@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { LAYOUT_BOUND, PLAIN_PART, layoutCost, layoutRefusal, plainPart } from "./bounds";
+import { LAYOUT_BOUND, LAYOUT_COST_BOUND, PLAIN_PART, layoutCost, layoutRefusal, plainCuts, plainPart } from "./bounds";
 
 function timed<T>(run: () => T): [T, number] {
   const start = performance.now();
@@ -25,14 +25,43 @@ test("a long plain text is cut into parts, never inside a character", () => {
   // An index past the last gives the last.
   expect(plainPart(straddling, 9).part).toBe(second.part);
 
-  // Nothing is walked up to the part asked for.
+  // The parts are found in one walk, in time; then a part is had without walking again.
   const huge = "x".repeat(15 * 1024 * 1024);
   // repeat() makes a rope that the first read flattens, megabytes copied in one go: done before
-  // the clock starts, so that only plainPart is timed.
+  // the clock starts, so that only the walk is timed.
   huge.charCodeAt(0);
-  const [part, elapsed] = timed(() => plainPart(huge, 70));
+  const [cuts, walked] = timed(() => plainCuts(huge));
+  expect(walked).toBeLessThan(500);
+  const [part, elapsed] = timed(() => plainPart(huge, 70, cuts));
   expect(part.part.length).toBe(PLAIN_PART);
   expect(elapsed).toBeLessThan(5);
+});
+
+test("a plain part ends sooner where the browser would lay it out slowly", () => {
+  // Measured in Chromium on 15/11: 100,000 characters changing direction at each one, 3.2 s;
+  // Thai without a space, 2.1 s; Korean on one line, 3.4 s plain. Each part stays in the budget.
+  const thai = "สวัสดีครับยินดีต้อนรับสู่ประภาคาร";
+  for (const [name, text] of [
+    ["changes of direction", "aא".repeat(100_000)],
+    ["digits in a right-to-left text", "1א".repeat(100_000)],
+    ["Thai without a space", thai.repeat(Math.ceil(200_000 / thai.length))],
+    ["Korean on one line", "등대지기는 등불을 켠다 ".repeat(15_000)],
+  ]) {
+    const cuts = plainCuts(text);
+    expect(cuts.length, name).toBeGreaterThan(2);
+    let joined = "";
+    for (let i = 0; i < cuts.length; i++) {
+      const { part } = plainPart(text, i, cuts);
+      expect(layoutCost(part) <= LAYOUT_COST_BOUND * 1.01 || part.length < PLAIN_PART, name).toBe(true);
+      joined += part;
+    }
+    expect(joined, name).toBe(text);
+  }
+  // A cut is never inside a character: here before a Thai vowel sign that belongs to its letter.
+  const marked = "กั".repeat(150_000);
+  for (const cut of plainCuts(marked).slice(1)) expect(marked.charCodeAt(cut), String(cut)).not.toBe(0x0e31);
+  // Latin, Greek and Cyrillic cost nothing more: one part.
+  expect(plainCuts("The keeper of the lamp. Хранитель маяка. ".repeat(4_000))).toEqual([0]);
 });
 
 test("the cost of a text is counted without parsing it", () => {
@@ -59,6 +88,20 @@ test("the cost of a text is counted without parsing it", () => {
   expect(layoutCost("a | b\n:-|-")).toBe(2_008);
   expect(layoutCost("a | b\n---")).toBe(1_000);
   expect(layoutCost("**Age 0:** 25 | **Height:** 170 cm | *calm*")).toBe(5_500);
+
+  // The browser's own layout of other scripts: a change of direction, the square of a block's
+  // characters of other scripts than the simplest, a dictionary run.
+  expect(layoutCost("aאa")).toBe(1_501);
+  expect(layoutCost("a א a")).toBe(625);
+  expect(layoutCost("Age 25, height 170")).toBe(500);
+  expect(layoutCost("א 12 א")).toBe(625);
+  expect(layoutCost("ไทย")).toBe(501);
+  expect(layoutRefusal("aא".repeat(50_000))).toBe("tooDense");
+  expect(layoutRefusal("สวัสดีครับ".repeat(10_000))).toBe("tooDense");
+  expect(layoutRefusal("등대지기는 등불을 켠다 ".repeat(7_000))).toBe("tooDense");
+  // A long text in another script, in paragraphs, is laid out.
+  expect(layoutRefusal(("שלום עולם של המגדלור ".repeat(50) + "\n\n").repeat(90))).toBeNull();
+  expect(layoutRefusal(("灯台守の物語はここから始まる。".repeat(100) + "\n\n").repeat(60))).toBeNull();
 
   // An indentation counts only the lists still open.
   expect(layoutCost(" ".repeat(60) + "b")).toBe(500);

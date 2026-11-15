@@ -327,6 +327,34 @@ test("a presentation of megabytes of quote marks is shown plainly, on the page a
   expect(thrown).toEqual([]);
 });
 
+test("a greeting that changes direction at each letter, or of Thai without a space, is laid out in time", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  // The box laid out again from nothing, timed: the browser's own layout, past the parsers.
+  const relaid = (box: Locator) =>
+    box.evaluate((element) => {
+      const start = performance.now();
+      (element as HTMLElement).style.display = "none";
+      void (element as HTMLElement).offsetHeight;
+      (element as HTMLElement).style.display = "";
+      void (element as HTMLElement).offsetHeight;
+      return performance.now() - start;
+    });
+  const thai = "สวัสดีครับยินดีต้อนรับสู่ประภาคาร";
+  // Measured on 15/11, 100,000 characters each: 3.2 s and 2.1 s on a PC, before they were counted.
+  for (const greeting of ["aא".repeat(50_000), thai.repeat(Math.ceil(100_000 / thai.length)).slice(0, 100_000)]) {
+    const convo = await conversationOf(request, { greeting });
+    await openPage(page, convo.character_id);
+    await expect(opening(page).getByText(en.characters.presentation.tooDense)).toBeVisible();
+    expect(await relaid(opening(page)), "the opening on the card's page").toBeLessThan(250);
+
+    await page.goto(`/#/chat/${convo.id}`);
+    const first = page.locator("[data-message-id]").first();
+    await expect(first.getByText(/Part 1 of \d+/)).toBeVisible({ timeout: 30_000 });
+    expect(await relaid(first), "the greeting in its conversation").toBeLessThan(250);
+  }
+  expect(thrown).toEqual([]);
+});
+
 test("a greeting too long to lay out is shown plainly, and the page answers", async ({ page, request }) => {
   const greeting = "*open _under [left ".repeat(Math.ceil((LAYOUT_BOUND + 1) / 19)).slice(0, LAYOUT_BOUND + 1);
   expect(greeting.length).toBe(LAYOUT_BOUND + 1);

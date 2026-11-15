@@ -1,11 +1,12 @@
 import { useT } from "@/i18n/useT";
-import { plainPart } from "@/lib/presentation/bounds";
+import { plainCuts, plainPart } from "@/lib/presentation/bounds";
 import { clsx } from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 /** A text shown as written, line breaks kept (whitespace-pre-wrap break-words overflow-clip, plus
  *  className: combining marks stacked on one letter paint nothing outside its box);
- *  past PLAIN_PART characters, one part at a time (plainPart of @/lib/presentation/bounds), with
+ *  past PLAIN_PART characters, or a cost of the browser's own layout, one part at a time
+ *  (plainCuts and plainPart of @/lib/presentation/bounds), with
  *  « Part i of n » and two buttons to move between parts. One text node of tens of megabytes would
  *  hold a phone's only thread on every visit, folded or not. */
 export function PlainText({ text, className }: { text: string; className?: string }) {
@@ -13,7 +14,9 @@ export function PlainText({ text, className }: { text: string; className?: strin
   // The part belongs to the text it was chosen in: another text starts at its first part.
   const [chosen, setChosen] = useState({ text, index: 0 });
   const index = chosen.text === text ? chosen.index : 0;
-  const { part, count } = useMemo(() => plainPart(text, index), [text, index]);
+  // Where the parts start, found once per text: one walk over it, however many parts are read.
+  const cuts = useMemo(() => plainCuts(text), [text]);
+  const { part, count } = useMemo(() => plainPart(text, index, cuts), [text, index, cuts]);
   const shown = useRef<HTMLParagraphElement>(null);
   const moved = useRef(false);
 

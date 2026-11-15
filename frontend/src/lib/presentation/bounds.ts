@@ -29,6 +29,23 @@ export const PIXEL_BOUND = 16_777_216;
 export const INLINE_PIXEL_BUDGET = 67_108_864;
 /** How much of a text shown without layout is shown at once. */
 export const PLAIN_PART = 200_000;
+/** The browser's own layout of a line of text, past the parsers, grows as the square of its
+ *  characters of any script but the simplest (Latin, Greek, Cyrillic): a block of n of them costs
+ *  n² / SCRIPT_BLOCK, and in a text shown plainly (white-space: pre-wrap, dearer) a line of n of
+ *  them n² / PLAIN_SCRIPT_LINE. Measured on 15/11 in Chromium on the PC, 100,000 characters on
+ *  one line: Hangul 0.36 s laid out, 3.4 s plain; Chinese 0.38 s; Hebrew 0.22 s, 1.3 s plain;
+ *  Latin 6 ms. */
+export const SCRIPT_BLOCK = 2_000;
+export const PLAIN_SCRIPT_LINE = 400;
+/** A run of Thai, Lao, Khmer or Myanmar without a blank is broken into lines by a dictionary, at
+ *  a cost that grows as the square of the run: n² / DICTIONARY_RUN. 100,000 Thai letters without
+ *  a space, 2.1 s; the same cut every 200 letters, 38 ms. */
+export const DICTIONARY_RUN = 400;
+/** A change of direction (right-to-left against left-to-right) makes a run of its own for the
+ *  browser's layout: MARK_COST with nothing between the two, SPACED_CHANGE across a blank. 100,000
+ *  characters that change direction at each one, 3.2 s; each change across a blank costs about a
+ *  quarter. */
+export const SPACED_CHANGE = 62;
 
 const enum Kind {
   Comment,
@@ -48,6 +65,79 @@ const END_LENGTH = [3, 2, 3, 1];
 const LABEL_CHARACTERS = 80;
 const LABEL_BLANK = 1;
 const IMAGE_LABEL = 2;
+
+const enum Direction {
+  None,
+  Left,
+  Right,
+  // Digits after a right-to-left letter, which run on their own level.
+  RightDigits,
+}
+
+/** 1 for a letter written left to right, 2 for one written right to left, 3 for a digit, 0 for
+ *  anything else (a blank, a mark, punctuation, an emoji): a reading of the Unicode bidirectional
+ *  classes by ranges, enough to count changes of direction. */
+function strongOf(code: number): number {
+  if (code < 0x80) {
+    if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) return 1;
+    return code >= 48 && code <= 57 ? 3 : 0;
+  }
+  if (code < 0x0590) return code >= 0xc0 && code !== 0xd7 && code !== 0xf7 && !(code >= 0x300 && code <= 0x36f) ? 1 : 0;
+  if (code <= 0x08ff) {
+    if ((code >= 0x660 && code <= 0x669) || (code >= 0x6f0 && code <= 0x6f9)) return 3;
+    // The points of Hebrew and the vowels of Arabic take the direction of their letter.
+    if ((code >= 0x591 && code <= 0x5c7) || (code >= 0x610 && code <= 0x61a) || (code >= 0x64b && code <= 0x65f)) return 0;
+    if (code === 0x670 || (code >= 0x6d6 && code <= 0x6ed)) return 0;
+    return 2;
+  }
+  if ((code >= 0xfb1d && code <= 0xfdff) || (code >= 0xfe70 && code <= 0xfefe)) return 2;
+  if ((code >= 0x2000 && code <= 0x2bff) || (code >= 0x3000 && code <= 0x303f)) return 0;
+  if ((code >= 0xd800 && code <= 0xdfff) || (code >= 0xfe00 && code <= 0xfe0f) || (code >= 0xff00 && code <= 0xff20)) return 0;
+  return 1;
+}
+
+/** Thai, Lao, Myanmar and Khmer: scripts broken into lines by a dictionary. */
+function isDictionary(code: number): boolean {
+  return (code >= 0x0e00 && code <= 0x0eff) || (code >= 0x1000 && code <= 0x109f) || (code >= 0x1780 && code <= 0x17ff);
+}
+
+/** What the browser's layout pays for the characters of a line beyond the parsers: the changes
+ *  of direction and the runs of a dictionary script, read one character at a time; the square
+ *  of the other scripts is the caller's, by block or by line. */
+interface Script {
+  direction: Direction;
+  spaced: boolean;
+  run: number;
+  cost: number;
+}
+
+const newScript = (): Script => ({ direction: Direction.None, spaced: false, run: 0, cost: 0 });
+
+function startLine(script: Script) {
+  script.direction = Direction.None;
+  script.spaced = false;
+  script.run = 0;
+}
+
+function readScript(script: Script, code: number) {
+  const strong = strongOf(code);
+  if (strong === 0) {
+    if (code === 32 || code === 9) script.spaced = true;
+  } else {
+    const was = script.direction;
+    let next = was;
+    if (strong === 1) next = Direction.Left;
+    else if (strong === 2) next = Direction.Right;
+    else if (was === Direction.Right) next = Direction.RightDigits;
+    if (was !== Direction.None && next !== was) script.cost += script.spaced ? SPACED_CHANGE : MARK_COST;
+    script.direction = next;
+    script.spaced = false;
+  }
+  if (isDictionary(code)) {
+    script.run++;
+    script.cost += (2 * script.run - 1) / DICTIONARY_RUN;
+  } else script.run = 0;
+}
 
 function isBlank(code: number): boolean {
   return code === 32 || code === 9;
@@ -251,6 +341,11 @@ export function layoutCost(text: string): number {
   let blockDelimiterPipes = 0;
   let blockMissingCells = 0;
   let blockLinkSeen = false;
+  // What the browser's layout pays beyond the parsers: the characters of other scripts than the
+  // simplest in the block, and the changes of direction and dictionary runs of every line.
+  let blockScript = 0;
+  let scriptCost = 0;
+  const script = newScript();
 
   // The HTML openers waiting for their end, by kind.
   const waitingCount = [0, 0, 0, 0];
@@ -292,6 +387,8 @@ export function layoutCost(text: string): number {
     blockDelimiterPipes = 0;
     blockMissingCells = 0;
     blockLinkSeen = false;
+    scriptCost += (blockScript * blockScript) / SCRIPT_BLOCK;
+    blockScript = 0;
     for (let kind = 0; kind < 4; kind++) {
       openerDistance += waitingCount[kind] * at - waitingSum[kind];
       waitingCount[kind] = 0;
@@ -397,6 +494,7 @@ export function layoutCost(text: string): number {
 
     // The line break before this line, read by a label that spans it.
     blanks++;
+    startLine(script);
     const continued = Math.min(Math.floor(columns / 2), open);
     const containers = markers + continued;
     const items = continued + listMarkers;
@@ -446,6 +544,9 @@ export function layoutCost(text: string): number {
         default:
           onlyDelimiter = false;
       }
+
+      readScript(script, code);
+      if (code >= 0x0590) blockScript++;
 
       // The HTML openers and their ends.
       if (code === 60) {
@@ -550,7 +651,8 @@ export function layoutCost(text: string): number {
     Math.ceil(openerDistance / 4) +
     2 * tickDistance +
     Math.ceil(titleDistance / 2) +
-    Math.ceil(labelCost)
+    Math.ceil(labelCost) +
+    Math.ceil(scriptCost + script.cost)
   );
 }
 
@@ -566,26 +668,67 @@ export function layoutRefusal(
   return null;
 }
 
+const MARK = /\p{M}/u;
+
+/** Where a part may end at or before `position`: never between the two halves of a surrogate
+ *  pair, nor before a mark or a joiner that belongs to the character before it (a few steps back
+ *  at most, so that the part still ends). */
 function cutAt(text: string, position: number): number {
-  if (position <= 0 || position >= text.length) return position;
-  const high = text.charCodeAt(position - 1);
-  const low = text.charCodeAt(position);
-  // Never between the two halves of a surrogate pair.
-  return high >= 0xd800 && high <= 0xdbff && low >= 0xdc00 && low <= 0xdfff
-    ? position - 1
-    : position;
+  let at = position;
+  for (let steps = 0; at > 0 && at < text.length && steps < 32; steps++) {
+    const code = text.charCodeAt(at);
+    const before = text.charCodeAt(at - 1);
+    const splitsPair = code >= 0xdc00 && code <= 0xdfff && before >= 0xd800 && before <= 0xdbff;
+    if (!splitsPair && code !== 0x200d && !(code >= 0xfe00 && code <= 0xfe0f) && !MARK.test(text[at])) break;
+    at--;
+  }
+  return at > 0 ? at : position;
+}
+
+/** Where each part of a text shown without layout starts, in one walk over the text: a part ends
+ *  at PLAIN_PART UTF-16 units, or sooner, once what the browser's layout pays for it reaches
+ *  LAYOUT_COST_BOUND (the square of each line's characters of other scripts than the simplest,
+ *  over PLAIN_SCRIPT_LINE; the changes of direction; the dictionary runs), and never inside a
+ *  character. A text of PLAIN_PART or less that costs less is one part. */
+export function plainCuts(text: string): number[] {
+  const cuts = [0];
+  let start = 0;
+  let line = 0;
+  let cost = 0;
+  const script = newScript();
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 10 || code === 13) {
+      line = 0;
+      startLine(script);
+      continue;
+    }
+    readScript(script, code);
+    if (code >= 0x0590) {
+      line++;
+      cost += (2 * line - 1) / PLAIN_SCRIPT_LINE;
+    }
+    if (i + 1 - start >= PLAIN_PART || cost + script.cost > LAYOUT_COST_BOUND) {
+      let cut = cutAt(text, i + 1);
+      if (cut <= start) cut = i + 1;
+      if (cut >= text.length) break;
+      cuts.push(cut);
+      start = cut;
+      // The characters a cut moved back over are read again, in the next part.
+      i = cut - 1;
+      line = 0;
+      cost = 0;
+      Object.assign(script, newScript());
+    }
+  }
+  return cuts;
 }
 
 /** Part `index` (from 0, clamped to the last) of a text shown without layout, and how many parts
- *  there are: cut every PLAIN_PART UTF-16 units, one unit earlier when the cut would fall between
- *  the two halves of a surrogate pair. Each cut is found from its own position, without walking
- *  the text: the time does not grow with the number of parts. A text of PLAIN_PART or less is one
- *  part, itself. */
-export function plainPart(text: string, index: number): { part: string; count: number } {
-  const count = Math.max(1, Math.ceil(text.length / PLAIN_PART));
-  if (count === 1) return { part: text, count };
+ *  there are, by the starts plainCuts found (found again when not given). */
+export function plainPart(text: string, index: number, cuts: number[] = plainCuts(text)): { part: string; count: number } {
+  const count = cuts.length;
   const i = Math.min(Math.max(0, Math.floor(index)), count - 1);
-  const start = i === 0 ? 0 : cutAt(text, i * PLAIN_PART);
-  const end = i === count - 1 ? text.length : cutAt(text, (i + 1) * PLAIN_PART);
-  return { part: text.slice(start, end), count };
+  const end = i === count - 1 ? text.length : cuts[i + 1];
+  return { part: i === 0 && count === 1 ? text : text.slice(cuts[i], end), count };
 }
