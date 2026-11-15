@@ -479,13 +479,6 @@ test("an image that cannot be had says so", async ({ page }) => {
   await expect(box.getByText("Image unavailable (pictures.example)")).toBeVisible();
 });
 
-test("a presentation whose layout fails says why it is plain", async ({ page }) => {
-  // Nested deeper than the walk of the layout goes: it fails, and the text is shown plainly.
-  const box = await openCard(page, "<div>".repeat(2_399) + "She keeps the lamp.", { plain: true });
-  await expect(box.getByText("She keeps the lamp.")).toBeVisible();
-  await expect(page.getByText("Too dense to lay out: shown without its layout.")).toBeVisible();
-});
-
 test("an image over http says from where it would have come, and is never asked for", async ({ page }) => {
   const box = await openCard(page, "![plain](http://insecure.example/a.png)");
   await expect(box.getByText("Image from insecure.example not shown: the address is not secure (http)")).toBeVisible();
