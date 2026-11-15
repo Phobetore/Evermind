@@ -97,6 +97,17 @@ test("the cost of a text is counted without parsing it", () => {
   expect(layoutCost("א 12 א")).toBe(625);
   expect(layoutCost("ไทย")).toBe(501);
   expect(layoutRefusal("aא".repeat(50_000))).toBe("tooDense");
+  // Right-to-left scripts past the first plane, written as surrogate pairs, change direction
+  // too: 99 paragraphs of Phoenician or Adlam against Latin held Chromium 17 to 23 s (15/11).
+  expect(layoutCost("a\u{10900}a")).toBe(1_501);
+  expect(layoutCost("a\u{1E900}a")).toBe(1_501);
+  for (const letter of ["\u{10900}", "\u{1E900}"]) {
+    const paragraph = ("a" + letter).repeat(333);
+    expect(layoutRefusal(Array(99).fill(paragraph).join("\n\n")), letter).toBe("tooDense");
+    expect(plainCuts(paragraph.repeat(100)).length, letter).toBeGreaterThan(1);
+  }
+  // An emoji in a Hebrew text changes no direction.
+  expect(layoutCost("א😀א")).toBe(501);
   expect(layoutRefusal("สวัสดีครับ".repeat(10_000))).toBe("tooDense");
   expect(layoutRefusal("등대지기는 등불을 켠다 ".repeat(7_000))).toBe("tooDense");
   // A long text in another script, in paragraphs, is laid out.

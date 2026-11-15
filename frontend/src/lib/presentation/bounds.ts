@@ -76,8 +76,18 @@ const enum Direction {
 
 /** 1 for a letter written left to right, 2 for one written right to left, 3 for a digit, 0 for
  *  anything else (a blank, a mark, punctuation, an emoji): a reading of the Unicode bidirectional
- *  classes by ranges, enough to count changes of direction. */
+ *  classes by ranges, enough to count changes of direction. `code` is a whole code point: the
+ *  right-to-left scripts past the first plane (Phoenician, Adlam, Hanifi Rohingya…) are written
+ *  as surrogate pairs, and change direction as Hebrew does (99 paragraphs of Phoenician against
+ *  Latin, 17 s of Chromium's layout on the PC, 15/11). */
 function strongOf(code: number): number {
+  if (code >= 0x10000) {
+    if ((code >= 0x10800 && code <= 0x10fff) || (code >= 0x1e800 && code <= 0x1efff)) return 2;
+    // Mathematical digits; emoji and symbols; tags and variation selectors.
+    if (code >= 0x1d7ce && code <= 0x1d7ff) return 3;
+    if ((code >= 0x1f000 && code <= 0x1fbff) || code >= 0xe0000) return 0;
+    return 1;
+  }
   if (code < 0x80) {
     if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) return 1;
     return code >= 48 && code <= 57 ? 3 : 0;
@@ -117,6 +127,16 @@ function startLine(script: Script) {
   script.direction = Direction.None;
   script.spaced = false;
   script.run = 0;
+}
+
+/** Reads the character at `index`: a whole code point at the first half of a surrogate pair, and
+ *  nothing at the second. */
+function readScriptAt(script: Script, text: string, index: number, code: number) {
+  if (code >= 0xdc00 && code <= 0xdfff && index > 0) {
+    const high = text.charCodeAt(index - 1);
+    if (high >= 0xd800 && high <= 0xdbff) return;
+  }
+  readScript(script, code >= 0xd800 && code <= 0xdbff ? text.codePointAt(index)! : code);
 }
 
 function readScript(script: Script, code: number) {
@@ -545,7 +565,7 @@ export function layoutCost(text: string): number {
           onlyDelimiter = false;
       }
 
-      readScript(script, code);
+      readScriptAt(script, text, k, code);
       if (code >= 0x0590) blockScript++;
 
       // The HTML openers and their ends.
@@ -703,7 +723,7 @@ export function plainCuts(text: string): number[] {
       startLine(script);
       continue;
     }
-    readScript(script, code);
+    readScriptAt(script, text, i, code);
     if (code >= 0x0590) {
       line++;
       cost += (2 * line - 1) / PLAIN_SCRIPT_LINE;

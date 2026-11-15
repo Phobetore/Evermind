@@ -340,8 +340,15 @@ test("a greeting that changes direction at each letter, or of Thai without a spa
       return performance.now() - start;
     });
   const thai = "สวัสดีครับยินดีต้อนรับสู่ประภาคาร";
-  // Measured on 15/11, 100,000 characters each: 3.2 s and 2.1 s on a PC, before they were counted.
-  for (const greeting of ["aא".repeat(50_000), thai.repeat(Math.ceil(100_000 / thai.length)).slice(0, 100_000)]) {
+  // Measured on 15/11, 100,000 characters each: 3.2 s and 2.1 s on a PC, before they were counted;
+  // 99 paragraphs of Phoenician or Adlam against Latin, written as surrogate pairs, 17 and 23 s.
+  const paragraphs = (letter: string) => Array(99).fill(("a" + letter).repeat(333)).join("\n\n");
+  for (const greeting of [
+    "aא".repeat(50_000),
+    thai.repeat(Math.ceil(100_000 / thai.length)).slice(0, 100_000),
+    paragraphs("\u{10900}"),
+    paragraphs("\u{1E900}"),
+  ]) {
     const convo = await conversationOf(request, { greeting });
     await openPage(page, convo.character_id);
     await expect(opening(page).getByText(en.characters.presentation.tooDense)).toBeVisible();
