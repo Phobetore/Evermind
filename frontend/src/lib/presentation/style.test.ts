@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { NAMED_COLORS, cleanDeclarations, cleanStyle, colorAlpha } from "./style";
+import { expectWithin } from "./timedBudget";
 
 test("the fixed corner picture of a real card keeps only what stays in its box", () => {
   // The overlay of https://chub.ai/characters/Alpacalotta/josephine-87e86c62.
@@ -166,13 +167,13 @@ test("a style is read in linear time, whatever its blanks and comments", () => {
     style.charCodeAt(0);
     const start = performance.now();
     cleanDeclarations(style);
-    expect(performance.now() - start, JSON.stringify(blank)).toBeLessThan(50);
+    expectWithin(performance.now() - start, 50, "count", JSON.stringify(blank));
   }
   const comments = "color:" + "/*a".repeat(30_000);
   comments.charCodeAt(0);
   const start = performance.now();
   expect(cleanDeclarations(comments)).toEqual([]);
-  expect(performance.now() - start).toBeLessThan(50);
+  expectWithin(performance.now() - start, 50, "count", "comments");
 
   // Blanks inside a value are one blank, as CSS reads them; a comment closed stays a comment.
   expect(cleanStyle("margin:\n  4px\t\t 8px ;  color :  red")).toBe("margin: 4px 8px; color: red");

@@ -1,5 +1,6 @@
 import { LAYOUT_BOUND, layoutRefusal } from "@/lib/presentation/bounds";
 import { COSTLIEST, largestLaidOut } from "@/lib/presentation/costliest";
+import { budgetText, expectWithin, scaled, within } from "@/lib/presentation/timedBudget";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
@@ -68,7 +69,7 @@ test("a message too costly to parse is shown plainly", () => {
   for (const text of texts) {
     const [laid, elapsed] = timed(() => rpMarkdown(text));
     expect(laid, text.slice(0, 40)).toBeNull();
-    expect(elapsed, text.slice(0, 40)).toBeLessThan(50);
+    expectWithin(elapsed, 50, "layout", text.slice(0, 40));
   }
 });
 
@@ -82,13 +83,13 @@ test("the costliest message of each kind is laid out in time", () => {
     let [, elapsed] = timed(() => expect(() => rpMarkdown(text), name).not.toThrow());
     // Some fifty kinds lay out near 190 ms, and a collection of the engine during one of them
     // passes the budget: one past it is measured twice more, and the middle time counts.
-    if (elapsed >= 250) {
+    if (elapsed >= scaled("layout", 250)) {
       const times = [elapsed, timed(() => rpMarkdown(text))[1], timed(() => rpMarkdown(text))[1]];
       elapsed = times.sort((a, b) => a - b)[1];
     }
-    if (elapsed >= 250) slow.push(`${name}: ${Math.round(elapsed)} ms`);
+    if (!within(elapsed, 250, "layout")) slow.push(`${name}: ${Math.round(elapsed)} ms`);
   }
-  expect(slow).toEqual([]);
+  expect(slow, budgetText("layout", 250)).toEqual([]);
 }, 120_000);
 
 test("deep nesting is flattened, never thrown", () => {
@@ -102,7 +103,7 @@ test("a reference definition is text in a message too", () => {
   const [laid, elapsed] = timed(() => markup(rpMarkdown(text)));
   expect(laid).toContain("[r]:");
   expect(laid).toContain("[a][r]");
-  expect(elapsed).toBeLessThan(250);
+  expectWithin(elapsed, 250, "layout");
 });
 
 test("a failure of the layout shows the text plainly", async () => {

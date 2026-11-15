@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { chosenNotes, isLanguageTag, languageName, notesVersions } from "./notes";
+import { expectWithin } from "./timedBudget";
 
 const card = (creator_notes: string, creator_notes_multilingual: Record<string, string> = {}) =>
   ({ creator_notes, creator_notes_multilingual });
@@ -61,7 +62,7 @@ describe("the notes of a card by language", () => {
     multilingual.fr = "Gardien.";
     const start = performance.now();
     const versions = notesVersions(card("Main.", multilingual));
-    expect(performance.now() - start).toBeLessThan(150);
+    expectWithin(performance.now() - start, 150, "count");
     expect(versions).toHaveLength(201);
     expect(versions[0].lang).toBeNull();
     // "fr" came after the two hundredth version kept, and is not among them.

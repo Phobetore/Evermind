@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { imageSize, imageSource } from "./images";
 import { layoutLength } from "./renderPresentation";
+import { expectWithin } from "./timedBudget";
 
 // Headers written byte by byte, after the published formats.
 const u16be = (n: number) => [(n >> 8) & 0xff, n & 0xff];
@@ -152,7 +153,7 @@ test("a jpeg header of the smallest segments is walked in time", () => {
   }
   const [small, smallTime] = timed(() => imageSource("data:image/jpeg;base64," + base64(segments)));
   expect(small).toEqual({ kind: "refused" });
-  expect(smallTime).toBeLessThan(250);
+  expectWithin(smallTime, 250, "count", "the smallest segments");
 
   const large = new Uint8Array(7 * 1024 * 1024);
   large[0] = 0xff;
@@ -165,7 +166,7 @@ test("a jpeg header of the smallest segments is walked in time", () => {
   }
   const [big, bigTime] = timed(() => imageSource("data:image/jpeg;base64," + base64(large)));
   expect(big).toEqual({ kind: "refused" });
-  expect(bigTime).toBeLessThan(250);
+  expectWithin(bigTime, 250, "count", "the largest segments");
 });
 
 test("a gif is as large as its largest frame", () => {
@@ -197,7 +198,7 @@ test("a gif is as large as its largest frame", () => {
   bytes[bytes.length - 1] = 0x3b;
   const [walked, elapsed] = timed(() => imageSize("gif", base64(bytes)));
   expect(walked).toEqual({ width: 1, height: 1 });
-  expect(elapsed).toBeLessThan(250);
+  expectWithin(elapsed, 250, "count");
 });
 
 test("an image source is read the same on every call", () => {

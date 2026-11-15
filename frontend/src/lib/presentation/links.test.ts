@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { linkTarget, misleadingHost } from "./links";
+import { expectWithin } from "./timedBudget";
 
 test("only web and mail links are followed", () => {
   expect(linkTarget("https://a.example/x")).toBe("https://a.example/x");
@@ -66,7 +67,7 @@ test("an address shown anywhere in a link's text is caught", () => {
   for (const words of ["a.bc ".repeat(200_000), "a".repeat(1_000_000), "a.".repeat(500_000), "https://".repeat(100_000), "https://a".repeat(100_000), "http://x@".repeat(100_000)]) {
     const start = performance.now();
     misleadingHost(words, "https://a.bc");
-    expect(performance.now() - start, words.slice(0, 10)).toBeLessThan(250);
+    expectWithin(performance.now() - start, 250, "count", words.slice(0, 10));
   }
   expect(misleadingHost("a.bc ".repeat(200_000), "https://a.bc")).toBeNull();
 });

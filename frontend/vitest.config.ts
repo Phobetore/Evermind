@@ -3,9 +3,14 @@ import { defineConfig } from "vitest/config";
 
 // The files whose tests hold the layout to a time budget. Run beside the other files, they shared
 // the processor with them, and a budget of 100 ms was passed now and then by the load of the
-// others, not by the code they time: they run after all the rest, one file at a time.
+// others, not by the code they time: they run after all the rest, one file at a time. Their budgets
+// are the reference PC's, scaled to the machine they run on (src/lib/presentation/timedBudget.ts).
 const TIMED = [
   "src/lib/presentation/renderPresentation.test.ts",
+  "src/lib/presentation/bounds.test.ts",
+  "src/lib/presentation/images.test.ts",
+  "src/lib/presentation/links.test.ts",
+  "src/lib/presentation/style.test.ts",
   "src/lib/presentation/notes.test.ts",
   "src/components/chat/RpText.test.ts",
 ];

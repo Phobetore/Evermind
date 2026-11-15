@@ -24,6 +24,7 @@ import {
   renderModelText,
   renderPresentation,
 } from "./renderPresentation";
+import { budgetText, expectWithin, scaled, within } from "./timedBudget";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -581,7 +582,7 @@ test("two hundred nested elements are laid out, the deepest unwrapped", () => {
 test("ten thousand nested elements end in time, without an error", () => {
   const [refused, elapsed] = timed(() => renderPresentation("<div>".repeat(10_000) + "x"));
   expect(refused).toEqual({ kind: "plain", reason: "tooDense" });
-  expect(elapsed).toBeLessThan(50);
+  expectWithin(elapsed, 50, "layout");
 
   // The deepest nesting the bounds let through: only a hostile card nests so, and the page must
   // end, once a visit.
@@ -591,7 +592,7 @@ test("ten thousand nested elements end in time, without an error", () => {
     const [, time] = timed(() => {
       rendered = renderPresentation(text);
     });
-    expect(time).toBeLessThan(2_000);
+    expectWithin(time, 2_000, "layout");
     if (rendered?.kind === "laid-out") {
       expect(Math.max(...walk(rendered.tree).map(([depth]) => depth))).toBeLessThanOrEqual(64);
     } else {
@@ -610,7 +611,7 @@ test("images written into the text do not count toward the bound", () => {
   const [rendered, elapsed] = timed(() => renderPresentation(text));
   expect(rendered.kind).toBe("laid-out");
   if (rendered.kind === "laid-out") expect(tags(rendered.tree, "img")).toHaveLength(4);
-  expect(elapsed).toBeLessThan(2_000);
+  expectWithin(elapsed, 2_000, "layout");
 }, 30_000);
 
 test("the measure reads megabytes of Latin words and of an image as fast as before scripts were counted", () => {
@@ -624,7 +625,7 @@ test("the measure reads megabytes of Latin words and of an image as fast as befo
     text.charCodeAt(0);
     for (let i = 0; i < 3; i++) layoutCost(text.slice(0, 1_048_576));
     const times = [0, 1, 2].map(() => timed(() => layoutCost(text))[1]).sort((a, b) => a - b);
-    expect(times[1]).toBeLessThan(30);
+    expectWithin(times[1], 30, "count");
   }
 });
 
@@ -635,7 +636,7 @@ test("past their own bound, images written into the text are not laid out", () =
   renderPresentation("data:image/png;base64," + pngHeader(1, 1) + "A".repeat(1_048_576));
   const [rendered, elapsed] = timed(() => renderPresentation(text));
   expect(rendered).toEqual({ kind: "plain", reason: "tooLong" });
-  expect(elapsed).toBeLessThan(100);
+  expectWithin(elapsed, 100, "layout");
   expect(layoutLength(text)).toBeLessThan(LAYOUT_BOUND);
   expect(layoutLength(text) + inlineImagesLength(text)).toBe(text.length);
 });
@@ -651,7 +652,7 @@ test("a long data: run that is no image counts toward the bound", () => {
   ]) {
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooLong" });
-    expect(elapsed).toBeLessThan(50);
+    expectWithin(elapsed, 50, "layout", text.slice(0, 30));
   }
 });
 
@@ -671,7 +672,7 @@ test("what looks like an image but is no image's source counts after all", () =>
     expect(layoutRefusal(text, layoutLength(text))).toBeNull();
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooLong" });
-    expect(elapsed).toBeLessThan(2_000);
+    expectWithin(elapsed, 2_000, "layout");
   }
   // On the line right after its fence, or in a code span, the run is refused before the parse
   // already: the backticks are followed across all of it (layoutCost).
@@ -684,7 +685,7 @@ test("what looks like an image but is no image's source counts after all", () =>
   const real = "data:image/png;base64," + header + "A".repeat(INLINE_IMAGES_BOUND - header.length);
   const [rendered, elapsed] = timed(() => renderPresentation(`<img src="${real}">`));
   expect(rendered.kind).toBe("laid-out");
-  expect(elapsed).toBeLessThan(2_000);
+  expectWithin(elapsed, 2_000, "layout");
 }, 60_000);
 
 test("past the bound the text is not laid out", () => {
@@ -692,7 +693,7 @@ test("past the bound the text is not laid out", () => {
   expect(layoutLength(text)).toBe(LAYOUT_BOUND + 1);
   const [rendered, elapsed] = timed(() => renderPresentation(text));
   expect(rendered).toEqual({ kind: "plain", reason: "tooLong" });
-  expect(elapsed).toBeLessThan(50);
+  expectWithin(elapsed, 50, "layout");
 });
 
 test("a text of the bound's length lays out in time", () => {
@@ -716,7 +717,7 @@ test("a text of the bound's length lays out in time", () => {
     expect(text.length).toBe(LAYOUT_BOUND);
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered.kind).toBe("laid-out");
-    expect(elapsed).toBeLessThan(250);
+    expectWithin(elapsed, 250, "layout", text.slice(0, 30));
   }
 }, 30_000);
 
@@ -732,13 +733,13 @@ test("the costliest markup of each kind lays out in time", () => {
     if (rendered?.kind !== "laid-out") expect(rendered, name).toEqual({ kind: "plain", reason: "failed" });
     // Some fifty kinds lay out near 190 ms, and a collection of the engine during one of them
     // passes the budget: one past it is measured twice more, and the middle time counts.
-    if (elapsed >= 250) {
+    if (elapsed >= scaled("layout", 250)) {
       const times = [elapsed, timed(() => renderPresentation(text))[1], timed(() => renderPresentation(text))[1]];
       elapsed = times.sort((a, b) => a - b)[1];
     }
-    if (elapsed >= 250) slow.push(`${name}: ${Math.round(elapsed)} ms`);
+    if (!within(elapsed, 250, "layout")) slow.push(`${name}: ${Math.round(elapsed)} ms`);
   }
-  expect(slow).toEqual([]);
+  expect(slow, budgetText("layout", 250)).toEqual([]);
 }, 120_000);
 
 test("markup too costly to parse is not laid out", () => {
@@ -792,7 +793,7 @@ test("markup too costly to parse is not laid out", () => {
   ]) {
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooDense" });
-    expect(elapsed).toBeLessThan(50);
+    expectWithin(elapsed, 50, "layout", text.slice(0, 30));
   }
 });
 
@@ -828,7 +829,7 @@ test("elements the HTML parser rebuilds are bounded", () => {
   expect(layoutRefusal(hundred, layoutLength(hundred))).toBeNull();
   const [refused, elapsed] = timed(() => renderPresentation(hundred));
   expect(refused).toEqual({ kind: "plain", reason: "tooDense" });
-  expect(elapsed).toBeLessThan(100);
+  expectWithin(elapsed, 100, "layout");
   expect(rawTagCost(["<b>x</b>".repeat(500)]).rebuilt).toBe(500);
   expect(rawTagCost(["<B title=1>"]).rebuilt).toBe(rawTagCost(["<b title=1>"]).rebuilt);
   expect(rawTagCost(["<B title=1>"]).rebuilt).toBe(2);
@@ -853,7 +854,7 @@ test("elements the HTML parser rebuilds are bounded", () => {
     expect(layoutRefusal(text, layoutLength(text))).toBeNull();
     const [rendered, time] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooDense" });
-    expect(time).toBeLessThan(100);
+    expectWithin(time, 100, "layout", hidden.slice(0, 30));
   }
 
   // The count bounds the real tree from above.
@@ -883,7 +884,7 @@ test("elements the HTML parser rebuilds are bounded", () => {
   while (rawTagCost([atBound(count + 1)]).rebuilt <= REBUILT_BOUND) count++;
   const [rendered, time] = timed(() => renderPresentation(atBound(count)));
   expect(rendered.kind).toBe("laid-out");
-  expect(time).toBeLessThan(250);
+  expectWithin(time, 250, "layout");
 }, 30_000);
 
 test("an attribute the HTML parser copies is counted before anything reads it", () => {
@@ -894,7 +895,7 @@ test("an attribute the HTML parser copies is counted before anything reads it", 
     expect(layoutCost(text)).toBeLessThanOrEqual(1_050_000);
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooDense" });
-    expect(elapsed).toBeLessThan(100);
+    expectWithin(elapsed, 100, "layout", text.slice(0, 30));
   };
 
   // Before parse5.
@@ -942,7 +943,7 @@ test("an attribute the HTML parser copies is counted before anything reads it", 
   while (rawTagCost([atBound(count + 1)]).copied <= COPIED_BOUND) count++;
   const [rendered, elapsed] = timed(() => renderPresentation(atBound(count)));
   expect(rendered).toEqual({ kind: "plain", reason: "tooLong" });
-  expect(elapsed).toBeLessThan(250);
+  expectWithin(elapsed, 250, "layout");
   expect(renderPresentation(atBound(count + 1))).toEqual({ kind: "plain", reason: "tooDense" });
 }, 30_000);
 
@@ -957,11 +958,11 @@ test("the raw HTML is weighed before the HTML parser reads it", () => {
   expect(over.length).toBeLessThan(LAYOUT_BOUND);
   const [refused, refusedTime] = timed(() => renderPresentation(over));
   expect(refused).toEqual({ kind: "plain", reason: "tooDense" });
-  expect(refusedTime).toBeLessThan(100);
+  expectWithin(refusedTime, 100, "layout");
   expect(rawTagCost(["<b" + names(2_000) + ">"]).names).toBe(ATTRIBUTE_NAMES_BOUND);
   const [kept, keptTime] = timed(() => renderPresentation("x <b" + names(2_000) + ">y</b>"));
   expect(kept.kind).toBe("laid-out");
-  expect(keptTime).toBeLessThan(250);
+  expectWithin(keptTime, 250, "layout");
 
   for (const text of [
     "<div" + names(20_000) + ">\ny\n</div>",
@@ -974,7 +975,7 @@ test("the raw HTML is weighed before the HTML parser reads it", () => {
     expect(layoutRefusal(text, layoutLength(text))).toBeNull();
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooDense" });
-    expect(elapsed).toBeLessThan(100);
+    expectWithin(elapsed, 100, "layout", text.slice(0, 30));
   }
 
   for (const chunk of [
@@ -983,7 +984,7 @@ test("the raw HTML is weighed before the HTML parser reads it", () => {
     '<b x="'.repeat(15_000),
   ]) {
     const [, elapsed] = timed(() => rawTagCost([chunk]));
-    expect(elapsed).toBeLessThan(200);
+    expectWithin(elapsed, 200, "count", chunk.slice(0, 30));
   }
 });
 
@@ -991,7 +992,7 @@ test("a reference definition is text, and multiplies nothing", () => {
   const text = "[r]: data:image/png;base64," + "A".repeat(16_384) + "\n\n" + "![r] ".repeat(200);
   const [rendered, elapsed] = timed(() => renderPresentation(text));
   expect(rendered.kind).toBe("laid-out");
-  expect(elapsed).toBeLessThan(250);
+  expectWithin(elapsed, 250, "layout");
   if (rendered.kind === "laid-out") {
     expect(tags(rendered.tree, "img")).toEqual([]);
     expect(textOf(rendered.tree)).toContain("[r]:");
@@ -1054,7 +1055,7 @@ test("a long about text of the card sites is laid out line by line", () => {
     expect(layoutRefusal(text)).toBeNull();
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered.kind).toBe("laid-out");
-    expect(elapsed).toBeLessThan(250);
+    expectWithin(elapsed, 250, "layout", text.slice(0, 30));
     if (rendered.kind !== "laid-out") return;
     expect(tags(rendered.tree, "p")).toHaveLength(1);
     expect(tags(rendered.tree, "br")).toHaveLength(text.split("\n").length - 1);
@@ -1188,10 +1189,10 @@ test("a card that writes its paragraphs as headings is laid out in time", () => 
   expect(description.length).toBeGreaterThan(13_000);
   const [model, modelTime] = timed(() => renderModelText(description));
   expect(model.kind).toBe("laid-out");
-  expect(modelTime).toBeLessThan(250);
+  expectWithin(modelTime, 250, "layout", "the description");
   const [notes, notesTime] = timed(() => renderPresentation("## The group " + sentence(638)));
   expect(notes.kind).toBe("laid-out");
-  expect(notesTime).toBeLessThan(250);
+  expectWithin(notesTime, 250, "layout", "the presentation");
 });
 
 const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"];

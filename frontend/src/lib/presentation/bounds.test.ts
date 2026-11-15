@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { LAYOUT_BOUND, LAYOUT_COST_BOUND, PLAIN_PART, layoutCost, layoutRefusal, plainCuts, plainPart } from "./bounds";
+import { expectWithin } from "./timedBudget";
 
 function timed<T>(run: () => T): [T, number] {
   const start = performance.now();
@@ -31,10 +32,10 @@ test("a long plain text is cut into parts, never inside a character", () => {
   // the clock starts, so that only the walk is timed.
   huge.charCodeAt(0);
   const [cuts, walked] = timed(() => plainCuts(huge));
-  expect(walked).toBeLessThan(500);
+  expectWithin(walked, 500, "count", "the walk");
   const [part, elapsed] = timed(() => plainPart(huge, 70, cuts));
   expect(part.part.length).toBe(PLAIN_PART);
-  expect(elapsed).toBeLessThan(5);
+  expectWithin(elapsed, 5, "count", "a part");
 });
 
 test("a plain part ends sooner where the browser would lay it out slowly", () => {
@@ -195,7 +196,7 @@ test("the cost of a text is counted without parsing it", () => {
     "\\`` ".repeat(1_000_000),
   ]) {
     const [, elapsed] = timed(() => layoutCost(text));
-    expect(elapsed).toBeLessThan(500);
+    expectWithin(elapsed, 500, "count", text.slice(0, 20));
   }
 
   expect(layoutRefusal("a".repeat(LAYOUT_BOUND + 1))).toBe("tooLong");
