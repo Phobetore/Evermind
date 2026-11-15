@@ -313,6 +313,20 @@ test("fifteen megabytes of greeting and presentation leave the page and the conv
   expect(thrown).toEqual([]);
 });
 
+test("a presentation of megabytes of quote marks is shown plainly, on the page and in the summary", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  // Millions of ">" at the start of a line once overflowed the stack of the expression that takes
+  // them off, and the page showed its error instead of the card.
+  const convo = await conversationOf(request, { creator_notes: ">".repeat(3_500_000) + "\nShe keeps the lamp." });
+  await openPage(page, convo.character_id);
+  await expect(author(page).getByText("She keeps the lamp.")).toBeVisible({ timeout: 30_000 });
+
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.locator("header").getByRole("button", { name: "About Ilse" }).click();
+  await expect(page.getByRole("dialog", { name: "Ilse" }).getByText("She keeps the lamp.")).toBeVisible({ timeout: 30_000 });
+  expect(thrown).toEqual([]);
+});
+
 test("a greeting too long to lay out is shown plainly, and the page answers", async ({ page, request }) => {
   const greeting = "*open _under [left ".repeat(Math.ceil((LAYOUT_BOUND + 1) / 19)).slice(0, LAYOUT_BOUND + 1);
   expect(greeting.length).toBe(LAYOUT_BOUND + 1);

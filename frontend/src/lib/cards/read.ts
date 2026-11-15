@@ -234,6 +234,20 @@ function blockBreak(run: string): string {
   return run.includes(PARAGRAPH) || lines >= 2 ? "\n\n" : "\n";
 }
 
+/** A line without the heading and quote marks it opens with, and the blanks among them: cut after
+ *  the last "#" or ">" of its leading run of blanks and marks. Scanned by hand: a pattern repeated
+ *  over that run nests one quantifier in another, and megabytes of ">" overflow the stack of the
+ *  expression engine. */
+function withoutLineMarks(line: string): string {
+  let cut = 0;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === "#" || char === ">") cut = i + 1;
+    else if (!/\s/.test(char)) break;
+  }
+  return cut === 0 ? line : line.slice(cut);
+}
+
 /** The presentation without its layout, its paragraphs kept: for a summary, the page's fallback,
  *  and the tagline offered at import. The markers of the names stay, to become names when shown.
  *  Every pattern stops at the next mark it could start on, so that a note full of unclosed marks
@@ -246,7 +260,7 @@ export function plainPresentation(text: string): string {
     .replace(/\[([^[\]]*)\]\([^()]*\)/g, "$1")
     .replace(/[*_`~]/g, "")
     // Every mark at the start of a line, so that a quote within a quote loses both.
-    .replace(/^(?:[^\S\n]*(?:#+|>))+/gm, "")
+    .replace(/[^\n]+/g, withoutLineMarks)
     .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name: string) => ENTITIES[name])
     .replace(/[^\S\n]+/g, " ")
     .replace(/ ?\n ?/g, "\n")

@@ -324,4 +324,18 @@ describe("the presentation without its layout", () => {
       expect(performance.now() - start, unit).toBeLessThan(2000);
     }
   });
+
+  test("fifteen megabytes of line marks strip in time, without overflowing the stack", () => {
+    // A proof of linear time, not a budget for a visit: only a hostile card carries this.
+    for (const unit of [">", "# ", ">#"]) {
+      const text = unit.repeat(Math.floor(15 * 1024 * 1024 / unit.length)) + "\nShe keeps the lamp. Always.";
+      text.charCodeAt(0);
+      const start = performance.now();
+      expect(plainPresentation(text), unit).toBe("She keeps the lamp. Always.");
+      expect(taglineOf(text), unit).toBe("She keeps the lamp.");
+      expect(performance.now() - start, unit).toBeLessThan(4000);
+    }
+    // Every mark at the start of a line goes, blanks between them included; the rest stays.
+    expect(plainPresentation("  > > ## A > b\n>> c # d")).toBe("A > b\nc # d");
+  });
 });
