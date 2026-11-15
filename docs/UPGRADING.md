@@ -14,6 +14,9 @@ This update asks for a restart and a reload of your pages, nothing more. Read it
 to know what changes.
 
 - **Reload Evermind on every device that had it open**, a phone above all.
+- **Evermind has a mark of its own**, a half mask, in the tab, in the sidebar
+  and on the login page. A shortcut already on a phone's home screen may keep
+  the old picture until you add it again.
 - **The page of a card** starts with its author's presentation, laid out
   (headings, colours, tables, links, pictures written in the card), in the
   interface's language when the card offers several. Then comes the greeting in
