@@ -587,6 +587,46 @@ test("what the model reads shows that it opens, and opens into view on a phone",
   }).toBe(true);
 });
 
+test("what the model reads opens at once, however much its fields hold", async ({ page, request }) => {
+  // Six fields of three hundred bold lines: laid out in one go, they held the tap 363 ms on a PC.
+  const bold = (field: string) =>
+    Array.from({ length: 300 }, (_, n) => `**${field} ${n}:** she keeps the lamp lit, and never speaks of the wreck.`).join("\n");
+  const ilse = await card(request, {
+    card_rules: 2,
+    description: bold("Trait"),
+    personality: bold("Mood"),
+    scenario: bold("Place"),
+    example_dialogues: bold("Line"),
+    system_prompt: bold("Rule"),
+    post_history_instructions: bold("Last"),
+  });
+  await openPage(page, ilse.id);
+  const summary = page.locator("summary", { hasText: "What the model reads" });
+  const labels = ["Description", "Personality", "Starting situation", "Example dialogues", "Custom system prompt", "End-of-context instructions"];
+  const allLaidOut = async () => {
+    for (const label of labels)
+      await expect(field(modelReads(page), label).locator("strong")).toHaveCount(300, { timeout: 15_000 });
+  };
+  // Opened and closed once: what is timed is the tap, not the arrival of the layout's code.
+  await summary.click();
+  await allLaidOut();
+  await summary.click();
+  await expect(modelReads(page).getByText(en.characters.detail.modelReadsHint)).toBeHidden();
+  await page.evaluate(() => {
+    const seen: number[] = [];
+    (window as unknown as { longTasks: number[] }).longTasks = seen;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) seen.push(entry.duration);
+    }).observe({ type: "longtask" });
+  });
+  await summary.click();
+  await expect(modelReads(page).getByText(en.characters.detail.modelReadsHint)).toBeVisible();
+  // Every field laid out in the end: three hundred bold labels in each.
+  await allLaidOut();
+  const longest = await page.evaluate(() => Math.max(0, ...(window as unknown as { longTasks: number[] }).longTasks));
+  expect(longest, "a task held the page").toBeLessThan(100);
+});
+
 test("what the model reads of a card on the old rules is shown as written", async ({ page, request }) => {
   const description = "{{// x}} <USER> meets {{char}} at {{random:dawn,dusk}}";
   const oldRules = await card(request, { description });

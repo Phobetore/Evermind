@@ -1,4 +1,4 @@
-import { ModelText } from "@/components/cards/ModelText";
+import { ModelText, loadModelLayout, modelLayoutHere } from "@/components/cards/ModelText";
 import {
   DEFAULT_RP_RULES,
   ROLE_REMINDER,
@@ -49,8 +49,10 @@ function modelFields(character: Character, name: string, you: string): Shown[] {
 
 /** What the model reads of the card, folded below the author's presentation, and drawn only once
  *  opened: a description of hundreds of kilobytes costs nothing until it is read. Laid out as
- *  Markdown alone, or as written at a tap, for this visit. Nothing when the card gives the model
- *  nothing of its own. */
+ *  Markdown alone, or as written at a tap, for this visit. The tap that opens it, or that asks for
+ *  the layout again, is answered at once with every text as written; the texts are then laid out
+ *  one after the other, the page drawn between two, so that no tap waits for six fields at once.
+ *  Nothing when the card gives the model nothing of its own. */
 export function WhatTheModelReads({ character, lore, you }: { character: Character; lore: number; you: string }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -64,6 +66,14 @@ export function WhatTheModelReads({ character, lore, you }: { character: Charact
   );
   const hasNote = note.trim() !== "";
   const hint = useRef<HTMLParagraphElement>(null);
+  const count = fields.length + (hasNote ? 1 : 0);
+
+  const [layoutHere, setLayoutHere] = useState(modelLayoutHere);
+  const [layoutFailed, setLayoutFailed] = useState(false);
+  // How many texts are laid out, counted for these texts: new ones start again from none.
+  const [steps, setSteps] = useState({ fields, note, ready: 0 });
+  const ready = steps.fields === fields && steps.note === note ? steps.ready : 0;
+  const restart = () => setSteps({ fields, note, ready: 0 });
 
   // Opened from the foot of a phone's screen, the section would open below it, and the tap would
   // seem to do nothing: its first line is brought into view, above the bar of the screen's foot.
@@ -71,17 +81,52 @@ export function WhatTheModelReads({ character, lore, you }: { character: Charact
     if (open) hint.current?.scrollIntoView({ block: "nearest" });
   }, [open]);
 
+  useEffect(() => {
+    if (!open || layoutHere) return;
+    let live = true;
+    loadModelLayout().then(
+      () => live && setLayoutHere(true),
+      () => live && setLayoutFailed(true),
+    );
+    return () => {
+      live = false;
+    };
+  }, [open, layoutHere]);
+
+  // One text more at each step, once the page has drawn the last: a frame, then a task of its own.
+  useEffect(() => {
+    if (!open || asWritten || !layoutHere || ready >= count) return;
+    let timer = 0;
+    const frame = requestAnimationFrame(() => {
+      timer = window.setTimeout(() => setSteps({ fields, note, ready: ready + 1 }), 0);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [open, asWritten, layoutHere, ready, count, fields, note]);
+
   if (fields.length === 0 && !hasNote && lore === 0) return null;
 
   const depth = character.character_note_depth;
   // The same element either way: the switch keeps each field's layout, and switching back to it
-  // lays nothing out again.
-  const drawn = (text: string) => (
-    <ModelText text={text} asWritten={asWritten} className="text-sm leading-relaxed text-parchment-dim" />
+  // lays nothing out again. Without the layout, every text asks for it, and says it is missing.
+  const drawn = (text: string, index: number) => (
+    <ModelText
+      text={text}
+      layOut={!asWritten && (index < ready || layoutFailed)}
+      className="text-sm leading-relaxed text-parchment-dim"
+    />
   );
 
   return (
-    <details className="group mt-7" onToggle={(event) => setOpen(event.currentTarget.open)}>
+    <details
+      className="group mt-7"
+      onToggle={(event) => {
+        setOpen(event.currentTarget.open);
+        restart();
+      }}
+    >
       {/* A row of its own, which loses the browser's triangle: its own chevron says it opens, and
           turns once it is open, or the line would read as one more heading. */}
       <summary className="ui-label flex min-h-11 cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
@@ -105,18 +150,21 @@ export function WhatTheModelReads({ character, lore, you }: { character: Charact
                 type="button"
                 aria-pressed={asWritten === written}
                 className={clsx("btn min-h-11", asWritten === written ? "btn-primary" : "btn-ghost")}
-                onClick={() => setAsWritten(written)}
+                onClick={() => {
+                  setAsWritten(written);
+                  restart();
+                }}
               >
                 {t(`characters.detail.${key}`)}
               </button>
             ))}
           </div>
-          {fields.map((field) => (
+          {fields.map((field, index) => (
             <div key={field.label}>
               <h3 className="mb-1.5 font-display text-sm font-semibold text-parchment">
                 {t(`characters.form.${field.label}`)}
               </h3>
-              {drawn(field.text)}
+              {drawn(field.text, index)}
             </div>
           ))}
           {hasNote && (
@@ -126,7 +174,7 @@ export function WhatTheModelReads({ character, lore, you }: { character: Charact
                   ? t("characters.detail.characterNoteAtEnd")
                   : t("characters.detail.characterNote", { count: depth })}
               </h3>
-              {drawn(note)}
+              {drawn(note, fields.length)}
             </div>
           )}
           {lore > 0 && <p className="text-sm text-mist">{t("characters.detail.lore", { count: lore })}</p>}
