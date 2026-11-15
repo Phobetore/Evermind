@@ -67,8 +67,30 @@ describe("the notes of a card by language", () => {
     // "fr" came after the two hundredth version kept, and is not among them.
     expect(versions[chosenNotes(versions, "fr")].lang).toBeNull();
 
-    const named = performance.now();
-    for (let i = 0; i < 20_000; i++) languageName("ko", "fr");
-    expect(performance.now() - named).toBeLessThan(200);
+  });
+
+  test("one namer of languages is built per interface language, however many are named", () => {
+    // Counted, not timed: a computer builds thousands in the time a test allows, a phone does not.
+    const Original = Intl.DisplayNames;
+    let built = 0;
+    const replace = (value: typeof Intl.DisplayNames) =>
+      Object.defineProperty(Intl, "DisplayNames", { value, writable: true, configurable: true });
+    replace(
+      class extends Original {
+        constructor(...args: ConstructorParameters<typeof Intl.DisplayNames>) {
+          super(...args);
+          built++;
+        }
+      },
+    );
+    try {
+      // Languages no other test names in, so that none is built already.
+      for (let i = 0; i < 200; i++) languageName(i % 2 ? "ko" : "ja", "it");
+      expect(languageName("ko", "it")).toBe("coreano");
+      for (let i = 0; i < 200; i++) languageName("ko", "pt");
+      expect(built).toBe(2);
+    } finally {
+      replace(Original);
+    }
   });
 });
