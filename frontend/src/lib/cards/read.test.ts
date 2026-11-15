@@ -286,6 +286,18 @@ describe("the fields of a card", () => {
     // A clickable banner and a comment show nothing either.
     expect(taglineOf("[![b](x.png)](y)\n# Mirela\n\nText here. More.")).toBe("Text here.");
     expect(taglineOf("<!-- c --><h1>Mirela</h1><p>Une gardienne. Toujours.</p>")).toBe("Une gardienne.");
+    // A title underlined, as Markdown also writes one.
+    expect(taglineOf("Mira the Keeper\n===============\n\nShe keeps the lamp lit. Always.")).toBe("She keeps the lamp lit.");
+    expect(taglineOf("Mira the Keeper\n---\nShe keeps the lamp lit. Always.")).toBe("She keeps the lamp lit.");
+    expect(taglineOf("![b](x.png)\nMira\n   ==\n\n## The keeper\nShe keeps it. Always.")).toBe("She keeps it.");
+    // Four blanks make it a code line, and a rule after a blank line underlines nothing.
+    expect(taglineOf("Mira the Keeper\n    ===\nShe keeps it. Always.")).toBe("Mira the Keeper === She keeps it.");
+    expect(taglineOf("She keeps it. Always.\n\n---\n\nMore.")).toBe("She keeps it.");
+    // Hundreds of banners before a paragraph: its lines are read once.
+    const banners = "![b](x.png)".repeat(200_000) + "\nShe keeps it. Always.";
+    const start = performance.now();
+    expect(taglineOf(banners)).toBe("She keeps it.");
+    expect(performance.now() - start).toBeLessThan(2_000);
     // A name marker shows a name: it is the sentence's start, not a wrapper.
     expect(taglineOf("<BOT> garde le phare. Depuis toujours.")).toBe("<BOT> garde le phare.");
   });

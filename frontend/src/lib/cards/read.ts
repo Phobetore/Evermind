@@ -268,6 +268,25 @@ export function plainPresentation(text: string): string {
     .trim();
 }
 
+// A line of = or of - alone, indented three blanks at most: under a paragraph, it makes that
+// paragraph a heading (Markdown's setext heading, read as micromark reads it).
+const UNDERLINE = /^ {0,3}(?:=+|-+)[ \t]*\r?$/;
+
+/** Where the underline of the paragraph `at` stands in ends, or -1 when the paragraph has none;
+ *  and where the look stopped (a blank line, or the end), so that no line is read twice. */
+function underlinedEnd(text: string, at: number): { end: number; scanned: number } {
+  let lineEnd = text.indexOf("\n", at);
+  while (lineEnd >= 0) {
+    const start = lineEnd + 1;
+    const next = text.indexOf("\n", start);
+    const line = text.slice(start, next < 0 ? text.length : next);
+    if (line.trim() === "") return { end: -1, scanned: start };
+    if (UNDERLINE.test(line)) return { end: next < 0 ? text.length : next + 1, scanned: start };
+    lineEnd = next;
+  }
+  return { end: -1, scanned: text.length };
+}
+
 /** The text after the headings it opens with, Markdown's or HTML's: a heading is a title, not the
  *  first sentence. Searched rather than matched, so that an unclosed one takes a single pass. */
 function withoutLeadingHeadings(text: string): string {
@@ -276,6 +295,8 @@ function withoutLeadingHeadings(text: string): string {
   const htmlHeading = /<h([1-6])(?=[\s>/])/iy;
   const closings = [1, 2, 3, 4, 5, 6].map((level) => new RegExp(`</h${level}`, "gi"));
   let at = 0;
+  // The lines before this place have been looked at for an underline and hold none.
+  let scanned = 0;
   for (;;) {
     while (at < text.length && /\s/.test(text[at])) at++;
     let marks = 0;
@@ -284,6 +305,14 @@ function withoutLeadingHeadings(text: string): string {
       const end = text.indexOf("\n", at);
       at = end < 0 ? text.length : end + 1;
       continue;
+    }
+    if (at >= scanned) {
+      const underlined = underlinedEnd(text, at);
+      if (underlined.end >= 0) {
+        at = underlined.end;
+        continue;
+      }
+      scanned = underlined.scanned;
     }
     // A banner or a wrapper before the title shows no text of its own: the title is still first.
     const empty = shownNothing(text, at);
