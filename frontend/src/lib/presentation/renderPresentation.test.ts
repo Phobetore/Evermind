@@ -1090,6 +1090,29 @@ test("the model's text is laid out as Markdown alone", () => {
     expect(list.properties.className).toEqual(["model-list"]);
 });
 
+test("a card that writes its paragraphs as headings is laid out in time", () => {
+  // The shape of a real card measured on 15/11: a description of 14,000 characters whose
+  // paragraphs are headings (38 h3 of 224 characters, one of 817; 14 h2 of 123, one of 432),
+  // and a presentation that is one heading of 651 characters.
+  const sentence = (length: number) => ("She keeps the **lamp** lit for the ships, *always*, and counts them. ".repeat(20)).slice(0, length);
+  const blocks = [
+    ...Array.from({ length: 3 }, () => "# " + sentence(40)),
+    ...Array.from({ length: 13 }, () => "## " + sentence(123)),
+    "## " + sentence(432),
+    ...Array.from({ length: 37 }, () => "### " + sentence(224)),
+    "### " + sentence(817),
+    ...Array.from({ length: 16 }, () => sentence(120)),
+  ];
+  const description = blocks.join("\n\n");
+  expect(description.length).toBeGreaterThan(13_000);
+  const [model, modelTime] = timed(() => renderModelText(description));
+  expect(model.kind).toBe("laid-out");
+  expect(modelTime).toBeLessThan(250);
+  const [notes, notesTime] = timed(() => renderPresentation("## The group " + sentence(638)));
+  expect(notes.kind).toBe("laid-out");
+  expect(notesTime).toBeLessThan(250);
+});
+
 test("a model's text too dense to lay out is shown as written", () => {
   // A table of a hundred columns over rows without pipes: no HTML, a cost all the same.
   const text = COSTLIEST["a hundred columns over rows without pipes"](1_000);
