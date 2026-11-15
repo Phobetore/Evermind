@@ -155,7 +155,7 @@ test("the cost of a text is counted without parsing it", () => {
   expect(layoutCost("<!-- a")).toBe(1_002);
   expect(layoutCost("<!-- a --> b")).toBe(1_003);
   expect(layoutCost("x <!-- a\nb\n\nc")).toBe(2_503);
-  expect(layoutCost("<?x a ?> <![CDATA[ b ]]> <!DOCTYPE c> d")).toBe(4_036);
+  expect(layoutCost("<?x a ?> <![CDATA[ b ]]> <!DOCTYPE c> d")).toBe(4_038);
 
   // Link titles.
   expect(layoutCost("[a](b (c d e f")).toBe(1_511);
@@ -189,17 +189,43 @@ test("the cost of a text is counted without parsing it", () => {
 test("a bracket that something hides from the parser does not shield the one below it", () => {
   // Measured on 15/11, 100,000 characters each: the parser closes the real "[" at each "]" and
   // goes over the whole span, 1.0 to 1.5 s, while the count closed the hidden "[" next to it.
-  const shape = (count: number, motif: string) => {
+  const grouped = (count: number, motif: string) => {
     const room = LAYOUT_BOUND - count - count * motif.length;
-    return "[".repeat(count) + "a\t".repeat(room / 2) + motif.repeat(count);
+    return "[".repeat(count) + "a\t".repeat(Math.ceil(room / 2)).slice(0, room) + motif.repeat(count);
   };
-  expect(layoutRefusal(shape(174, "`[`]"))).toBe("tooDense");
-  expect(layoutRefusal(shape(200, "<http://a.example/[>]"))).toBe("tooDense");
-  expect(layoutRefusal(shape(270, "<b x='['>]"))).toBe("tooDense");
+  // The "[" spread through the text: each "]" that finds no label makes the parser go one "["
+  // further down, while the count charged the nearest one again.
+  const spread = (count: number, motif: string) => {
+    const piece = Math.floor((LAYOUT_BOUND - count - count * motif.length) / count / 2);
+    return ("[" + "a\t".repeat(piece)).repeat(count) + motif.repeat(count);
+  };
+  // Each motif, the count of its grouped form, the count of its spread form (the largest the
+  // count let through when it charged the same "[" at each "]": 0.3 to 0.6 s).
+  for (const [motif, count, spreadCount] of [
+    ["`[`]", 174, 168],
+    ["<http://a.example/[>]", 200, 260],
+    ["<b x='['>]", 270, 256],
+    ["\\[]", 174, 262],
+    // A ">" in a quoted value, a comment or an instruction does not end it; a "[" in an image's
+    // destination or title is no label's start. Measured on 15/11 at 1.4 s, and 0.95 s for the
+    // images, while a ">" ended what the count followed.
+    ["<b x='>['>]", 270, 270],
+    ['<b x=">[">]', 270, 270],
+    ["<!-- > [ -->]", 270, 270],
+    ["<?>[?>]", 270, 270],
+    ["![a](x[)]", 174, 174],
+    ["![a](x '[')]", 174, 174],
+  ] as const) {
+    expect(layoutRefusal(grouped(count, motif)), motif).toBe("tooDense");
+    expect(layoutRefusal(spread(spreadCount, motif)), motif).toBe("tooDense");
+  }
+  // A "]" in a code span closes no "[" of the parser: the "]" written after the code spans do,
+  // over all the letters between (0.9 s, while the count closed each "[" at the "]" after it).
+  expect(layoutRefusal("[`]`".repeat(150) + "a\t".repeat(49_625) + "]".repeat(150))).toBe("tooDense");
 
-  // An honest text pays nothing more for a code span, a tag or an escape around a bracket, and
-  // little more inside a note in brackets (the same as before these were counted, and 31 more).
+  // An honest text pays little for a code span, a tag or an escape around a bracket, and for a
+  // note in brackets around them.
   const honest = "Use `arr[0]` and <span title='[x]'>this</span> or \\[not a link] with [a link](https://a.example). ";
-  expect(layoutCost(honest)).toBe(7_302);
-  expect(layoutCost("[OOC: " + honest + "]")).toBe(8_395);
+  expect(layoutCost(honest)).toBe(7_320);
+  expect(layoutCost("[OOC: " + honest + "]")).toBe(8_391);
 });

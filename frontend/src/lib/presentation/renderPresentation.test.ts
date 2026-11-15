@@ -754,6 +754,20 @@ test("markup too costly to parse is not laid out", () => {
     COSTLIEST["brackets over code spans, around tabbed letters"](174),
     COSTLIEST["brackets over autolinks, around tabbed letters"](200),
     COSTLIEST["brackets over a tag's attribute, around tabbed letters"](270),
+    // Measured at 0.9 to 1.4 s while a ">" in a quoted value, a comment or an instruction ended
+    // what hid a "[", a "[" in an image's destination was a label's, and a "]" in a code span
+    // closed one; and at 0.3 to 0.6 s while each "]" charged the same "[" below the hidden ones.
+    COSTLIEST["brackets over a tag's attribute holding a >, around tabbed letters"](270),
+    COSTLIEST["brackets over a tag's double-quoted attribute holding a >, around tabbed letters"](270),
+    COSTLIEST["brackets over comments holding a >, around tabbed letters"](270),
+    COSTLIEST["brackets over instructions holding a >, around tabbed letters"](270),
+    COSTLIEST["brackets over image destinations, around tabbed letters"](174),
+    COSTLIEST["brackets over image titles, around tabbed letters"](174),
+    COSTLIEST["brackets over code spans holding a ], around tabbed letters"](150),
+    COSTLIEST["brackets spread over code spans, around tabbed letters"](168),
+    COSTLIEST["brackets spread over autolinks, around tabbed letters"](260),
+    COSTLIEST["brackets spread over a tag's attribute, around tabbed letters"](256),
+    COSTLIEST["brackets spread over escapes, around tabbed letters"](262),
   ]) {
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooDense" });

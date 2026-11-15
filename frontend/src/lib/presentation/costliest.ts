@@ -33,6 +33,50 @@ function tabbed(text: string): string {
   return text + "a\t".repeat(Math.ceil(room / 2)).slice(0, room);
 }
 
+/** `count` "[" spread evenly through `unit` up to LAYOUT_BOUND characters, then `close` repeated
+ *  `count` times: each "]" that finds no label makes the parser go one "[" further down. */
+function spread(close: string, unit: string) {
+  return (count: number) => {
+    const room = Math.max(0, LAYOUT_BOUND - count * (1 + close.length));
+    const units = Math.floor(room / unit.length / Math.max(1, count));
+    const piece = "[" + unit.repeat(units);
+    const body = piece.repeat(count);
+    const rest = Math.max(0, LAYOUT_BOUND - body.length - count * close.length);
+    return body + unit.repeat(Math.ceil(rest / unit.length)).slice(0, rest) + close.repeat(count);
+  };
+}
+
+/** A "[" that something hides from the parser, then a "]": in code, in an autolink, in a tag's
+ *  attribute (with a ">" in it or not), in a comment, in an instruction, in an image's destination
+ *  or title, after a backslash. The tags are closed: thousands of open ones the HTML parser would
+ *  rebuild, which its own bound refuses (rawTagCost). */
+const HIDDEN_BRACKETS: Record<string, string> = {
+  "code spans": "`[`]",
+  autolinks: "<http://a.example/[>]",
+  "a tag's attribute": "<b x='['></b>]",
+  "a tag's attribute holding a >": "<b x='>['></b>]",
+  "a tag's double-quoted attribute holding a >": '<b x=">["></b>]',
+  "comments holding a >": "<!-- > [ -->]",
+  "instructions holding a >": "<?>[?>]",
+  "image destinations": "![a](x[)]",
+  "image titles": "![a](x '[')]",
+  escapes: "\\[]",
+};
+
+function hiddenBrackets(): Record<string, (count: number) => string> {
+  const kinds: Record<string, (count: number) => string> = {};
+  for (const [name, motif] of Object.entries(HIDDEN_BRACKETS)) {
+    for (const [filler, unit] of [
+      ["tabbed letters", "a\t"],
+      ["words", "word "],
+    ]) {
+      kinds[`brackets over ${name}, around ${filler}`] = around("[", motif, unit);
+      kinds[`brackets spread over ${name}, around ${filler}`] = spread(motif, unit);
+    }
+  }
+  return kinds;
+}
+
 function backtickRuns(count: number): string {
   let runs = "";
   for (let n = 1; n <= count; n++) runs += "`".repeat(n) + " ";
@@ -77,13 +121,11 @@ export const COSTLIEST: Record<string, (count: number) => string> = {
   "images around words": around("![", "](a)", "word "),
   "images around tabbed letters": around("![", "](a)", "a\t"),
   // A "[" the parser never takes for a label's start, above its "]": that "]" closes a real "["
-  // far below, over the whole span.
-  "brackets over code spans, around tabbed letters": around("[", "`[`]", "a\t"),
-  "brackets over code spans, around words": around("[", "`[`]", "word "),
-  "brackets over autolinks, around tabbed letters": around("[", "<http://a.example/[>]", "a\t"),
-  "brackets over autolinks, around words": around("[", "<http://a.example/[>]", "word "),
-  "brackets over a tag's attribute, around tabbed letters": around("[", "<b x='['>]", "a\t"),
-  "brackets over a tag's attribute, around words": around("[", "<b x='['>]", "word "),
+  // far below, over the whole span, and the next one the "[" below that.
+  ...hiddenBrackets(),
+  // A "]" in a code span closes no "[": the "]" after them close every one, over the whole span.
+  "brackets over code spans holding a ], around tabbed letters": around("[`]`", "]", "a\t"),
+  "brackets over code spans holding a ], around words": around("[`]`", "]", "word "),
   // Containers that go on over plain lines.
   "a quote then plain lines": (n) => "> a\n" + lines("b")(n),
   "a list item then plain lines": (n) => "- a\n" + lines("b")(n),

@@ -77,6 +77,23 @@ const LABEL_CHARACTERS = 80;
 const LABEL_BLANK = 1;
 const IMAGE_LABEL = 2;
 
+interface Label {
+  at: number;
+  blanks: number;
+  image: boolean;
+}
+
+// What a "<" may have opened, as micromark ends it: a tag (open or closing) or an autolink at the
+// next ">" outside quotes, the others at their own end.
+const enum Angle {
+  None,
+  Tag,
+  Comment,
+  Instruction,
+  Cdata,
+  Declaration,
+}
+
 const enum Direction {
   None,
   Left,
@@ -230,6 +247,13 @@ function readScript(script: Script, code: number) {
     if (block !== script.font) script.cost += fallbackCost(block);
     script.font = block;
   } else if (script.font >= 0 && !keepsRun(code)) script.font = -1;
+}
+
+/** An odd number of backslashes before `index`, on its line after `from`. */
+function escapedAt(text: string, index: number, from: number): boolean {
+  let escapes = 0;
+  while (index - escapes - 1 >= from && text.charCodeAt(index - escapes - 1) === 92) escapes++;
+  return escapes % 2 === 1;
 }
 
 function isBlank(code: number): boolean {
@@ -407,13 +431,21 @@ function pairedOnLine(text: string, lineStart: number, from: number, end: number
  *  the last one waiting, which costs its distance in characters divided by LABEL_CHARACTERS, plus
  *  LABEL_BLANK for each space, tab or line break between them, IMAGE_LABEL times as much for an
  *  image's; the sum, rounded up, is added to the cost. The parser serialises and normalises the
- *  whole span at each "]", piece by piece, and a blank makes a piece. A "[" that something may
- *  hide from the parser (an odd number of backslashes before it on its line, a run of backticks
- *  still waiting in the block, a "<" of the block not yet followed by a ">") may be no label's
- *  start at all: the "]" that closes it also pays, the same way, the distance to the nearest "["
- *  below it that nothing hides, which stays waiting (in a code span, an autolink or a tag's
- *  attribute, 200 such "[" around tabbed letters took the parser a second, 15/11). The stack
- *  empties at the end of a block.
+ *  whole span at each "]", piece by piece, and a blank makes a piece. A "[" or a "]" after an
+ *  odd number of backslashes (on its line, after its prefix) is a letter. Something else may hide
+ *  a "[" or a "]" from the parser, or not: a run of backticks still waiting in the block; an HTML
+ *  construct or an autolink of the block not yet ended, as micromark ends it (a "<" followed by an
+ *  ASCII letter or "/" at the next ">" outside quotes, a quote opening a value that only the same
+ *  quote closes; "<!--" at "-->", "<?" at "?>", "<![CDATA[" at "]]>", "<!" and a letter at ">",
+ *  each end starting after the opener's own characters); a link's destination or title, from a
+ *  "](" to its ")" (outside quotes, its own parentheses balanced). Then the count takes the worst:
+ *  a "[" that may be hidden waits on the stack of every "[" only, and a "]" that may be hidden is
+ *  read as closing a "[" without taking one off that stack. Each "]" pays for the last "[" nothing
+ *  hides that no "]" has closed yet, or, when none is left, for the first "[" still on the stack
+ *  of every "[": the parser's own "[" is never further down (a "]" that finds no label makes the
+ *  parser go one "[" further down at the next; with 200 "[" hidden in code spans, autolinks, a
+ *  tag's attribute, a comment or an image's destination, around tabbed letters, it took a second,
+ *  15/11). The stacks empty at the end of a block.
  *  And the link titles opened by a parenthesis. In a block, once "](" has been read in it,
  *  every "(" that follows a blank, or that is the first character of a line after its prefix,
  *  may open a title (micromark opens one only after a destination and a blank, and looks for its
@@ -455,14 +487,31 @@ export function layoutCost(text: string): number {
   let ticks = new Map<number, { count: number; sum: number }>();
   let tickDistance = 0;
 
-  // The "[" still open in the block, innermost last: where each is, the blanks read before it,
-  // whether it opens an image, whether something may hide it from the parser, and the nearest
-  // "[" below it that nothing hides (-1 when none).
-  let labels: Array<{ at: number; blanks: number; image: boolean; hidden: boolean; below: number }> = [];
+  // The "[" of the block, innermost last: where each is, the blanks read before it, and whether it
+  // opens an image. `labels`: every "[" not escaped, which only a "]" nothing may hide closes.
+  // `shown`: only those nothing may hide, which every "]" not escaped closes. Whatever the parser
+  // takes or leaves of what may be hidden, its own stack holds `shown` and lies within `labels`
+  // (each read the same way): the "[" a "]" closes is never further down than the top of `shown`,
+  // nor than the bottom of `labels`.
+  let labels: Label[] = [];
+  let shown: Label[] = [];
   let blanks = 0;
   let labelCost = 0;
-  // A "<" of the block not yet closed by a ">": a tag, an autolink or a comment may hide a "[".
-  let angleOpen = false;
+  const spanCost = (label: Label, at: number) => {
+    const span = (at - label.at) / LABEL_CHARACTERS + (blanks - label.blanks) * LABEL_BLANK;
+    return label.image ? IMAGE_LABEL * span : span;
+  };
+  // The HTML construct or autolink of the block not yet ended, where its "<" is, and the quote
+  // of the attribute value it is in (0 when none): it may hide a "[".
+  let angle = Angle.None;
+  let angleAt = 0;
+  let angleQuote = 0;
+  // A link's destination or title, from its "](" to its ")": where its "(" is, its parentheses
+  // still open, and the quote of its title (0 when none), or -1 when none is open.
+  let resourceAt = -1;
+  let resourceDepth = 0;
+  let resourceQuote = 0;
+  const mayHide = () => ticks.size > 0 || angle !== Angle.None || resourceAt >= 0;
 
   // The link titles waiting for their ")".
   let titleCount = 0;
@@ -500,7 +549,10 @@ export function layoutCost(text: string): number {
       ticks = new Map();
     }
     labels = [];
-    angleOpen = false;
+    shown = [];
+    angle = Angle.None;
+    angleQuote = 0;
+    resourceAt = -1;
     titleDistance += titleCount * at - titleSum;
     titleCount = 0;
     titleSum = 0;
@@ -650,9 +702,46 @@ export function layoutCost(text: string): number {
       readScriptAt(script, text, k, code);
       if (code >= 0x0590) blockScript++;
 
+      // What may hide a "[" from the parser: an HTML construct or an autolink not yet ended, a
+      // link's destination or title not yet closed.
+      if (angle === Angle.Tag) {
+        if (angleQuote !== 0) {
+          if (code === angleQuote) angleQuote = 0;
+        } else if (code === 39 || code === 34) angleQuote = code;
+        // A "<" ends the tag it cannot be part of, and may open another, read below.
+        else if (code === 62 || code === 60) angle = Angle.None;
+      } else if (angle === Angle.Comment) {
+        if (code === 45 && k >= angleAt + 4 && text.startsWith("-->", k)) angle = Angle.None;
+      } else if (angle === Angle.Instruction) {
+        if (code === 63 && k >= angleAt + 2 && text.charCodeAt(k + 1) === 62) angle = Angle.None;
+      } else if (angle === Angle.Cdata) {
+        if (code === 93 && k >= angleAt + 9 && text.startsWith("]]>", k)) angle = Angle.None;
+      } else if (angle === Angle.Declaration) {
+        if (code === 62) angle = Angle.None;
+      }
+      if (angle === Angle.None && code === 60) {
+        const after = text.charCodeAt(k + 1);
+        if (text.startsWith("<!--", k)) angle = Angle.Comment;
+        else if (after === 63) angle = Angle.Instruction;
+        else if (text.startsWith("<![CDATA[", k)) angle = Angle.Cdata;
+        else if (after === 33 && isAsciiLetter(text.charCodeAt(k + 2))) angle = Angle.Declaration;
+        else if (isAsciiLetter(after) || after === 47) angle = Angle.Tag;
+        angleAt = k;
+        angleQuote = 0;
+      }
+      if (resourceAt >= 0 && k > resourceAt && text.charCodeAt(k - 1) !== 92) {
+        if (resourceQuote !== 0) {
+          if (code === resourceQuote) resourceQuote = 0;
+        } else if (code === 39 || code === 34) resourceQuote = code;
+        else if (code === 40) resourceDepth++;
+        else if (code === 41) {
+          if (resourceDepth > 0) resourceDepth--;
+          else resourceAt = -1;
+        }
+      }
+
       // The HTML openers and their ends.
       if (code === 60) {
-        angleOpen = true;
         if (text.startsWith("<!--", k)) {
           waitingCount[Kind.Comment]++;
           waitingSum[Kind.Comment] += k;
@@ -676,35 +765,26 @@ export function layoutCost(text: string): number {
         if (text.charCodeAt(k + 1) === 62) settle(Kind.Instruction, k);
       } else if (code === 93) {
         if (text.startsWith("]]>", k)) settle(Kind.Cdata, k);
-        if (text.charCodeAt(k + 1) === 40) blockLinkSeen = true;
-        const label = labels.pop();
-        if (label !== undefined) {
-          const cost = (k - label.at) / LABEL_CHARACTERS + (blanks - label.blanks) * LABEL_BLANK;
-          labelCost += label.image ? IMAGE_LABEL * cost : cost;
-          // A "[" the parser may never have taken for a label's start does not close here: the
-          // "]" may close the one below it that nothing hides, over the whole span. That one
-          // stays on the stack, as the parser's may (a code span, a tag or an escape hid "[").
-          if (label.hidden && label.below >= 0) {
-            const shown = labels[label.below];
-            const span = (k - shown.at) / LABEL_CHARACTERS + (blanks - shown.blanks) * LABEL_BLANK;
-            labelCost += shown.image ? IMAGE_LABEL * span : span;
-          }
+        if (text.charCodeAt(k + 1) === 40) {
+          blockLinkSeen = true;
+          resourceAt = k + 1;
+          resourceDepth = 0;
+          resourceQuote = 0;
+        }
+        if (!escapedAt(text, k, prefixEnd)) {
+          const label = shown.pop() ?? labels[0];
+          if (label !== undefined) labelCost += spanCost(label, k);
+          if (!mayHide()) labels.pop();
         }
       } else if (code === 91) {
-        let escapes = 0;
-        while (k - escapes - 1 >= prefixEnd && text.charCodeAt(k - escapes - 1) === 92) escapes++;
-        const top = labels.length - 1;
-        labels.push({
-          at: k,
-          blanks,
-          image: k > 0 && text.charCodeAt(k - 1) === 33,
-          hidden: escapes % 2 === 1 || ticks.size > 0 || angleOpen,
-          below: top < 0 ? -1 : labels[top].hidden ? labels[top].below : top,
-        });
+        if (!escapedAt(text, k, prefixEnd)) {
+          const label: Label = { at: k, blanks, image: k > 0 && text.charCodeAt(k - 1) === 33 };
+          labels.push(label);
+          if (!mayHide()) shown.push(label);
+        }
       } else if (code === 32 || code === 9) {
         blanks++;
       } else if (code === 62) {
-        angleOpen = false;
         settle(Kind.Declaration, k);
       } else if (code === 96) {
         let j = k + 1;
