@@ -30,19 +30,13 @@ export interface Misleading {
 const HIDDEN = /[​-‏‪-‮⁦-⁩﻿]/;
 // The dots that look like a dot, read as one by the URL parser in a host name.
 const DOTS = /[。．｡]/g;
-const EDGES = new Set([..."()[]<>\"'.,;:!?«»"]);
-
-/** A word without the punctuation around it, trimmed by hand: an expression anchored at the
- *  end would be tried from every character of a long run of dots. */
-function trimEdges(word: string): string {
-  let start = 0;
-  let end = word.length;
-  while (start < end && EDGES.has(word[start])) start++;
-  while (end > start && EDGES.has(word[end - 1])) end--;
-  return word.slice(start, end);
-}
-const DOMAIN = /^[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}$/u;
-const DOMAIN_AND_PATH = /^([\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,})(?:\/.*)?$/u;
+// The start of a web address, wherever it stands in a word.
+const ADDRESS = /https?:\/\//gi;
+// The runs of letters, digits, hyphens and dots a name is made of.
+const NAME_RUN = /[\p{L}\p{N}.-]+/gu;
+const TOP_LABEL = /^\p{L}{2,}$/u;
+const PATH = /[/?#\\]/;
+const TRAILING = /[\p{P}\p{S}]/u;
 
 function hostOf(address: string): string | null {
   try {
@@ -59,26 +53,90 @@ function comparable(host: string): string {
   return value;
 }
 
-/** The host a word of a link's text shows, "fooled" when it shows an address with a user name
- *  before an @, or null when it shows none. */
-function shownHost(word: string): string | null | "fooled" {
-  if (/^https?:\/\//i.test(word)) {
+interface Shown {
+  host: string;
+  start: number;
+}
+
+/** The names of sites a run of letters, digits, hyphens and dots shows: each longest stretch of
+ *  labels that ends on a label of two letters or more (a.b.example), where it starts in the word. */
+function namesIn(run: string, offset: number, found: Shown[]) {
+  const labels = run.split(".");
+  let at = 0;
+  let first = -1; // the first label of the stretch, and where it starts
+  let firstAt = 0;
+  let last = -1; // its last label that can end a name, and where that label ends
+  let lastEnd = 0;
+  const close = () => {
+    if (first >= 0 && last > first) {
+      const host = hostOf("https://" + run.slice(firstAt, lastEnd));
+      if (host !== null) found.push({ host, start: offset + firstAt });
+    }
+    first = -1;
+    last = -1;
+  };
+  for (let i = 0; i < labels.length; i++) {
+    const label = labels[i];
+    if (label === "") close();
+    else {
+      if (first < 0) {
+        first = i;
+        firstAt = at;
+      }
+      if (i > first && TOP_LABEL.test(label)) {
+        last = i;
+        lastEnd = at + label.length;
+      }
+    }
+    at += label.length + 1;
+  }
+  close();
+}
+
+/** The hosts a word of a link's text shows, in order: every web address in it, by the URL parser,
+ *  and every name of a site, by its form, whatever stands around them (a quote, a port, a query,
+ *  a comma). What stands in the path of the first site shown is its page, not another site; the
+ *  part before an @ is a mailbox. "fooled" when an address has a user name before an @. Each
+ *  character is read a bounded number of times. */
+function hostsOfWord(word: string): Shown[] | "fooled" {
+  const found: Shown[] = [];
+  // Where the first site shown ends: what follows a / ? # or \ after it is its path.
+  let firstEnd = Infinity;
+
+  const starts: number[] = [];
+  ADDRESS.lastIndex = 0;
+  for (let match = ADDRESS.exec(word); match; match = ADDRESS.exec(word)) starts.push(match.index);
+  for (let i = 0; i < starts.length; i++) {
+    let end = i + 1 < starts.length ? starts[i + 1] : word.length;
+    while (end > starts[i] && word[end - 1] !== "/" && TRAILING.test(word[end - 1])) end--;
+    // Nothing after the scheme: no address, and nothing for the parser to read.
+    if (end <= word.indexOf("//", starts[i]) + 2) continue;
     let url: URL;
     try {
-      url = new URL(word);
+      url = new URL(word.slice(starts[i], end));
     } catch {
-      return null;
+      continue;
     }
     if (url.username !== "" || url.password !== "") return "fooled";
-    return url.hostname;
+    found.push({ host: url.hostname, start: starts[i] });
+    const after = word.slice(starts[i]).indexOf("//") + 2;
+    const authority = word.slice(starts[i] + after, end).search(PATH);
+    firstEnd = Math.min(firstEnd, authority < 0 ? end : starts[i] + after + authority);
   }
-  const at = word.indexOf("@");
-  if (at >= 0) {
-    if (word.indexOf("@", at + 1) >= 0) return null;
-    const domain = word.slice(at + 1);
-    return DOMAIN.test(domain) ? hostOf("https://" + domain) : null;
+
+  NAME_RUN.lastIndex = 0;
+  for (let match = NAME_RUN.exec(word); match; match = NAME_RUN.exec(word)) {
+    const runEnd = match.index + match[0].length;
+    // The mailbox of an address: the site is the part after the @.
+    if (word[runEnd] === "@") continue;
+    const before = found.length;
+    namesIn(match[0], match.index, found);
+    if (found.length > before) firstEnd = Math.min(firstEnd, runEnd);
   }
-  return DOMAIN_AND_PATH.test(word) ? hostOf("https://" + word) : null;
+
+  const pathAt = firstEnd === Infinity ? -1 : word.slice(firstEnd).search(PATH);
+  const path = pathAt < 0 ? Infinity : firstEnd + pathAt;
+  return found.filter((shown) => shown.start < path).sort((a, b) => a.start - b.start);
 }
 
 export function misleadingHost(shown: string, target: string): Misleading | null {
@@ -98,25 +156,23 @@ export function misleadingHost(shown: string, target: string): Misleading | null
   const text = shown.trim().replace(DOTS, ".");
   const hidden = HIDDEN.test(text);
 
-  // Every host the text shows, anywhere in it, in one pass over its words; the same word is
-  // read once.
+  // Every host the text shows, anywhere in it, word by word; the same word is read once.
   const hosts: string[] = [];
   let fooled = false;
   if (!hidden) {
-    const seen = new Map<string, string | null | "fooled">();
-    for (const raw of text.split(/\s+/)) {
-      const word = trimEdges(raw);
+    const seen = new Map<string, Shown[] | "fooled">();
+    for (const word of text.split(/\s+/)) {
       if (word === "") continue;
-      let host = seen.get(word);
-      if (host === undefined) {
-        host = shownHost(word);
-        seen.set(word, host);
+      let shown = seen.get(word);
+      if (shown === undefined) {
+        shown = hostsOfWord(word);
+        seen.set(word, shown);
       }
-      if (host === "fooled") {
+      if (shown === "fooled") {
         fooled = true;
         break;
       }
-      if (host !== null) hosts.push(host);
+      for (const { host } of shown) hosts.push(host);
     }
   }
 
