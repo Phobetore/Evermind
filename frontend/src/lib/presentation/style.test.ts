@@ -159,3 +159,22 @@ test("a style that cannot be read keeps nothing", () => {
   expect(cleanStyle("color: ; ;;: x")).toBe("");
   expect(cleanDeclarations("color: ; ;;: x")).toEqual([]);
 });
+
+test("a style is read in linear time, whatever its blanks and comments", () => {
+  for (const blank of [" ", "\t", "\n"]) {
+    const style = "color:red" + blank.repeat(99_900) + "x";
+    style.charCodeAt(0);
+    const start = performance.now();
+    cleanDeclarations(style);
+    expect(performance.now() - start, JSON.stringify(blank)).toBeLessThan(50);
+  }
+  const comments = "color:" + "/*a".repeat(30_000);
+  comments.charCodeAt(0);
+  const start = performance.now();
+  expect(cleanDeclarations(comments)).toEqual([]);
+  expect(performance.now() - start).toBeLessThan(50);
+
+  // Blanks inside a value are one blank, as CSS reads them; a comment closed stays a comment.
+  expect(cleanStyle("margin:\n  4px\t\t 8px ;  color :  red")).toBe("margin: 4px 8px; color: red");
+  expect(cleanStyle("color: red; /* note */ font-weight: bold")).toBe("color: red; font-weight: bold");
+});

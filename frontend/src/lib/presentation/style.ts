@@ -351,31 +351,27 @@ function tooTangled(style: string): boolean {
   return reach > 4 * style.length + 1_000;
 }
 
-/** Where each line of a style starts, to turn the parser's lines and columns into offsets. */
-function lineStarts(style: string): number[] {
-  const starts = [0];
-  for (let i = 0; i < style.length; i++) if (style.charCodeAt(i) === 10) starts.push(i + 1);
-  return starts;
-}
-
 /** The declarations of an inline style that stay in their box, in their order, each value as kept
  *  (relative lengths rewritten in px); [] when none does. Parsed by style-to-object; a style it
  *  cannot read keeps nothing. A name kept twice keeps only its last kept declaration: the one the
  *  browser applies, and the one cardRules counts. */
-export function cleanDeclarations(style: string): Array<[name: string, value: string]> {
-  if (typeof style !== "string" || style.trim() === "" || tooTangled(style)) return [];
+export function cleanDeclarations(written: string): Array<[name: string, value: string]> {
+  if (typeof written !== "string" || written.trim() === "" || tooTangled(written)) return [];
+  // The parser trims each value with an expression tried from every blank of a run, and looks
+  // for the end of a comment from every "/*" without one: each a time that grows as the square of
+  // the run. A run of blanks is one blank to CSS (no kept value holds a quoted string), and a
+  // comment left open would swallow the rest of the style anyway.
+  const style = written.replace(/\s+/g, " ");
+  const lastOpen = style.lastIndexOf("/*");
+  if (lastOpen >= 0 && style.indexOf("*/", lastOpen + 2) < 0) return [];
   const read: Array<[string, string]> = [];
   try {
-    const starts = lineStarts(style);
     styleToObject(style, (property, value, declaration) => {
-      // The parser takes comments out of a value; the text it was read from still has them.
+      // The parser takes comments out of a value; the text it was read from still has them. One
+      // line since the blanks were joined: a column is an offset.
       const position = declaration.position;
-      let raw = value;
-      if (position?.start && position?.end) {
-        const from = (starts[position.start.line - 1] ?? 0) + position.start.column - 1;
-        const to = (starts[position.end.line - 1] ?? 0) + position.end.column - 1;
-        raw = style.slice(from, to);
-      }
+      const raw =
+        position?.start && position?.end ? style.slice(position.start.column - 1, position.end.column - 1) : value;
       if (raw.includes("/*")) return;
       read.push([property.trim().toLowerCase(), value.trim().toLowerCase()]);
     });
