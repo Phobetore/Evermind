@@ -22,26 +22,27 @@ to know what changes.
   positions, negative margins, animations and scripts of a card do not get
   through. A bare web address, a footnote (`[^1]`), a checkbox (`- [ ]`) and a
   reference link (`[text][r]`) stay as the text written.
-- **Pictures from other sites** are asked for only when you tap, one page at a
-  time, and the site is not told where the request comes from. Pictures over
-  `http` never show. A link that holds a picture asks before it opens. A text
-  too long to lay out (more than 100,000 characters) is shown plainly, and in
-  parts past 200,000 characters. A picture written in the card that is too large
-  for a phone's memory (more than 4,096 × 4,096 pixels, or more than 256 MB
-  decoded with the ones before it) is replaced by a space that says so. A link
-  whose text shows one site and leads to another asks first. If the layout code
-  does not arrive, the presentation is shown without its layout, with a button
-  to reload.
+- **Pictures from other sites** are asked for only when you tap, and only for
+  that visit, and the site is not told where the request comes from. Pictures
+  over `http` never show. A link that holds a picture asks before it opens. A
+  text too long to lay out (more than 100,000 characters) is shown plainly, and
+  in parts past 200,000 characters. A picture written in the card that is too
+  large for a phone's memory (more than 4,096 × 4,096 pixels, or more than 256
+  MB decoded with the ones before it) is replaced by a placeholder that says so.
+  A link whose text shows one site and leads to another asks first. If the
+  layout code does not arrive, the presentation is shown without its layout,
+  with a button to reload.
 - **The summary opened from a conversation** shows the presentation in plain
   words. A card without a presentation keeps its description, shown as the model
   reads it, as the scene in the conversation's panel does.
 - **The markers of a card read as words** wherever its tagline or its
   presentation is shown.
-- **Every page is served with a security policy**: `Referrer-Policy:
-  same-origin`, `X-Content-Type-Options: nosniff` and `X-DNS-Prefetch-Control:
-  off`, so that no link's name is looked up in advance. A proxy that sets its
-  own policy: both apply. A browser extension that injects code into the page
-  may be blocked. Evermind stays openable inside a frame of another page.
+- **Every page is served with a content security policy**, plus
+  `Referrer-Policy: same-origin`, `X-Content-Type-Options: nosniff` and
+  `X-DNS-Prefetch-Control: off`, so that no link's name is looked up in advance.
+  A proxy that sets its own policy: both apply. A browser extension that injects
+  code into the page may be blocked. Evermind stays openable inside a frame of
+  another page.
 - **A message of more than 100,000 characters, or too loaded with marks to be
   read in time**, in a conversation, is shown without Markdown layout. That is
   the case of a huge greeting, or of one written to freeze the page: a few

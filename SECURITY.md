@@ -184,11 +184,8 @@ as the conversations and the API keys. Here is what stands in its way:
   layout is shown as it is. What stays slow: some megabytes of pictures written
   in a card's text, one to two seconds for 6 MB of pictures on a PC, several
   times more on a phone, at each visit of its page.
-- **A second layer**: the security policy of the self-hosted edition
+- **A second layer**: the security policy Evermind serves with every page
   (`backend/app/headers.py`).
-- **In Anna's edition**, the allowed list and the filter are the same. Whether
-  the second layer applies depends on what the platform lets Evermind set, which
-  has not been established. Pictures from other sites do not show there.
 - **Not done**: the "permissive" level, with `<style>` blocks in an isolated
   frame.
 
