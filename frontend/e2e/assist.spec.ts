@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
 import { cardEnds, makeCharacter } from "./fixtures";
+import { expectWithin, pageFactor } from "./pace";
 
 /**
  * The card assistant is a job the server owns (see scripts/mock_llm.py for the stand-in model's
@@ -157,6 +158,8 @@ test("a card that has tags keeps each of them once", async ({ page, request }) =
 });
 
 test("a brief of a hundred thousand characters is kept whole, and said too long for the model", async ({ page, request }, info) => {
+  // On the blank page, before the app: how much slower than the reference PC this browser is.
+  const factor = await pageFactor(page);
   await makeCharacter(request);
   await page.goto("/#/characters/new");
   const text = "A seller of maps who draws tomorrow. ".repeat(2_800).slice(0, 100_000);
@@ -169,8 +172,8 @@ test("a brief of a hundred thousand characters is kept whole, and said too long 
   await brief(page).pressSequentially("!");
   const typed = Date.now() - started;
   info.annotations.push({ type: "timing", description: `pasted in ${pasted} ms, one key after it in ${typed} ms` });
-  expect(pasted, "pasting froze the page").toBeLessThan(3_000);
-  expect(typed, "a key pressed in a long brief froze the page").toBeLessThan(1_000);
+  expectWithin(pasted, 3_000, factor, "pasting froze the page");
+  expectWithin(typed, 1_000, factor, "a key pressed in a long brief froze the page");
   expect((await brief(page).inputValue()).length).toBe(100_001);
 
   await generate(page).click();

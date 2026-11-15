@@ -5,6 +5,7 @@ import { API } from "../playwright.config";
 import { LAYOUT_BOUND, PLAIN_PART } from "../src/lib/presentation/bounds";
 import { largestLaidOut } from "../src/lib/presentation/costliest";
 import { makeCharacter, makeConversation, policyViolations, watchPolicy } from "./fixtures";
+import { expectWithin, pageFactor } from "./pace";
 
 /** A card's page: the author's presentation first, then the openings, then what the model reads,
  *  folded; each text of the card bounded where it could push the page out of reach, freeze it, or
@@ -20,6 +21,8 @@ const thrown: string[] = [];
 const asked: Request[] = [];
 
 test.beforeEach(async ({ page, context }) => {
+  // On the blank page, before the app: how much slower than the reference PC this browser is.
+  await pageFactor(page);
   thrown.length = 0;
   asked.length = 0;
   page.on("pageerror", (error) => thrown.push(error.message));
@@ -87,7 +90,7 @@ async function composerAnswers(page: Page) {
     await box.fill("Hello");
     await expect(box).toHaveValue("Hello");
   });
-  expect(elapsed, "the composer took a letter").toBeLessThan(1_000);
+  expectWithin(elapsed, 1_000, await pageFactor(page), "the composer took a letter");
 }
 
 /** The height of an element in lines of its own computed line height. */
@@ -282,7 +285,7 @@ test("fifteen megabytes of greeting and presentation leave the page and the conv
     await start(page).click();
     await expect(dialog).toBeVisible();
   });
-  expect(opened, "the start window opened").toBeLessThan(1_000);
+  expectWithin(opened, 1_000, await pageFactor(page), "the start window opened");
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 
@@ -290,7 +293,7 @@ test("fifteen megabytes of greeting and presentation leave the page and the conv
     await opening(page).getByRole("button", { name: "Next part" }).click();
     await expect(opening(page).getByText(`Part 2 of ${parts}`)).toBeVisible();
   });
-  expect(moved, "the next part was shown").toBeLessThan(1_000);
+  expectWithin(moved, 1_000, await pageFactor(page), "the next part was shown");
 
   const convo = (await (await request.post(`${API}/api/conversations`, { data: { character_id: ilse.id } })).json()) as {
     id: string;
@@ -310,7 +313,7 @@ test("fifteen megabytes of greeting and presentation leave the page and the conv
     await box.fill("Hello");
     await expect(box).toHaveValue("Hello");
   });
-  expect(typed, "a field took a letter with the panel open").toBeLessThan(1_000);
+  expectWithin(typed, 1_000, await pageFactor(page), "a field took a letter with the panel open");
   expect(thrown).toEqual([]);
 });
 
@@ -364,12 +367,12 @@ test("a greeting that changes direction or script at each letter, or of Thai wit
     const convo = await conversationOf(request, { greeting });
     await openPage(page, convo.character_id);
     await expect(opening(page).getByText(en.characters.presentation.tooDense)).toBeVisible();
-    expect(await relaid(opening(page)), "the opening on the card's page").toBeLessThan(250);
+    expectWithin(await relaid(opening(page)), 250, await pageFactor(page), "the opening on the card's page");
 
     await page.goto(`/#/chat/${convo.id}`);
     const first = page.locator("[data-message-id]").first();
     await expect(first.getByText(/Part 1 of \d+/)).toBeVisible({ timeout: 30_000 });
-    expect(await relaid(first), "the greeting in its conversation").toBeLessThan(250);
+    expectWithin(await relaid(first), 250, await pageFactor(page), "the greeting in its conversation");
   }
 
   // The most runs the bound lets through, laid out.
@@ -379,12 +382,12 @@ test("a greeting that changes direction or script at each letter, or of Thai wit
     await openPage(page, convo.character_id);
     await expect(opening(page)).toContainText(greeting.slice(0, 12));
     await expect(opening(page).getByText(en.characters.presentation.tooDense)).toHaveCount(0);
-    expect(await relaid(opening(page)), "the opening on the card's page, laid out").toBeLessThan(250);
+    expectWithin(await relaid(opening(page)), 250, await pageFactor(page), "the opening on the card's page, laid out");
 
     await page.goto(`/#/chat/${convo.id}`);
     const first = page.locator("[data-message-id]").first();
     await expect(first).toContainText(greeting.slice(0, 12));
-    expect(await relaid(first), "the greeting in its conversation, laid out").toBeLessThan(250);
+    expectWithin(await relaid(first), 250, await pageFactor(page), "the greeting in its conversation, laid out");
   }
   expect(thrown).toEqual([]);
 });
@@ -686,7 +689,7 @@ test("what the model reads opens at once, however much its fields hold", async (
   // Every field laid out in the end: three hundred bold labels in each.
   await allLaidOut();
   const longest = await page.evaluate(() => Math.max(0, ...(window as unknown as { longTasks: number[] }).longTasks));
-  expect(longest, "a task held the page").toBeLessThan(100);
+  expectWithin(longest, 100, await pageFactor(page), "a task held the page");
 });
 
 test("the opening and what the model reads name the player as the conversation will", async ({ page, request }) => {
@@ -862,7 +865,7 @@ test("a long definition written under Markdown headings is laid out section by s
     await openModelReads(page);
     await expect(laid.locator("h4, h5, h6")).toHaveCount(55);
   });
-  expect(opened, "the section took more than a tap to open").toBeLessThan(1_000);
+  expectWithin(opened, 1_000, await pageFactor(page), "the section took more than a tap to open");
   expect(await sideways(page), "the page scrolls sideways").toBeLessThanOrEqual(0);
 
   // Nothing written among the sections is read as HTML, a link or an image, nor hidden.
@@ -878,7 +881,7 @@ test("a long definition written under Markdown headings is laid out section by s
     await expect(details.getByRole("button", { name: "As written" })).toHaveAttribute("aria-pressed", "true");
     await expect(laid.locator("h4, h5, h6")).toHaveCount(0);
   });
-  expect(pressed, "the switch took more than a tap").toBeLessThan(1_000);
+  expectWithin(pressed, 1_000, await pageFactor(page), "the switch took more than a tap");
   // As written, the exact text at this size, every piece among the sections included.
   expect(await shown.locator("p").evaluate((el) => el.textContent)).toBe(text);
 
@@ -887,7 +890,7 @@ test("a long definition written under Markdown headings is laid out section by s
     await expect(details.getByRole("button", { name: "Laid out" })).toHaveAttribute("aria-pressed", "true");
     await expect(laid.locator("h4, h5, h6")).toHaveCount(55);
   });
-  expect(back, "the switch back took more than a tap").toBeLessThan(1_000);
+  expectWithin(back, 1_000, await pageFactor(page), "the switch back took more than a tap");
 
   expect(asked.map((r) => r.url()), "a site of the card was contacted").toEqual([]);
 });

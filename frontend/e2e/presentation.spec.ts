@@ -3,6 +3,7 @@ import { crc32, deflateSync } from "node:zlib";
 import { API } from "../playwright.config";
 import { layoutRefusal } from "../src/lib/presentation/bounds";
 import { answer, makeCharacter, PNG, policyViolations, watchPolicy } from "./fixtures";
+import { expectWithin, pageFactor } from "./pace";
 
 /** A card's presentation on its page: laid out through the allow-list, its images of other sites
  *  asked for only on a tap, its links honest about where they lead, and the page around it out of
@@ -522,6 +523,8 @@ test("an image that cannot be had says so", async ({ page }) => {
 });
 
 test("a table of thousands of spans is laid out in time", async ({ page }) => {
+  // On the blank page, before the app: how much slower than the reference PC this browser is.
+  const factor = await pageFactor(page);
   // Each span within its bound, together a grid of 220,000 columns: 51 s of layout on a PC.
   const grid = "<table><tr>" + "<td colspan=100 rowspan=100>x".repeat(2_200) + "<tr><td>y".repeat(90) + "</table>";
   const box = await openCard(page, grid);
@@ -536,7 +539,7 @@ test("a table of thousands of spans is laid out in time", async ({ page }) => {
     void (frame as HTMLElement).offsetHeight;
     return performance.now() - start;
   });
-  expect(elapsed).toBeLessThan(250);
+  expectWithin(elapsed, 250, factor, "the frame laid out again");
 });
 
 test("an image over http says from where it would have come, and is never asked for", async ({ page }) => {
