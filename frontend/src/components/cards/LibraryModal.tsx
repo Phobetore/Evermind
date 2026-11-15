@@ -1,14 +1,15 @@
 import { LoadFailure } from "@/components/ui/LoadFailure";
 import { Modal } from "@/components/ui/Modal";
+import { CardTags } from "@/components/cards/CardTags";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { speakingName } from "@/engine";
 import { useT } from "@/i18n/useT";
 import { installCard, readCardJson, type ReadCard } from "@/lib/cards";
 import { describeError } from "@/lib/errors";
-import { previewMacros } from "@/lib/utils";
+import { firstCodePoints, previewMacros } from "@/lib/utils";
 import { BookMarked, Check, Download, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface Shelved {
   filename: string;
@@ -44,6 +45,13 @@ export function LibraryModal({
   useEffect(() => {
     load();
   }, []);
+  // One cut per list received, for every card of it: a tagline has no bound of length.
+  const youFallback = t("chat.panel.sceneAnchor.youFallback");
+  const taglines = useMemo(
+    () => (items ?? []).map(({ read }) =>
+      firstCodePoints(previewMacros(read.character.tagline, speakingName(read.character), youFallback), 2_000)),
+    [items, youFallback],
+  );
 
   async function install(item: Shelved) {
     setInstalling(item.filename);
@@ -73,7 +81,7 @@ export function LibraryModal({
         </p>
       ) : (
         <div className="flex flex-col gap-3">
-          {items.map((item) => (
+          {items.map((item, at) => (
             // On a phone the button drops to its own line and the artwork shrinks, so the words get the space.
             <div
               key={item.filename}
@@ -101,16 +109,10 @@ export function LibraryModal({
                     </Tag>
                   )}
                 </div>
-                <p className="mt-1 text-sm italic leading-snug text-parchment-dim">
-                  {previewMacros(item.read.character.tagline, speakingName(item.read.character), t("chat.panel.sceneAnchor.youFallback"))}
+                <p className="mt-1 line-clamp-3 text-sm italic leading-snug text-parchment-dim [overflow-wrap:anywhere]">
+                  {taglines[at]}
                 </p>
-                {item.read.character.tags.length > 0 && (
-                  <div className="mt-1.5 flex flex-wrap gap-1">
-                    {item.read.character.tags.map((tag) => (
-                      <Tag key={tag}>{tag}</Tag>
-                    ))}
-                  </div>
-                )}
+                <CardTags tags={item.read.character.tags} />
               </div>
               {item.installed ? (
                 <span className="flex w-full shrink-0 items-center justify-center gap-1.5 text-sm text-moss sm:w-auto sm:justify-start">

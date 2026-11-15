@@ -1,3 +1,4 @@
+import { TagText } from "@/components/ui/Tag";
 import { useT } from "@/i18n/useT";
 import { addTag } from "@/lib/tags";
 import { X } from "lucide-react";
@@ -38,13 +39,13 @@ export function TagInput({
       {value.map((tag) => (
         <span
           key={tag}
-          className="inline-flex items-center gap-1 rounded-full border border-ink-600 bg-ink-800 px-2.5 py-0.5 font-display text-xs text-parchment-dim"
+          className="inline-flex max-w-full items-center gap-1 rounded-full border border-ink-600 bg-ink-800 px-2.5 py-0.5 font-display text-xs text-parchment-dim"
         >
-          {tag}
+          <TagText tag={tag} />
           <button
             type="button"
             onClick={() => onChange(value.filter((tagValue) => tagValue !== tag))}
-            className="touch-target text-mist-dim hover:text-blood"
+            className="touch-target shrink-0 text-mist-dim hover:text-blood"
             aria-label={t("ui.tagInput.removeAriaLabel", { tag })}
           >
             <X className="h-3 w-3" />

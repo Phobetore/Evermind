@@ -205,3 +205,90 @@ test("the update command stays on one line, to be read and typed as it is", asyn
   expect(lines, "the command breaks across lines").toBe(1);
   expect((await pastTheEdge(page, 320)).page).toBeLessThanOrEqual(320);
 });
+
+// What a card carries is whatever its author typed, and the API bounds neither the tagline nor a tag:
+// the tile, the row of tags, the library and the editor's chips each cut them, or the page widens.
+const madeWide: string[] = [];
+test.afterEach(async ({ request }) => {
+  for (const id of madeWide.splice(0)) await request.delete(`${API}/api/characters/${id}`);
+});
+
+test("a card's long tagline and tags widen neither the home page, the library nor the editor", async ({ page, request }, testInfo) => {
+  const name = `Wide tags ${Date.now()}`;
+  const tagline = "W".repeat(10_000);
+  const longTag = "L".repeat(10_000);
+  const tags = [longTag, ...Array.from({ length: 19 }, (_, i) => `tag ${i + 2}`)];
+  const card = await makeCharacter(request, { name, tagline, tags });
+  madeWide.push(card.id);
+  const title = "L".repeat(2_000);
+  const sideways = (target: Page) => target.evaluate(() => {
+    const root = document.scrollingElement!;
+    return root.scrollWidth - root.clientWidth;
+  });
+
+  const home = async () => {
+    await page.goto("/");
+    await page.getByPlaceholder("Search").fill(name);
+    const chip = page.locator("button", { has: page.locator(`[title="${title}"]`) });
+    await expect(chip).toBeVisible();
+    expect(await sideways(page), "the home page slides sideways").toBeLessThanOrEqual(0);
+    const rail = (await chip.locator("xpath=..").boundingBox())!;
+    for (const box of await Promise.all((await chip.locator("xpath=../button").all()).map((b) => b.boundingBox()))) {
+      expect(box!.width, "a chip is wider than its row").toBeLessThanOrEqual(rail.width + 1);
+    }
+    const tale = page.locator(`a[href$="/characters/${card.id}"] p.italic`);
+    if (await tale.isVisible()) {
+      const { height, line } = await tale.evaluate((el) => ({
+        height: el.getBoundingClientRect().height,
+        line: parseFloat(getComputedStyle(el).lineHeight),
+      }));
+      expect(height, "the tile's tagline is cut at two lines").toBeLessThanOrEqual(line * 2.5);
+    }
+  };
+  const library = async () => {
+    await page.route("**/api/library", (route) => route.fulfill({
+      json: [{
+        filename: "wide.json", has_avatar: false,
+        card: { spec: "chara_card_v2", spec_version: "2.0", data: {
+          name: "Wide shelf", tags, extensions: { evermind: { tagline } },
+        } },
+      }],
+    }));
+    await page.goto("/");
+    await page.getByTitle("Starter library").click();
+    const dialog = page.getByRole("dialog");
+    const row = dialog.locator(".rounded-xl", { has: page.getByRole("heading", { name: "Wide shelf" }) });
+    await expect(row).toBeVisible();
+    const panel = dialog.locator(".panel");
+    expect(await panel.evaluate((el) => el.scrollWidth - el.clientWidth), "the library slides sideways").toBeLessThanOrEqual(0);
+    await expect(row.getByRole("button", { name: "Show the 12 other tags" })).toBeVisible();
+    expect(await row.locator("span[title]").count(), "eight tags at first").toBe(8);
+    const { height, line } = await row.locator("p.italic").evaluate((el) => ({
+      height: el.getBoundingClientRect().height,
+      line: parseFloat(getComputedStyle(el).lineHeight),
+    }));
+    expect(height, "the shelf's tagline is cut at three lines").toBeLessThanOrEqual(line * 3.5);
+    await page.unroute("**/api/library");
+  };
+  const editor = async () => {
+    await page.goto(`/#/characters/${card.id}/edit`);
+    const remove = page.getByRole("button", { name: /^Remove L{20}/ });
+    await expect(remove).toBeVisible();
+    expect(await sideways(page), "the editor slides sideways").toBeLessThanOrEqual(0);
+    const box = (await remove.boundingBox())!;
+    const view = page.viewportSize()!;
+    expect(box.x + box.width, "the remove button is out of the window").toBeLessThanOrEqual(view.width);
+    await remove.click();
+    await expect(remove).toHaveCount(0);
+  };
+
+  await home();
+  await library();
+  await editor();
+  if (testInfo.project.name === "phone") {
+    // A phone on its side is past sm: the tile shows its tagline and tags, the row wraps.
+    await page.setViewportSize({ width: 915, height: 412 });
+    await home();
+    await library();
+  }
+});

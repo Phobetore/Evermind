@@ -3,6 +3,7 @@ import { ImportModal } from "@/components/cards/ImportModal";
 import { LibraryModal } from "@/components/cards/LibraryModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
+import { TagText } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
@@ -151,13 +152,13 @@ export function HomePage() {
               key={tag}
               onClick={() => setActiveTag(activeTag === tag ? null : tag)}
               className={clsx(
-                "touch-target shrink-0 rounded-full border px-3 py-1.5 font-display text-xs font-medium transition-colors sm:py-1",
+                "touch-target max-w-full shrink-0 rounded-full border px-3 py-1.5 font-display text-xs font-medium transition-colors sm:py-1",
                 activeTag === tag
                   ? "border-ember-500 bg-ember-glow text-ember-300"
                   : "border-ink-600 text-mist hover:border-ink-500 hover:text-parchment",
               )}
             >
-              {tag}
+              <TagText tag={tag} />
             </button>
           ))}
         </div>
