@@ -32,15 +32,29 @@ const sparkAnimations = (page: Page, scope: string) => page.evaluate((scope) =>
 
 const BRAND = "aside a .mark";
 
+/**
+ * Brings a page that has just opened to rest, so that what is measured next is what the test did.
+ * The name sits in the window's top left corner, and a browser that counts its pointer as inside the
+ * window once a page is loaded (headless Chromium on Linux does, wherever the pointer was before the
+ * navigation) finds it there from the start: the mark winks once at load, and a later `hover()` on that
+ * link is no entry. So after the page is loaded the pointer is taken to a place far from the sidebar
+ * and from the login's mark, the page waits until no mark winks (no wink playing, none marked to play),
+ * and the log of motion starts again from empty. The test measures after this, never before.
+ */
+async function atRest(page: Page) {
+  const { width, height } = page.viewportSize()!;
+  await page.mouse.move(width - 40, height - 60);
+  await expect.poll(() => page.evaluate(async () => {
+    // Two frames, so that a wink about to start is seen as well as one that is playing.
+    await new Promise((frame) => requestAnimationFrame(() => requestAnimationFrame(frame)));
+    return !document.querySelector(".mark[data-wink]")
+      && !document.getAnimations().some((a) => (a as CSSAnimation).animationName === "mark-blink");
+  })).toBe(true);
+  await page.evaluate(() => { (window as unknown as { markMotion?: string[] }).markMotion?.splice(0); });
+}
+
 /** A phone has no sidebar, and so no name to come over: the mark beside it is a wide screen's. */
 const besideTheName = (project: string) => test.skip(project !== "desktop", "the sidebar is drawn from tablet width up");
-
-// The name sits in the window's top left corner, where a browser that counts its pointer as inside
-// the window from the start (headless Chromium on Linux does) finds it on the very first page: the
-// mark would wink before any test came over it. So every test starts with its pointer elsewhere.
-test.beforeEach(async ({ page }) => {
-  await page.mouse.move(700, 500);
-});
 
 test("the tab's icon is Evermind's own mark", async ({ request }) => {
   const icon = await request.get("/favicon.svg");
@@ -56,6 +70,7 @@ test("the mark beside the name winks once when the pointer comes over the name",
   await countMotion(page);
   await page.goto("/#/personas");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await atRest(page);
   const brand = page.getByRole("link", { name: "Evermind", exact: true });
   expect(await sparkAnimations(page, BRAND)).toEqual([]);
 
@@ -71,6 +86,7 @@ test("the wink is a soft eyelid of about 420 ms, not a flick", { tag: "@desktop"
   besideTheName(testInfo.project.name);
   await page.goto("/#/personas");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await atRest(page);
   await page.getByRole("link", { name: "Evermind", exact: true }).hover();
   const duration = await page.evaluate(() =>
     document.getAnimations()
@@ -84,6 +100,7 @@ test("a pointer that leaves half-way lets the wink finish", { tag: "@desktop" },
   await countMotion(page);
   await page.goto("/#/personas");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await atRest(page);
   const header = page.getByRole("link", { name: "Evermind", exact: true });
   const mark = page.locator(BRAND);
 
@@ -106,6 +123,7 @@ test("coming over the name twice winks twice, and never more", { tag: "@desktop"
   await countMotion(page);
   await page.goto("/#/personas");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await atRest(page);
   const header = page.getByRole("link", { name: "Evermind", exact: true });
 
   await header.hover();
@@ -123,6 +141,7 @@ test("the mark beside the name winks when the keyboard reaches its link", { tag:
   await countMotion(page);
   await page.goto("/#/personas");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await atRest(page);
   const brand = page.getByRole("link", { name: "Evermind", exact: true });
 
   for (let i = 0; i < 5 && !(await brand.evaluate((el) => el === document.activeElement)); i++) {
@@ -139,6 +158,7 @@ test("asked for less motion, the mark does not wink", { tag: "@desktop" }, async
   await countMotion(page);
   await page.goto("/#/personas");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await atRest(page);
 
   const brand = page.getByRole("link", { name: "Evermind", exact: true });
   await brand.hover();
@@ -160,6 +180,7 @@ test.describe("on the server with a password", () => {
     await page.goto("/#/login");
     const mark = page.locator("svg:has(+ h1) .mark");
     await expect(mark).toHaveCount(1);
+    await atRest(page);
     await mark.locator("xpath=..").hover();
     await page.waitForTimeout(350);
     expect(await sparkAnimations(page, "svg:has(+ h1)")).toEqual([]);
@@ -180,6 +201,7 @@ test.describe("on the server with a password", () => {
     const mark = page.locator("svg:has(+ h1) .mark");
     await expect(mark).toHaveCount(1);
     await expect(mark).not.toHaveAttribute("data-busy");
+    await atRest(page);
 
     // A wrong password: answered, the login stays, and its mark with it.
     await page.getByLabel(/password/i).fill("not-the-password");
