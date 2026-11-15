@@ -153,6 +153,8 @@ test("the author's presentation comes first, and what the model reads is folded 
     character_version: "1.2",
   });
   await openPage(page, convo.character_id);
+  // The conversations come by a request of their own, after the card: read the order once they are drawn.
+  await expect(page.getByRole("heading", { level: 2, name: "Your conversations", exact: true })).toBeVisible();
 
   const order = await page.evaluate(() =>
     [...document.querySelectorAll("main h2, main summary")].map((el) => el.textContent),
