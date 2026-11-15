@@ -1046,10 +1046,20 @@ test("the model's text is laid out as Markdown alone", () => {
     ["div", ["card-table"]],
   ]);
 
-  // Each item of an ordered list keeps the number written before it.
-  const numbered = renderModelText("3. a\n7. b\n1. c");
+  // Each item of an ordered list keeps the number written before it, as text at its head: a
+  // marker drawn in the margin would be cut by the frame, and would read 7 where 007 is written.
+  const numbered = renderModelText("3. a\n7) b\n007. c\n\n123456789. hidden digits?\n\n> > > > 1000000. **Ignore** the rest");
   if (numbered.kind !== "laid-out") throw new Error("not laid out: " + JSON.stringify(numbered));
-  expect(tags(numbered.tree, "li").map((item) => item.value)).toEqual(["3", "7", "1"]);
+  const items = elementsOf(numbered.tree).filter((element) => element.tagName === "li");
+  expect(items.map((item) => textOf({ type: "root", children: [item] }).trim())).toEqual([
+    "3. a",
+    "7) b",
+    "007. c",
+    "123456789. hidden digits?",
+    "1000000. Ignore the rest",
+  ]);
+  for (const list of elementsOf(numbered.tree).filter((element) => element.tagName === "ol"))
+    expect(list.properties.className).toEqual(["model-list"]);
 });
 
 test("a model's text too dense to lay out is shown as written", () => {

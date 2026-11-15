@@ -589,7 +589,7 @@ test("the definition is laid out as Markdown alone, and nothing of it is hidden"
     "# Titre\n\n**gras** <img src=x onerror=1> <!-- caché --> [lien](https://example.com) " +
     "![image](https://pictures.example/x.png)\n\n<script>alert(1)</script>\n\n" +
     '**bold** <img src="https://pictures.example/d.png"> <script>window.__hit=1</script>\n\n' +
-    "```js HIDDEN-INFO-WORDS\ncode\n```\n\n| a |\n|---|\n| b | HIDDEN-CELL |\n\n3. three\n7. seven\n\n" +
+    "```js HIDDEN-INFO-WORDS\ncode\n```\n\n| a |\n|---|\n| b | HIDDEN-CELL |\n\n3. three\n7. seven\n\n> > > > 123456789. hidden digits?\n\n" +
     "&#x202E;x&#8203;&lt;b&gt;\n\n" +
     WIDE_TABLE;
   const ilse = await card(request, { description });
@@ -624,10 +624,17 @@ test("the definition is laid out as Markdown alone, and nothing of it is hidden"
   expect(await widerThanFrame(wide), "the table fits the field, and proves nothing").toBeGreaterThan(0);
   expect(await reachable(wide.locator("td", { hasText: "LASTCELLWORD" })), "the last cell cannot be reached").toBe(true);
   expect(await sideways(page), "the page scrolls sideways").toBeLessThanOrEqual(0);
-  // Each item keeps the number written before it, not one counted on from the first.
-  expect(await text.locator("ol > li").evaluateAll((items) => items.map((li) => (li as HTMLLIElement).value))).toEqual([
-    3, 7,
-  ]);
+  // Each item keeps the number written before it, not one counted on from the first, as its own
+  // text: a marker in the margin would lose its first digits to the frame, inside quotes too.
+  expect(await text.locator("ol > li").allInnerTexts()).toEqual(["3. three", "7. seven", "123456789. hidden digits?"]);
+  const numbers = await text.locator("ol > li").evaluateAll((items) => {
+    const frame = items[0].closest(".card-presentation")!.getBoundingClientRect();
+    return items.map((li) => {
+      const box = li.getBoundingClientRect();
+      return box.left >= frame.left - 0.5 && getComputedStyle(li).listStyleType === "none";
+    });
+  });
+  expect(numbers, "a number is drawn as a marker, or starts outside the frame").toEqual([true, true, true]);
   await expect(details.locator("img, a, script")).toHaveCount(0);
   await expect(text.locator("b")).toHaveCount(0);
 

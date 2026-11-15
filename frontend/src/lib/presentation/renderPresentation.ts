@@ -1,4 +1,4 @@
-import type { Element, ElementContent, Properties, Root, RootContent } from "hast";
+import type { Element, ElementContent, Properties, Root, RootContent, Text } from "hast";
 import type { TableRow } from "mdast";
 import { gfmStrikethroughFromMarkdown } from "mdast-util-gfm-strikethrough";
 import { gfmTableFromMarkdown } from "mdast-util-gfm-table";
@@ -1042,8 +1042,9 @@ export function renderPresentation(text: string): RenderedPresentation {
 // Below the h3 that names each field of what the model reads.
 const MODEL_HEADINGS: Record<string, string> = { h1: "h4", h2: "h5", h3: "h6", h4: "h6", h5: "h6", h6: "h6" };
 
-// The number written before an item of an ordered list, read where the item starts.
-const ITEM_NUMBER = /\d{1,9}/y;
+// The number written before an item of an ordered list and its "." or ")", read where the item
+// starts.
+const ITEM_NUMBER = /\d{1,9}[.)]/y;
 
 /** Each table among these children in a box of its own that scrolls sideways, as a
  *  presentation's (cardRules): the frame hides what overflows it, and the last columns of a table
@@ -1058,7 +1059,9 @@ function boxTables<T extends RootContent | ElementContent>(children: T[], boxes:
 }
 
 /** The headings of the model's text, under its field's; each item of an ordered list numbered as
- *  it is written (the layout would count on from the first, and show 2 where the model reads 7);
+ *  it is written, as the item's own text (the layout would count on from the first, and show 2
+ *  where the model reads 7; and its marker, drawn in the margin, would lose its first digits to
+ *  the frame);
  *  each table in a box that scrolls; then its depth bounded. A walk by a stack: the tree is not
  *  yet bounded in depth. */
 function modelTree() {
@@ -1074,11 +1077,18 @@ function modelTree() {
       if (!boxes.has(node)) node.children = boxTables(node.children, boxes);
       if (node.tagName in MODEL_HEADINGS) node.tagName = MODEL_HEADINGS[node.tagName];
       if (node.tagName === "ol") {
+        // Drawn without markers (model-list): the number is the item's own text.
+        node.properties.className = ["model-list"];
         for (const item of node.children) {
           if (item.type !== "element" || item.tagName !== "li") continue;
           ITEM_NUMBER.lastIndex = item.position?.start.offset ?? -1;
           const written = ITEM_NUMBER.lastIndex >= 0 ? ITEM_NUMBER.exec(source) : null;
-          if (written) item.properties.value = String(Number(written[0]));
+          if (!written) continue;
+          const number: Text = { type: "text", value: written[0] + " " };
+          // In the item's first paragraph when it has one, so that the number stays on its line.
+          const first = item.children.find((child) => child.type !== "text" || child.value.trim() !== "");
+          if (first?.type === "element" && first.tagName === "p") first.children.unshift(number);
+          else item.children.unshift(number);
         }
       }
       for (const child of node.children) stack.push(child);
