@@ -373,6 +373,48 @@ test("the deepest text stays inside the frame", async ({ page }) => {
   await inFrame(dense, "DENSECODE");
 });
 
+test("every number of a list is shown whole, however long", async ({ page }) => {
+  const box = await openCard(
+    page,
+    [
+      "1. one\n2. two",
+      "98. a\n99. b\n100. c",
+      "123456789. nine digits",
+      "1000000. seven digits",
+      '<ol start="-1000000"><li>below zero</li></ol>',
+      "> > > 123456789. quoted",
+    ].join("\n\nbetween\n\n"),
+  );
+  await unfold(page);
+  // Where each item's number starts: its marker's, measured in the item's font, to the left of
+  // the item; or the item's own text. None starts before the frame's edge, which cuts it.
+  const cut = await box.evaluate((frame) => {
+    const clip = frame.getBoundingClientRect().left + parseFloat(getComputedStyle(frame).borderLeftWidth);
+    const cuts: string[] = [];
+    for (const list of frame.querySelectorAll("ol")) {
+      const items = [...list.querySelectorAll(":scope > li")] as HTMLLIElement[];
+      items.forEach((item, index) => {
+        const box = item.getBoundingClientRect();
+        let left = box.left;
+        if (getComputedStyle(item).listStyleType !== "none") {
+          const probe = document.createElement("span");
+          probe.textContent = `${(list as HTMLOListElement).start + index}. `;
+          probe.style.cssText = `position: absolute; white-space: pre; font: ${getComputedStyle(item).font}; font-variant-numeric: tabular-nums`;
+          document.body.append(probe);
+          left -= probe.getBoundingClientRect().width;
+          probe.remove();
+        } else if (!/^-?\d+\. /.test(item.innerText)) cuts.push(`no number: ${item.innerText}`);
+        if (left < clip - 0.5) cuts.push(item.innerText);
+      });
+    }
+    return cuts;
+  });
+  expect(cut, "a number starts outside the frame").toEqual([]);
+  // A short list keeps its markers.
+  expect(await style(box.locator("ol").first(), "list-style-type")).toBe("decimal");
+  await expect(box.locator("li", { hasText: "nine digits" })).toHaveText("123456789. nine digits");
+});
+
 test("a Show button stays the one that is tapped", async ({ page }) => {
   const cards = [
     // Paddings that would reach up over the place: cardRules takes them away.

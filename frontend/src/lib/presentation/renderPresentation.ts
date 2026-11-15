@@ -887,6 +887,44 @@ function wholeNumber(found: Found, element: Element, name: string): number | nul
   return written !== null && /^\d+$/.test(written) ? Number(written) : null;
 }
 
+// The longest number, sign included, a list's marker shows whole in the room the stylesheet
+// gives it (24px of indent, and the frame's padding or the indent of the lists and quotes around
+// it): "99." and "-9." fit, "100." may not, "123456789." loses its first digits to the frame.
+const MARKER_DIGITS = 2;
+
+/** The number HTML reads in a list's start attribute: blanks, a sign, digits, the rest ignored;
+ *  1 when there are none or they do not fit the browser's integer. */
+function listStart(found: Found, list: Element): number {
+  const written = writtenAttribute(found, list, "start");
+  const start = list.properties.start;
+  // A list of Markdown has no tag to read: its start is the number it was given.
+  const value = written ?? (start === undefined || start === null ? "" : String(start));
+  const match = /^[\t\n\f\r ]*([+-]?\d+)/.exec(value);
+  const parsed = match ? Number(match[1]) : typeof start === "number" ? start : 1;
+  return Number.isInteger(parsed) && Math.abs(parsed) <= 2_147_483_647 ? parsed : 1;
+}
+
+/** An ordered list whose numbers are longer than its marker's room shows them as each item's own
+ *  text, without markers (numbered-list): drawn in the margin, "123456789." would lose its first
+ *  digits to the frame, and the author's text would be cut. Its items are those the browser
+ *  counts: down its tree, not into a list of their own. Each element is read by one list only. */
+function numberLongList(found: Found, list: Element) {
+  const items: Element[] = [];
+  const stack: ElementContent[] = [...list.children].reverse();
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (node.type !== "element" || node.tagName === "ol" || node.tagName === "ul") continue;
+    if (node.tagName === "li") items.push(node);
+    for (let i = node.children.length - 1; i >= 0; i--) stack.push(node.children[i]);
+  }
+  if (items.length === 0) return;
+  const start = listStart(found, list);
+  const last = start + items.length - 1;
+  if (Math.max(String(start).length, String(last).length) <= MARKER_DIGITS) return;
+  list.properties.className = ["numbered-list"];
+  items.forEach((item, index) => numberItem(item, `${start + index}.`));
+}
+
 /** The card's own rules, on the tree already sanitized, in one walk that knows the ancestors. */
 function cardRules(found: Found) {
   return (tree: Root) => {
@@ -943,6 +981,7 @@ function cardRules(found: Found) {
       }
 
       if (element.tagName in HEADINGS) element.tagName = HEADINGS[element.tagName];
+      if (element.tagName === "ol") numberLongList(found, element);
 
       inner = placeStyle(element, context);
 
@@ -1066,6 +1105,15 @@ const MODEL_HEADINGS: Record<string, string> = { h1: "h4", h2: "h5", h3: "h6", h
 // starts.
 const ITEM_NUMBER = /\d{1,9}[.)]/y;
 
+/** Writes `number` at the head of a list item, as its own text: in the item's first paragraph
+ *  when it has one, so that the number stays on its line. */
+function numberItem(item: Element, number: string) {
+  const text: Text = { type: "text", value: number + " " };
+  const first = item.children.find((child) => child.type !== "text" || child.value.trim() !== "");
+  if (first?.type === "element" && first.tagName === "p") first.children.unshift(text);
+  else item.children.unshift(text);
+}
+
 /** Each table among these children in a box of its own that scrolls sideways, as a
  *  presentation's (cardRules): the frame hides what overflows it, and the last columns of a table
  *  wider than a phone would be text the model reads that the person could not reach. */
@@ -1104,11 +1152,7 @@ function modelTree() {
           ITEM_NUMBER.lastIndex = item.position?.start.offset ?? -1;
           const written = ITEM_NUMBER.lastIndex >= 0 ? ITEM_NUMBER.exec(source) : null;
           if (!written) continue;
-          const number: Text = { type: "text", value: written[0] + " " };
-          // In the item's first paragraph when it has one, so that the number stays on its line.
-          const first = item.children.find((child) => child.type !== "text" || child.value.trim() !== "");
-          if (first?.type === "element" && first.tagName === "p") first.children.unshift(number);
-          else item.children.unshift(number);
+          numberItem(item, written[0]);
         }
       }
       for (const child of node.children) stack.push(child);

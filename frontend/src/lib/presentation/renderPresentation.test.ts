@@ -524,6 +524,47 @@ test("a link that holds a picture asks first", () => {
   expect(written.dataPicture).toBeUndefined();
 });
 
+test("a list of numbers too long for the margin writes them as its items' text", () => {
+  // A paragraph between two lists: without it, Markdown would make them one.
+  const tree = laidOut(
+    [
+      "1. one\n2. two",
+      "98. a\n99. b\n100. c",
+      "123456789. x",
+      "1000000. y\n\n         more of y",
+      '<ol start=" -1000000x"><li>below</li><div><li>wrapped</li></div><ul><li>bullet</li></ul></ol>',
+      '<ol start="99999999999"><li>past the integer</li></ol>',
+    ].join("\n\nbetween\n\n"),
+  );
+  const lists = elementsOf(tree).filter((element) => element.tagName === "ol");
+  expect(lists.map((list) => list.properties.className ?? null)).toEqual([
+    null,
+    ["numbered-list"],
+    ["numbered-list"],
+    ["numbered-list"],
+    ["numbered-list"],
+    null,
+  ]);
+  const items = elementsOf(tree).filter((element) => element.tagName === "li");
+  expect(items.map((item) => textOf({ type: "root", children: [item] }).trim().replace(/\s+/g, " "))).toEqual([
+    "one",
+    "two",
+    "98. a",
+    "99. b",
+    "100. c",
+    "123456789. x",
+    "1000000. y more of y",
+    "-1000000. below",
+    "-999999. wrapped",
+    "bullet",
+    "past the integer",
+  ]);
+  // In its first paragraph, so that the number stays on the line of its text.
+  const loose = items[6].children.find((child) => child.type === "element");
+  expect(loose?.type === "element" && loose.tagName).toBe("p");
+  if (loose?.type === "element") expect(textOf({ type: "root", children: [loose] })).toBe("1000000. y");
+});
+
 test("headings start below the page's own", () => {
   const found = walk(laidOut("# A\n\n###### B")).map(([, tag]) => tag);
   expect(found).toEqual(["h3", "h6"]);
