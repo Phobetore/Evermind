@@ -474,6 +474,8 @@
       "kind": "Personnage ou scénario",
       "lore": "{count:grouped} entrées du lorebook",
       "lore_one": "{count:grouped} entrée du lorebook",
+      "left": "{count:grouped} entrées du lorebook restent telles quelles : Evermind n'a pas pu dire avec certitude de quelle entrée de la carte elles viennent, ou vous les avez écrites ici.",
+      "left_one": "{count:grouped} entrée du lorebook reste telle quelle : Evermind n'a pas pu dire avec certitude de quelle entrée de la carte elle vient, ou vous l'avez écrite ici.",
       "reread": "Relire la carte et passer aux nouvelles règles",
       "keep": "Garder seulement la carte d'origine pour l'export",
       "keepHint": "La garder ne change rien dans ses conversations\u00a0; ce bandeau reste, pour passer plus tard aux nouvelles règles.",

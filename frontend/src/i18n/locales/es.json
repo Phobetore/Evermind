@@ -474,6 +474,8 @@
       "kind": "Personaje o escenario",
       "lore": "{count:grouped} entradas del lorebook",
       "lore_one": "{count:grouped} entrada del lorebook",
+      "left": "{count:grouped} entradas del lorebook se quedan como están: Evermind no pudo saber con certeza de qué entrada de la ficha vienen, o las escribió usted aquí.",
+      "left_one": "{count:grouped} entrada del lorebook se queda como está: Evermind no pudo saber con certeza de qué entrada de la ficha viene, o la escribió usted aquí.",
       "reread": "Releer la ficha original y pasar a las nuevas reglas",
       "keep": "Guardar solo la ficha original para la exportación",
       "keepHint": "Guardarla no cambia nada en sus conversaciones; este aviso se queda, para pasar más tarde a las nuevas reglas.",

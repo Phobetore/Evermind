@@ -187,3 +187,37 @@ test("a card that could not be looked for can be looked for again", async ({ pag
   expect(await page.evaluate(() => document.activeElement?.closest("section")?.textContent ?? "")).toContain(BANNER);
   await expect(page.getByRole("button", { name: "Keep only the original card for the export" })).toBeVisible();
 });
+
+test("a re-read says how many entries it left as they are", async ({ page, request }) => {
+  const card = {
+    spec: "chara_card_v2", spec_version: "2.0",
+    data: {
+      name: "Mirela", description: "A lighthouse keeper.", first_mes: "The lamp is lit.",
+      character_book: { entries: [
+        { keys: ["lamp"], content: "The lamp burns whale oil." },
+        { keys: ["boat"], content: "The boat is red, with a white stripe along its hull." },
+        { keys: ["gull"], content: "A gull named Pell follows her about the rocks." },
+      ] },
+    },
+  };
+  // The lamp as it was, the boat rewritten past recognition, and an entry written here.
+  const { id } = await madeBefore(request, {
+    lore_entries: [
+      { keys: ["lamp"], content: "The lamp burns whale oil." },
+      { keys: ["boat"], content: "Quartz veins run through the cliff below the tower." },
+      { keys: ["tide"], content: "The tide table hangs by the door." },
+    ],
+  }, card);
+  await page.goto(`/#/characters/${id}/edit`);
+  await page.getByRole("button", { name: "Re-read the card and switch to the new rules" }).click();
+  await expect(page.getByText("Save to keep this change.")).toBeVisible();
+  await expect(page.getByText("2 lorebook entries stay as they are", { exact: false })).toBeVisible();
+
+  // A card whose entries all find their own says nothing of the kind.
+  const whole = await madeBefore(request);
+  await page.goto(`/#/characters/${whole.id}/edit`);
+  await page.getByRole("button", { name: "Re-read the card and switch to the new rules" }).click();
+  await expect(page.getByText("Save to keep this change.")).toBeVisible();
+  await expect(page.getByText("stay as they are", { exact: false })).toBeHidden();
+  await expect(page.getByText("stays as it is", { exact: false })).toBeHidden();
+});

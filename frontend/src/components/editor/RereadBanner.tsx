@@ -17,6 +17,7 @@ export function RereadBanner({
   failure,
   hasCard,
   applied,
+  left,
   label,
   onApply,
   onRetry,
@@ -30,6 +31,8 @@ export function RereadBanner({
   hasCard: boolean;
   /** A choice is in the form already, waiting for the save. */
   applied: boolean;
+  /** How many entries of the lorebook the click left as they are, when it was a re-reading. */
+  left: number;
   /** The name the form gives a field of the card. */
   label: (field: string) => string;
   onApply: (mode: RereadMode) => void;
@@ -89,9 +92,12 @@ export function RereadBanner({
       ) : !plan ? (
         <p data-takes-focus tabIndex={-1} className="animate-pulse-soft outline-none">{t("common.loading")}</p>
       ) : applied ? (
-        <p data-takes-focus tabIndex={-1} role="status" className="font-semibold text-parchment outline-none">
-          {t("characters.reread.saveToKeep")}
-        </p>
+        <>
+          <p data-takes-focus tabIndex={-1} role="status" className="font-semibold text-parchment outline-none">
+            {t("characters.reread.saveToKeep")}
+          </p>
+          {left > 0 && <p>{t("characters.reread.left", { count: left })}</p>}
+        </>
       ) : (
         <>
           {plan.added.length > 0 && (

@@ -33,7 +33,7 @@ test("a keystroke in the form pairs no entry: the banner lists what it lists wit
     initialLocale: "en",
     children: createElement(RereadBanner, {
       current: { ...before, name, lore_entries: before.lore_entries.map((entry) => ({ ...entry, origin: null })) },
-      found, failure: null, hasCard: false, applied: false, label: (field) => field, onApply: () => {}, onRetry: () => {},
+      found, failure: null, hasCard: false, applied: false, left: 0, label: (field) => field, onApply: () => {}, onRetry: () => {},
     }),
   }));
   // The form opened, then a name typed a letter at a time.

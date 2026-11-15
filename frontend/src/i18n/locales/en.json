@@ -474,6 +474,8 @@
       "kind": "Character or scenario",
       "lore": "{count:grouped} lorebook entries",
       "lore_one": "{count:grouped} lorebook entry",
+      "left": "{count:grouped} lorebook entries stay as they are: Evermind could not tell for sure which entry of the card they come from, or you wrote them here.",
+      "left_one": "{count:grouped} lorebook entry stays as it is: Evermind could not tell for sure which entry of the card it comes from, or you wrote it here.",
       "reread": "Re-read the card and switch to the new rules",
       "keep": "Keep only the original card for the export",
       "keepHint": "Keeping it changes nothing in its conversations; this notice stays, to switch to the new rules later.",
