@@ -5,6 +5,7 @@ import { StartChatModal } from "@/components/cards/StartChatModal";
 import { WhatTheModelReads } from "@/components/cards/WhatTheModelReads";
 import { Avatar } from "@/components/ui/Avatar";
 import { LoadFailure } from "@/components/ui/LoadFailure";
+import { PageWait } from "@/components/ui/PageWait";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { speakingName } from "@/engine";
@@ -81,7 +82,7 @@ function CharacterDetail({ id }: { id: string }) {
   const tagline = useMemo(() => firstCodePoints(previewMacros(rawTagline, name, you), 2_000), [rawTagline, name, you]);
 
   if (failure) return <p className="p-10 text-blood">{describeError(failure.error, t)}</p>;
-  if (!character) return <div className="p-10 text-mist animate-pulse-soft">{t("common.loading")}</div>;
+  if (!character) return <PageWait words={t("common.loading")} />;
 
   const isScenario = character.kind === "scenario";
 

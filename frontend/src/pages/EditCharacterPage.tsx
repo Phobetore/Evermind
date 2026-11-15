@@ -1,4 +1,5 @@
 import { CharacterForm } from "@/components/editor/CharacterForm";
+import { PageWait } from "@/components/ui/PageWait";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
@@ -27,6 +28,6 @@ function EditCharacter({ id }: { id: string }) {
   }, [id]);
 
   if (failure) return <p className="p-10 text-blood">{describeError(failure.error, t)}</p>;
-  if (!character) return <div className="p-10 text-mist animate-pulse-soft">{t("common.loading")}</div>;
+  if (!character) return <PageWait words={t("common.loading")} />;
   return <CharacterForm key={character.id} initial={character} />;
 }

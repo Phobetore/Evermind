@@ -5,6 +5,7 @@ import { ModelSilent } from "@/components/chat/ModelSilent";
 import { ChatSidePanel } from "@/components/chat/ChatSidePanel";
 import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
+import { PageWait } from "@/components/ui/PageWait";
 import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
 import { beginSending, type MessageMode } from "@/lib/drafts";
@@ -353,7 +354,7 @@ function ChatView({ id }: { id: string }) {
     );
   }
   if (!conversation?.character) {
-    return <div className="p-10 text-mist animate-pulse-soft">{t("chat.openingScene")}</div>;
+    return <PageWait words={t("chat.openingScene")} />;
   }
 
   const character = conversation.character;
