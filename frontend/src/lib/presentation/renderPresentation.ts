@@ -1045,16 +1045,33 @@ const MODEL_HEADINGS: Record<string, string> = { h1: "h4", h2: "h5", h3: "h6", h
 // The number written before an item of an ordered list, read where the item starts.
 const ITEM_NUMBER = /\d{1,9}/y;
 
+/** Each table among these children in a box of its own that scrolls sideways, as a
+ *  presentation's (cardRules): the frame hides what overflows it, and the last columns of a table
+ *  wider than a phone would be text the model reads that the person could not reach. */
+function boxTables<T extends RootContent | ElementContent>(children: T[], boxes: Set<Element>): T[] {
+  return children.map((child) => {
+    if (child.type !== "element" || child.tagName !== "table") return child;
+    const box: Element = { type: "element", tagName: "div", properties: { className: ["card-table"] }, children: [child] };
+    boxes.add(box);
+    return box as T;
+  });
+}
+
 /** The headings of the model's text, under its field's; each item of an ordered list numbered as
  *  it is written (the layout would count on from the first, and show 2 where the model reads 7);
- *  then its depth bounded. A walk by a stack: the tree is not yet bounded in depth. */
+ *  each table in a box that scrolls; then its depth bounded. A walk by a stack: the tree is not
+ *  yet bounded in depth. */
 function modelTree() {
   return (tree: Root, file: { value: unknown }) => {
     const source = String(file.value);
+    // A box holds its table already: boxing it again would never end.
+    const boxes = new Set<Element>();
+    tree.children = boxTables(tree.children, boxes);
     const stack: RootContent[] = [...tree.children];
     while (stack.length > 0) {
       const node = stack.pop()!;
       if (node.type !== "element") continue;
+      if (!boxes.has(node)) node.children = boxTables(node.children, boxes);
       if (node.tagName in MODEL_HEADINGS) node.tagName = MODEL_HEADINGS[node.tagName];
       if (node.tagName === "ol") {
         for (const item of node.children) {

@@ -96,6 +96,37 @@ const lines = (locator: Locator) =>
 const sideways = (page: Page) =>
   page.evaluate(() => document.scrollingElement!.scrollWidth - document.scrollingElement!.clientWidth);
 
+/** A table of eight worded columns, wider than a phone: its last cell is what a frame that hides
+ *  what overflows it would cut off. */
+const WIDE_TABLE =
+  "| Name | Age | Height | Personality | Occupation | Relationship | Hometown | Favourite |\n" +
+  "|---|---|---|---|---|---|---|---|\n" +
+  "| Ilse | 27 | 170cm | Stubborn | Lighthousekeeper | Estranged | Northharbour | LASTCELLWORD |";
+
+/** Whether an element of a laid-out text can be brought into view: it fits inside its frame, or a
+ *  box around it scrolls sideways far enough to show it. The box is scrolled back after. */
+const reachable = (locator: Locator) =>
+  locator.evaluate((el) => {
+    const frame = el.closest(".card-presentation")!.getBoundingClientRect();
+    const inside = () => {
+      const box = el.getBoundingClientRect();
+      return box.left >= frame.left - 0.5 && box.right <= frame.right + 0.5;
+    };
+    if (inside()) return true;
+    for (let box = el.parentElement; box && box !== document.body; box = box.parentElement) {
+      if (!["auto", "scroll"].includes(getComputedStyle(box).overflowX) || box.scrollWidth <= box.clientWidth) continue;
+      box.scrollLeft = box.scrollWidth;
+      const shown = inside();
+      box.scrollLeft = 0;
+      return shown;
+    }
+    return false;
+  });
+
+/** How far a laid-out table runs past its frame, in pixels: above zero, it is wider than the field. */
+const widerThanFrame = (table: Locator) =>
+  table.evaluate((el) => el.scrollWidth - el.closest(".card-presentation")!.getBoundingClientRect().width);
+
 /** Unfolds what the fold holds in a part of the page, when it is folded. */
 async function unfold(page: Page, within: Locator) {
   await page.evaluate(() => new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn))));
@@ -543,7 +574,8 @@ test("the definition is laid out as Markdown alone, and nothing of it is hidden"
     "![image](https://pictures.example/x.png)\n\n<script>alert(1)</script>\n\n" +
     '**bold** <img src="https://pictures.example/d.png"> <script>window.__hit=1</script>\n\n' +
     "```js HIDDEN-INFO-WORDS\ncode\n```\n\n| a |\n|---|\n| b | HIDDEN-CELL |\n\n3. three\n7. seven\n\n" +
-    "&#x202E;x&#8203;&lt;b&gt;";
+    "&#x202E;x&#8203;&lt;b&gt;\n\n" +
+    WIDE_TABLE;
   const ilse = await card(request, { description });
   await openPage(page, ilse.id);
   const details = await openModelReads(page);
@@ -570,6 +602,12 @@ test("the definition is laid out as Markdown alone, and nothing of it is hidden"
     await expect(text).toContainText(written);
   await expect(text.locator("pre", { hasText: "HIDDEN-INFO-WORDS" })).toBeVisible();
   await expect(text.locator("td", { hasText: "HIDDEN-CELL" })).toBeVisible();
+  // A table wider than the field: the frame hides what overflows it, so its last columns are
+  // reached by scrolling the table's own box, never cut off.
+  const wide = text.locator("table", { hasText: "LASTCELLWORD" });
+  expect(await widerThanFrame(wide), "the table fits the field, and proves nothing").toBeGreaterThan(0);
+  expect(await reachable(wide.locator("td", { hasText: "LASTCELLWORD" })), "the last cell cannot be reached").toBe(true);
+  expect(await sideways(page), "the page scrolls sideways").toBeLessThanOrEqual(0);
   // Each item keeps the number written before it, not one counted on from the first.
   expect(await text.locator("ol > li").evaluateAll((items) => items.map((li) => (li as HTMLLIElement).value))).toEqual([
     3, 7,
@@ -599,12 +637,22 @@ test("a long definition written under Markdown headings is laid out section by s
   const prose = "She keeps the lamp lit through every storm, and counts the ships that come home. ";
   const subsections = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2];
   const sectionsOfPart = [5, 5, 4];
+  // What such a card writes among its sections, each in a paragraph of its own: the model reads
+  // each as written, and the person must see it so, at this size as in a short field.
+  const pieces = [
+    '<img src="https://pictures.example/x.png">',
+    "[a](https://example.com)",
+    "![i](https://pictures.example/y.png)",
+    "<!-- a note between sections -->",
+    WIDE_TABLE,
+  ];
   let text = "";
   let s = 0;
   for (let p = 0; p < 3; p++) {
     text += `# Part ${p + 1}\n\n${prose.repeat(3)}\n\n`;
     for (let k = 0; k < sectionsOfPart[p]; k++, s++) {
       text += `## Section ${s + 1}\n\n${prose.repeat(3)}\n\n`;
+      if (s % 3 === 1) text += `${pieces[(s - 1) / 3]}\n\n`;
       for (let u = 0; u < subsections[s]; u++) text += `### Detail ${s + 1}.${u + 1}\n\n${prose.repeat(2)}\n\n`;
     }
   }
@@ -626,12 +674,22 @@ test("a long definition written under Markdown headings is laid out section by s
   expect(opened, "the section took more than a tap to open").toBeLessThan(1_000);
   expect(await sideways(page), "the page scrolls sideways").toBeLessThanOrEqual(0);
 
+  // Nothing written among the sections is read as HTML, a link or an image, nor hidden.
+  const shown = field(details, "Description");
+  for (const piece of pieces.slice(0, 4)) await expect(shown).toContainText(piece);
+  await expect(details.locator("img, a, script")).toHaveCount(0);
+  const wide = laid.locator("table", { hasText: "LASTCELLWORD" });
+  expect(await widerThanFrame(wide), "the table fits the field, and proves nothing").toBeGreaterThan(0);
+  expect(await reachable(wide.locator("td", { hasText: "LASTCELLWORD" })), "the last cell cannot be reached").toBe(true);
+
   const pressed = await timed(async () => {
     await details.getByRole("button", { name: "As written" }).click();
     await expect(details.getByRole("button", { name: "As written" })).toHaveAttribute("aria-pressed", "true");
     await expect(laid.locator("h4, h5, h6")).toHaveCount(0);
   });
   expect(pressed, "the switch took more than a tap").toBeLessThan(1_000);
+  // As written, the exact text at this size, every piece among the sections included.
+  expect(await shown.locator("p").evaluate((el) => el.textContent)).toBe(text);
 
   const back = await timed(async () => {
     await details.getByRole("button", { name: "Laid out" }).click();
@@ -639,6 +697,8 @@ test("a long definition written under Markdown headings is laid out section by s
     await expect(laid.locator("h4, h5, h6")).toHaveCount(55);
   });
   expect(back, "the switch back took more than a tap").toBeLessThan(1_000);
+
+  expect(asked.map((r) => r.url()), "a site of the card was contacted").toEqual([]);
 });
 
 test("what the model reads is shown as written when the layout cannot be loaded, with a way to reload", async ({ page, request }) => {

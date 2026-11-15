@@ -1030,6 +1030,22 @@ test("the model's text is laid out as Markdown alone", () => {
   expect(textOf(table.tree)).toContain("hidden cell text");
   expect(tags(table.tree, "td")).toHaveLength(3);
 
+  // Each table, at the top or nested, sits in a box that scrolls sideways: the frame hides what
+  // overflows it, and a wide table's last columns would be out of the person's reach.
+  const boxed = renderModelText("| a | b |\n|---|---|\n| c | d |\n\n> | e |\n> |---|\n> | f |");
+  if (boxed.kind !== "laid-out") throw new Error("not laid out: " + JSON.stringify(boxed));
+  expect(tags(boxed.tree, "table")).toHaveLength(2);
+  const holdsTable = (children: RootContent[]) =>
+    children.some((child) => child.type === "element" && child.tagName === "table");
+  expect(holdsTable(boxed.tree.children)).toBe(false);
+  const holders = elementsOf(boxed.tree)
+    .filter((node) => holdsTable(node.children))
+    .map((node) => [node.tagName, node.properties.className]);
+  expect(holders).toEqual([
+    ["div", ["card-table"]],
+    ["div", ["card-table"]],
+  ]);
+
   // Each item of an ordered list keeps the number written before it.
   const numbered = renderModelText("3. a\n7. b\n1. c");
   if (numbered.kind !== "laid-out") throw new Error("not laid out: " + JSON.stringify(numbered));
