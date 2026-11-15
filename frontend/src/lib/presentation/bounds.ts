@@ -210,8 +210,11 @@ function pairedOnLine(text: string, lineStart: number, from: number, end: number
  *  Last, the runs of backticks, wherever they are (a run: one or more ` in a row). Each is
  *  followed to the next run of the same length in its block, from the first ` of the one to the
  *  first ` of the other, or, when none comes, to the end of its block (as for the openers). Twice
- *  the sum of these distances is added to the cost. The only run of each length still waiting is
- *  kept as its position, settled by the next run of that length or at the end of the block:
+ *  the sum of these distances is added to the cost. A run after an odd number of backslashes
+ *  (in its line, after its prefix) waits as a run one shorter, from its second `, its first being
+ *  escaped; it still settles the runs waiting at its written length, since in a code span a
+ *  backslash is a letter. The runs waiting at each length are kept as a count and a sum of
+ *  positions, settled together by the next run of that length or at the end of the block:
  *  nothing is read twice.
  *  And the labels. In a block, each "[" (and "![", an image's) waits on a stack; each "]" closes
  *  the last one waiting, which costs its distance in characters divided by LABEL_CHARACTERS, plus
@@ -251,8 +254,8 @@ export function layoutCost(text: string): number {
   const waitingLast = [0, 0, 0, 0];
   let openerDistance = 0;
 
-  // The runs of backticks waiting, by length: the position of the only one of each length.
-  let ticks = new Map<number, number>();
+  // The runs of backticks waiting, by length: how many, and the sum of their positions.
+  let ticks = new Map<number, { count: number; sum: number }>();
   let tickDistance = 0;
 
   // The "[" still open in the block, innermost last: where each is, the blanks read before it,
@@ -291,7 +294,7 @@ export function layoutCost(text: string): number {
       waitingSum[kind] = 0;
     }
     if (ticks.size > 0) {
-      for (const position of ticks.values()) tickDistance += at - position;
+      for (const { count, sum } of ticks.values()) tickDistance += count * at - sum;
       ticks = new Map();
     }
     labels = [];
@@ -481,9 +484,25 @@ export function layoutCost(text: string): number {
         let j = k + 1;
         while (j < lineEnd && text.charCodeAt(j) === 96) j++;
         const run = j - k;
-        const waiting = ticks.get(run);
-        if (waiting !== undefined) tickDistance += k - waiting;
-        ticks.set(run, k);
+        // A run closes the open runs of its length as written: inside a code span a backslash
+        // is a letter. It opens one shorter after an odd number of backslashes, the first
+        // backtick escaped; then several runs of one length may wait together.
+        const closed = ticks.get(run);
+        if (closed !== undefined) {
+          tickDistance += closed.count * k - closed.sum;
+          ticks.delete(run);
+        }
+        let escapes = 0;
+        while (k - escapes - 1 >= prefixEnd && text.charCodeAt(k - escapes - 1) === 92) escapes++;
+        const opens = escapes % 2 === 1 ? run - 1 : run;
+        const start = escapes % 2 === 1 ? k + 1 : k;
+        if (opens > 0) {
+          const waiting = ticks.get(opens);
+          if (waiting) {
+            waiting.count++;
+            waiting.sum += start;
+          } else ticks.set(opens, { count: 1, sum: start });
+        }
         inline += run - 1;
         k = j - 1;
       } else if (code === 40) {

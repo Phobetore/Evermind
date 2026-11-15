@@ -689,6 +689,7 @@ test("markup too costly to parse is not laid out", () => {
     COSTLIEST["brackets around tabbed letters"](436),
     COSTLIEST["images around words"](436),
     COSTLIEST["images around tabbed letters"](436),
+    upTo("x " + "\\`` ".repeat(346)),
   ]) {
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooDense" });

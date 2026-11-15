@@ -80,8 +80,9 @@ test("the cost of a text is counted without parsing it", () => {
   expect(layoutCost("`*a` a*")).toBe(2_534);
   expect(layoutCost("\\*a* b")).toBe(2_006);
 
-  // Runs of backticks.
+  // Runs of backticks; after a backslash, a run opens one shorter, and two may then wait together.
   expect(layoutCost("x ` `` ``` word")).toBe(3_606);
+  expect(layoutCost("x \\`` \\`` y")).toBe(3_540);
 
   // A label, at its "]": its characters from its "[", and far more its blanks; twice for an image.
   expect(layoutCost("[a\tb]")).toBe(1_508);
@@ -110,6 +111,7 @@ test("the cost of a text is counted without parsing it", () => {
     runs,
     "[a](b " + " (".repeat(1_000_000),
     "![\t".repeat(1_000_000) + "]".repeat(1_000_000),
+    "\\`` ".repeat(1_000_000),
   ]) {
     const [, elapsed] = timed(() => layoutCost(text));
     expect(elapsed).toBeLessThan(500);

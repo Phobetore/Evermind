@@ -26,6 +26,13 @@ function around(open: string, close: string, unit: string) {
   };
 }
 
+/** Filled with letters each followed by a tab up to LAYOUT_BOUND characters: a tab makes each
+ *  character a piece of its own for the parser. */
+function tabbed(text: string): string {
+  const room = Math.max(0, LAYOUT_BOUND - text.length);
+  return text + "a\t".repeat(Math.ceil(room / 2)).slice(0, room);
+}
+
 function backtickRuns(count: number): string {
   let runs = "";
   for (let n = 1; n <= count; n++) runs += "`".repeat(n) + " ";
@@ -131,6 +138,9 @@ export const COSTLIEST: Record<string, (count: number) => string> = {
   "backtick runs of every length, then a line of words": (n) => words("x " + backtickRuns(n) + "\n"),
   "ten backtick runs, then words": (n) => "x " + backtickRuns(10) + "word ".repeat(n),
   "single backticks, then words": (n) => words("x " + "` ".repeat(n)),
+  // A backslash before a run: it opens one shorter, and no run of its own length closes it.
+  "escaped backtick runs, then words": (n) => words("x " + "\\`` ".repeat(n)),
+  "escaped backtick runs, then tabbed letters": (n) => tabbed("x " + "\\`` ".repeat(n)),
   "lines of a backtick, then words": (n) => words(lines("`a")(n) + "\n"),
   // Link titles without their ")".
   "titles without end": (n) => words("x " + "[a](b (".repeat(n)),
