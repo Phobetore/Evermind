@@ -479,6 +479,13 @@ test("an image that cannot be had says so", async ({ page }) => {
   await expect(box.getByText("Image unavailable (pictures.example)")).toBeVisible();
 });
 
+test("a presentation whose layout fails says why it is plain", async ({ page }) => {
+  // Nested deeper than the walk of the layout goes: it fails, and the text is shown plainly.
+  const box = await openCard(page, "<div>".repeat(2_399) + "She keeps the lamp.", { plain: true });
+  await expect(box.getByText("She keeps the lamp.")).toBeVisible();
+  await expect(page.getByText("Too dense to lay out: shown without its layout.")).toBeVisible();
+});
+
 test("an image too large for a phone is not decoded", async ({ page }) => {
   let box = await openCard(page, `<img src="${pngHeader(20_000, 20_000)}" alt="huge">`);
   await expect(box.getByText("Image too large to show (20000 × 20000 pixels)")).toBeVisible();

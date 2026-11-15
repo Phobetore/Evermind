@@ -56,7 +56,9 @@ export function ModelText({ text, asWritten = false, className }: { text: string
         : null,
     [rendered],
   );
-  const reason = rendered?.kind === "plain" && rendered.reason !== "failed" ? rendered.reason : null;
+  // A layout that failed on its way (a nesting too deep for a walk) is a text too dense for it: the
+  // person is told why it is plain, as past a bound.
+  const reason = rendered?.kind === "plain" ? (rendered.reason === "failed" ? "tooDense" : rendered.reason) : null;
 
   return (
     <div className={className}>

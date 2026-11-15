@@ -83,7 +83,9 @@ export function Presentation({ text }: { text: string }) {
   // Linear, but 15 MB are not read again on every render.
   const plain = useMemo(() => (laidOut ? "" : plainPresentation(text)), [laidOut, text]);
 
-  const reason = rendered?.kind === "plain" && rendered.reason !== "failed" ? rendered.reason : null;
+  // A layout that failed on its way (a nesting too deep for a walk) is a text too dense for it: the
+  // person is told why it is plain, as past a bound.
+  const reason = rendered?.kind === "plain" ? (rendered.reason === "failed" ? "tooDense" : rendered.reason) : null;
   const hosts = laidOut?.remoteHosts ?? [];
   const named = hosts.slice(0, 3).map(shortHost);
 
