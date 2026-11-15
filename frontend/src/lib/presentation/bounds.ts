@@ -15,6 +15,10 @@ export const REBUILT_BOUND = 5_000;
 export const COPIED_BOUND = 1_000_000;
 /** The squared count of attribute names on one tag: the parser compares each with the others. */
 export const ATTRIBUTE_NAMES_BOUND = 4_000_000;
+/** The slots the cells of one table cover, each its columns times its rows, added up; past it the
+ *  table loses its spans. Each span is bounded alone (1 to 100), but two thousand of them made a
+ *  grid of 220,000 columns that the browser took 51 s to lay out; at this budget, 56 ms at most. */
+export const SPAN_BUDGET = 10_000;
 /** Elements nested deeper are unwrapped: rendering and the browser's layout are recursive. */
 export const DEPTH_BOUND = 64;
 /** The payload of all the images written into a presentation, together: two 3 MB banners. */

@@ -479,6 +479,24 @@ test("an image that cannot be had says so", async ({ page }) => {
   await expect(box.getByText("Image unavailable (pictures.example)")).toBeVisible();
 });
 
+test("a table of thousands of spans is laid out in time", async ({ page }) => {
+  // Each span within its bound, together a grid of 220,000 columns: 51 s of layout on a PC.
+  const grid = "<table><tr>" + "<td colspan=100 rowspan=100>x".repeat(2_200) + "<tr><td>y".repeat(90) + "</table>";
+  const box = await openCard(page, grid);
+  await expect(box.locator("td")).toHaveCount(2_290);
+  await expect(box.locator("td[colspan], td[rowspan]")).toHaveCount(0);
+  // The frame laid out again from nothing, timed.
+  const elapsed = await box.evaluate((frame) => {
+    const start = performance.now();
+    (frame as HTMLElement).style.display = "none";
+    void (frame as HTMLElement).offsetHeight;
+    (frame as HTMLElement).style.display = "";
+    void (frame as HTMLElement).offsetHeight;
+    return performance.now() - start;
+  });
+  expect(elapsed).toBeLessThan(250);
+});
+
 test("an image over http says from where it would have come, and is never asked for", async ({ page }) => {
   const box = await openCard(page, "![plain](http://insecure.example/a.png)");
   await expect(box.getByText("Image from insecure.example not shown: the address is not secure (http)")).toBeVisible();

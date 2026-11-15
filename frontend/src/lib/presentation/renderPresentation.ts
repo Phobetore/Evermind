@@ -16,6 +16,7 @@ import {
   INLINE_PIXEL_BUDGET,
   LAYOUT_BOUND,
   REBUILT_BOUND,
+  SPAN_BUDGET,
   layoutRefusal,
 } from "./bounds";
 import { INLINE_IMAGE, imageSource } from "./images";
@@ -905,10 +906,13 @@ function cardRules(found: Found) {
       code: false,
       mark: false,
     };
-    const stack: Array<[RootContent | ElementContent, Context]> = [];
-    for (let i = tree.children.length - 1; i >= 0; i--) stack.push([tree.children[i], root]);
+    // The cells of each table, and the slots their spans cover, added up: a span is bounded alone,
+    // but thousands of them make a grid the browser's layout takes minutes over.
+    const grids = new Map<Element, { cells: Element[]; slots: number }>();
+    const stack: Array<[RootContent | ElementContent, Context, Element | null]> = [];
+    for (let i = tree.children.length - 1; i >= 0; i--) stack.push([tree.children[i], root, null]);
     while (stack.length > 0) {
-      const [node, context] = stack.pop()!;
+      const [node, context, outer] = stack.pop()!;
       if (node.type !== "element") continue;
       const element = node;
       const properties: Properties = element.properties;
@@ -919,7 +923,7 @@ function cardRules(found: Found) {
         if (target === null) {
           // Its text stays, in its parent's place.
           unwrap.add(element);
-          for (let i = element.children.length - 1; i >= 0; i--) stack.push([element.children[i], context]);
+          for (let i = element.children.length - 1; i >= 0; i--) stack.push([element.children[i], context, outer]);
           continue;
         }
         properties.href = target;
@@ -976,8 +980,24 @@ function cardRules(found: Found) {
         if (value === null || value < 1 || value > 100) delete properties[name];
         else properties[name] = value;
       }
+      const table = element.tagName === "table" ? element : outer;
+      if (table !== null && (element.tagName === "td" || element.tagName === "th")) {
+        const grid = grids.get(table) ?? { cells: [], slots: 0 };
+        grids.set(table, grid);
+        grid.cells.push(element);
+        grid.slots += Number(properties.colSpan ?? 1) * Number(properties.rowSpan ?? 1);
+      }
 
-      for (let i = element.children.length - 1; i >= 0; i--) stack.push([element.children[i], inner]);
+      for (let i = element.children.length - 1; i >= 0; i--) stack.push([element.children[i], inner, table]);
+    }
+
+    // Past the budget, a table keeps its cells, side by side, without their spans.
+    for (const { cells, slots } of grids.values()) {
+      if (slots <= SPAN_BUDGET) continue;
+      for (const cell of cells) {
+        delete cell.properties.colSpan;
+        delete cell.properties.rowSpan;
+      }
     }
 
     // The links that lead nowhere give their place to their content, and each table gets the box

@@ -172,6 +172,24 @@ test("an image's size and a cell's span are kept only when written in digits alo
   ]);
 });
 
+test("a table whose spans make too large a grid keeps its cells without them", () => {
+  // Each span within its bound, together a grid of 220,000 columns: 51 s of the browser's layout.
+  const grid = "<table><tr>" + "<td colspan=100 rowspan=100>x".repeat(2_200) + "<tr><td>y".repeat(90) + "</table>";
+  expect(layoutRefusal(grid, layoutLength(grid))).toBeNull();
+  const cells = tags(laidOut(grid), "td");
+  expect(cells).toHaveLength(2_290);
+  expect(cells.filter((cell) => cell.colSpan !== undefined || cell.rowSpan !== undefined)).toEqual([]);
+
+  // Under the budget, and in another table beside it, the spans stay.
+  const honest = "<table><tr><th colspan=3>Keeper</th></tr><tr><td rowspan=2>a</td><td>b</td><td>c</td></tr></table>";
+  const both = laidOut(honest + "\n\n" + grid);
+  expect(tags(both, "th").map((cell) => cell.colSpan)).toEqual([3]);
+  expect(tags(both, "td")[0].rowSpan).toBe(2);
+  // A table inside a cell is a grid of its own.
+  const nested = laidOut("<table><tr><td>" + grid + "</td><td colspan=2>z</td></tr></table>");
+  expect(tags(nested, "td").at(-1)?.colSpan).toBe(2);
+});
+
 test("nothing that runs survives, in any spelling", () => {
   const hostile = [
     "<img src=x onerror=alert(1)>",
