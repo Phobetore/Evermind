@@ -18,6 +18,14 @@ function words(text: string): string {
   return text + " word".repeat(Math.ceil((LAYOUT_BOUND - text.length) / 5)).slice(0, LAYOUT_BOUND - text.length);
 }
 
+/** Filled with `unit` up to LAYOUT_BOUND characters between `count` openers and their closers. */
+function around(open: string, close: string, unit: string) {
+  return (count: number) => {
+    const room = Math.max(0, LAYOUT_BOUND - count * (open.length + close.length));
+    return open.repeat(count) + unit.repeat(Math.ceil(room / unit.length)).slice(0, room) + close.repeat(count);
+  };
+}
+
 function backtickRuns(count: number): string {
   let runs = "";
   for (let n = 1; n <= count; n++) runs += "`".repeat(n) + " ";
@@ -54,6 +62,13 @@ export const COSTLIEST: Record<string, (count: number) => string> = {
   "brackets opened then closed": (n) => "[".repeat(n) + "]".repeat(n),
   "unfinished links": (n) => "[a](".repeat(n),
   "unfinished references": (n) => "[a][".repeat(n),
+  // Labels around a long span, which the parser goes over again at each "]": its blanks above all.
+  "brackets around letters": around("[", "]", "a"),
+  "brackets around words": around("[", "]", "word "),
+  "brackets around tabbed letters": around("[", "]", "a\t"),
+  "images around letters": around("![", "](a)", "a"),
+  "images around words": around("![", "](a)", "word "),
+  "images around tabbed letters": around("![", "](a)", "a\t"),
   // Containers that go on over plain lines.
   "a quote then plain lines": (n) => "> a\n" + lines("b")(n),
   "a list item then plain lines": (n) => "- a\n" + lines("b")(n),

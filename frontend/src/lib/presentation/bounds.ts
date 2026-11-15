@@ -38,6 +38,13 @@ const enum Kind {
 const OPENER_LENGTH = [4, 2, 9, 2];
 const END_LENGTH = [3, 2, 3, 1];
 
+// What the parser goes over again for a label, at its "]": every character from its "[" (it
+// serialises the span to look the label up), and far more for each blank, which splits that
+// span into pieces it normalises one by one; twice as much for an image's label.
+const LABEL_CHARACTERS = 80;
+const LABEL_BLANK = 1;
+const IMAGE_LABEL = 2;
+
 function isBlank(code: number): boolean {
   return code === 32 || code === 9;
 }
@@ -206,6 +213,12 @@ function pairedOnLine(text: string, lineStart: number, from: number, end: number
  *  the sum of these distances is added to the cost. The only run of each length still waiting is
  *  kept as its position, settled by the next run of that length or at the end of the block:
  *  nothing is read twice.
+ *  And the labels. In a block, each "[" (and "![", an image's) waits on a stack; each "]" closes
+ *  the last one waiting, which costs its distance in characters divided by LABEL_CHARACTERS, plus
+ *  LABEL_BLANK for each space, tab or line break between them, IMAGE_LABEL times as much for an
+ *  image's; the sum, rounded up, is added to the cost. The parser serialises and normalises the
+ *  whole span at each "]", piece by piece, and a blank makes a piece. The stack empties at the
+ *  end of a block.
  *  And the link titles opened by a parenthesis. In a block, once "](" has been read in it,
  *  every "(" that follows a blank, or that is the first character of a line after its prefix,
  *  may open a title (micromark opens one only after a destination and a blank, and looks for its
@@ -242,6 +255,12 @@ export function layoutCost(text: string): number {
   let ticks = new Map<number, number>();
   let tickDistance = 0;
 
+  // The "[" still open in the block, innermost last: where each is, the blanks read before it,
+  // and whether it opens an image.
+  let labels: Array<{ at: number; blanks: number; image: boolean }> = [];
+  let blanks = 0;
+  let labelCost = 0;
+
   // The link titles waiting for their ")".
   let titleCount = 0;
   let titleSum = 0;
@@ -275,6 +294,7 @@ export function layoutCost(text: string): number {
       for (const position of ticks.values()) tickDistance += at - position;
       ticks = new Map();
     }
+    labels = [];
     titleDistance += titleCount * at - titleSum;
     titleCount = 0;
     titleSum = 0;
@@ -368,6 +388,8 @@ export function layoutCost(text: string): number {
       continue;
     }
 
+    // The line break before this line, read by a label that spans it.
+    blanks++;
     const continued = Math.min(Math.floor(columns / 2), open);
     const containers = markers + continued;
     const items = continued + listMarkers;
@@ -444,6 +466,15 @@ export function layoutCost(text: string): number {
       } else if (code === 93) {
         if (text.startsWith("]]>", k)) settle(Kind.Cdata, k);
         if (text.charCodeAt(k + 1) === 40) blockLinkSeen = true;
+        const label = labels.pop();
+        if (label !== undefined) {
+          const cost = (k - label.at) / LABEL_CHARACTERS + (blanks - label.blanks) * LABEL_BLANK;
+          labelCost += label.image ? IMAGE_LABEL * cost : cost;
+        }
+      } else if (code === 91) {
+        labels.push({ at: k, blanks, image: k > 0 && text.charCodeAt(k - 1) === 33 });
+      } else if (code === 32 || code === 9) {
+        blanks++;
       } else if (code === 62) {
         settle(Kind.Declaration, k);
       } else if (code === 96) {
@@ -492,7 +523,11 @@ export function layoutCost(text: string): number {
   endBlock(length);
 
   return (
-    cost + Math.ceil(openerDistance / 4) + 2 * tickDistance + Math.ceil(titleDistance / 2)
+    cost +
+    Math.ceil(openerDistance / 4) +
+    2 * tickDistance +
+    Math.ceil(titleDistance / 2) +
+    Math.ceil(labelCost)
   );
 }
 

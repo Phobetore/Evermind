@@ -631,9 +631,14 @@ test("a text of the bound's length lays out in time", () => {
   expect(bracketText.indexOf("a")).toBeGreaterThanOrEqual(300);
   expect(boldText.split("<b>").length - 1).toBeGreaterThanOrEqual(1_000);
 
+  // Brackets and images around words and tabs, which the parser goes over far more slowly.
+  const around = ["brackets around words", "brackets around tabbed letters", "images around words", "images around tabbed letters"].map(
+    (name) => largestLaidOut(COSTLIEST[name]),
+  );
+
   let words = "";
   while (words.length < LAYOUT_BOUND) words += "word ";
-  for (const text of [words.slice(0, LAYOUT_BOUND), bracketText, boldText]) {
+  for (const text of [words.slice(0, LAYOUT_BOUND), bracketText, boldText, ...around]) {
     expect(text.length).toBe(LAYOUT_BOUND);
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered.kind).toBe("laid-out");
@@ -680,6 +685,10 @@ test("markup too costly to parse is not laid out", () => {
     upTo(runs),
     upTo("x " + "[a](b (".repeat(400)),
     table,
+    // Measured at 2 s and more before labels and escapes were counted.
+    COSTLIEST["brackets around tabbed letters"](436),
+    COSTLIEST["images around words"](436),
+    COSTLIEST["images around tabbed letters"](436),
   ]) {
     const [rendered, elapsed] = timed(() => renderPresentation(text));
     expect(rendered).toEqual({ kind: "plain", reason: "tooDense" });

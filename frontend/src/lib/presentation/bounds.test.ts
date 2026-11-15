@@ -83,17 +83,21 @@ test("the cost of a text is counted without parsing it", () => {
   // Runs of backticks.
   expect(layoutCost("x ` `` ``` word")).toBe(3_606);
 
+  // A label, at its "]": its characters from its "[", and far more its blanks; twice for an image.
+  expect(layoutCost("[a\tb]")).toBe(1_508);
+  expect(layoutCost("![a\tb](c)")).toBe(1_509);
+
   // HTML openers.
   expect(layoutCost("<!-- a")).toBe(1_002);
   expect(layoutCost("<!-- a --> b")).toBe(1_003);
   expect(layoutCost("x <!-- a\nb\n\nc")).toBe(2_503);
-  expect(layoutCost("<?x a ?> <![CDATA[ b ]]> <!DOCTYPE c> d")).toBe(4_029);
+  expect(layoutCost("<?x a ?> <![CDATA[ b ]]> <!DOCTYPE c> d")).toBe(4_036);
 
   // Link titles.
-  expect(layoutCost("[a](b (c d e f")).toBe(1_510);
-  expect(layoutCost("[a](b (c) d e f")).toBe(1_507);
-  expect(layoutCost("[a](b (c\\) d")).toBe(2_009);
-  expect(layoutCost("[a](b\n(c d")).toBe(2_010);
+  expect(layoutCost("[a](b (c d e f")).toBe(1_511);
+  expect(layoutCost("[a](b (c) d e f")).toBe(1_508);
+  expect(layoutCost("[a](b (c\\) d")).toBe(2_010);
+  expect(layoutCost("[a](b\n(c d")).toBe(2_011);
   expect(layoutCost("x (c d e f")).toBe(500);
 
   // Each is counted in time, however long.
@@ -105,6 +109,7 @@ test("the cost of a text is counted without parsing it", () => {
     "<!--".repeat(2_000_000),
     runs,
     "[a](b " + " (".repeat(1_000_000),
+    "![\t".repeat(1_000_000) + "]".repeat(1_000_000),
   ]) {
     const [, elapsed] = timed(() => layoutCost(text));
     expect(elapsed).toBeLessThan(500);
