@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
 import { LAYOUT_BOUND, PLAIN_PART } from "../src/lib/presentation/bounds";
+import { largestLaidOut } from "../src/lib/presentation/costliest";
 import { makeCharacter, makeConversation, policyViolations, watchPolicy } from "./fixtures";
 
 /** A card's page: the author's presentation first, then the openings, then what the model reads,
@@ -327,7 +328,7 @@ test("a presentation of megabytes of quote marks is shown plainly, on the page a
   expect(thrown).toEqual([]);
 });
 
-test("a greeting that changes direction at each letter, or of Thai without a space, is laid out in time", async ({ page, request }) => {
+test("a greeting that changes direction or script at each letter, or of Thai without a space, is laid out in time", async ({ page, request }) => {
   test.setTimeout(120_000);
   // The box laid out again from nothing, timed: the browser's own layout, past the parsers.
   const relaid = (box: Locator) =>
@@ -341,13 +342,16 @@ test("a greeting that changes direction at each letter, or of Thai without a spa
     });
   const thai = "สวัสดีครับยินดีต้อนรับสู่ประภาคาร";
   // Measured on 15/11, 100,000 characters each: 3.2 s and 2.1 s on a PC, before they were counted;
-  // 99 paragraphs of Phoenician or Adlam against Latin, written as surrogate pairs, 17 and 23 s.
+  // 99 paragraphs of Phoenician or Adlam against Latin, written as surrogate pairs, 17 and 23 s;
+  // shown plainly, a part of Phoenician still took 0.7 s while only its changes of direction were
+  // counted: the browser looks its font up at each run, as for Tagalog, 2 ms a run.
   const paragraphs = (letter: string) => Array(99).fill(("a" + letter).repeat(333)).join("\n\n");
   for (const greeting of [
     "aא".repeat(50_000),
     thai.repeat(Math.ceil(100_000 / thai.length)).slice(0, 100_000),
     paragraphs("\u{10900}"),
     paragraphs("\u{1E900}"),
+    paragraphs("ᜀ"),
   ]) {
     const convo = await conversationOf(request, { greeting });
     await openPage(page, convo.character_id);
@@ -358,6 +362,21 @@ test("a greeting that changes direction at each letter, or of Thai without a spa
     const first = page.locator("[data-message-id]").first();
     await expect(first.getByText(/Part 1 of \d+/)).toBeVisible({ timeout: 30_000 });
     expect(await relaid(first), "the greeting in its conversation").toBeLessThan(250);
+  }
+
+  // The most runs the bound lets through, laid out.
+  for (const letter of ["ᜀ", "\u{10900}"]) {
+    const greeting = largestLaidOut((count) => `a${letter} `.repeat(count));
+    const convo = await conversationOf(request, { greeting });
+    await openPage(page, convo.character_id);
+    await expect(opening(page)).toContainText(greeting.slice(0, 12));
+    await expect(opening(page).getByText(en.characters.presentation.tooDense)).toHaveCount(0);
+    expect(await relaid(opening(page)), "the opening on the card's page, laid out").toBeLessThan(250);
+
+    await page.goto(`/#/chat/${convo.id}`);
+    const first = page.locator("[data-message-id]").first();
+    await expect(first).toContainText(greeting.slice(0, 12));
+    expect(await relaid(first), "the greeting in its conversation, laid out").toBeLessThan(250);
   }
   expect(thrown).toEqual([]);
 });

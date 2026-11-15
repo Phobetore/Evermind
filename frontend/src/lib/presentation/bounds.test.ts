@@ -99,12 +99,21 @@ test("the cost of a text is counted without parsing it", () => {
   expect(layoutRefusal("aא".repeat(50_000))).toBe("tooDense");
   // Right-to-left scripts past the first plane, written as surrogate pairs, change direction
   // too: 99 paragraphs of Phoenician or Adlam against Latin held Chromium 17 to 23 s (15/11).
-  expect(layoutCost("a\u{10900}a")).toBe(1_501);
-  expect(layoutCost("a\u{1E900}a")).toBe(1_501);
-  for (const letter of ["\u{10900}", "\u{1E900}"]) {
+  // And the browser looks their font up again at each run, as for every script it has no font of
+  // its own for, written either way: Tagalog between Latin letters, 2 ms a run.
+  expect(layoutCost("a\u{10900}a")).toBe(7_501);
+  expect(layoutCost("a\u{1E900}a")).toBe(7_501);
+  expect(layoutCost("aᜀa")).toBe(15_501);
+  // Blanks, digits and punctuation do not end a run; a letter of another script or a line does.
+  expect(layoutCost("ᜀᜁ ᜂ, 12 ᜃ.")).toBe(15_501);
+  expect(layoutCost("ᜀ a ᜀ")).toBe(30_501);
+  expect(layoutCost("ᜀ\nᜀ")).toBe(31_001);
+  for (const letter of ["\u{10900}", "\u{1E900}", "ᜀ", "\u{11103}", "ܐ"]) {
     const paragraph = ("a" + letter).repeat(333);
     expect(layoutRefusal(Array(99).fill(paragraph).join("\n\n")), letter).toBe("tooDense");
     expect(plainCuts(paragraph.repeat(100)).length, letter).toBeGreaterThan(1);
+    // A text written in the script, in paragraphs, is laid out.
+    expect(layoutRefusal(Array(60).fill((letter.repeat(6) + " ").repeat(100)).join("\n\n")), letter).toBeNull();
   }
   // An emoji in a Hebrew text changes no direction.
   expect(layoutCost("א😀א")).toBe(501);

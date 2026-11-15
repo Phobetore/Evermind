@@ -46,6 +46,17 @@ export const DICTIONARY_RUN = 400;
  *  characters that change direction at each one, 3.2 s; each change across a blank costs about a
  *  quarter. */
 export const SPACED_CHANGE = 62;
+/** A run of a script the browser finds no font for among those it knows, which it looks for again
+ *  at each run, through the system: FONTLESS_RUN for the scripts Windows has no font for
+ *  (Samaritan, Tagalog, Balinese, Linear B, Chakma, Hanifi Rohingya…), about 2 ms each in
+ *  Chromium on the PC; HISTORIC_RUN for those its historic and supplementary fonts hold (Syriac,
+ *  Gothic, Phoenician, Cuneiform, Adlam…), 0.5 to 0.8 ms each (measured on 15/11, every script of
+ *  Unicode written letter by letter between Latin letters). Blanks, digits and punctuation do not
+ *  end a run; a letter of another script, an emoji or a line does: 99 paragraphs of Phoenician
+ *  against Latin held Chromium 17 s. At the bound, 80 runs of the first or 200 of the second, 170
+ *  ms. A text written in one of these scripts makes a run of each paragraph. */
+export const FONTLESS_RUN = 15_000;
+export const HISTORIC_RUN = 6_000;
 
 const enum Kind {
   Comment,
@@ -106,27 +117,66 @@ function strongOf(code: number): number {
   return 1;
 }
 
+// The blocks of the scripts of HISTORIC_RUN, then of FONTLESS_RUN, as first and last code points.
+const HISTORIC_BLOCKS = [
+  0x0700, 0x074f, 0x0860, 0x086f, 0xa6a0, 0xa6ff, 0x10280, 0x102df, 0x10300, 0x1034f, 0x10380, 0x104ff,
+  0x10800, 0x1085f, 0x10900, 0x1093f, 0x109a0, 0x109ff, 0x10a00, 0x10a7f, 0x10b40, 0x10b7f, 0x10c00,
+  0x10c4f, 0x11000, 0x1107f, 0x12000, 0x1254f, 0x13000, 0x143ff, 0x16800, 0x16a3f, 0x1e900, 0x1e95f,
+];
+const FONTLESS_BLOCKS = [
+  0x0800, 0x085f, 0x1700, 0x177f, 0x1900, 0x194f, 0x1a20, 0x1aaf, 0x1b00, 0x1c4f, 0x1cc0, 0x1ccf,
+  0xa800, 0xa82f, 0xa880, 0xa8df, 0xa900, 0xa95f, 0xaa00, 0xaa5f, 0xaa80, 0xaaff, 0xabc0, 0xabff,
+  // The rest of the supplementary letters but the kana, Tangut and Khitan, and the historic ones
+  // above, which are read first.
+  0x10000, 0x16fdf, 0x1b170, 0x1bcaf, 0x1e000, 0x1e8df, 0x1e960, 0x1efff,
+];
+
+function inBlocks(blocks: number[], code: number): number {
+  for (let i = 0; i < blocks.length; i += 2) if (code >= blocks[i] && code <= blocks[i + 1]) return blocks[i];
+  return -1;
+}
+
+/** The block of a character's script when the browser looks for its font at each run, and the
+ *  cost of a run: [-1, 0] for any other. */
+function fallbackOf(code: number): [number, number] {
+  if (code < 0x0700 || (code >= 0x1d00 && code < 0xa6a0) || (code >= 0xac00 && code < 0x10000)) return [-1, 0];
+  let block = inBlocks(HISTORIC_BLOCKS, code);
+  if (block >= 0) return [block, HISTORIC_RUN];
+  block = inBlocks(FONTLESS_BLOCKS, code);
+  return block >= 0 ? [block, FONTLESS_RUN] : [-1, 0];
+}
+
+/** A blank, a digit, punctuation or a mark: what goes on with the run of the script around it. */
+function keepsRun(code: number): boolean {
+  if (code < 0x80) return !((code >= 65 && code <= 90) || (code >= 97 && code <= 122));
+  return code === 0xa0 || (code >= 0x300 && code <= 0x36f) || (code >= 0x2000 && code <= 0x206f) || (code >= 0xfe00 && code <= 0xfe0f);
+}
+
 /** Thai, Lao, Myanmar and Khmer: scripts broken into lines by a dictionary. */
 function isDictionary(code: number): boolean {
   return (code >= 0x0e00 && code <= 0x0eff) || (code >= 0x1000 && code <= 0x109f) || (code >= 0x1780 && code <= 0x17ff);
 }
 
 /** What the browser's layout pays for the characters of a line beyond the parsers: the changes
- *  of direction and the runs of a dictionary script, read one character at a time; the square
- *  of the other scripts is the caller's, by block or by line. */
+ *  of direction, the runs of a dictionary script and the runs of a script it looks a font up for,
+ *  read one character at a time; the square of the other scripts is the caller's, by block or by
+ *  line. */
 interface Script {
   direction: Direction;
   spaced: boolean;
   run: number;
+  // The block of the script whose run goes on, or -1.
+  font: number;
   cost: number;
 }
 
-const newScript = (): Script => ({ direction: Direction.None, spaced: false, run: 0, cost: 0 });
+const newScript = (): Script => ({ direction: Direction.None, spaced: false, run: 0, font: -1, cost: 0 });
 
 function startLine(script: Script) {
   script.direction = Direction.None;
   script.spaced = false;
   script.run = 0;
+  script.font = -1;
 }
 
 /** Reads the character at `index`: a whole code point at the first half of a surrogate pair, and
@@ -157,6 +207,11 @@ function readScript(script: Script, code: number) {
     script.run++;
     script.cost += (2 * script.run - 1) / DICTIONARY_RUN;
   } else script.run = 0;
+  const [block, cost] = fallbackOf(code);
+  if (block >= 0) {
+    if (block !== script.font) script.cost += cost;
+    script.font = block;
+  } else if (!keepsRun(code)) script.font = -1;
 }
 
 function isBlank(code: number): boolean {
