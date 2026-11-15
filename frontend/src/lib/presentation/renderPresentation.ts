@@ -925,10 +925,49 @@ function numberLongList(found: Found, list: Element) {
   items.forEach((item, index) => numberItem(item, `${start + index}.`));
 }
 
+// The longest text a heading keeps its look for, in code points: about two lines of a phone at
+// heading size. Cards often write whole paragraphs behind `##` or `###`: laid out as headings they
+// are walls of bold text, and a heading of 600 characters fills a phone's screen.
+const HEADING_LONGEST = 120;
+
+const SOURCE_HEADINGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
+
+/** Each heading whose own text is longer than HEADING_LONGEST becomes a paragraph, its words and
+ *  attributes kept: a paragraph to the eye and to a screen reader. One walk after the tree's end
+ *  adds up each element's length, capped past the longest, so that headings nested in headings
+ *  (an HTML presentation can write them) are never counted again. Run before the headings are
+ *  renamed. */
+function longHeadingsAsParagraphs(tree: Root): void {
+  const lengths = new Map<Element, number>();
+  const stack: Array<[RootContent | ElementContent, boolean]> = [];
+  for (const child of tree.children) stack.push([child, false]);
+  while (stack.length > 0) {
+    const [node, done] = stack.pop()!;
+    if (node.type !== "element") continue;
+    if (!done) {
+      stack.push([node, true]);
+      for (const child of node.children) stack.push([child, false]);
+      continue;
+    }
+    let length = 0;
+    for (const child of node.children) {
+      if (length > HEADING_LONGEST) break;
+      if (child.type === "text") {
+        // Code points: a pair of surrogates is one letter.
+        const iterator = child.value[Symbol.iterator]();
+        while (length <= HEADING_LONGEST && !iterator.next().done) length++;
+      } else if (child.type === "element") length += lengths.get(child) ?? 0;
+    }
+    lengths.set(node, Math.min(length, HEADING_LONGEST + 1));
+    if (SOURCE_HEADINGS.has(node.tagName) && length > HEADING_LONGEST) node.tagName = "p";
+  }
+}
+
 /** The card's own rules, on the tree already sanitized, in one walk that knows the ancestors. */
 function cardRules(found: Found) {
   return (tree: Root) => {
     boundDepth()(tree);
+    longHeadingsAsParagraphs(tree);
     const appOrigin = globalThis.location?.origin;
     const unwrap = new Set<Element>();
     const seenHosts = new Set<string>();
@@ -1137,6 +1176,7 @@ function modelTree() {
     const source = String(file.value);
     // A box holds its table already: boxing it again would never end.
     const boxes = new Set<Element>();
+    longHeadingsAsParagraphs(tree);
     tree.children = boxTables(tree.children, boxes);
     const stack: RootContent[] = [...tree.children];
     while (stack.length > 0) {

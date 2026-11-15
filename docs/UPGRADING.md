@@ -22,6 +22,8 @@ to know what changes.
   positions, negative margins, animations and scripts of a card do not get
   through. A bare web address, a footnote (`[^1]`), a checkbox (`- [ ]`) and a
   reference link (`[text][r]`) stay as the text written.
+  A heading longer than 120 characters, there or in "What the model reads", is
+  shown as a paragraph, at the size of the text around it.
 - **Pictures from other sites** are asked for only when you tap, and only for
   that visit, and the site is not told where the request comes from. Pictures
   over `http` never show. A link that holds a picture asks before it opens. A

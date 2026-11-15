@@ -884,6 +884,44 @@ test("a long definition written under Markdown headings is laid out section by s
   expect(asked.map((r) => r.url()), "a site of the card was contacted").toEqual([]);
 });
 
+test("a definition that writes its paragraphs as headings shows the long ones at the body's size on a phone", async ({ page, request }) => {
+  // Invented words, in the shape of a card measured on 15/11: 3 short # headings, 14 ## of which
+  // 5 run past 120 characters, 38 ### of which 30 do.
+  const words = (length: number) => "Merrow kindles the vashet lamp for drovels, and numbers them. ".repeat(20).slice(0, length);
+  const blocks = [
+    ...Array.from({ length: 3 }, (_, i) => `# Part ${i + 1}`),
+    ...Array.from({ length: 9 }, () => "## " + words(100)),
+    ...Array.from({ length: 5 }, (_, i) => "## LONGSECTION " + words(123 + i * 60)),
+    ...Array.from({ length: 8 }, () => "### " + words(90)),
+    ...Array.from({ length: 30 }, (_, i) => "### LONGDETAIL " + words(224 + i * 20)),
+    "Wrenna counts the drovels home, one by one, as the tide turns.",
+  ];
+  const ilse = await card(request, { description: blocks.join("\n\n") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openPage(page, ilse.id);
+  const details = modelReads(page);
+  await openModelReads(page);
+  const laid = field(details, "Description").locator(".card-presentation");
+  await expect(laid.locator("h4")).toHaveCount(3);
+  await expect(laid.locator("h5")).toHaveCount(9);
+  await expect(laid.locator("h6")).toHaveCount(8);
+  await expect(laid.getByRole("heading")).toHaveCount(20);
+  const long = laid.locator("p", { hasText: /LONGSECTION|LONGDETAIL/ });
+  await expect(long).toHaveCount(35);
+  const body = await laid.locator("p", { hasText: "Wrenna counts" }).evaluate((el) => {
+    const style = getComputedStyle(el);
+    return [style.fontSize, style.fontWeight, style.fontFamily];
+  });
+  const looks = await long.evaluateAll((els) =>
+    els.map((el) => {
+      const style = getComputedStyle(el);
+      return [style.fontSize, style.fontWeight, style.fontFamily];
+    }),
+  );
+  for (const looked of looks) expect(looked).toEqual(body);
+  expect(await sideways(page), "the page scrolls sideways").toBeLessThanOrEqual(0);
+});
+
 test("what the model reads is shown as written when the layout cannot be loaded, with a way to reload", async ({ page, request }) => {
   await page.route("**/assets/renderPresentation-*.js", (route) => route.abort());
   const ilse = await card(request, { description: "Some **bold** words." });

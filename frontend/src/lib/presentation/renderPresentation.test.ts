@@ -1159,6 +1159,61 @@ test("a card that writes its paragraphs as headings is laid out in time", () => 
   expect(notesTime).toBeLessThan(250);
 });
 
+const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"];
+const headingsOf = (tree: Root) => elementsOf(tree).filter((element) => HEADING_TAGS.includes(element.tagName));
+const paragraphsOf = (tree: Root) => elementsOf(tree).filter((element) => element.tagName === "p");
+const modelLaidOut = (text: string): Root => {
+  const rendered = renderModelText(text);
+  if (rendered.kind !== "laid-out") throw new Error("not laid out: " + JSON.stringify(rendered));
+  return rendered.tree;
+};
+
+test("a heading longer than 120 characters is drawn as a paragraph, its words untouched", () => {
+  const words = (length: number) => "Vorn tasselby quim ardent loths, ".repeat(10).slice(0, length);
+  for (const render of [laidOut, modelLaidOut]) {
+    for (const written of [(t: string) => "## " + t, (t: string) => t + "\n---", (t: string) => "###### " + t]) {
+      const long = render(written(words(121)));
+      expect(headingsOf(long)).toEqual([]);
+      expect(paragraphsOf(long)).toHaveLength(1);
+      expect(textOf(long)).toBe(words(121));
+      const short = render(written(words(120)));
+      expect(headingsOf(short)).toHaveLength(1);
+      expect(paragraphsOf(short)).toEqual([]);
+    }
+    // Counted in code points, after the marks are resolved.
+    expect(headingsOf(render("## " + "a".repeat(119) + "\u{1F600}"))).toHaveLength(1);
+    expect(headingsOf(render("## **" + "a".repeat(60) + "** *" + "b".repeat(59) + "*"))).toHaveLength(1);
+    expect(headingsOf(render("## **" + "a".repeat(61) + "** *" + "b".repeat(59) + "*"))).toEqual([]);
+  }
+  // An HTML heading in a presentation, whatever its level.
+  for (const level of [1, 2, 6]) {
+    const long = laidOut(`<h${level} style="color: red">${words(121)}</h${level}>`);
+    expect(headingsOf(long)).toEqual([]);
+    expect(paragraphsOf(long)).toHaveLength(1);
+    expect(textOf(long)).toBe(words(121));
+    expect(headingsOf(laidOut(`<h${level}>${words(120)}</h${level}>`))).toHaveLength(1);
+  }
+});
+
+test("a card that writes its paragraphs as headings shows its short headings as headings, the rest as paragraphs", () => {
+  // Invented words, in the shape of a real card measured on 15/11: 3 short # headings, 14 ## of
+  // which 5 run past 120 characters, 38 ### of which 30 do, and 16 plain paragraphs.
+  const words = (length: number) => "Merrow kindles the vashet lamp for drovels, and numbers them. ".repeat(20).slice(0, length);
+  const blocks = [
+    ...Array.from({ length: 3 }, () => "# " + words(40)),
+    ...Array.from({ length: 9 }, () => "## " + words(100)),
+    ...Array.from({ length: 5 }, (_, i) => "## " + words(123 + i * 60)),
+    ...Array.from({ length: 8 }, () => "### " + words(90)),
+    ...Array.from({ length: 30 }, (_, i) => "### " + words(224 + i * 20)),
+    ...Array.from({ length: 16 }, () => words(120)),
+  ];
+  const tree = modelLaidOut(blocks.join("\n\n"));
+  const count = (name: string) => elementsOf(tree).filter((element) => element.tagName === name).length;
+  expect([count("h4"), count("h5"), count("h6")]).toEqual([3, 9, 8]);
+  expect(headingsOf(tree)).toHaveLength(20);
+  expect(paragraphsOf(tree)).toHaveLength(5 + 30 + 16);
+});
+
 test("a model's text too dense to lay out is shown as written", () => {
   // A table of a hundred columns over rows without pipes: no HTML, a cost all the same.
   const text = COSTLIEST["a hundred columns over rows without pipes"](1_000);
