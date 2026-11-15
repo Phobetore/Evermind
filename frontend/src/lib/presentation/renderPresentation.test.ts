@@ -613,6 +613,21 @@ test("images written into the text do not count toward the bound", () => {
   expect(elapsed).toBeLessThan(2_000);
 }, 30_000);
 
+test("the measure reads megabytes of Latin words and of an image as fast as before scripts were counted", () => {
+  // Measured on 15/11, 3 MB each, once the engine has compiled the measure: 18 ms before the
+  // scripts' fonts were counted, 35 to 39 ms once they were, 15 to 16 ms read a Latin letter, a
+  // digit or a blank at once (in the time of the measure before scripts were counted at all).
+  let words = "";
+  while (words.length < 3_000_000) words += "The keeper of the lamp walks the shore at night. ";
+  const image = ("data:image/png;base64," + "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==".repeat(33_334)).slice(0, 3_000_000);
+  for (const text of [words.slice(0, 3_000_000), image]) {
+    text.charCodeAt(0);
+    for (let i = 0; i < 3; i++) layoutCost(text.slice(0, 1_048_576));
+    const times = [0, 1, 2].map(() => timed(() => layoutCost(text))[1]).sort((a, b) => a - b);
+    expect(times[1]).toBeLessThan(30);
+  }
+});
+
 test("past their own bound, images written into the text are not laid out", () => {
   const text = "data:image/png;base64," + pngHeader(1, 1) + "A".repeat(INLINE_IMAGES_BOUND + 1);
   // Once on a text of the same shape, a megabyte long, first: the budget is the measure's, not the

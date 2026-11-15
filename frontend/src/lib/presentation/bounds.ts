@@ -260,6 +260,20 @@ function readScript(script: Script, code: number) {
   } else if (script.font >= 0 && !keepsRun(code)) script.font = -1;
 }
 
+// 1 for an ASCII letter, 2 for a digit, 0 for any other ASCII character.
+const LETTER_OR_DIGIT = new Uint8Array(128);
+for (let code = 0; code < 128; code++) {
+  if (isAsciiLetter(code)) LETTER_OR_DIGIT[code] = 1;
+  else if (code >= 48 && code <= 57) LETTER_OR_DIGIT[code] = 2;
+}
+
+/** What the parser goes over again for a label from its "[" to a "]" at `at`, `blanks` blanks
+ *  having been read up to it. */
+function spanCost(label: Label, at: number, blanks: number): number {
+  const span = (at - label.at) / LABEL_CHARACTERS + (blanks - label.blanks) * LABEL_BLANK;
+  return label.image ? IMAGE_LABEL * span : span;
+}
+
 /** An odd number of backslashes before `index`, on its line after `from`. */
 function escapedAt(text: string, index: number, from: number): boolean {
   let escapes = 0;
@@ -508,10 +522,6 @@ export function layoutCost(text: string): number {
   let shown: Label[] = [];
   let blanks = 0;
   let labelCost = 0;
-  const spanCost = (label: Label, at: number) => {
-    const span = (at - label.at) / LABEL_CHARACTERS + (blanks - label.blanks) * LABEL_BLANK;
-    return label.image ? IMAGE_LABEL * span : span;
-  };
   // The HTML construct or autolink of the block not yet ended, where its "<" is, and the quote
   // of the attribute value it is in (0 when none): it may hide a "[".
   let angle = Angle.None;
@@ -674,6 +684,25 @@ export function layoutCost(text: string): number {
     let colonsOrPipes = 0;
     for (let k = prefixEnd; k < lineEnd; k++) {
       const code = text.charCodeAt(k);
+      // A blank, or a Latin letter or a digit after a Latin letter, most of any text and of
+      // megabytes of images: no mark, nothing that may hide a bracket, no change of direction nor
+      // of run.
+      if (code === 32 || code === 9) {
+        blanks++;
+        script.spaced = true;
+        script.run = 0;
+        continue;
+      }
+      if (code < 128 && script.direction === Direction.Left) {
+        const kind = LETTER_OR_DIGIT[code];
+        if (kind !== 0) {
+          onlyDelimiter = false;
+          script.spaced = false;
+          script.run = 0;
+          if (kind === 1) script.font = -1;
+          continue;
+        }
+      }
       switch (code) {
         case 42: // *
         case 95: // _
@@ -784,7 +813,7 @@ export function layoutCost(text: string): number {
         }
         if (!escapedAt(text, k, prefixEnd)) {
           const label = shown.pop() ?? labels[0];
-          if (label !== undefined) labelCost += spanCost(label, k);
+          if (label !== undefined) labelCost += spanCost(label, k, blanks);
           if (!mayHide()) labels.pop();
         }
       } else if (code === 91) {
