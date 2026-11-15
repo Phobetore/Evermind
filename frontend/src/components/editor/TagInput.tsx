@@ -1,6 +1,7 @@
 import { TagText } from "@/components/ui/Tag";
 import { useT } from "@/i18n/useT";
 import { addTag } from "@/lib/tags";
+import { firstCodePoints } from "@/lib/utils";
 import { X } from "lucide-react";
 import { useState } from "react";
 
@@ -46,7 +47,7 @@ export function TagInput({
             type="button"
             onClick={() => onChange(value.filter((tagValue) => tagValue !== tag))}
             className="touch-target shrink-0 text-mist-dim hover:text-blood"
-            aria-label={t("ui.tagInput.removeAriaLabel", { tag })}
+            aria-label={t("ui.tagInput.removeAriaLabel", { tag: firstCodePoints(tag, 2_000) })}
           >
             <X className="h-3 w-3" />
           </button>

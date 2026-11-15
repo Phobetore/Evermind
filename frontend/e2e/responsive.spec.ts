@@ -237,12 +237,23 @@ test("a card's long tagline and tags widen neither the home page, the library no
       expect(box!.width, "a chip is wider than its row").toBeLessThanOrEqual(rail.width + 1);
     }
     const tale = page.locator(`a[href$="/characters/${card.id}"] p.italic`);
-    if (await tale.isVisible()) {
+    // The tile shows its tagline and tags from sm (640) up, so the test knows where they must be.
+    const tile = page.locator(`a[href$="/characters/${card.id}"]`);
+    if (page.viewportSize()!.width >= 640) {
+      await expect(tale).toBeVisible();
       const { height, line } = await tale.evaluate((el) => ({
         height: el.getBoundingClientRect().height,
         line: parseFloat(getComputedStyle(el).lineHeight),
       }));
       expect(height, "the tile's tagline is cut at two lines").toBeLessThanOrEqual(line * 2.5);
+      const tileChip = tile.locator("span", { has: page.locator(`[title="${title}"]`) }).last();
+      await expect(tileChip).toBeVisible();
+      const tileBox = (await tile.boundingBox())!;
+      const chipBox = (await tileChip.boundingBox())!;
+      expect(chipBox.x + chipBox.width, "the tile's chip runs past the tile").toBeLessThanOrEqual(tileBox.x + tileBox.width);
+      expect(chipBox.width, "the tile's chip is as wide as the tile").toBeLessThan(tileBox.width);
+    } else {
+      await expect(tale).toBeHidden();
     }
   };
   const library = async () => {
@@ -290,5 +301,6 @@ test("a card's long tagline and tags widen neither the home page, the library no
     await page.setViewportSize({ width: 915, height: 412 });
     await home();
     await library();
+    await editor();
   }
 });
