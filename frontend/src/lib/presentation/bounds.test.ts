@@ -1,0 +1,250 @@
+import { expect, test } from "vitest";
+import { LAYOUT_BOUND, LAYOUT_COST_BOUND, PLAIN_PART, layoutCost, layoutRefusal, plainCuts, plainPart } from "./bounds";
+import { expectWithin } from "./timedBudget";
+
+function timed<T>(run: () => T): [T, number] {
+  const start = performance.now();
+  const result = run();
+  return [result, performance.now() - start];
+}
+
+test("a long plain text is cut into parts, never inside a character", () => {
+  const whole = "a".repeat(PLAIN_PART);
+  expect(plainPart(whole, 0)).toEqual({ part: whole, count: 1 });
+  expect(plainPart(whole + "b", 0).count).toBe(2);
+  expect(plainPart(whole + "b", 1).part).toBe("b");
+
+  // The two halves of an emoji fall on either side of the cut.
+  const straddling = "a".repeat(PLAIN_PART - 1) + "😀" + "z";
+  const first = plainPart(straddling, 0);
+  const second = plainPart(straddling, 1);
+  expect(first.count).toBe(2);
+  expect(first.part).toBe("a".repeat(PLAIN_PART - 1));
+  expect(second.part.startsWith("😀")).toBe(true);
+  expect(first.part + second.part).toBe(straddling);
+
+  // An index past the last gives the last.
+  expect(plainPart(straddling, 9).part).toBe(second.part);
+
+  // The parts are found in one walk, in time; then a part is had without walking again.
+  const huge = "x".repeat(15 * 1024 * 1024);
+  // repeat() makes a rope that the first read flattens, megabytes copied in one go: done before
+  // the clock starts, so that only the walk is timed.
+  huge.charCodeAt(0);
+  const [cuts, walked] = timed(() => plainCuts(huge));
+  expectWithin(walked, 500, "count", "the walk");
+  const [part, elapsed] = timed(() => plainPart(huge, 70, cuts));
+  expect(part.part.length).toBe(PLAIN_PART);
+  expectWithin(elapsed, 5, "count", "a part");
+});
+
+test("a plain part ends sooner where the browser would lay it out slowly", () => {
+  // Measured in Chromium on 15/11: 100,000 characters changing direction at each one, 3.2 s;
+  // Thai without a space, 2.1 s; Korean on one line, 3.4 s plain. Each part stays in the budget.
+  const thai = "สวัสดีครับยินดีต้อนรับสู่ประภาคาร";
+  for (const [name, text] of [
+    ["changes of direction", "aא".repeat(100_000)],
+    ["digits in a right-to-left text", "1א".repeat(100_000)],
+    ["Thai without a space", thai.repeat(Math.ceil(200_000 / thai.length))],
+    ["Korean on one line", "등대지기는 등불을 켠다 ".repeat(15_000)],
+  ]) {
+    const cuts = plainCuts(text);
+    expect(cuts.length, name).toBeGreaterThan(2);
+    let joined = "";
+    for (let i = 0; i < cuts.length; i++) {
+      const { part } = plainPart(text, i, cuts);
+      expect(layoutCost(part) <= LAYOUT_COST_BOUND * 1.01 || part.length < PLAIN_PART, name).toBe(true);
+      joined += part;
+    }
+    expect(joined, name).toBe(text);
+  }
+  // A cut is never inside a character: here before a Thai vowel sign that belongs to its letter.
+  const marked = "กั".repeat(150_000);
+  for (const cut of plainCuts(marked).slice(1)) expect(marked.charCodeAt(cut), String(cut)).not.toBe(0x0e31);
+  // Latin, Greek and Cyrillic cost nothing more: one part.
+  expect(plainCuts("The keeper of the lamp. Хранитель маяка. ".repeat(4_000))).toEqual([0]);
+});
+
+test("the cost of a text is counted without parsing it", () => {
+  expect(layoutCost("a")).toBe(500);
+  expect(layoutCost("*a*")).toBe(1_500);
+  expect(layoutCost("> a")).toBe(1_503);
+  expect(layoutCost(">>> a")).toBe(3_519);
+  expect(layoutCost("- a\n  - b")).toBe(4_014);
+  expect(layoutCost("- a\n\t- b")).toBe(4_014);
+  expect(layoutCost("a\n\nb")).toBe(1_500);
+  expect(layoutCost("a\r\nb")).toBe(1_000);
+  expect(layoutCost("<b>&amp;\\")).toBe(2_000);
+  expect(layoutCost("1. a")).toBe(1_503);
+  expect(layoutCost("1986. a")).toBe(1_503);
+  expect(layoutCost("1234567890. a")).toBe(500);
+  expect(layoutCost("* * *")).toBe(3_519);
+
+  // Tables, and the cells a row does not write.
+  expect(layoutCost("|a|b|\n|-|-|\n|c|d|")).toBe(6_108);
+  expect(layoutCost("|a|b|\n|-|-|\nx")).toBe(6_054);
+
+  // Pipes out of a table.
+  expect(layoutCost("a | b\nc | d")).toBe(1_000);
+  expect(layoutCost("a | b\n:-|-")).toBe(2_008);
+  expect(layoutCost("a | b\n---")).toBe(1_000);
+  expect(layoutCost("**Age 0:** 25 | **Height:** 170 cm | *calm*")).toBe(5_500);
+
+  // The browser's own layout of other scripts: a change of direction, the square of a block's
+  // characters of other scripts than the simplest, a dictionary run.
+  expect(layoutCost("aאa")).toBe(1_501);
+  expect(layoutCost("a א a")).toBe(625);
+  expect(layoutCost("Age 25, height 170")).toBe(500);
+  expect(layoutCost("א 12 א")).toBe(625);
+  expect(layoutCost("ไทย")).toBe(501);
+  expect(layoutRefusal("aא".repeat(50_000))).toBe("tooDense");
+  // Right-to-left scripts past the first plane, written as surrogate pairs, change direction
+  // too: 99 paragraphs of Phoenician or Adlam against Latin held Chromium 17 to 23 s (15/11).
+  // And the browser looks their font up again at each run, as for every script it has no font of
+  // its own for, written either way: Tagalog between Latin letters, 2 ms a run.
+  expect(layoutCost("a\u{10900}a")).toBe(7_501);
+  expect(layoutCost("a\u{1E900}a")).toBe(7_501);
+  expect(layoutCost("aᜀa")).toBe(15_501);
+  // Blanks, digits and punctuation do not end a run; a letter of another script or a line does.
+  expect(layoutCost("ᜀᜁ ᜂ, 12 ᜃ.")).toBe(15_501);
+  expect(layoutCost("ᜀ a ᜀ")).toBe(30_501);
+  expect(layoutCost("ᜀ\nᜀ")).toBe(31_001);
+  // And the marks of direction, an Arabic digit after a Latin letter, Tangut, Khitan, SignWriting
+  // and the Mayan numerals: 0.3 to 1.5 s each in Chromium on the PC, while the count let them
+  // through (15/11).
+  for (const letter of [
+    "\u{10900}",
+    "\u{1E900}",
+    "ᜀ",
+    "\u{11103}",
+    "ܐ",
+    "‏",
+    "؜",
+    "‮",
+    "١",
+    "۱",
+    "\u{17000}",
+    "\u{18B00}",
+    "\u{1D800}",
+    "\u{1D2E0}",
+  ]) {
+    const paragraph = ("a" + letter).repeat(333);
+    expect(layoutRefusal(Array(99).fill(paragraph).join("\n\n")), letter).toBe("tooDense");
+    expect(plainCuts(paragraph.repeat(100)).length, letter).toBeGreaterThan(1);
+    // A text written in the script, in paragraphs, is laid out.
+    expect(layoutRefusal(Array(60).fill((letter.repeat(6) + " ").repeat(100)).join("\n\n")), letter).toBeNull();
+  }
+  // An emoji in a Hebrew text changes no direction.
+  expect(layoutCost("א😀א")).toBe(501);
+  expect(layoutRefusal("สวัสดีครับ".repeat(10_000))).toBe("tooDense");
+  expect(layoutRefusal("등대지기는 등불을 켠다 ".repeat(7_000))).toBe("tooDense");
+  // A long text in another script, in paragraphs, is laid out.
+  expect(layoutRefusal(("שלום עולם של המגדלור ".repeat(50) + "\n\n").repeat(90))).toBeNull();
+  expect(layoutRefusal(("灯台守の物語はここから始まる。".repeat(100) + "\n\n").repeat(60))).toBeNull();
+
+  // An indentation counts only the lists still open.
+  expect(layoutCost(" ".repeat(60) + "b")).toBe(500);
+  expect(layoutCost("- a\n\n" + " ".repeat(60) + "b")).toBe(3_506);
+
+  // Lines squared under a container only.
+  expect(layoutCost(Array(300).fill("a*").join("\n"))).toBe(480_000);
+  expect(layoutCost(Array(300).fill("> a*").join("\n"))).toBe(960_600);
+  expect(layoutCost("> a\n" + Array(300).fill("a*").join("\n"))).toBe(662_703);
+
+  // The pairs of a line.
+  expect(layoutCost(Array(300).fill("*a*").join("\n"))).toBe(450_000);
+  expect(layoutCost("**a** *b*")).toBe(3_500);
+  expect(layoutCost("*a*, b")).toBe(1_500);
+  expect(layoutCost("~~a~~")).toBe(2_500);
+  expect(layoutCost("a* a*")).toBe(1_506);
+  expect(layoutCost("*a* b*")).toBe(2_004);
+  expect(layoutCost("_a_ *b")).toBe(2_004);
+  expect(layoutCost("`*a` a*")).toBe(2_534);
+  expect(layoutCost("\\*a* b")).toBe(2_006);
+
+  // Runs of backticks; after a backslash, a run opens one shorter, and two may then wait together.
+  expect(layoutCost("x ` `` ``` word")).toBe(3_606);
+  expect(layoutCost("x \\`` \\`` y")).toBe(3_540);
+
+  // A label, at its "]": its characters from its "[", and far more its blanks; twice for an image.
+  expect(layoutCost("[a\tb]")).toBe(1_508);
+  expect(layoutCost("![a\tb](c)")).toBe(1_509);
+
+  // HTML openers.
+  expect(layoutCost("<!-- a")).toBe(1_002);
+  expect(layoutCost("<!-- a --> b")).toBe(1_003);
+  expect(layoutCost("x <!-- a\nb\n\nc")).toBe(2_503);
+  expect(layoutCost("<?x a ?> <![CDATA[ b ]]> <!DOCTYPE c> d")).toBe(4_038);
+
+  // Link titles.
+  expect(layoutCost("[a](b (c d e f")).toBe(1_511);
+  expect(layoutCost("[a](b (c) d e f")).toBe(1_508);
+  expect(layoutCost("[a](b (c\\) d")).toBe(2_010);
+  expect(layoutCost("[a](b\n(c d")).toBe(2_011);
+  expect(layoutCost("x (c d e f")).toBe(500);
+
+  // Each is counted in time, however long.
+  let runs = "";
+  for (let n = 1; runs.length < 2_000_000; n++) runs += "`".repeat(n) + " ";
+  for (const text of [
+    "a".repeat(8 * 1024 * 1024),
+    Array(4_000_000).fill("a").join("\n"),
+    "<!--".repeat(2_000_000),
+    runs,
+    "[a](b " + " (".repeat(1_000_000),
+    "![\t".repeat(1_000_000) + "]".repeat(1_000_000),
+    "\\`` ".repeat(1_000_000),
+  ]) {
+    const [, elapsed] = timed(() => layoutCost(text));
+    expectWithin(elapsed, 500, "count", text.slice(0, 20));
+  }
+
+  expect(layoutRefusal("a".repeat(LAYOUT_BOUND + 1))).toBe("tooLong");
+  expect(layoutRefusal(">".repeat(5_000))).toBe("tooDense");
+  expect(layoutRefusal("a")).toBeNull();
+  expect(layoutRefusal("a".repeat(200_000), 0)).toBeNull();
+}, 30_000);
+
+test("a bracket that something hides from the parser does not shield the one below it", () => {
+  // Measured on 15/11, 100,000 characters each: the parser closes the real "[" at each "]" and
+  // goes over the whole span, 1.0 to 1.5 s, while the count closed the hidden "[" next to it.
+  const grouped = (count: number, motif: string) => {
+    const room = LAYOUT_BOUND - count - count * motif.length;
+    return "[".repeat(count) + "a\t".repeat(Math.ceil(room / 2)).slice(0, room) + motif.repeat(count);
+  };
+  // The "[" spread through the text: each "]" that finds no label makes the parser go one "["
+  // further down, while the count charged the nearest one again.
+  const spread = (count: number, motif: string) => {
+    const piece = Math.floor((LAYOUT_BOUND - count - count * motif.length) / count / 2);
+    return ("[" + "a\t".repeat(piece)).repeat(count) + motif.repeat(count);
+  };
+  // Each motif, the count of its grouped form, the count of its spread form (the largest the
+  // count let through when it charged the same "[" at each "]": 0.3 to 0.6 s).
+  for (const [motif, count, spreadCount] of [
+    ["`[`]", 174, 168],
+    ["<http://a.example/[>]", 200, 260],
+    ["<b x='['>]", 270, 256],
+    ["\\[]", 174, 262],
+    // A ">" in a quoted value, a comment or an instruction does not end it; a "[" in an image's
+    // destination or title is no label's start. Measured on 15/11 at 1.4 s, and 0.95 s for the
+    // images, while a ">" ended what the count followed.
+    ["<b x='>['>]", 270, 270],
+    ['<b x=">[">]', 270, 270],
+    ["<!-- > [ -->]", 270, 270],
+    ["<?>[?>]", 270, 270],
+    ["![a](x[)]", 174, 174],
+    ["![a](x '[')]", 174, 174],
+  ] as const) {
+    expect(layoutRefusal(grouped(count, motif)), motif).toBe("tooDense");
+    expect(layoutRefusal(spread(spreadCount, motif)), motif).toBe("tooDense");
+  }
+  // A "]" in a code span closes no "[" of the parser: the "]" written after the code spans do,
+  // over all the letters between (0.9 s, while the count closed each "[" at the "]" after it).
+  expect(layoutRefusal("[`]`".repeat(150) + "a\t".repeat(49_625) + "]".repeat(150))).toBe("tooDense");
+
+  // An honest text pays little for a code span, a tag or an escape around a bracket, and for a
+  // note in brackets around them.
+  const honest = "Use `arr[0]` and <span title='[x]'>this</span> or \\[not a link] with [a link](https://a.example). ";
+  expect(layoutCost(honest)).toBe(7_320);
+  expect(layoutCost("[OOC: " + honest + "]")).toBe(8_391);
+});

@@ -346,17 +346,62 @@
     "removeFavoriteTitle": "Quitar de favoritos",
     "favoritedLabel": "En favoritos",
     "creatorNotesLabel": "Notas del creador",
+    "presentation": {
+      "showImages": "Mostrar imágenes",
+      "contacts": "Contactará con: {hosts}",
+      "contactsMore": "Contactará con: {hosts} y {count} más",
+      "contactsMore_one": "Contactará con: {hosts} y {count} más",
+      "imageFrom": "Imagen de {host}",
+      "show": "Mostrar",
+      "showFrom": "Mostrar la imagen de {host}",
+      "imageUnavailable": "Imagen no disponible ({host})",
+      "imageRefused": "Imagen no mostrada",
+      "imageInsecure": "Imagen de {host} no mostrada: la dirección no es segura (http)",
+      "imageTooLarge": "Imagen demasiado grande para mostrarla ({width} × {height} píxeles)",
+      "imageOverBudget": "Imagen no mostrada: junto con las anteriores, no cabría en la memoria de un teléfono.",
+      "layoutMissing": "No se pudo cargar el formato.",
+      "reload": "Recargar",
+      "noRemoteImages": "Las imágenes de otros sitios no se muestran en esta edición.",
+      "tooLong": "Demasiado largo para darle formato: se muestra sin él.",
+      "tooDense": "Demasiado cargado para darle formato: se muestra sin él.",
+      "linkElsewhere": "Este enlace no lleva al sitio que muestra su texto. ¿Abrirlo?",
+      "linkUnclear": "El texto de este enlace puede leerse como otro sitio. ¿Abrirlo?",
+      "linkPicture": "Este enlace contiene una imagen. ¿Abrirlo?",
+      "linkLeadsTo": "Lleva a {host}",
+      "linkShows": "Su texto muestra {host}",
+      "openLink": "Abrir"
+    },
     "card": {
       "startButton": "Empezar"
     },
     "detail": {
       "startConversationButton": "Empezar una conversación",
       "editButton": "Editar",
-      "aboutHeading": "Acerca de",
-      "universeHeading": "El mundo",
       "openingHeading": "Apertura",
       "yourConversationsHeading": "Tus conversaciones",
-      "rereadable": "Se puede releer con las nuevas reglas"
+      "rereadable": "Se puede releer con las nuevas reglas",
+      "fromTheAuthor": "De parte del autor",
+      "notesLanguage": "Idioma de la presentación",
+      "notesMain": "Texto principal",
+      "notesOther": "Otra versión {index}",
+      "notReadByModel": "El modelo no lee este texto.",
+      "greetingOf": "Apertura {index} de {count}",
+      "previousGreeting": "Apertura anterior",
+      "nextGreeting": "Apertura siguiente",
+      "modelReads": "Lo que lee el modelo",
+      "modelReadsHint": "Se envía al modelo en cada turno, con el lorebook y la conversación. El formato es para ti: el modelo lee el texto tal como está escrito.",
+      "modelReadsLaidOut": "Con formato",
+      "modelReadsAsWritten": "Tal como está escrito",
+      "characterNoteAtEnd": "Nota del personaje, colocada después del último mensaje",
+      "characterNote": "Nota del personaje, colocada antes de los últimos {count:grouped} mensajes",
+      "characterNote_one": "Nota del personaje, colocada antes del último mensaje",
+      "lore": "Lorebook: {count:grouped} entradas",
+      "lore_one": "Lorebook: {count:grouped} entrada",
+      "byCreator": "por {creator}",
+      "version": "versión {version}",
+      "moreTags": "+{count}",
+      "moreTagsLabel": "Mostrar las otras {count} etiquetas",
+      "moreTagsLabel_one": "Mostrar la otra etiqueta"
     },
     "form": {
       "editCardTitle": "Editar {name}",
@@ -430,6 +475,8 @@
       "kind": "Personaje o escenario",
       "lore": "{count:grouped} entradas del lorebook",
       "lore_one": "{count:grouped} entrada del lorebook",
+      "left": "{count:grouped} entradas del lorebook se quedan como están: Evermind no pudo saber con certeza de qué entrada de la ficha vienen, o las escribiste tú aquí.",
+      "left_one": "{count:grouped} entrada del lorebook se queda como está: Evermind no pudo saber con certeza de qué entrada de la ficha viene, o la escribiste tú aquí.",
       "reread": "Releer la ficha original y pasar a las nuevas reglas",
       "keep": "Guardar solo la ficha original para la exportación",
       "keepHint": "Guardarla no cambia nada en sus conversaciones; este aviso se queda, para pasar más tarde a las nuevas reglas.",
@@ -527,8 +574,8 @@
       "loreConstant_one": "de ellas {count:grouped} siempre activa",
       "secondaryKeys": "{count:grouped} entradas con claves secundarias",
       "secondaryKeys_one": "{count:grouped} entrada con claves secundarias",
-      "depthEntries": "{count:grouped} entradas recordadas en la conversación a su profundidad, del mismo modo (su rol se conserva, no se sigue)",
-      "depthEntries_one": "{count:grouped} entrada recordada en la conversación a su profundidad, del mismo modo (su rol se conserva, no se sigue)",
+      "depthEntries": "{count:grouped} entradas recordadas en la conversación a su profundidad, en un turno de la persona marcado como no suyo (su rol se conserva, no se sigue)",
+      "depthEntries_one": "{count:grouped} entrada recordada en la conversación a su profundidad, en un turno de la persona marcado como no suyo (su rol se conserva, no se sigue)",
       "characterNote": "Nota del personaje, recordada {count:grouped} mensajes antes del final, en un turno de la persona marcado como no suyo (su rol se conserva, no se sigue)",
       "characterNote_one": "Nota del personaje, recordada {count:grouped} mensaje antes del final, en un turno de la persona marcado como no suyo (su rol se conserva, no se sigue)",
       "postHistory": "Instrucciones para después de la historia",
@@ -587,6 +634,15 @@
     "tagInput": {
       "placeholder": "Añade una etiqueta y pulsa Enter",
       "removeAriaLabel": "Quitar {tag}"
+    },
+    "folded": {
+      "more": "Leer más",
+      "less": "Mostrar menos"
+    },
+    "plainText": {
+      "part": "Parte {index} de {count}",
+      "previous": "Parte anterior",
+      "next": "Parte siguiente"
     }
   },
   "errors": {

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import type { CardCharacter, LoreEntryInput } from "@/data";
 import { readCardFile } from "./index";
-import { readCardJson } from "./read";
+import { plainPresentation, readCardJson, taglineOf } from "./read";
 
 const fixture = (name: string) => readFileSync(new URL(`fixtures/${name}`, import.meta.url), "utf8");
 const readText = (text: string) => readCardJson(JSON.parse(text), text, "json")!;
@@ -222,7 +222,7 @@ describe("the fields of a card", () => {
   test("the tagline offered is the first sentence of the presentation, without its layout", () => {
     const tagline = (creator_notes: string) => v2({ creator_notes }).suggestedTagline;
     expect(tagline("<style>p { color: red }</style><p><b>Oyelaran</b> keeps the harbor.</p> More text.")).toBe("Oyelaran keeps the harbor.");
-    expect(tagline("<script>alert(1)</script># A *keeper* of _light_\n> Quoted ~~text~~ and `code`! Then more.")).toBe("A keeper of light Quoted text and code!");
+    expect(tagline("<script>alert(1)</script># A *keeper* of _light_\n> Quoted ~~text~~ and `code`! Then more.")).toBe("Quoted text and code!");
     expect(tagline("> > A quote within a quote. More.")).toBe("A quote within a quote.");
     expect(tagline("  ## > Heading and quote. More.")).toBe("Heading and quote.");
     expect(tagline("![portrait](https://example.com/a.png)Read [the guide](https://example.com) first... or not")).toBe("Read the guide first...");
@@ -262,5 +262,92 @@ describe("the fields of a card", () => {
     expect(tagline("Version 1.5 is out? Yes")).toBe("Version 1.5 is out?");
     expect(tagline("No end to this one")).toBe("No end to this one");
     expect(tagline("")).toBe("");
+  });
+
+  test("a heading is a title, not the first sentence", () => {
+    expect(taglineOf("# Mirela\n\nUne gardienne de phare pour des histoires **lentes**.\n\n- Aime : le thé"))
+      .toBe("Une gardienne de phare pour des histoires lentes.");
+    expect(taglineOf("<h1>Mirela</h1><p>Elle garde le phare. Depuis toujours.</p>")).toBe("Elle garde le phare.");
+    // A heading alone is all the presentation says.
+    expect(taglineOf("# Gardienne du phare.")).toBe("Gardienne du phare.");
+    expect(taglineOf("# Mirela\n## The keeper\nShe keeps the light. Always.")).toBe("She keeps the light.");
+    // A letter that grows when lowered moves nothing: the text is cut where it was found.
+    expect(taglineOf("<h1>İzmir</h1><p>Rest here. More.</p>")).toBe("Rest here.");
+    expect(taglineOf("<h1>İİİİzmir</h1><p>Rest here. More.</p>")).toBe("Rest here.");
+    expect(taglineOf("# İzmir\n<h2>x</h2><p>Rest here. More.</p>")).toBe("Rest here.");
+    expect(plainPresentation("İ<style>p {}</style>Rest")).toBe("İRest");
+    // A banner or a wrapper before the title shows nothing: the title is still left out.
+    expect(taglineOf("![banner](b.png)\n# Mirela\n\nUne gardienne de phare. Depuis toujours."))
+      .toBe("Une gardienne de phare.");
+    expect(taglineOf("<center><h1>Mirela</h1></center><p>Une gardienne de phare. Depuis toujours.</p>"))
+      .toBe("Une gardienne de phare.");
+    expect(taglineOf('<div align="center"><img src="b.png"></div>\n<h2>Mirela</h2>Une gardienne. Depuis toujours.'))
+      .toBe("Une gardienne.");
+    // A clickable banner and a comment show nothing either.
+    expect(taglineOf("[![b](x.png)](y)\n# Mirela\n\nText here. More.")).toBe("Text here.");
+    expect(taglineOf("<!-- c --><h1>Mirela</h1><p>Une gardienne. Toujours.</p>")).toBe("Une gardienne.");
+    // A title underlined, as Markdown also writes one.
+    expect(taglineOf("Mira the Keeper\n===============\n\nShe keeps the lamp lit. Always.")).toBe("She keeps the lamp lit.");
+    expect(taglineOf("Mira the Keeper\n---\nShe keeps the lamp lit. Always.")).toBe("She keeps the lamp lit.");
+    expect(taglineOf("![b](x.png)\nMira\n   ==\n\n## The keeper\nShe keeps it. Always.")).toBe("She keeps it.");
+    // Four blanks make it a code line, and a rule after a blank line underlines nothing.
+    expect(taglineOf("Mira the Keeper\n    ===\nShe keeps it. Always.")).toBe("Mira the Keeper === She keeps it.");
+    expect(taglineOf("She keeps it. Always.\n\n---\n\nMore.")).toBe("She keeps it.");
+    // Hundreds of banners before a paragraph: its lines are read once.
+    const banners = "![b](x.png)".repeat(200_000) + "\nShe keeps it. Always.";
+    const start = performance.now();
+    expect(taglineOf(banners)).toBe("She keeps it.");
+    expect(performance.now() - start).toBeLessThan(2_000);
+    // A name marker shows a name: it is the sentence's start, not a wrapper.
+    expect(taglineOf("<BOT> garde le phare. Depuis toujours.")).toBe("<BOT> garde le phare.");
+  });
+});
+
+describe("the presentation without its layout", () => {
+  test("the presentation without its layout keeps its paragraphs", () => {
+    expect(plainPresentation("# Mirela\n\nA *keeper*   _of_ [the light](https://example.com).\n\n\n\n> Quiet.\n![a](b.png)"))
+      .toBe("Mirela\n\nA keeper of the light.\n\nQuiet.");
+    expect(plainPresentation("<style>p { color: red }</style>First line\nsecond &amp; last")).toBe("First line\nsecond & last");
+  });
+
+  test("blocks of a presentation stay apart without their layout", () => {
+    expect(plainPresentation("<p>Hello</p><p>World</p>")).toBe("Hello\n\nWorld");
+    expect(plainPresentation("a<br>b")).toBe("a\nb");
+    expect(plainPresentation("<ul><li>x</li><li>y</li></ul>")).toBe("x\ny");
+    expect(plainPresentation("<b>x</b>y")).toBe("xy");
+    expect(plainPresentation("<td>a</td><td>b</td>")).toBe("a b");
+  });
+
+  test("the name markers survive the plain text", () => {
+    const notes = "<p><BOT> opens the door for <user></p>";
+    expect(plainPresentation(notes)).toBe("<BOT> opens the door for <user>");
+    expect(taglineOf(notes)).toBe("<BOT> opens the door for <user>");
+    expect(taglineOf("<p>a</p><p>b.</p> c")).toBe("a b.");
+    expect(plainPresentation("<b>x</b> <botany>y</botany> <CHAR>")).toBe("x y <CHAR>");
+  });
+
+  test("a presentation of seven megabytes of unclosed markup strips in linear time", () => {
+    // A proof of linear time, not a budget for a visit: only a hostile card carries this.
+    for (const unit of ["<style>", "[", "![", "<"]) {
+      const text = unit.repeat(Math.floor(7_000_000 / unit.length));
+      const start = performance.now();
+      plainPresentation(text);
+      taglineOf(text);
+      expect(performance.now() - start, unit).toBeLessThan(2000);
+    }
+  });
+
+  test("fifteen megabytes of line marks strip in time, without overflowing the stack", () => {
+    // A proof of linear time, not a budget for a visit: only a hostile card carries this.
+    for (const unit of [">", "# ", ">#"]) {
+      const text = unit.repeat(Math.floor(15 * 1024 * 1024 / unit.length)) + "\nShe keeps the lamp. Always.";
+      text.charCodeAt(0);
+      const start = performance.now();
+      expect(plainPresentation(text), unit).toBe("She keeps the lamp. Always.");
+      expect(taglineOf(text), unit).toBe("She keeps the lamp.");
+      expect(performance.now() - start, unit).toBeLessThan(4000);
+    }
+    // Every mark at the start of a line goes, blanks between them included; the rest stays.
+    expect(plainPresentation("  > > ## A > b\n>> c # d")).toBe("A > b\nc # d");
   });
 });

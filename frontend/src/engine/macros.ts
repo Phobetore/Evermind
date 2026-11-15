@@ -26,7 +26,8 @@ const MARKER_RE = new RegExp(
 );
 const UNESCAPED_COMMA_RE = /(?<!\\),/;
 // The first format's names, in one pass so that a name holding one of them is left as it is.
-const NAME_TAG_RE = /<(?:([uU][sSſ][eE][rR])|[bB][oO][tT]|[cC][hH][aA][rR])>/g;
+// Exported for the plain text of a presentation, which keeps them so that they become names.
+export const NAME_TAG_RE = /<(?:([uU][sSſ][eE][rR])|[bB][oO][tT]|[cC][hH][aA][rR])>/g;
 
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
@@ -56,6 +57,24 @@ export function hasOriginalMacro(text: string): boolean {
   return !!text && text.search(ORIGINAL_RE) !== -1;
 }
 
+/** The choices of a random or a pick: split on "::", or else on each comma not escaped, each
+ *  escaped comma then a comma, each choice stripped. */
+function choicesOf(separator: string | undefined, body: string): string[] {
+  const parts = separator === "::" ? body.split("::") : body.split(UNESCAPED_COMMA_RE);
+  return parts.map((part) => pyStrip(part.replaceAll("\\,", ",")));
+}
+
+type Choose = (marker: string, kind?: string, separator?: string, body?: string, sides?: string) => string;
+
+/** The four steps of the card rules, in their order, a random, a pick or a roll given by `choose`. */
+function resolveMarkers(text: string, charName: string, userName: string, choose: Choose): string {
+  const expanded = text
+    .replace(COMMENT_RE, "")
+    .replace(MARKER_RE, choose)
+    .replace(NAME_TAG_RE, (_tag, user: string | undefined) => (user !== undefined ? userName : charName));
+  return substitute(expanded, charName, userName);
+}
+
 /** A card's markers in one text, for the card rules: comments out, choices made, names in.
  *  The chance is FNV-1a on 32 bits of the seed, the text as given and each marker's rank, so
  *  that the same text draws the same in both engines and in every turn of one story. */
@@ -77,18 +96,24 @@ export function expandMacros(text: string, charName: string, userName: string, s
     prefix ??= fnv1aBytes(encoder.encode(`${seed}\0${text}\0`));
     const h = fnv1aBytes(encoder.encode(String(rank)), prefix);
     if (kind !== undefined) {
-      const inside = body as string;
-      const parts = separator === "::" ? inside.split("::") : inside.split(UNESCAPED_COMMA_RE);
-      const choices = parts.map((part) => pyStrip(part.replaceAll("\\,", ",")));
+      const choices = choicesOf(separator, body as string);
       return choices.length ? choices[h % choices.length] : "";
     }
     const count = pyInt(sides as string);
     return count ? String(1 + (h % count)) : marker;
   };
 
-  const expanded = text
-    .replace(COMMENT_RE, "")
-    .replace(MARKER_RE, choose)
-    .replace(NAME_TAG_RE, (_tag, user: string | undefined) => (user !== undefined ? userName : charName));
-  return substitute(expanded, charName, userName);
+  return resolveMarkers(text, charName, userName, choose);
+}
+
+/** A card's markers for a person to read: comments out, choices side by side, names in. Display
+ *  only, with the patterns expandMacros uses: the model reads what expandMacros makes of them. */
+export function describeMarkers(text: string, charName: string, userName: string): string {
+  if (!text) return "";
+  // Nothing is drawn: the page shows every choice, where the conversation draws one of them.
+  return resolveMarkers(text, charName, userName, (marker, kind, separator, body, sides) => {
+    if (kind !== undefined) return choicesOf(separator, body as string).join(" / ");
+    const count = pyInt(sides as string);
+    return count ? `d${count}` : marker;
+  });
 }

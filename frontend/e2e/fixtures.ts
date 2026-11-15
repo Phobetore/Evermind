@@ -153,6 +153,31 @@ export async function stopTurn(request: APIRequestContext, id: string) {
   }).toBe(false);
 }
 
+/** What the page has thrown, by page: an error is a failure of the policy's test as much as a violation. */
+const thrown = new WeakMap<Page, string[]>();
+
+/** Keeps, from the next page the tab opens, each breach of the security policy as
+ *  `${violatedDirective} ${blockedURI}` in `window.__violations`, and each error the page throws.
+ *  Called before the first `goto`. */
+export async function watchPolicy(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const kept: string[] = [];
+    (window as unknown as { __violations: string[] }).__violations = kept;
+    document.addEventListener("securitypolicyviolation", (event) => {
+      kept.push(`${event.violatedDirective} ${event.blockedURI}`);
+    });
+  });
+  const errors: string[] = [];
+  thrown.set(page, errors);
+  page.on("pageerror", (error) => errors.push(`pageerror ${error.message}`));
+}
+
+/** The breaches the current document has seen, and the errors every page of the tab has thrown. */
+export async function policyViolations(page: Page): Promise<string[]> {
+  const seen = await page.evaluate(() => (window as unknown as { __violations?: string[] }).__violations ?? []);
+  return [...seen, ...(thrown.get(page) ?? [])];
+}
+
 /** A tiny PNG, for anything that needs a file to upload. */
 export const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",

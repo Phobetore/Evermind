@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildChatPayload, expandMacros } from "./index";
+import { ROLE_REMINDER } from "@/engine";
 import * as macros from "./macros";
+import { describeMarkers } from "./macros";
 
 // What a recorded case cannot hold: how long a card's markers take on a text built to be slow.
 
@@ -59,5 +61,55 @@ describe("a card's markers", () => {
     const once = performance.now();
     expandMacros(description, "Serana", "Alex", "c1");
     expect(elapsed).toBeLessThan(4 * (performance.now() - once) + 1000);
+  });
+});
+
+describe("a card's markers for people", () => {
+  it("markers read as words for people", () => {
+    const show = (text: string) => describeMarkers(text, "Ilse", "Tom");
+    expect(show("{{// note}}x")).toBe("x");
+    expect(show("<USER> and <bot> and <CHAR>")).toBe("Tom and Ilse and Ilse");
+    expect(show("{{random:matin,soir}}")).toBe("matin / soir");
+    expect(show("{{pick::a::b}}")).toBe("a / b");
+    // An escaped comma is a comma of the choice, not a place to split it.
+    expect(show("{{random:a\\,b,c}}")).toBe("a,b / c");
+    expect(show("a\\,b")).toBe("a\\,b");
+    expect(show("{{roll:d20}}")).toBe("d20");
+    expect(show("{{roll:0}}")).toBe("{{roll:0}}");
+    expect(show("{{char}} meets {{user}}")).toBe("Ilse meets Tom");
+  });
+
+  it("the patterns are the engine's", () => {
+    // Without a choice to draw, nothing tells the two apart: the same patterns, in the same order.
+    const texts = [
+      "",
+      "Plain words.",
+      "{{// a comment}}{{char}} waits for {{USER}}.",
+      "<USER> and <BoT> and <cHaR> and <user >",
+      "{{ char }} and {{Original}} and {{ // spaced comment }}",
+      "{{//unclosed and {{char}}",
+      "<uſer> is {{uſer}}",
+      "{{ CHAR }}\n\n{{user}}: line\n{{// two}}{{// in a row}}",
+      "Names $& and $1 stay as written: <BOT>",
+      "{{{{char}}}} and <<USER>>",
+    ];
+    for (const text of texts) {
+      for (const seed of ["", "c1", "another"]) {
+        expect(describeMarkers(text, "Ilse $&", "Tom $1")).toBe(expandMacros(text, "Ilse $&", "Tom $1", seed));
+      }
+    }
+  });
+
+  it("unclosed markers take linear time for people too", () => {
+    for (const unit of ["{{random:", "{{//"]) {
+      const text = unit.repeat(Math.floor(7_000_000 / unit.length));
+      const start = performance.now();
+      expect(describeMarkers(text, "Serana", "Alex")).toBe(text);
+      expect(performance.now() - start).toBeLessThan(2000);
+    }
+  });
+
+  it("the role reminder is the one the model reads", () => {
+    expect(ROLE_REMINDER).toBe("Stay in character as {{char}}. Write only {{char}}'s next turn.");
   });
 });

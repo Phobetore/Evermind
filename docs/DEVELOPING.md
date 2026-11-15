@@ -425,6 +425,52 @@ be changed without rebuilding.
    files. A release that asks something of people who already run Evermind gets a
    section in [UPGRADING.md](UPGRADING.md), and its notes point there.
 
+## The security policy
+
+- `backend/app/headers.py` sets `Referrer-Policy`, `nosniff` and
+  `X-DNS-Prefetch-Control: off` on every answer of the server, except the 500 of
+  an error that nothing catches (a plain text).
+- `X-DNS-Prefetch-Control: off` matters on a page served over `http`, which is
+  what Evermind is on a home network. Without it, Firefox looks up the name of
+  every link on the page in advance, with no tap. A link in a card would then
+  tell its author when the card is read. `index.html` carries the same rule as a
+  `meta` tag, for a page served without our headers.
+- A page that calls a new address on another site (a `fetch`) needs that host
+  added to `connect-src` in `headers.py`, in `https://` and in full, and to the
+  string of `test_the_policy_is_the_one_written_down`. Never `https:` alone:
+  `img-src https:` already lets a script that got through ask for an address of
+  its choice, with its data in the address, and `connect-src https:` would let
+  it also send a body and read any answer that CORS allows. Naming the hosts
+  removes only those two things.
+- `Referrer-Policy: same-origin`, not `no-referrer`: no address of the app goes
+  to another site, and a write to Evermind keeps its `Origin`. Under
+  `no-referrer`, the Fetch standard itself sends `Origin: null` for a write to
+  the same site (a `fetch` to the same origin is not marked `cors`), and the
+  gate (`gate.py`) refuses it.
+- `backend/app/ui.py` sets the types of `.js`, `.mjs` and `.css` itself. Under
+  `nosniff`, a script of another type is refused, and Python otherwise takes its
+  types from the Windows registry.
+- Vite's development server (port 3000) sets none of these headers. Only the two
+  `meta` tags of `index.html` (`Referer`, names looked up in advance) hold
+  there. A breach of the policy shows only with Evermind's own server (`python
+  -m app`) or with the Playwright tests.
+- The layout code of a presentation (`lib/presentation/renderPresentation.ts`)
+  is loaded apart: import it only with `import()`, from `Presentation.tsx`. Its
+  bounds live in `lib/presentation/bounds.ts`, which imports nothing, so that
+  another page can read them.
+- Any text of a card or a message goes through `layoutRefusal` (`bounds.ts`)
+  before it is given to a Markdown parser. micromark takes a time that grows as
+  the square of some runs of marks, and `layoutCost` counts them without
+  parsing. A new place that lays out a text from elsewhere does the same, and
+  uses `noDefinitions` and `boundDepth` (`lib/presentation/markdown.ts`). The
+  shapes measured are in `lib/presentation/costliest.ts`, and a slow shape found
+  later is added there.
+- Raw HTML written in a text reaches `rehype-raw` only after `rawTagCost`
+  (`renderPresentation.ts`), which counts what parse5 will rebuild, copy and
+  compare before it reads it. A closing tag removes nothing there when a
+  comment, another tag, an element with text content, a `<table>` or a table
+  cell could hide it.
+
 ## Conventions
 
 - Migrations are append-only; never edit one that has shipped.

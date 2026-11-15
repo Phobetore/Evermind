@@ -1,11 +1,13 @@
 import type { Character } from "@/types";
 import { clsx } from "clsx";
 import { BookOpenText, MessageCircle, Star } from "lucide-react";
+import { useMemo } from "react";
 import { Link, useNavigate } from "react-router";
 import { Avatar } from "@/components/ui/Avatar";
-import { Tag } from "@/components/ui/Tag";
+import { Tag, TagText } from "@/components/ui/Tag";
+import { speakingName } from "@/engine";
 import { useT } from "@/i18n/useT";
-import { previewMacros } from "@/lib/utils";
+import { firstCodePoints, previewMacros } from "@/lib/utils";
 
 export function CharacterCard({
   character,
@@ -20,6 +22,14 @@ export function CharacterCard({
   const navigate = useNavigate();
   const t = useT();
   const isScenario = character.kind === "scenario";
+  // The home page draws again at every letter typed in the search, and the API does not bound a
+  // tagline: it is cut once, not at each draw.
+  const youFallback = t("chat.panel.sceneAnchor.youFallback");
+  const speaker = speakingName(character);
+  const tagline = useMemo(
+    () => firstCodePoints(previewMacros(character.tagline, speaker, youFallback), 2_000),
+    [character.tagline, speaker, youFallback],
+  );
 
   return (
     <Link
@@ -88,14 +98,17 @@ export function CharacterCard({
           {character.name}
         </h2>
         {character.tagline && (
-          <p className="line-clamp-2 hidden text-sm italic leading-snug text-parchment-dim sm:block">
-            {previewMacros(character.tagline, character.name, t("chat.panel.sceneAnchor.youFallback"))}
+          // line-clamp-2 sets its display with its cut: `sm:block` after it would undo the cut.
+          <p className="hidden text-sm italic leading-snug text-parchment-dim [overflow-wrap:anywhere] sm:line-clamp-2">
+            {tagline}
           </p>
         )}
         {character.tags.length > 0 && (
           <div className="mt-1 hidden flex-wrap gap-1.5 sm:flex">
             {character.tags.slice(0, 3).map((tag) => (
-              <Tag key={tag}>{tag}</Tag>
+              <Tag key={tag} className="max-w-full">
+                <TagText tag={tag} />
+              </Tag>
             ))}
           </div>
         )}

@@ -1,29 +1,54 @@
+import { CardTags } from "@/components/cards/CardTags";
+import { CharacterGreetings } from "@/components/cards/CharacterGreetings";
+import { CharacterNotes } from "@/components/cards/CharacterNotes";
 import { StartChatModal } from "@/components/cards/StartChatModal";
+import { WhatTheModelReads } from "@/components/cards/WhatTheModelReads";
 import { Avatar } from "@/components/ui/Avatar";
 import { LoadFailure } from "@/components/ui/LoadFailure";
 import { PageWait } from "@/components/ui/PageWait";
 import { Tag } from "@/components/ui/Tag";
 import { data } from "@/data";
+import { speakingName } from "@/engine";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import { previewMacros, timeAgo } from "@/lib/utils";
-import type { Character, Conversation } from "@/types";
+import { firstCodePoints, previewMacros, timeAgo } from "@/lib/utils";
+import type { Character, CharacterWithLore, Conversation } from "@/types";
 import { MessageCircle, Pencil, Star } from "lucide-react";
 import { clsx } from "clsx";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 function CharacterDetail({ id }: { id: string }) {
   const navigate = useNavigate();
   const [search] = useSearchParams();
   const t = useT();
+  // Replaced whole by the answer to each write, which carries only a Character's fields. What only
+  // the read of the card gives (its lorebook here) is kept in a state of its own, set where the
+  // page reads the card, and never read from this one.
   const [character, setCharacter] = useState<Character | null>(null);
+  // The active entries of the lorebook: one switched off, the model never reads.
+  const [lore, setLore] = useState(0);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showStart, setShowStart] = useState(false);
   // The error, not its sentence: described when drawn, it follows a change of language.
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   const [conversationsFailure, setConversationsFailure] = useState<{ error: unknown } | null>(null);
   const [favoriteFailure, setFavoriteFailure] = useState<{ error: unknown } | null>(null);
+  // The name the server gives the player in a new conversation, and in every prompt of it: the
+  // persona marked as the default, else "User" (backend/app/prompting, the same fallback), never
+  // a word of the interface. Until the list arrives, or if it cannot, the server's fallback.
+  const [player, setPlayer] = useState("User");
+
+  useEffect(() => {
+    let live = true;
+    data.personas.list().then(
+      (personas) => live && setPlayer(personas.find((persona) => persona.is_default)?.name || "User"),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const readConversations = useCallback(() => {
     data.conversations.list({ character_id: id }).then((list) => {
@@ -32,16 +57,29 @@ function CharacterDetail({ id }: { id: string }) {
     }, (error) => setConversationsFailure({ error }));
   }, [id]);
 
+  const received = useCallback((c: CharacterWithLore) => {
+    setCharacter(c);
+    setLore(c.lore_entries.filter((entry) => entry.enabled).length);
+  }, []);
+
   useEffect(() => {
     data.characters
       .get(id)
       .then((c) => {
-        setCharacter(c);
+        received(c);
         if (search.get("start")) setShowStart(true);
       })
       .catch((error) => setFailure({ error }));
     readConversations();
-  }, [id, search, readConversations]);
+  }, [id, search, readConversations, received]);
+
+  // For what the author shows the person (the tagline, the presentation): the person reading.
+  const you = t("chat.panel.sceneAnchor.youFallback");
+  const name = character ? speakingName(character) : "";
+  const rawTagline = character?.tagline ?? "";
+  // From the card, without a bound of length: read once, and only what three lines can show is
+  // laid out. The page draws again when the start window opens or the list arrives.
+  const tagline = useMemo(() => firstCodePoints(previewMacros(rawTagline, name, you), 2_000), [rawTagline, name, you]);
 
   if (failure) return <p className="p-10 text-blood">{describeError(failure.error, t)}</p>;
   if (!character) return <PageWait words={t("common.loading")} />;
@@ -55,7 +93,7 @@ function CharacterDetail({ id }: { id: string }) {
     } catch (error) {
       setFavoriteFailure({ error });
       // It may have gone through all the same: the button shows what the server holds.
-      data.characters.get(character.id).then(setCharacter, () => {});
+      data.characters.get(character.id).then(received, () => {});
     }
   };
 
@@ -77,21 +115,27 @@ function CharacterDetail({ id }: { id: string }) {
           <Tag tone={isScenario ? "arcane" : "ember"}>
             {isScenario ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}
           </Tag>
-          <h1 className="mt-2 break-words font-display text-4xl font-semibold tracking-tight">
+          {/* Clipped: combining marks stacked on one letter of the name would paint over the
+              portrait and the page above it. */}
+          <h1 className="mt-2 overflow-clip break-words font-display text-4xl font-semibold tracking-tight">
             {character.name}
           </h1>
-          {character.tagline && (
-            <p className="mt-1.5 text-lg italic text-parchment-dim">
-              {previewMacros(character.tagline, character.name, t("chat.panel.sceneAnchor.youFallback"))}
+          {/* From the card, without a bound of length: two lines at most, and only what they can
+              show is laid out. */}
+          {character.creator && (
+            <p className="mt-1 line-clamp-2 text-sm text-mist [overflow-wrap:anywhere]">
+              {t("characters.detail.byCreator", { creator: firstCodePoints(character.creator, 2_000) })}
             </p>
           )}
-          {character.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {character.tags.map((tag) => (
-                <Tag key={tag}>{tag}</Tag>
-              ))}
-            </div>
+          {character.character_version && (
+            <p className="mt-0.5 line-clamp-2 text-sm text-mist [overflow-wrap:anywhere]">
+              {t("characters.detail.version", { version: firstCodePoints(character.character_version, 2_000) })}
+            </p>
           )}
+          {tagline && (
+            <p className="mt-1.5 line-clamp-3 text-lg italic text-parchment-dim [overflow-wrap:anywhere]">{tagline}</p>
+          )}
+          <CardTags tags={character.tags} />
 
           <div className="mt-5 flex flex-wrap gap-2">
             <button className="btn btn-primary" onClick={() => setShowStart(true)}>
@@ -124,38 +168,10 @@ function CharacterDetail({ id }: { id: string }) {
             </p>
           )}
 
-          {character.description && (
-            <section className="mt-7">
-              <h2 className="ui-label mb-2">{isScenario ? t("characters.detail.universeHeading") : t("characters.detail.aboutHeading")}</h2>
-              <p className="whitespace-pre-wrap leading-relaxed text-parchment-dim">
-                {previewMacros(character.description, character.name, t("chat.panel.sceneAnchor.youFallback"))}
-              </p>
-            </section>
-          )}
-
-          {character.greeting && (
-            <section className="mt-6">
-              <h2 className="ui-label mb-2">{t("characters.detail.openingHeading")}</h2>
-              <blockquote className="rp-prose rounded-xl border border-ink-700 bg-ink-900/70 p-4 italic text-parchment-dim">
-                {previewMacros(
-                  character.greeting.length > 400
-                    ? `${character.greeting.slice(0, 400)}…`
-                    : character.greeting,
-                  character.name,
-                  t("chat.panel.sceneAnchor.youFallback"),
-                )}
-              </blockquote>
-            </section>
-          )}
-
-          {character.creator_notes && (
-            <section className="mt-6">
-              <h2 className="ui-label mb-2">{t("characters.creatorNotesLabel")}</h2>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-mist">
-                {character.creator_notes}
-              </p>
-            </section>
-          )}
+          <CharacterNotes character={character} you={you} />
+          {/* As the conversation will get them, and as the model reads them: the player's name. */}
+          <CharacterGreetings character={character} you={player} />
+          <WhatTheModelReads character={character} lore={lore} you={player} />
 
           {(conversationsFailure || conversations.length > 0) && (
             <section className="mt-8">

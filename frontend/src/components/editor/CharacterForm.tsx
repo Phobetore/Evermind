@@ -92,6 +92,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const [originalFailure, setOriginalFailure] = useState<{ error: unknown } | null>(null);
   const [pendingCard, setPendingCard] = useState<OriginalCard | null>(null);
   const [rereadChosen, setRereadChosen] = useState(false);
+  // The entries the click left as they are: known only from the plan, which only the click makes.
+  const [rereadLeft, setRereadLeft] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   // A save whose portrait fails has made the new card already.
   const created = useRef("");
@@ -234,6 +236,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     // among them at their place, get new ones.
     setLoreEntries(plan.lore.map((entry) => ({ ...entry, id: "id" in entry && typeof entry.id === "string" ? entry.id : newId() })));
     setPendingCard(plan.card);
+    // Only a re-reading speaks of the entries: keeping only stores the card for the export, and says nothing of what it pairs.
+    setRereadLeft(mode === "reread" ? plan.left : 0);
     setRereadChosen(true);
   }
 
@@ -367,6 +371,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
             failure={originalFailure}
             hasCard={initial.has_card}
             applied={rereadChosen}
+            left={rereadLeft}
             label={fieldLabel}
             onApply={applyReread}
             onRetry={() => {

@@ -138,3 +138,71 @@ test("a one-word name wraps in the summary's title rather than being cut or push
   const close = (await dialog.getByRole("button", { name: "Close" }).boundingBox())!;
   expect(close.x + close.width, "Close is off the screen").toBeLessThanOrEqual(320);
 });
+
+// The cards the tests below sow, deleted after each with their conversations: the home page of
+// every later test would draw them.
+const made: string[] = [];
+// What reached the sites of the tests.
+const asked: string[] = [];
+test.afterEach(async ({ request }) => {
+  for (const id of made.splice(0)) await request.delete(`${API}/api/characters/${id}`);
+  asked.length = 0;
+});
+
+/** A conversation of a new card named Ilse, its summary opened from the conversation's header. */
+async function summaryOf(page: Page, request: APIRequestContext, fields: Record<string, unknown>) {
+  await page.context().route(/^https:\/\/[^/]*\.example\//, (route) => {
+    asked.push(route.request().url());
+    return route.fulfill({ status: 404 });
+  });
+  const convo = await makeConversation(request, { name: "Ilse", ...fields });
+  made.push(convo.character_id);
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.locator("header").getByRole("button", { name: "About Ilse" }).click();
+  const summary = page.getByRole("dialog", { name: "Ilse" });
+  await expect(summary).toBeVisible();
+  return summary;
+}
+
+test("the summary shows the author's presentation in plain words", async ({ page, request }) => {
+  const summary = await summaryOf(page, request, {
+    creator_notes: '**Lighthouse** keeper <img src="https://pictures.example/a.png">',
+    description: "A description the model reads.",
+  });
+  await expect(summary.getByText("Lighthouse keeper")).toBeVisible();
+  await expect(summary).not.toContainText("**");
+  await expect(summary).not.toContainText("<img");
+  await expect(summary).not.toContainText("A description the model reads.");
+  expect(asked.filter((url) => new URL(url).hostname === "pictures.example")).toEqual([]);
+});
+
+test("the summary reads the card's name markers", async ({ page, request }) => {
+  const summary = await summaryOf(page, request, { creator_notes: "<p><BOT> keeps the **light**</p>" });
+  await expect(summary.getByText("Ilse keeps the light")).toBeVisible();
+});
+
+test("the summary shows a description as the model reads it", async ({ page, request }) => {
+  const summary = await summaryOf(page, request, { description: "{{// x}} <USER> meets {{char}}" });
+  await expect(summary.getByText("{{// x}} <USER> meets Ilse")).toBeVisible();
+});
+
+test("the summary keeps its button in reach on a phone", async ({ page, request }) => {
+  const long = "a".repeat(10_000);
+  const summary = await summaryOf(page, request, {
+    tagline: long,
+    tags: [long, ...Array.from({ length: 999 }, (_, i) => `tag ${i}`)],
+  });
+  expect(
+    await page.evaluate(() => document.scrollingElement!.scrollWidth - document.scrollingElement!.clientWidth),
+    "the page scrolls sideways",
+  ).toBeLessThanOrEqual(0);
+  const panel = summary.locator(".panel");
+  expect(await panel.evaluate((el) => el.scrollWidth - el.clientWidth), "the summary scrolls sideways").toBeLessThanOrEqual(0);
+  const tagline = summary.locator("p.italic");
+  expect(
+    await tagline.evaluate((el) => el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)),
+  ).toBeLessThanOrEqual(3.5);
+  await expect(summary.locator("span.truncate[title]")).toHaveCount(8);
+  await expect(summary.getByRole("button", { name: "Show the 992 other tags" })).toHaveText("+992");
+  await expect(summary.getByRole("link", { name: "Open the card" })).toBeInViewport();
+});

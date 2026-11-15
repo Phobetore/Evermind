@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from starlette.middleware.gzip import GZipMiddleware
 
-from . import __version__, config, gate
+from . import __version__, config, gate, headers
 from .db import init_db
 from .errors import register_error_handlers
 from .ui import UIFiles
@@ -31,6 +31,9 @@ def create_app() -> FastAPI:
     app.add_middleware(gate.GateMiddleware)
     # Starlette leaves out the event stream, and pictures that are compressed already.
     app.add_middleware(GZipMiddleware)
+    # The last added is the first to get the request and the last to touch the answer, so the
+    # gate's refusals carry the headers too.
+    app.add_middleware(headers.SecurityHeaders)
     register_error_handlers(app)
 
     from .routers import register_routers

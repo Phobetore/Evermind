@@ -346,17 +346,62 @@
     "removeFavoriteTitle": "Remove from favorites",
     "favoritedLabel": "Favorited",
     "creatorNotesLabel": "Creator notes",
+    "presentation": {
+      "showImages": "Show images",
+      "contacts": "Will contact: {hosts}",
+      "contactsMore": "Will contact: {hosts} and {count} others",
+      "contactsMore_one": "Will contact: {hosts} and {count} other",
+      "imageFrom": "Image from {host}",
+      "show": "Show",
+      "showFrom": "Show the image from {host}",
+      "imageUnavailable": "Image unavailable ({host})",
+      "imageRefused": "Image not shown",
+      "imageInsecure": "Image from {host} not shown: the address is not secure (http)",
+      "imageTooLarge": "Image too large to show ({width} × {height} pixels)",
+      "imageOverBudget": "Image not shown: with the ones before it, it would not fit in a phone's memory.",
+      "layoutMissing": "The layout could not be loaded.",
+      "reload": "Reload",
+      "noRemoteImages": "Images from other sites are not shown in this edition.",
+      "tooLong": "Too long to lay out: shown without its layout.",
+      "tooDense": "Too dense to lay out: shown without its layout.",
+      "linkElsewhere": "This link does not lead to the site its text shows. Open it?",
+      "linkUnclear": "The text of this link can be read as another site. Open it?",
+      "linkPicture": "This link holds a picture. Open it?",
+      "linkLeadsTo": "It leads to {host}",
+      "linkShows": "Its text shows {host}",
+      "openLink": "Open"
+    },
     "card": {
       "startButton": "Start"
     },
     "detail": {
       "startConversationButton": "Start a conversation",
       "editButton": "Edit",
-      "aboutHeading": "About",
-      "universeHeading": "The world",
       "openingHeading": "Opening",
       "yourConversationsHeading": "Your conversations",
-      "rereadable": "Can be re-read with the new rules"
+      "rereadable": "Can be re-read with the new rules",
+      "fromTheAuthor": "From the author",
+      "notesLanguage": "Language of the presentation",
+      "notesMain": "Main text",
+      "notesOther": "Other version {index}",
+      "notReadByModel": "The model does not read this text.",
+      "greetingOf": "Opening {index} of {count}",
+      "previousGreeting": "Previous opening",
+      "nextGreeting": "Next opening",
+      "modelReads": "What the model reads",
+      "modelReadsHint": "Sent to the model on every turn, with the lorebook and the conversation. The layout is for you: the model reads the text as written.",
+      "modelReadsLaidOut": "Laid out",
+      "modelReadsAsWritten": "As written",
+      "characterNoteAtEnd": "Character's note, placed after the last message",
+      "characterNote": "Character's note, placed before the last {count:grouped} messages",
+      "characterNote_one": "Character's note, placed before the last message",
+      "lore": "Lorebook: {count:grouped} entries",
+      "lore_one": "Lorebook: {count:grouped} entry",
+      "byCreator": "by {creator}",
+      "version": "version {version}",
+      "moreTags": "+{count}",
+      "moreTagsLabel": "Show the {count} other tags",
+      "moreTagsLabel_one": "Show the other tag"
     },
     "form": {
       "editCardTitle": "Edit {name}",
@@ -430,6 +475,8 @@
       "kind": "Character or scenario",
       "lore": "{count:grouped} lorebook entries",
       "lore_one": "{count:grouped} lorebook entry",
+      "left": "{count:grouped} lorebook entries stay as they are: Evermind could not tell for sure which entry of the card they come from, or you wrote them here.",
+      "left_one": "{count:grouped} lorebook entry stays as it is: Evermind could not tell for sure which entry of the card it comes from, or you wrote it here.",
       "reread": "Re-read the card and switch to the new rules",
       "keep": "Keep only the original card for the export",
       "keepHint": "Keeping it changes nothing in its conversations; this notice stays, to switch to the new rules later.",
@@ -527,8 +574,8 @@
       "loreConstant_one": "of which {count:grouped} always on",
       "secondaryKeys": "{count:grouped} entries with secondary keys",
       "secondaryKeys_one": "{count:grouped} entry with secondary keys",
-      "depthEntries": "{count:grouped} entries recalled in the conversation at their depth, the same way (their role is kept, not followed)",
-      "depthEntries_one": "{count:grouped} entry recalled in the conversation at its depth, the same way (its role is kept, not followed)",
+      "depthEntries": "{count:grouped} entries recalled in the conversation at their depth, in a turn of the person marked as not theirs (their role is kept, not followed)",
+      "depthEntries_one": "{count:grouped} entry recalled in the conversation at its depth, in a turn of the person marked as not theirs (its role is kept, not followed)",
       "characterNote": "Character note, recalled {count:grouped} messages from the end, in a turn of the person marked as not theirs (its role is kept, not followed)",
       "characterNote_one": "Character note, recalled {count:grouped} message from the end, in a turn of the person marked as not theirs (its role is kept, not followed)",
       "postHistory": "Instructions for after the story",
@@ -587,6 +634,15 @@
     "tagInput": {
       "placeholder": "Add a tag, then Enter",
       "removeAriaLabel": "Remove {tag}"
+    },
+    "folded": {
+      "more": "Read more",
+      "less": "Show less"
+    },
+    "plainText": {
+      "part": "Part {index} of {count}",
+      "previous": "Previous part",
+      "next": "Next part"
     }
   },
   "errors": {

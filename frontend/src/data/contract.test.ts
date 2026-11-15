@@ -6,8 +6,13 @@ test("an edition may come without connections, a password or an update check", (
   const { characters, personas, conversations, messages, memories, turns, library, settings, file, device } = data;
   const bare: DataSource = {
     characters, personas, conversations, messages, memories, turns, library, settings, file, device,
+    remoteImages: false,
   };
   expect(bare.connections).toBeUndefined();
   expect(bare.access).toBeUndefined();
   expect(bare.updates).toBeUndefined();
+});
+
+test("the server's edition shows an image of another site on a tap", () => {
+  expect(data.remoteImages).toBe(true);
 });

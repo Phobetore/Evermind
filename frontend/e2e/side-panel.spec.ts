@@ -148,15 +148,16 @@ function measure(panel: Locator) {
     // The area added around a small control on a touch screen is meant to stick
     // out of it (and the panel's padding takes it up), so it is left out of the
     // question of which text runs out of its box. Everything else is measured
-    // with it in.
-    const hideReach = document.createElement("style");
-    hideReach.textContent = ".touch-target::after { display: none !important }";
-    document.head.append(hideReach);
+    // with it in. A sheet built in the page rather than a <style> element: the
+    // app's security policy refuses inline style, and the reach would stay.
+    const hideReach = new CSSStyleSheet();
+    hideReach.replaceSync(".touch-target::after { display: none !important }");
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, hideReach];
     const spilling = all
       .filter((el) => !["TEXTAREA", "INPUT", "SELECT", "SVG", "OPTION"].includes(el.tagName.toUpperCase()))
       .filter((el) => el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1)
       .map((el) => `${describe(el)} is ${el.clientWidth}px wide and holds ${el.scrollWidth}px`);
-    hideReach.remove();
+    document.adoptedStyleSheets = document.adoptedStyleSheets.filter((sheet) => sheet !== hideReach);
     return {
       scrollWidth: aside.scrollWidth,
       clientWidth: aside.clientWidth,
@@ -281,4 +282,22 @@ test("the panel beside the story closes when the screen narrows under it, and le
   await expect(panel).toHaveCount(0);
   await expect(page.locator("header button:has(svg.lucide-sliders-horizontal)")).toBeVisible();
   await expect(box, "a phone's keyboard closed on a sentence being typed").toBeFocused();
+});
+
+const made: string[] = [];
+test.afterEach(async ({ request }) => {
+  for (const id of made.splice(0)) await request.delete(`${API}/api/characters/${id}`);
+});
+
+// The model reads a card on the old rules with only its two names put in: the panel shows the
+// scenario the same way, and does not make it look resolved when the model will read it as written.
+test("the scene anchor shows the scenario as the model reads it", async ({ page, request }) => {
+  const convo = await makeConversation(request, { scenario: "{{// x}} <USER> at {{random:dawn,dusk}}" });
+  made.push(convo.character_id);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("textarea").first()).toBeVisible();
+  const opener = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+  if (await opener.isVisible()) await opener.click();
+  const panel = page.locator("aside:visible:has(textarea)");
+  await expect(panel.getByText("{{// x}} <USER> at {{random:dawn,dusk}}", { exact: true })).toBeVisible();
 });

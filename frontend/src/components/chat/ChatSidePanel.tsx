@@ -1,11 +1,13 @@
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
+import { PlainText } from "@/components/ui/PlainText";
 import { data, DataError } from "@/data";
+import { speakingName } from "@/engine";
 import { useT } from "@/i18n/useT";
 import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS } from "@/lib/useTurn";
-import { previewMacros } from "@/lib/utils";
+import { cardText } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
@@ -629,9 +631,11 @@ export function ChatSidePanel({
       {character.scenario && (
         <div>
           <span className="ui-label mb-1.5 block">{t("chat.panel.sceneAnchor.title")}</span>
-          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-mist">
-            {previewMacros(character.scenario, character.name, persona?.name ?? t("chat.panel.sceneAnchor.youFallback"))}
-          </p>
+          {/* The API bounds no scenario, and it is drawn on every visit to a conversation. */}
+          <PlainText
+            text={cardText(character.scenario, character.card_rules, speakingName(character), persona?.name ?? t("chat.panel.sceneAnchor.youFallback"))}
+            className="text-sm leading-relaxed text-mist"
+          />
         </div>
       )}
     </aside>

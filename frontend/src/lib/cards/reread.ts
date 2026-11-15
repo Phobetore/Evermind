@@ -36,6 +36,10 @@ export interface RereadPlan {
   untouched: string[];
   /** The card to keep, with its reading; null when only the rules change. */
   card: OriginalCard | null;
+  /** How many entries of the lorebook now the plan leaves without a pair: they have no origin
+   *  after it, and keep their own settings. Some were written here, some could not be told for
+   *  sure from the card's, and the plan does not say which. */
+  left: number;
 }
 
 // The reader of before cards were kept whole, copied as it was, for one reason: a card made then
@@ -339,7 +343,7 @@ export function rereadOffer(current: CardCharacter, found: FoundCard | null): Pi
 export function rereadPlan(current: CardCharacter, found: FoundCard | null, mode: RereadMode): RereadPlan {
   const reread = mode === "reread";
   if (!found) {
-    return { fields: reread ? { card_rules: 2 } : {}, lore: current.lore_entries, added: [], untouched: [], card: null };
+    return { fields: reread ? { card_rules: 2 } : {}, lore: current.lore_entries, added: [], untouched: [], card: null, left: 0 };
   }
   const { read, old } = found;
   const now = read.character;
@@ -365,6 +369,8 @@ export function rereadPlan(current: CardCharacter, found: FoundCard | null, mode
     };
   });
 
+  const left = lore.filter((entry) => entry.origin === null).length;
+
   if (reread) {
     // The entries the old import never gave Evermind: always on with no keyword, or only in ccv3.
     // Each goes after the entry of the nearest index below it, as the export places what Evermind
@@ -372,7 +378,7 @@ export function rereadPlan(current: CardCharacter, found: FoundCard | null, mode
     const more = neverGiven(found, places);
     if (more.length > 0) added.push({ key: "lore", count: more.length });
     fields.card_rules = 2;
-    return { fields, lore: withAdded(lore, more), added, untouched, card: { ...read.original, read: now } };
+    return { fields, lore: withAdded(lore, more), added, untouched, card: { ...read.original, read: now }, left };
   }
 
   // Kept for the export only: the reading kept with the card is the old one wherever the old
@@ -390,5 +396,6 @@ export function rereadPlan(current: CardCharacter, found: FoundCard | null, mode
     added,
     untouched,
     card: { ...read.original, read: { ...now, ...oldFieldsRead, lore_entries: keptLore } },
+    left,
   };
 }

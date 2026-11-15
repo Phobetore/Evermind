@@ -121,6 +121,10 @@ export interface DataSource {
   /** What this device keeps for itself: drafts, a message on its way, the chosen language. */
   readonly device: DeviceStore;
 
+  /** Whether an image of another site may be shown when the person taps it: false where the host
+   *  blocks every image from another site. */
+  readonly remoteImages: boolean;
+
   connections?: {
     list(): Promise<Connection[]>;
     create(input: ConnectionInput): Promise<Connection>;

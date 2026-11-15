@@ -346,17 +346,62 @@
     "removeFavoriteTitle": "Retirer des favoris",
     "favoritedLabel": "Favori",
     "creatorNotesLabel": "Notes du créateur",
+    "presentation": {
+      "showImages": "Afficher les images",
+      "contacts": "Contacte : {hosts}",
+      "contactsMore": "Contacte : {hosts} et {count} autres",
+      "contactsMore_one": "Contacte : {hosts} et {count} autre",
+      "imageFrom": "Image de {host}",
+      "show": "Afficher",
+      "showFrom": "Afficher l'image de {host}",
+      "imageUnavailable": "Image indisponible ({host})",
+      "imageRefused": "Image non affichée",
+      "imageInsecure": "Image de {host} non affichée : l'adresse n'est pas sécurisée (http)",
+      "imageTooLarge": "Image trop grande pour être affichée ({width} × {height} pixels)",
+      "imageOverBudget": "Image non affichée : avec les précédentes, elle dépasserait la mémoire d'un téléphone.",
+      "layoutMissing": "La mise en forme n'a pas pu être chargée.",
+      "reload": "Recharger",
+      "noRemoteImages": "Les images d'autres sites ne s'affichent pas dans cette édition.",
+      "tooLong": "Trop long pour être mis en page : montré sans sa mise en forme.",
+      "tooDense": "Trop chargé pour être mis en page : montré sans sa mise en forme.",
+      "linkElsewhere": "Ce lien ne mène pas au site que montre son texte. L'ouvrir ?",
+      "linkUnclear": "Le texte de ce lien peut se lire comme un autre site. L'ouvrir ?",
+      "linkPicture": "Ce lien porte une image. L'ouvrir ?",
+      "linkLeadsTo": "Il mène à {host}",
+      "linkShows": "Son texte montre {host}",
+      "openLink": "Ouvrir"
+    },
     "card": {
       "startButton": "Commencer"
     },
     "detail": {
       "startConversationButton": "Commencer une conversation",
       "editButton": "Modifier",
-      "aboutHeading": "À propos",
-      "universeHeading": "L'univers",
       "openingHeading": "Ouverture",
       "yourConversationsHeading": "Vos conversations",
-      "rereadable": "Peut être relue avec les nouvelles règles"
+      "rereadable": "Peut être relue avec les nouvelles règles",
+      "fromTheAuthor": "De la part de l'auteur",
+      "notesLanguage": "Langue de la présentation",
+      "notesMain": "Texte principal",
+      "notesOther": "Autre version {index}",
+      "notReadByModel": "Le modèle ne lit pas ce texte.",
+      "greetingOf": "Ouverture {index} sur {count}",
+      "previousGreeting": "Ouverture précédente",
+      "nextGreeting": "Ouverture suivante",
+      "modelReads": "Ce que lit le modèle",
+      "modelReadsHint": "Envoyé au modèle à chaque tour, avec le lorebook et la conversation. La mise en page est pour vous : le modèle lit le texte tel qu'écrit.",
+      "modelReadsLaidOut": "Mis en page",
+      "modelReadsAsWritten": "Tel qu'écrit",
+      "characterNoteAtEnd": "Note du personnage, placée après le dernier message",
+      "characterNote": "Note du personnage, placée avant les {count:grouped} derniers messages",
+      "characterNote_one": "Note du personnage, placée avant le dernier message",
+      "lore": "Lorebook : {count:grouped} entrées",
+      "lore_one": "Lorebook : {count:grouped} entrée",
+      "byCreator": "par {creator}",
+      "version": "version {version}",
+      "moreTags": "+{count}",
+      "moreTagsLabel": "Afficher les {count} autres étiquettes",
+      "moreTagsLabel_one": "Afficher l'autre étiquette"
     },
     "form": {
       "editCardTitle": "Modifier {name}",
@@ -430,6 +475,8 @@
       "kind": "Personnage ou scénario",
       "lore": "{count:grouped} entrées du lorebook",
       "lore_one": "{count:grouped} entrée du lorebook",
+      "left": "{count:grouped} entrées du lorebook restent telles quelles : Evermind n'a pas pu dire avec certitude de quelle entrée de la carte elles viennent, ou vous les avez écrites ici.",
+      "left_one": "{count:grouped} entrée du lorebook reste telle quelle : Evermind n'a pas pu dire avec certitude de quelle entrée de la carte elle vient, ou vous l'avez écrite ici.",
       "reread": "Relire la carte et passer aux nouvelles règles",
       "keep": "Garder seulement la carte d'origine pour l'export",
       "keepHint": "La garder ne change rien dans ses conversations\u00a0; ce bandeau reste, pour passer plus tard aux nouvelles règles.",
@@ -527,8 +574,8 @@
       "loreConstant_one": "dont {count:grouped} toujours active",
       "secondaryKeys": "{count:grouped} entrées avec des clés secondaires",
       "secondaryKeys_one": "{count:grouped} entrée avec des clés secondaires",
-      "depthEntries": "{count:grouped} entrées rappelées dans la conversation à leur profondeur, de la même façon (leur rôle est gardé, pas suivi)",
-      "depthEntries_one": "{count:grouped} entrée rappelée dans la conversation à sa profondeur, de la même façon (son rôle est gardé, pas suivi)",
+      "depthEntries": "{count:grouped} entrées rappelées dans la conversation à leur profondeur, dans un tour de la personne marqué comme n'étant pas d'elle (leur rôle est gardé, pas suivi)",
+      "depthEntries_one": "{count:grouped} entrée rappelée dans la conversation à sa profondeur, dans un tour de la personne marqué comme n'étant pas d'elle (son rôle est gardé, pas suivi)",
       "characterNote": "Note du personnage, rappelée à {count:grouped} messages de la fin, dans un tour de la personne marqué comme n'étant pas d'elle (son rôle est gardé, pas suivi)",
       "characterNote_one": "Note du personnage, rappelée à {count:grouped} message de la fin, dans un tour de la personne marqué comme n'étant pas d'elle (son rôle est gardé, pas suivi)",
       "postHistory": "Instructions d'après l'histoire",
@@ -587,6 +634,15 @@
     "tagInput": {
       "placeholder": "Ajouter un tag puis Entrée",
       "removeAriaLabel": "Retirer {tag}"
+    },
+    "folded": {
+      "more": "Lire la suite",
+      "less": "Réduire"
+    },
+    "plainText": {
+      "part": "Partie {index} sur {count}",
+      "previous": "Partie précédente",
+      "next": "Partie suivante"
     }
   },
   "errors": {

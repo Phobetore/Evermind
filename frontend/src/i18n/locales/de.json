@@ -346,17 +346,62 @@
     "removeFavoriteTitle": "Aus Favoriten entfernen",
     "favoritedLabel": "Favorisiert",
     "creatorNotesLabel": "Notizen des Erstellers",
+    "presentation": {
+      "showImages": "Bilder anzeigen",
+      "contacts": "Kontaktiert: {hosts}",
+      "contactsMore": "Kontaktiert: {hosts} und {count} weitere Seiten",
+      "contactsMore_one": "Kontaktiert: {hosts} und {count} weitere Seite",
+      "imageFrom": "Bild von {host}",
+      "show": "Anzeigen",
+      "showFrom": "Bild von {host} anzeigen",
+      "imageUnavailable": "Bild nicht verfügbar ({host})",
+      "imageRefused": "Bild nicht angezeigt",
+      "imageInsecure": "Bild von {host} nicht angezeigt: Die Adresse ist nicht sicher (http)",
+      "imageTooLarge": "Bild zu groß zum Anzeigen ({width} × {height} Pixel)",
+      "imageOverBudget": "Bild nicht angezeigt: Zusammen mit den vorherigen würde es den Speicher eines Telefons übersteigen.",
+      "layoutMissing": "Das Layout konnte nicht geladen werden.",
+      "reload": "Neu laden",
+      "noRemoteImages": "Bilder anderer Websites werden in dieser Ausgabe nicht angezeigt.",
+      "tooLong": "Zu lang für das Layout: ohne Formatierung angezeigt.",
+      "tooDense": "Zu dicht für das Layout: ohne Formatierung angezeigt.",
+      "linkElsewhere": "Dieser Link führt nicht zu der Website, die sein Text zeigt. Öffnen?",
+      "linkUnclear": "Der Text dieses Links kann als andere Website gelesen werden. Öffnen?",
+      "linkPicture": "Dieser Link enthält ein Bild. Öffnen?",
+      "linkLeadsTo": "Er führt zu {host}",
+      "linkShows": "Sein Text zeigt {host}",
+      "openLink": "Öffnen"
+    },
     "card": {
       "startButton": "Starten"
     },
     "detail": {
       "startConversationButton": "Unterhaltung beginnen",
       "editButton": "Bearbeiten",
-      "aboutHeading": "Über",
-      "universeHeading": "Die Welt",
       "openingHeading": "Eröffnung",
       "yourConversationsHeading": "Deine Unterhaltungen",
-      "rereadable": "Kann mit den neuen Regeln neu gelesen werden"
+      "rereadable": "Kann mit den neuen Regeln neu gelesen werden",
+      "fromTheAuthor": "Vom Autor",
+      "notesLanguage": "Sprache der Vorstellung",
+      "notesMain": "Haupttext",
+      "notesOther": "Andere Fassung {index}",
+      "notReadByModel": "Das Modell liest diesen Text nicht.",
+      "greetingOf": "Eröffnung {index} von {count}",
+      "previousGreeting": "Vorherige Eröffnung",
+      "nextGreeting": "Nächste Eröffnung",
+      "modelReads": "Was das Modell liest",
+      "modelReadsHint": "Wird dem Modell in jeder Runde geschickt, mit dem Lorebook und der Unterhaltung. Das Layout ist für dich: Das Modell liest den Text so, wie er geschrieben ist.",
+      "modelReadsLaidOut": "Gesetzt",
+      "modelReadsAsWritten": "Wie geschrieben",
+      "characterNoteAtEnd": "Notiz zur Figur, nach der letzten Nachricht eingefügt",
+      "characterNote": "Notiz zur Figur, vor den letzten {count:grouped} Nachrichten eingefügt",
+      "characterNote_one": "Notiz zur Figur, vor der letzten Nachricht eingefügt",
+      "lore": "Lorebook: {count:grouped} Einträge",
+      "lore_one": "Lorebook: {count:grouped} Eintrag",
+      "byCreator": "von {creator}",
+      "version": "Version {version}",
+      "moreTags": "+{count}",
+      "moreTagsLabel": "Die {count} anderen Tags anzeigen",
+      "moreTagsLabel_one": "Den anderen Tag anzeigen"
     },
     "form": {
       "editCardTitle": "{name} bearbeiten",
@@ -430,6 +475,8 @@
       "kind": "Charakter oder Szenario",
       "lore": "{count:grouped} Lorebook-Einträge",
       "lore_one": "{count:grouped} Lorebook-Eintrag",
+      "left": "{count:grouped} Lorebook-Einträge bleiben, wie sie sind: Evermind konnte nicht sicher sagen, von welchem Eintrag der Karte sie stammen, oder du hast sie hier geschrieben.",
+      "left_one": "{count:grouped} Lorebook-Eintrag bleibt, wie er ist: Evermind konnte nicht sicher sagen, von welchem Eintrag der Karte er stammt, oder du hast ihn hier geschrieben.",
       "reread": "Karte neu lesen und zu den neuen Regeln wechseln",
       "keep": "Nur die Originalkarte für den Export behalten",
       "keepHint": "Das ändert nichts an ihren Unterhaltungen; dieser Hinweis bleibt, um später zu den neuen Regeln zu wechseln.",
@@ -527,8 +574,8 @@
       "loreConstant_one": "davon {count:grouped} immer aktiv",
       "secondaryKeys": "{count:grouped} Einträge mit Zweitstichwörtern",
       "secondaryKeys_one": "{count:grouped} Eintrag mit Zweitstichwörtern",
-      "depthEntries": "{count:grouped} Einträge, im Gespräch in ihrer Tiefe ebenso eingeblendet (ihre Rolle wird behalten, nicht befolgt)",
-      "depthEntries_one": "{count:grouped} Eintrag, im Gespräch in seiner Tiefe ebenso eingeblendet (seine Rolle wird behalten, nicht befolgt)",
+      "depthEntries": "{count:grouped} Einträge, im Gespräch in ihrer Tiefe eingeblendet, in einem Zug der Person, als nicht von ihr markiert (ihre Rolle wird behalten, nicht befolgt)",
+      "depthEntries_one": "{count:grouped} Eintrag, im Gespräch in seiner Tiefe eingeblendet, in einem Zug der Person, als nicht von ihr markiert (seine Rolle wird behalten, nicht befolgt)",
       "characterNote": "Notiz zur Figur, {count:grouped} Nachrichten vor dem Ende eingeblendet, in einem Zug der Person, als nicht von ihr markiert (ihre Rolle wird behalten, nicht befolgt)",
       "characterNote_one": "Notiz zur Figur, {count:grouped} Nachricht vor dem Ende eingeblendet, in einem Zug der Person, als nicht von ihr markiert (ihre Rolle wird behalten, nicht befolgt)",
       "postHistory": "Anweisungen für nach der Geschichte",
@@ -587,6 +634,15 @@
     "tagInput": {
       "placeholder": "Tag hinzufügen, dann Enter",
       "removeAriaLabel": "{tag} entfernen"
+    },
+    "folded": {
+      "more": "Weiterlesen",
+      "less": "Weniger anzeigen"
+    },
+    "plainText": {
+      "part": "Teil {index} von {count}",
+      "previous": "Vorheriger Teil",
+      "next": "Nächster Teil"
     }
   },
   "errors": {

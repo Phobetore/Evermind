@@ -859,7 +859,27 @@ describe("re-reading a card", () => {
   test("without a card the plan only changes the rules", () => {
     const current = madeBefore(MIRELA);
     expect(rereadPlan(current, null, "reread")).toEqual({
-      fields: { card_rules: 2 }, lore: current.lore_entries, added: [], untouched: [], card: null,
+      fields: { card_rules: 2 }, lore: current.lore_entries, added: [], untouched: [], card: null, left: 0,
     });
+  });
+
+  test("the plan counts the entries it leaves without a pair", () => {
+    const card = v2({
+      name: "Mirela", description: "A lighthouse keeper.",
+      character_book: { entries: [
+        { keys: ["lamp"], content: "The lamp burns whale oil." },
+        { keys: ["boat"], content: "The boat is red, with a white stripe along its hull." },
+        { keys: ["gull"], content: "A gull named Pell follows her about the rocks." },
+      ] },
+    });
+    const current = madeBefore(card);
+    // The lamp as it was, the boat rewritten past recognition, and an entry written here.
+    current.lore_entries = [
+      current.lore_entries[0],
+      { ...current.lore_entries[1], content: "Quartz veins run through the cliff below the tower." },
+      newLoreEntry(["tide"], "The tide table hangs by the door."),
+    ];
+    expect(rereadPlan(current, found(card), "reread").left).toBe(2);
+    expect(rereadPlan(madeBefore(card), found(card), "reread").left).toBe(0);
   });
 });
