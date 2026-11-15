@@ -98,16 +98,19 @@ const enum Direction {
   None,
   Left,
   Right,
-  // Digits after a right-to-left letter, which run on their own level.
+  // Digits after a right-to-left letter, and Arabic digits after any, which run on their own level.
   RightDigits,
 }
 
-/** 1 for a letter written left to right, 2 for one written right to left, 3 for a digit, 0 for
- *  anything else (a blank, a mark, punctuation, an emoji): a reading of the Unicode bidirectional
- *  classes by ranges, enough to count changes of direction. `code` is a whole code point: the
- *  right-to-left scripts past the first plane (Phoenician, Adlam, Hanifi Rohingya…) are written
- *  as surrogate pairs, and change direction as Hebrew does (99 paragraphs of Phoenician against
- *  Latin, 17 s of Chromium's layout on the PC, 15/11). */
+/** 1 for a letter written left to right, 2 for one written right to left, 3 for a digit, 4 for
+ *  an Arabic digit, 0 for anything else (a blank, a mark, punctuation, an emoji): a reading of
+ *  the Unicode bidirectional classes by ranges, enough to count changes of direction. `code` is a
+ *  whole code point: the right-to-left scripts past the first plane (Phoenician, Adlam, Hanifi
+ *  Rohingya…) are written as surrogate pairs, and change direction as Hebrew does (99 paragraphs
+ *  of Phoenician against Latin, 17 s of Chromium's layout on the PC, 15/11). The invisible marks
+ *  of direction (LRM, RLM, ALM, and the embeddings, overrides and isolates) count as the letters
+ *  they stand for, and an Arabic digit after a Latin letter runs on a level of its own: 99
+ *  paragraphs of "a" and RLM, or of "a" and U+0661, held Chromium 1.4 s (15/11). */
 function strongOf(code: number): number {
   if (code >= 0x10000) {
     if ((code >= 0x10800 && code <= 0x10fff) || (code >= 0x1e800 && code <= 0x1efff)) return 2;
@@ -122,14 +125,20 @@ function strongOf(code: number): number {
   }
   if (code < 0x0590) return code >= 0xc0 && code !== 0xd7 && code !== 0xf7 && !(code >= 0x300 && code <= 0x36f) ? 1 : 0;
   if (code <= 0x08ff) {
-    if ((code >= 0x660 && code <= 0x669) || (code >= 0x6f0 && code <= 0x6f9)) return 3;
+    if ((code >= 0x600 && code <= 0x605) || (code >= 0x660 && code <= 0x66c) || (code >= 0x6f0 && code <= 0x6f9)) return 4;
+    if (code === 0x6dd || code === 0x8e2) return 4;
     // The points of Hebrew and the vowels of Arabic take the direction of their letter.
     if ((code >= 0x591 && code <= 0x5c7) || (code >= 0x610 && code <= 0x61a) || (code >= 0x64b && code <= 0x65f)) return 0;
     if (code === 0x670 || (code >= 0x6d6 && code <= 0x6ed)) return 0;
     return 2;
   }
   if ((code >= 0xfb1d && code <= 0xfdff) || (code >= 0xfe70 && code <= 0xfefe)) return 2;
-  if ((code >= 0x2000 && code <= 0x2bff) || (code >= 0x3000 && code <= 0x303f)) return 0;
+  if (code >= 0x2000 && code <= 0x2bff) {
+    if (code === 0x200e || code === 0x202a || code === 0x202d || code === 0x2066) return 1;
+    if (code === 0x200f || code === 0x202b || code === 0x202e || code === 0x2067) return 2;
+    return 0;
+  }
+  if (code >= 0x3000 && code <= 0x303f) return 0;
   if ((code >= 0xd800 && code <= 0xdfff) || (code >= 0xfe00 && code <= 0xfe0f) || (code >= 0xff00 && code <= 0xff20)) return 0;
   return 1;
 }
@@ -143,9 +152,11 @@ const HISTORIC_BLOCKS = [
 const FONTLESS_BLOCKS = [
   0x0800, 0x085f, 0x1700, 0x177f, 0x1900, 0x194f, 0x1a20, 0x1aaf, 0x1b00, 0x1c4f, 0x1cc0, 0x1ccf,
   0xa800, 0xa82f, 0xa880, 0xa8df, 0xa900, 0xa95f, 0xaa00, 0xaa5f, 0xaa80, 0xaaff, 0xabc0, 0xabff,
-  // The rest of the supplementary letters but the kana, Tangut and Khitan, and the historic ones
-  // above, which are read first.
-  0x10000, 0x16fdf, 0x1b170, 0x1bcaf, 0x1e000, 0x1e8df, 0x1e960, 0x1efff,
+  // The rest of the supplementary letters but the kana and the historic ones above, which are
+  // read first: Tangut and Khitan, which Windows has a font for, cost as much on the PC (99
+  // paragraphs of each against Latin, 1.4 s, 15/11), as do Sutton SignWriting and the Mayan
+  // numerals.
+  0x10000, 0x18d7f, 0x1b170, 0x1bcaf, 0x1d2e0, 0x1d2ff, 0x1d800, 0x1daaf, 0x1e000, 0x1e8df, 0x1e960, 0x1efff,
 ];
 
 function inBlocks(blocks: number[], code: number): number {
@@ -226,7 +237,7 @@ function readScript(script: Script, code: number) {
     let next = was;
     if (strong === 1) next = Direction.Left;
     else if (strong === 2) next = Direction.Right;
-    else if (was === Direction.Right) next = Direction.RightDigits;
+    else if (strong === 4 || was === Direction.Right) next = Direction.RightDigits;
     if (was !== Direction.None && next !== was) script.cost += script.spaced ? SPACED_CHANGE : MARK_COST;
     script.direction = next;
     script.spaced = false;

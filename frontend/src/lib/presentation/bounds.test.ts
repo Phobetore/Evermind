@@ -108,7 +108,25 @@ test("the cost of a text is counted without parsing it", () => {
   expect(layoutCost("ᜀᜁ ᜂ, 12 ᜃ.")).toBe(15_501);
   expect(layoutCost("ᜀ a ᜀ")).toBe(30_501);
   expect(layoutCost("ᜀ\nᜀ")).toBe(31_001);
-  for (const letter of ["\u{10900}", "\u{1E900}", "ᜀ", "\u{11103}", "ܐ"]) {
+  // And the marks of direction, an Arabic digit after a Latin letter, Tangut, Khitan, SignWriting
+  // and the Mayan numerals: 0.3 to 1.5 s each in Chromium on the PC, while the count let them
+  // through (15/11).
+  for (const letter of [
+    "\u{10900}",
+    "\u{1E900}",
+    "ᜀ",
+    "\u{11103}",
+    "ܐ",
+    "‏",
+    "؜",
+    "‮",
+    "١",
+    "۱",
+    "\u{17000}",
+    "\u{18B00}",
+    "\u{1D800}",
+    "\u{1D2E0}",
+  ]) {
     const paragraph = ("a" + letter).repeat(333);
     expect(layoutRefusal(Array(99).fill(paragraph).join("\n\n")), letter).toBe("tooDense");
     expect(plainCuts(paragraph.repeat(100)).length, letter).toBeGreaterThan(1);

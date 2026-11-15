@@ -329,7 +329,7 @@ test("a presentation of megabytes of quote marks is shown plainly, on the page a
 });
 
 test("a greeting that changes direction or script at each letter, or of Thai without a space, is laid out in time", async ({ page, request }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   // The box laid out again from nothing, timed: the browser's own layout, past the parsers.
   const relaid = (box: Locator) =>
     box.evaluate((element) => {
@@ -352,6 +352,14 @@ test("a greeting that changes direction or script at each letter, or of Thai wit
     paragraphs("\u{10900}"),
     paragraphs("\u{1E900}"),
     paragraphs("ᜀ"),
+    // A mark of direction, an Arabic digit after a Latin letter, Tangut, Khitan, SignWriting and
+    // the Mayan numerals: 0.3 to 1.5 s each while the count let them through (15/11).
+    paragraphs("‏"),
+    paragraphs("١"),
+    paragraphs("\u{17000}"),
+    paragraphs("\u{18B00}"),
+    paragraphs("\u{1D800}"),
+    paragraphs("\u{1D2E0}"),
   ]) {
     const convo = await conversationOf(request, { greeting });
     await openPage(page, convo.character_id);
