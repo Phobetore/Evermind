@@ -45,6 +45,17 @@ describe("a number", () => {
   });
 
   it.each([
+    ["en", "Lorebook: 12,000 entries", "the last 12,000 messages", "with the lorebook"],
+    ["fr", "Lorebook : 12 000 entrées", "les 12 000 derniers messages", "avec le lorebook"],
+    ["de", "Lorebook: 12.000 Einträge", "den letzten 12.000 Nachrichten", "mit dem Lorebook"],
+    ["es", "Lorebook: 12.000 entradas", "los últimos 12.000 mensajes", "con el lorebook"],
+  ] as const)("on a card's page, of entries and of messages is grouped in %s, and the lorebook is named so", (locale, lore, note, hint) => {
+    expect(translate(locale, "characters.detail.lore", { count: 12000 })).toBe(lore);
+    expect(translate(locale, "characters.detail.characterNote", { count: 12000 })).toContain(note);
+    expect(translate(locale, "characters.detail.modelReadsHint")).toContain(hint);
+  });
+
+  it.each([
     ["en", "Lorebook: 1,500 entries", "12,000 lorebook entries"],
     ["fr", "1 500", "12 000 entrées"],
     ["de", "Lorebook: 1.500 Einträge", "12.000 Lorebook-Einträge"],
