@@ -79,7 +79,13 @@ test("the costliest message of each kind is laid out in time", () => {
   for (const [name, kind] of Object.entries(COSTLIEST)) {
     const text = largestLaidOut(kind);
     expect(layoutRefusal(text), name).toBeNull();
-    const [, elapsed] = timed(() => expect(() => rpMarkdown(text), name).not.toThrow());
+    let [, elapsed] = timed(() => expect(() => rpMarkdown(text), name).not.toThrow());
+    // Some fifty kinds lay out near 190 ms, and a collection of the engine during one of them
+    // passes the budget: one past it is measured twice more, and the middle time counts.
+    if (elapsed >= 250) {
+      const times = [elapsed, timed(() => rpMarkdown(text))[1], timed(() => rpMarkdown(text))[1]];
+      elapsed = times.sort((a, b) => a - b)[1];
+    }
     if (elapsed >= 250) slow.push(`${name}: ${Math.round(elapsed)} ms`);
   }
   expect(slow).toEqual([]);
