@@ -212,6 +212,8 @@ test("a re-read says how many entries it left as they are", async ({ page, reque
   await page.getByRole("button", { name: "Re-read the card and switch to the new rules" }).click();
   await expect(page.getByText("Save to keep this change.")).toBeVisible();
   await expect(page.getByText("2 lorebook entries stay as they are", { exact: false })).toBeVisible();
+  // Both lines sit in one status region, so a screen reader announces the entries left with the reminder.
+  await expect(page.getByRole("status").filter({ hasText: "2 lorebook entries stay as they are" })).toContainText("Save to keep this change.");
 
   // A card whose entries all find their own says nothing of the kind.
   const whole = await madeBefore(request);

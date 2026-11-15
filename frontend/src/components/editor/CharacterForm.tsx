@@ -236,7 +236,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     // among them at their place, get new ones.
     setLoreEntries(plan.lore.map((entry) => ({ ...entry, id: "id" in entry && typeof entry.id === "string" ? entry.id : newId() })));
     setPendingCard(plan.card);
-    // Only a re-reading hands the card's settings to the entries it pairs: keeping the card hands none.
+    // The plan asks for the sentence after the click on Re-read only; keep, which only stores the card for the export, says nothing of the entries.
     setRereadLeft(mode === "reread" ? plan.left : 0);
     setRereadChosen(true);
   }

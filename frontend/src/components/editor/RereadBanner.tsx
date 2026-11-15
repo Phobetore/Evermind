@@ -92,12 +92,14 @@ export function RereadBanner({
       ) : !plan ? (
         <p data-takes-focus tabIndex={-1} className="animate-pulse-soft outline-none">{t("common.loading")}</p>
       ) : applied ? (
-        <>
-          <p data-takes-focus tabIndex={-1} role="status" className="font-semibold text-parchment outline-none">
+        // One status region for both lines, so a screen reader announces the entries left as they are
+        // together with the reminder to save.
+        <div role="status" className="flex flex-col gap-3">
+          <p data-takes-focus tabIndex={-1} className="font-semibold text-parchment outline-none">
             {t("characters.reread.saveToKeep")}
           </p>
           {left > 0 && <p>{t("characters.reread.left", { count: left })}</p>}
-        </>
+        </div>
       ) : (
         <>
           {plan.added.length > 0 && (
