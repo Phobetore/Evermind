@@ -35,6 +35,13 @@ const BRAND = "aside a .mark";
 /** A phone has no sidebar, and so no name to come over: the mark beside it is a wide screen's. */
 const besideTheName = (project: string) => test.skip(project !== "desktop", "the sidebar is drawn from tablet width up");
 
+// The name sits in the window's top left corner, where a browser that counts its pointer as inside
+// the window from the start (headless Chromium on Linux does) finds it on the very first page: the
+// mark would wink before any test came over it. So every test starts with its pointer elsewhere.
+test.beforeEach(async ({ page }) => {
+  await page.mouse.move(700, 500);
+});
+
 test("the tab's icon is Evermind's own mark", async ({ request }) => {
   const icon = await request.get("/favicon.svg");
   expect(icon.ok()).toBe(true);
