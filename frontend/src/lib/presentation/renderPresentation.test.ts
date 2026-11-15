@@ -1230,6 +1230,33 @@ test("a heading longer than 120 characters is drawn as a paragraph, its words un
   }
 });
 
+test("an image's alt counts in its heading's length, and a heading left empty is taken out", () => {
+  // The place of an image shows its alt, and a screen reader reads it in the heading: 153
+  // characters were announced as a heading while only "Short title" was counted.
+  const alt = "Vorn tasselby quim ardent loths, ".repeat(4).slice(0, 110);
+  const long = laidOut(`## ![${alt}](https://pictures.example/a.png) Short title`);
+  expect(headingsOf(long)).toEqual([]);
+  expect(paragraphsOf(long)).toHaveLength(1);
+  expect(tags(long, "img")).toHaveLength(1);
+  const short = laidOut(`## ![${alt.slice(0, 100)}](https://pictures.example/a.png) Short title`);
+  expect(headingsOf(short)).toHaveLength(1);
+  expect(headingsOf(laidOut(`<h2><img src="https://pictures.example/a.png" alt="${alt}"> Short title</h2>`))).toEqual([]);
+  // A heading of an image alone stays one.
+  expect(headingsOf(laidOut("## ![](https://pictures.example/a.png)"))).toHaveLength(1);
+
+  // The HTML parser closes a heading at the next one, and leaves it empty: it is taken out, and
+  // every heading left has words.
+  for (const written of ["<h2><h3>Inner</h3>tail</h2>", "<h1><h2><h3>Deep</h3></h2></h1>", "## \n\nText", "<h2> <br> </h2>Text"]) {
+    const tree = laidOut(written);
+    for (const heading of headingsOf(tree)) {
+      expect(textOf({ type: "root", children: [heading] }).trim(), written).not.toBe("");
+    }
+    expect(textOf(tree), written).toMatch(/Inner|Deep|Text/);
+  }
+  expect(headingsOf(laidOut("<h2><h3>Inner</h3>tail</h2>"))).toHaveLength(1);
+  expect(headingsOf(modelLaidOut("## \n\nText"))).toEqual([]);
+});
+
 test("a card that writes its paragraphs as headings shows its short headings as headings, the rest as paragraphs", () => {
   // Invented words, in the shape of a real card measured on 15/11: 3 short # headings, 14 ## of
   // which 5 run past 120 characters, 38 ### of which 30 do, and 16 plain paragraphs.

@@ -932,13 +932,32 @@ const HEADING_LONGEST = 120;
 
 const SOURCE_HEADINGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 
+/** Code points of `value`, counted up to `cap` + 1 at most: a pair of surrogates is one letter. */
+function codePointsUpTo(value: string, cap: number): number {
+  let length = 0;
+  const iterator = value[Symbol.iterator]();
+  while (length <= cap && !iterator.next().done) length++;
+  return length;
+}
+
+const NOT_BLANK = /\S/;
+
 /** Each heading whose own text is longer than HEADING_LONGEST becomes a paragraph, its words and
- *  attributes kept: a paragraph to the eye and to a screen reader. One walk after the tree's end
- *  adds up each element's length, capped past the longest, so that headings nested in headings
- *  (an HTML presentation can write them) are never counted again. Run before the headings are
- *  renamed. */
+ *  attributes kept: a paragraph to the eye and to a screen reader. An image counts its alt, which
+ *  its place shows and a screen reader reads in the heading. A heading left with neither text nor
+ *  image is taken out: the HTML parser closes a heading at the next one (`<h2><h3>…</h3>…</h2>`),
+ *  and leaves it empty, a heading a screen reader would still announce. One walk after the tree's
+ *  end adds up each element's length, capped past the longest, so that headings nested in
+ *  headings are never counted again. Run before the headings are renamed. */
 function longHeadingsAsParagraphs(tree: Root): void {
   const lengths = new Map<Element, number>();
+  // The elements that hold text or an image, and the headings that hold neither.
+  const filled = new Set<Element>();
+  const empty = new Set<Element>();
+  const withoutEmpty = <T extends RootContent | ElementContent>(children: T[]): T[] =>
+    children.some((child) => child.type === "element" && empty.has(child))
+      ? children.filter((child) => child.type !== "element" || !empty.has(child))
+      : children;
   const stack: Array<[RootContent | ElementContent, boolean]> = [];
   for (const child of tree.children) stack.push([child, false]);
   while (stack.length > 0) {
@@ -949,18 +968,31 @@ function longHeadingsAsParagraphs(tree: Root): void {
       for (const child of node.children) stack.push([child, false]);
       continue;
     }
+    node.children = withoutEmpty(node.children);
     let length = 0;
+    let holds = false;
+    if (node.tagName === "img") {
+      holds = true;
+      const alt = node.properties.alt;
+      if (typeof alt === "string") length = codePointsUpTo(alt, HEADING_LONGEST);
+    }
     for (const child of node.children) {
-      if (length > HEADING_LONGEST) break;
       if (child.type === "text") {
-        // Code points: a pair of surrogates is one letter.
-        const iterator = child.value[Symbol.iterator]();
-        while (length <= HEADING_LONGEST && !iterator.next().done) length++;
-      } else if (child.type === "element") length += lengths.get(child) ?? 0;
+        if (length <= HEADING_LONGEST) length += codePointsUpTo(child.value, HEADING_LONGEST - length);
+        if (!holds && NOT_BLANK.test(child.value)) holds = true;
+      } else if (child.type === "element") {
+        if (length <= HEADING_LONGEST) length += lengths.get(child) ?? 0;
+        if (filled.has(child)) holds = true;
+      }
     }
     lengths.set(node, Math.min(length, HEADING_LONGEST + 1));
-    if (SOURCE_HEADINGS.has(node.tagName) && length > HEADING_LONGEST) node.tagName = "p";
+    if (holds) filled.add(node);
+    if (SOURCE_HEADINGS.has(node.tagName)) {
+      if (!holds) empty.add(node);
+      else if (length > HEADING_LONGEST) node.tagName = "p";
+    }
   }
+  tree.children = withoutEmpty(tree.children);
 }
 
 /** The card's own rules, on the tree already sanitized, in one walk that knows the ancestors. */
