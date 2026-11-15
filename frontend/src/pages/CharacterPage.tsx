@@ -33,6 +33,21 @@ function CharacterDetail({ id }: { id: string }) {
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   const [conversationsFailure, setConversationsFailure] = useState<{ error: unknown } | null>(null);
   const [favoriteFailure, setFavoriteFailure] = useState<{ error: unknown } | null>(null);
+  // The name the server gives the player in a new conversation, and in every prompt of it: the
+  // persona marked as the default, else "User" (backend/app/prompting, the same fallback), never
+  // a word of the interface. Until the list arrives, or if it cannot, the server's fallback.
+  const [player, setPlayer] = useState("User");
+
+  useEffect(() => {
+    let live = true;
+    data.personas.list().then(
+      (personas) => live && setPlayer(personas.find((persona) => persona.is_default)?.name || "User"),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const readConversations = useCallback(() => {
     data.conversations.list({ character_id: id }).then((list) => {
@@ -57,6 +72,7 @@ function CharacterDetail({ id }: { id: string }) {
     readConversations();
   }, [id, search, readConversations, received]);
 
+  // For what the author shows the person (the tagline, the presentation): the person reading.
   const you = t("chat.panel.sceneAnchor.youFallback");
   const name = character ? speakingName(character) : "";
   const rawTagline = character?.tagline ?? "";
@@ -152,8 +168,9 @@ function CharacterDetail({ id }: { id: string }) {
           )}
 
           <CharacterNotes character={character} you={you} />
-          <CharacterGreetings character={character} you={you} />
-          <WhatTheModelReads character={character} lore={lore} you={you} />
+          {/* As the conversation will get them, and as the model reads them: the player's name. */}
+          <CharacterGreetings character={character} you={player} />
+          <WhatTheModelReads character={character} lore={lore} you={player} />
 
           {(conversationsFailure || conversations.length > 0) && (
             <section className="mt-8">

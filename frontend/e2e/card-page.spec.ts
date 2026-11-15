@@ -627,6 +627,40 @@ test("what the model reads opens at once, however much its fields hold", async (
   expect(longest, "a task held the page").toBeLessThan(100);
 });
 
+test("the opening and what the model reads name the player as the conversation will", async ({ page, request }) => {
+  const ilse = await card(request, { greeting: "Hello {{user}}, the lamp is lit.", system_prompt: "{{original}}" });
+  const firstMessage = async () => {
+    const convo = (await (await request.post(`${API}/api/conversations`, { data: { character_id: ilse.id } })).json()) as { id: string };
+    await page.goto(`/#/chat/${convo.id}`);
+    const text = await page.locator("[data-message-id]").first().innerText();
+    await request.delete(`${API}/api/conversations/${convo.id}`);
+    return text;
+  };
+
+  // No persona marked: the server names the player "User", never a word of the interface.
+  const personas = (await (await request.get(`${API}/api/personas`)).json()) as Array<{ is_default: boolean }>;
+  expect(personas.some((persona) => persona.is_default), "a persona is marked before the test").toBe(false);
+  await openPage(page, ilse.id);
+  await expect(opening(page)).toContainText("Hello User, the lamp is lit.");
+  let details = await openModelReads(page);
+  await expect(field(details, "Custom system prompt")).toContainText("Never speak, act, feel or decide for User");
+  expect(await firstMessage()).toContain("Hello User, the lamp is lit.");
+
+  // The persona marked as the default: its name, on the page as in the conversation.
+  const corvin = (await (await request.post(`${API}/api/personas`, { data: { name: "Corvin", description: "", is_default: true } })).json()) as {
+    id: string;
+  };
+  try {
+    await openPage(page, ilse.id);
+    await expect(opening(page)).toContainText("Hello Corvin, the lamp is lit.");
+    details = await openModelReads(page);
+    await expect(field(details, "Custom system prompt")).toContainText("Never speak, act, feel or decide for Corvin");
+    expect(await firstMessage()).toContain("Hello Corvin, the lamp is lit.");
+  } finally {
+    await request.delete(`${API}/api/personas/${corvin.id}`);
+  }
+});
+
 test("what the model reads of a card on the old rules is shown as written", async ({ page, request }) => {
   const description = "{{// x}} <USER> meets {{char}} at {{random:dawn,dusk}}";
   const oldRules = await card(request, { description });
@@ -637,7 +671,7 @@ test("what the model reads of a card on the old rules is shown as written", asyn
   const newRules = await card(request, { card_rules: 2, description });
   await openPage(page, newRules.id);
   details = await openModelReads(page);
-  await expect(field(details, "Description")).toContainText("you meets Ilse at dawn / dusk");
+  await expect(field(details, "Description")).toContainText("User meets Ilse at dawn / dusk");
 
   for (const [depth, line] of [
     [1, "Character's note, placed before the last message"],
