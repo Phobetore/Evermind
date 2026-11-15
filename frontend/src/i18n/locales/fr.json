@@ -356,6 +356,7 @@
       "showFrom": "Afficher l'image de {host}",
       "imageUnavailable": "Image indisponible ({host})",
       "imageRefused": "Image non affichée",
+      "imageInsecure": "Image de {host} non affichée : l'adresse n'est pas sécurisée (http)",
       "imageTooLarge": "Image trop grande pour être affichée ({width} × {height} pixels)",
       "imageOverBudget": "Image non affichée : avec les précédentes, elle dépasserait la mémoire d'un téléphone.",
       "layoutMissing": "La mise en forme n'a pas pu être chargée.",

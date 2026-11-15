@@ -103,5 +103,7 @@ export function PresentationImage({
     );
   }
 
+  if (source.insecureHost !== undefined)
+    return place(withHosts(t("characters.presentation.imageInsecure", { host: HOST_MARK }), [source.insecureHost]));
   return place(t("characters.presentation.imageRefused"));
 }

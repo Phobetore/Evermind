@@ -15,7 +15,7 @@ export type ImageSource =
   | { kind: "inline"; src: string; width: number; height: number; progressive?: true } // written into the card: shown at once
   | { kind: "tooLarge"; width: number; height: number } // written into the card, past PIXEL_BOUND
   | { kind: "remote"; src: string; host: string } // https on another site: shown on a tap
-  | { kind: "refused" }; // anything else: never loaded
+  | { kind: "refused"; insecureHost?: string }; // anything else: never loaded; over http, its host
 
 type Size = { width: number; height: number; progressive?: true };
 
@@ -245,6 +245,8 @@ export function imageSource(src: unknown): ImageSource {
   try {
     const url = new URL(trimmed);
     if (url.protocol === "https:") return { kind: "remote", src: trimmed, host: url.hostname };
+    // Never asked for: anyone on the way could change it or see who reads.
+    if (url.protocol === "http:" && url.hostname !== "") return { kind: "refused", insecureHost: url.hostname };
   } catch {
     // A relative address would aim at our own server.
   }

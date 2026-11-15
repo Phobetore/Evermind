@@ -68,7 +68,6 @@ test("an image written into the card shows at once, one from a site waits for a 
 
   for (const src of [
     "data:image/svg+xml;base64," + Buffer.from("<svg/>").toString("base64"),
-    "http://pictures.example/a.png",
     "pics/a.png",
     "/api/media/x.png",
     "javascript:alert(1)",
@@ -79,6 +78,8 @@ test("an image written into the card shows at once, one from a site waits for a 
   ])
     expect(imageSource(src)).toEqual({ kind: "refused" });
 
+  // Over http it is never asked for, and the place says from where.
+  expect(imageSource(" http://pictures.example/a.png")).toEqual({ kind: "refused", insecureHost: "pictures.example" });
   expect(imageSource("https://pictures.example/a.png")).toEqual({
     kind: "remote",
     src: "https://pictures.example/a.png",

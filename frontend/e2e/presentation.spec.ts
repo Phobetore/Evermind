@@ -486,6 +486,13 @@ test("a presentation whose layout fails says why it is plain", async ({ page }) 
   await expect(page.getByText("Too dense to lay out: shown without its layout.")).toBeVisible();
 });
 
+test("an image over http says from where it would have come, and is never asked for", async ({ page }) => {
+  const box = await openCard(page, "![plain](http://insecure.example/a.png)");
+  await expect(box.getByText("Image from insecure.example not shown: the address is not secure (http)")).toBeVisible();
+  await expect(box.locator("img")).toHaveCount(0);
+  await expect(box.getByRole("button")).toHaveCount(0);
+});
+
 test("an image too large for a phone is not decoded", async ({ page }) => {
   let box = await openCard(page, `<img src="${pngHeader(20_000, 20_000)}" alt="huge">`);
   await expect(box.getByText("Image too large to show (20000 × 20000 pixels)")).toBeVisible();
