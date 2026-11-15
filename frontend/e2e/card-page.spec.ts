@@ -555,6 +555,38 @@ test("what the model reads puts in the default rules and counts only active lore
   await expect(details.getByRole("heading", { name: "End-of-context instructions" })).toHaveCount(0);
 });
 
+test("what the model reads shows that it opens, and opens into view on a phone", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  // A presentation and a greeting long enough to fold: the line comes after a screen and more.
+  const long = Array.from({ length: 60 }, (_, n) => `Line ${n} of a long text.`).join("\n\n");
+  const ilse = await card(request, { description: "A keeper.", creator_notes: long, greeting: long });
+  await openPage(page, ilse.id);
+  const summary = page.locator("summary", { hasText: "What the model reads" });
+  const chevron = summary.locator("svg");
+  await expect(chevron).toBeVisible();
+  const turned = () => chevron.evaluate((el) => getComputedStyle(el).rotate);
+  expect(await turned()).toBe("none");
+
+  // The line at the foot of the screen, just above the bar there, as a phone shows it.
+  const bar = await page.evaluate(() => document.querySelector("nav.fixed")?.getBoundingClientRect().height ?? 0);
+  expect(bar, "no bar at the foot of a phone's screen").toBeGreaterThan(0);
+  await summary.evaluate((el) => {
+    for (let box = el.parentElement; box; box = box.parentElement) box.scrollTop = box.scrollHeight;
+    document.scrollingElement!.scrollTop = document.scrollingElement!.scrollHeight;
+  });
+  const box = await summary.boundingBox();
+  expect(box!.y + box!.height, "the line is not at the foot of the screen").toBeGreaterThan(844 - bar - 120);
+
+  await summary.click();
+  await expect.poll(turned).toBe("90deg");
+  // The first line of what opened is on screen, above the bar.
+  const hint = page.getByText(en.characters.detail.modelReadsHint);
+  await expect.poll(async () => {
+    const shown = await hint.boundingBox();
+    return shown !== null && shown.y >= 0 && shown.y + shown.height <= 844 - bar;
+  }).toBe(true);
+});
+
 test("what the model reads of a card on the old rules is shown as written", async ({ page, request }) => {
   const description = "{{// x}} <USER> meets {{char}} at {{random:dawn,dusk}}";
   const oldRules = await card(request, { description });

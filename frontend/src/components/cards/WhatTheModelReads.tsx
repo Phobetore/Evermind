@@ -11,7 +11,8 @@ import { useT } from "@/i18n/useT";
 import { cardText } from "@/lib/utils";
 import type { Character } from "@/types";
 import { clsx } from "clsx";
-import { useMemo, useState } from "react";
+import { ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Shown {
   /** The key of the form's label for it, under characters.form. */
@@ -62,6 +63,13 @@ export function WhatTheModelReads({ character, lore, you }: { character: Charact
     [character.card_rules, character.character_note, name, you],
   );
   const hasNote = note.trim() !== "";
+  const hint = useRef<HTMLParagraphElement>(null);
+
+  // Opened from the foot of a phone's screen, the section would open below it, and the tap would
+  // seem to do nothing: its first line is brought into view, above the bar of the screen's foot.
+  useEffect(() => {
+    if (open) hint.current?.scrollIntoView({ block: "nearest" });
+  }, [open]);
 
   if (fields.length === 0 && !hasNote && lore === 0) return null;
 
@@ -73,11 +81,18 @@ export function WhatTheModelReads({ character, lore, you }: { character: Charact
   );
 
   return (
-    <details className="mt-7" onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="ui-label flex min-h-11 cursor-pointer items-center">{t("characters.detail.modelReads")}</summary>
+    <details className="group mt-7" onToggle={(event) => setOpen(event.currentTarget.open)}>
+      {/* A row of its own, which loses the browser's triangle: its own chevron says it opens, and
+          turns once it is open, or the line would read as one more heading. */}
+      <summary className="ui-label flex min-h-11 cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden="true" />
+        {t("characters.detail.modelReads")}
+      </summary>
       {open && (
         <div className="mt-2 flex flex-col gap-5">
-          <p className="text-sm text-mist">{t("characters.detail.modelReadsHint")}</p>
+          <p ref={hint} className="scroll-mb-24 text-sm text-mist md:scroll-mb-0">
+            {t("characters.detail.modelReadsHint")}
+          </p>
           <div className="flex flex-wrap gap-2">
             {(
               [
