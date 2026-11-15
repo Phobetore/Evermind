@@ -92,12 +92,11 @@ export function RereadBanner({
       ) : !plan ? (
         <p data-takes-focus tabIndex={-1} className="animate-pulse-soft outline-none">{t("common.loading")}</p>
       ) : applied ? (
-        // One status region for both lines, so a screen reader announces the entries left as they are
-        // together with the reminder to save.
-        <div role="status" className="flex flex-col gap-3">
-          <p data-takes-focus tabIndex={-1} className="font-semibold text-parchment outline-none">
-            {t("characters.reread.saveToKeep")}
-          </p>
+        // One region for both lines, and it takes the focus whole: a live region inserted already
+        // filled is announced unreliably, and focus on the first line alone would leave the entries
+        // left as they are unread.
+        <div role="status" data-takes-focus tabIndex={-1} className="flex flex-col gap-3 outline-none">
+          <p className="font-semibold text-parchment">{t("characters.reread.saveToKeep")}</p>
           {left > 0 && <p>{t("characters.reread.left", { count: left })}</p>}
         </div>
       ) : (

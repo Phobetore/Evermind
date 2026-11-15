@@ -74,8 +74,9 @@ test("re-reading fills the form and the save keeps it", async ({ page, request }
   await page.goto(`/#/characters/${id}/edit`);
   await page.getByRole("button", { name: "Re-read the card and switch to the new rules" }).focus();
   await page.keyboard.press("Enter");
-  // The line that takes the button's place takes its focus: a keyboard is not sent to the top.
-  await expect(page.getByText("Save to keep this change.")).toBeFocused();
+  // What takes the button's place takes its focus: a keyboard is not sent to the top.
+  await expect(page.getByRole("status")).toBeFocused();
+  await expect(page.getByRole("status")).toContainText("Save to keep this change.");
   // Nothing is written by the click itself.
   expect((await read(request, id)).card_rules).toBe(1);
   await save(page, id);
@@ -212,8 +213,10 @@ test("a re-read says how many entries it left as they are", async ({ page, reque
   await page.getByRole("button", { name: "Re-read the card and switch to the new rules" }).click();
   await expect(page.getByText("Save to keep this change.")).toBeVisible();
   await expect(page.getByText("2 lorebook entries stay as they are", { exact: false })).toBeVisible();
-  // Both lines sit in one status region, so a screen reader announces the entries left with the reminder.
-  await expect(page.getByRole("status").filter({ hasText: "2 lorebook entries stay as they are" })).toContainText("Save to keep this change.");
+  // Both lines sit in the one region that takes the focus, so a screen reader reads the entries left with the reminder.
+  const status = page.getByRole("status").filter({ hasText: "2 lorebook entries stay as they are" });
+  await expect(status).toBeFocused();
+  await expect(status).toContainText("Save to keep this change.");
 
   // A card whose entries all find their own says nothing of the kind.
   const whole = await madeBefore(request);
