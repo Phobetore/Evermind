@@ -136,14 +136,17 @@ function inBlocks(blocks: number[], code: number): number {
   return -1;
 }
 
-/** The block of a character's script when the browser looks for its font at each run, and the
- *  cost of a run: [-1, 0] for any other. */
-function fallbackOf(code: number): [number, number] {
-  if (code < 0x0700 || (code >= 0x1d00 && code < 0xa6a0) || (code >= 0xac00 && code < 0x10000)) return [-1, 0];
-  let block = inBlocks(HISTORIC_BLOCKS, code);
-  if (block >= 0) return [block, HISTORIC_RUN];
-  block = inBlocks(FONTLESS_BLOCKS, code);
-  return block >= 0 ? [block, FONTLESS_RUN] : [-1, 0];
+/** The block of a character's script when the browser looks for its font at each run, -1 for any
+ *  other; the cost of its run is fallbackCost's. A number, not a pair: it is read for every
+ *  character of megabytes of text. */
+function fallbackOf(code: number): number {
+  if (code < 0x0700 || (code >= 0x1d00 && code < 0xa6a0) || (code >= 0xac00 && code < 0x10000)) return -1;
+  const block = inBlocks(HISTORIC_BLOCKS, code);
+  return block >= 0 ? block : inBlocks(FONTLESS_BLOCKS, code);
+}
+
+function fallbackCost(block: number): number {
+  return inBlocks(HISTORIC_BLOCKS, block) >= 0 ? HISTORIC_RUN : FONTLESS_RUN;
 }
 
 /** A blank, a digit, punctuation or a mark: what goes on with the run of the script around it. */
@@ -182,6 +185,14 @@ function startLine(script: Script) {
 /** Reads the character at `index`: a whole code point at the first half of a surrogate pair, and
  *  nothing at the second. */
 function readScriptAt(script: Script, text: string, index: number, code: number) {
+  // A Latin letter after another, most of any text and of megabytes of images, read at once.
+  if (script.direction === Direction.Left && ((code >= 65 && code <= 90) || (code >= 97 && code <= 122))) {
+    script.spaced = false;
+    script.run = 0;
+    script.font = -1;
+    return;
+  }
+  if (code < 0xd800) return readScript(script, code);
   if (code >= 0xdc00 && code <= 0xdfff && index > 0) {
     const high = text.charCodeAt(index - 1);
     if (high >= 0xd800 && high <= 0xdbff) return;
@@ -203,15 +214,22 @@ function readScript(script: Script, code: number) {
     script.direction = next;
     script.spaced = false;
   }
+  // Latin letters, digits, blanks and punctuation, most of any text and of megabytes of images:
+  // no dictionary, and no font looked up.
+  if (code < 0x80) {
+    script.run = 0;
+    if (script.font >= 0 && !keepsRun(code)) script.font = -1;
+    return;
+  }
   if (isDictionary(code)) {
     script.run++;
     script.cost += (2 * script.run - 1) / DICTIONARY_RUN;
   } else script.run = 0;
-  const [block, cost] = fallbackOf(code);
+  const block = fallbackOf(code);
   if (block >= 0) {
-    if (block !== script.font) script.cost += cost;
+    if (block !== script.font) script.cost += fallbackCost(block);
     script.font = block;
-  } else if (!keepsRun(code)) script.font = -1;
+  } else if (script.font >= 0 && !keepsRun(code)) script.font = -1;
 }
 
 function isBlank(code: number): boolean {
