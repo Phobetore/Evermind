@@ -277,7 +277,8 @@ for (const place of [
       const edit = place.name === "a character's form";
       address = `/#/characters/${character.id}${edit ? "/edit" : ""}`;
       path = `/api/characters/${character.id}`;
-      arrived = edit ? /Made for a test/ : /Terse\. Does not repeat herself\./;
+      // The page of a character opens on its greeting; the description waits, folded, under what the model reads.
+      arrived = edit ? /Made for a test/ : /The door was already open/;
     }
     const release = await holdFirst(page, path);
 
