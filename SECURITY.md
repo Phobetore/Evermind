@@ -142,6 +142,54 @@ answer; uploads and replies are not timed. A request whose body turns out
 malformed once Evermind has started answering it, after the `401` of a locked
 route for instance, has its connection closed at once.
 
+## What a card's presentation may do
+
+A card's presentation comes from elsewhere, and it is shown on the same origin as
+the conversations and the API keys. Here is what stands in its way:
+
+- **Only a list of allowed tags gets through**
+  (`frontend/src/lib/presentation/schema.ts`): 39 tags of text, tables, pictures
+  and links. No script, handler, form, frame or `<style>` block.
+- **Inline styles are filtered property by property**
+  (`frontend/src/lib/presentation/style.ts`). No position, transform, layer,
+  animation or negative margin. Font sizes, line heights, opacity and the
+  transparency of text colours are bounded, and opacity and transparency are
+  counted together at any depth. A colour that inherits is counted with the one
+  it inherits from. Side margins are counted together along nested boxes,
+  with the indent of lists and quotes. The width left to the text is never under
+  120 px, in `px` or in `%`. The top and bottom inner margin of an inline element
+  is bounded to 4 px, so that it does not paint over the lines around it, whether
+  the element is inline by itself or set to `display: inline`. Only colours that
+  every browser reads are kept, so that the count is that of what is painted.
+  A link that holds a picture asks before it opens, whatever its text.
+- **Links** are `http`, `https` and `mailto` only, never a page of the app. A link
+  whose text shows, anywhere, another site than its target asks before it opens.
+  No link's name is looked up in advance (`X-DNS-Prefetch-Control: off`).
+- **What is not caught**: text that is opaque in the colour of its background;
+  a drawing that imitates a command of the app without showing an address. Such a
+  drawing stays in the "From the author" frame, its links stay underlined, and a
+  disclosure that the card dresses as a button keeps its triangle, in a badge in
+  the app's colours that the card cannot change.
+- **Pictures written in the card** show if their size in pixels fits in a phone's
+  memory, one by one and all together. A picture from another site is requested
+  only when the person taps, and without a `Referer`. Not checked: the size of a
+  picture from another site, which can be read only by loading it. A huge picture
+  shown on a tap, or many pictures shown together by "Show images", can use up the
+  memory of a phone's tab. The browser then shows its error page, and the page has
+  to be reloaded. The next visit does not ask for them again without a new tap.
+- **A presentation, a greeting or a message too long**, or too loaded with marks
+  to be parsed in time, is shown in full without layout, instead of freezing the
+  page (`frontend/src/lib/presentation/bounds.ts`). A text written to break the
+  layout is shown as it is. What stays slow: some megabytes of pictures written
+  in a card's text, one to two seconds for 6 MB of pictures on a PC, several times
+  more on a phone, at each visit of its page.
+- **A second layer**: the security policy of the self-hosted edition
+  (`backend/app/headers.py`).
+- **In Anna's edition**, the allowed list and the filter are the same. Whether the
+  second layer applies depends on what the platform lets Evermind set, which has
+  not been established. Pictures from other sites do not show there.
+- **Not done**: the "permissive" level, with `<style>` blocks in an isolated frame.
+
 ## What is worth reporting
 
 - Anything that lets a request bypass the access password while it is set, or

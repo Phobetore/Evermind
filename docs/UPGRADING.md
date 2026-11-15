@@ -8,6 +8,63 @@ program, and your data lives somewhere of its own (the `data` folder, or the
 If you are installing for the first time, you want [INSTALL.md](../INSTALL.md)
 instead. Coming from further back, read every section from your version up.
 
+## From 3.4.x to 3.5.0
+
+This update asks for a restart and a reload of your pages, nothing more. Read it
+to know what changes.
+
+- **Reload Evermind on every device that had it open**, a phone above all.
+- **The page of a card** starts with its author's presentation, laid out
+  (headings, colours, tables, links, pictures written in the card), in the
+  interface's language when the card offers several. Then comes the greeting in
+  full, with its variants. Then, folded, "What the model reads". The description
+  is no longer shown first, under "About". The `<style>` blocks, fixed
+  positions, negative margins, animations and scripts of a card do not get
+  through. A bare web address, a footnote (`[^1]`), a checkbox (`- [ ]`) and a
+  reference link (`[text][r]`) stay as the text written.
+- **Pictures from other sites** are asked for only when you tap, one page at a
+  time, and the site is not told where the request comes from. Pictures over
+  `http` never show. A link that holds a picture asks before it opens. A text too
+  long to lay out (more than 100,000 characters) is shown plainly, and in parts
+  past 200,000 characters. A picture written in the card that is too large for a
+  phone's memory (more than 4,096 × 4,096 pixels, or more than 256 MB decoded
+  with the ones before it) is replaced by a space that says so. A link whose text
+  shows one site and leads to another asks first. If the layout code does not
+  arrive, the presentation is shown without its layout, with a button to reload.
+- **The summary opened from a conversation** shows the presentation in plain
+  words. A card without a presentation keeps its description, shown as the model
+  reads it, as the scene in the conversation's panel does.
+- **The markers of a card read as words** wherever its tagline or its
+  presentation is shown.
+- **Every page is served with a security policy**: `Referrer-Policy:
+  same-origin`, `X-Content-Type-Options: nosniff` and `X-DNS-Prefetch-Control:
+  off`, so that no link's name is looked up in advance. A proxy that sets its own
+  policy: both apply. A browser extension that injects code into the page may be
+  blocked. Evermind stays openable inside a frame of another page.
+- **A message of more than 100,000 characters, or too loaded with marks to be
+  read in time**, in a conversation, is shown without Markdown layout. That is
+  the case of a huge greeting, or of one written to freeze the page: a few
+  thousand `>`, `-` or brackets. Past 200,000 characters it is shown in parts.
+  An ordinary message does not change: a paragraph of one line with 1,200 actions
+  between asterisks (31,000 characters) goes through, and so does a message of 400
+  paragraphs. In a message, `[r]: address` and `[text][r]` now read as written:
+  the definition is no longer hidden. Nothing else changes in the conversation.
+- **A very long tagline or tag** no longer widens the home page, the library or
+  the form. The tagline is cut to its lines, a tag to the width of its chip, and
+  its first 2,000 characters show on hover. The whole tag stays in the card and
+  in its form.
+- **The tagline Evermind offers when it reads a card** is now the first sentence
+  of the presentation, in plain words. The layout is gone. Two blocks pasted
+  together get a space between them: `<p>a</p><p>b</p>` gives "a b", not "ab".
+  `<USER>`, `<BOT>` and `<CHAR>` stay as written in it, and the page shows them
+  with the names.
+- **A re-read says how many lorebook entries it left as they are**, under the
+  list of what it added or updated, and only when there are some. Evermind could
+  not tell for sure which entry of the card they come from, or you wrote them
+  here. The line appears after you press the re-read button, not while you type.
+- **Nothing changes in the data.** There is no migration. The presentation is
+  kept as written; only how it is shown changes.
+
 ## From 3.3.x to 3.4.0
 
 This update asks for a restart and a reload of your pages, nothing more. Read it
