@@ -128,6 +128,17 @@ test("an image whose pixels would not fit in a phone's memory is not shown", () 
   expect(imageSource(dataUrl("png", png(4_097, 4_096)))).toMatchObject({ kind: "tooLarge" });
 });
 
+test("a jpeg that hides its frame behind a stuffed zero is not shown", () => {
+  // FF 00 is no marker: a decoder drops it and looks for the next one, FF FE, a comment whose
+  // content is a frame of 1 × 1. A walk that read 00 06 as a length would land on that frame.
+  const hidden = [0xff, 0x00, 0x00, 0x06, 0xff, 0xfe, 0x00, 0x15, ...jpeg(1, 1).slice(2, -2)];
+  expect(hidden).toHaveLength(27);
+  expect(imageSource(dataUrl("jpeg", jpeg(5_000, 5_000, 0xc0, hidden)))).toEqual({ kind: "refused" });
+  // A reserved marker the walk cannot follow either.
+  expect(imageSource(dataUrl("jpeg", jpeg(1, 1, 0xc0, [0xff, 0x02, 0x00, 0x04, 0, 0])))).toEqual({ kind: "refused" });
+  expect(imageSource(dataUrl("jpeg", jpeg(5_000, 5_000)))).toMatchObject({ kind: "tooLarge" });
+});
+
 test("a jpeg header of the smallest segments is walked in time", () => {
   const segments = new Uint8Array(7 * 1024 * 1024);
   segments[0] = 0xff;

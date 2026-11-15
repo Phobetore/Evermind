@@ -186,6 +186,10 @@ function jpegSize(read: Reader): Size | null {
       continue;
     }
     if (marker === 0xd9 || marker === 0xda) return null;
+    // 00 is a stuffed zero, 02 to BF are reserved: none starts a segment. A decoder drops them
+    // and looks for the next marker byte by byte, where a length read here would jump elsewhere
+    // and could land on a frame header the decoder skips inside a comment.
+    if (marker < 0xc0) return null;
     const length = u16be(read, n + 2);
     if (length < 0) return null;
     // Each jump moves on at least two bytes: the time follows the size.
