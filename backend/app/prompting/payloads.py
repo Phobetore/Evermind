@@ -20,8 +20,19 @@ from .engine import (
 from .macros import substitute
 from .memory_changes import MAX_TURNS_PER_RUN, is_movable
 from .text import is_writable
+from .tokens import estimate_tokens
+
+# What the estimate of a prompt may miss: a ceiling past the context is refused by most servers.
+CONTEXT_MARGIN = 128
 
 MIN_FACTS_TO_CONSOLIDATE = 8  # fewer than this and merging them is not worth a call
+
+
+def prompt_tokens(payload: PromptPayload) -> int:
+    """About how many tokens the prompt takes of a model's context."""
+    return estimate_tokens(payload.system) + sum(
+        estimate_tokens(m.get("content") or "") for m in payload.messages)
+
 
 TEXT_FIELDS = ("name", "tagline", "description", "personality", "scenario",
                "greeting", "example_dialogues")

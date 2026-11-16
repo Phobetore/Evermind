@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from app.prompting.engine import PromptPayload
-from app.providers import get_provider
+from app.providers import complete, complete_answer, get_provider
 from app.providers.anthropic import AnthropicProvider
 from app.providers.openai_compat import OpenAICompatProvider
 
@@ -310,3 +310,17 @@ def test_get_provider_dispatch():
     assert isinstance(get_provider(ANTH_CONN), AnthropicProvider)
     # A type nobody knows, which only a database edited by hand holds, is spoken to as most are.
     assert isinstance(get_provider({"provider": "nope"}), OpenAICompatProvider)
+
+
+async def test_a_whole_answer_says_its_reasoning_and_how_it_ended():
+    body = streaming(sse([
+        json.dumps({"choices": [{"delta": {"reasoning_content": "Let me"}}]}),
+        json.dumps({"choices": [{"delta": {"reasoning_content": " think."}}]}),
+        json.dumps({"choices": [{"delta": {"content": "Hel"}}]}),
+        json.dumps({"choices": [{"delta": {"content": "lo"}}]}),
+        json.dumps({"choices": [{"delta": {}, "finish_reason": "length"}]}),
+        "[DONE]",
+    ]))
+    answer = await complete_answer(oai_provider(body), PAYLOAD)
+    assert (answer.text, answer.thought, answer.stop) == ("Hello", 13, "length")
+    assert await complete(oai_provider(body), PAYLOAD) == "Hello"

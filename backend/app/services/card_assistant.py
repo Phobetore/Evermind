@@ -31,10 +31,12 @@ from ..errors import (
 from ..models.schemas import CardAssistRequest
 from ..prompting.engine import PromptPayload
 from ..prompting.payloads import (
+    CONTEXT_MARGIN,
     LIST_FIELDS,
     TEXT_FIELDS,
     build_card_payload,
     existing_fields,
+    prompt_tokens,
     words,
 )
 from ..prompting.text import text_of
@@ -54,8 +56,6 @@ CARD_FIELDS = ("name", "tagline", "description", "personality", "scenario", "gre
 
 # A whole card with a lorebook runs past 2048 tokens, and a card cut short loses its last fields.
 _CEILING = 4096
-# What the estimate of the prompt may miss: a ceiling past the context is refused by most servers.
-_CONTEXT_MARGIN = 128
 # The least room a card is written in: its fields at the lengths the prompt asks for, the lorebook
 # aside. A brief that leaves less would come back as a name and little else.
 _SMALLEST_CARD = 1024
@@ -139,11 +139,6 @@ def clean_card_draft(draft: dict) -> dict:
     return out
 
 
-def _prompt_tokens(payload: PromptPayload) -> int:
-    return estimate_tokens(payload.system) + sum(
-        estimate_tokens(m.get("content") or "") for m in payload.messages)
-
-
 def _check_fits(connection: dict, payload: PromptPayload, request: CardAssistRequest) -> None:
     """Refuses a brief the connection's context cannot hold along with the instructions and room
     for a card, before the model is asked: past it, a server refuses the request, or quietly drops
@@ -156,10 +151,10 @@ def _check_fits(connection: dict, payload: PromptPayload, request: CardAssistReq
     instructions and that room alone outgrow it, on an empty card and an empty brief, neither is
     to blame: only a larger context helps."""
     context = connection.get("context_size") or 0
-    needed = _prompt_tokens(payload) + _SMALLEST_CARD + _CONTEXT_MARGIN
+    needed = prompt_tokens(payload) + _SMALLEST_CARD + CONTEXT_MARGIN
     if not context or needed <= context:
         return
-    floor = _prompt_tokens(build_card_payload("", request.kind, None)) + _SMALLEST_CARD + _CONTEXT_MARGIN
+    floor = prompt_tokens(build_card_payload("", request.kind, None)) + _SMALLEST_CARD + CONTEXT_MARGIN
     if floor > context:
         kind, what = CONTEXT_TOO_SMALL, "context is too small for the assistant"
         needed = floor
@@ -184,7 +179,7 @@ def with_room_for_a_card(connection: dict, payload: PromptPayload) -> dict:
     own = connection.get("max_tokens")
     if not own:
         return connection
-    room = (connection.get("context_size") or 0) - _prompt_tokens(payload) - _CONTEXT_MARGIN
+    room = (connection.get("context_size") or 0) - prompt_tokens(payload) - CONTEXT_MARGIN
     return dict(connection, max_tokens=max(own, min(_CEILING, room)))
 
 
