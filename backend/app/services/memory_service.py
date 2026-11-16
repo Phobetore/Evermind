@@ -19,6 +19,7 @@ from ..errors import (
     CONVERSATION_CHANGED,
     FACTS_CHANGED,
     MEMORY_BUSY,
+    MODEL_ONLY_THOUGHT,
     MODEL_UNREADABLE,
     NO_CONNECTION,
     TOO_FEW_FACTS,
@@ -27,15 +28,18 @@ from ..errors import (
     error_body,
 )
 from ..prompting import embeddings
-from ..prompting.engine import active_content
+from ..prompting.engine import PromptPayload, active_content
 from ..prompting.memory_changes import answer_texts, plan_consolidation, plan_memory_changes
 from ..prompting.payloads import (
+    CONTEXT_MARGIN,
     MIN_FACTS_TO_CONSOLIDATE,
     build_consolidation_payload,
     build_extraction_payload,
     movable_facts,
+    prompt_tokens,
 )
-from ..providers import complete, get_provider
+from ..providers import Answer, ProviderError, complete_answer, get_provider
+from ..providers.base import NO_TEXT, STOPPED_FOR_LENGTH
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
@@ -51,6 +55,8 @@ MAINTENANCE_EVERY = 8  # unread assistant replies that make a pass due
 HOLD_BACK = 4  # newest messages an automatic pass leaves unread: a reply may still be thrown away
 
 MIN_ANSWER_TOKENS = 2048  # a pass's JSON is cut, and unreadable, in less than this
+# A model that reasons before it writes needs room for both: the second ask of a pass that ran out.
+MORE_ROOM_TOKENS = 8192
 
 _running: set[str] = set()
 # Conversations whose last automatic pass failed: the error body, and how many replies to wait.
@@ -150,6 +156,58 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
     return connection
 
 
+async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], bool],
+               what: str) -> Answer:
+    """The model's answer to a pass, asked again once, with more room, if it ran out of it.
+
+    A model that reasons before it writes can spend the whole ceiling thinking and answer nothing,
+    and a JSON cut short is as unreadable. Either is a lack of room, not of will, so the second
+    ask gives it more, never past what the context leaves. The answer is returned whether it
+    reads or not: ``_unreadable`` says why it did not."""
+    answer = await complete_answer(get_provider(connection), payload)
+    if reads(answer.text):
+        return answer
+    own = connection.get("max_tokens") or 0
+    ran_out = answer.stop == STOPPED_FOR_LENGTH or (
+        not answer.text.strip() and answer.thought > 0 and own > 0)
+    if not ran_out:
+        return answer
+    room = max(MORE_ROOM_TOKENS, 4 * own)
+    if context := connection.get("context_size"):
+        room = min(room, context - prompt_tokens(payload) - CONTEXT_MARGIN)
+    if room <= own:
+        return answer
+    logger.info("%s: the answer ran out of room (%d characters of reasoning, stopped with %r); "
+                "asking again with max_tokens %s instead of %s", what, answer.thought, answer.stop,
+                room, own or "unset")
+    try:
+        return await complete_answer(get_provider({**connection, "max_tokens": room}), payload)
+    except ProviderError as exc:
+        # A server whose output limit is lower refuses it: the first answer's failure stands.
+        logger.warning("%s: the second ask was refused: %s", what, exc.message)
+        return answer
+
+
+def _unreadable(answer: Answer, what: str, said: str) -> AppError:
+    """Why a pass has nothing to use, by how the model's answer ended: it only thought, its server
+    gave no text, or what it wrote cannot be read."""
+    logger.warning("%s: unreadable answer, %s, %d characters of reasoning, stopped with %r",
+                   what, describe_answer(answer.text), answer.thought, answer.stop)
+    if answer.text.strip():
+        return AppError(said, 502, kind=MODEL_UNREADABLE)
+    if answer.thought:
+        return AppError(
+            "The model only thought, and wrote no memory. Give its connection more max tokens, "
+            "or use a model that thinks less.", 502, kind=MODEL_ONLY_THOUGHT)
+    if answer.stop == STOPPED_FOR_LENGTH:
+        message = "The model returned no text: it ran out of room."
+    elif answer.stop and answer.stop != "stop":
+        message = f'The model returned no text (its server ended the answer with "{answer.stop}").'
+    else:
+        message = "The model returned no text."
+    return AppError(message, 502, kind=NO_TEXT)
+
+
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Merge the model's unpinned facts into a shorter, denser set.
     Returns {"before": n, "after": n, "memories": [...]}."""
@@ -171,11 +229,14 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
                        409, kind=TOO_FEW_FACTS)
 
     payload = build_consolidation_payload(character, persona, movable)
-    answer = await complete(get_provider(connection), payload)
-    merged = plan_consolidation(parse_llm_json(answer), movable)
+    def merge(text: str) -> dict | None:
+        return plan_consolidation(parse_llm_json(text), movable)
+
+    what = "consolidation"
+    answer = await _ask(connection, payload, lambda text: merge(text) is not None, what)
+    merged = merge(answer.text)
     if merged is None:
-        logger.warning("consolidation: unreadable answer, %s", describe_answer(answer))
-        raise AppError("Unreadable consolidation — try again.", 502, kind=MODEL_UNREADABLE)
+        raise _unreadable(answer, what, "Unreadable consolidation — try again.")
 
     vectors = await _vectors_of(merged["facts"])
 
@@ -251,12 +312,11 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     told = {(m["id"], m["content"]) for m in turns}  # what the model was told they say
     sent = {(m["id"], m["content"]) for m in existing}
 
-    answer = await complete(get_provider(connection), payload)
-    parsed = parse_llm_json(answer)
+    what = "memory extraction"
+    answer = await _ask(connection, payload, lambda text: parse_llm_json(text) is not None, what)
+    parsed = parse_llm_json(answer.text)
     if parsed is None:
-        logger.warning("memory extraction: unreadable answer, %s", describe_answer(answer))
-        raise AppError("Unreadable memory response (JSON expected).", 502,
-                       kind=MODEL_UNREADABLE)
+        raise _unreadable(answer, what, "Unreadable memory response (JSON expected).")
     vectors = await _vectors_of(answer_texts(parsed))
 
     # Nothing is kept of turns cut, or rewritten among those told, or of facts changed meanwhile.
