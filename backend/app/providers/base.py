@@ -190,7 +190,32 @@ class Provider:
         return ProviderError(message, CONNECTION_LOST)
 
 
-async def complete(provider: Provider, payload: PromptPayload) -> str:
-    """A model's whole answer, for a caller that has no use for it as it arrives."""
+@dataclass
+class Answer:
+    """A model's whole answer, and how it ended."""
+
+    text: str
+    thought: int  # characters of reasoning that came with it, only counted
+    stop: str | None  # what ``ProviderEvent.stop`` says on the "done" event
+
+
+async def complete_answer(provider: Provider, payload: PromptPayload) -> Answer:
+    """A model's whole answer, for a caller that has no use for it as it arrives, and that needs
+    to tell an answer that never came from one that came empty."""
+    parts: list[str] = []
+    thought = 0
+    stop = None
     async with aclosing(provider.stream_chat(payload)) as stream:
-        return "".join([event.text async for event in stream])
+        async for event in stream:
+            if event.type == "delta":
+                parts.append(event.text)
+            elif event.type == "thought":
+                thought += event.count
+            elif event.type == "done":
+                stop = event.stop
+    return Answer("".join(parts), thought, stop)
+
+
+async def complete(provider: Provider, payload: PromptPayload) -> str:
+    """A model's whole answer, for a caller that has no use for how it ended."""
+    return (await complete_answer(provider, payload)).text

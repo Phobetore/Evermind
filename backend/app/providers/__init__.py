@@ -1,8 +1,9 @@
 from .anthropic import AnthropicProvider
-from .base import Provider, ProviderError, ProviderEvent, complete
+from .base import Answer, Provider, ProviderError, ProviderEvent, complete, complete_answer
 from .openai_compat import OpenAICompatProvider
 
-__all__ = ["Provider", "ProviderError", "ProviderEvent", "complete", "get_provider"]
+__all__ = ["Answer", "Provider", "ProviderError", "ProviderEvent", "complete", "complete_answer",
+           "get_provider"]
 
 
 def get_provider(connection: dict) -> Provider:
