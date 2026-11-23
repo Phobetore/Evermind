@@ -5,7 +5,7 @@ import en from "@/i18n/locales/en.json";
 import es from "@/i18n/locales/es.json";
 import fr from "@/i18n/locales/fr.json";
 import { translate } from "@/i18n/translate";
-import { describeError, describeFailure } from "./errors";
+import { describeError, describeFailure, isAdvice } from "./errors";
 
 /** A translator that shows which key and which values it was asked for, so that
  *  a test says what the person would be told without depending on the wording. */
@@ -285,5 +285,36 @@ describe("the sentences exist", () => {
     const missing = [...asked].filter((key) => typeof lookup(key) !== "string");
     expect(missing).toEqual([]);
     expect(asked.size).toBeGreaterThan(30);
+  });
+});
+
+describe("an answer a model's server withheld", () => {
+  test("is said with the server's own word for it", () => {
+    const error = new DataError("Withheld.", { kind: "model_withheld", status: 502, reason: "content_filter" });
+    expect(describeError(error, t)).toBe('errors.modelWithheld {"message":"Withheld.","reason":"content_filter"}');
+    expect(describeFailure({ kind: "model_withheld", message: "Withheld.", reason: "refusal" }, t)).toBe(
+      'errors.modelWithheld {"message":"Withheld.","reason":"refusal"}',
+    );
+  });
+
+  test.each(["en", "fr", "de", "es"] as const)("in %s, shows the word as it was written", (locale) => {
+    const sentence = describeFailure({ kind: "model_withheld", reason: "content_filter" },
+      (k, vars) => translate(locale, k, vars));
+    expect(sentence).toContain("content_filter");
+    expect(sentence).not.toContain("errors.");
+  });
+});
+
+describe("a failure that tells the person what to change", () => {
+  test.each(["model_only_thought", "model_withheld"])("%s is advice to read, not a passing note", (kind) => {
+    expect(isAdvice(new DataError("words", { kind, status: 502 }))).toBe(true);
+  });
+
+  test.each(["model_empty", "model_error", "unreachable", undefined])("%s is not", (kind) => {
+    expect(isAdvice(new DataError("words", { kind, status: 502 }))).toBe(false);
+  });
+
+  test("nor is a fault of the interface", () => {
+    expect(isAdvice(new Error("model_only_thought"))).toBe(false);
   });
 });

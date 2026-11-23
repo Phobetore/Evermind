@@ -5,7 +5,7 @@ from ..db import get_db
 from ..errors import AppError, NotFoundError
 from ..models.schemas import ConnectionDraft, ConnectionIn, ConnectionUpdate
 from ..providers import get_provider
-from ..providers.base import NO_TEXT
+from ..providers.base import NO_TEXT, Answer, unwritten
 from ..repositories import connections as repo
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
@@ -69,6 +69,7 @@ async def benchmark_connection(draft: ConnectionDraft, db: aiosqlite.Connection 
         stop=[],
     )
     chunks: list[str] = []
+    thought, stop = 0, None
     started = time.monotonic()
     first_token = None
     async for event in get_provider(connection).stream_chat(payload):
@@ -76,9 +77,14 @@ async def benchmark_connection(draft: ConnectionDraft, db: aiosqlite.Connection 
             if first_token is None:
                 first_token = time.monotonic()
             chunks.append(event.text)
+        elif event.type == "thought":
+            thought += event.count
+        else:
+            stop = event.stop
     now = time.monotonic()
     if first_token is None:
-        raise AppError("No text generated.", 502, kind=NO_TEXT)
+        raise unwritten(Answer("", thought, stop)) or AppError(
+            "No text generated.", 502, kind=NO_TEXT)
     tokens = estimate_tokens("".join(chunks))
     gen_time = max(0.05, now - first_token)
     return {

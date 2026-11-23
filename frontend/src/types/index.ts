@@ -85,7 +85,7 @@ export interface Conversation {
   summary: string;
   author_note?: string;
   /** Why the last automatic pass of the memory failed, until one succeeds. */
-  memory_error?: { error: string; kind?: string } | null;
+  memory_error?: { error: string; kind?: string; reason?: string } | null;
   /** Whether a memory pass or a consolidation is under way. */
   memory_running?: boolean;
   /** Which, while one is: the automatic pass, a Remember or a consolidation, asked from wherever. */
@@ -189,6 +189,8 @@ export interface TurnFailure {
   kind: string;
   message: string;
   resource?: string;
+  /** A model server's own word for why it withheld the reply. */
+  reason?: string;
 }
 
 /** What the server says of a conversation's turn: the message being written, as far as it has

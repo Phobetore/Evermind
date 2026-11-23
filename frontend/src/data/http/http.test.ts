@@ -156,6 +156,17 @@ describe("what comes back", () => {
     expect((await failureOf()).params).toBeUndefined();
   });
 
+  test("a model server's own word for withholding an answer is kept, as text and short", async () => {
+    replies.push(
+      json({ error: "Withheld.", kind: "model_withheld", reason: "content_filter" }, 502),
+      json({ error: "Withheld.", kind: "model_withheld", reason: { odd: 1 } }, 502),
+      json({ error: "Withheld.", kind: "model_withheld", reason: "x".repeat(500) }, 502),
+    );
+    expect((await failureOf()).reason).toBe("content_filter");
+    expect((await failureOf()).reason).toBeUndefined();
+    expect((await failureOf()).reason).toHaveLength(60);
+  });
+
   test.each([
     ["HTML from a proxy", new Response("<html>Bad gateway</html>", { status: 502 }), 502],
     ["an empty answer", new Response("", { status: 500 }), 500],

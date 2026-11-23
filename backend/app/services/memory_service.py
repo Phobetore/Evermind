@@ -19,7 +19,6 @@ from ..errors import (
     CONVERSATION_CHANGED,
     FACTS_CHANGED,
     MEMORY_BUSY,
-    MODEL_ONLY_THOUGHT,
     MODEL_UNREADABLE,
     NO_CONNECTION,
     NOT_FOUND,
@@ -40,7 +39,7 @@ from ..prompting.payloads import (
     prompt_tokens,
 )
 from ..providers import Answer, ProviderError, complete_answer, get_provider
-from ..providers.base import NO_TEXT, STOPPED_FOR_LENGTH
+from ..providers.base import NO_TEXT, REFUSED_AS_WRITTEN, STOPPED_FOR_LENGTH, unwritten
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
@@ -69,6 +68,9 @@ _tasks: set[asyncio.Task] = set()
 # Refusals that say nothing failed in the memory: another operation ran, what it read changed, or
 # there was too little to merge. Whoever asked is told; nothing is kept of them.
 _NOT_FAILURES = (MEMORY_BUSY, CONVERSATION_CHANGED, FACTS_CHANGED, TOO_FEW_FACTS, NOT_FOUND)
+# The max_tokens a second ask read with, by connection id and model: where the next pass starts,
+# so that a model that needs more room pays one call, not two. Lost at restart, on purpose.
+_learned: dict[tuple[str, str], int] = {}
 
 
 def is_running(convo_id: str) -> bool:
@@ -216,6 +218,8 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
     connection = await connections_repo.resolve(db, convo.get("connection_id"))
     if connection is None:
         raise AppError("No LLM connection configured.", kind=NO_CONNECTION)
+    # A pass writes JSON, which reasoning does not improve, and every token of it is paid for.
+    connection = {**connection, "least_reasoning": True}
     if connection.get("max_tokens"):
         connection = {**connection, "max_tokens": max(connection["max_tokens"], MIN_ANSWER_TOKENS)}
     return connection
@@ -227,50 +231,69 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
 
     A model that reasons before it writes can spend the whole ceiling thinking and answer nothing,
     and a JSON cut short is as unreadable. Either is a lack of room, not of will, so the second
-    ask gives it more, never past what the context leaves. The answer is returned whether it
-    reads or not: ``_unreadable`` says why it did not."""
-    answer = await complete_answer(get_provider(connection), payload)
+    ask gives it more, never past what the context leaves, and the next pass starts there. The
+    answer is returned whether it reads or not: ``_unreadable`` says why it did not."""
+    own = connection.get("max_tokens") or 0
+    key = (connection.get("id") or "", connection.get("model") or "")
+    left = None
+    if context := connection.get("context_size"):
+        left = context - prompt_tokens(payload) - CONTEXT_MARGIN
+    first = own
+    if (learned := _learned.get(key, 0)) > own:
+        first = max(own, learned if left is None else min(learned, left))
+    if first == own:
+        answer = await complete_answer(get_provider(connection), payload)
+    else:
+        try:
+            answer = await complete_answer(get_provider({**connection, "max_tokens": first}),
+                                           payload)
+        except ProviderError as exc:
+            if exc.status not in REFUSED_AS_WRITTEN:
+                raise
+            # Its server's limit came down since: the connection's own ceiling is where to start,
+            # and this ask is the pass's second, so it is not followed by another.
+            _learned.pop(key, None)
+            logger.warning("%s: max_tokens %d, learned on an earlier pass, was refused (%s); "
+                           "asking with the connection's own.", what, first, exc.message)
+            return await complete_answer(get_provider(connection), payload)
     if reads(answer.text):
         return answer
-    own = connection.get("max_tokens") or 0
     ran_out = answer.stop == STOPPED_FOR_LENGTH or (
-        not answer.text.strip() and answer.thought > 0 and own > 0)
+        not answer.text.strip() and answer.thought > 0 and first > 0)
     if not ran_out:
         return answer
-    room = max(MORE_ROOM_TOKENS, 4 * own)
-    if context := connection.get("context_size"):
-        room = min(room, context - prompt_tokens(payload) - CONTEXT_MARGIN)
-    if room <= own:
+    room = max(MORE_ROOM_TOKENS, 4 * first)
+    if left is not None:
+        room = min(room, left)
+    # With no ceiling sent, the server's own default ran out, and it may be above a smaller one.
+    if room <= first or (not first and room < MORE_ROOM_TOKENS):
         return answer
-    logger.info("%s: the answer ran out of room (%d characters of reasoning, stopped with %r); "
-                "asking again with max_tokens %s instead of %s", what, answer.thought, answer.stop,
-                room, own or "unset")
+    logger.warning("%s: the model ran out of room (%d characters of reasoning, stopped with %r, "
+                   "max_tokens %s); asking again with %d. Raising the connection's max tokens "
+                   "avoids the second call.", what, answer.thought, answer.stop, first or "unset",
+                   room)
     try:
-        return await complete_answer(get_provider({**connection, "max_tokens": room}), payload)
+        second = await complete_answer(get_provider({**connection, "max_tokens": room}), payload)
     except ProviderError as exc:
         # A server whose output limit is lower refuses it: the first answer's failure stands.
         logger.warning("%s: the second ask was refused: %s", what, exc.message)
         return answer
+    if reads(second.text):
+        _learned[key] = room
+    return second
 
 
 def _unreadable(answer: Answer, what: str, said: str) -> AppError:
-    """Why a pass has nothing to use, by how the model's answer ended: it only thought, its server
-    gave no text, or what it wrote cannot be read."""
+    """Why a pass has nothing to use, by how the model's answer ended: it only thought or ran out
+    of room, its server withheld it, it gave no text, or what it wrote cannot be read."""
     logger.warning("%s: unreadable answer, %s, %d characters of reasoning, stopped with %r",
                    what, describe_answer(answer.text), answer.thought, answer.stop)
     if answer.text.strip():
         return AppError(said, 502, kind=MODEL_UNREADABLE)
-    if answer.thought:
-        return AppError(
-            "The model only thought, and wrote no memory. Give its connection more max tokens, "
-            "or use a model that thinks less.", 502, kind=MODEL_ONLY_THOUGHT)
-    if answer.stop == STOPPED_FOR_LENGTH:
-        message = "The model returned no text: it ran out of room."
-    elif answer.stop and answer.stop != "stop":
-        message = f'The model returned no text (its server ended the answer with "{answer.stop}").'
-    else:
-        message = "The model returned no text."
-    return AppError(message, 502, kind=NO_TEXT)
+    only_thought = ("The model only thought, and wrote no memory. Give its connection more max "
+                    "tokens, or use a model that thinks less.")
+    return unwritten(answer, only_thought) or AppError("The model returned no text.", 502,
+                                                       kind=NO_TEXT)
 
 
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
@@ -294,6 +317,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
                        409, kind=TOO_FEW_FACTS)
 
     payload = build_consolidation_payload(character, persona, movable)
+
     def merge(text: str) -> dict | None:
         return plan_consolidation(parse_llm_json(text), movable)
 

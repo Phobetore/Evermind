@@ -9,6 +9,7 @@ import { PageWait } from "@/components/ui/PageWait";
 import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
 import { beginSending, type MessageMode } from "@/lib/drafts";
+import { describeCeiling } from "@/lib/cutShort";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { memoryFailed } from "@/lib/memoryMark";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
@@ -215,9 +216,14 @@ function ChatView({ id }: { id: string }) {
   const busy = writing !== null;
 
   // A screen reader hears nothing of the words arriving: it is told a reply is being written, then that it is in.
-  const [heard, setHeard] = useState<{ writing: string | null; said: "" | "typing" | "replied" }>({ writing, said: "" });
+  // A reply the connection's max tokens cut is told so with it, once: the line under it is not live.
+  const [heard, setHeard] = useState<{ writing: string | null; said: "" | "typing" | "replied"; cut: string | null }>(
+    { writing, said: "", cut: null });
   if (heard.writing !== writing) {
-    setHeard({ writing, said: writing !== null ? "typing" : heard.said && !outcome ? "replied" : "" });
+    const said = writing !== null ? "typing" : heard.said && !outcome ? "replied" : "";
+    const newest = messages.at(-1);
+    const cut = said === "replied" && newest?.role === "assistant" ? describeCeiling(newest, t) : null;
+    setHeard({ writing, said, cut });
   }
 
   // The focus a reply's button lost goes to Stop, then to the reply, leaving the story where it is read.
@@ -553,6 +559,7 @@ function ChatView({ id }: { id: string }) {
 
         <p role="status" className="sr-only">
           {heard.said && t(heard.said === "typing" ? "chat.stream.assistantTyping" : "chat.stream.replied", { name: character.name })}
+          {heard.cut && ` ${heard.cut}`}
         </p>
         {/* Out of the scrolling: what failed may be far above, or in the header. */}
         {writeError && (
