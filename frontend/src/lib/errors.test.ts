@@ -5,7 +5,7 @@ import en from "@/i18n/locales/en.json";
 import es from "@/i18n/locales/es.json";
 import fr from "@/i18n/locales/fr.json";
 import { translate } from "@/i18n/translate";
-import { describeError, describeFailure } from "./errors";
+import { describeError, describeFailure, isAdvice } from "./errors";
 
 /** A translator that shows which key and which values it was asked for, so that
  *  a test says what the person would be told without depending on the wording. */
@@ -302,5 +302,19 @@ describe("an answer a model's server withheld", () => {
       (k, vars) => translate(locale, k, vars));
     expect(sentence).toContain("content_filter");
     expect(sentence).not.toContain("errors.");
+  });
+});
+
+describe("a failure that tells the person what to change", () => {
+  test.each(["model_only_thought", "model_withheld"])("%s is advice to read, not a passing note", (kind) => {
+    expect(isAdvice(new DataError("words", { kind, status: 502 }))).toBe(true);
+  });
+
+  test.each(["model_empty", "model_error", "unreachable", undefined])("%s is not", (kind) => {
+    expect(isAdvice(new DataError("words", { kind, status: 502 }))).toBe(false);
+  });
+
+  test("nor is a fault of the interface", () => {
+    expect(isAdvice(new Error("model_only_thought"))).toBe(false);
   });
 });

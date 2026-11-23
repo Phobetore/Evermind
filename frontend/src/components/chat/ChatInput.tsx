@@ -2,7 +2,7 @@ import { ModelSilent } from "@/components/chat/ModelSilent";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { loadDraft, openBox, saveDraft, type MessageMode } from "@/lib/drafts";
-import { describeError } from "@/lib/errors";
+import { describeError, isAdvice } from "@/lib/errors";
 import { onItsWay } from "@/lib/useTurn";
 import { clsx } from "clsx";
 import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Send, Square } from "lucide-react";
@@ -67,6 +67,7 @@ export function ChatInput({
   const [sending, setSending] = useState(onTheWay !== undefined);
   const [ghostwriting, setGhostwriting] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const hintFades = useRef<ReturnType<typeof setTimeout>>(undefined);
   // Stays until the next attempt, rather than fading: something has to be
   // switched on before trying again is worth anything.
   const [silent, setSilent] = useState(false);
@@ -128,6 +129,7 @@ export function ChatInput({
     if (!content || busy || sending) return;
     // The reply about to be asked for reports its own silence, in the conversation: one notice at a time.
     setSilent(false);
+    setHint(null);
     change(content);
     suggested.current = ""; // sent, it is the person's message, refused or not
     setSending(true);
@@ -138,6 +140,7 @@ export function ChatInput({
   async function ghostwrite() {
     if (busy || sending || ghostwriting) return;
     setGhostwriting(true);
+    clearTimeout(hintFades.current);
     setHint(null);
     setSilent(false);
     try {
@@ -154,7 +157,8 @@ export function ChatInput({
         setSilent(true);
       } else {
         setHint(describeError(e, t, t("chat.input.ghostwriteError")));
-        setTimeout(() => setHint(null), 4000);
+        // Advice on what to change stays until the next try or message: it takes reading.
+        if (!isAdvice(e)) hintFades.current = setTimeout(() => setHint(null), 4000);
       }
     }
     setGhostwriting(false);
@@ -236,7 +240,7 @@ export function ChatInput({
           </button>
         )}
       </div>
-      <p className="mx-auto mt-1.5 max-w-3xl text-center text-[0.7rem] text-mist-dim">
+      <p data-input-hint className="mx-auto mt-1.5 max-w-3xl text-center text-[0.7rem] text-mist-dim">
         {hint ??
           (restored
             ? t("chat.input.draftRestored")

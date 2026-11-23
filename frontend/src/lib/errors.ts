@@ -121,6 +121,11 @@ export function describeFailure(failure: Failure, t: Translate): string {
 export const isUnanswered = (error: unknown) =>
   error instanceof DataError && (error.kind === "network" || error.kind === "offline");
 
+/** A failure whose sentence says what to change, which takes longer to read than a passing note:
+ *  the model reasoned through all its room, or its server withheld the answer. */
+export const isAdvice = (error: unknown) =>
+  error instanceof DataError && (error.kind === "model_only_thought" || error.kind === "model_withheld");
+
 /** The sentence to show for whatever a call to the server threw.
  *
  *  Anything but a `DataError` is a fault in the interface or the browser, in

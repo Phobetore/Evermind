@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply, MOCK, replyEnds } from "./fixtures";
+import { chat, conversationWithReply, MOCK, replyEnds } from "./fixtures";
 
 /**
  * A reply that ends without what was asked for says why, as a person on a phone reads it
@@ -114,5 +114,21 @@ test("an older reply cut by the max tokens keeps a short mark, without asking to
   await expect(cut.locator("[data-ceiling-mark]")).toHaveText("cut at the limit");
   await expect(cut).not.toContainText("Continue the reply to carry on");
   await expect(page.locator("[data-message-id]").last().locator("[data-ceiling-mark]")).toHaveCount(0);
+  await noSidewaysScroll(page);
+});
+
+test("the pen's advice on what to change stays until the next try", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  // A message the ghost-writer reads, which makes the model reason through all its room.
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "MOCK_REASONS_ONLY" });
+  await page.goto(`/#/chat/${convo.id}`);
+
+  await page.locator('button[title="Write my reply for me (editable before sending)"]').click();
+  const hint = page.locator("[data-input-hint]");
+  const advice = "The model spent its whole answer thinking and wrote nothing.";
+  await expect(hint).toContainText(advice);
+  // Long past the four seconds a passing note stays.
+  await page.waitForTimeout(5_000);
+  await expect(hint).toContainText(advice);
   await noSidewaysScroll(page);
 });
