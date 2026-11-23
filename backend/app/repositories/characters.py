@@ -1,8 +1,11 @@
+import asyncio
 from typing import Literal
 
 import aiosqlite
 
+from ..db import write_transaction
 from ..models.schemas import CharacterIn
+from ..services import card_text
 from . import lore as lore_repo
 from .base import dumps, loads, new_id, now_iso
 
@@ -102,6 +105,61 @@ async def list_all(db: aiosqlite.Connection) -> list[dict]:
     return [to_out(r) for r in rows]
 
 
+async def list_tiles(db: aiosqlite.Connection) -> list[dict]:
+    """What a tile of the home page draws, in the order of `list_all`, without the long fields.
+    A card with no excerpt yet, or one worked out by an older rule, has it made here and kept."""
+    rows = await (await db.execute(
+        "SELECT id, kind, name, nickname, tagline, tags, excerpt, avatar_path, avatar_thumb_path,"
+        " is_favorite, card_rules, created_at, updated_at,"
+        # The description is read only for the cards that need an excerpt made from it.
+        " CASE WHEN excerpt IS NULL OR excerpt_rule != ? THEN description END AS made_from"
+        " FROM characters ORDER BY is_favorite DESC, updated_at DESC",
+        (card_text.EXCERPT_RULE,))).fetchall()
+    todo = [r for r in rows if r["made_from"] is not None]
+    made: dict[str, str] = {}
+    if todo:
+        # Pure Python on text of any length: off the loop, so the server answers meanwhile.
+        pairs = [(r["made_from"], r["name"]) for r in todo]
+        excerpts = await asyncio.to_thread(lambda: [card_text.card_excerpt(d, n) for d, n in pairs])
+        made = {r["id"]: e for r, e in zip(todo, excerpts, strict=True)}
+        rule = card_text.EXCERPT_RULE
+        async with write_transaction(db):
+            for r, (description, name) in zip(todo, pairs, strict=True):
+                # Only if the card is still what the excerpt was made from: one edited since
+                # keeps its NULL and is redone by the next list.
+                await db.execute(
+                    "UPDATE characters SET excerpt = ?, excerpt_rule = ?"
+                    " WHERE id = ? AND name = ? AND description = ?",
+                    (made[r["id"]], rule, r["id"], name, description))
+    tiles = []
+    for r in rows:
+        tiles.append({
+            "id": r["id"], "kind": r["kind"], "name": r["name"], "nickname": r["nickname"],
+            "tagline": r["tagline"], "tags": loads(r["tags"], []),
+            "excerpt": made[r["id"]] if r["id"] in made else r["excerpt"],
+            "avatar_url": f"api/media/{r['avatar_path']}" if r["avatar_path"] else None,
+            "avatar_thumb_url": (f"api/media/{r['avatar_thumb_path']}"
+                                 if r["avatar_thumb_path"] else None),
+            "is_favorite": bool(r["is_favorite"]), "card_rules": r["card_rules"],
+            "created_at": r["created_at"], "updated_at": r["updated_at"],
+        })
+    return tiles
+
+
+async def search(db: aiosqlite.Connection, words: str) -> list[str]:
+    """The ids of the cards whose name, tagline or description holds `words` in one piece, as the
+    home page searched the list it had. The descriptions no longer travel to it."""
+    needle = words.lower()
+    if not needle:
+        return []
+    rows = await (await db.execute(
+        "SELECT id, name, tagline, description FROM characters"
+        " ORDER BY is_favorite DESC, updated_at DESC")).fetchall()
+    return [r["id"] for r in rows
+            if needle in r["name"].lower() or needle in r["tagline"].lower()
+            or needle in r["description"].lower()]
+
+
 async def get_card(db: aiosqlite.Connection, char_id: str) -> dict | None:
     row = await (await db.execute(
         "SELECT text, format, read, other_text, read_at FROM character_cards"
@@ -118,6 +176,8 @@ async def update(db: aiosqlite.Connection, char_id: str, fields: dict) -> dict |
     for key, value in fields.items():
         if value is None:
             continue
+        if key in ("name", "description") and "excerpt = NULL" not in sets:
+            sets.append("excerpt = NULL")  # the tile's excerpt is made again from what is written
         if key in _JSON_FIELDS:
             sets.append(f"{key} = ?")
             params.append(dumps([str(x) for x in value]))

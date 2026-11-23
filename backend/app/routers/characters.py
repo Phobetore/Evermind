@@ -1,5 +1,7 @@
+from typing import Literal
+
 import aiosqlite
-from fastapi import APIRouter, Depends, Form, UploadFile
+from fastapi import APIRouter, Depends, Form, Query, UploadFile
 
 from ..db import get_db
 from ..errors import AppError, NotFoundError
@@ -13,9 +15,17 @@ router = APIRouter(prefix="/api/characters", tags=["characters"])
 
 
 @router.get("")
-async def list_characters(db: aiosqlite.Connection = Depends(get_db)):
-    """All of them: the interface searches the list it has."""
-    return await repo.list_all(db)
+async def list_characters(fields: Literal["card"] | None = None,
+                          db: aiosqlite.Connection = Depends(get_db)):
+    """All of them. `fields=card` is the light list of the home page: what a tile draws, no more."""
+    return await repo.list_tiles(db) if fields == "card" else await repo.list_all(db)
+
+
+# Declared before the routes of a character, so that no id of a card ever stands for it.
+@router.get("/search")
+async def search_characters(q: str = Query(""), db: aiosqlite.Connection = Depends(get_db)):
+    """The ids of the cards whose name, tagline or description holds `q` in one piece."""
+    return await repo.search(db, q)
 
 
 @router.post("", status_code=201)
