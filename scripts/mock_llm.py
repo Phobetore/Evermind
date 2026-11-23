@@ -74,6 +74,12 @@ class Handler(BaseHTTPRequestHandler):
 
         system = next((m["content"] for m in payload.get("messages", [])
                        if m.get("role") == "system"), "")
+
+        # A conversation that says MOCK_FORGETS gets its replies, but every memory pass that reads
+        # those words is refused: the memory stops growing while the story goes on.
+        if "memory-keeper" in system and "MOCK_FORGETS" in json.dumps(payload):
+            self._json(json.dumps({"error": {"message": "The mock was told to forget."}}), status=500)
+            return
         char = "The narrator"
         for line in system.splitlines():
             if line.startswith("You are ") and " in " in line:

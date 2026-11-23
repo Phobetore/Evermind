@@ -10,7 +10,7 @@ import { PATIENCE_MS } from "@/lib/useTurn";
 import { cardText } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
-import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
+import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, RotateCcw, SlidersHorizontal, Type, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type SetStateAction } from "react";
 import { Link } from "react-router";
 
@@ -625,6 +625,17 @@ export function ChatSidePanel({
           </button>
         </div>
         {memoryError && <p className="mt-1.5 break-words text-xs text-blood">{memoryError}</p>}
+        {/* What failed on its own is offered again here, where it is told, not only by Remember above. */}
+        {!errors.memory && failed && (
+          <button
+            className="btn btn-ghost mt-1.5 !px-2 !py-1 text-xs"
+            onClick={memorizeNow}
+            disabled={memorizing || consolidating}
+          >
+            {memorizing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            {t("memoryMark.retry")}
+          </button>
+        )}
         {memoryNote && <p className="mt-1.5 break-words text-xs text-moss">{memoryNote}</p>}
       </div>
 

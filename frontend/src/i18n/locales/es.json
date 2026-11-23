@@ -697,7 +697,7 @@
     "modelNotFound": "El servidor del modelo no reconoce esta dirección o este modelo. Comprueba la URL y el nombre del modelo en la conexión. El servidor indicó: {message}",
     "modelRateLimited": "El servidor del modelo ha alcanzado su límite de peticiones. Inténtalo de nuevo en un momento. El servidor indicó: {message}",
     "modelNetworkError": "El modelo ha tardado demasiado en responder o se ha cortado la conexión con su servidor.",
-    "modelNoText": "El modelo no ha generado ningún texto.",
+    "modelNoText": "El modelo no ha generado ningún texto. Inténtalo de nuevo o elige otro modelo.",
     "emptyMessage": "Escribe primero un mensaje.",
     "nothingToRegenerate": "Todavía no hay ninguna respuesta que regenerar. Envía primero un mensaje.",
     "nothingToContinue": "El último mensaje no es una respuesta, así que no hay nada que continuar.",
@@ -717,5 +717,9 @@
     "daysAgo": "hace {count} d",
     "monthsAgo": "hace {count} mes(es)",
     "yearsAgo": "hace {count} año(s)"
+  },
+  "memoryMark": {
+    "label": "No se ha podido actualizar la memoria de esta conversación",
+    "retry": "Reintentar"
   }
 }
