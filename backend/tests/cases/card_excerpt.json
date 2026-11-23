@@ -677,6 +677,51 @@
   },
   {
    "fn": "card_excerpt",
+   "name": "a prose line holding a pipe opens the excerpt",
+   "input": {
+    "description": "Sélène garde le gué depuis trois hivers | elle ne dort jamais, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Sélène garde le gué depuis trois hivers | elle ne dort jamais, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a long prose line holding a pipe is kept with the short line after it",
+   "input": {
+    "description": "Sélène (elle/la | 312 ans) garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.\nElle aime les chats.",
+    "name": "Sélène"
+   },
+   "expected": "Sélène (elle/la | 312 ans) garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. Elle aime les chats."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a line holding a pipe under eighty characters is skipped",
+   "input": {
+    "description": "𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜 | 𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a line holding a pipe at eighty characters is kept",
+   "input": {
+    "description": "𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜 | 𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜",
+    "name": "Sélène"
+   },
+   "expected": "𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜 | 𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜𝒜"
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a long row with outer pipes is skipped",
+   "input": {
+    "description": "| Espèce | Elfe des rivières, née sous la glace | Âge | Trois cent douze ans, ou à peu près |\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
    "name": "a space right after the hundred and sixtieth character keeps the whole word",
    "input": {
     "description": "Elle SélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèn et la suite.",

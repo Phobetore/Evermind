@@ -244,9 +244,11 @@ function firstRealLines(text: string, name: string): string[] {
 
 function skipped(line: string, heading: boolean, ownName: string): boolean {
   if (!line || heading) return true;
-  // A row of a Markdown table, outer pipes or not: a sheet of traits. A rule line with no pipe,
-  // "---", has no letter and goes with the last rule.
-  if (line.includes("|")) return true;
+  // A row of a Markdown table: a sheet of traits. With no outer pipes, a row is told from prose
+  // that holds a "|" by its length, the bound of a key line. A rule line has too few letters and
+  // goes with the last rule.
+  if (line[0] === "|" && line[line.length - 1] === "|") return true;
+  if (line.includes("|") && codePoints(line) < KEY_LINE) return true;
   if (pyLower(line) === ownName) return true;
   // {{char}} alone opens with a brace and closes with one: this rule takes it too.
   if ("[{(".includes(line[0]) && ")]}".includes(line[line.length - 1])) return true;

@@ -53,11 +53,18 @@ def test_a_hostile_description_costs_linear_time():
         assert "<" not in result and "[" not in result, label
 
 
+# Prose that holds a pipe is text, not a table: these keep theirs.
+PIPED_PROSE = {"a prose line holding a pipe opens the excerpt",
+               "a long prose line holding a pipe is kept with the short line after it",
+               "a line holding a pipe at eighty characters is kept"}
+
+
 def test_never_markup():
     for c in CASES:
         result = MARKERS.sub("", card_excerpt(**c["input"]))
         assert not re.search(r"<[^\W\d_]", result), c["name"]
-        for mark in ("](", "[", "{", '("', '" +', "|", "\r", "﻿"):
+        marks = ("](", "[", "{", '("', '" +', "\r", "﻿") + (() if c["name"] in PIPED_PROSE else ("|",))
+        for mark in marks:
             assert mark not in result, (c["name"], mark)
         assert not re.search("[\ud800-\udfff]", result), c["name"]
 
