@@ -19,10 +19,17 @@ async def lifespan(_: FastAPI):
     import asyncio
 
     from .services import memory_service
-    asyncio.create_task(memory_service.fill_vectors())
+    filling = asyncio.create_task(memory_service.fill_vectors())
     yield
+    # Ended first, so that it hands no thread new work once the threads are waited for, below.
+    filling.cancel()
+    await asyncio.wait([filling])
     # A Remember or a consolidation outlives its request, not the server: ended whole, not half-written.
     await memory_service.stop()
+    # A task cancelled leaves its thread running: the semantic model loading, a vector being worked
+    # out. Ctrl+Break ends the process as soon as this returns, without waiting for them as Ctrl+C
+    # does, and a thread ended in the middle of loading a library leaves the process unable to end.
+    await asyncio.get_running_loop().shutdown_default_executor()
 
 
 def create_app() -> FastAPI:
