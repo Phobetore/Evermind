@@ -1,4 +1,4 @@
-import type { Character, Kind, LoreEntry, Memory, ProviderType } from "@/types";
+import type { Backdrop, Character, Kind, LoreEntry, Memory, ProviderType } from "@/types";
 
 /** Given up on with `signal`, or as unanswered when no answer has begun within `within` ms. */
 export interface Asking {
@@ -10,8 +10,12 @@ export interface Asking {
  *  the server assigns. */
 export type CharacterInput = Omit<
   Character,
-  "id" | "avatar_url" | "is_favorite" | "created_at" | "updated_at" | "has_card"
+  "id" | "avatar_url" | "avatar_thumb_url" | "avatar_backdrop_url" | "is_favorite" | "created_at"
+  | "updated_at" | "has_card"
 >;
+
+/** Two smaller copies of a portrait, and the portrait they were made from (its avatar_url). */
+export interface PortraitSizes { from: string; grid: Blob; backdrop: Blob }
 
 /** What a person asks for with "write this card for me", together with
  *  whatever is already filled in so the draft builds on it. `existing` holds
@@ -105,6 +109,8 @@ export interface ConversationPatch {
   author_note?: string;
   connection_id?: string;
   wallpaper_opacity?: number;
+  backdrop?: Backdrop;
+  backdrop_strength?: number | null;
 }
 
 /** What "memorize now" found: the facts it added, a new summary if the

@@ -1,11 +1,11 @@
 import type {
-  Character, CharacterWithLore, Connection, Conversation, Installation, LibraryItem, Memory,
+  Character, CharacterTile, CharacterWithLore, Connection, Conversation, Installation, LibraryItem, Memory,
   Message, Persona, Settings, TurnEvent, TurnState,
 } from "@/types";
 import type {
   Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConnectionInput,
   ConnectionTestResult, ConsolidateResult, ConversationInput, ConversationPatch, ExtractResult,
-  LoreEntryInput, OriginalCard, PersonaInput, StoredCard, TurnRequest,
+  LoreEntryInput, OriginalCard, PersonaInput, PortraitSizes, StoredCard, TurnRequest,
 } from "./types";
 
 /** A few words kept on this device and nowhere else. It never throws: a store that cannot keep
@@ -23,6 +23,9 @@ export interface DeviceStore {
   set(key: string, value: string): void;
   remove(key: string): void;
   keys(prefix: string): string[];
+  /** True where one store serves every device of the person (the browser edition): what
+   *  belongs to one screen is then kept under a name per kind of screen. */
+  readonly sharedAcrossDevices?: boolean;
   /** A key changed from another window: what it held, and what it holds now. Returns the way to stop listening. */
   onChange(listener: (key: string, oldValue: string | null, newValue: string | null) => void): () => void;
 }
@@ -34,6 +37,12 @@ export interface DeviceStore {
 export interface DataSource {
   characters: {
     list(): Promise<Character[]>;
+    /** Every card, as the home page draws it. */
+    tiles(): Promise<CharacterTile[]>;
+    /** The ids of the cards whose name, tagline or description holds this text as one piece,
+     *  whatever its case (toLowerCase / .lower()): "elfe brume" does not find the two words apart.
+     *  An empty text finds nothing. */
+    search(text: string, asking?: Asking): Promise<string[]>;
     get(id: string): Promise<CharacterWithLore>;
     /** `lore_entries` is the whole lorebook: an entry with no keyword or no text is left out. */
     create(input: CharacterInput & { lore_entries?: LoreEntryInput[]; card?: OriginalCard }): Promise<Character>;
@@ -45,6 +54,8 @@ export interface DataSource {
     card(id: string): Promise<StoredCard | null>;
     remove(id: string): Promise<void>;
     uploadAvatar(id: string, file: File): Promise<Character>;
+    /** Hands over the copies the page made; null when the portrait changed meanwhile. */
+    saveSizes(id: string, sizes: PortraitSizes, asking?: Asking): Promise<Character | null>;
     /** The card is written by a job that outlives the page: `start` answers at once, `state` says
      *  how far it is, `stop` ends it and keeps what was complete. Asked for again under the same
      *  `client_id`, `start` is the job begun the first time. */
@@ -69,7 +80,9 @@ export interface DataSource {
     /** All but the messages, which make a long story megabytes, for a read of what goes with them. */
     withoutMessages(id: string, asking?: Asking): Promise<Conversation>;
     create(input: ConversationInput): Promise<Conversation>;
-    update(id: string, changes: ConversationPatch): Promise<Conversation>;
+    /** `outlivePage`: sent so that it survives the page closing (fetch keepalive), for a change
+     *  flushed on pagehide. A source with nothing to cut off ignores it. */
+    update(id: string, changes: ConversationPatch, options?: { outlivePage?: boolean }): Promise<Conversation>;
     remove(id: string): Promise<void>;
     setWallpaper(id: string, file: File): Promise<Conversation>;
     clearWallpaper(id: string): Promise<Conversation>;
@@ -116,7 +129,7 @@ export interface DataSource {
   };
 
   /** An image the source serves, such as a portrait, as a file to draw or to send back. */
-  file(url: string): Promise<File>;
+  file(url: string, asking?: Asking): Promise<File>;
 
   /** What this device keeps for itself: drafts, a message on its way, the chosen language. */
   readonly device: DeviceStore;

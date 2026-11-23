@@ -2,6 +2,8 @@ export type Kind = "character" | "scenario";
 export type ProviderType = "openai-compatible" | "anthropic";
 export type NoteRole = "system" | "user" | "assistant";
 
+export type Backdrop = "auto" | "none" | "image";
+
 export interface Character {
   id: string;
   kind: Kind;
@@ -29,9 +31,21 @@ export interface Character {
   /** Whether the card it was read from is kept, for its export. */
   has_card: boolean;
   avatar_url: string | null;
+  /** The portrait at 480 px wide, made by a browser; null until one has. */
+  avatar_thumb_url: string | null;
+  /** The portrait at 960 px wide, for the backdrop of a conversation; null until made. */
+  avatar_backdrop_url: string | null;
   is_favorite: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** What the home page draws of a card: none of the long fields, which make the full list megabytes. */
+export interface CharacterTile extends Pick<Character,
+  "id" | "kind" | "name" | "nickname" | "tagline" | "tags" | "avatar_url" | "avatar_thumb_url"
+  | "is_favorite" | "card_rules" | "created_at" | "updated_at"> {
+  /** The first real sentence of the description, "" when it has none (engine/excerpt.ts). */
+  excerpt: string;
 }
 
 export interface Persona {
@@ -90,6 +104,9 @@ export interface Conversation {
   memory_running?: boolean;
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
+  backdrop: Backdrop;
+  /** Its own strength, 0 to 1; null follows the device's. */
+  backdrop_strength: number | null;
   forked_from?: string | null;
   /** Counts the changes to its messages. */
   revision?: number;
