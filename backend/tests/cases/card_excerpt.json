@@ -413,6 +413,267 @@
     "name": "Sélène"
    },
    "expected": "Elle sait que a < b et que <3 veut dire qu'on l'aime, depuis trois hivers."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a block whose lines would be kept on their own",
+   "input": {
+    "description": "[\nSélène est une elfe ondine qui garde le gué depuis trois siècles, patiente et rusée.\nElle aime les histoires vraies et déteste les menteurs plus que tout au monde.\n]\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "the closing line of a block goes with it, prose and all",
+   "input": {
+    "description": "[\nSélène est une elfe ondine qui garde le gué depuis trois siècles, patiente et rusée.\nElle aime les histoires vraies et déteste les menteurs plus que tout au monde.\n] Elle n'en dit jamais plus à personne, et le gué reste silencieux.\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a block in brackets of three hundred characters goes",
+   "input": {
+    "description": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx] Elle ne dort jamais.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. Elle ne dort jamais."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a block in brackets of three hundred and one characters stays text",
+   "input": {
+    "description": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx] Elle ne dort jamais.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.…"
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a block in braces of three hundred characters goes",
+   "input": {
+    "description": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. {xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx} Elle ne dort jamais.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. Elle ne dort jamais."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a block in braces of three hundred and one characters stays text",
+   "input": {
+    "description": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. {xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx} Elle ne dort jamais.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.…"
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a marker of eighty characters goes",
+   "input": {
+    "description": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. {{xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}} Elle ne dort jamais.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. Elle ne dort jamais."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a marker of eighty-one characters stays text",
+   "input": {
+    "description": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. {{xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}} Elle ne dort jamais.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.…"
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a key line of seventy-nine characters is skipped",
+   "input": {
+    "description": "Nom : Sélène de la Brume, gardienne du gué Sélène de la Brume, gardienne du gué\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a key line of eighty characters is text",
+   "input": {
+    "description": "Nom : Sélène de la Brume, gardienne du gué Sélène de la Brume, gardienne du guée\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Nom : Sélène de la Brume, gardienne du gué Sélène de la Brume, gardienne du guée Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter…"
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a key word of twenty-four characters is a key",
+   "input": {
+    "description": "Surnomdelagardiennedugué : la Dame de la Brume\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a key word of twenty-five characters is text",
+   "input": {
+    "description": "Surnomdelagardienneduguée : la Dame de la Brume\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Surnomdelagardienneduguée : la Dame de la Brume Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "nineteen letters are debris",
+   "input": {
+    "description": "Le gué dort sous la lune",
+    "name": "Sélène"
+   },
+   "expected": ""
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "twenty letters are a sentence",
+   "input": {
+    "description": "Le gué dort sous la brume",
+    "name": "Sélène"
+   },
+   "expected": "Le gué dort sous la brume"
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a long chain of hyphenated words with no digit stays",
+   "input": {
+    "description": "Elle est la gardienne-du-gue-de-la-brume-et-des-nuits-sans-lune depuis trois hivers.",
+    "name": "Sélène"
+   },
+   "expected": "Elle est la gardienne-du-gue-de-la-brume-et-des-nuits-sans-lune depuis trois hivers."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a comment holding a greater-than sign goes whole",
+   "input": {
+    "description": "<!-- a > b -->Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a pre tag is not a paragraph",
+   "input": {
+    "description": "Nom : Sélène<pre>Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Nom : Sélène Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a tablet tag is not a table",
+   "input": {
+    "description": "<tablet>Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.</tablet>",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a tag whose name runs on is not a table",
+   "input": {
+    "description": "<table-des-traits>Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "an image inside a link goes whole",
+   "input": {
+    "description": "[![Sélène](selene.png)](https://example.com/selene) Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a table never closed runs to the end",
+   "input": {
+    "description": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.<table><tr><td>Espèce</td><td>Elfe</td></tr>\nElle ne dort jamais.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a carriage return alone breaks a line",
+   "input": {
+    "description": "Nom : Sélène\rÂge : 312 ans\rElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a line separator does not break a skipped line",
+   "input": {
+    "description": "Âge : 312 ans, et\u2028pas un jour de moins\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "list and quote marks leave every kept line",
+   "input": {
+    "description": "> Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.\n- Elle aime l'eau.\n1. Elle ment peu.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie. Elle aime l'eau. Elle ment peu."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a line wholly in parentheses is skipped",
+   "input": {
+    "description": "(Sélène, gardienne du gué, elfe ondine)\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a long line wholly in brackets is skipped",
+   "input": {
+    "description": "[Sélène, gardienne du gué, elfe ondine, Sélène, gardienne du gué, elfe ondine, Sélène, gardienne du gué, elfe ondine, Sélène, gardienne du gué, elfe ondine, Sélène, gardienne du gué, elfe ondine, Sélène, gardienne du gué, elfe ondine, Sélène, gardienne du gué, elfe ondine, Sélène, gardienne du gué, elfe ondine, ]\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a space right after the hundred and sixtieth character keeps the whole word",
+   "input": {
+    "description": "Elle SélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèn et la suite.",
+    "name": "Sélène"
+   },
+   "expected": "Elle SélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèn…"
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "a zero-width joiner at the end of the kept part goes with its family",
+   "input": {
+    "description": "她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真👨\u200d👩\u200d👧她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说",
+    "name": "Sélène"
+   },
+   "expected": "她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真实故事的旅人通过村里的老人们都这样说她守护这片浅滩已经整整三个冬天了从不让任何没有讲出真…"
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "four words before a colon are a sentence",
+   "input": {
+    "description": "Elle le dit souvent : personne ne passe le gué sans histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle le dit souvent : personne ne passe le gué sans histoire vraie."
   }
  ]
 }
