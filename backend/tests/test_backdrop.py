@@ -75,13 +75,22 @@ async def test_choosing_a_backdrop_resets_its_strength(client):
     assert (await patch(client, convo, backdrop="none", backdrop_strength=0.6))[
         "backdrop_strength"] == 0.6
 
+    # The same choice again leaves a strength apart from the picture's as it is.
+    await patch(client, convo, backdrop="image")
+    await patch(client, convo, backdrop_strength=None)
+    assert (await patch(client, convo, backdrop="image"))["backdrop_strength"] is None
+    await patch(client, convo, backdrop="auto", backdrop_strength=0.35)
+    assert (await patch(client, convo, backdrop="auto"))["backdrop_strength"] == 0.35
+
 
 async def test_an_image_backdrop_needs_a_wallpaper(client):
     convo = await setup_conversation(client)
     await patch(client, convo, backdrop_strength=0.4)
     before = (await client.get(f"/api/conversations/{convo['id']}?messages=false")).json()
 
-    resp = await client.patch(f"/api/conversations/{convo['id']}", json={"backdrop": "image"})
+    # What else the request carries is not written either.
+    resp = await client.patch(f"/api/conversations/{convo['id']}",
+                              json={"backdrop": "image", "summary": "Kept?"})
     assert resp.status_code == 409
     assert resp.json()["kind"] == "no_wallpaper"
 
@@ -112,6 +121,15 @@ async def test_a_strength_is_also_written_where_the_previous_version_reads_it(cl
     assert stored(convo["id"], "wallpaper_opacity") == 0.3
 
 
+async def test_a_request_with_both_strengths_writes_each_as_sent(client):
+    # Only a request written by hand sends both: the page before sends the one, the page after
+    # the other. Each column keeps what it was given.
+    convo = await setup_conversation(client)
+    await upload(client, convo)
+    now = await patch(client, convo, backdrop_strength=0.9, wallpaper_opacity=0.3)
+    assert (now["backdrop_strength"], now["wallpaper_opacity"]) == (0.9, 0.3)
+
+
 async def test_uploading_and_removing_a_wallpaper(client):
     convo = await setup_conversation(client)
     sent = await upload(client, convo)
@@ -137,6 +155,11 @@ async def test_uploading_and_removing_a_wallpaper(client):
     await patch(client, convo, backdrop="none", backdrop_strength=0.6)
     last = await upload(client, convo)
     assert (last["backdrop"], last["backdrop_strength"]) == ("image", 0.25)
+
+    # Removed while the portrait is shown at its own strength: that strength goes too.
+    await patch(client, convo, backdrop="auto", backdrop_strength=0.35)
+    resp = await client.delete(f"/api/conversations/{convo['id']}/wallpaper")
+    assert (resp.json()["backdrop"], resp.json()["backdrop_strength"]) == ("auto", None)
 
 
 async def test_a_branch_keeps_its_backdrop(client):
@@ -169,7 +192,9 @@ async def test_the_update_keeps_every_wallpaper_and_its_strength(start):
         conn.executemany(
             "INSERT INTO conversations (id, character_id, wallpaper_path, wallpaper_opacity,"
             " created_at, updated_at) VALUES (?, 'c', ?, ?, 'now', 'now')",
-            [("plain", "", 0.25), ("low", "low.png", 0.25), ("high", "high.png", 0.8)])
+            [("plain", "", 0.25), ("low", "low.png", 0.25), ("high", "high.png", 0.8),
+             # The column never had bounds: a value out of them must not stop the update.
+             ("over", "over.png", 1.5)])
         conn.commit()
     finally:
         conn.close()
@@ -186,5 +211,6 @@ async def test_the_update_keeps_every_wallpaper_and_its_strength(start):
         conn.close()
     assert rows == [("high", "image", 0.8, "high.png", 0.8),
                     ("low", "image", 0.25, "low.png", 0.25),
+                    ("over", "image", 1.0, "over.png", 1.5),
                     ("plain", "auto", None, "", 0.25)]
     assert character == [("serana.png", "", "", None, 0)]
