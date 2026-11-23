@@ -738,7 +738,7 @@
     "strong": "kräftig",
     "ownStrength": "Nur für diese Unterhaltung einstellen",
     "deviceStrength": "Stärke dieses Geräts übernehmen ({pct} %)",
-    "softened": "Unter dem Text ist das Bild immer abgeschwächt: Man liest es bei jeder Stärke.",
+    "softened": "Unter dem Text ist das Bild immer abgeschwächt: Der Text bleibt bei jeder Stärke lesbar.",
     "perDevice": "Diese Einstellungen bleiben auf diesem Gerät: Dein Handy und dein PC behalten jeweils ihre eigenen.",
     "sheetFoot": "Unter dem Text ist das Bild immer abgeschwächt. Das Bild hier ändern oder entfernen: Einstellungsknopf, „Hintergrund“.",
     "sample": "*Die Laterne schwingt am Ende ihres Arms.* Du kommst zu spät. **Drei Winter** zu spät, um genau zu sein."
