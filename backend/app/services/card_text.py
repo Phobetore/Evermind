@@ -345,4 +345,7 @@ def _cut(text: str) -> str:
         flags += 1
     if flags % 2:
         cut -= 1
+    # One character under hundreds of marks: nothing whole fits, and a lone "…" says nothing.
+    if cut == 0:
+        return ""
     return text[:cut].rstrip() + "…"

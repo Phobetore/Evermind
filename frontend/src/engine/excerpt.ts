@@ -382,6 +382,8 @@ function cut(text: string): string {
   let flags = 0;
   while (flags < end && isRegional(head[end - 1 - flags])) flags++;
   if (flags % 2) end--;
+  // One character under hundreds of marks: nothing whole fits, and a lone "…" says nothing.
+  if (end === 0) return "";
   return pyRstrip(head.slice(0, end).join("")) + "…";
 }
 
