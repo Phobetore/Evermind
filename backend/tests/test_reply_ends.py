@@ -4,12 +4,16 @@ A model that reasons before it writes can spend the whole of a connection's max 
 and a server can withhold an answer and say so in its stop word. "The model returned an empty
 reply" tells the person neither, and asking again with the same room only costs more."""
 
+import asyncio
 from typing import ClassVar
 
 import pytest
 
 from app.errors import MODEL_EMPTY, MODEL_ONLY_THOUGHT, MODEL_WITHHELD, error_body
 from app.providers.base import NO_TEXT, Answer, ProviderError, ProviderEvent, unwritten
+
+from app.models.schemas import ChatRequest
+from app.services import turns
 
 from .conftest import assist, messages_of, send, setup_conversation
 
@@ -217,6 +221,48 @@ async def test_a_continuation_a_failure_cut_is_marked_as_cut_short_instead(clien
     await send(client, convo["id"])
     await send(client, convo["id"], content=None, mode="continue")
     reply = await last_reply(client, convo)
+    assert reply["meta"]["interrupted"] == [0]
+    assert "ceiling" not in reply["meta"]
+
+
+async def test_a_reply_a_failure_cut_after_its_end_is_cut_short_not_at_its_ceiling(client, model):
+    model.scripts = [[*ends("She opens", stop="length"), ProviderError("gone")]]
+    convo = await with_ceiling(client)
+    await send(client, convo["id"])
+    reply = await last_reply(client, convo)
+    assert reply["meta"]["interrupted"] == [0]
+    assert "ceiling" not in reply["meta"]
+
+
+class EndsThenLingers:
+    """A reply that stops for length, after which its stream stays open until the turn is stopped."""
+
+    ended: asyncio.Event
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def stream_chat(self, payload):
+        for event in ends("She opens", stop="length"):
+            yield event
+        EndsThenLingers.ended.set()
+        await asyncio.sleep(60)
+
+
+async def test_a_reply_the_person_stopped_is_not_said_to_be_cut_at_its_ceiling(
+        client, model, monkeypatch):
+    """Its model had already said it ran out, but the person stopped it: what shows is theirs."""
+    convo = await with_ceiling(client)
+    EndsThenLingers.ended = asyncio.Event()
+    monkeypatch.setattr("app.services.chat_service.get_provider", EndsThenLingers)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send",
+                                         content="Go on", client_id="stopped"))
+    await asyncio.wait_for(EndsThenLingers.ended.wait(), timeout=10)
+    await turns.stop(convo["id"])
+    await asyncio.wait_for(turn.finished.wait(), timeout=15)
+
+    reply = await last_reply(client, convo)
+    assert reply["content"] == "She opens"
     assert reply["meta"]["interrupted"] == [0]
     assert "ceiling" not in reply["meta"]
 
