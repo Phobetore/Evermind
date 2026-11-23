@@ -151,8 +151,10 @@ can move the buttons from under the click.
   of the server's own, as a reply is, and answered at its end; a client that goes away cancels
   nothing, only the server's stop does, and what a pass writes is one transaction. One at a
   time per conversation (`409 memory_busy`). The conversation says `memory_running`,
-  `memory_operation` (`pass`, `extract` or `consolidate`) and `memory_error`, the failure of
-  the last pass or operation until one succeeds
+  `memory_operation` (`pass`, `extract` or `consolidate`) and `memory_error`: why the pass
+  (automatic, or a Remember) or a Condense last failed, with the `operation` that did, until
+  that work succeeds; a Condense that succeeds says nothing of a failed pass, and neither a
+  Remember nor a Condense shortens the wait of an automatic pass that failed
 - `GET /api/library`: the cards in `library/`. The browser reads and writes card
   files itself (`frontend/src/lib/cards.ts`), and installs or imports a card by
   creating a character
@@ -225,7 +227,10 @@ exception with its traceback. A new `logger.warning(...)` needs nothing more to 
 there; an `INFO` line, an access line or another library's own logger never is,
 and what the terminal shows does not change. The file turns over at 1 MB into
 `evermind.log.1`, so there are two at most. One that cannot be written stops
-nothing: the terminal says so once and the server goes on without it. It is what
+nothing: the terminal says so once and the server goes on without it. One held
+for a moment, by a reader, a backup or another server on the same folder, is not
+given up: a turn-over that Windows refuses waits for the next line, and a line
+that cannot be added is in the terminal, the file saying how many it missed. It is what
 people send with a bug report, and the interface never shows it: a warning says
 what failed and where, never what someone wrote. Each application `create_app()`
 makes installs it afresh, and the backend tests give each test a file of its own.
