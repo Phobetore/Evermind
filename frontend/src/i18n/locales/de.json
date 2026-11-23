@@ -255,6 +255,8 @@
         "ooc": "Anweisung"
       },
       "interrupted": "unterbrochen",
+      "cutAtCeiling": "Abgeschnitten: Die Antwort hat die Grenze der Verbindung von {tokens:grouped} Tokens erreicht, und das Nachdenken des Modells zählt mit. Setze die Antwort fort, um weiterzumachen.",
+      "cutAtCeilingUnset": "Abgeschnitten: Die Antwort hat das Höchstmaß erreicht, das der Server des Modells schreiben lässt, und das Nachdenken des Modells zählt mit. Setze die Antwort fort, um weiterzumachen.",
       "regenerateTitle": "Neu generieren",
       "continueTitle": "Antwort fortsetzen",
       "editTitle": "Bearbeiten",
@@ -693,6 +695,7 @@
     "modelEmpty": "Das Modell hat eine leere Antwort geliefert. Versuch es noch einmal oder wechsle das Modell.",
     "modelUnreadable": "Die Antwort des Modells ließ sich nicht lesen. Versuch es noch einmal.",
     "modelOnlyThought": "Das Modell hat seine ganze Antwort mit Nachdenken verbraucht und nichts geschrieben. Erhöhe in der Verbindung die maximale Tokenzahl oder nimm ein Modell, das nicht so lange nachdenkt.",
+    "modelWithheld": "Der Server des Modells hat die Antwort zurückgehalten („{reason}“). Versuch es noch einmal oder wechsle das Modell oder den Anbieter.",
     "modelAuthRefused": "Der Server des Modells hat den API-Schlüssel abgelehnt. Prüfe den Schlüssel in der Verbindung. Der Server meldet: {message}",
     "modelNotFound": "Der Server des Modells kennt diese Adresse oder dieses Modell nicht. Prüfe die URL und den Modellnamen in der Verbindung. Der Server meldet: {message}",
     "modelRateLimited": "Der Server des Modells hat sein Anfragelimit erreicht. Versuch es gleich noch einmal. Der Server meldet: {message}",

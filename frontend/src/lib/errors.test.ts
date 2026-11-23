@@ -287,3 +287,20 @@ describe("the sentences exist", () => {
     expect(asked.size).toBeGreaterThan(30);
   });
 });
+
+describe("an answer a model's server withheld", () => {
+  test("is said with the server's own word for it", () => {
+    const error = new DataError("Withheld.", { kind: "model_withheld", status: 502, reason: "content_filter" });
+    expect(describeError(error, t)).toBe('errors.modelWithheld {"message":"Withheld.","reason":"content_filter"}');
+    expect(describeFailure({ kind: "model_withheld", message: "Withheld.", reason: "refusal" }, t)).toBe(
+      'errors.modelWithheld {"message":"Withheld.","reason":"refusal"}',
+    );
+  });
+
+  test.each(["en", "fr", "de", "es"] as const)("in %s, shows the word as it was written", (locale) => {
+    const sentence = describeFailure({ kind: "model_withheld", reason: "content_filter" },
+      (k, vars) => translate(locale, k, vars));
+    expect(sentence).toContain("content_filter");
+    expect(sentence).not.toContain("errors.");
+  });
+});

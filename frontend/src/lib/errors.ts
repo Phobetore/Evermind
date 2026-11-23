@@ -10,6 +10,8 @@ export interface Failure {
   message?: string;
   /** The numbers the sentence for the kind is made of: a bound and a length. */
   params?: Record<string, number>;
+  /** A model server's own word for why it withheld an answer, shown as it wrote it. */
+  reason?: string;
 }
 
 /** The sentence for each kind the server names, in `errors.*`. One with `{message}` in it quotes
@@ -46,6 +48,8 @@ const KIND_KEYS: Record<string, string> = {
   model_unreadable: "errors.modelUnreadable",
   // The card assistant's: the model reasoned and wrote not one character of answer.
   model_only_thought: "errors.modelOnlyThought",
+  // A reply with nothing in it, which the model's server ended with `reason`, a word of its own.
+  model_withheld: "errors.modelWithheld",
   empty_message: "errors.emptyMessage",
   nothing_to_regenerate: "errors.nothingToRegenerate",
   nothing_to_continue: "errors.nothingToContinue",
@@ -81,11 +85,12 @@ const NOT_FOUND_KEYS: Record<string, string> = {
 
 /** The sentence to show for a failure, in the person's language. */
 export function describeFailure(failure: Failure, t: Translate): string {
-  const { kind, resource, status, message, params } = failure;
+  const { kind, resource, status, message, params, reason } = failure;
   const known = kind ? KIND_KEYS[kind] : undefined;
   if (known) {
     // "At least 1 characters": the sentence for a bound too short takes the form its bound takes.
     const vars: Record<string, string | number> = { message: message ?? "", ...params };
+    if (reason) vars.reason = reason;
     if (kind === "text_too_short" && params?.limit !== undefined) vars.count = params.limit;
     return t(known, vars);
   }

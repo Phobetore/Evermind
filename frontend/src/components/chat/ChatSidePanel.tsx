@@ -194,7 +194,7 @@ export function ChatSidePanel({
   // A pass of its own that failed is told here until one succeeds.
   const failed = conversation.memory_error;
   const memoryError =
-    errors.memory ?? (failed ? describeFailure({ kind: failed.kind, message: failed.error }, t) : null);
+    errors.memory ?? (failed ? describeFailure({ kind: failed.kind, message: failed.error, reason: failed.reason }, t) : null);
 
   const fail = (where: Where, text: string | null) =>
     setErrors((prev) => ({ ...prev, [where]: text ?? undefined }));

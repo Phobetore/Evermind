@@ -2,7 +2,7 @@ import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useT } from "@/i18n/useT";
-import { isCutShort } from "@/lib/cutShort";
+import { describeCeiling, isCutShort } from "@/lib/cutShort";
 import { copyText, nothingFocused } from "@/lib/utils";
 import type { Character, Message, Persona } from "@/types";
 import { clsx } from "clsx";
@@ -72,6 +72,8 @@ export function ChatMessage({
   const variants = message.variants;
   const canSwipe = !isUser && variants.length > 1;
   const interrupted = isCutShort(message);
+  // Why it is cut when no one cut it: the connection's max tokens, which its reasoning spent too.
+  const ceiling = describeCeiling(message, t);
   const messageMode = message.meta?.mode as "narrate" | "ooc" | undefined;
 
   const editButton = useRef<HTMLButtonElement>(null);
@@ -231,6 +233,11 @@ export function ChatMessage({
             <RpText text={message.content} />
           )}
         </div>
+
+        {/* Not live: the page says it once, as the reply comes in, and a screen reader finds it here. */}
+        {ceiling && editing === null && (
+          <p data-ceiling className="mt-1.5 text-xs leading-snug text-mist-dim">{ceiling}</p>
+        )}
 
         {/* Swipes. 44px buttons on a touch screen, and the row gives the height back. */}
         {canSwipe && editing === null && (

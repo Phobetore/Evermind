@@ -255,6 +255,8 @@
         "ooc": "instruction"
       },
       "interrupted": "interrupted",
+      "cutAtCeiling": "Cut short: this reply reached the connection's limit of {tokens:grouped} tokens, and the model's thinking counts toward it. Continue the reply to carry on.",
+      "cutAtCeilingUnset": "Cut short: this reply reached the most the model's server lets it write, and the model's thinking counts toward it. Continue the reply to carry on.",
       "regenerateTitle": "Regenerate",
       "continueTitle": "Continue the reply",
       "editTitle": "Edit",
@@ -693,6 +695,7 @@
     "modelEmpty": "The model returned an empty reply. Try again or switch models.",
     "modelUnreadable": "The model's answer could not be read. Try again.",
     "modelOnlyThought": "The model spent its whole answer thinking and wrote nothing. Raise the connection's max tokens, or use a model that does not think as long.",
+    "modelWithheld": "The model's server withheld the answer (\"{reason}\"). Try again, or change the model or the provider.",
     "modelAuthRefused": "The model's server refused the API key. Check the key in the connection. The server said: {message}",
     "modelNotFound": "The model's server does not know this address or this model. Check the URL and the model name in the connection. The server said: {message}",
     "modelRateLimited": "The model's server has reached its rate limit. Try again shortly. The server said: {message}",
