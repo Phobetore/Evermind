@@ -13,6 +13,7 @@ backend/   FastAPI + SQLite (aiosqlite, plain SQL migrations)
                    redirects the old paths
   app/gate.py      a middleware: the access password (one session per device),
                    the refusal of writes from other origins, the host names
+  app/log_file.py  copies the warnings and errors the server logs to evermind.log
   app/prompting/   prompt engine ({{char}}/{{user}} macros, context budget, RP rules)
                    embeddings.py + retrieval.py: optional semantic memory
   app/providers/   LLM connectors (openai-compatible, anthropic), normalized SSE
@@ -30,7 +31,8 @@ frontend/  Vite + React 19 + Tailwind v4, a single-page app routed by hash
   src/i18n/        homemade i18n: JSON dictionaries + useT() hook (en, fr, de, es)
   e2e/             Playwright tests, run against the real server
 library/   starter cards shipped with the repo
-data/      SQLite database + uploaded media (created at first run, never committed)
+data/      SQLite database + uploaded media + evermind.log (created at first run,
+           never committed)
 ```
 
 ## Running it
@@ -207,6 +209,21 @@ Neither has a proxy's, often not JSON, which the request layer gives the kind
 its own for their status, never their words. A kind it does not know yet shows
 the server's English sentence until it gets a line in `errors.ts` and a sentence
 in the four languages.
+
+## The log file
+
+Whatever the server logs at `WARNING` or above, through a logger under `app`
+(`logging.getLogger(__name__)` in any module of the backend) or through uvicorn's
+`uvicorn.error`, is also appended to `evermind.log` in the data folder
+(`backend/app/log_file.py`), as `<date> <time> <LEVEL> <logger>: <message>`, an
+exception with its traceback. A new `logger.warning(...)` needs nothing more to be
+there; an `INFO` line, an access line or another library's own logger never is,
+and what the terminal shows does not change. The file turns over at 1 MB into
+`evermind.log.1`, so there are two at most. One that cannot be written stops
+nothing: the terminal says so once and the server goes on without it. It is what
+people send with a bug report, and the interface never shows it: a warning says
+what failed and where, never what someone wrote. Each application `create_app()`
+makes installs it afresh, and the backend tests give each test a file of its own.
 
 ## Serving under a path prefix
 
