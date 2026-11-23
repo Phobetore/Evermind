@@ -176,17 +176,29 @@ test("the sheet closes by touch", async ({ page, request }) => {
 test("a strength moved just before leaving is kept", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
   await withPortrait(request, convo.character_id);
+  await page.clock.install();
   await openConversation(page, convo.id);
   await aa(page).click();
   await sheetOf(page).getByRole("button", { name: "Set for this conversation only" }).click();
+  await expect.poll(() => ownStrength(request, convo.id)).toBe(0.2);
+  // The page's time stands still from here: what is waiting can only go out because the
+  // conversation leaves, never because its 350 ms ran out.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1));
+  const sent: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "PATCH" && r.url().endsWith(`/api/conversations/${convo.id}`)) sent.push(r.postData() ?? "");
+  });
   await strength(page).fill("45");
   await sheetOf(page).getByRole("button", { name: "Close" }).click();
+  expect(sent, "written before the conversation was left").toEqual([]);
   await page.getByRole("link", { name: "Back to conversations" }).click();
   await expect(page).toHaveURL(/#\/chat$/);
   // The conversation has left the page, not only the address.
   await expect(page.locator("[data-message-id]")).toHaveCount(0);
+  await expect.poll(() => sent, "nothing sent as the conversation left").toHaveLength(1);
   // Landed before it is read again: a read sent alongside the write may reach the server first.
   await expect.poll(() => ownStrength(request, convo.id)).toBe(0.45);
+  await page.clock.resume();
 
   await openConversation(page, convo.id);
   await aa(page).click();
@@ -200,6 +212,7 @@ test("a strength moved just before leaving is kept", async ({ page, request }) =
 
 test("the sheet shows only its own failures", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
+  await withWallpaper(request, convo.id);
   await openConversation(page, convo.id);
   await page.route(`**/api/conversations/${convo.id}`, (route) =>
     route.request().method() === "PATCH" ? route.abort("internetdisconnected") : route.continue());
@@ -208,6 +221,15 @@ test("the sheet shows only its own failures", async ({ page, request }) => {
   await page.keyboard.press("Enter");
   await expect(page.getByRole("alert")).toContainText("Evermind is not answering");
 
+  await aa(page).click();
+  await expect(sheetOf(page)).toBeVisible();
+  await expect(sheetOf(page).getByRole("alert")).toHaveCount(0);
+
+  // A failure of its own is said while it is open, and not again once it has been closed.
+  await strength(page).fill("60");
+  await expect(sheetOf(page).getByRole("alert")).toContainText("Evermind is not answering");
+  await sheetOf(page).getByRole("button", { name: "Close" }).click();
+  await expect(sheetOf(page)).toHaveCount(0);
   await aa(page).click();
   await expect(sheetOf(page)).toBeVisible();
   await expect(sheetOf(page).getByRole("alert")).toHaveCount(0);
@@ -234,4 +256,57 @@ test("a card with no picture says so in the sheet", async ({ page, request }) =>
   await expect(strength(page)).toBeDisabled();
   await expect(sheet.getByRole("button", { name: /^(Set for this conversation only|Use this device's strength)/ }))
     .toHaveCount(0);
+});
+
+test("the picture switch in settings hides the picture and holds the strength still", async ({ page }) => {
+  await page.goto("/#/settings");
+  const block = page.getByRole("region", { name: "Display · on this device" });
+  const portrait = block.getByRole("switch", { name: "Character's picture as backdrop" });
+  const slider = block.getByRole("slider", { name: "Picture strength" });
+  await expect(portrait).toHaveAttribute("aria-checked", "true");
+  await expect(block.getByText("20%", { exact: true })).toBeVisible();
+  await expect(slider).toBeEnabled();
+
+  await portrait.click();
+  await expect(portrait).toHaveAttribute("aria-checked", "false");
+  await expect(block.getByText("picture hidden", { exact: true })).toBeVisible();
+  await expect(slider).toBeDisabled();
+
+  await portrait.click();
+  await expect(portrait).toHaveAttribute("aria-checked", "true");
+  await expect(slider).toBeEnabled();
+});
+
+test("the picture switch in the sheet hides the character's picture", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  await withPortrait(request, convo.character_id);
+  await openConversation(page, convo.id);
+  await aa(page).click();
+  const sheet = sheetOf(page);
+  const portrait = sheet.getByRole("switch", { name: "Character's picture as backdrop" });
+  await expect(sheet.getByText("20% · this device", { exact: true })).toBeVisible();
+
+  await portrait.click();
+  await expect(portrait).toHaveAttribute("aria-checked", "false");
+  await expect(sheet.getByText("picture hidden", { exact: true })).toBeVisible();
+  await expect(strength(page)).toBeDisabled();
+});
+
+test("a conversation with no backdrop says so in the sheet", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  await withPortrait(request, convo.character_id);
+  const set = await request.patch(`${API}/api/conversations/${convo.id}`, { data: { backdrop: "none" } });
+  expect(set.ok(), "the backdrop was not set").toBe(true);
+  await openConversation(page, convo.id);
+  await aa(page).click();
+  const sheet = sheetOf(page);
+  await expect(sheet.getByText("no backdrop here", { exact: true })).toBeVisible();
+  await expect(strength(page)).toBeDisabled();
+});
+
+test("the display block is there when the server's settings cannot be read", async ({ page }) => {
+  await page.route("**/api/settings", (route) => route.abort("internetdisconnected"));
+  await page.goto("/#/settings");
+  const block = page.getByRole("region", { name: "Display · on this device" });
+  await expect(block.getByRole("slider", { name: "Conversation text size" })).toBeVisible();
 });
