@@ -40,15 +40,15 @@ async def add_memory(convo_id: str, payload: MemoryIn,
 async def extract_now(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await convo_repo.get(db, convo_id, with_messages=False):
         raise NotFoundError("Conversation not found.", "conversation")
-    result = await memory_service.run_maintenance(db, convo_id, hold_back=0)
-    return {**result, "memories": await repo.list_for_conversation(db, convo_id)}
+    # The server's own task, which a page that goes away does not cancel.
+    return await memory_service.asked(convo_id, "extract")
 
 
 @router.post("/conversations/{convo_id}/memories/consolidate")
 async def consolidate_memories(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not await convo_repo.get(db, convo_id, with_messages=False):
         raise NotFoundError("Conversation not found.", "conversation")
-    return await memory_service.consolidate(db, convo_id)
+    return await memory_service.asked(convo_id, "consolidate")
 
 
 @router.patch("/memories/{memory_id}")

@@ -99,7 +99,8 @@ async def get_conversation(convo_id: str, messages: bool = True,
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
     return {**convo, "memory_error": memory_service.failure_of(convo_id),
-            "memory_running": memory_service.is_running(convo_id)}
+            "memory_running": memory_service.is_running(convo_id),
+            "memory_operation": memory_service.operation_of(convo_id)}
 
 
 @router.patch("/conversations/{convo_id}")

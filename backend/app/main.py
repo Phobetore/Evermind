@@ -21,6 +21,8 @@ async def lifespan(_: FastAPI):
     from .services import memory_service
     asyncio.create_task(memory_service.fill_vectors())
     yield
+    # A Remember or a consolidation outlives its request, not the server: ended whole, not half-written.
+    await memory_service.stop()
 
 
 def create_app() -> FastAPI:
