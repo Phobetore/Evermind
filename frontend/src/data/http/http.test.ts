@@ -167,6 +167,10 @@ describe("what is sent", () => {
     await data.conversations.update("v1", { backdrop_strength: 0.5 });
     expect(calls[0]).toMatchObject({ url: "api/conversations/v1", init: { method: "PATCH", keepalive: true } });
     expect(calls[1].init.keepalive).toBeUndefined();
+    for (const call of calls) {
+      expect(JSON.parse(call.init.body as string)).toEqual({ backdrop_strength: 0.5 });
+      expect(new Headers(call.init.headers).get("Content-Type")).toBe("application/json");
+    }
   });
 
   test("a file or a copy is given up with its signal", async () => {
