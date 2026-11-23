@@ -182,8 +182,9 @@ test("a strength moved just before leaving is kept", async ({ page, request }) =
   await sheetOf(page).getByRole("button", { name: "Set for this conversation only" }).click();
   await expect.poll(() => ownStrength(request, convo.id)).toBe(0.2);
   // The page's time stands still from here: what is waiting can only go out because the
-  // conversation leaves, never because its 350 ms ran out.
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1));
+  // conversation leaves, never because its 350 ms ran out. A second ahead, so the moment is
+  // not already past when the call reaches the page; nothing is waiting to fire meanwhile.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   const sent: string[] = [];
   page.on("request", (r) => {
     if (r.method() === "PATCH" && r.url().endsWith(`/api/conversations/${convo.id}`)) sent.push(r.postData() ?? "");
