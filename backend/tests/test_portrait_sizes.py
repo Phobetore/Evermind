@@ -79,6 +79,10 @@ async def test_a_jpeg_copy_is_kept_too(client):
     (JPEG, "image/webp"),
     (b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>', "image/webp"),
     (b"<!doctype html><script>alert(1)</script>", "image/webp"),
+    (b"<!doctype html><script>alert(1)</script>", "image/jpeg"),
+    (WEBP, "image/jpeg"),
+    (b"RIFF\x24\x00\x00\x00WAVEfmt " + bytes(24), "image/webp"),
+    (b"RIFF\x24\x00\x00\x00", "image/webp"),
 ])
 async def test_a_png_or_a_lying_file_is_refused(client, grid):
     char = await make_character(client)
@@ -152,13 +156,17 @@ async def test_a_new_portrait_has_no_copies(client):
 async def test_sizes_of_an_unknown_character(client):
     await make_character(client)
     before = files()
-    resp = await send_sizes(client, "nobody", "0" * 32 + ".png")
+    # A copy that would be refused: only a check made before any file is read answers 404.
+    resp = await send_sizes(client, "nobody", "0" * 32 + ".png", (PNG, "image/png"))
     assert resp.status_code == 404
     assert (resp.json()["kind"], resp.json()["resource"]) == ("not_found", "character")
     assert files() == before
 
 
-@pytest.mark.parametrize("portrait", ["../x.png", "x.png"])
+@pytest.mark.parametrize("portrait", [
+    "../x.png", "x.png", "../" + "a" * 32 + ".png", "a" * 32 + ".png\n", "a" * 32 + ".gif",
+    "A" * 32 + ".png",
+])
 async def test_a_portrait_name_the_server_never_gives_is_refused(client, portrait):
     char = await make_character(client)
     before = files()
@@ -180,11 +188,22 @@ async def test_discard_touches_only_names_it_gave(client):
     media.discard("../evermind.db")
     media.discard("x.png")
     media.discard("0" * 32 + ".png")
+    # A name the server gives, inside a path that leaves media/: Windows resolves the .. by text.
+    beside = media_dir().parent / ("0" * 32 + ".png")
+    beside.write_bytes(PNG)
+    media.discard("0" * 32 + ".png/../../evermind.db")
+    media.discard("../" + "0" * 32 + ".png")
     assert db_path().is_file()
+    assert beside.is_file()
     assert (await client.get("/api/characters")).status_code == 200
 
 
-async def test_discard_deletes_a_file_it_saved(client):
-    name = media.save(WEBP, ".webp")
-    media.discard(name)
-    assert not (media_dir() / name).exists()
+@pytest.mark.parametrize("extension, own", [
+    (".png", PNG), (".jpg", JPEG), (".webp", WEBP),
+])
+def test_matches_type_knows_each_signature(extension, own):
+    assert media.matches_type(own, extension)
+    for other in (PNG, JPEG, WEBP, b"<!doctype html>", b"RIFF\x24\x00\x00\x00WAVEfmt "):
+        if other is not own:
+            assert not media.matches_type(other, extension), other[:12]
+
