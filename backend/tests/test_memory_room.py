@@ -136,15 +136,18 @@ async def test_a_json_cut_midway_is_asked_again_with_more_room(story):
 async def test_a_model_that_only_thinks_twice_is_told_so_after_two_requests(story, caplog):
     await story.set_connection(max_tokens=300)
     server = story.serve(thinking(5120), thinking(9000))
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.WARNING):
         resp = await story.extract()
     assert resp.status_code == 502
     assert resp.json()["kind"] == MODEL_ONLY_THOUGHT
     assert "more max tokens" in resp.json()["error"]
     assert len(server.bodies) == 2
-    lines = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
-    again = [line for line in lines if "memory extraction" in line and "5120" in line]
-    assert again and "length" in again[0] and "2048" in again[0] and "8192" in again[0]
+    # A warning, as the server's console shows no less, and one that says what to change.
+    lines = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert lines[0] == (
+        "memory extraction: the model ran out of room (5120 characters of reasoning, stopped "
+        "with 'length', max_tokens 2048); asking again with 8192. Raising the connection's max "
+        "tokens avoids the second call.")
     failure = next(r.getMessage() for r in caplog.records if "unreadable answer" in r.getMessage())
     assert "9000 characters of reasoning" in failure and "'length'" in failure
 
@@ -207,6 +210,64 @@ async def test_an_automatic_pass_that_only_thought_keeps_why(client, monkeypatch
         await send(client, convo["id"], content=f"exchange {n}")
     await asyncio.gather(*[t for t in asyncio.all_tasks() if "schedule_if_due" in repr(t)])
     assert memory_service.failure_of(convo["id"])["kind"] == MODEL_ONLY_THOUGHT
+
+
+async def test_the_room_a_model_needed_is_where_the_next_pass_starts(story):
+    await story.set_connection(max_tokens=300)
+    server = story.serve(thinking(5120), writing(EXTRACTION_JSON), writing(EXTRACTION_JSON))
+    assert (await story.extract()).status_code == 200
+    await send(story.client, story.id, content="More")
+    assert (await story.extract()).status_code == 200
+    assert server.asked() == [2048, 8192, 8192]
+
+
+async def test_a_model_that_ran_out_where_it_had_learned_to_start_is_asked_again_once(story):
+    await story.set_connection(max_tokens=300, context_size=100000)
+    server = story.serve(thinking(5120), writing(EXTRACTION_JSON), thinking(9000),
+                         thinking(9000))
+    assert (await story.extract()).status_code == 200
+    await send(story.client, story.id, content="More")
+    assert (await story.extract()).json()["kind"] == MODEL_ONLY_THOUGHT
+    assert server.asked() == [2048, 8192, 8192, 32768]
+
+
+async def test_a_second_ask_that_only_thought_again_teaches_nothing(story):
+    await story.set_connection(max_tokens=300)
+    server = story.serve(thinking(5120), thinking(9000), writing(EXTRACTION_JSON))
+    assert (await story.extract()).status_code == 502
+    await send(story.client, story.id, content="More")
+    assert (await story.extract()).status_code == 200
+    assert server.asked() == [2048, 8192, 2048]
+
+
+async def test_a_second_ask_the_server_refused_teaches_nothing(story):
+    await story.set_connection(max_tokens=300)
+    server = story.serve(thinking(5120), 400, writing(EXTRACTION_JSON))
+    assert (await story.extract()).status_code == 502
+    await send(story.client, story.id, content="More")
+    assert (await story.extract()).status_code == 200
+    assert server.asked() == [2048, 8192, 2048]
+
+
+async def test_the_room_learned_is_cut_to_what_a_longer_prompt_leaves(story, monkeypatch):
+    await story.set_connection(max_tokens=300, context_size=16384)
+    prompt = [1000]
+    monkeypatch.setattr("app.services.memory_service.prompt_tokens", lambda _: prompt[0])
+    server = story.serve(thinking(5120), writing(EXTRACTION_JSON), writing(EXTRACTION_JSON))
+    assert (await story.extract()).status_code == 200
+    prompt[0] = 12000
+    await send(story.client, story.id, content="More")
+    assert (await story.extract()).status_code == 200
+    assert server.asked() == [2048, 8192, 16384 - 12000 - 128]
+
+
+async def test_a_connection_with_no_ceiling_is_asked_again_only_with_the_full_room(story):
+    """Less than that could be below the server's own default, which just ran out."""
+    await story.set_connection(max_tokens=None, context_size=4096)
+    server = story.serve([finish("length"), "[DONE]"], writing(EXTRACTION_JSON))
+    resp = await story.extract()
+    assert resp.json()["kind"] == NO_TEXT
+    assert server.asked() == [None]
 
 
 async def facts_to_merge(story):

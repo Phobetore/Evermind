@@ -61,6 +61,9 @@ MORE_ROOM_TOKENS = 8192
 _running: set[str] = set()
 # Conversations whose last automatic pass failed: the error body, and how many replies to wait.
 _failed: dict[str, dict] = {}
+# The max_tokens a second ask read with, by connection id and model: where the next pass starts,
+# so that a model that needs more room pays one call, not two. Lost at restart, on purpose.
+_learned: dict[tuple[str, str], int] = {}
 
 
 def is_running(convo_id: str) -> bool:
@@ -164,30 +167,43 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
 
     A model that reasons before it writes can spend the whole ceiling thinking and answer nothing,
     and a JSON cut short is as unreadable. Either is a lack of room, not of will, so the second
-    ask gives it more, never past what the context leaves. The answer is returned whether it
-    reads or not: ``_unreadable`` says why it did not."""
-    answer = await complete_answer(get_provider(connection), payload)
+    ask gives it more, never past what the context leaves, and the next pass starts there. The
+    answer is returned whether it reads or not: ``_unreadable`` says why it did not."""
+    own = connection.get("max_tokens") or 0
+    key = (connection.get("id") or "", connection.get("model") or "")
+    left = None
+    if context := connection.get("context_size"):
+        left = context - prompt_tokens(payload) - CONTEXT_MARGIN
+    first = own
+    if (learned := _learned.get(key, 0)) > own:
+        first = max(own, learned if left is None else min(learned, left))
+    asked = connection if first == own else {**connection, "max_tokens": first}
+    answer = await complete_answer(get_provider(asked), payload)
     if reads(answer.text):
         return answer
-    own = connection.get("max_tokens") or 0
     ran_out = answer.stop == STOPPED_FOR_LENGTH or (
-        not answer.text.strip() and answer.thought > 0 and own > 0)
+        not answer.text.strip() and answer.thought > 0 and first > 0)
     if not ran_out:
         return answer
-    room = max(MORE_ROOM_TOKENS, 4 * own)
-    if context := connection.get("context_size"):
-        room = min(room, context - prompt_tokens(payload) - CONTEXT_MARGIN)
-    if room <= own:
+    room = max(MORE_ROOM_TOKENS, 4 * first)
+    if left is not None:
+        room = min(room, left)
+    # With no ceiling sent, the server's own default ran out, and it may be above a smaller one.
+    if room <= first or (not first and room < MORE_ROOM_TOKENS):
         return answer
-    logger.info("%s: the answer ran out of room (%d characters of reasoning, stopped with %r); "
-                "asking again with max_tokens %s instead of %s", what, answer.thought, answer.stop,
-                room, own or "unset")
+    logger.warning("%s: the model ran out of room (%d characters of reasoning, stopped with %r, "
+                   "max_tokens %s); asking again with %d. Raising the connection's max tokens "
+                   "avoids the second call.", what, answer.thought, answer.stop, first or "unset",
+                   room)
     try:
-        return await complete_answer(get_provider({**connection, "max_tokens": room}), payload)
+        second = await complete_answer(get_provider({**connection, "max_tokens": room}), payload)
     except ProviderError as exc:
         # A server whose output limit is lower refuses it: the first answer's failure stands.
         logger.warning("%s: the second ask was refused: %s", what, exc.message)
         return answer
+    if reads(second.text):
+        _learned[key] = room
+    return second
 
 
 def _unreadable(answer: Answer, what: str, said: str) -> AppError:

@@ -15,7 +15,7 @@ from app.providers import openai_compat
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import ProviderEvent
 from app.providers.openai_compat import OpenAICompatProvider
-from app.services import card_assistant, turns
+from app.services import card_assistant, memory_service, turns
 
 # A 1x1 image, for the tests that send one.
 PNG = base64.b64decode(
@@ -51,9 +51,10 @@ def _no_card_drafts_from_another_test():
 
 @pytest.fixture(autouse=True)
 def _nothing_learned_of_models_by_another_test():
-    # What a server's models accept lives in the process's memory.
+    # What a server's models accept, and the room a model needed, live in the process's memory.
     openai_compat._model_lists.clear()
     openai_compat._refused.clear()
+    memory_service._learned.clear()
 
 
 @pytest.fixture()
