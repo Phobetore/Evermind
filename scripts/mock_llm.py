@@ -31,6 +31,9 @@ FAIL_AFTER = 2.0
 QUIET_FOR = 8.0
 # Words a conversation that says MOCK_FAILS_MIDWAY gets before the connection is cut.
 MIDWAY_AFTER = 4
+# Seconds a memory request (a pass or a consolidation) waits before it answers, in a conversation
+# that says MOCK_SLOW_MEMORY: long enough to leave the page and have another conversation answered.
+SLOW_MEMORY_FOR = 12.0
 # Pieces of reasoning a card request that says MOCK_THINKS or MOCK_ONLY_THINKS gets before its
 # answer, sent apart from it as servers that show a model's reasoning do.
 THOUGHTS = 40
@@ -75,9 +78,15 @@ class Handler(BaseHTTPRequestHandler):
         system = next((m["content"] for m in payload.get("messages", [])
                        if m.get("role") == "system"), "")
 
+        memory = "memory-keeper" in system
+        # A slow memory: its pass reads the words in the story, and its consolidation in the facts,
+        # which the pass writes with the words in them.
+        slow_memory = memory and "MOCK_SLOW_MEMORY" in json.dumps(payload)
+        if slow_memory:
+            time.sleep(SLOW_MEMORY_FOR)
         # A conversation that says MOCK_FORGETS gets its replies, but every memory pass that reads
         # those words is refused: the memory stops growing while the story goes on.
-        if "memory-keeper" in system and "MOCK_FORGETS" in json.dumps(payload):
+        if memory and "MOCK_FORGETS" in json.dumps(payload):
             self._json(json.dumps({"error": {"message": "The mock was told to forget."}}), status=500)
             return
         char = "The narrator"
@@ -108,6 +117,17 @@ class Handler(BaseHTTPRequestHandler):
                                      "{{char}}: *She smiles.* About as much as you are.",
                 "tags": ["fantasy", "mystery"],
             }, ensure_ascii=False)
+        elif slow_memory and "consolidating" in system:
+            # Everything merged into one fact, which shows the merge was made.
+            reply = json.dumps({"facts": [{"content": "The whole story so far, in one line."}]})
+        elif slow_memory:
+            # A fact for each turn read, as many as it takes to be worth consolidating.
+            turns = sorted(set(map(int, re.findall(r"\(turn (\d+)\)", json.dumps(payload)))))
+            reply = json.dumps({
+                "facts": [{"content": f"Turn {n} happened (MOCK_SLOW_MEMORY).", "kind": "event"}
+                          for n in turns],
+                "summary": f"Read slowly to turn {max(turns, default=0)}.",
+            })
         elif "memory-keeper" in system:
             # memory extraction request -> strict JSON, a summary of its own for each pass
             newest = max(map(int, re.findall(r"\(turn (\d+)\)", json.dumps(payload))), default=0)

@@ -88,6 +88,8 @@ export interface Conversation {
   memory_error?: { error: string; kind?: string } | null;
   /** Whether a memory pass or a consolidation is under way. */
   memory_running?: boolean;
+  /** Which, while one is: the automatic pass, a Remember or a consolidation, asked from wherever. */
+  memory_operation?: "pass" | "extract" | "consolidate" | null;
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
   forked_from?: string | null;
