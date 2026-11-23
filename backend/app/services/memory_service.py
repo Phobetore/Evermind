@@ -38,7 +38,7 @@ from ..prompting.payloads import (
     prompt_tokens,
 )
 from ..providers import Answer, ProviderError, complete_answer, get_provider
-from ..providers.base import NO_TEXT, STOPPED_FOR_LENGTH, unwritten
+from ..providers.base import NO_TEXT, REFUSED_AS_WRITTEN, STOPPED_FOR_LENGTH, unwritten
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
@@ -176,8 +176,21 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
     first = own
     if (learned := _learned.get(key, 0)) > own:
         first = max(own, learned if left is None else min(learned, left))
-    asked = connection if first == own else {**connection, "max_tokens": first}
-    answer = await complete_answer(get_provider(asked), payload)
+    if first == own:
+        answer = await complete_answer(get_provider(connection), payload)
+    else:
+        try:
+            answer = await complete_answer(get_provider({**connection, "max_tokens": first}),
+                                           payload)
+        except ProviderError as exc:
+            if exc.status not in REFUSED_AS_WRITTEN:
+                raise
+            # Its server's limit came down since: the connection's own ceiling is where to start,
+            # and this ask is the pass's second, so it is not followed by another.
+            _learned.pop(key, None)
+            logger.warning("%s: max_tokens %d, learned on an earlier pass, was refused (%s); "
+                           "asking with the connection's own.", what, first, exc.message)
+            return await complete_answer(get_provider(connection), payload)
     if reads(answer.text):
         return answer
     ran_out = answer.stop == STOPPED_FOR_LENGTH or (

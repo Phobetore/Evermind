@@ -251,6 +251,34 @@ async def test_a_second_ask_the_server_refused_teaches_nothing(story):
     assert server.asked() == [2048, 8192, 2048]
 
 
+async def test_a_learned_room_the_server_now_refuses_is_forgotten(story, caplog):
+    """A server whose output limit came down refuses where the pass had learned to start: the pass
+    asks with the connection's own ceiling, which it took before, and the next one starts there."""
+    await story.set_connection(max_tokens=300)
+    server = story.serve(thinking(5120), writing(EXTRACTION_JSON), 400, writing(EXTRACTION_JSON),
+                         writing(EXTRACTION_JSON))
+    assert (await story.extract()).status_code == 200
+    await send(story.client, story.id, content="More")
+    with caplog.at_level(logging.WARNING):
+        resp = await story.extract()
+    assert resp.status_code == 200, resp.text
+    assert any("max_tokens is too large" in r.getMessage() for r in caplog.records)
+    await send(story.client, story.id, content="Again")
+    assert (await story.extract()).status_code == 200
+    assert server.asked() == [2048, 8192, 8192, 2048, 2048]
+
+
+async def test_a_refused_learned_room_is_not_asked_for_again_in_the_same_pass(story):
+    """The ask at the connection's own ceiling is the pass's second: it runs out, and that is told."""
+    await story.set_connection(max_tokens=300)
+    server = story.serve(thinking(5120), writing(EXTRACTION_JSON), 400, thinking(5120),
+                         writing(EXTRACTION_JSON))
+    assert (await story.extract()).status_code == 200
+    await send(story.client, story.id, content="More")
+    assert (await story.extract()).json()["kind"] == MODEL_ONLY_THOUGHT
+    assert server.asked() == [2048, 8192, 8192, 2048]
+
+
 async def test_the_room_learned_is_cut_to_what_a_longer_prompt_leaves(story, monkeypatch):
     await story.set_connection(max_tokens=300, context_size=16384)
     prompt = [1000]
