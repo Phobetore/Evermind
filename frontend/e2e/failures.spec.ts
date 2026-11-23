@@ -254,8 +254,9 @@ test("a backdrop's strength that is not saved says so in the sheet, and its slid
     multipart: { file: { name: "backdrop.png", mimeType: "image/png", buffer: PNG } },
   });
   const held = async () => (await (await stored(request, convo.id)).json()).backdrop_strength;
-  // A small screen, where the sheet's body is taller than the sheet and scrolls.
-  await page.setViewportSize({ width: 320, height: 640 });
+  // A short screen, where the sheet's body is taller than the sheet and scrolls. Its own width
+  // is kept: on a wide one the sheet is narrower and the side panel sits beside the conversation.
+  await page.setViewportSize({ width: page.viewportSize()!.width, height: 400 });
   await page.goto(`/#/chat/${convo.id}`);
   // Beside the conversation on a wide screen; behind this button on a phone.
   const opener = page.getByRole("button", { name: "Conversation memory and settings" });
