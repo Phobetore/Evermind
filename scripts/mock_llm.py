@@ -34,6 +34,8 @@ MIDWAY_AFTER = 4
 # Pieces of reasoning a card request that says MOCK_THINKS or MOCK_ONLY_THINKS gets before its
 # answer, sent apart from it as servers that show a model's reasoning do.
 THOUGHTS = 40
+# Words a reply in a conversation that says MOCK_HITS_CEILING gets before its room runs out.
+CEILING_AFTER = 6
 
 REPLIES = [
     "*{char} watches you for a moment, weighing something.* Now that is an interesting "
@@ -142,6 +144,16 @@ class Handler(BaseHTTPRequestHandler):
         if card and "MOCK_ONLY_THINKS" in json.dumps(payload):
             reply = ""
             finish = "length"
+
+        # A conversation's model that reasons through all its room and writes nothing; one whose room
+        # runs out a few words into its reply; and one whose server withholds the answer and says so.
+        chat = not card and "memory-keeper" not in system
+        if chat and "MOCK_REASONS_ONLY" in json.dumps(payload):
+            thinks, reply, finish = True, "", "length"
+        if chat and "MOCK_HITS_CEILING" in json.dumps(payload):
+            reply, finish = " ".join(reply.split(" ")[:CEILING_AFTER]), "length"
+        if chat and "MOCK_WITHHOLDS" in json.dumps(payload):
+            reply, finish = "", "content_filter"
 
         # A reply that is cut off after a few words. A plain close would read as a normal
         # end, since this sends no length for the stream; the length it promises and does

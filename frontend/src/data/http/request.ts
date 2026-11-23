@@ -20,6 +20,7 @@ async function raiseFor(resp: Response): Promise<never> {
   let kind: string | undefined;
   let resource: string | undefined;
   let params: Record<string, number> | undefined;
+  let reason: string | undefined;
   try {
     const body = await resp.json();
     const said = body.error ?? body.detail;
@@ -33,6 +34,8 @@ async function raiseFor(resp: Response): Promise<never> {
       const numbers = Object.entries(body.params).filter(([, v]) => typeof v === "number" && Number.isFinite(v));
       if (numbers.length > 0) params = Object.fromEntries(numbers) as Record<string, number>;
     }
+    // A model server's word, shown as it wrote it: a word, not a page of it.
+    if (typeof body.reason === "string" && body.reason) reason = body.reason.slice(0, 60);
   } catch {
     /* nothing readable: the status is all there is */
   }
@@ -42,7 +45,7 @@ async function raiseFor(resp: Response): Promise<never> {
   }
   if (resp.status === 401 && kind === "locked") lockedHandler();
   const retryAfter = Number(resp.headers.get("Retry-After")) || undefined;
-  throw new DataError(message, { kind, resource, status: resp.status, retryAfter, params });
+  throw new DataError(message, { kind, resource, status: resp.status, retryAfter, params, reason });
 }
 
 /** What a call that got no answer at all is: the browser's own failure, whose

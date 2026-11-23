@@ -7,7 +7,8 @@ Modes:
   continue    — extend the version of the last reply that is on screen.
 
 A version is cut short (``meta.interrupted``) from its first write until its last says it is whole;
-the person's message is ``unanswered`` (``true``, or how the model failed) until its reply exists
+one whose model stopped at the connection's max tokens is cut by its ceiling (``meta.ceiling``),
+which is no one's doing, and says so until it is continued to its end or rewritten. The person's message is ``unanswered`` (``true``, or how the model failed) until its reply exists
 or the person stops the turn.
 """
 
@@ -31,7 +32,8 @@ from ..prompting.engine import (
 )
 from ..prompting.payloads import build_impersonate_payload
 from ..prompting.tokens import estimate_tokens
-from ..providers import ProviderError, complete, get_provider
+from ..providers import Answer, ProviderError, complete_answer, get_provider, max_tokens_sent
+from ..providers.base import STOPPED_FOR_LENGTH, unwritten
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
@@ -94,6 +96,13 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
 def _cut_short(message: dict) -> list[int]:
     """Which versions of a reply were cut short, by their index."""
     return (message.get("meta") or {}).get("interrupted") or []
+
+
+def _cut_at_ceiling(message: dict) -> dict[str, int | None]:
+    """Which versions of a reply the connection's max tokens cut, by their index as a string, each
+    with the max tokens it was written under, or None when none was sent and the server's own
+    limit applied."""
+    return (message.get("meta") or {}).get("ceiling") or {}
 
 
 async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict | None:
@@ -215,6 +224,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 
     chunks: list[str] = []
     usage = None
+    stop = None  # the server's word for why the model stopped
+    thought = 0  # characters of reasoning, only counted: what a model thinks is not its reply
     first_token_at = None
     started_at = time.monotonic()
     index = (target["active_index"] if continue_mode else len(target["variants"])) if target else 0
@@ -223,31 +234,42 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 
     async def read_model() -> None:
         """Touches no database, so that a stop, which cancels it, cannot land in a write."""
-        nonlocal usage, first_token_at
+        nonlocal usage, first_token_at, stop, thought
+        stop, thought = None, 0
         async with aclosing(get_provider(connection).stream_chat(payload)) as stream:
             async for event in stream:
                 if event.type == "done":
-                    usage = event.usage
+                    usage, stop = event.usage, event.stop
                     continue
                 if event.type != "delta":
-                    continue  # reasoning is no word of the reply, nor its first
+                    thought += event.count  # reasoning is no word of the reply, nor its first
+                    continue
                 first_token_at = first_token_at or time.monotonic()
                 if not chunks and existing[-1:].strip() and event.text[:1].strip():
                     turn.add(" ")  # as the version is saved
                 chunks.append(event.text)
                 turn.add(event.text)
 
-    async def save(ending: dict | None = None) -> None:
-        """What has arrived, cut short unless ``ending`` says how a whole version ended."""
+    async def save(ending: dict | None = None, at_ceiling: bool = False) -> None:
+        """What has arrived, cut short unless ``ending`` says how a whole version ended;
+        ``at_ceiling``: it ended because the connection's max tokens were reached."""
         nonlocal written
         body = trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
         if not body:
             return
         marks = sorted(others if ending is not None else others | {index})
-        meta = {k: v for k, v in (target["meta"] if target else {}).items() if k != "interrupted"}
+        meta = {k: v for k, v in (target["meta"] if target else {}).items()
+                if k not in ("interrupted", "ceiling")}
         meta.update(ending or {})
         if marks:
             meta["interrupted"] = marks
+        # The version being written loses its mark: what it says now is this answer's.
+        ceilings = {k: v for k, v in (_cut_at_ceiling(target) if target else {}).items()
+                    if k != str(index)}
+        if at_ceiling:
+            ceilings[str(index)] = max_tokens_sent(connection)
+        if ceilings:
+            meta["ceiling"] = ceilings
         if target:
             variants = list(target["variants"])
             if continue_mode:
@@ -267,7 +289,9 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         written = True
 
     # At most two passes: a model that answers nothing to a story opening on the greeting is asked
-    # again with it folded into the system prompt (see build_chat_payload).
+    # again with it folded into the system prompt (see build_chat_payload). Not one that said why
+    # it wrote nothing, by reasoning, running out of room or a word of its server's: the same
+    # question would get the same answer, and its tokens are paid for.
     error = None
     for attempt in (0, 1):
         if turn.stopped:
@@ -280,8 +304,9 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         error = None if turn.reading.cancelled() else turn.reading.exception()
         # Refusing the greeting may be said in the stream rather than by silence.
         refused = isinstance(error, ProviderError) and error.kind == MODEL_ERROR and not error.status
+        silent = error is None and unwritten(Answer("", thought, stop)) is None
         if not (attempt == 0 and not chunks and not continue_mode and not turn.stopped
-                and (error is None or refused)
+                and (silent or refused)
                 and payload.messages and payload.messages[0]["role"] == "assistant"):
             break
         payload = _build(passages, fold_leading_assistant=True)
@@ -298,10 +323,15 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             await say_unanswered(None if turn.stopped else failure)
         return None if turn.stopped else failure
     if not text:
-        if continue_mode:
+        if why := unwritten(Answer(text, thought, stop)):
+            failure = {"kind": why.kind, "message": why.message}
+            if why.reason:
+                failure["reason"] = why.reason
+        elif continue_mode:
             return {"kind": "nothing_added", "message": "The model had nothing to add."}
-        failure = {"kind": MODEL_EMPTY,
-                   "message": "The model returned an empty reply. Try again or switch models."}
+        else:
+            failure = {"kind": MODEL_EMPTY,
+                       "message": "The model returned an empty reply. Try again or switch models."}
         if answering is not None:
             await say_unanswered(failure)
         return failure
@@ -318,7 +348,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         "first_token_seconds": round((first_token_at or now) - started_at, 2),
         "tokens_per_s": round(completion_tokens / gen_seconds, 1) if gen_seconds > 0.2 else None,
     }
-    await save({"perf": perf, "context": {key: payload.stats[key] for key in _CONTEXT_SHOWN}})
+    await save({"perf": perf, "context": {key: payload.stats[key] for key in _CONTEXT_SHOWN}},
+               at_ceiling=stop == STOPPED_FOR_LENGTH)
     await convo_repo.touch(db, convo["id"])
     memory_service.schedule_if_due(convo["id"])
     return None
@@ -334,9 +365,11 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
         raise AppError("Nothing to write: the conversation is empty.", kind="conversation_empty")
 
     payload = build_impersonate_payload(character, persona, convo, messages, connection)
-    answer = await complete(get_provider(connection), payload)
-    text = trim_reply(answer, char_name=user_name, user_name=char_name)
+    answer = await complete_answer(get_provider(connection), payload)
+    text = trim_reply(answer.text, char_name=user_name, user_name=char_name)
     if not text:
-        logger.warning("impersonation: empty answer, %s", describe_answer(answer))
-        raise AppError("The model did not suggest anything. Try again.", 502, kind=MODEL_EMPTY)
+        logger.warning("impersonation: empty answer, %s, %d characters of reasoning, stopped with %r",
+                       describe_answer(answer.text), answer.thought, answer.stop)
+        raise unwritten(Answer(text, answer.thought, answer.stop)) or AppError(
+            "The model did not suggest anything. Try again.", 502, kind=MODEL_EMPTY)
     return {"text": text}

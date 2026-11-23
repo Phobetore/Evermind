@@ -144,8 +144,9 @@ async def test_reasoning_a_server_sends_apart_changes_nothing_in_the_reply(clien
     await send(client, convo["id"])
     assert (await messages_of(client, convo["id"]))[-1]["content"] == "*She smiles.*"
 
+    # Reasoning and no reply is told as such: "an empty reply" would hide where its room went.
     fake_provider.script = [ProviderEvent(type="thought", count=40), ProviderEvent(type="done")]
-    assert (await send(client, convo["id"], content="Again"))["kind"] == "model_empty"
+    assert (await send(client, convo["id"], content="Again"))["kind"] == "model_only_thought"
 
 
 async def test_auto_title_strips_rp_markup(client, fake_provider):
