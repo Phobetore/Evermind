@@ -9,11 +9,12 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from app.errors import MODEL_ONLY_THOUGHT, MODEL_WITHHELD
+from app import config
+from app.errors import MODEL_ONLY_THOUGHT, MODEL_UNREADABLE, MODEL_WITHHELD
 from app.providers.openai_compat import OpenAICompatProvider
 from app.services import memory_service
 
-from .conftest import send, setup_conversation, sse
+from .conftest import send, setup_conversation, sse, within
 from .test_memory import EXTRACTION_JSON, Said, add_facts
 
 
@@ -323,3 +324,113 @@ async def test_a_consolidation_the_server_withheld_is_named(story):
     assert resp.status_code == 502
     assert (resp.json()["kind"], resp.json()["reason"]) == (MODEL_WITHHELD, "content_filter")
     assert len(server.bodies) == 1
+
+
+# A Remember or a Condense is a task of the server's own, which a page that goes away does not
+# cancel: what the passes learned of reasoning models holds for it all the same, and how it failed
+# is kept in the conversation, in the same words a page that stayed is told.
+
+def held(monkeypatch):
+    """Every request of the memory waits for ``release``; ``started`` says the first was made."""
+    started, release = asyncio.Event(), asyncio.Event()
+    real = memory_service.complete_answer
+
+    async def waiting(provider, payload):
+        started.set()
+        await release.wait()
+        return await real(provider, payload)
+
+    monkeypatch.setattr(memory_service, "complete_answer", waiting)
+    return started, release, real
+
+
+async def asked_then_left(story, monkeypatch, operation="extract") -> dict:
+    """An operation asked from a page that goes away once it has started: the conversation, read
+    after the operation ended."""
+    started, release, real = held(monkeypatch)
+    url = f"/api/conversations/{story.id}"
+    asking = asyncio.create_task(story.client.post(f"{url}/memories/{operation}"))
+    await within(5, started.wait())
+    asking.cancel()
+    await asyncio.gather(asking, return_exceptions=True)
+    release.set()
+    await within(5, asyncio.gather(*memory_service._tasks, return_exceptions=True))
+    monkeypatch.setattr(memory_service, "complete_answer", real)
+    after = (await story.client.get(url)).json()
+    assert after["memory_running"] is False
+    return after
+
+
+async def test_a_remember_whose_asker_left_wants_the_least_reasoning_and_more_room_once(
+        story, monkeypatch):
+    await story.set_connection(max_tokens=300)
+    server = story.serve(thinking(5120), thinking(9000))
+    after = await asked_then_left(story, monkeypatch)
+    assert after["memory_error"]["kind"] == MODEL_ONLY_THOUGHT
+    assert "more max tokens" in after["memory_error"]["error"]
+    assert server.asked() == [2048, 8192]
+    assert [c["least_reasoning"] for c in server.connections] == [True, True]
+
+
+async def test_a_remember_whose_asker_left_keeps_the_word_its_server_withheld_it_with(
+        story, monkeypatch):
+    server = story.serve([finish("content_filter"), "[DONE]"])
+    after = await asked_then_left(story, monkeypatch)
+    assert after["memory_error"] == {
+        "error": "The model's server withheld the answer (\"content_filter\").",
+        "kind": MODEL_WITHHELD, "reason": "content_filter"}
+    assert len(server.bodies) == 1
+
+
+async def test_a_condense_whose_asker_left_keeps_an_unreadable_merge(story, monkeypatch):
+    await facts_to_merge(story)
+    server = story.serve(writing("Not a merge at all."))
+    after = await asked_then_left(story, monkeypatch, "consolidate")
+    assert after["memory_error"]["kind"] == MODEL_UNREADABLE
+    assert len(server.bodies) == 1
+    assert [c["least_reasoning"] for c in server.connections] == [True]
+
+
+async def test_the_room_a_remember_whose_asker_left_needed_is_where_the_next_starts(
+        story, monkeypatch):
+    await story.set_connection(max_tokens=300)
+    server = story.serve(thinking(5120), writing(EXTRACTION_JSON), writing(EXTRACTION_JSON))
+    assert (await asked_then_left(story, monkeypatch))["memory_error"] is None
+    await send(story.client, story.id, content="More")
+    assert (await asked_then_left(story, monkeypatch))["memory_error"] is None
+    assert server.asked() == [2048, 8192, 8192]
+
+
+async def test_the_automatic_pass_starts_where_a_remember_learned_and_wants_the_least_reasoning(
+        story):
+    await story.set_connection(max_tokens=300)
+    server = story.serve(thinking(5120), writing(EXTRACTION_JSON), writing(EXTRACTION_JSON))
+    assert (await story.extract()).status_code == 200
+    for n in range(memory_service.MAINTENANCE_EVERY):
+        await send(story.client, story.id, content=f"exchange {n}")
+    await within(5, asyncio.gather(*memory_service._tasks, return_exceptions=True))
+    assert server.asked() == [2048, 8192, 8192]
+    assert [c["least_reasoning"] for c in server.connections] == [True, True, True]
+
+
+async def test_an_automatic_pass_withheld_is_told_by_the_conversation_with_its_word(story):
+    server = story.serve([finish("content_filter"), "[DONE]"])
+    for n in range(memory_service.MAINTENANCE_EVERY):
+        await send(story.client, story.id, content=f"exchange {n}")
+    await within(5, asyncio.gather(*memory_service._tasks, return_exceptions=True))
+    after = (await story.client.get(f"/api/conversations/{story.id}")).json()
+    assert (after["memory_error"]["kind"], after["memory_error"]["reason"]) == (
+        MODEL_WITHHELD, "content_filter")
+    assert len(server.bodies) == 1
+
+
+async def test_a_remember_whose_asker_left_and_ran_out_of_room_is_in_the_log_file(story, monkeypatch):
+    """The owner reads evermind.log, not the terminal: the second ask and the failure are there."""
+    await story.set_connection(max_tokens=300)
+    story.serve(thinking(5120), thinking(9000))
+    await asked_then_left(story, monkeypatch)
+    lines = (config.data_dir() / "evermind.log").read_text("utf-8").splitlines()
+    assert any(" WARNING app.services.memory_service: memory extraction: the model ran out of room "
+               "(5120 characters" in line for line in lines)
+    assert any("memory extraction: unreadable answer" in line and "9000 characters" in line
+               for line in lines)
