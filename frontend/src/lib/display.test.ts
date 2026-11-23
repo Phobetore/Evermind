@@ -65,6 +65,18 @@ describe("what is read", () => {
     expect(readDisplay('{"strength": 7}').strength).toBe(1);
   });
 
+  test("a portrait that is not a boolean takes its default, falsy or not", async () => {
+    const { readDisplay } = await load();
+    for (const raw of ['{"portrait": 0}', '{"portrait": ""}', '{"portrait": null}', '{"portrait": 1}'])
+      expect(readDisplay(raw).portrait).toBe(true);
+  });
+
+  test("a number that is not finite takes its default", async () => {
+    const { DISPLAY_DEFAULTS, readDisplay } = await load();
+    // JSON.parse reads 1e999 as Infinity.
+    expect(readDisplay('{"text": 1e999, "strength": -1e999}')).toEqual(DISPLAY_DEFAULTS);
+  });
+
   test("a text scale snaps to five percent", async () => {
     const { readDisplay } = await load();
     expect(readDisplay('{"text": 1.234}').text).toBe(1.25);
@@ -96,6 +108,13 @@ describe("what is kept", () => {
     const { getDisplay, setDisplay } = await load();
     setDisplay({ text: 5, strength: -1 });
     expect(getDisplay()).toEqual({ text: 2, portrait: true, strength: 0 });
+  });
+
+  test("a number that is not finite is not kept, as a bad slider value would send it", async () => {
+    const { getDisplay, setDisplay } = await load();
+    setDisplay({ text: NaN, strength: Infinity });
+    expect(getDisplay()).toEqual({ text: 1, portrait: true, strength: 0.2 });
+    expect(JSON.parse(store.kept.get("evermind:display")!)).toEqual({ text: 1, portrait: true, strength: 0.2 });
   });
 
   test("a store that throws reads as the defaults and keeps a change in memory", async () => {
