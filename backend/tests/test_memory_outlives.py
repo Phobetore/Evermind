@@ -7,8 +7,13 @@ operation succeeds. Only the server stopping ends them, and then nothing is left
 
 import asyncio
 import json
+import sys
+import threading
+import time
+from types import SimpleNamespace
 
 from app.main import lifespan
+from app.prompting import embeddings
 from app.providers.base import ProviderError, ProviderEvent
 from app.services import memory_service
 
@@ -167,3 +172,25 @@ async def test_the_server_stopping_ends_an_operation_and_leaves_nothing_half_wri
         assert await facts_of(client, convo_id) == []
         assert after["summary"] == ""
         assert (after["memory_running"], after["memory_error"]) == (False, None)
+
+
+async def test_the_server_stopping_waits_for_the_work_it_handed_to_a_thread(make_client, monkeypatch):
+    # Ctrl+Break ends the process as soon as the server has stopped: a thread still loading the
+    # semantic model then is ended in the middle of loading a library, and the process never ends.
+    loading, loaded = threading.Event(), threading.Event()
+
+    def slow_model(*args, **kwargs):
+        loading.set()
+        time.sleep(0.5)
+        loaded.set()
+        return object()
+
+    monkeypatch.setitem(sys.modules, "sentence_transformers", SimpleNamespace(SentenceTransformer=slow_model))
+    monkeypatch.setattr(embeddings, "_model", None)
+    monkeypatch.setattr(embeddings, "_load_attempted", False)
+    async with make_client():
+        async with lifespan(None):
+            while not loading.is_set():
+                await asyncio.sleep(0.01)
+        assert loaded.is_set()
+    assert embeddings._model is None  # the start-up task was ended, not left to use the model
