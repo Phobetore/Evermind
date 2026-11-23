@@ -24,6 +24,8 @@ AUTH_REFUSED = "model_auth_refused"
 MODEL_NOT_FOUND = "model_not_found"
 RATE_LIMITED = "model_rate_limited"
 NO_TEXT = "model_no_text"
+# What a server says of a request it will not take as written, as opposed to a key or a limit.
+REFUSED_AS_WRITTEN = (400, 404, 422)
 
 
 # How a model stopped when it ran out of room, whatever its server calls it.

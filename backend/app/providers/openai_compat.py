@@ -5,6 +5,7 @@ OpenAI, Groq, Mistral, DeepSeek, Together — anything speaking
 `POST {base_url}/chat/completions` with SSE streaming.
 """
 
+import asyncio
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -12,7 +13,7 @@ from contextlib import aclosing
 from urllib.parse import urlsplit
 
 from ..prompting.engine import PromptPayload
-from .base import Provider, ProviderError, ProviderEvent, words_of
+from .base import REFUSED_AS_WRITTEN, Provider, ProviderError, ProviderEvent, words_of
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +21,9 @@ logger = logging.getLogger(__name__)
 SAMPLING = ("max_tokens", "temperature", "top_p", "frequency_penalty", "presence_penalty")
 
 LIST_KEPT_S = 6 * 3600  # how long a server's list of models is trusted
-FAILED_LIST_KEPT_S = 60  # how long a list that could not be read waits to be asked for again
-# What a server says of a request it will not take as written, as opposed to a key or a limit.
-REFUSED_AS_WRITTEN = (400, 404, 422)
+FAILED_LIST_KEPT_S = 300  # how long a list that could not be read waits to be asked for again
+# The list is read in front of a request: one slow to come is not worth holding the request for.
+LIST_TIMEOUT_S = 10
 
 _now = time.monotonic
 # Per base_url: when its list was read, and each model's "reasoning" object (None: none given),
@@ -119,10 +120,15 @@ class OpenAICompatProvider(Provider):
             if _now() - read_at < (LIST_KEPT_S if models is not None else FAILED_LIST_KEPT_S):
                 return models
         try:
-            models = {str(m["id"]): m.get("reasoning") for m in await self._model_objects()}
+            listed = await asyncio.wait_for(self._model_objects(), LIST_TIMEOUT_S)
+            models = {str(m["id"]): m.get("reasoning") for m in listed}
         except ProviderError as exc:
             logger.warning("the list of models of %s could not be read: %s",
                            self.base_url, exc.message)
+            models = None
+        except TimeoutError:
+            logger.warning("the list of models of %s did not come within %d seconds",
+                           self.base_url, LIST_TIMEOUT_S)
             models = None
         _model_lists[self.base_url] = (_now(), models)
         return models
@@ -141,12 +147,18 @@ class OpenAICompatProvider(Provider):
         except ProviderError as exc:
             if "reasoning" not in body or arrived or exc.status not in REFUSED_AS_WRITTEN:
                 raise
-            _refused.add((self.base_url, self.model))
-            logger.warning("%s refused to be told how much %s should reason (%s): asking it again "
-                           "without, and from now on", self.base_url, self.model, exc.message)
+            refusal = exc.message
+        # Asked again without the field. Only an answer then says the field was why: the same
+        # refusal again was about something else (the context, the max tokens), and the field,
+        # which keeps the bill down, is still sent next time.
         del body["reasoning"]
         async with aclosing(self._read(body)) as events:
             async for event in events:
+                if (self.base_url, self.model) not in _refused:
+                    _refused.add((self.base_url, self.model))
+                    logger.warning("%s refused to be told how much %s should reason (%s), and "
+                                   "answered without: it is not told again", self.base_url,
+                                   self.model, refusal)
                 yield event
 
     async def _read(self, body: dict) -> AsyncIterator[ProviderEvent]:

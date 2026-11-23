@@ -1,8 +1,10 @@
 """A caller that wants the least reasoning a model allows: OpenRouter is told how little, from what
 its own list of models says each one accepts, and no other server is asked anything."""
 
+import asyncio
 import json
 import logging
+import time
 
 import httpx
 import pytest
@@ -24,18 +26,24 @@ class OpenRouter:
     def __init__(self, models: list[dict] | None, refuse: int | None = None):
         self.models = models
         self.refuse = refuse
+        self.refuse_all: int | None = None  # a refusal of every request, the field or not
+        self.list_takes = 0.0  # seconds the list takes to come
         self.lists = 0
         self.bodies: list[dict] = []
 
-    def handler(self, request: httpx.Request) -> httpx.Response:
+    async def handler(self, request: httpx.Request) -> httpx.Response:
         if request.method == "GET":
             assert request.url.path.endswith("/models")
             self.lists += 1
+            await asyncio.sleep(self.list_takes)
             if self.models is None:
                 return httpx.Response(503, json={"error": {"message": "busy"}})
             return httpx.Response(200, json={"data": self.models})
         body = json.loads(request.content)
         self.bodies.append(body)
+        if self.refuse_all:
+            return httpx.Response(self.refuse_all, json={"error": {
+                "message": "This endpoint's maximum context length is 16384 tokens"}})
         if self.refuse and "reasoning" in body:
             return httpx.Response(self.refuse, json={"error": {"message": "reasoning not allowed"}})
         return httpx.Response(200, content=sse([
@@ -153,6 +161,36 @@ async def test_a_server_that_refuses_the_field_is_asked_without_it_from_then_on(
 
     await server.ask()
     assert [("reasoning" in body) for body in server.bodies] == [True, False, False]
+
+
+async def test_a_refusal_that_was_not_about_the_field_forgets_nothing(clock, caplog):
+    """The same refusal without the field says the field was not why: the next pass, to a server
+    that answers again, still asks for the least reasoning, which is what keeps its bill down."""
+    from app.providers.base import ProviderError
+
+    server = OpenRouter(listed(THE_OWNERS))
+    server.refuse_all = 400
+    with caplog.at_level(logging.WARNING), pytest.raises(ProviderError) as refused:
+        await server.ask()
+    assert "maximum context length" in refused.value.message
+    assert [("reasoning" in body) for body in server.bodies] == [True, False]
+    assert not [r for r in caplog.records if r.name == "app.providers.openai_compat"]
+
+    server.refuse_all = None
+    assert (await server.ask())["reasoning"] == {"effort": "none"}
+    assert len(server.bodies) == 3
+
+
+async def test_a_list_slow_to_come_adds_nothing_and_does_not_hold_the_request(clock, monkeypatch):
+    monkeypatch.setattr("app.providers.openai_compat.LIST_TIMEOUT_S", 0.05)
+    server = OpenRouter(listed(THE_OWNERS))
+    server.list_takes = 5
+    started = time.monotonic()
+    assert "reasoning" not in await server.ask()
+    assert time.monotonic() - started < 2
+    # Held as a list that could not be read: not asked for on the very next request.
+    await server.ask()
+    assert server.lists == 1
 
 
 async def test_a_refusal_of_another_kind_is_not_asked_again(clock):
