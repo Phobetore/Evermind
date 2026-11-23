@@ -103,3 +103,59 @@ async def test_the_file_is_in_the_data_folder_and_nowhere_else(make_client, tmp_
     assert "where does this go" in written(folder / "evermind.log")
     found = [p for p in tmp_path.rglob("evermind.log*")]
     assert found == [folder / "evermind.log"]
+
+
+def test_a_file_held_at_its_turn_over_goes_on_being_written(tmp_path, monkeypatch):
+    """A reader, an editor or a backup holding the file: Windows renames no file held open, so the
+    turn-over waits for the next line, and no line is lost meanwhile."""
+    monkeypatch.setattr(log_file, "FILE_LIMIT", 2000)
+    path = tmp_path / "evermind.log"
+    log_file.install(lambda: path)
+    log = logging.getLogger("app.test")
+    real_replace = log_file.os.replace
+    held = True
+
+    def replace(source, target):
+        if held:
+            raise PermissionError(13, "The process cannot access the file", str(source))
+        real_replace(source, target)
+
+    monkeypatch.setattr(log_file.os, "replace", replace)
+    for n in range(40):
+        log.warning("line %02d %s", n, "y" * 100)
+    assert all(f"line {n:02d}" in written(path) for n in range(40))
+    held = False
+    log.warning("line 40")
+    older = tmp_path / "evermind.log.1"
+    assert "line 39" in written(older) and written(path).splitlines()[-1].endswith("line 40")
+
+
+def test_a_file_held_for_a_moment_is_written_again_and_says_what_it_missed(tmp_path, monkeypatch, capsys):
+    """Two servers on one folder, or a program that locks the file: the lines of that moment are
+    in the terminal, and the file takes the next as soon as it can."""
+    path = tmp_path / "evermind.log"
+    root = logging.getLogger()
+    saved = root.handlers[:]
+    root.handlers.clear()
+    try:
+        log_file.install(lambda: path)
+        log = logging.getLogger("app.test")
+        log.warning("before")
+        real_open = type(path).open
+        monkeypatch.setattr(type(path), "open", lambda self, *a, **k: (_ for _ in ()).throw(
+            PermissionError(13, "Permission denied", str(self))))
+        log.warning("held one")
+        log.warning("held two")
+        monkeypatch.setattr(type(path), "open", real_open)
+        log.warning("after")
+        log.warning("later")
+    finally:
+        root.handlers[:] = saved
+    lines = written(path).splitlines()
+    assert len(lines) == 4
+    assert lines[0].endswith(": before")
+    assert lines[1] == "2 line(s) above could not be written here; the terminal had them."
+    assert lines[2].endswith(": after") and lines[3].endswith(": later")
+    err = capsys.readouterr().err
+    assert err.count("cannot be written for now") == 1
+    assert "held one" in err and "held two" in err
