@@ -38,9 +38,7 @@ const SPACES = new RegExp(`[${PY_WS}]+`);
 // On a line whose spaces were already made single ones.
 const HEADING = /^#{1,6} /;
 const LEADING_MARKS = /^(?:#{1,6} )?(?:> ?)*(?:[-*+] |[0-9]{1,9}[.)] )?/;
-const TABLE_RULE = /^[|\-: ]+$/;
 // The u flag folds "ſ" into "s" as Python's IGNORECASE does.
-const CHAR_ONLY = new RegExp(`^\\{\\{[${PY_WS}]*char[${PY_WS}]*\\}\\}$`, "iu");
 const MARKER = new RegExp(`^\\{\\{[${PY_WS}]*(?:char|user)[${PY_WS}]*\\}\\}$`, "iu");
 const KEY_SEPARATOR = /[:=]/;
 
@@ -246,11 +244,12 @@ function firstRealLines(text: string, name: string): string[] {
 
 function skipped(line: string, heading: boolean, ownName: string): boolean {
   if (!line || heading) return true;
-  const first = line[0];
-  const last = line[line.length - 1];
-  if ((first === "|" && last === "|") || TABLE_RULE.test(line)) return true;
-  if (pyLower(line) === ownName || CHAR_ONLY.test(line)) return true;
-  if ("[{(".includes(first) && ")]}".includes(last)) return true;
+  // A row of a Markdown table, outer pipes or not: a sheet of traits. Its rule line has no letter
+  // and goes with the rule at the end.
+  if (line.includes("|")) return true;
+  if (pyLower(line) === ownName) return true;
+  // {{char}} alone opens with a brace and closes with one: this rule takes it too.
+  if ("[{(".includes(line[0]) && ")]}".includes(line[line.length - 1])) return true;
   if (isAttribute(line) || isKeyValue(line)) return true;
   let letters = 0;
   let points = 0;

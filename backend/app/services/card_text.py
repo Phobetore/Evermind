@@ -40,8 +40,6 @@ _NAME_TAGS = {"user": "{{user}}", "bot": "{{char}}", "char": "{{char}}"}
 # On a line whose spaces were already made single ones.
 _HEADING_RE = re.compile(r"#{1,6} ")
 _LEADING_MARKS_RE = re.compile(r"(?:#{1,6} )?(?:> ?)*(?:[-*+] |[0-9]{1,9}[.)] )?")
-_TABLE_RULE_RE = re.compile(r"[|\-: ]+")
-_CHAR_RE = re.compile(r"\{\{\s*char\s*\}\}", re.IGNORECASE)
 _KEY_SEPARATOR_RE = re.compile(r"[:=]")
 
 _BRACKET_RE = re.compile(r"[\[\]{}]")
@@ -217,10 +215,13 @@ def _first_real_lines(text: str, name: str) -> list[str]:
 def _skipped(line: str, heading: bool, own_name: str) -> bool:
     if not line or heading:
         return True
-    if (line[0] == "|" and line[-1] == "|") or _TABLE_RULE_RE.fullmatch(line):
+    # A row of a Markdown table, outer pipes or not: a sheet of traits. Its rule line has no
+    # letter and goes with the rule at the end.
+    if "|" in line:
         return True
-    if line.lower() == own_name or _CHAR_RE.fullmatch(line):
+    if line.lower() == own_name:
         return True
+    # {{char}} alone opens with a brace and closes with one: this rule takes it too.
     if line[0] in "[{(" and line[-1] in ")]}":
         return True
     if _is_attribute(line) or _is_key_value(line):

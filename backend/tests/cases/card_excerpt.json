@@ -668,6 +668,15 @@
   },
   {
    "fn": "card_excerpt",
+   "name": "a table with no outer pipes is skipped",
+   "input": {
+    "description": "Espèce | Elfe\n--- | ---\nÂge | 312\n\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
    "name": "a space right after the hundred and sixtieth character keeps the whole word",
    "input": {
     "description": "Elle SélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèneSélèn et la suite.",
