@@ -124,6 +124,12 @@ class Provider:
     def _headers(self) -> dict:
         raise NotImplementedError
 
+    @classmethod
+    def max_tokens_sent(cls, connection: dict) -> int | None:
+        """The max_tokens a request on this connection carries: None when it carries none and the
+        server's own limit applies."""
+        return connection.get("max_tokens") or None
+
     async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
         """The reply as it arrives, then its end. A failure raises a ProviderError.
 

@@ -13,6 +13,7 @@ from ..prompting.engine import PromptPayload
 from .base import STOPPED_FOR_LENGTH, Provider, ProviderError, ProviderEvent, words_of
 
 API_VERSION = "2023-06-01"
+DEFAULT_MAX_TOKENS = 4096  # sent when the connection sets none: the API requires one
 
 
 class AnthropicProvider(Provider):
@@ -24,6 +25,10 @@ class AnthropicProvider(Provider):
             "x-api-key": self.api_key,
             "anthropic-version": API_VERSION,
         }
+
+    @classmethod
+    def max_tokens_sent(cls, connection: dict) -> int:
+        return connection.get("max_tokens") or DEFAULT_MAX_TOKENS
 
     def _build_messages(self, payload: PromptPayload) -> list[dict]:
         merged: list[dict] = []
@@ -55,7 +60,7 @@ class AnthropicProvider(Provider):
             "messages": self._build_messages(payload),
             "stream": True,
             # Required here, and a model's thinking counts against it.
-            "max_tokens": conn.get("max_tokens") or 4096,
+            "max_tokens": self.max_tokens_sent(conn),
             **{key: conn[key] for key in ("temperature", "top_p") if conn.get(key) is not None},
         }
         if payload.stop:

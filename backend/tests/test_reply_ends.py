@@ -10,9 +10,8 @@ from typing import ClassVar
 import pytest
 
 from app.errors import MODEL_EMPTY, MODEL_ONLY_THOUGHT, MODEL_WITHHELD, error_body
-from app.providers.base import NO_TEXT, Answer, ProviderError, ProviderEvent, unwritten
-
 from app.models.schemas import ChatRequest
+from app.providers.base import NO_TEXT, Answer, ProviderError, ProviderEvent, unwritten
 from app.services import turns
 
 from .conftest import assist, messages_of, send, setup_conversation
@@ -265,6 +264,18 @@ async def test_a_reply_the_person_stopped_is_not_said_to_be_cut_at_its_ceiling(
     assert reply["content"] == "She opens"
     assert reply["meta"]["interrupted"] == [0]
     assert "ceiling" not in reply["meta"]
+
+
+async def test_an_anthropic_ceiling_left_unset_is_marked_with_the_one_sent(client, model):
+    """Anthropic's API needs a max_tokens: with none in the connection, Evermind sends its own,
+    and that is what cut the reply, not a limit of the server's."""
+    model.scripts = [ends("She opens her mouth to", stop="length")]
+    convo = await setup_conversation(client)
+    connection = (await client.get("/api/connections")).json()[0]
+    await client.put(f"/api/connections/{connection['id']}",
+                     json={**connection, "provider": "anthropic", "max_tokens": None})
+    await send(client, convo["id"])
+    assert (await last_reply(client, convo))["meta"]["ceiling"] == {"0": 4096}
 
 
 async def test_a_continuation_that_adds_nothing_leaves_the_mark(client, model):

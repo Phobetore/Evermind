@@ -32,7 +32,7 @@ from ..prompting.engine import (
 )
 from ..prompting.payloads import build_impersonate_payload
 from ..prompting.tokens import estimate_tokens
-from ..providers import Answer, ProviderError, complete_answer, get_provider
+from ..providers import Answer, ProviderError, complete_answer, get_provider, max_tokens_sent
 from ..providers.base import STOPPED_FOR_LENGTH, unwritten
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
@@ -100,7 +100,8 @@ def _cut_short(message: dict) -> list[int]:
 
 def _cut_at_ceiling(message: dict) -> dict[str, int | None]:
     """Which versions of a reply the connection's max tokens cut, by their index as a string, each
-    with the max tokens it was written under, or None when the connection set none."""
+    with the max tokens it was written under, or None when none was sent and the server's own
+    limit applied."""
     return (message.get("meta") or {}).get("ceiling") or {}
 
 
@@ -266,7 +267,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         ceilings = {k: v for k, v in (_cut_at_ceiling(target) if target else {}).items()
                     if k != str(index)}
         if at_ceiling:
-            ceilings[str(index)] = connection.get("max_tokens")
+            ceilings[str(index)] = max_tokens_sent(connection)
         if ceilings:
             meta["ceiling"] = ceilings
         if target:
