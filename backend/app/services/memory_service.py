@@ -151,6 +151,8 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
     connection = await connections_repo.resolve(db, convo.get("connection_id"))
     if connection is None:
         raise AppError("No LLM connection configured.", kind=NO_CONNECTION)
+    # A pass writes JSON, which reasoning does not improve, and every token of it is paid for.
+    connection = {**connection, "least_reasoning": True}
     if connection.get("max_tokens"):
         connection = {**connection, "max_tokens": max(connection["max_tokens"], MIN_ANSWER_TOKENS)}
     return connection

@@ -42,6 +42,7 @@ class Server:
     def __init__(self, *answers):
         self.answers = list(answers)
         self.bodies: list[dict] = []
+        self.connections: list[dict] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.bodies.append(json.loads(request.content))
@@ -52,6 +53,7 @@ class Server:
                               headers={"content-type": "text/event-stream"})
 
     def provider(self, connection: dict) -> OpenAICompatProvider:
+        self.connections.append(connection)
         provider = OpenAICompatProvider(connection)
         provider._client_factory = lambda: httpx.AsyncClient(
             transport=httpx.MockTransport(self.handler))
@@ -90,6 +92,20 @@ async def test_a_readable_first_answer_is_the_only_request(story):
     resp = await story.extract()
     assert resp.status_code == 200, resp.text
     assert server.asked() == [2048]
+
+
+async def test_a_consolidation_wants_the_least_reasoning(story):
+    await facts_to_merge(story)
+    server = story.serve(writing(json.dumps({"facts": [{"content": "One dense fact."}]})))
+    resp = await story.client.post(f"/api/conversations/{story.id}/memories/consolidate")
+    assert resp.status_code == 200, resp.text
+    assert server.connections[0]["least_reasoning"] is True
+
+
+async def test_an_extraction_wants_the_least_reasoning(story):
+    server = story.serve(writing(EXTRACTION_JSON))
+    assert (await story.extract()).status_code == 200
+    assert [c.get("least_reasoning") for c in server.connections] == [True]
 
 
 async def test_a_model_that_spent_its_room_thinking_is_asked_again_with_more(story):
