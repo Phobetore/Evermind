@@ -54,3 +54,15 @@ test("a failure found on opening is told, with a way to try again", () => {
   expect(html).toContain("Evermind cannot reach the model&#x27;s server at http://localhost:1234/v1.");
   expect(button(html, "Try again")).toEqual({ disabled: false, spinning: false });
 });
+
+test("a failure of a model that reasons is told in its own words, with a way to try again", () => {
+  const withheld = opened({
+    memory_error: { error: "The model's server withheld the answer.", kind: "model_withheld", reason: "content_filter" },
+  });
+  expect(withheld).toContain("The model&#x27;s server withheld the answer (&quot;content_filter&quot;).");
+  expect(button(withheld, "Try again")).toEqual({ disabled: false, spinning: false });
+  const thought = opened({ memory_error: { error: "The model only thought.", kind: "model_only_thought" } });
+  expect(thought).toContain("The model spent its whole answer thinking and wrote nothing.");
+  const unreadable = opened({ memory_error: { error: "Unreadable consolidation.", kind: "model_unreadable" } });
+  expect(unreadable).toContain("The model&#x27;s answer could not be read.");
+});
