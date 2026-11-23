@@ -7,7 +7,8 @@ Modes:
   continue    — extend the version of the last reply that is on screen.
 
 A version is cut short (``meta.interrupted``) from its first write until its last says it is whole;
-the person's message is ``unanswered`` (``true``, or how the model failed) until its reply exists
+one whose model stopped at the connection's max tokens is cut by its ceiling (``meta.ceiling``),
+which is no one's doing, and says so until it is continued to its end or rewritten. The person's message is ``unanswered`` (``true``, or how the model failed) until its reply exists
 or the person stops the turn.
 """
 
@@ -32,7 +33,7 @@ from ..prompting.engine import (
 from ..prompting.payloads import build_impersonate_payload
 from ..prompting.tokens import estimate_tokens
 from ..providers import Answer, ProviderError, complete, get_provider
-from ..providers.base import unwritten
+from ..providers.base import STOPPED_FOR_LENGTH, unwritten
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
@@ -95,6 +96,12 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
 def _cut_short(message: dict) -> list[int]:
     """Which versions of a reply were cut short, by their index."""
     return (message.get("meta") or {}).get("interrupted") or []
+
+
+def _cut_at_ceiling(message: dict) -> dict[str, int | None]:
+    """Which versions of a reply the connection's max tokens cut, by their index as a string, each
+    with the max tokens it was written under, or None when the connection set none."""
+    return (message.get("meta") or {}).get("ceiling") or {}
 
 
 async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict | None:
@@ -242,17 +249,26 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
                 chunks.append(event.text)
                 turn.add(event.text)
 
-    async def save(ending: dict | None = None) -> None:
-        """What has arrived, cut short unless ``ending`` says how a whole version ended."""
+    async def save(ending: dict | None = None, at_ceiling: bool = False) -> None:
+        """What has arrived, cut short unless ``ending`` says how a whole version ended;
+        ``at_ceiling``: it ended because the connection's max tokens were reached."""
         nonlocal written
         body = trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
         if not body:
             return
         marks = sorted(others if ending is not None else others | {index})
-        meta = {k: v for k, v in (target["meta"] if target else {}).items() if k != "interrupted"}
+        meta = {k: v for k, v in (target["meta"] if target else {}).items()
+                if k not in ("interrupted", "ceiling")}
         meta.update(ending or {})
         if marks:
             meta["interrupted"] = marks
+        # The version being written loses its mark: what it says now is this answer's.
+        ceilings = {k: v for k, v in (_cut_at_ceiling(target) if target else {}).items()
+                    if k != str(index)}
+        if at_ceiling:
+            ceilings[str(index)] = connection.get("max_tokens")
+        if ceilings:
+            meta["ceiling"] = ceilings
         if target:
             variants = list(target["variants"])
             if continue_mode:
@@ -331,7 +347,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         "first_token_seconds": round((first_token_at or now) - started_at, 2),
         "tokens_per_s": round(completion_tokens / gen_seconds, 1) if gen_seconds > 0.2 else None,
     }
-    await save({"perf": perf, "context": {key: payload.stats[key] for key in _CONTEXT_SHOWN}})
+    await save({"perf": perf, "context": {key: payload.stats[key] for key in _CONTEXT_SHOWN}},
+               at_ceiling=stop == STOPPED_FOR_LENGTH)
     await convo_repo.touch(db, convo["id"])
     memory_service.schedule_if_due(convo["id"])
     return None

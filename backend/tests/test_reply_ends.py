@@ -9,7 +9,7 @@ from typing import ClassVar
 import pytest
 
 from app.errors import MODEL_EMPTY, MODEL_ONLY_THOUGHT, MODEL_WITHHELD, error_body
-from app.providers.base import Answer, ProviderEvent, unwritten
+from app.providers.base import Answer, ProviderError, ProviderEvent, unwritten
 
 from .conftest import messages_of, send, setup_conversation
 
@@ -63,6 +63,8 @@ class Scripted:
     async def stream_chat(self, payload):
         Scripted.asked += 1
         for event in Scripted.scripts[min(Scripted.asked, len(Scripted.scripts)) - 1]:
+            if isinstance(event, Exception):
+                raise event
             yield event
 
 
@@ -147,3 +149,110 @@ async def test_a_continuation_with_no_clue_still_has_nothing_to_add(client, mode
     await send(client, convo["id"])
     outcome = await send(client, convo["id"], content=None, mode="continue")
     assert outcome["kind"] == "nothing_added"
+
+
+# A reply with words that stopped for length: cut by the connection's ceiling, not by anyone.
+
+async def with_ceiling(client, max_tokens=1024):
+    convo = await setup_conversation(client)
+    connection = (await client.get("/api/connections")).json()[0]
+    await client.put(f"/api/connections/{connection['id']}",
+                     json={**connection, "max_tokens": max_tokens})
+    return convo
+
+
+async def last_reply(client, convo) -> dict:
+    return (await messages_of(client, convo["id"]))[-1]
+
+
+async def test_a_reply_cut_by_its_ceiling_is_kept_and_says_so(client, model):
+    model.scripts = [ends("She opens her mouth to", thought=3000, stop="length")]
+    convo = await with_ceiling(client)
+
+    assert await send(client, convo["id"]) is None
+    reply = await last_reply(client, convo)
+    assert reply["content"] == "She opens her mouth to"
+    # Told apart from a version someone stopped: the interface says why it is cut.
+    assert reply["meta"]["ceiling"] == {"0": 1024}
+    assert "interrupted" not in reply["meta"]
+    assert "perf" in reply["meta"]
+
+
+async def test_a_ceiling_the_connection_does_not_set_is_marked_without_a_number(client, model):
+    model.scripts = [ends("She opens her mouth to", stop="length")]
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+    assert (await last_reply(client, convo))["meta"]["ceiling"] == {"0": None}
+
+
+async def test_a_reply_that_ends_on_its_own_has_no_mark(client, model):
+    convo = await with_ceiling(client)
+    await send(client, convo["id"])
+    assert "ceiling" not in (await last_reply(client, convo))["meta"]
+
+
+async def test_continuing_a_cut_reply_to_its_end_clears_the_mark(client, model):
+    model.scripts = [ends("She opens her mouth to", stop="length"), ends("speak.", stop="stop")]
+    convo = await with_ceiling(client)
+    await send(client, convo["id"])
+
+    assert await send(client, convo["id"], content=None, mode="continue") is None
+    reply = await last_reply(client, convo)
+    assert reply["content"] == "She opens her mouth to speak."
+    assert "ceiling" not in reply["meta"]
+
+
+async def test_a_continuation_cut_again_keeps_the_mark(client, model):
+    model.scripts = [ends("She opens", stop="length"), ends("her mouth", stop="length")]
+    convo = await with_ceiling(client)
+    await send(client, convo["id"])
+    await send(client, convo["id"], content=None, mode="continue")
+    assert (await last_reply(client, convo))["meta"]["ceiling"] == {"0": 1024}
+
+
+async def test_a_continuation_a_failure_cut_is_marked_as_cut_short_instead(client, model):
+    model.scripts = [ends("She opens", stop="length"),
+                     [ProviderEvent(type="delta", text="her mouth"), ProviderError("gone")]]
+    convo = await with_ceiling(client)
+    await send(client, convo["id"])
+    await send(client, convo["id"], content=None, mode="continue")
+    reply = await last_reply(client, convo)
+    assert reply["meta"]["interrupted"] == [0]
+    assert "ceiling" not in reply["meta"]
+
+
+async def test_a_continuation_that_adds_nothing_leaves_the_mark(client, model):
+    model.scripts = [ends("She opens", stop="length"), ends(stop="content_filter")]
+    convo = await with_ceiling(client)
+    await send(client, convo["id"])
+    await send(client, convo["id"], content=None, mode="continue")
+    assert (await last_reply(client, convo))["meta"]["ceiling"] == {"0": 1024}
+
+
+async def test_a_new_version_has_its_own_mark_and_the_cut_one_keeps_its_own(client, model):
+    model.scripts = [ends("She opens", stop="length"), ends("She nods.", stop="stop"),
+                     ends("She sighs and", stop="length")]
+    convo = await with_ceiling(client)
+    await send(client, convo["id"])
+
+    await send(client, convo["id"], content=None, mode="regenerate")
+    assert (await last_reply(client, convo))["meta"]["ceiling"] == {"0": 1024}
+    await send(client, convo["id"], content=None, mode="regenerate")
+    assert (await last_reply(client, convo))["meta"]["ceiling"] == {"0": 1024, "2": 1024}
+
+
+async def test_rewriting_a_cut_version_by_hand_clears_its_mark_and_a_swipe_does_not(client, model):
+    model.scripts = [ends("She opens", stop="length"), ends("She nods", stop="length")]
+    convo = await with_ceiling(client)
+    await send(client, convo["id"])
+    await send(client, convo["id"], content=None, mode="regenerate")
+    reply = await last_reply(client, convo)
+
+    swiped = (await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0})).json()
+    assert swiped["meta"]["ceiling"] == {"0": 1024, "1": 1024}
+    edited = (await client.patch(f"/api/messages/{reply['id']}",
+                                 json={"content": "She opens the door.", "active_index": 0})).json()
+    assert edited["meta"]["ceiling"] == {"1": 1024}
+    edited = (await client.patch(f"/api/messages/{reply['id']}",
+                                 json={"content": "She nods.", "active_index": 1})).json()
+    assert "ceiling" not in edited["meta"]
