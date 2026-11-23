@@ -60,6 +60,8 @@
 
 :root {
   color-scheme: dark;
+  /* The page's colour, as the plate over a backdrop takes it: a light theme will have only this to change. */
+  --page-rgb: 15 13 18;
 }
 
 html, body {
