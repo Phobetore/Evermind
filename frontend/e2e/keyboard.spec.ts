@@ -20,7 +20,7 @@ async function pressOn(target: Locator, key = "Enter") {
   await target.press(key);
 }
 
-test("the backdrop's strength is reached at once from the button that shows it, and Done goes back there", { tag: "@desktop" }, async ({ page, request }) => {
+test("the backdrop's strength is reached at once from the button that shows it, and Escape goes back there", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await conversationWithReply(request);
   await request.post(`${API}/api/conversations/${convo.id}/wallpaper`, {
     multipart: { file: { name: "backdrop.png", mimeType: "image/png", buffer: PNG } },
@@ -32,13 +32,11 @@ test("the backdrop's strength is reached at once from the button that shows it, 
   if (!beside) await opener.click();
 
   await pressOn(page.getByRole("button", { name: "Adjust strength" }));
-  const slider = page.getByRole("slider", { name: "Strength" });
+  const slider = page.getByRole("slider", { name: "Picture strength" });
   await expect(slider, `the focus is on ${await focusIn(page)}`).toBeFocused();
   await page.keyboard.press("ArrowRight");
-  await expect.poll(async () => (await conversation(request, convo.id)).wallpaper_opacity).toBeCloseTo(0.26);
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Done" })).toBeFocused();
-  await page.keyboard.press("Enter");
+  await expect.poll(async () => (await conversation(request, convo.id)).backdrop_strength).toBeCloseTo(0.26);
+  await page.keyboard.press("Escape");
 
   // Beside the story, back to what opened it; over it, where the panel is opened from.
   const back = beside ? page.getByRole("button", { name: "Adjust strength" }) : opener;

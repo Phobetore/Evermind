@@ -23,7 +23,7 @@ export function ChatSidePanel({
   takeFocus = false,
   onClose,
   onConversationChange,
-  onAdjustWallpaper,
+  onOpenDisplay,
 }: {
   conversation: Conversation;
   persona: Persona | null;
@@ -33,7 +33,8 @@ export function ChatSidePanel({
   takeFocus?: boolean;
   onClose: () => void;
   onConversationChange: (patch: Partial<Conversation>) => void;
-  onAdjustWallpaper: () => void;
+  /** Opens the Display sheet; "strength": with the focus on the strength slider. */
+  onOpenDisplay: (focus?: "strength") => void;
 }) {
   const t = useT();
   const character = conversation.character!;
@@ -449,7 +450,7 @@ export function ChatSidePanel({
             <button
               type="button"
               className="btn btn-ghost mt-3 w-full !py-1.5 text-xs"
-              onClick={onAdjustWallpaper}
+              onClick={() => onOpenDisplay("strength")}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
               {t("chat.wallpaper.adjust")}

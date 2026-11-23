@@ -201,7 +201,8 @@
     "header": {
       "backAriaLabel": "Zurück zu den Unterhaltungen",
       "renameTitle": "Unterhaltung umbenennen",
-      "memorySettingsAriaLabel": "Gedächtnis und Einstellungen der Unterhaltung"
+      "memorySettingsAriaLabel": "Gedächtnis und Einstellungen der Unterhaltung",
+      "displayAriaLabel": "Anzeige: Textgröße und Hintergrund"
     },
     "cardSummary": {
       "aboutAriaLabel": "Über {name}",
@@ -320,9 +321,7 @@
       "choose": "Bild wählen",
       "replace": "Ersetzen",
       "remove": "Entfernen",
-      "opacity": "Stärke",
       "adjust": "Stärke einstellen",
-      "done": "Fertig",
       "failed": "Der Hintergrund ließ sich nicht setzen."
     },
     "writing": {
@@ -717,5 +716,31 @@
     "daysAgo": "vor {count} T.",
     "monthsAgo": "vor {count} Monat(en)",
     "yearsAgo": "vor {count} Jahr(en)"
+  },
+  "display": {
+    "title": "Anzeige",
+    "settingsTitle": "Anzeige · auf diesem Gerät",
+    "sheetHint": "Die Unterhaltung darüber ändert sich, während du einstellst.",
+    "textSize": "Textgröße der Unterhaltungen",
+    "scale": "{pct} %",
+    "scaleOriginal": "{pct} % · Original",
+    "smaller": "Kleiner",
+    "larger": "Größer",
+    "portrait": "Bild der Figur als Hintergrund",
+    "portraitHint": "Auf diesem Gerät, wenn die Unterhaltung keinen eigenen Hintergrund hat.",
+    "strength": "Stärke des Bildes",
+    "strengthDevice": "{pct} % · dieses Gerät",
+    "strengthConversation": "{pct} % · diese Unterhaltung",
+    "hidden": "Bild ausgeblendet",
+    "noneHere": "hier kein Hintergrund",
+    "noPicture": "diese Karte hat kein Bild",
+    "faint": "dezent",
+    "strong": "kräftig",
+    "ownStrength": "Nur für diese Unterhaltung einstellen",
+    "deviceStrength": "Stärke dieses Geräts übernehmen ({pct} %)",
+    "softened": "Unter dem Text ist das Bild immer abgeschwächt: Man liest es bei jeder Stärke.",
+    "perDevice": "Diese Einstellungen bleiben auf diesem Gerät: Dein Handy und dein PC behalten jeweils ihre eigenen.",
+    "sheetFoot": "Unter dem Text ist das Bild immer abgeschwächt. Das Bild hier ändern oder entfernen: Einstellungsknopf, „Hintergrund“.",
+    "sample": "*Die Laterne schwingt am Ende ihres Arms.* Du kommst zu spät. **Drei Winter** zu spät, um genau zu sein."
   }
 }

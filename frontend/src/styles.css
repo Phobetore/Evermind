@@ -272,7 +272,9 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 
 /* Clipped at the bubble's edge: thousands of combining marks stacked on one letter would paint
    over the messages and sections around it. */
-.rp-prose { font-size: 1.05rem; overflow: clip; }
+/* --chat-scale is set only on the column of a conversation and on the sample in Settings: every
+   other place that shows a message's text keeps its size. */
+.rp-prose { font-size: calc(1.05rem * var(--chat-scale, 1)); overflow: clip; }
 /* Lines as they were typed. A hard break ends its line too, so its <br> would add a second. */
 .rp-prose p { margin: 0 0 0.65em; white-space: pre-line; }
 .rp-prose p br { display: none; }

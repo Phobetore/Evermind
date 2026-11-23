@@ -4,10 +4,14 @@ import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ModelSilent } from "@/components/chat/ModelSilent";
 import { ChatSidePanel } from "@/components/chat/ChatSidePanel";
 import { RpText } from "@/components/chat/RpText";
+import { useConversationBackdrop } from "@/components/chat/useConversationBackdrop";
+import { DisplayControls } from "@/components/display/DisplayControls";
 import { Avatar } from "@/components/ui/Avatar";
 import { PageWait } from "@/components/ui/PageWait";
+import { Sheet } from "@/components/ui/Sheet";
 import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
+import { useDisplay } from "@/lib/display";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
@@ -86,13 +90,12 @@ function ChatView({ id }: { id: string }) {
     setPanelByHand(true);
     setPanelOpen(open);
   }
-  // The backdrop's strength is set under the conversation, where it can be judged.
-  const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
-  // What the strength was asked for from, which Done gives the focus back to while it is there.
-  const adjustedFrom = useRef<Element | null>(null);
   const panelButton = useRef<HTMLButtonElement>(null);
-  const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const opacityHeld = useRef<number | undefined>(undefined); // what the server holds
+  // The Display sheet, over the conversation it changes: where the focus goes back to once it
+  // closes, if what opened it has gone (the panel closes under it on a phone).
+  const [displaySheet, setDisplaySheet] = useState<{ focusStrength: boolean; returnTo: () => HTMLElement | null } | null>(null);
+  const displayButton = useRef<HTMLButtonElement>(null);
+  const display = useDisplay();
   // Counts the times the server took the memory back, for the side panel to read it again.
   const [storyCuts, setStoryCuts] = useState(0);
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
@@ -143,20 +146,11 @@ function ChatView({ id }: { id: string }) {
     }
   }
 
-  /** Live on every pixel of the drag, written once it settles. One the server does not take
-   *  goes back to what it holds, unless moved since. */
-  function setWallpaperOpacity(value: number) {
-    opacityHeld.current ??= conversation?.wallpaper_opacity;
-    setConversation((c) => (c ? { ...c, wallpaper_opacity: value } : c));
-    if (opacityWrite.current) clearTimeout(opacityWrite.current);
-    opacityWrite.current = setTimeout(async () => {
-      if (await write(() => data.conversations.update(id, { wallpaper_opacity: value }))) {
-        opacityHeld.current = value;
-      } else {
-        const held = opacityHeld.current;
-        setConversation((c) => (c?.wallpaper_opacity === value ? { ...c, wallpaper_opacity: held } : c));
-      }
-    }, 350);
+  const backdrop = useConversationBackdrop(conversation, setConversation);
+  function openDisplay(focusStrength: boolean, returnTo: () => HTMLElement | null) {
+    // Only what the sheet itself writes is said in it, and only from now on.
+    backdrop.forget();
+    setDisplaySheet({ focusStrength, returnTo });
   }
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -358,7 +352,6 @@ function ChatView({ id }: { id: string }) {
   }
 
   const character = conversation.character;
-  const strength = Math.round((conversation.wallpaper_opacity ?? 0.25) * 100);
   const silent = failure?.kind === "unreachable";
   // That another reply is being written, only as long as it is.
   const refusal = refused instanceof DataError && refused.kind === "turn_running" && !busy ? null : refused;
@@ -381,7 +374,12 @@ function ChatView({ id }: { id: string }) {
   return (
     <div className="flex h-full">
       {/* Under the panel, which covers it below md, out of the keyboard's reach. */}
-      <div className="flex min-w-0 flex-1 flex-col" inert={panelOpen && !wide}>
+      {/* The scale of the story's text, here only: the panel and the card beside it keep theirs. */}
+      <div
+        className="flex min-w-0 flex-1 flex-col"
+        inert={panelOpen && !wide}
+        style={{ "--chat-scale": display.text } as React.CSSProperties}
+      >
         <header className="flex items-center gap-3 border-b border-ink-700 bg-ink-900 px-4 py-3 pointer-coarse:py-[13px] md:bg-ink-900/80 md:backdrop-blur">
           <Link
             to="/chat"
@@ -462,6 +460,17 @@ function ChatView({ id }: { id: string }) {
                 </span>
               </div>
             )}
+            <button
+              ref={displayButton}
+              onClick={() => openDisplay(false, () => displayButton.current)}
+              className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
+              aria-label={t("chat.header.displayAriaLabel")}
+              title={t("chat.header.displayAriaLabel")}
+              aria-haspopup="dialog"
+            >
+              {/* As wide and tall as the icon of the button beside it. */}
+              <span aria-hidden className="block h-5 min-w-5 font-display text-base leading-5">Aa</span>
+            </button>
             {!panelOpen && (
               <button
                 ref={panelButton}
@@ -481,10 +490,11 @@ function ChatView({ id }: { id: string }) {
             // Pinned to the column: a backdrop that scrolls with the text is a picture in the conversation, not behind it.
             <div aria-hidden className="pointer-events-none sticky top-0 h-0 w-full">
               <div
+                data-backdrop
                 className="h-[100dvh] w-full bg-cover bg-center bg-no-repeat"
                 style={{
                   backgroundImage: cssUrl(conversation.wallpaper_url),
-                  opacity: conversation.wallpaper_opacity ?? 0.25,
+                  opacity: conversation.backdrop_strength ?? conversation.wallpaper_opacity ?? 0.25,
                 }}
               />
             </div>
@@ -546,37 +556,6 @@ function ChatView({ id }: { id: string }) {
             {describeError(writeError.error, t)}
           </p>
         )}
-        {adjustingWallpaper && conversation.wallpaper_url && (
-          <div className="border-t border-ink-700 bg-ink-900 px-4 py-3">
-            <div className="mx-auto max-w-3xl">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="text-mist">{t("chat.wallpaper.opacity")}</span>
-                <span className="tabular-nums text-parchment-dim">{strength}%</span>
-              </div>
-              <input
-                type="range"
-                autoFocus
-                min={0}
-                max={100}
-                value={strength}
-                onChange={(e) => setWallpaperOpacity(Number(e.target.value) / 100)}
-                className="w-full accent-[#e29a3e]"
-                aria-label={t("chat.wallpaper.opacity")}
-              />
-              <button
-                type="button"
-                className="btn btn-primary mt-3 w-full"
-                onClick={() => {
-                  setAdjustingWallpaper(false);
-                  const from = adjustedFrom.current;
-                  (from instanceof HTMLElement && from.isConnected ? from : panelButton.current)?.focus();
-                }}
-              >
-                {t("chat.wallpaper.done")}
-              </button>
-            </div>
-          </div>
-        )}
         <ChatInput
           conversationId={conversation.id}
           onSend={sendMessage}
@@ -598,16 +577,33 @@ function ChatView({ id }: { id: string }) {
             if ("summary" in patch) summaries.current += 1;
             setConversation((c) => (c ? { ...c, ...patch } : c));
           }}
-          onAdjustWallpaper={() => {
-            adjustedFrom.current = document.activeElement;
+          onOpenDisplay={(focus) => {
             // Over the conversation, it would hide what is being judged.
             if (!wide) {
               setPanelByHand(false);
               setPanelOpen(false);
             }
-            setAdjustingWallpaper(true);
+            // Beside the conversation the panel stays, and the focus goes back to it by itself.
+            openDisplay(focus === "strength", () => panelButton.current);
           }}
         />
+      )}
+      {displaySheet && (
+        <Sheet
+          title={t("display.title")}
+          hint={t("display.sheetHint")}
+          seeThrough
+          alert={backdrop.failed !== null ? describeError(backdrop.failed, t) : null}
+          returnTo={displaySheet.returnTo}
+          onClose={() => setDisplaySheet(null)}
+        >
+          <DisplayControls
+            where="conversation"
+            conversation={conversation}
+            backdrop={backdrop}
+            focusStrength={displaySheet.focusStrength}
+          />
+        </Sheet>
       )}
       {showCard && (
         <CardSummary character={character} personaName={persona?.name ?? null} onClose={() => setShowCard(false)} />

@@ -201,7 +201,8 @@
     "header": {
       "backAriaLabel": "Retour aux conversations",
       "renameTitle": "Renommer la conversation",
-      "memorySettingsAriaLabel": "Mémoire et réglages de la conversation"
+      "memorySettingsAriaLabel": "Mémoire et réglages de la conversation",
+      "displayAriaLabel": "Affichage : taille du texte et fond"
     },
     "cardSummary": {
       "aboutAriaLabel": "En savoir plus sur {name}",
@@ -320,9 +321,7 @@
       "choose": "Choisir une image",
       "replace": "Remplacer",
       "remove": "Retirer",
-      "opacity": "Intensité",
       "adjust": "Régler l'intensité",
-      "done": "Terminé",
       "failed": "Impossible de poser ce fond."
     },
     "writing": {
@@ -717,5 +716,31 @@
     "daysAgo": "il y a {count} j",
     "monthsAgo": "il y a {count} mois",
     "yearsAgo": "il y a {count} an(s)"
+  },
+  "display": {
+    "title": "Affichage",
+    "settingsTitle": "Affichage · sur cet appareil",
+    "sheetHint": "La conversation change au-dessus pendant que vous réglez.",
+    "textSize": "Taille du texte des conversations",
+    "scale": "{pct} %",
+    "scaleOriginal": "{pct} % · d'origine",
+    "smaller": "Plus petit",
+    "larger": "Plus grand",
+    "portrait": "Image du personnage en fond",
+    "portraitHint": "Sur cet appareil, quand la conversation n'a pas son propre fond.",
+    "strength": "Intensité de l'image",
+    "strengthDevice": "{pct} % · cet appareil",
+    "strengthConversation": "{pct} % · cette conversation",
+    "hidden": "image masquée",
+    "noneHere": "aucun fond ici",
+    "noPicture": "pas d'image sur cette fiche",
+    "faint": "discrète",
+    "strong": "forte",
+    "ownStrength": "Régler pour cette conversation seulement",
+    "deviceStrength": "Reprendre l'intensité de l'appareil ({pct} %)",
+    "softened": "Sous le texte, l'image est toujours adoucie : on lit à toute intensité.",
+    "perDevice": "Ces réglages restent sur cet appareil : votre téléphone et votre PC gardent chacun les leurs.",
+    "sheetFoot": "Sous le texte, l'image est toujours adoucie. Changer d'image ou l'enlever ici : bouton des réglages, « Fond d'écran ».",
+    "sample": "*La lanterne se balance au bout de son bras.* Vous êtes en retard. **Trois hivers** de retard, pour être exacte."
   }
 }

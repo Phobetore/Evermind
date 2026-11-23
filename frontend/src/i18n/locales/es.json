@@ -201,7 +201,8 @@
     "header": {
       "backAriaLabel": "Volver a las conversaciones",
       "renameTitle": "Renombrar la conversación",
-      "memorySettingsAriaLabel": "Memoria y ajustes de la conversación"
+      "memorySettingsAriaLabel": "Memoria y ajustes de la conversación",
+      "displayAriaLabel": "Pantalla: tamaño del texto y fondo"
     },
     "cardSummary": {
       "aboutAriaLabel": "Acerca de {name}",
@@ -320,9 +321,7 @@
       "choose": "Elegir una imagen",
       "replace": "Reemplazar",
       "remove": "Quitar",
-      "opacity": "Intensidad",
       "adjust": "Ajustar la intensidad",
-      "done": "Listo",
       "failed": "No se ha podido poner el fondo."
     },
     "writing": {
@@ -717,5 +716,31 @@
     "daysAgo": "hace {count} d",
     "monthsAgo": "hace {count} mes(es)",
     "yearsAgo": "hace {count} año(s)"
+  },
+  "display": {
+    "title": "Pantalla",
+    "settingsTitle": "Pantalla · en este dispositivo",
+    "sheetHint": "La conversación de arriba cambia mientras ajustas.",
+    "textSize": "Tamaño del texto de las conversaciones",
+    "scale": "{pct} %",
+    "scaleOriginal": "{pct} % · original",
+    "smaller": "Más pequeño",
+    "larger": "Más grande",
+    "portrait": "Imagen del personaje de fondo",
+    "portraitHint": "En este dispositivo, cuando la conversación no tiene fondo propio.",
+    "strength": "Intensidad de la imagen",
+    "strengthDevice": "{pct} % · este dispositivo",
+    "strengthConversation": "{pct} % · esta conversación",
+    "hidden": "imagen oculta",
+    "noneHere": "sin fondo aquí",
+    "noPicture": "esta ficha no tiene imagen",
+    "faint": "suave",
+    "strong": "intensa",
+    "ownStrength": "Ajustar solo para esta conversación",
+    "deviceStrength": "Usar la intensidad del dispositivo ({pct} %)",
+    "softened": "Bajo el texto, la imagen siempre se atenúa: se lee con cualquier intensidad.",
+    "perDevice": "Estos ajustes se quedan en este dispositivo: tu teléfono y tu PC guardan cada uno los suyos.",
+    "sheetFoot": "Bajo el texto, la imagen siempre se atenúa. Para cambiar o quitar la imagen aquí: el botón de ajustes, «Fondo».",
+    "sample": "*La linterna se balancea al final de su brazo.* Llegas tarde. **Tres inviernos** tarde, para ser exacta."
   }
 }

@@ -248,12 +248,12 @@ test("a favourite that is not saved on a card's page says so by its button, whic
   expect(await favourite(request, card.id)).toBe(true);
 });
 
-test("a backdrop's strength that is not saved says so, and its slider goes back to what is stored", { tag: "@desktop" }, async ({ page, request }) => {
+test("a backdrop's strength that is not saved says so in the sheet, and its slider goes back to what is stored", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await makeConversation(request);
   await request.post(`${API}/api/conversations/${convo.id}/wallpaper`, {
     multipart: { file: { name: "backdrop.png", mimeType: "image/png", buffer: PNG } },
   });
-  const held = async () => (await (await stored(request, convo.id)).json()).wallpaper_opacity;
+  const held = async () => (await (await stored(request, convo.id)).json()).backdrop_strength;
   await page.goto(`/#/chat/${convo.id}`);
   // Beside the conversation on a wide screen; behind this button on a phone.
   const opener = page.getByRole("button", { name: "Conversation memory and settings" });
@@ -261,8 +261,10 @@ test("a backdrop's strength that is not saved says so, and its slider goes back 
   await expect(opener.or(adjust).first()).toBeVisible();
   if (await opener.isVisible()) await opener.click();
   await adjust.click();
-  const strength = page.getByRole("slider", { name: "Strength" });
-  const said = page.getByRole("alert");
+  const sheet = page.getByRole("dialog", { name: "Display" });
+  const strength = sheet.getByRole("slider", { name: "Picture strength" });
+  // In the sheet, where the slider is: the page behind it is out of reach and may be covered.
+  const said = sheet.getByRole("alert");
 
   await failing(page, "PATCH", `/api/conversations/${convo.id}`, offline);
   await strength.fill("60");
