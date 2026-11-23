@@ -99,11 +99,18 @@ async def keep_portrait_sizes(char_id: str, grid: UploadFile, backdrop: UploadFi
         # The page makes no PNG copies, and a card's PNG can carry megabytes of text.
         if extension == ".png" or not media.matches_type(data, extension):
             raise AppError("Unsupported image format (JPEG or WebP).", kind="unsupported_image")
-    names = [media.save(data, extension) for data, extension in copies]
-    outcome = await repo.keep_sizes(db, char_id, portrait, *names)
-    if outcome != "kept":
-        for name in names:  # only what this request wrote: the copies already kept stay
-            media.discard(name)
+    names: list[str] = []
+    outcome = None
+    try:
+        for data, extension in copies:
+            names.append(media.save(data, extension))
+        outcome = await repo.keep_sizes(db, char_id, portrait, *names)
+    finally:
+        # Unless kept, nothing points to what this request wrote, a full disk or a locked
+        # database included. Only those names: the copies already kept stay.
+        if outcome != "kept":
+            for name in names:
+                media.discard(name)
     if outcome == "portrait_changed":
         raise AppError("The portrait changed while its copies were made.", 409,
                        kind="portrait_changed")

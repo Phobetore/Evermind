@@ -2,10 +2,12 @@
 when their portrait changed meanwhile, and never a file deleted that the request did not write."""
 
 import re
+import sqlite3
 
 import pytest
 
 from app.config import db_path, media_dir
+from app.repositories import characters as repo
 from app.services import media
 from tests.conftest import PNG, setup_conversation
 
@@ -207,3 +209,39 @@ def test_matches_type_knows_each_signature(extension, own):
         if other is not own:
             assert not media.matches_type(other, extension), other[:12]
 
+
+async def test_copies_written_by_a_request_that_fails_are_deleted(client, monkeypatch):
+    char = await make_character(client)
+    before = files()
+
+    async def locked(*args):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(repo, "keep_sizes", locked)
+    with pytest.raises(sqlite3.OperationalError):
+        await send_sizes(client, char["id"], portrait_of(char))
+    assert files() == before
+
+
+async def test_a_copy_that_cannot_be_written_leaves_none_behind(client, monkeypatch):
+    char = await make_character(client)
+    before = files()
+    save = media.save
+    written = []
+
+    def full(data, extension):
+        if written:
+            raise OSError(28, "No space left on device")
+        written.append(save(data, extension))
+        return written[-1]
+
+    monkeypatch.setattr(media, "save", full)
+    with pytest.raises(OSError):
+        await send_sizes(client, char["id"], portrait_of(char))
+    assert written and files() == before
+
+
+async def test_discard_deletes_a_file_it_saved(client):
+    name = media.save(WEBP, ".webp")
+    media.discard(name)
+    assert not (media_dir() / name).exists()
