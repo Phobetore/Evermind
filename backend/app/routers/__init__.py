@@ -35,6 +35,7 @@ def register_routers(app: FastAPI) -> None:
         connections,
         conversations,
         gate,
+        journal,
         library,
         media,
         memories,
@@ -52,4 +53,5 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(connections.router)
     app.include_router(conversations.router)
     app.include_router(settings_router.router)
+    app.include_router(journal.router)
     app.include_router(media.router)
