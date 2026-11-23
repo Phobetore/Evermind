@@ -147,7 +147,12 @@ can move the buttons from under the click.
 - CRUD on `characters` (each with its whole lorebook), `personas`, `connections`,
   `conversations`, `memories`
 - `POST /api/characters/assist`: drafts a card from a free-form brief
-- `POST /api/conversations/{id}/memories/extract`, `.../memories/consolidate`
+- `POST /api/conversations/{id}/memories/extract`, `.../memories/consolidate`: run by a task
+  of the server's own, as a reply is, and answered at its end; a client that goes away cancels
+  nothing, only the server's stop does, and what a pass writes is one transaction. One at a
+  time per conversation (`409 memory_busy`). The conversation says `memory_running`,
+  `memory_operation` (`pass`, `extract` or `consolidate`) and `memory_error`, the failure of
+  the last pass or operation until one succeeds
 - `GET /api/library`: the cards in `library/`. The browser reads and writes card
   files itself (`frontend/src/lib/cards.ts`), and installs or imports a card by
   creating a character
