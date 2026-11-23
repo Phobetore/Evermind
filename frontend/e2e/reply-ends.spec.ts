@@ -94,3 +94,25 @@ test("a reply cut by the max tokens says why under it, and Continue carries it t
   expect(read.messages.at(-1).meta.ceiling).toBeUndefined();
   await noSidewaysScroll(page);
 });
+
+test("an older reply cut by the max tokens keeps a short mark, without asking to continue it", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { max_tokens: 1024 });
+  await sendFromTheBox(page, convo.id);
+  await expect(page.locator("[data-ceiling]")).toHaveCount(1);
+
+  // The next exchange ends as a reply ends: the cut one is no longer the last, and has no Continue.
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
+  await page.waitForLoadState("networkidle");
+  await page.locator("textarea").first().fill("And then?");
+  const ends = replyEnds(page, convo.id);
+  await page.locator('button[title="Send"]').click();
+  await ends;
+
+  await expect(page.locator("[data-ceiling]")).toHaveCount(0);
+  const cut = page.locator("[data-message-id]").filter({ has: page.locator("[data-ceiling-mark]") });
+  await expect(cut).toHaveCount(1);
+  await expect(cut.locator("[data-ceiling-mark]")).toHaveText("cut at the limit");
+  await expect(cut).not.toContainText("Continue the reply to carry on");
+  await expect(page.locator("[data-message-id]").last().locator("[data-ceiling-mark]")).toHaveCount(0);
+  await noSidewaysScroll(page);
+});

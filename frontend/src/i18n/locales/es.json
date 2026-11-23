@@ -257,6 +257,7 @@
       "interrupted": "interrumpido",
       "cutAtCeiling": "Respuesta cortada: llegó al límite de la conexión, {tokens:grouped} tokens, y el razonamiento del modelo cuenta en él. Continúa la respuesta para seguir.",
       "cutAtCeilingUnset": "Respuesta cortada: llegó al máximo que el servidor del modelo deja escribir, y el razonamiento del modelo cuenta en él. Continúa la respuesta para seguir.",
+      "cutAtCeilingShort": "cortado en el límite",
       "regenerateTitle": "Regenerar",
       "continueTitle": "Continuar la respuesta",
       "editTitle": "Editar",

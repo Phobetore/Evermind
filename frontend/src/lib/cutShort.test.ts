@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { describeCeiling, isCutShort } from "./cutShort";
+import { describeCeiling, isCutAtCeiling, isCutShort } from "./cutShort";
 import { translate } from "@/i18n/translate";
 
 test("the version on screen is one the server says was cut short", () => {
@@ -45,4 +45,18 @@ test.each(["en", "fr", "de", "es"] as const)("in %s, the line names the number",
   const unset = describeCeiling({ meta: { ceiling: { "0": null } }, active_index: 0 },
     (k, vars) => translate(locale, k, vars))!;
   expect(unset).not.toContain("chat.message");
+});
+
+test("whether the version on screen was cut by the max tokens, for a reply that is no longer the last", () => {
+  expect(isCutAtCeiling({ meta: { ceiling: { "1": 1024 } }, active_index: 1 })).toBe(true);
+  expect(isCutAtCeiling({ meta: { ceiling: { "0": null } }, active_index: 0 })).toBe(true);
+  expect(isCutAtCeiling({ meta: { ceiling: { "1": 1024 } }, active_index: 0 })).toBe(false);
+  expect(isCutAtCeiling({ meta: { interrupted: [0] }, active_index: 0 })).toBe(false);
+  expect(isCutAtCeiling({ meta: { ceiling: [0] }, active_index: 0 })).toBe(false);
+});
+
+test.each(["en", "fr", "de", "es"] as const)("in %s, an older cut reply has a short mark of its own", (locale) => {
+  const mark = translate(locale, "chat.message.cutAtCeilingShort");
+  expect(mark).not.toContain("chat.message");
+  expect(mark).not.toBe(translate(locale, "chat.message.interrupted"));
 });

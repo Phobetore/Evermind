@@ -257,6 +257,7 @@
       "interrupted": "interrompu",
       "cutAtCeiling": "Réponse coupée : elle a atteint la limite de la connexion, {tokens:grouped} tokens, et la réflexion du modèle compte dedans. Prolongez la réponse pour continuer.",
       "cutAtCeilingUnset": "Réponse coupée : elle a atteint le maximum que le serveur du modèle laisse écrire, et la réflexion du modèle compte dedans. Prolongez la réponse pour continuer.",
+      "cutAtCeilingShort": "coupé à la limite",
       "regenerateTitle": "Régénérer",
       "continueTitle": "Prolonger la réponse",
       "editTitle": "Modifier",

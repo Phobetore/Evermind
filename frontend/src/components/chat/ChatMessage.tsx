@@ -2,7 +2,7 @@ import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useT } from "@/i18n/useT";
-import { describeCeiling, isCutShort } from "@/lib/cutShort";
+import { describeCeiling, isCutAtCeiling, isCutShort } from "@/lib/cutShort";
 import { copyText, nothingFocused } from "@/lib/utils";
 import type { Character, Message, Persona } from "@/types";
 import { clsx } from "clsx";
@@ -73,7 +73,9 @@ export function ChatMessage({
   const canSwipe = !isUser && variants.length > 1;
   const interrupted = isCutShort(message);
   // Why it is cut when no one cut it: the connection's max tokens, which its reasoning spent too.
-  const ceiling = describeCeiling(message, t);
+  // Said in full on the last reply, where Continue is; an older one keeps a mark, as "interrupted".
+  const ceiling = isLast ? describeCeiling(message, t) : null;
+  const cutAtCeiling = !isLast && isCutAtCeiling(message);
   const messageMode = message.meta?.mode as "narrate" | "ooc" | undefined;
 
   const editButton = useRef<HTMLButtonElement>(null);
@@ -137,6 +139,11 @@ export function ChatMessage({
           )}
           {interrupted && (
             <span className="text-[0.68rem] uppercase tracking-wide text-mist-dim">{t("chat.message.interrupted")}</span>
+          )}
+          {cutAtCeiling && (
+            <span data-ceiling-mark className="text-[0.68rem] uppercase tracking-wide text-mist-dim">
+              {t("chat.message.cutAtCeilingShort")}
+            </span>
           )}
 
           {/* Always shown on touch, each button 44px across and the row giving back the height it takes;

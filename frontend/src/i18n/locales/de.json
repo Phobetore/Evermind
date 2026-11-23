@@ -257,6 +257,7 @@
       "interrupted": "unterbrochen",
       "cutAtCeiling": "Abgeschnitten: Die Antwort hat die Grenze der Verbindung von {tokens:grouped} Tokens erreicht, und das Nachdenken des Modells zählt mit. Setze die Antwort fort, um weiterzumachen.",
       "cutAtCeilingUnset": "Abgeschnitten: Die Antwort hat das Höchstmaß erreicht, das der Server des Modells schreiben lässt, und das Nachdenken des Modells zählt mit. Setze die Antwort fort, um weiterzumachen.",
+      "cutAtCeilingShort": "am Limit abgeschnitten",
       "regenerateTitle": "Neu generieren",
       "continueTitle": "Antwort fortsetzen",
       "editTitle": "Bearbeiten",

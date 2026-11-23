@@ -257,6 +257,7 @@
       "interrupted": "interrupted",
       "cutAtCeiling": "Cut short: this reply reached the connection's limit of {tokens:grouped} tokens, and the model's thinking counts toward it. Continue the reply to carry on.",
       "cutAtCeilingUnset": "Cut short: this reply reached the most the model's server lets it write, and the model's thinking counts toward it. Continue the reply to carry on.",
+      "cutAtCeilingShort": "cut at the limit",
       "regenerateTitle": "Regenerate",
       "continueTitle": "Continue the reply",
       "editTitle": "Edit",
