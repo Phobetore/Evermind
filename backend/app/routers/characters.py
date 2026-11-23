@@ -1,8 +1,8 @@
 import aiosqlite
-from fastapi import APIRouter, Depends, UploadFile
+from fastapi import APIRouter, Depends, Form, UploadFile
 
 from ..db import get_db
-from ..errors import NotFoundError
+from ..errors import AppError, NotFoundError
 from ..models.schemas import CardAssistRequest, CharacterIn, CharacterUpdate
 from ..repositories import characters as repo
 from ..repositories import conversations as convo_repo
@@ -79,4 +79,34 @@ async def upload_avatar(char_id: str, file: UploadFile,
     data, extension = await media.read_image_upload(file)
     if not await repo.get(db, char_id):
         raise NotFoundError("Character not found.", "character")
-    return await repo.update(db, char_id, {"avatar_path": media.save(data, extension)})
+    portrait = await repo.set_portrait(db, char_id, media.save(data, extension))
+    if not portrait:
+        raise NotFoundError("Character not found.", "character")
+    return portrait
+
+
+@router.post("/{char_id}/avatar/sizes")
+async def keep_portrait_sizes(char_id: str, grid: UploadFile, backdrop: UploadFile,
+                              portrait: str = Form(pattern=r"^[0-9a-f]{32}\.(png|jpg|webp)$"),
+                              db: aiosqlite.Connection = Depends(get_db)):
+    """The smaller copies of a portrait, made by a browser: one for the grid, one for the backdrop.
+    `portrait` names the picture they were made from, so that copies of one replaced meanwhile
+    are refused rather than shown under the new one."""
+    if not await repo.get(db, char_id):
+        raise NotFoundError("Character not found.", "character")
+    copies = [await media.read_image_upload(file) for file in (grid, backdrop)]
+    for data, extension in copies:
+        # The page makes no PNG copies, and a card's PNG can carry megabytes of text.
+        if extension == ".png" or not media.matches_type(data, extension):
+            raise AppError("Unsupported image format (JPEG or WebP).", kind="unsupported_image")
+    names = [media.save(data, extension) for data, extension in copies]
+    outcome = await repo.keep_sizes(db, char_id, portrait, *names)
+    if outcome != "kept":
+        for name in names:  # only what this request wrote: the copies already kept stay
+            media.discard(name)
+    if outcome == "portrait_changed":
+        raise AppError("The portrait changed while its copies were made.", 409,
+                       kind="portrait_changed")
+    if outcome == "not_found":
+        raise NotFoundError("Character not found.", "character")
+    return await get_character(char_id, db)

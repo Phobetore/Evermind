@@ -1,3 +1,5 @@
+from typing import Literal
+
 import aiosqlite
 
 from ..models.schemas import CharacterIn
@@ -28,8 +30,13 @@ def to_out(row) -> dict:
     for f in _JSON_FIELDS:
         out[f] = loads(out.get(f), [])
     out["creator_notes_multilingual"] = loads(out.get("creator_notes_multilingual"), {})
-    avatar = out.pop("avatar_path", None)
-    out["avatar_url"] = f"api/media/{avatar}" if avatar else None
+    for column, url in (("avatar_path", "avatar_url"), ("avatar_thumb_path", "avatar_thumb_url"),
+                        ("avatar_backdrop_path", "avatar_backdrop_url")):
+        name = out.pop(column, None)
+        out[url] = f"api/media/{name}" if name else None
+    # Worked out for the tiles of the home page, which read them apart.
+    out.pop("excerpt", None)
+    out.pop("excerpt_rule", None)
     out["is_favorite"] = bool(out.get("is_favorite"))
     out["has_card"] = bool(out.get("has_card"))
     return out
@@ -137,6 +144,36 @@ async def update(db: aiosqlite.Connection, char_id: str, fields: dict) -> dict |
         await _keep_card(db, char_id, fields["card"])
     await db.commit()
     return await get(db, char_id)
+
+
+async def set_portrait(db: aiosqlite.Connection, char_id: str, avatar_path: str) -> dict | None:
+    """A new portrait is an edit, and brings the card to the front. The copies of the one before
+    are no longer its copies: the home page shows the whole picture until a page sends new ones."""
+    cursor = await db.execute(
+        "UPDATE characters SET avatar_path = ?, avatar_thumb_path = '', avatar_backdrop_path = '',"
+        " updated_at = ? WHERE id = ?", (avatar_path, now_iso(), char_id))
+    await db.commit()
+    return await get(db, char_id) if cursor.rowcount else None
+
+
+async def keep_sizes(db: aiosqlite.Connection, char_id: str, portrait: str, grid_path: str,
+                     backdrop_path: str
+                     ) -> Literal["kept", "made_already", "portrait_changed", "not_found"]:
+    """Keeps the copies of `portrait` when it is still the character's and none are kept yet, in
+    one statement: no other request can come between the check and the write. Copies are no edit,
+    and leave updated_at, by which the home page sorts, as it was."""
+    cursor = await db.execute(
+        "UPDATE characters SET avatar_thumb_path = ?, avatar_backdrop_path = ?"
+        " WHERE id = ? AND avatar_path = ? AND avatar_thumb_path = ''",
+        (grid_path, backdrop_path, char_id, portrait))
+    await db.commit()
+    if cursor.rowcount:
+        return "kept"
+    row = await (await db.execute(
+        "SELECT avatar_path FROM characters WHERE id = ?", (char_id,))).fetchone()
+    if not row:
+        return "not_found"
+    return "portrait_changed" if row["avatar_path"] != portrait else "made_already"
 
 
 async def delete(db: aiosqlite.Connection, char_id: str) -> bool:
