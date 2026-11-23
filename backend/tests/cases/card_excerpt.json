@@ -524,6 +524,24 @@
   },
   {
    "fn": "card_excerpt",
+   "name": "a label with nothing after it is skipped",
+   "input": {
+    "description": "Description:\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
+   "name": "labels with nothing after them are skipped",
+   "input": {
+    "description": "Personality =\nScénario du soir :\nElle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie.",
+    "name": "Sélène"
+   },
+   "expected": "Elle garde le gué depuis trois hivers, et personne ne passe sans lui raconter une histoire vraie."
+  },
+  {
+   "fn": "card_excerpt",
    "name": "nineteen letters are debris",
    "input": {
     "description": "Le gué dort sous la lune",

@@ -238,15 +238,15 @@ def _is_attribute(line: str) -> bool:
 
 
 def _is_key_value(line: str) -> bool:
-    """`Nom : Sélène`, `Âge = 312`: one to three short words, ":" or "=", then some text."""
+    """`Nom : Sélène`, `Âge = 312`, or a label alone, `Description:`: one to three short words,
+    then ":" or "="."""
     if len(line) >= _KEY_LINE:
         return False
     separator = _KEY_SEPARATOR_RE.search(line)
     if not separator:
         return False
     words = line[:separator.start()].split()
-    return (1 <= len(words) <= 3 and all(len(word) <= _KEY_WORD for word in words)
-            and bool(line[separator.end():].strip()))
+    return 1 <= len(words) <= 3 and all(len(word) <= _KEY_WORD for word in words)
 
 
 def _without_blocks(text: str) -> str:

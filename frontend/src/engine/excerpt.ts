@@ -271,18 +271,14 @@ function isAttribute(line: string): boolean {
   return body.endsWith(")") && body.length - 1 > opening && body.slice(opening + 1, -1).includes('"');
 }
 
-/** `Nom : Sélène`, `Âge = 312`: one to three short words, ":" or "=", then some text. */
+/** `Nom : Sélène`, `Âge = 312`, or a label alone, `Description:`: one to three short words, then
+ *  ":" or "=". */
 function isKeyValue(line: string): boolean {
   if (codePoints(line) >= KEY_LINE) return false;
   const separator = KEY_SEPARATOR.exec(line);
   if (!separator) return false;
   const words = splitWords(line.slice(0, separator.index));
-  return (
-    words.length >= 1 &&
-    words.length <= 3 &&
-    words.every((word) => codePoints(word) <= KEY_WORD) &&
-    pyStrip(line.slice(separator.index + 1)) !== ""
-  );
+  return words.length >= 1 && words.length <= 3 && words.every((word) => codePoints(word) <= KEY_WORD);
 }
 
 /** Whether text[from..to] holds at most `limit` code points, read only when the units leave it open. */
