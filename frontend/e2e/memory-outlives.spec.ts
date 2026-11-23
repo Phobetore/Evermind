@@ -130,3 +130,56 @@ test("two conversations are answered at the same time", { tag: "@desktop" }, asy
     expect(messages.at(-1).variants[0].length).toBeGreaterThan(0);
   }
 });
+
+/** Ten facts, one a turn, enough to merge: twelve seconds of the slow model. */
+async function tenFacts(request: APIRequestContext) {
+  const id = await slowStory(request);
+  expect((await request.post(`${API}/api/conversations/${id}/memories/extract`)).ok()).toBe(true);
+  return id;
+}
+
+test("Try again under a failed Condense condenses, and the line and the mark go when it does", { tag: "@desktop" }, async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const id = await tenFacts(request);
+  // A Condense that fails, its asker gone: the fake model refuses a merge that names MOCK_FORGETS.
+  const { character_id } = await conversation(request, id);
+  const rename = (name: string) => request.put(`${API}/api/characters/${character_id}`, { data: { name } });
+  expect((await rename("Vane MOCK_FORGETS")).ok()).toBe(true);
+  expect((await request.post(`${API}/api/conversations/${id}/memories/consolidate`)).status()).toBe(502);
+  expect((await conversation(request, id)).memory_error?.operation).toBe("consolidate");
+  expect((await rename("Vane")).ok()).toBe(true);
+
+  const panel = await panelOf(page, id);
+  const line = panel.locator("p.text-blood");
+  await expect(line).toHaveText("Consolidation failed: The model reported an error: The mock was told to forget.");
+  const asked: string[] = [];
+  page.on("request", (r) => r.method() === "POST" && r.url().includes("/memories/") && asked.push(r.url()));
+  await panel.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(panel.getByText("The whole story so far, in one line.")).toBeVisible({ timeout: 20_000 });
+  expect(asked.map((url) => url.split("/memories/")[1])).toEqual(["consolidate"]);
+  await expect(line).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "Try again", exact: true })).toHaveCount(0);
+  expect((await conversation(request, id)).memory_error).toBeNull();
+  const close = panel.getByRole("button", { name: "Close panel" });
+  if (await close.isVisible()) await close.click();
+  await expect(page.getByRole("img", { name: MARK })).toHaveCount(0);
+});
+
+test("a panel left open elsewhere meets a Condense under way when it asks, follows it, and shows what it merged", { tag: "@desktop" }, async ({ page, request }) => {
+  const id = await tenFacts(request);
+  const panel = await panelOf(page, id);
+  await expect(panel.getByText("Turn 5 happened (MOCK_SLOW_MEMORY).")).toBeVisible();
+
+  // Another device asks for it while this panel stays open.
+  const other = request.post(`${API}/api/conversations/${id}/memories/consolidate`);
+  await expect.poll(() => running(request, id)).toBe(true);
+  const condense = panel.getByRole("button", { name: "Condense", exact: true });
+  await condense.click();
+  await expect(condense.locator(".animate-spin")).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Remember", exact: true })).toBeDisabled();
+  await expect(panel.getByText("The whole story so far, in one line.")).toBeVisible({ timeout: 20_000 });
+  await expect(panel.getByText("Turn 5 happened (MOCK_SLOW_MEMORY).")).toHaveCount(0);
+  await expect(condense).toBeEnabled();
+  await expect(panel.locator("p.text-blood")).toHaveCount(0);
+  expect((await other).ok()).toBe(true);
+});

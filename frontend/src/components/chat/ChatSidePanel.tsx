@@ -216,8 +216,14 @@ export function ChatSidePanel({
 
   // A pass of its own that failed is told here until one succeeds.
   const failed = conversation.memory_error;
+  // A Condense failed is named, since its retry is a Condense and the line would read as a pass's.
+  const failedCondense = failed?.operation === "consolidate";
   const memoryError =
-    errors.memory ?? (failed ? describeFailure({ kind: failed.kind, message: failed.error, reason: failed.reason }, t) : null);
+    errors.memory ??
+    (failed
+      ? (failedCondense ? `${t("chat.panel.facts.consolidateError")}: ` : "") +
+        describeFailure({ kind: failed.kind, message: failed.error, reason: failed.reason }, t)
+      : null);
 
   const fail = (where: Where, text: string | null) =>
     setErrors((prev) => ({ ...prev, [where]: text ?? undefined }));
@@ -238,6 +244,14 @@ export function ChatSidePanel({
     setDirectiveDraft(null);
   }
 
+  /** A Remember clears a failed pass and a Condense its own failure, but neither the other's: the
+   *  server's word is read for what is still failing. */
+  function succeeded(operation: Operation) {
+    const kept = latest.current.conversation.memory_error;
+    if (kept && (kept.operation === "consolidate") === (operation === "consolidate")) write({ memory_error: null });
+    void read();
+  }
+
   async function memorizeNow() {
     asking.current = true;
     setElsewhere(null);
@@ -248,7 +262,7 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
-      write({ memory_error: null });
+      succeeded("extract");
       // What is being typed stays in the box, still typed over the summary from before.
       if (result.summary) write({ summary: result.summary });
       setMemoryNote(describeExtraction(result, t, conversation.summary));
@@ -270,6 +284,7 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.consolidate(conversation.id);
       setMemories(result.memories);
+      succeeded("consolidate");
       setMemoryNote(describeConsolidation(result, t));
       setTimeout(() => setMemoryNote(null), 5000);
     } catch (e) {
@@ -658,10 +673,10 @@ export function ChatSidePanel({
         {!errors.memory && failed && (
           <button
             className="btn btn-ghost mt-1.5 !px-2 !py-1 text-xs"
-            onClick={memorizeNow}
+            onClick={failedCondense ? consolidateMemory : memorizeNow}
             disabled={remembering || condensing}
           >
-            {remembering ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            {(failedCondense ? condensing : remembering) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
             {t("memoryMark.retry")}
           </button>
         )}

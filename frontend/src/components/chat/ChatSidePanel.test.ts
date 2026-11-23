@@ -66,3 +66,16 @@ test("a failure of a model that reasons is told in its own words, with a way to 
   const unreadable = opened({ memory_error: { error: "Unreadable consolidation.", kind: "model_unreadable" } });
   expect(unreadable).toContain("The model&#x27;s answer could not be read.");
 });
+
+test("a failed Condense is named as one, a failed pass is not, and a Condense under way spins its retry", () => {
+  const condense = opened({ memory_error: { error: "", kind: "model_connection_lost", operation: "consolidate" } });
+  expect(condense).toMatch(/Consolidation failed: The model took too long/);
+  const pass = opened({ memory_error: { error: "", kind: "model_connection_lost", operation: "pass" } });
+  expect(pass).not.toContain("Consolidation failed");
+  expect(pass).toMatch(/>The model took too long/);
+  const running = opened({
+    memory_error: { error: "", kind: "model_connection_lost", operation: "consolidate" },
+    memory_running: true, memory_operation: "consolidate",
+  });
+  expect(button(running, "Try again")).toEqual({ disabled: true, spinning: true });
+});
