@@ -110,14 +110,14 @@ export function ChatMessage({
     // Named so a test can point at one message rather than at a run of its
     // text, which asterisks turn into several elements.
     <div data-message-id={message.id} className="group flex gap-3.5 px-1 py-3 animate-fade">
-      <Avatar name={name} src={avatarSrc} className="mt-0.5 h-10 w-10 shrink-0 text-lg" />
+      <Avatar name={name} src={avatarSrc} className="mt-0.5 size-[40px] shrink-0 text-lg" />
       <div className="min-w-0 flex-1">
         {/* Wraps, for the sake of a touch screen: six buttons of 44px are wider
             than the name and the column beside it on some phones. */}
         <div className="flex flex-wrap items-baseline gap-x-2.5 pointer-coarse:items-center">
           <span
             className={clsx(
-              "font-display text-[0.95rem] font-semibold",
+              "chat-name font-display font-semibold",
               isUser ? "text-parchment-dim" : "text-ember-300",
             )}
           >
@@ -138,10 +138,11 @@ export function ChatMessage({
           )}
 
           {/* Always shown on touch, each button 44px across and the row giving back the height it takes;
-              six that do not fit on a line break between the reply's two and the message's four. */}
+              six that do not fit on a line break between the reply's two and the message's four, and
+              four that do not fit either (a page zoomed to 200 %) break among themselves. */}
           <div className="hover-actions ml-auto flex items-center gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:flex-wrap pointer-coarse:justify-end pointer-coarse:gap-0">
             {isLast && !busy && (
-              <div className="flex items-center gap-0.5 pointer-coarse:gap-0">
+              <div className="flex items-center justify-end gap-0.5 pointer-coarse:flex-wrap pointer-coarse:gap-0">
                 {/* On a message of the person's, the reply it is waiting for. Never on a greeting: it answers nothing. */}
                 {!message.meta?.greeting && (
                   <IconButton ref={replyRef} title={t("chat.message.regenerateTitle")} onClick={onRegenerate}>
@@ -155,7 +156,7 @@ export function ChatMessage({
                 )}
               </div>
             )}
-            <div className="flex items-center gap-0.5 pointer-coarse:gap-0">
+            <div className="flex items-center justify-end gap-0.5 pointer-coarse:flex-wrap pointer-coarse:gap-0">
               <IconButton
                 ref={editButton}
                 title={t("chat.message.editTitle")}
@@ -198,7 +199,7 @@ export function ChatMessage({
           {editing !== null ? (
             <div className="flex flex-col gap-2">
               <textarea
-                className="field min-h-28"
+                className="chat-editor field min-h-28"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -220,11 +221,11 @@ export function ChatMessage({
               </div>
             </div>
           ) : messageMode === "narrate" ? (
-            <p className="whitespace-pre-wrap italic leading-relaxed text-arcane-300/90">
+            <p className="chat-narration whitespace-pre-wrap italic leading-relaxed text-arcane-300/90">
               {message.content}
             </p>
           ) : messageMode === "ooc" ? (
-            <p className="whitespace-pre-wrap rounded-lg border border-dashed border-ink-600 bg-ink-900/60 px-3 py-2 text-sm leading-relaxed text-mist">
+            <p className="chat-ooc whitespace-pre-wrap rounded-lg border border-dashed border-ink-600 bg-ink-900/60 px-3 py-2 leading-relaxed text-mist">
               {message.content}
             </p>
           ) : (

@@ -230,15 +230,18 @@
       "modes": {
         "say": {
           "label": "Hablar / acción (haz clic para cambiar de modo)",
-          "placeholder": "Escribe a {name}… (*asteriscos* para tus acciones)"
+          "placeholder": "Escribe a {name}… (*asteriscos* para tus acciones)",
+          "short": "Hablar"
         },
         "narrate": {
           "label": "Narración: describes el mundo, la escena, los acontecimientos",
-          "placeholder": "Describe la escena, el mundo, un acontecimiento…"
+          "placeholder": "Describe la escena, el mundo, un acontecimiento…",
+          "short": "Narrar"
         },
         "ooc": {
           "label": "Instrucción fuera de personaje: una nota para la IA, invisible en la historia",
-          "placeholder": "Instrucción para la IA (p. ej.: termina siempre tus frases)…"
+          "placeholder": "Instrucción para la IA (p. ej.: termina siempre tus frases)…",
+          "short": "Fuera de personaje"
         }
       },
       "ghostwriteTitle": "Escribir mi respuesta por mí (editable antes de enviar)",
@@ -247,7 +250,9 @@
       "sendTitle": "Enviar",
       "hintDefault": "Enter para enviar · Mayús+Enter para una nueva línea · pluma: la IA redacta tu respuesta",
       "hintTouch": "Pulsa enviar cuando quieras. La pluma redacta tu respuesta.",
-      "draftRestored": "Borrador restaurado"
+      "draftRestored": "Borrador restaurado",
+      "more": "Hablar, narrar, fuera de personaje o escribir por mí",
+      "penLabel": "Escribir por mí"
     },
     "message": {
       "youFallback": "Tú",
@@ -313,7 +318,8 @@
       "sceneAnchor": {
         "title": "Ancla de escena",
         "youFallback": "tú"
-      }
+      },
+      "cardSummary": "La ficha en breve"
     },
     "wallpaper": {
       "title": "Fondo",

@@ -274,7 +274,9 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
    over the messages and sections around it. */
 /* --chat-scale is set only on the column of a conversation and on the sample in Settings: every
    other place that shows a message's text keeps its size. */
-.rp-prose { font-size: calc(1.05rem * var(--chat-scale, 1)); overflow: clip; }
+/* Anywhere: at 200 % a long word or an address breaks rather than scroll the column sideways, and
+   the clip then never cuts a word. */
+.rp-prose { font-size: calc(1.05rem * var(--chat-scale, 1)); overflow: clip; overflow-wrap: anywhere; }
 /* Lines as they were typed. A hard break ends its line too, so its <br> would add a second. */
 .rp-prose p { margin: 0 0 0.65em; white-space: pre-line; }
 .rp-prose p br { display: none; }
@@ -451,6 +453,27 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 }
 
 } /* end @layer components */
+
+/* The sizes of a conversation's text, which follow --chat-scale (set on its column). Out of every
+   layer, so that they win over the utilities of the element that carries them; for the same reason
+   none goes on an element with a hover: or disabled: variant of the property it sets, and the
+   utility each replaces is taken off that element. */
+.chat-name { font-size: calc(0.95rem * var(--chat-scale, 1)); overflow-wrap: anywhere; }
+/* The body's size, which narration inherited. */
+.chat-narration { font-size: calc(1.0625rem * var(--chat-scale, 1)); overflow-wrap: anywhere; }
+.chat-ooc { font-size: calc(0.875rem * var(--chat-scale, 1)); overflow-wrap: anywhere; }
+/* Never under 16px, where iOS zooms into a focused box. */
+.chat-editor { font-size: max(16px, calc(0.98rem * var(--chat-scale, 1))); }
+/* The box a message is typed in follows only up to --input-scale's 130 %: past that it would eat the
+   conversation with the keyboard open. At rest one line, the height of the buttons beside it; its
+   height follows its text (ChatInput), so a handle dragged by hand would be undone at the next letter. */
+.chat-input {
+  font-size: max(16px, calc(1rem * var(--input-scale, 1)));
+  line-height: 1.4;
+  padding: 0.6em 0.8em;
+  min-height: calc(2.6em + 2px);
+  resize: none;
+}
 
 /* Less motion: animations are cut to an instant rather than removed, so that what they end on is
    still drawn (the entry animations hold their last frame). */

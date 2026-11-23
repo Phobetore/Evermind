@@ -230,15 +230,18 @@
       "modes": {
         "say": {
           "label": "Parole / action (cliquez pour changer de mode)",
-          "placeholder": "Écrire à {name}… (*astérisques* pour vos actions)"
+          "placeholder": "Écrire à {name}… (*astérisques* pour vos actions)",
+          "short": "Parole"
         },
         "narrate": {
           "label": "Narration\u00a0: vous décrivez le monde, la scène, les événements",
-          "placeholder": "Décrire la scène, le monde, un événement…"
+          "placeholder": "Décrire la scène, le monde, un événement…",
+          "short": "Narration"
         },
         "ooc": {
           "label": "Instruction hors-jeu\u00a0: une consigne pour l'IA, invisible dans l'histoire",
-          "placeholder": "Instruction pour l'IA (ex.\u00a0: finis toujours tes phrases)…"
+          "placeholder": "Instruction pour l'IA (ex.\u00a0: finis toujours tes phrases)…",
+          "short": "Hors-jeu"
         }
       },
       "ghostwriteTitle": "Écrire ma réplique à ma place (modifiable avant envoi)",
@@ -247,7 +250,9 @@
       "sendTitle": "Envoyer",
       "hintDefault": "Entrée pour envoyer · Maj+Entrée pour un retour à la ligne · plume\u00a0: l'IA propose votre réplique",
       "hintTouch": "Appuyez sur envoyer quand vous êtes prêt. La plume rédige votre réponse.",
-      "draftRestored": "Brouillon restauré"
+      "draftRestored": "Brouillon restauré",
+      "more": "Parole, narration, hors-jeu, ou écrire à ma place",
+      "penLabel": "Écrire à ma place"
     },
     "message": {
       "youFallback": "Vous",
@@ -313,7 +318,8 @@
       "sceneAnchor": {
         "title": "Ancrage de scène",
         "youFallback": "vous"
-      }
+      },
+      "cardSummary": "La fiche en bref"
     },
     "wallpaper": {
       "title": "Fond d'écran",

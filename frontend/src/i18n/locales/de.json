@@ -230,15 +230,18 @@
       "modes": {
         "say": {
           "label": "Sprechen / Handlung (klicken, um den Modus zu wechseln)",
-          "placeholder": "Schreib an {name}… (*Sternchen* für deine Handlungen)"
+          "placeholder": "Schreib an {name}… (*Sternchen* für deine Handlungen)",
+          "short": "Sprechen"
         },
         "narrate": {
           "label": "Erzählung: Du beschreibst die Welt, die Szene, die Ereignisse",
-          "placeholder": "Beschreibe die Szene, die Welt, ein Ereignis…"
+          "placeholder": "Beschreibe die Szene, die Welt, ein Ereignis…",
+          "short": "Erzählen"
         },
         "ooc": {
           "label": "Anweisung außerhalb der Rolle: eine Notiz für die KI, in der Geschichte unsichtbar",
-          "placeholder": "Anweisung für die KI (z. B.: Beende immer deine Sätze)…"
+          "placeholder": "Anweisung für die KI (z. B.: Beende immer deine Sätze)…",
+          "short": "Außerhalb der Rolle"
         }
       },
       "ghostwriteTitle": "Meine Antwort für mich schreiben (vor dem Senden bearbeitbar)",
@@ -247,7 +250,9 @@
       "sendTitle": "Senden",
       "hintDefault": "Enter zum Senden · Umschalt+Enter für eine neue Zeile · Feder: Die KI entwirft deine Antwort",
       "hintTouch": "Zum Abschicken auf Senden tippen. Die Feder entwirft deine Antwort.",
-      "draftRestored": "Entwurf wiederhergestellt"
+      "draftRestored": "Entwurf wiederhergestellt",
+      "more": "Sprechen, erzählen, außerhalb der Rolle oder für mich schreiben",
+      "penLabel": "Für mich schreiben"
     },
     "message": {
       "youFallback": "Du",
@@ -313,7 +318,8 @@
       "sceneAnchor": {
         "title": "Szenen-Anker",
         "youFallback": "du"
-      }
+      },
+      "cardSummary": "Die Karte in Kürze"
     },
     "wallpaper": {
       "title": "Hintergrund",

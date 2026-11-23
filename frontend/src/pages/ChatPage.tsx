@@ -28,6 +28,10 @@ const WIDE = "(min-width: 48rem)";
 /** From which it opens there by default: narrower, beside the sidebar, it leaves the story a sliver. */
 const ROOMY = "(min-width: 64rem)";
 
+/** The header's icon buttons: 44px squares at any width and any size of the system's text. */
+const headerSquare =
+  "inline-flex size-[44px] shrink-0 items-center justify-center rounded-lg text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1";
+
 /** Keyed by the id, so that a branch starts from its own messages, not from those it was cut from. */
 export function ChatPage() {
   const { id = "" } = useParams();
@@ -46,9 +50,9 @@ function StreamBubble({ text, character, arriving, onGrow }: {
   useEffect(onGrow, [words, onGrow]);
   return (
     <div className="flex gap-3.5 px-1 py-3">
-      <Avatar name={character.name} src={character.avatar_url} className="mt-0.5 h-10 w-10 shrink-0 text-lg" />
+      <Avatar name={character.name} src={character.avatar_url} className="mt-0.5 size-[40px] shrink-0 text-lg" />
       <div className="min-w-0 flex-1">
-        <span className="font-display text-[0.95rem] font-semibold text-ember-300">{character.name}</span>
+        <span className="chat-name font-display font-semibold text-ember-300">{character.name}</span>
         <div className="mt-1">
           {words ? (
             <RpText text={words} streaming={arriving} />
@@ -257,11 +261,59 @@ function ChatView({ id }: { id: string }) {
     fromBottom.current = null;
   }, [drawn]);
 
+  // The message being read: the first whose bottom is below the top of the story, and how far
+  // above that top its own top is, as a share of its height.
+  const reading = useRef<{ id: string; share: number } | null>(null);
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const top = el.getBoundingClientRect().top;
+    for (const message of el.querySelectorAll<HTMLElement>("[data-message-id]")) {
+      const box = message.getBoundingClientRect();
+      if (box.bottom <= top) continue;
+      reading.current = { id: message.dataset.messageId!, share: box.height ? (top - box.top) / box.height : 0 };
+      return;
+    }
+    reading.current = null;
   }, []);
+
+  /** Puts the place being read back where it was once the text has flowed again, before it is
+   *  painted. The browser's own anchoring is off on the story: Chrome's would move the view, and its
+   *  scroll event would unstick the bottom while a reply is being written; Safari has none at all. */
+  const keepPlace = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (stickToBottom.current) {
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    const place = reading.current;
+    const message = place && el.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(place.id)}"]`);
+    if (!place || !message) return;
+    const box = message.getBoundingClientRect();
+    el.scrollTop += box.top + place.share * box.height - el.getBoundingClientRect().top;
+  }, []);
+  useLayoutEffect(keepPlace, [display.text, keepPlace]);
+  // The text flows again when the story's width changes too: the panel opened or closed beside it,
+  // a phone turned. Not its height alone, the keyboard opening, which moves nothing at the top.
+  // Called after layout, before paint.
+  const [storyNode, setStoryNode] = useState<HTMLDivElement | null>(null);
+  const storyRef = useCallback((node: HTMLDivElement | null) => {
+    scrollRef.current = node;
+    setStoryNode(node);
+  }, []);
+  useEffect(() => {
+    if (!storyNode) return;
+    let width = storyNode.clientWidth;
+    const watch = new ResizeObserver(() => {
+      if (storyNode.clientWidth === width) return;
+      width = storyNode.clientWidth;
+      keepPlace();
+    });
+    watch.observe(storyNode);
+    return () => watch.disconnect();
+  }, [storyNode, keepPlace]);
 
   /** Settles at the server's answer or at patience's end; either way the page then finds out how things stand. */
   function ask(request: Omit<TurnRequest, "conversation_id">) {
@@ -374,31 +426,35 @@ function ChatView({ id }: { id: string }) {
   return (
     <div className="flex h-full">
       {/* Under the panel, which covers it below md, out of the keyboard's reach. */}
-      {/* The scale of the story's text, here only: the panel and the card beside it keep theirs. */}
+      {/* The scale of the story's text, here only: the panel and the card beside it keep theirs. A
+          container, for the header to make room under 320px, in px like its buttons. */}
       <div
-        className="flex min-w-0 flex-1 flex-col"
+        className="@container/column flex min-w-0 flex-1 flex-col"
         inert={panelOpen && !wide}
         style={{ "--chat-scale": display.text } as React.CSSProperties}
       >
-        <header className="flex items-center gap-3 border-b border-ink-700 bg-ink-900 px-4 py-3 pointer-coarse:py-[13px] md:bg-ink-900/80 md:backdrop-blur">
+        {/* Its widths in px, which the system's text size leaves alone: under a root of 32px, buttons in
+            rem would leave the name nothing. Only the name and the title follow that size. Under 320px the
+            portrait goes (the panel opens the card in short then) and the gaps and sides narrow. */}
+        <header className="flex items-center gap-[12px] border-b border-ink-700 bg-ink-900 px-[16px] py-3 pointer-coarse:py-[13px] md:bg-ink-900/80 md:backdrop-blur @max-[320px]/column:gap-[4px] @max-[320px]/column:px-[8px]">
           <Link
             to="/chat"
-            // 44px on a touch screen, over the header's padding; the title below the name needs 14px beyond it, hence 13px there.
-            className="rounded-lg p-1.5 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
+            // Over the header's padding on a touch screen; the title below the name needs 14px beyond it, hence 13px there.
+            className={headerSquare}
             aria-label={t("chat.header.backAriaLabel")}
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="size-[20px]" />
           </Link>
           {/* The avatar opens the card in short, as in a messaging app. Not the name too: stacked over
               the title, a second 44px area would take the title's touches. */}
           <button
             onClick={() => setShowCard(true)}
-            className="shrink-0 rounded-lg transition-opacity hover:opacity-80 pointer-coarse:-my-1 pointer-coarse:p-1"
+            className="inline-flex size-[44px] shrink-0 items-center justify-center rounded-lg transition-opacity hover:opacity-80 pointer-coarse:-my-1 @max-[320px]/column:hidden"
             aria-label={t("chat.cardSummary.aboutAriaLabel", { name: character.name })}
             title={t("chat.cardSummary.aboutAriaLabel", { name: character.name })}
             aria-haspopup="dialog"
           >
-            <Avatar name={character.name} src={character.avatar_url} className="h-9 w-9 text-base" />
+            <Avatar name={character.name} src={character.avatar_url} className="size-[36px] text-base" />
           </button>
           <div className="min-w-0">
             <h1 className="truncate font-display font-semibold leading-tight">{character.name}</h1>
@@ -433,7 +489,7 @@ function ChatView({ id }: { id: string }) {
               </button>
             )}
           </div>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-[12px] @max-[320px]/column:gap-[4px]">
             {contextStats && (
               <div
                 className="hidden items-center gap-2 sm:flex"
@@ -463,29 +519,29 @@ function ChatView({ id }: { id: string }) {
             <button
               ref={displayButton}
               onClick={() => openDisplay(false, () => displayButton.current)}
-              className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
+              className={headerSquare}
               aria-label={t("chat.header.displayAriaLabel")}
               title={t("chat.header.displayAriaLabel")}
               aria-haspopup="dialog"
             >
               {/* As wide and tall as the icon of the button beside it. */}
-              <span aria-hidden className="block h-5 min-w-5 font-display text-base leading-5">Aa</span>
+              <span aria-hidden className="block h-[20px] min-w-[20px] font-display text-[16px] leading-[20px]">Aa</span>
             </button>
             {!panelOpen && (
               <button
                 ref={panelButton}
                 autoFocus={panelByHand}
                 onClick={() => showPanel(true)}
-                className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
+                className={headerSquare}
                 aria-label={t("chat.header.memorySettingsAriaLabel")}
               >
-                <SlidersHorizontal className="h-5 w-5" />
+                <SlidersHorizontal className="size-[20px]" />
               </button>
             )}
           </div>
         </header>
 
-        <div ref={scrollRef} onScroll={onScroll} className="relative flex-1 overflow-y-auto">
+        <div ref={storyRef} data-story onScroll={onScroll} className="relative flex-1 overflow-y-auto [overflow-anchor:none]">
           {conversation.wallpaper_url && (
             // Pinned to the column: a backdrop that scrolls with the text is a picture in the conversation, not behind it.
             <div aria-hidden className="pointer-events-none sticky top-0 h-0 w-full">
@@ -576,6 +632,11 @@ function ChatView({ id }: { id: string }) {
           onConversationChange={(patch) => {
             if ("summary" in patch) summaries.current += 1;
             setConversation((c) => (c ? { ...c, ...patch } : c));
+          }}
+          onShowCard={() => {
+            setPanelByHand(false);
+            setPanelOpen(false);
+            setShowCard(true);
           }}
           onOpenDisplay={(focus) => {
             // Over the conversation, it would hide what is being judged.

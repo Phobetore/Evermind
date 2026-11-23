@@ -24,6 +24,7 @@ export function ChatSidePanel({
   onClose,
   onConversationChange,
   onOpenDisplay,
+  onShowCard,
 }: {
   conversation: Conversation;
   persona: Persona | null;
@@ -35,6 +36,8 @@ export function ChatSidePanel({
   onConversationChange: (patch: Partial<Conversation>) => void;
   /** Opens the Display sheet; "strength": with the focus on the strength slider. */
   onOpenDisplay: (focus?: "strength") => void;
+  /** Closes the panel and opens the card in short, whose header button a screen under 320px hides. */
+  onShowCard: () => void;
 }) {
   const t = useT();
   const character = conversation.character!;
@@ -330,6 +333,11 @@ export function ChatSidePanel({
       // Not from a box being typed in, whose words would go with the panel.
       onKeyDown={(e) => e.key === "Escape" && !(e.target as Element).matches("input, textarea") && onClose()}
     >
+      {/* Under 320px the header has no room for the portrait that opens the card in short. The link
+          to the card's page below would leave the conversation: it does not stand in for it. */}
+      <button className="btn btn-ghost hidden w-full whitespace-normal max-[320px]:flex" onClick={onShowCard}>
+        {t("chat.panel.cardSummary")}
+      </button>
       <div className="flex items-start justify-between gap-2">
         {/* min-w-0 down the chain, and the name allowed to break anywhere: a name
             is whatever its owner typed, and a handle is one long word. */}

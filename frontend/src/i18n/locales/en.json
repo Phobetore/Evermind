@@ -230,15 +230,18 @@
       "modes": {
         "say": {
           "label": "Say / action (click to change mode)",
-          "placeholder": "Write to {name}… (*asterisks* for your actions)"
+          "placeholder": "Write to {name}… (*asterisks* for your actions)",
+          "short": "Say"
         },
         "narrate": {
           "label": "Narration: you describe the world, the scene, the events",
-          "placeholder": "Describe the scene, the world, an event…"
+          "placeholder": "Describe the scene, the world, an event…",
+          "short": "Narrate"
         },
         "ooc": {
           "label": "Out-of-character instruction: a note for the AI, invisible in the story",
-          "placeholder": "Instruction for the AI (e.g.: always finish your sentences)…"
+          "placeholder": "Instruction for the AI (e.g.: always finish your sentences)…",
+          "short": "Out of character"
         }
       },
       "ghostwriteTitle": "Write my reply for me (editable before sending)",
@@ -247,7 +250,9 @@
       "sendTitle": "Send",
       "hintDefault": "Enter to send · Shift+Enter for a new line · quill: the AI drafts your reply",
       "hintTouch": "Tap send when you are ready. The quill drafts your reply.",
-      "draftRestored": "Draft restored"
+      "draftRestored": "Draft restored",
+      "more": "Say, narrate, out of character, or write mine for me",
+      "penLabel": "Write mine for me"
     },
     "message": {
       "youFallback": "You",
@@ -313,7 +318,8 @@
       "sceneAnchor": {
         "title": "Scene anchor",
         "youFallback": "you"
-      }
+      },
+      "cardSummary": "The card in short"
     },
     "wallpaper": {
       "title": "Backdrop",
