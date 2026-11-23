@@ -68,6 +68,12 @@ export function ChatInput({
   const [ghostwriting, setGhostwriting] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const hintFades = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Advice does not fade, so it is cleared when a turn starts, whoever started it.
+  const [hintIsAdvice, setHintIsAdvice] = useState(false);
+  if (busy && hintIsAdvice) {
+    setHint(null);
+    setHintIsAdvice(false);
+  }
   // Stays until the next attempt, rather than fading: something has to be
   // switched on before trying again is worth anything.
   const [silent, setSilent] = useState(false);
@@ -130,6 +136,7 @@ export function ChatInput({
     // The reply about to be asked for reports its own silence, in the conversation: one notice at a time.
     setSilent(false);
     setHint(null);
+    setHintIsAdvice(false);
     change(content);
     suggested.current = ""; // sent, it is the person's message, refused or not
     setSending(true);
@@ -142,6 +149,7 @@ export function ChatInput({
     setGhostwriting(true);
     clearTimeout(hintFades.current);
     setHint(null);
+    setHintIsAdvice(false);
     setSilent(false);
     try {
       const result = await data.turns.impersonate(conversationId);
@@ -158,6 +166,7 @@ export function ChatInput({
       } else {
         setHint(describeError(e, t, t("chat.input.ghostwriteError")));
         // Advice on what to change stays until the next try or message: it takes reading.
+        setHintIsAdvice(isAdvice(e));
         if (!isAdvice(e)) hintFades.current = setTimeout(() => setHint(null), 4000);
       }
     }

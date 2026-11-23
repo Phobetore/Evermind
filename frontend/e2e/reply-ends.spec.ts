@@ -132,3 +132,25 @@ test("the pen's advice on what to change stays until the next try", { tag: "@des
   await expect(hint).toContainText(advice);
   await noSidewaysScroll(page);
 });
+
+test("the pen's advice is gone once a reply is asked for another way", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  // A message the model answers with nothing but thought; the pen reads it too.
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "MOCK_REASONS_ONLY" });
+  await page.goto(`/#/chat/${convo.id}`);
+
+  await page.locator('button[title="Write my reply for me (editable before sending)"]').click();
+  const hint = page.locator("[data-input-hint]");
+  const advice = "The model spent its whole answer thinking and wrote nothing.";
+  await expect(hint).toContainText(advice);
+
+  // The message is reworded so the model answers; the conversation's own Retry asks again, not the box.
+  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  const asked = read.messages.at(-1);
+  await request.patch(`${API}/api/messages/${asked.id}`, { data: { content: "Tell me more." } });
+  const ends = replyEnds(page, convo.id);
+  await page.getByRole("button", { name: "Retry" }).click();
+  await ends;
+
+  await expect(hint).not.toContainText("wrote nothing");
+});
