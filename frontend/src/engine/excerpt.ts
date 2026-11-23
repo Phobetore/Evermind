@@ -244,8 +244,8 @@ function firstRealLines(text: string, name: string): string[] {
 
 function skipped(line: string, heading: boolean, ownName: string): boolean {
   if (!line || heading) return true;
-  // A row of a Markdown table, outer pipes or not: a sheet of traits. Its rule line has no letter
-  // and goes with the rule at the end.
+  // A row of a Markdown table, outer pipes or not: a sheet of traits. A rule line with no pipe,
+  // "---", has no letter and goes with the last rule.
   if (line.includes("|")) return true;
   if (pyLower(line) === ownName) return true;
   // {{char}} alone opens with a brace and closes with one: this rule takes it too.

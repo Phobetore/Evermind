@@ -215,8 +215,8 @@ def _first_real_lines(text: str, name: str) -> list[str]:
 def _skipped(line: str, heading: bool, own_name: str) -> bool:
     if not line or heading:
         return True
-    # A row of a Markdown table, outer pipes or not: a sheet of traits. Its rule line has no
-    # letter and goes with the rule at the end.
+    # A row of a Markdown table, outer pipes or not: a sheet of traits. A rule line with no pipe,
+    # "---", has no letter and goes with the last rule.
     if "|" in line:
         return True
     if line.lower() == own_name:
