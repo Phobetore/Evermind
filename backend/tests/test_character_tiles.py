@@ -97,13 +97,60 @@ async def test_search_takes_the_words_as_one_piece(client):
     assert resp.json() == [yes["id"]]
 
 
+def set_columns(char_id, **values):
+    conn = sqlite3.connect(db_path())
+    try:
+        conn.execute(f"UPDATE characters SET {', '.join(f'{k} = ?' for k in values)} WHERE id = ?",
+                     (*values.values(), char_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 async def test_tiles_keep_the_order_of_the_list(client):
-    first = await make(client, name="First")
-    second = await make(client, name="Second")
-    await client.put(f"/api/characters/{first['id']}", json={"is_favorite": True})
+    favourite = await make(client, name="Favourite")
+    older = await make(client, name="Older")
+    newer = await make(client, name="Newer")
+    await client.put(f"/api/characters/{favourite['id']}", json={"is_favorite": True})
+    # The favourite is the oldest edit of the three: only is_favorite can put it first.
+    set_columns(favourite["id"], updated_at="2020-01-01T00:00:00+00:00")
+    set_columns(older["id"], updated_at="2021-01-01T00:00:00+00:00")
+    set_columns(newer["id"], updated_at="2022-01-01T00:00:00+00:00")
     ids = [t["id"] for t in await tiles(client)]
-    assert ids == [first["id"], second["id"]]
+    assert ids == [favourite["id"], newer["id"], older["id"]]
     assert ids == [c["id"] for c in (await client.get("/api/characters")).json()]
+
+
+async def test_a_tile_has_the_portrait_and_its_small_copy(client):
+    char = await make(client, name="Pictured")
+    set_columns(char["id"], avatar_path="portraits/a.png", avatar_thumb_path="portraits/a-480.webp")
+    (tile,) = await tiles(client)
+    full = (await client.get(f"/api/characters/{char['id']}")).json()
+    assert tile["avatar_url"] == "api/media/portraits/a.png" == full["avatar_url"]
+    assert tile["avatar_thumb_url"] == "api/media/portraits/a-480.webp" == full["avatar_thumb_url"]
+
+
+async def test_a_second_list_works_nothing_out_again(client, monkeypatch):
+    char = await make(client, description="Elle garde le gué depuis trois hivers.")
+    assert column(char["id"], "excerpt") is None
+    first = await tiles(client)
+    assert column(char["id"], "excerpt") == first[0]["excerpt"] != ""
+    assert column(char["id"], "excerpt_rule") == card_text.EXCERPT_RULE
+    calls = []
+    monkeypatch.setattr(card_text, "card_excerpt", lambda d, n: calls.append(n) or "autre")
+    assert await tiles(client) == first
+    assert calls == []
+
+
+async def test_a_new_name_works_the_excerpt_out_again(client):
+    char = await make(client, name="Autre", description="Brunehilde\nElle veille sur la tour grise.")
+    (before,) = await tiles(client)
+    assert before["excerpt"].startswith("Brunehilde")
+    resp = await client.put(f"/api/characters/{char['id']}", json={"name": "Brunehilde"})
+    assert resp.status_code == 200
+    assert column(char["id"], "excerpt") is None
+    (after,) = await tiles(client)
+    assert after["excerpt"] == "Elle veille sur la tour grise."
 
 
 async def test_an_edit_during_a_list_is_not_overwritten(client, monkeypatch):
@@ -131,6 +178,23 @@ async def test_an_edit_during_a_list_is_not_overwritten(client, monkeypatch):
     monkeypatch.setattr(card_text, "card_excerpt", original)
     (tile,) = await tiles(client)
     assert tile["excerpt"] == "brumelune, une toute nouvelle description pour la fiche."
+
+
+async def test_a_rename_during_a_list_is_not_overwritten(client, monkeypatch):
+    char = await make(client, name="Autre", description="Brunehilde\nElle veille sur la tour grise.")
+    original = card_text.card_excerpt
+
+    def renamed_meanwhile(description, name):
+        set_columns(char["id"], name="Brunehilde", excerpt=None)
+        return "ancien extrait"
+
+    monkeypatch.setattr(card_text, "card_excerpt", renamed_meanwhile)
+    (tile,) = await tiles(client)
+    assert tile["excerpt"] == "ancien extrait"
+    assert column(char["id"], "excerpt") is None
+    monkeypatch.setattr(card_text, "card_excerpt", original)
+    (tile,) = await tiles(client)
+    assert tile["excerpt"] == "Elle veille sur la tour grise."
 
 
 async def test_excerpts_are_worked_out_off_the_event_loop(client, monkeypatch):
