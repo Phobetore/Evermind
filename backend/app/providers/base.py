@@ -9,7 +9,7 @@ from typing import Literal
 
 import httpx
 
-from ..errors import MODEL_ERROR, MODEL_UNREADABLE, AppError
+from ..errors import MODEL_ERROR, MODEL_ONLY_THOUGHT, MODEL_UNREADABLE, MODEL_WITHHELD, AppError
 from ..prompting.engine import PromptPayload
 
 # Local generation can be slow: generous read timeout, snappy connect timeout.
@@ -201,6 +201,26 @@ class Answer:
     text: str
     thought: int  # characters of reasoning that came with it, only counted
     stop: str | None  # what ``ProviderEvent.stop`` says on the "done" event
+
+
+# How a model stops when it simply has nothing more to say, whatever its server calls it.
+_ORDINARY_ENDS = ("stop", "end_turn", "stop_sequence")
+ONLY_THOUGHT = ("The model spent its whole answer thinking and wrote nothing. Raise the "
+                "connection's max tokens, or use a model that does not think as long.")
+
+
+def unwritten(answer: Answer, only_thought: str = ONLY_THOUGHT) -> AppError | None:
+    """Why an answer has nothing written, when how it ended tells: it reasoned, or ran out of
+    room, or its server withheld it and said so. None when it has words, or no clue: each caller
+    says that in its own way."""
+    if answer.text.strip():
+        return None
+    if answer.thought or answer.stop == STOPPED_FOR_LENGTH:
+        return AppError(only_thought, 502, kind=MODEL_ONLY_THOUGHT)
+    if answer.stop and answer.stop not in _ORDINARY_ENDS:
+        return AppError(f'The model\'s server withheld the answer ("{answer.stop}").', 502,
+                        kind=MODEL_WITHHELD, reason=answer.stop)
+    return None
 
 
 async def complete_answer(provider: Provider, payload: PromptPayload) -> Answer:

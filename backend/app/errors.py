@@ -20,6 +20,8 @@ MODEL_EMPTY = "model_empty"
 MODEL_UNREADABLE = "model_unreadable"
 # A model that spent all it had on its reasoning, and wrote not one character of its answer.
 MODEL_ONLY_THOUGHT = "model_only_thought"
+# A reply with nothing in it, which the model's server ended with a word of its own, in `reason`.
+MODEL_WITHHELD = "model_withheld"
 NO_CONNECTION = "no_connection"
 NOT_FOUND = "not_found"
 # A turn was asked for while a different one was being written.
@@ -50,7 +52,7 @@ class AppError(Exception):
 
     def __init__(self, message: str, status_code: int | None = None,
                  kind: str | None = None, resource: str | None = None,
-                 params: dict | None = None):
+                 params: dict | None = None, reason: str | None = None):
         super().__init__(message)
         self.message = message
         # A name for what went wrong, which the interface has a sentence for in
@@ -61,6 +63,8 @@ class AppError(Exception):
         self.resource = resource
         # The numbers the interface's sentence for this kind is made of.
         self.params = params
+        # A word of someone else's that the interface shows as it was written: a model server's.
+        self.reason = reason
         if status_code is not None:
             self.status_code = status_code
 
@@ -80,6 +84,8 @@ def error_body(exc: AppError) -> dict:
         body["resource"] = exc.resource
     if exc.params:
         body["params"] = exc.params
+    if exc.reason:
+        body["reason"] = exc.reason
     return body
 
 

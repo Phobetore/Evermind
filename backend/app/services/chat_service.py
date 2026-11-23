@@ -31,7 +31,8 @@ from ..prompting.engine import (
 )
 from ..prompting.payloads import build_impersonate_payload
 from ..prompting.tokens import estimate_tokens
-from ..providers import ProviderError, complete, get_provider
+from ..providers import Answer, ProviderError, complete, get_provider
+from ..providers.base import unwritten
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
@@ -215,6 +216,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 
     chunks: list[str] = []
     usage = None
+    stop = None  # the server's word for why the model stopped
+    thought = 0  # characters of reasoning, only counted: what a model thinks is not its reply
     first_token_at = None
     started_at = time.monotonic()
     index = (target["active_index"] if continue_mode else len(target["variants"])) if target else 0
@@ -223,14 +226,16 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 
     async def read_model() -> None:
         """Touches no database, so that a stop, which cancels it, cannot land in a write."""
-        nonlocal usage, first_token_at
+        nonlocal usage, first_token_at, stop, thought
+        stop, thought = None, 0
         async with aclosing(get_provider(connection).stream_chat(payload)) as stream:
             async for event in stream:
                 if event.type == "done":
-                    usage = event.usage
+                    usage, stop = event.usage, event.stop
                     continue
                 if event.type != "delta":
-                    continue  # reasoning is no word of the reply, nor its first
+                    thought += event.count  # reasoning is no word of the reply, nor its first
+                    continue
                 first_token_at = first_token_at or time.monotonic()
                 if not chunks and existing[-1:].strip() and event.text[:1].strip():
                     turn.add(" ")  # as the version is saved
@@ -267,7 +272,9 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         written = True
 
     # At most two passes: a model that answers nothing to a story opening on the greeting is asked
-    # again with it folded into the system prompt (see build_chat_payload).
+    # again with it folded into the system prompt (see build_chat_payload). Not one that said why
+    # it wrote nothing, by reasoning, running out of room or a word of its server's: the same
+    # question would get the same answer, and its tokens are paid for.
     error = None
     for attempt in (0, 1):
         if turn.stopped:
@@ -280,8 +287,9 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         error = None if turn.reading.cancelled() else turn.reading.exception()
         # Refusing the greeting may be said in the stream rather than by silence.
         refused = isinstance(error, ProviderError) and error.kind == MODEL_ERROR and not error.status
+        silent = error is None and unwritten(Answer("", thought, stop)) is None
         if not (attempt == 0 and not chunks and not continue_mode and not turn.stopped
-                and (error is None or refused)
+                and (silent or refused)
                 and payload.messages and payload.messages[0]["role"] == "assistant"):
             break
         payload = _build(passages, fold_leading_assistant=True)
@@ -298,10 +306,15 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             await say_unanswered(None if turn.stopped else failure)
         return None if turn.stopped else failure
     if not text:
-        if continue_mode:
+        if why := unwritten(Answer(text, thought, stop)):
+            failure = {"kind": why.kind, "message": why.message}
+            if why.reason:
+                failure["reason"] = why.reason
+        elif continue_mode:
             return {"kind": "nothing_added", "message": "The model had nothing to add."}
-        failure = {"kind": MODEL_EMPTY,
-                   "message": "The model returned an empty reply. Try again or switch models."}
+        else:
+            failure = {"kind": MODEL_EMPTY,
+                       "message": "The model returned an empty reply. Try again or switch models."}
         if answering is not None:
             await say_unanswered(failure)
         return failure
