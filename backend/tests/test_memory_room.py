@@ -9,8 +9,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from app.errors import MODEL_ONLY_THOUGHT
-from app.providers.base import NO_TEXT
+from app.errors import MODEL_ONLY_THOUGHT, MODEL_WITHHELD
 from app.providers.openai_compat import OpenAICompatProvider
 from app.services import memory_service
 
@@ -152,14 +151,17 @@ async def test_a_model_that_only_thinks_twice_is_told_so_after_two_requests(stor
     assert "9000 characters of reasoning" in failure and "'length'" in failure
 
 
-async def test_an_answer_the_server_withheld_is_named_and_not_asked_again(story):
+async def test_an_answer_the_server_withheld_is_named_and_not_asked_again(story, caplog):
     await story.set_connection(max_tokens=300)
     server = story.serve([finish("content_filter"), "[DONE]"])
-    resp = await story.extract()
+    with caplog.at_level(logging.WARNING):
+        resp = await story.extract()
     assert resp.status_code == 502
-    assert resp.json()["kind"] == NO_TEXT
-    assert "content_filter" in resp.json()["error"]
+    assert resp.json() == {"error": "The model's server withheld the answer (\"content_filter\").",
+                           "kind": MODEL_WITHHELD, "reason": "content_filter"}
     assert len(server.bodies) == 1
+    assert any("unreadable answer" in r.getMessage() and "'content_filter'" in r.getMessage()
+               for r in caplog.records)
 
 
 async def test_a_second_request_the_server_refuses_gives_the_first_failure(story, caplog):
@@ -191,11 +193,11 @@ async def test_a_connection_with_no_ceiling_that_only_thought_is_not_asked_again
 
 
 async def test_an_empty_answer_that_ran_out_of_room_says_so(story):
+    """Its server may count the reasoning against the room and still not send it."""
     await story.set_connection(max_tokens=None)
     server = story.serve([finish("length"), "[DONE]"], [finish("length"), "[DONE]"])
     resp = await story.extract()
-    assert resp.json()["kind"] == NO_TEXT
-    assert "room" in resp.json()["error"]
+    assert resp.json()["kind"] == MODEL_ONLY_THOUGHT
     assert len(server.bodies) == 2
 
 
@@ -266,7 +268,7 @@ async def test_a_connection_with_no_ceiling_is_asked_again_only_with_the_full_ro
     await story.set_connection(max_tokens=None, context_size=4096)
     server = story.serve([finish("length"), "[DONE]"], writing(EXTRACTION_JSON))
     resp = await story.extract()
-    assert resp.json()["kind"] == NO_TEXT
+    assert resp.json()["kind"] == MODEL_ONLY_THOUGHT
     assert server.asked() == [None]
 
 
@@ -291,5 +293,5 @@ async def test_a_consolidation_the_server_withheld_is_named(story):
     server = story.serve([finish("content_filter"), "[DONE]"])
     resp = await story.client.post(f"/api/conversations/{story.id}/memories/consolidate")
     assert resp.status_code == 502
-    assert resp.json()["kind"] == NO_TEXT
+    assert (resp.json()["kind"], resp.json()["reason"]) == (MODEL_WITHHELD, "content_filter")
     assert len(server.bodies) == 1

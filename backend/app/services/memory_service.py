@@ -19,7 +19,6 @@ from ..errors import (
     CONVERSATION_CHANGED,
     FACTS_CHANGED,
     MEMORY_BUSY,
-    MODEL_ONLY_THOUGHT,
     MODEL_UNREADABLE,
     NO_CONNECTION,
     TOO_FEW_FACTS,
@@ -39,7 +38,7 @@ from ..prompting.payloads import (
     prompt_tokens,
 )
 from ..providers import Answer, ProviderError, complete_answer, get_provider
-from ..providers.base import NO_TEXT, STOPPED_FOR_LENGTH
+from ..providers.base import NO_TEXT, STOPPED_FOR_LENGTH, unwritten
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
@@ -207,23 +206,16 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
 
 
 def _unreadable(answer: Answer, what: str, said: str) -> AppError:
-    """Why a pass has nothing to use, by how the model's answer ended: it only thought, its server
-    gave no text, or what it wrote cannot be read."""
+    """Why a pass has nothing to use, by how the model's answer ended: it only thought or ran out
+    of room, its server withheld it, it gave no text, or what it wrote cannot be read."""
     logger.warning("%s: unreadable answer, %s, %d characters of reasoning, stopped with %r",
                    what, describe_answer(answer.text), answer.thought, answer.stop)
     if answer.text.strip():
         return AppError(said, 502, kind=MODEL_UNREADABLE)
-    if answer.thought:
-        return AppError(
-            "The model only thought, and wrote no memory. Give its connection more max tokens, "
-            "or use a model that thinks less.", 502, kind=MODEL_ONLY_THOUGHT)
-    if answer.stop == STOPPED_FOR_LENGTH:
-        message = "The model returned no text: it ran out of room."
-    elif answer.stop and answer.stop != "stop":
-        message = f'The model returned no text (its server ended the answer with "{answer.stop}").'
-    else:
-        message = "The model returned no text."
-    return AppError(message, 502, kind=NO_TEXT)
+    only_thought = ("The model only thought, and wrote no memory. Give its connection more max "
+                    "tokens, or use a model that thinks less.")
+    return unwritten(answer, only_thought) or AppError("The model returned no text.", 502,
+                                                       kind=NO_TEXT)
 
 
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:

@@ -9,9 +9,9 @@ from typing import ClassVar
 import pytest
 
 from app.errors import MODEL_EMPTY, MODEL_ONLY_THOUGHT, MODEL_WITHHELD, error_body
-from app.providers.base import Answer, ProviderError, ProviderEvent, unwritten
+from app.providers.base import NO_TEXT, Answer, ProviderError, ProviderEvent, unwritten
 
-from .conftest import messages_of, send, setup_conversation
+from .conftest import assist, messages_of, send, setup_conversation
 
 
 @pytest.mark.parametrize(("answer", "kind", "reason"), [
@@ -256,3 +256,68 @@ async def test_rewriting_a_cut_version_by_hand_clears_its_mark_and_a_swipe_does_
     edited = (await client.patch(f"/api/messages/{reply['id']}",
                                  json={"content": "She nods.", "active_index": 1})).json()
     assert "ceiling" not in edited["meta"]
+
+
+# Every other place that asks a model.
+
+WITHHELD = {"error": "The model's server withheld the answer (\"content_filter\").",
+            "kind": MODEL_WITHHELD, "reason": "content_filter"}
+
+
+@pytest.mark.parametrize(("script", "kind"), [
+    (ends(thought=8000, stop="length"), MODEL_ONLY_THOUGHT),
+    (ends(stop="content_filter"), MODEL_WITHHELD),
+    (ends(stop="stop"), MODEL_EMPTY),
+])
+async def test_a_ghost_written_message_with_nothing_in_it_says_why(client, model, script, kind):
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+    model.scripts = [script]
+
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
+
+    assert resp.status_code == 502
+    assert resp.json()["kind"] == kind
+    if kind == MODEL_WITHHELD:
+        assert resp.json() == WITHHELD
+
+
+@pytest.mark.parametrize(("script", "kind"), [
+    (ends(thought=8000, stop="length"), MODEL_ONLY_THOUGHT),
+    (ends(stop="content_filter"), MODEL_WITHHELD),
+    (ends(stop="stop"), NO_TEXT),
+])
+async def test_a_connection_test_that_produced_nothing_says_why(client, model, monkeypatch,
+                                                               script, kind):
+    monkeypatch.setattr("app.routers.connections.get_provider", Scripted)
+    model.scripts = [script]
+    connection = (await client.post("/api/connections", json={
+        "name": "Mock", "provider": "openai-compatible", "base_url": "http://mock/v1",
+        "model": "test-model"})).json()
+
+    resp = await client.post("/api/connections/benchmark", json=connection)
+
+    assert resp.status_code == 502
+    assert resp.json()["kind"] == kind
+    if kind == MODEL_WITHHELD:
+        assert resp.json() == WITHHELD
+
+
+async def test_a_connection_test_that_reasons_then_writes_measures_from_the_first_word(
+        client, model, monkeypatch):
+    monkeypatch.setattr("app.routers.connections.get_provider", Scripted)
+    model.scripts = [ends("Rain on a quiet street.", thought=500, stop="stop")]
+    connection = (await client.post("/api/connections", json={
+        "name": "Mock", "provider": "openai-compatible", "base_url": "http://mock/v1",
+        "model": "test-model"})).json()
+    resp = await client.post("/api/connections/benchmark", json=connection)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["tokens"] > 0
+
+
+async def test_a_card_the_server_withheld_names_its_word(client, model, monkeypatch):
+    monkeypatch.setattr("app.services.card_assistant.get_provider", Scripted)
+    await setup_conversation(client)
+    model.scripts = [ends(stop="content_filter")]
+    state = await assist(client)
+    assert state["error"] == WITHHELD

@@ -32,7 +32,7 @@ from ..prompting.engine import (
 )
 from ..prompting.payloads import build_impersonate_payload
 from ..prompting.tokens import estimate_tokens
-from ..providers import Answer, ProviderError, complete, get_provider
+from ..providers import Answer, ProviderError, complete_answer, get_provider
 from ..providers.base import STOPPED_FOR_LENGTH, unwritten
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
@@ -364,9 +364,11 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
         raise AppError("Nothing to write: the conversation is empty.", kind="conversation_empty")
 
     payload = build_impersonate_payload(character, persona, convo, messages, connection)
-    answer = await complete(get_provider(connection), payload)
-    text = trim_reply(answer, char_name=user_name, user_name=char_name)
+    answer = await complete_answer(get_provider(connection), payload)
+    text = trim_reply(answer.text, char_name=user_name, user_name=char_name)
     if not text:
-        logger.warning("impersonation: empty answer, %s", describe_answer(answer))
-        raise AppError("The model did not suggest anything. Try again.", 502, kind=MODEL_EMPTY)
+        logger.warning("impersonation: empty answer, %s, %d characters of reasoning, stopped with %r",
+                       describe_answer(answer.text), answer.thought, answer.stop)
+        raise unwritten(Answer(text, answer.thought, answer.stop)) or AppError(
+            "The model did not suggest anything. Try again.", 502, kind=MODEL_EMPTY)
     return {"text": text}
