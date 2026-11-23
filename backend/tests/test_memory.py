@@ -985,3 +985,61 @@ async def test_passages_off_when_budget_zero(client, fake_provider, monkeypatch)
                             ProviderEvent(type="done")]
     await send(client, convo["id"], content="Tell me about the crypt again.")
     assert "### RELEVANT PAST" not in fake_provider.captured["payload"].system
+
+
+async def test_a_remember_or_a_condense_neither_shortens_nor_clears_a_failed_pass(client, monkeypatch):
+    """A failed automatic pass waits MAINTENANCE_EVERY - 1 replies. A Condense, failed or done, and
+    a failed Remember, leave that wait as it was; a Condense that succeeds clears its own failure
+    only, since it says nothing of whether a pass would. Each failure says which operation it was."""
+    monkeypatch.setattr("app.services.chat_service.get_provider", Said)
+    monkeypatch.setattr("app.services.memory_service.get_provider", FakeProvider)
+    unreadable = [ProviderEvent(type="delta", text="not json"), ProviderEvent(type="done")]
+    FakeProvider.captured = {}
+    FakeProvider.script = unreadable
+    convo = await setup_conversation(client)
+    url = f"/api/conversations/{convo['id']}"
+    for i in range(10):
+        await client.post(f"{url}/memories", json={"content": f"Redundant fact number {i}."})
+    from app.db import _connect
+    db = await _connect()
+    await db.execute("UPDATE memories SET source='auto'")
+    await db.commit()
+    await db.close()
+    every = memory_service.MAINTENANCE_EVERY
+
+    async def reply(n):
+        await send(client, convo["id"], content=f"exchange {n}")
+        await asyncio.gather(*[t for t in asyncio.all_tasks() if "schedule_if_due" in repr(t)])
+
+    async def error():
+        return (await client.get(url)).json()["memory_error"]
+
+    for n in range(every):
+        await reply(n)
+    assert (await error())["operation"] == "pass"
+
+    failed = await client.post(f"{url}/memories/consolidate")
+    assert failed.status_code == 502
+    assert ((await error())["kind"], (await error())["operation"]) == ("model_unreadable", "consolidate")
+    FakeProvider.captured = {}
+    await reply(every)
+    assert FakeProvider.captured == {}, "a failed Condense started the automatic pass at once"
+
+    FakeProvider.script = [ProviderEvent(type="delta", text=json.dumps({"facts": [{"content": "All merged."}]})),
+                           ProviderEvent(type="done")]
+    assert (await client.post(f"{url}/memories/consolidate")).status_code == 200
+    # The pass still fails, and is still told.
+    assert ((await error())["kind"], (await error())["operation"]) == ("model_unreadable", "pass")
+
+    FakeProvider.script = unreadable
+    assert (await client.post(f"{url}/memories/extract")).status_code == 502
+    assert (await error())["operation"] == "extract"
+
+    FakeProvider.captured = {}
+    for n in range(every + 1, 2 * every - 2):
+        await reply(n)
+    assert FakeProvider.captured == {}, "the automatic pass came before its wait was over"
+    FakeProvider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON), ProviderEvent(type="done")]
+    await reply(2 * every - 2)
+    assert FakeProvider.captured["payload"]
+    assert await error() is None

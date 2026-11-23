@@ -378,7 +378,7 @@ async def test_a_remember_whose_asker_left_keeps_the_word_its_server_withheld_it
     after = await asked_then_left(story, monkeypatch)
     assert after["memory_error"] == {
         "error": "The model's server withheld the answer (\"content_filter\").",
-        "kind": MODEL_WITHHELD, "reason": "content_filter"}
+        "kind": MODEL_WITHHELD, "reason": "content_filter", "operation": "extract"}
     assert len(server.bodies) == 1
 
 

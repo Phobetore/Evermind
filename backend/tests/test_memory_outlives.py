@@ -96,7 +96,7 @@ async def test_the_failure_of_an_operation_whose_asker_left_is_told_until_one_su
     await all_done()
 
     assert (await client.get(url)).json()["memory_error"] == {
-        "error": "http://localhost:1234/v1", "kind": "unreachable"}
+        "error": "http://localhost:1234/v1", "kind": "unreachable", "operation": "extract"}
     FakeProvider.script = answers(FACTS)
     assert (await client.post(f"{url}/memories/extract")).status_code == 200
     assert (await client.get(url)).json()["memory_error"] is None
