@@ -247,6 +247,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
                        409, kind=TOO_FEW_FACTS)
 
     payload = build_consolidation_payload(character, persona, movable)
+
     def merge(text: str) -> dict | None:
         return plan_consolidation(parse_llm_json(text), movable)
 
