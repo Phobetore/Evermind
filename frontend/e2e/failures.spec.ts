@@ -254,6 +254,8 @@ test("a backdrop's strength that is not saved says so in the sheet, and its slid
     multipart: { file: { name: "backdrop.png", mimeType: "image/png", buffer: PNG } },
   });
   const held = async () => (await (await stored(request, convo.id)).json()).backdrop_strength;
+  // A small screen, where the sheet's body is taller than the sheet and scrolls.
+  await page.setViewportSize({ width: 320, height: 640 });
   await page.goto(`/#/chat/${convo.id}`);
   // Beside the conversation on a wide screen; behind this button on a phone.
   const opener = page.getByRole("button", { name: "Conversation memory and settings" });
@@ -269,6 +271,15 @@ test("a backdrop's strength that is not saved says so in the sheet, and its slid
   await failing(page, "PATCH", `/api/conversations/${convo.id}`, offline);
   await strength.fill("60");
   await expect(said).toContainText("Evermind is not answering");
+  // However far the body is scrolled, the alert stays in sight.
+  const scrolledBack = await strength.evaluate((slider) => {
+    let body = slider.parentElement;
+    while (body && body.scrollHeight <= body.clientHeight) body = body.parentElement;
+    if (!body || body.matches("dialog, html, body")) return false;
+    body.scrollTop = 0;
+    return true;
+  });
+  expect(scrolledBack, "the sheet's body does not scroll here").toBe(true);
   await expect(said).toBeInViewport();
   await expect(strength, "the slider is not what the server holds").toHaveValue("25");
   expect(await held()).toBe(0.25);
