@@ -4,6 +4,7 @@ It gets the lines of WARNING and above that the terminal gets, from the applicat
 and from the server's error logger, never the access lines, and changes nothing in the terminal.
 """
 
+import asyncio
 import logging
 
 from app import config, log_file
@@ -44,6 +45,24 @@ def test_an_exception_is_written_with_its_traceback(tmp_path):
     text = written(path)
     assert " ERROR uvicorn.error: Exception in ASGI application\nTraceback (most recent call last):\n" in text
     assert text.endswith("ValueError: the vector has the wrong length\n")
+
+
+def test_a_request_cut_by_the_stop_is_not_written_as_an_error(tmp_path):
+    path = tmp_path / "evermind.log"
+    log_file.install(lambda: path)
+    server = logging.getLogger("uvicorn.error")
+    # What uvicorn logs for a request still running past the stop's grace: the line that says so,
+    # then the request's cancellation as an exception.
+    server.error("Cancel %s running task(s), timeout graceful shutdown exceeded", 1)
+    for cancelled in (asyncio.CancelledError("Task cancelled, timeout graceful shutdown exceeded"),
+                      asyncio.CancelledError(), ValueError("Task cancelled, timeout graceful shutdown exceeded")):
+        server.error("Exception in ASGI application\n", exc_info=cancelled)
+    text = written(path)
+    assert "Cancel 1 running task(s), timeout graceful shutdown exceeded" in text
+    # Any other cancellation, and any error, is still written.
+    assert text.count("Exception in ASGI application") == 2
+    assert "\nasyncio.exceptions.CancelledError\n" in text
+    assert text.endswith("ValueError: Task cancelled, timeout graceful shutdown exceeded\n")
 
 
 def test_the_file_turns_over_at_1_mb_and_keeps_one_older(tmp_path, monkeypatch):

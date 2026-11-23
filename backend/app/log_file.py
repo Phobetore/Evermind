@@ -4,7 +4,8 @@ The terminal's lines scroll away, and the owner often uses Evermind from a phone
 terminal days later. The lines of WARNING and above that the application's own loggers and the
 server's error logger write are also appended here, as the terminal shows them, each with its date
 and time, its level and where it came from, an exception with its traceback: this is the file to
-send with a bug report. Never the access lines, and nothing is added to what is logged.
+send with a bug report. Never the access lines, nor the traceback of a request that a stop cut (the
+line before it says so), and nothing is added to what is logged.
 
 The file turns over past FILE_LIMIT and one older file is kept. A file that cannot be written stops
 nothing: the terminal says so once, and the server goes on without it. A file held for a moment by
@@ -12,6 +13,7 @@ another program, or written by another server on the same folder, is written aga
 can be, and says how many lines it missed.
 """
 
+import asyncio
 import logging
 import os
 from collections.abc import Callable
@@ -23,6 +25,16 @@ FILE_NAME = "evermind.log"
 FILE_LIMIT = 1024 * 1024
 
 logger = logging.getLogger(__name__)
+
+# What uvicorn cancels the requests still running past the grace of a stop with.
+_STOP_CANCEL = "Task cancelled, timeout graceful shutdown exceeded"
+
+
+def _not_cut_by_the_stop(record: logging.LogRecord) -> bool:
+    """A request the stop cut is logged by uvicorn as an exception, after a line of its own that
+    says how many were cut: that line is kept, the traceback of a cancellation is not an error."""
+    error = record.exc_info[1] if record.exc_info else None
+    return not (isinstance(error, asyncio.CancelledError) and error.args == (_STOP_CANCEL,))
 
 
 class _LogFile(logging.Handler):
@@ -37,6 +49,7 @@ class _LogFile(logging.Handler):
         self._written = False  # a line reached the file since the start
         self._lost = 0  # lines not written since the last that was
         self.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        self.addFilter(_not_cut_by_the_stop)
 
     def emit(self, record: logging.LogRecord) -> None:
         if self._given_up or self._quiet:
