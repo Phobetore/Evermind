@@ -115,16 +115,24 @@ async def patch_conversation(convo_id: str, payload: ConversationPatch,
 async def upload_wallpaper(convo_id: str, file: UploadFile,
                            db: aiosqlite.Connection = Depends(get_db)):
     data, extension = await media.read_image_upload(file)
-    if not await repo.get(db, convo_id, with_messages=False):
+    convo = await repo.get(db, convo_id, with_messages=False)
+    if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
-    return await repo.update(db, convo_id, {"wallpaper_path": media.save(data, extension)})
+    fields = {"wallpaper_path": media.save(data, extension)}
+    # A new file is a new picture, shown low, whatever was shown before it; one that replaces
+    # the picture already shown keeps its strength.
+    if convo["backdrop"] != "image":
+        fields |= {"backdrop": "image", "backdrop_strength": 0.25, "wallpaper_opacity": 0.25}
+    return await repo.update(db, convo_id, fields)
 
 
 @router.delete("/conversations/{convo_id}/wallpaper")
 async def clear_wallpaper(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
     """Empty string rather than null: the column has no nulls, and the update
-    below skips a None as "leave this alone"."""
-    updated = await repo.update(db, convo_id, {"wallpaper_path": ""})
+    below skips a None as "leave this alone". The conversation goes back to the
+    character's picture, at the device's strength."""
+    updated = await repo.update(db, convo_id, {"wallpaper_path": "", "backdrop": "auto",
+                                               "backdrop_strength": None})
     if not updated:
         raise NotFoundError("Conversation not found.", "conversation")
     return updated
