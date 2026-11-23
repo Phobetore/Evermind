@@ -146,6 +146,10 @@ class Provider:
         yield  # pragma: no cover
 
     async def list_models(self) -> list[str]:
+        return [well_formed(str(m["id"])) for m in await self._model_objects()]
+
+    async def _model_objects(self) -> list[dict]:
+        """The models the server lists, each as it describes itself, all of them with an id."""
         try:
             async with self._client_factory() as client:
                 response = await client.get(self.base_url + self.MODELS, headers=self._headers())
@@ -155,7 +159,7 @@ class Provider:
             raise _refusal(response.status_code, response.content)
         try:
             models = response.json().get("data") or []
-            return [well_formed(str(m["id"])) for m in models if isinstance(m, dict) and m.get("id")]
+            return [m for m in models if isinstance(m, dict) and m.get("id")]
         except (ValueError, AttributeError, TypeError):
             raise ProviderError("The list of models could not be read.", MODEL_UNREADABLE)
 

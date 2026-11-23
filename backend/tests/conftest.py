@@ -11,6 +11,7 @@ import httpx
 import pytest
 
 from app.prompting.engine import PromptPayload
+from app.providers import openai_compat
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import ProviderEvent
 from app.providers.openai_compat import OpenAICompatProvider
@@ -46,6 +47,13 @@ def _no_wrong_passwords_counted():
 def _no_card_drafts_from_another_test():
     # The server keeps them in its memory, which every test shares.
     card_assistant._jobs.clear()
+
+
+@pytest.fixture(autouse=True)
+def _nothing_learned_of_models_by_another_test():
+    # What a server's models accept lives in the process's memory.
+    openai_compat._model_lists.clear()
+    openai_compat._refused.clear()
 
 
 @pytest.fixture()
