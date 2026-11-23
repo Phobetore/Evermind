@@ -11,6 +11,7 @@ import { useT } from "@/i18n/useT";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeCeiling } from "@/lib/cutShort";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
+import { memoryFailed } from "@/lib/memoryMark";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
 import { cssUrl, newId, nothingFocused } from "@/lib/utils";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
@@ -170,12 +171,13 @@ function ChatView({ id }: { id: string }) {
   useEffect(() => {
     panelShown.current = panelOpen;
   }, [panelOpen]);
-  /** For a read about to be sent: what takes its summary, unless another came since. */
+  /** For a read about to be sent: what takes its summary, and whether the last pass of the memory
+   *  failed, which the header marks, unless another read came since. */
   const summaryTaker = useCallback(() => {
     // Sent with the panel open, it is left to the panel, whose own reads it knows nothing of.
     const sent = panelShown.current ? null : ++summaries.current;
-    return (summary: string) => {
-      if (sent === summaries.current) setConversation((c) => (c ? { ...c, summary } : c));
+    return ({ summary, memory_error = null }: Pick<Conversation, "summary" | "memory_error">) => {
+      if (sent === summaries.current) setConversation((c) => (c ? { ...c, summary, memory_error } : c));
     };
   }, []);
 
@@ -186,7 +188,7 @@ function ChatView({ id }: { id: string }) {
     const conversation = await data.conversations.get(id, asking);
     const show = () => {
       if (changesByHand.current !== changes) return false;
-      takeSummary(conversation.summary);
+      takeSummary(conversation);
       setConversation((shown) => (shown ? { ...shown, title: conversation.title } : conversation));
       setMessages(conversation.messages ?? []);
       return true;
@@ -245,7 +247,7 @@ function ChatView({ id }: { id: string }) {
     summaryRead.current?.abort();
     const reading = (summaryRead.current = new AbortController());
     const takeSummary = summaryTaker();
-    data.conversations.withoutMessages(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
+    data.conversations.withoutMessages(id, { signal: reading.signal }).then(takeSummary, () => {});
   }, [id, summaryTaker]);
 
   useEffect(() => {
@@ -473,10 +475,22 @@ function ChatView({ id }: { id: string }) {
                 ref={panelButton}
                 autoFocus={panelByHand}
                 onClick={() => showPanel(true)}
-                className="rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
+                className="relative rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
                 aria-label={t("chat.header.memorySettingsAriaLabel")}
+                // Heard with the button: a button's name is its label alone, and its content is not read.
+                aria-describedby={memoryFailed(conversation) ? "memory-mark" : undefined}
+                title={memoryFailed(conversation) ? t("memoryMark.label") : undefined}
               >
                 <SlidersHorizontal className="h-5 w-5" />
+                {/* Over the icon's corner, taking no room: the header neither grows nor wraps for it. */}
+                {memoryFailed(conversation) && (
+                  <span
+                    id="memory-mark"
+                    role="img"
+                    aria-label={t("memoryMark.label")}
+                    className="absolute right-1 top-1 h-2 w-2 rounded-full bg-blood pointer-coarse:right-2 pointer-coarse:top-2"
+                  />
+                )}
               </button>
             )}
           </div>

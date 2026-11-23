@@ -84,10 +84,13 @@ export interface Conversation {
   title: string;
   summary: string;
   author_note?: string;
-  /** Why the last automatic pass of the memory failed, until one succeeds. */
-  memory_error?: { error: string; kind?: string; reason?: string } | null;
+  /** Why the memory's pass (automatic, or a Remember) or a Condense last failed, and which one,
+   *  until that work succeeds. */
+  memory_error?: { error: string; kind?: string; reason?: string; operation?: "pass" | "extract" | "consolidate" } | null;
   /** Whether a memory pass or a consolidation is under way. */
   memory_running?: boolean;
+  /** Which, while one is: the automatic pass, a Remember or a consolidation, asked from wherever. */
+  memory_operation?: "pass" | "extract" | "consolidate" | null;
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
   forked_from?: string | null;

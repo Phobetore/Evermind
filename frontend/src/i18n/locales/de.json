@@ -701,7 +701,7 @@
     "modelNotFound": "Der Server des Modells kennt diese Adresse oder dieses Modell nicht. Prüfe die URL und den Modellnamen in der Verbindung. Der Server meldet: {message}",
     "modelRateLimited": "Der Server des Modells hat sein Anfragelimit erreicht. Versuch es gleich noch einmal. Der Server meldet: {message}",
     "modelNetworkError": "Das Modell hat zu lange für die Antwort gebraucht, oder die Verbindung zu seinem Server ist abgebrochen.",
-    "modelNoText": "Das Modell hat keinen Text erzeugt.",
+    "modelNoText": "Das Modell hat keinen Text erzeugt. Versuch es noch einmal oder wähle ein anderes Modell.",
     "emptyMessage": "Schreib zuerst eine Nachricht.",
     "nothingToRegenerate": "Es gibt noch keine Antwort, die neu generiert werden könnte. Sende zuerst eine Nachricht.",
     "nothingToContinue": "Die letzte Nachricht ist keine Antwort, also gibt es nichts fortzusetzen.",
@@ -721,5 +721,9 @@
     "daysAgo": "vor {count} T.",
     "monthsAgo": "vor {count} Monat(en)",
     "yearsAgo": "vor {count} Jahr(en)"
+  },
+  "memoryMark": {
+    "label": "Das Gedächtnis dieser Unterhaltung konnte nicht aktualisiert werden",
+    "retry": "Noch einmal versuchen"
   }
 }

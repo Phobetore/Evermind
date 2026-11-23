@@ -371,7 +371,9 @@ of existing cards work; use **Import** on the Discover page.
 The interface shows its messages in the language you chose, and they are quoted
 here in English. The ones about ports come from the program that starts Evermind,
 which writes in English, but the reason your system gives for refusing a port is
-in its own words and language.
+in its own words and language. Whatever goes wrong on the server is also written
+to `evermind.log` in the data folder (see **Where your things are kept**): send
+that file along when you report a problem.
 
 | What you see | What it usually means |
 |---|---|
@@ -413,6 +415,13 @@ huggingface.co on its first start, and every later start loads it from your disk
 and asks nothing. Nothing else goes out on its own.
 
 To back it up, stop Evermind and copy that folder. To start fresh, delete it.
+
+That folder also holds `evermind.log`, and `evermind.log.1` once the first one
+passes 1 MB: the warnings and errors Evermind writes in its terminal, each with
+its date and time, such as an AI that could not be reached or answered nothing.
+It is the file to send with a bug report. You can delete it at any time; nothing
+else depends on it. With Docker, `docker compose cp evermind:/data/evermind.log .`
+copies it out of the volume.
 
 With Docker there is no such folder of yours: the volume holds it all. To back it
 up, run this from the folder that holds your `docker-compose.yml`. It stops

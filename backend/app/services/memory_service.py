@@ -21,6 +21,7 @@ from ..errors import (
     MEMORY_BUSY,
     MODEL_UNREADABLE,
     NO_CONNECTION,
+    NOT_FOUND,
     TOO_FEW_FACTS,
     AppError,
     NotFoundError,
@@ -57,23 +58,112 @@ MIN_ANSWER_TOKENS = 2048  # a pass's JSON is cut, and unreadable, in less than t
 # A model that reasons before it writes needs room for both: the second ask of a pass that ran out.
 MORE_ROOM_TOKENS = 8192
 
-_running: set[str] = set()
-# Conversations whose last automatic pass failed: the error body, and how many replies to wait.
+# The operation under way for a conversation: "pass" (automatic), "extract" or "consolidate".
+_running: dict[str, str] = {}
+# Conversations whose pass or Condense failed: the error body of each ("pass", "consolidate"), the
+# newest ("last"), and how many replies the automatic pass waits before it tries again ("left").
 _failed: dict[str, dict] = {}
+# Every operation the server runs: none belongs to a request, and the server's stop ends them.
+_tasks: set[asyncio.Task] = set()
+# Refusals that say nothing failed in the memory: another operation ran, what it read changed, or
+# there was too little to merge. Whoever asked is told; nothing is kept of them.
+_NOT_FAILURES = (MEMORY_BUSY, CONVERSATION_CHANGED, FACTS_CHANGED, TOO_FEW_FACTS, NOT_FOUND)
 # The max_tokens a second ask read with, by connection id and model: where the next pass starts,
 # so that a model that needs more room pays one call, not two. Lost at restart, on purpose.
 _learned: dict[tuple[str, str], int] = {}
 
 
 def is_running(convo_id: str) -> bool:
-    """Whether a pass or a consolidation is under way for the conversation."""
+    """Whether a pass, a Remember or a consolidation is under way for the conversation."""
     return convo_id in _running
 
 
+def operation_of(convo_id: str) -> str | None:
+    """Which one, for a page that opens while it runs and shows it as if asked from there."""
+    return _running.get(convo_id)
+
+
+def _own(work: Awaitable[dict | None]) -> asyncio.Task:
+    task = asyncio.get_running_loop().create_task(work)
+    _tasks.add(task)
+    task.add_done_callback(_forget)
+    return task
+
+
+def _forget(task: asyncio.Task) -> None:
+    _tasks.discard(task)
+    # Read, so that asyncio does not report it: its asker was told, or its failure is kept.
+    if not task.cancelled():
+        task.exception()
+
+
+async def stop() -> None:
+    """At the server's stop. What an operation writes is one transaction, rolled back whole when
+    it is cancelled, so none is left half-written."""
+    for task in list(_tasks):
+        task.cancel()
+    await asyncio.gather(*_tasks, return_exceptions=True)
+
+
+async def asked(convo_id: str, operation: str) -> dict:
+    """A Remember ("extract") or a consolidation someone asked for, run by a task of the server's
+    own, as a reply is: the asker gets its answer as before, but a page that goes away, and the
+    request it leaves, cancel nothing. A failure is kept for the conversation to tell, since its
+    asker may be gone, until an operation succeeds."""
+    return await asyncio.shield(_own(_asked(convo_id, operation)))
+
+
+async def _asked(convo_id: str, operation: str) -> dict:
+    db = await _connect()
+    try:
+        if operation == "extract":
+            result = await run_maintenance(db, convo_id, hold_back=0, operation="extract")
+            result = {**result, "memories": await memories_repo.list_for_conversation(db, convo_id)}
+        else:
+            result = await consolidate(db, convo_id)
+    except AppError as exc:
+        if exc.kind not in _NOT_FAILURES:
+            _keep(convo_id, _slot(operation), {**error_body(exc), "operation": operation})
+        raise
+    except Exception:
+        _keep(convo_id, _slot(operation),
+              {"error": "The memory task failed.", "kind": "internal", "operation": operation})
+        raise
+    finally:
+        await db.close()
+    if operation == "consolidate":
+        # A Condense that succeeds says nothing of whether a pass would: it clears only its own.
+        # A Remember that succeeds is a pass, and run_maintenance has cleared the pass's.
+        _keep(convo_id, "consolidate", None)
+    return result
+
+
+def _keep(convo_id: str, slot: str, body: dict | None, left: int | None = None) -> None:
+    """Keep why the pass ("pass": the automatic one or a Remember, the same work) or a Condense
+    ("consolidate") failed, or forget it with no body. Each is kept apart, for a success of one
+    to say nothing of the other; the newest is told. ``left`` is the automatic pass's wait, which
+    an operation asked for neither shortens nor starts."""
+    entry = _failed.setdefault(convo_id, {"left": 0})
+    if left is not None:
+        entry["left"] = left
+    if body is None:
+        entry.pop(slot, None)
+    else:
+        entry[slot] = body
+        entry["last"] = slot
+    if "pass" not in entry and "consolidate" not in entry and entry["left"] <= 0:
+        _failed.pop(convo_id, None)
+
+
 def failure_of(convo_id: str) -> dict | None:
-    """Why the last automatic pass failed, shaped as an error response, until one succeeds."""
-    failed = _failed.get(convo_id)
-    return failed["error"] if failed else None
+    """Why the pass or a Condense last failed, shaped as an error response with the operation that
+    failed ("pass", "extract" or "consolidate"), until that work succeeds."""
+    failed = _failed.get(convo_id) or {}
+    return failed.get(failed.get("last") or "") or failed.get("pass") or failed.get("consolidate")
+
+
+def _slot(operation: str) -> str:
+    return "consolidate" if operation == "consolidate" else "pass"
 
 
 async def _new_assistant_count(db: aiosqlite.Connection, convo: dict) -> int:
@@ -113,40 +203,41 @@ def schedule_if_due(convo_id: str) -> None:
             if exc.kind in (MEMORY_BUSY, CONVERSATION_CHANGED, FACTS_CHANGED):
                 return  # the next reply asks again
             logger.warning("memory maintenance failed for %s: %s", convo_id, exc.message)
-            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1, "error": error_body(exc)}
+            _keep(convo_id, "pass", {**error_body(exc), "operation": "pass"}, MAINTENANCE_EVERY - 1)
         except Exception:
             logger.exception("memory maintenance failed for %s", convo_id)
-            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1,
-                                 "error": {"error": "The memory pass failed.", "kind": "internal"}}
+            _keep(convo_id, "pass", {"error": "The memory pass failed.", "kind": "internal",
+                                     "operation": "pass"}, MAINTENANCE_EVERY - 1)
         finally:
             await db.close()
 
-    asyncio.get_running_loop().create_task(_task())
+    _own(_task())
 
 
-async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]]) -> dict:
+async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
+                        operation: str = "pass") -> dict:
     """Run ``work``, unless another memory task is running for this conversation. A pass and a
     consolidation each read the memory, wait for a model, and write what it said, so that the
     two would cross."""
     if convo_id in _running:
         raise AppError("Another memory task is running.", 409, kind=MEMORY_BUSY)
-    _running.add(convo_id)
+    _running[convo_id] = operation
     try:
         return await work()
     finally:
-        _running.discard(convo_id)
+        _running.pop(convo_id, None)
 
 
 async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
-                          hold_back: int = HOLD_BACK) -> dict:
+                          hold_back: int = HOLD_BACK, operation: str = "pass") -> dict:
     """One extraction+summary pass, which leaves the ``hold_back`` newest messages for the
     next. Returns {"facts_added": [...], "summary": str}."""
     async def work() -> dict:
         result = await _run(db, convo_id, hold_back)
-        _failed.pop(convo_id, None)
+        _keep(convo_id, "pass", None, 0)
         return result
 
-    return await one_at_a_time(convo_id, work)
+    return await one_at_a_time(convo_id, work, operation)
 
 
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
@@ -234,7 +325,7 @@ def _unreadable(answer: Answer, what: str, said: str) -> AppError:
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Merge the model's unpinned facts into a shorter, denser set.
     Returns {"before": n, "after": n, "memories": [...]}."""
-    return await one_at_a_time(convo_id, lambda: _consolidate(db, convo_id))
+    return await one_at_a_time(convo_id, lambda: _consolidate(db, convo_id), "consolidate")
 
 
 async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:

@@ -10,11 +10,17 @@ import { PATIENCE_MS } from "@/lib/useTurn";
 import { cardText } from "@/lib/utils";
 import type { Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
-import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
+import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, RotateCcw, SlidersHorizontal, Type, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type SetStateAction } from "react";
 import { Link } from "react-router";
 
 type Where = "connection" | "directive" | "summary" | "memory";
+type Operation = NonNullable<Conversation["memory_operation"]>;
+
+/** The operation a read of the conversation says is under way, or null; a server that says one
+ *  runs but not which is taken to run the automatic pass. */
+const runningOperation = (read: Pick<Conversation, "memory_running" | "memory_operation">): Operation | null =>
+  read.memory_running ? (read.memory_operation ?? "pass") : null;
 
 export function ChatSidePanel({
   conversation,
@@ -61,8 +67,18 @@ export function ChatSidePanel({
   const [memorizing, setMemorizing] = useState(false);
   const [memoryNote, setMemoryNote] = useState<string | null>(null);
   const [consolidating, setConsolidating] = useState(false);
-  // A Remember or a Condense that got no answer, or met a pass under way, and what was said of it.
-  const [unsettled, setUnsettled] = useState<{ line: string; unanswered: boolean } | null>(null);
+  // An operation on the memory under way that this page did not ask for: asked from a page since
+  // left, or from another device. It is shown as if asked from here, and followed to its end.
+  const [elsewhere, setElsewhere] = useState<Operation | null>(() => runningOperation(conversation));
+  // A Remember or a Condense that got no answer, or met a pass under way, and what was said of it;
+  // or, with no line, an operation found running. Read again until none runs.
+  const [unsettled, setUnsettled] = useState<{ line: string | null; unanswered: boolean } | null>(() =>
+    conversation.memory_running ? { line: null, unanswered: false } : null,
+  );
+  // Whether this page is asking for one itself, for the reads that would take it for another's.
+  const asking = useRef(false);
+  const remembering = memorizing || elsewhere === "extract" || elsewhere === "pass";
+  const condensing = consolidating || elsewhere === "consolidate";
   const summary = summaryDraft?.text ?? conversation.summary;
   const directive = directiveDraft ?? conversation.author_note ?? "";
   const wallpaperInput = useRef<HTMLInputElement>(null);
@@ -143,6 +159,12 @@ export function ChatSidePanel({
       })
       .catch(() => null);
   }, [conversation.id]);
+  /** An operation the server is running that this page did not ask for is followed like its own. */
+  const follow = useCallback((answer: Conversation | null) => {
+    if (!answer?.memory_running || asking.current) return;
+    setElsewhere(runningOperation(answer));
+    setUnsettled((now) => now ?? { line: null, unanswered: false });
+  }, []);
   useEffect(() => {
     // A phone waking fires both events, and they make one read.
     let waking: ReturnType<typeof setTimeout> | undefined;
@@ -150,11 +172,11 @@ export function ChatSidePanel({
       if (document.visibilityState !== "visible") return;
       clearTimeout(waking);
       waking = setTimeout(() => {
-        read();
+        read().then(follow);
         readFacts();
       }, 100);
     };
-    read();
+    read().then(follow);
     window.addEventListener("focus", wake);
     window.addEventListener("online", wake);
     document.addEventListener("visibilitychange", wake);
@@ -165,7 +187,7 @@ export function ChatSidePanel({
       window.removeEventListener("online", wake);
       document.removeEventListener("visibilitychange", wake);
     };
-  }, [read, readFacts, storyCuts]);
+  }, [read, readFacts, follow, storyCuts]);
 
   // Read until the server answers and runs no pass: what it holds then is shown, and what was said goes.
   useEffect(() => {
@@ -177,6 +199,7 @@ export function ChatSidePanel({
     const look = async () => {
       const answer = await read();
       if (gone) return;
+      if (answer) setElsewhere(runningOperation(answer));
       if (answer && unsettled.unanswered) unsay();
       if (answer && !answer.memory_running) {
         unsay();
@@ -193,8 +216,14 @@ export function ChatSidePanel({
 
   // A pass of its own that failed is told here until one succeeds.
   const failed = conversation.memory_error;
+  // A Condense failed is named, since its retry is a Condense and the line would read as a pass's.
+  const failedCondense = failed?.operation === "consolidate";
   const memoryError =
-    errors.memory ?? (failed ? describeFailure({ kind: failed.kind, message: failed.error, reason: failed.reason }, t) : null);
+    errors.memory ??
+    (failed
+      ? (failedCondense ? `${t("chat.panel.facts.consolidateError")}: ` : "") +
+        describeFailure({ kind: failed.kind, message: failed.error, reason: failed.reason }, t)
+      : null);
 
   const fail = (where: Where, text: string | null) =>
     setErrors((prev) => ({ ...prev, [where]: text ?? undefined }));
@@ -215,7 +244,17 @@ export function ChatSidePanel({
     setDirectiveDraft(null);
   }
 
+  /** A Remember clears a failed pass and a Condense its own failure, but neither the other's: the
+   *  server's word is read for what is still failing. */
+  function succeeded(operation: Operation) {
+    const kept = latest.current.conversation.memory_error;
+    if (kept && (kept.operation === "consolidate") === (operation === "consolidate")) write({ memory_error: null });
+    void read();
+  }
+
   async function memorizeNow() {
+    asking.current = true;
+    setElsewhere(null);
     setMemorizing(true);
     setMemoryNote(null);
     setUnsettled(null);
@@ -223,7 +262,7 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.extract(conversation.id);
       setMemories(result.memories);
-      write({ memory_error: null });
+      succeeded("extract");
       // What is being typed stays in the box, still typed over the summary from before.
       if (result.summary) write({ summary: result.summary });
       setMemoryNote(describeExtraction(result, t, conversation.summary));
@@ -232,9 +271,12 @@ export function ChatSidePanel({
       failedMemory(e, t("chat.panel.facts.extractError"), true);
     }
     setMemorizing(false);
+    asking.current = false;
   }
 
   async function consolidateMemory() {
+    asking.current = true;
+    setElsewhere(null);
     setConsolidating(true);
     setMemoryNote(null);
     setUnsettled(null);
@@ -242,12 +284,14 @@ export function ChatSidePanel({
     try {
       const result = await data.memories.consolidate(conversation.id);
       setMemories(result.memories);
+      succeeded("consolidate");
       setMemoryNote(describeConsolidation(result, t));
       setTimeout(() => setMemoryNote(null), 5000);
     } catch (e) {
       failedMemory(e, t("chat.panel.facts.consolidateError"), true);
     }
     setConsolidating(false);
+    asking.current = false;
   }
 
   async function addFact() {
@@ -539,10 +583,10 @@ export function ChatSidePanel({
             <button
               className="btn btn-ghost !px-2 !py-1 text-xs"
               onClick={consolidateMemory}
-              disabled={consolidating || memorizing}
+              disabled={condensing || remembering}
               title={t("chat.panel.facts.consolidateTitle")}
             >
-              {consolidating ? (
+              {condensing ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Layers className="h-3.5 w-3.5" />
@@ -552,10 +596,10 @@ export function ChatSidePanel({
             <button
               className="btn btn-ghost !px-2 !py-1 text-xs"
               onClick={memorizeNow}
-              disabled={memorizing || consolidating}
+              disabled={remembering || condensing}
               title={t("chat.panel.facts.extractTitle")}
             >
-              {memorizing ? (
+              {remembering ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <BrainCircuit className="h-3.5 w-3.5" />
@@ -625,6 +669,17 @@ export function ChatSidePanel({
           </button>
         </div>
         {memoryError && <p className="mt-1.5 break-words text-xs text-blood">{memoryError}</p>}
+        {/* What failed on its own is offered again here, where it is told, not only by Remember above. */}
+        {!errors.memory && failed && (
+          <button
+            className="btn btn-ghost mt-1.5 !px-2 !py-1 text-xs"
+            onClick={failedCondense ? consolidateMemory : memorizeNow}
+            disabled={remembering || condensing}
+          >
+            {(failedCondense ? condensing : remembering) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            {t("memoryMark.retry")}
+          </button>
+        )}
         {memoryNote && <p className="mt-1.5 break-words text-xs text-moss">{memoryNote}</p>}
       </div>
 

@@ -701,7 +701,7 @@
     "modelNotFound": "The model's server does not know this address or this model. Check the URL and the model name in the connection. The server said: {message}",
     "modelRateLimited": "The model's server has reached its rate limit. Try again shortly. The server said: {message}",
     "modelNetworkError": "The model took too long to answer, or the connection to its server broke.",
-    "modelNoText": "The model did not produce any text.",
+    "modelNoText": "The model did not produce any text. Try again, or choose another model.",
     "emptyMessage": "Write a message first.",
     "nothingToRegenerate": "There is no reply to regenerate yet. Send a message first.",
     "nothingToContinue": "The last message is not a reply, so there is nothing to continue.",
@@ -721,5 +721,9 @@
     "daysAgo": "{count} d ago",
     "monthsAgo": "{count} month(s) ago",
     "yearsAgo": "{count} year(s) ago"
+  },
+  "memoryMark": {
+    "label": "This conversation's memory could not be updated",
+    "retry": "Try again"
   }
 }

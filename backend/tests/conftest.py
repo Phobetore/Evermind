@@ -44,6 +44,14 @@ def _no_wrong_passwords_counted():
 
 
 @pytest.fixture(autouse=True)
+def _log_file_of_its_own(tmp_path):
+    # A test that logs without starting an application would otherwise write into data/ at the root.
+    from app import log_file
+
+    log_file.install(lambda: tmp_path / "evermind.log")
+
+
+@pytest.fixture(autouse=True)
 def _no_card_drafts_from_another_test():
     # The server keeps them in its memory, which every test shares.
     card_assistant._jobs.clear()

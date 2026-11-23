@@ -701,7 +701,7 @@
     "modelNotFound": "Le serveur du modèle ne connaît ni cette adresse ni ce modèle. Vérifiez l'URL et le nom du modèle dans la connexion. Le serveur a indiqué\u00a0: {message}",
     "modelRateLimited": "Le serveur du modèle a atteint sa limite de requêtes. Réessayez dans un instant. Le serveur a indiqué\u00a0: {message}",
     "modelNetworkError": "Le modèle a mis trop de temps à répondre, ou la connexion à son serveur a été coupée.",
-    "modelNoText": "Le modèle n'a produit aucun texte.",
+    "modelNoText": "Le modèle n'a produit aucun texte. Réessayez, ou choisissez un autre modèle.",
     "emptyMessage": "Écrivez d'abord un message.",
     "nothingToRegenerate": "Il n'y a pas encore de réponse à régénérer. Envoyez d'abord un message.",
     "nothingToContinue": "Le dernier message n'est pas une réponse\u00a0: il n'y a rien à prolonger.",
@@ -721,5 +721,9 @@
     "daysAgo": "il y a {count} j",
     "monthsAgo": "il y a {count} mois",
     "yearsAgo": "il y a {count} an(s)"
+  },
+  "memoryMark": {
+    "label": "La mémoire de cette conversation n'a pas pu être mise à jour",
+    "retry": "Réessayer"
   }
 }
