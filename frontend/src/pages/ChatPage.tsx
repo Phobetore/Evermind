@@ -19,7 +19,7 @@ import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { memoryFailed } from "@/lib/memoryMark";
 import { holdSizes, wantSizes } from "@/lib/portraitSizes";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
-import { newId, nothingFocused } from "@/lib/utils";
+import { newId, nothingFocused, smallPortrait } from "@/lib/utils";
 import { clsx } from "clsx";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
@@ -55,7 +55,7 @@ function StreamBubble({ text, character, arriving, onGrow }: {
   useEffect(onGrow, [words, onGrow]);
   return (
     <div className="flex gap-3.5 px-1 py-3">
-      <Avatar name={character.name} src={character.avatar_url} className="mt-0.5 size-[40px] shrink-0 text-lg" />
+      <Avatar name={character.name} src={smallPortrait(character)} className="mt-0.5 size-[40px] shrink-0 text-lg" />
       <div className="msg-body min-w-0 flex-1">
         <span className="chat-name font-display font-semibold text-ember-300">{character.name}</span>
         <div className="mt-1">
@@ -477,7 +477,7 @@ function ChatView({ id }: { id: string }) {
             title={t("chat.cardSummary.aboutAriaLabel", { name: character.name })}
             aria-haspopup="dialog"
           >
-            <Avatar name={character.name} src={character.avatar_url} className="size-[36px] text-base" />
+            <Avatar name={character.name} src={smallPortrait(character)} className="size-[36px] text-base" />
           </button>
           <div className="min-w-0">
             <h1 className="truncate font-display font-semibold leading-tight">{character.name}</h1>

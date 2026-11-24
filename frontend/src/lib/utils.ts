@@ -1,6 +1,7 @@
 import { substitute } from "@/engine";
 // Not offered by the engine's door, which offers only what the recorded cases reach: display only.
 import { describeMarkers } from "@/engine/macros";
+import type { Character } from "@/types";
 
 export function timeAgo(
   iso: string | null | undefined,
@@ -141,3 +142,12 @@ export function copyText(text: string): boolean {
     active?.focus();
   }
 }
+
+/** The copy of a portrait for a small round or square picture: 480 px wide, not the whole file, which
+ *  can be megabytes. The whole picture until the copy is made. */
+export const smallPortrait = (character: Pick<Character, "avatar_url" | "avatar_thumb_url">) =>
+  character.avatar_thumb_url ?? character.avatar_url;
+
+/** The copy for a portrait drawn a few hundred pixels wide: 960 px, sharp on a dense screen. */
+export const mediumPortrait = (character: Pick<Character, "avatar_url" | "avatar_backdrop_url">) =>
+  character.avatar_backdrop_url ?? character.avatar_url;

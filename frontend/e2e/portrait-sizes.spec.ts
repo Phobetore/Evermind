@@ -284,3 +284,32 @@ test("copies come out at their width even if the browser ignores resizeWidth", {
   expect(await widthOf(page, card.avatar_thumb_url!)).toBe(480);
   expect(await widthOf(page, card.avatar_backdrop_url!)).toBe(960);
 });
+
+test("a conversation and the list of conversations ask for the copy, not the whole portrait", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const sent = await request.post(`${API}/api/characters/${convo.character_id}/avatar`, {
+    multipart: { file: { name: "portrait.png", mimeType: "image/png", buffer: PNG } },
+  });
+  expect(sent.ok()).toBe(true);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("[data-message-id]").first()).toBeVisible();
+  const card = await copiesOf(request, convo.character_id);
+  const whole = fileName(card.avatar_url);
+  const copy = fileName(card.avatar_thumb_url);
+  expect(whole).not.toBe(copy);
+  const asked: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/api/media/")) asked.push(fileName(r.url()));
+  });
+  // A fresh load of each page, with the copies now kept.
+  await page.goto("/");
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.reload();
+  await expect(page.locator("[data-message-id]").first()).toBeVisible();
+  await expect.poll(() => asked).toContain(copy);
+  await page.goto("/#/chat");
+  await expect(page.getByText("Vane").first()).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  expect(asked, "the whole portrait was downloaded").not.toContain(whole);
+  expect(asked).toContain(copy);
+});

@@ -9,7 +9,7 @@ import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
 import { backdropOf, useDisplay } from "@/lib/display";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS } from "@/lib/useTurn";
-import { cardText } from "@/lib/utils";
+import { cardText, smallPortrait } from "@/lib/utils";
 import type { Backdrop, Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, RotateCcw, SlidersHorizontal, Type, X } from "lucide-react";
@@ -412,7 +412,7 @@ export function ChatSidePanel({
         <Link to={`/characters/${character.id}`} className="group flex min-w-0 items-center gap-3">
           <Avatar
             name={character.name}
-            src={character.avatar_url}
+            src={smallPortrait(character)}
             className="h-12 w-12 shrink-0 text-lg"
           />
           <div className="min-w-0">

@@ -3,7 +3,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useT } from "@/i18n/useT";
 import { describeCeiling, isCutAtCeiling, isCutShort } from "@/lib/cutShort";
-import { copyText, nothingFocused } from "@/lib/utils";
+import { copyText, nothingFocused, smallPortrait } from "@/lib/utils";
 import type { Character, Message, Persona } from "@/types";
 import { clsx } from "clsx";
 import {
@@ -68,7 +68,7 @@ export function ChatMessage({
 
   const isUser = message.role === "user";
   const name = isUser ? (persona?.name ?? t("chat.message.youFallback")) : character.name;
-  const avatarSrc = isUser ? persona?.avatar_url : character.avatar_url;
+  const avatarSrc = isUser ? persona?.avatar_url : smallPortrait(character);
   const variants = message.variants;
   const canSwipe = !isUser && variants.length > 1;
   const interrupted = isCutShort(message);
