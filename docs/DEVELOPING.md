@@ -335,7 +335,14 @@ should.
   then configured, then observed, then the trained maximum), reasoning is never
   unlearned, and a model no longer listed, or a read that failed, keeps all it
   had. A figure the person typed (`context_own`, `price_own_in`, ...) is never
-  overwritten: a read is stored beside it.
+  overwritten: a read is stored beside it. A read is also dropped when the
+  service has moved to another address or API type since it began, and that
+  move marks every AI of the service as to be read again (`limits_read_at`
+  NULL), keeping what was read until then.
+- **`POST /api/models` never adds a model twice to one service.** Asked for a
+  model its service already has, it answers the AI that exists, and the name,
+  the capacity and the prices sent with it are not applied: change them with
+  `PUT /api/models/{id}`.
 - **A key is lent to its own address only.** `routers/connections.held_service`
   is the one function that returns a service with its key. A draft with no key
   typed takes the saved key only while its API type and its address are those

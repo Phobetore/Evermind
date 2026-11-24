@@ -102,9 +102,10 @@ UPDATE connections SET name = CASE family
 -- (the rtrim/replace pair cuts up to the last "/"; a "/" at the end is dropped first, and an id
 -- with nothing but "/" gives no name, so its row keeps its own); names still shared then get
 -- " (2)", " (3)": a name the person chose keeps it bare, a derived name takes the number, then
--- creation order. Done before the services are numbered, so that it compares with the chip's
--- label itself. The rows are chosen before any is renamed, so the order of the update cannot
--- change the result.
+-- creation order. A number so added can meet a name the person chose that already ends in it
+-- ("brume (2)"): those two AIs then share a name, which the AI's page can change. Done before
+-- the services are numbered, so that it compares with the chip's label itself. The rows are
+-- chosen before any is renamed, so the order of the update cannot change the result.
 CREATE TEMP TABLE renamed AS SELECT m.id, rtrim(m.model, '/') AS bare FROM models AS m
 WHERE rtrim(m.model, '/') <> '' AND (
     m.name IN (SELECT name FROM connections

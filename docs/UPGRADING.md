@@ -15,9 +15,10 @@ when Evermind starts, and a copy of it is kept first, as
 `evermind.before-3.7.0.db` in the data folder. Read this to know what changes.
 
 - **Reload Evermind on every device that had it open**, a phone above all.
-- **To go back to the previous release, put back `evermind.before-3.7.0.db`.**
-  What you did since the update is lost. See "Going back" below for the other
-  way.
+- **To go back to the previous release, put back `evermind.before-3.7.0.db`**,
+  as [Going back after an update](../INSTALL.md#going-back-after-an-update)
+  says. What you did since the update is lost. See "Going back" below for the
+  other way.
 - **None of your settings moves.** Each connection becomes an AI, with its name,
   its model, its reading capacity (the old "Context") and its reply ceiling (the
   old "Max response") as they were. Each AI is sent exactly the request it was
@@ -28,11 +29,17 @@ when Evermind starts, and a copy of it is kept first, as
   as the old form suggested), takes the name of its model ("aurore-large"), so
   that two AIs are not mistaken for each other. A name you chose ("Living-room
   PC") stays as it is. If it meets a name taken from a model, the model's one
-  gets "(2)".
+  gets "(2)". In a rare case, a name so numbered can meet a name you chose that
+  already ends in the same number ("brume (2)"): two AIs then show the same
+  name, and the AI's page renames either.
 - **Two connections on the same server with the same key become one service.**
   The key is kept once, and changing it changes it for all its AIs. Known
   services take their chip's name ("OpenRouter", "LM Studio"...). Two keys on one
-  server make "OpenRouter" and "OpenRouter (2)".
+  server make "OpenRouter" and "OpenRouter (2)". Two connections are joined only
+  when their API type is the same and their address (a final "/" apart) and
+  their key are written exactly the same. One server written two ways (with
+  capital letters, or as `localhost` and as `127.0.0.1`) gives two services,
+  each with its key and its AIs, and nothing is lost.
 - **Your conversations keep their AI**, including those that named none: they
   are fixed on the one that answered them. **This too changes without your
   choosing it**: they no longer follow a change of the default AI made later. A
@@ -73,8 +80,8 @@ when Evermind starts, and a copy of it is kept first, as
   AIs added since are not there (a service added there is a connection with no
   model), nor are merged connections (their conversations move to the default
   connection there), and conversations created since answer with its default
-  connection. Its "Delete" fails on a connection that carries AIs: the database
-  refuses and nothing is removed. **Coming back to this release** replays
+  connection. Its "Delete" on a connection that carries AIs shows a general
+  error, and nothing is removed. **Coming back to this release** replays
   nothing. A connection created meanwhile is a service with no AI, its key kept
   ("Already connected · no AI in your list"), and recognised as OpenRouter,
   OpenAI and so on when its address is a chip's. A conversation created meanwhile
