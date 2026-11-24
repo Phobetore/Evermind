@@ -303,6 +303,8 @@ export async function misfits(page: Page, within = "body"): Promise<string[]> {
       if (el.scrollWidth > el.clientWidth + 1) found.push(`"${name}" ${el.scrollWidth} wide in ${el.clientWidth}`);
       const texts = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       for (let node = texts.nextNode(); node; node = texts.nextNode()) {
+        // An address or a key's end in the control, set to break anywhere on purpose.
+        if (node.parentElement !== el && getComputedStyle(node.parentElement!).overflowWrap === "anywhere") continue;
         for (const word of (node.textContent ?? "").matchAll(/\S+/g)) {
           const range = document.createRange();
           range.setStart(node, word.index);

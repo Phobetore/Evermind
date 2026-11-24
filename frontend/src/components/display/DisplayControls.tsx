@@ -85,7 +85,7 @@ export function DisplayControls(props:
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <div className="mb-1 flex items-baseline justify-between gap-3">
+        <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3">
           <label htmlFor={`${ids}-text`} className="text-sm text-parchment-dim">{t("display.textSize")}</label>
           <span className="shrink-0 text-sm tabular-nums text-mist">{textValue}</span>
         </div>

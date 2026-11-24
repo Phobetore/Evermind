@@ -1,8 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { API } from "../playwright.config";
-import { cardPortrait, conversationWithReply, makeCharacter } from "./fixtures";
+import { API, GATE_PASSWORD, GATED } from "../playwright.config";
+import { MOCK, addModel, cardPortrait, chat, conversationWithReply, inLocale, makeCharacter, makeConversation, misfits } from "./fixtures";
 
 /** What runs off the right edge of a page this wide: elements past it, the page's width, how far <main> slides. */
 function pastTheEdge(page: Page, width: number) {
@@ -306,5 +306,144 @@ test("a card's long tagline and tags widen neither the home page, the library no
     await home();
     await library();
     await editor();
+  }
+});
+
+// Every language, on the phones of today and the smallest one still sold, at the text size a phone
+// comes with: nothing past the edge, no sentence squeezed into a column beside a control, and no
+// placeholder cut.
+const PHONES = [{ width: 390, height: 844 }, { width: 320, height: 640 }];
+const LOCALES = ["en", "fr", "de", "es"];
+const wordsOf = (locale: string) =>
+  JSON.parse(readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`), "utf8"));
+
+/** How much wider a one-line placeholder is than the room inside its field, measured in the field's
+ *  own font; or, for a textarea, how much taller its placeholder is than the box. */
+const placeholderOver = (field: Locator) => field.evaluate(async (el: HTMLInputElement | HTMLTextAreaElement) => {
+  await document.fonts.ready;
+  const style = getComputedStyle(el);
+  const probe = document.createElement("div");
+  probe.textContent = el.placeholder;
+  const many = el.tagName === "TEXTAREA";
+  Object.assign(probe.style, {
+    font: style.font, letterSpacing: style.letterSpacing, lineHeight: style.lineHeight,
+    position: "absolute", visibility: "hidden", whiteSpace: many ? "pre-wrap" : "pre", overflowWrap: "break-word",
+    width: many ? `${el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)}px` : "auto",
+  });
+  document.body.append(probe);
+  const box = probe.getBoundingClientRect();
+  probe.remove();
+  return many
+    ? box.height - (el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom))
+    : box.width - (el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight));
+});
+
+/** Whether a sentence is squeezed beside what shares its row: on more than one line, and narrower
+ *  than half of the row's room. */
+const squeezed = (sentence: Locator) => sentence.evaluate((el) => {
+  const row = el.parentElement!;
+  const style = getComputedStyle(row);
+  const room = row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  const text = document.createRange();
+  text.selectNodeContents(el);
+  const lines = new Set([...text.getClientRects()].map((r) => Math.round(r.top))).size;
+  return lines > 1 && el.getBoundingClientRect().width < room / 2;
+});
+
+test.describe("on a phone, in every language", () => {
+  for (const locale of LOCALES) {
+    test(`the new card's page fits, in ${locale}`, async ({ page, request }) => {
+      const words = wordsOf(locale);
+      // Two AIs at least, for the assistant's select to be there.
+      await addModel(request, { base_url: MOCK, model: "e2e-second", name: "Second" });
+      await makeCharacter(request);
+      await inLocale(page, locale);
+      for (const size of PHONES) {
+        await page.setViewportSize(size);
+        await page.goto("/#/characters/new");
+        const hint = page.getByText(words.characters.assist.fieldsKeptHint, { exact: true });
+        await expect(hint).toBeVisible();
+        expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+        expect(await squeezed(hint), `the hint is squeezed at ${size.width}px`).toBe(false);
+        for (const placeholder of [
+          words.characters.assist.briefPlaceholderCharacter, words.lorebook.keysPlaceholder, words.lorebook.contentPlaceholder,
+        ]) {
+          expect(await placeholderOver(page.getByPlaceholder(placeholder, { exact: true })),
+            `"${placeholder.slice(0, 30)}" is cut at ${size.width}px`).toBeLessThanOrEqual(0.5);
+        }
+      }
+    });
+
+    test(`a reply that failed says so across the width, in ${locale}`, async ({ page, request }) => {
+      const words = wordsOf(locale);
+      const convo = await makeConversation(request);
+      await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "MOCK_FAILS" } });
+      await chat(request, { conversation_id: convo.id, mode: "send", content: "Anyone?" });
+      await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
+      await inLocale(page, locale);
+      for (const size of PHONES) {
+        await page.setViewportSize(size);
+        await page.goto(`/#/chat/${convo.id}`);
+        await expect(page.getByRole("button", { name: words.chat.errors.retryButton, exact: true })).toBeVisible();
+        const sentence = page.locator(".chat-banner [role=alert]");
+        expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+        expect(await squeezed(sentence), `the sentence is squeezed at ${size.width}px`).toBe(false);
+      }
+    });
+
+    test(`the settings and the instructions fit, in ${locale}`, async ({ page }) => {
+      const words = wordsOf(locale);
+      await inLocale(page, locale);
+      for (const size of PHONES) {
+        await page.setViewportSize(size);
+        await page.goto("/#/settings");
+        const instructions = page.getByPlaceholder(words.settings.globalInstructionsPlaceholder, { exact: true });
+        await expect(instructions).toBeVisible();
+        expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+        expect(await placeholderOver(instructions), `the instructions' placeholder is cut at ${size.width}px`).toBeLessThanOrEqual(0.5);
+      }
+    });
+
+    test(`the access section fits, in ${locale}`, async ({ page }) => {
+      const words = wordsOf(locale);
+      await page.goto(`${GATED}/#/settings`);
+      await page.getByLabel(/password/i).fill(GATE_PASSWORD);
+      await page.getByRole("button", { name: /enter/i }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await page.evaluate((chosen) => localStorage.setItem("evermind:locale", chosen), locale);
+      for (const size of PHONES) {
+        await page.setViewportSize(size);
+        await page.reload();
+        await expect(page.getByRole("button", { name: words.settings.access.logoutEverywhere })).toBeVisible();
+        expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+      }
+    });
+
+    test(`a service's form keeps its key's placeholder whole, in ${locale}`, async ({ page, request }) => {
+      const words = wordsOf(locale);
+      const made = await request.post(`${API}/api/models`, {
+        data: {
+          service: { provider: "openai-compatible", base_url: `${MOCK}`, api_key: `sk-form-${Date.now()}` },
+          models: [{ model: `e2e-form-${Date.now()}`, name: `Form ${Date.now()}` }],
+        },
+      });
+      const ai = (await made.json()).models[0];
+      await inLocale(page, locale);
+      try {
+        for (const size of PHONES) {
+          await page.setViewportSize(size);
+          await page.goto(`/#/settings/ai/${ai.id}`);
+          await page.reload();
+          await page.locator("details summary").click();
+          await page.getByRole("button", { name: words.ai.page.edit, exact: true }).click();
+          const key = page.getByPlaceholder(words.ai.service.keyKeep, { exact: true });
+          await expect(key).toBeVisible();
+          expect(await placeholderOver(key), `the key's placeholder is cut at ${size.width}px`).toBeLessThanOrEqual(0.5);
+          expect(await misfits(page, "dialog[open]"), `at ${size.width}px`).toEqual([]);
+        }
+      } finally {
+        await request.delete(`${API}/api/models/${ai.id}`);
+      }
+    });
   }
 });

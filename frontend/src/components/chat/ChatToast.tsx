@@ -40,7 +40,7 @@ export function useChatToast(busy = false): {
       {shown.action && (
         <button
           type="button"
-          className="btn btn-ghost touch-target !py-1 text-xs"
+          className="btn btn-ghost touch-target max-w-full whitespace-normal !py-1 text-xs"
           onClick={() => {
             const { run } = shown.action!;
             setShown(null);

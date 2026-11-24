@@ -1,6 +1,8 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { MOCK_ROOT, forgetServices, makeConversation, rootAt, routeServiceTo } from "./fixtures";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { MOCK_ROOT, forgetServices, inLocale, makeConversation, misfits, rootAt, routeServiceTo } from "./fixtures";
 
 /**
  * Adding AIs from Settings. The chips name the real services' addresses: OpenRouter's is sent to
@@ -746,5 +748,45 @@ test.describe("adding AIs", () => {
       await add.tap();
       await expect(box.getByText("2 AIs added")).toBeVisible();
     });
+  });
+
+  // Text set to its largest, in every language: each step of the dialog keeps its buttons, its
+  // fields and its sort inside the box. The page's own paste is offered, as where the browser allows it.
+  test.describe("at very large text each step fits", () => {
+    for (const locale of ["en", "fr", "de", "es"]) {
+      test(`in ${locale}`, async ({ page, request }) => {
+        test.setTimeout(120_000);
+        const words = JSON.parse(readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`), "utf8"));
+        await forgetServices(request, "/many/");
+        await routeServiceTo(page, OPENROUTER, MANY);
+        await inLocale(page, locale);
+        await page.addInitScript(rootAt, "32px");
+        await page.addInitScript(() => {
+          Object.defineProperty(window, "isSecureContext", { value: true });
+          Object.defineProperty(navigator, "clipboard", { value: { readText: () => Promise.resolve("") } });
+        });
+        const box = page.getByRole("dialog");
+        for (const [width, height] of [[390, 844], [320, 640]]) {
+          await page.setViewportSize({ width, height });
+          await page.goto("/#/settings");
+          await page.reload();
+          await page.getByRole("button", { name: words.ai.add.open, exact: true }).click();
+          await expect(box.getByRole("button", { name: "OpenRouter", exact: true })).toBeVisible();
+          expect(await misfits(page, "dialog[open]"), `where, at ${width}px`).toEqual([]);
+          await box.getByRole("button", { name: words.ai.add.other }).click();
+          await expect(box.getByRole("button", { name: words.ai.add.paste })).toBeVisible();
+          expect(await misfits(page, "dialog[open]"), `another address, at ${width}px`).toEqual([]);
+          await box.getByRole("button", { name: words.ai.add.back, exact: true }).click();
+          await box.getByRole("button", { name: "OpenRouter", exact: true }).click();
+          const key = box.getByPlaceholder(words.ai.add.keyPlaceholder);
+          await expect(key).toBeVisible();
+          expect(await misfits(page, "dialog[open]"), `the key, at ${width}px`).toEqual([]);
+          await key.fill("sk-e2e-any");
+          await box.getByRole("button", { name: words.ai.add.seeModels }).click();
+          await expect(box.getByRole("checkbox")).toHaveCount(30);
+          expect(await misfits(page, "dialog[open]"), `the list, at ${width}px`).toEqual([]);
+        }
+      });
+    }
   });
 });

@@ -1,8 +1,8 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
 import {
-  MOCK, MOCK_ROOT, addModel, chat, conversation, conversationWithReply, forgetServices, makeConversation, replyEnds,
-  stopTurn,
+  MOCK, MOCK_ROOT, addModel, chat, conversation, conversationWithReply, forgetServices, inLocale, makeConversation, misfits,
+  replyEnds, rootAt, stopTurn,
 } from "./fixtures";
 
 /**
@@ -575,4 +575,28 @@ test("when the ais cannot be read the row says so and reads them again when touc
   await unread.click();
   await expect(chipOf(page)).toHaveAccessibleName("AI: e2e. Change.");
   await expect(unread).toHaveCount(0);
+});
+
+// Text set to its largest on a phone, the root at 32px: the toast's button takes two lines rather
+// than run past the screen.
+test.describe("at very large text the toast's button stays on the screen", () => {
+  for (const locale of ["en", "fr", "de", "es"]) {
+    test(`in ${locale}`, async ({ page, request }) => {
+      const convo = await conversationWithReply(request);
+      await sylve(request);
+      const e2e = (await (await request.get(`${API}/api/models`)).json()).find((ai: { name: string }) => ai.name === "e2e");
+      await inLocale(page, locale);
+      await page.addInitScript(rootAt, "32px");
+      for (const [width, height] of [[390, 844], [320, 640]]) {
+        await page.setViewportSize({ width, height });
+        await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: e2e.id } });
+        await page.goto(`/#/chat/${convo.id}`);
+        await page.reload();
+        await chipOf(page).click();
+        await page.getByRole("dialog").getByRole("radio", { name: /^Sylve/ }).click();
+        await expect(toastOf(page).getByRole("button")).toBeVisible();
+        expect(await misfits(page, "[data-chat-toast]"), `at ${width}px`).toEqual([]);
+      }
+    });
+  }
 });

@@ -221,7 +221,7 @@ export function ModelPickList({
         <label className="sr-only" htmlFor={`${searchId}-sort`}>{t("ai.list.sort")}</label>
         <select
           id={`${searchId}-sort`}
-          className="field !w-auto min-h-11 !py-1.5 text-sm"
+          className="field !w-auto min-h-11 max-w-full !py-1.5 text-sm"
           value={sort}
           onChange={(e) => {
             setSort(e.target.value as SortKey);
