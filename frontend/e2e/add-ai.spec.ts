@@ -360,6 +360,38 @@ test.describe("adding AIs", () => {
     }
   });
 
+  test("a row pressed then scrolled away is not the one held when Enter lets the field go", async ({ page, request }) => {
+    test.setTimeout(120_000);
+    await forgetServices(request, "/many/");
+    await routeServiceTo(page, OPENROUTER, MANY);
+
+    for (const size of PHONES) {
+      await page.setViewportSize(size);
+      const { box, search, panel, boxes, block } = await searching(page);
+      await search.press("a");
+      await expect(boxes).toHaveCount(30);
+      // A drag that starts on a row: the press lands on it, then the list scrolls.
+      await box.locator("li").first().dispatchEvent("pointerdown");
+      await panel.evaluate((scrolled) => scrolled.scrollBy(0, 600));
+      await frames(page);
+      const edge = (await edges(block)).bottom;
+      const under = await box.locator("li").evaluateAll(
+        (lis, below) => lis.findIndex((li) => li.getBoundingClientRect().top >= below), edge);
+      const was = (await edges(box.locator("li").nth(under))).top;
+      const scrolled = await panel.evaluate((it) => it.scrollTop);
+      await search.press("Enter");
+      await settled(page);
+      await expect(box.getByRole("combobox")).toBeVisible();
+      const back = (await edges(block)).bottom;
+      const now = (await edges(box.locator("li").nth(under))).top;
+      expect(Math.abs(now - Math.max(was, back))).toBeLessThan(1);
+      expect(await panel.evaluate((it) => it.scrollTop)).toBeGreaterThanOrEqual(scrolled - (back - edge) - 1);
+
+      await box.getByRole("button", { name: "Close" }).click();
+      await expect(box).toHaveCount(0);
+    }
+  });
+
   test("the first of many results tapped is not left under the sort and the count", async ({ page, request }) => {
     test.setTimeout(120_000);
     await forgetServices(request, "/many/");

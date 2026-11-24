@@ -171,13 +171,12 @@ export function ModelPickList({
     const list = rowList.current;
     const block = top.current?.nextElementSibling;
     if (!block || !list) return;
+    const edge = block.getBoundingClientRect().bottom;
     const focusedRow = document.activeElement?.closest("li");
-    let row: Element | null | undefined = noted?.isConnected ? noted
+    // A row pressed counts only while some of it is still in sight: one scrolled away since is not.
+    let row: Element | null | undefined = noted?.isConnected && noted.getBoundingClientRect().bottom > edge ? noted
       : focusedRow && list.contains(focusedRow) ? focusedRow : null;
-    if (!row) {
-      const edge = block.getBoundingClientRect().bottom;
-      row = [...list.children].find((li) => li.getBoundingClientRect().top >= edge);
-    }
+    row ??= [...list.children].find((li) => li.getBoundingClientRect().top >= edge);
     held.current = row ? { row, at: row.getBoundingClientRect().top } : null;
   }
 
@@ -321,6 +320,10 @@ export function ModelPickList({
         className="flex flex-col gap-2"
         onPointerDown={(e) => {
           touched.current = (e.target as Element).closest("li");
+        }}
+        // A press that turns into a scroll touched no row.
+        onPointerCancel={() => {
+          touched.current = null;
         }}
       >
         {visible.map((row) => (
