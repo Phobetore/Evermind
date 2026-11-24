@@ -274,9 +274,13 @@ test.describe("adding AIs", () => {
     const { y, height } = (await of.boundingBox())!;
     return { top: y, bottom: y + height };
   };
-  /** Past the moment the sort and the count come back. */
-  const settled = (page: Page) => page.waitForTimeout(600);
-
+  /** Past the moment the sort and the count come back: both drawn again, and the frames after them
+   *  in which the list puts the row it holds back in place. */
+  const settled = async (page: Page) => {
+    await expect(dialog(page).getByRole("combobox")).toBeVisible();
+    await expect(dialog(page).locator("p[role=status]").filter({ hasText: /\d/ })).toBeVisible();
+    await frames(page);
+  };
   // Phones of today, and the smallest one still sold.
   const PHONES = [{ width: 390, height: 844 }, { width: 320, height: 640 }];
 
