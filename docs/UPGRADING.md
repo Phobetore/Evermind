@@ -8,6 +8,54 @@ program, and your data lives somewhere of its own (the `data` folder, or the
 If you are installing for the first time, you want [INSTALL.md](../INSTALL.md)
 instead. Coming from further back, read every section from your version up.
 
+## From 3.5.3 to 3.6.0
+
+This update asks for a restart and a reload of your pages. The database gains
+new columns when Evermind starts, and a copy of it is kept first. Read this to
+know what changes.
+
+- **Reload Evermind on every device that had it open.**
+- **Every conversation without a backdrop of its own shows the character's
+  picture** behind the text, at 20 %, sharp. This is the only setting that
+  changes without your choosing it. The "Aa" button or Settings, under
+  "Display", turns it off for that device. The panel of a conversation
+  ("No backdrop") turns it off for that conversation only.
+- **Your existing backdrops stay.** Same picture, same strength. They gain a
+  plate behind the messages. That is the only difference you will see.
+- **The strength slider under a conversation** is now the "Aa" sheet, which also
+  sets the size of the text.
+- **The text size** is 100 % on each device until you change it. At 100 % the
+  messages keep their size. A new "Aa" button sits in the header. On a computer,
+  the back button (32 px before) and the panel button (36 px before) become
+  44 px squares, as they already were on a touch screen. The portrait's button
+  becomes 44 px too; the portrait inside it keeps 36 px. The input and the
+  editor of a message go from 15.7 to 16 px. An empty
+  input is one line again (about 44 px, not 88), grows with its text up to six
+  lines, then scrolls. Its resize handle is gone. A very long word or an address
+  wraps in a message. Changing the text size keeps the place you were reading.
+  On a very narrow screen (under 320 px, as very large system text gives on
+  Chrome for Android), the portrait in the header goes, and the short card opens
+  from the panel. The input then takes its own line.
+- **On a phone, the home page cards** are taller and show the description and
+  all the tags. The computer's tile keeps its shape. A card without a tagline
+  now shows the start of its description there too, as on a phone.
+- **The home page loads faster.** The list of characters carries only what a
+  card shows: about 1.8 MB compressed before, about 40 KB after, measured on 300
+  characters the size of the community's. Only the pictures near the screen
+  load (small, on a phone; the computer keeps its pictures whole). Search still
+  finds every word of a description. Those words arrive a moment after the
+  others.
+- **The first time an older card shows**, its whole picture is loaded once (your
+  browser usually has it already). Then your device makes two smaller copies and
+  sends them, one card at a time, never while a reply is being written. Each
+  portrait takes about 50 KB and 150 KB. This happens once for all your devices.
+  The sending goes on when you leave the home page for a conversation, between
+  two replies.
+- **Nothing else changes**: not your characters, conversations or generation
+  settings.
+- **A page open before the update** must be reloaded. If it sets the strength of
+  a backdrop, the new strength is the one that counts.
+
 ## From 3.4.x to 3.5.0
 
 This update asks for a restart and a reload of your pages, nothing more. Read it

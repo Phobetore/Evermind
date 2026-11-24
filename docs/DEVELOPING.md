@@ -335,6 +335,25 @@ portrait, and `pairing.ts` says which entry of the card each entry now is, only
 when the two still share their keys or their text and nothing puts the pairing
 in doubt.
 
+## Display, portrait copies and card excerpts
+
+`evermind:display` (`frontend/src/lib/display.ts`) holds this device's text size, whether a
+picture shows behind a conversation, and that picture's strength. It is read with the language,
+before the first paint, so a first message is never drawn at the wrong size; a store shared by
+the person's devices keeps one display per kind of screen (`:touch`, `:desk`). Under the text the
+picture never weighs more than `UNDER_TEXT` (0.12, the same file): `plateAlpha` gives the opacity
+of the page-coloured plate over each message, which the story sets as `--plate`, and the plate's
+colour comes from `--page-rgb` in `styles.css`, the one value a light theme would change. A
+portrait's smaller copies (`GRID_WIDTH` 480 and `BACKDROP_WIDTH` 960, `lib/portraitSizes.ts`) are
+made by the browser and sent to `POST /api/characters/{id}/avatar/sizes` with the name of the
+portrait they were made from: the server checks them and keeps them, and answers 409
+`portrait_changed` when that portrait was replaced meanwhile. A new portrait has no copies until a
+page sends some. The excerpt of a description (the card's text when it has no tagline) is written
+twice, in `backend/app/services/card_text.py` and `frontend/src/engine/excerpt.ts`, and the
+recorded cases in `backend/tests/cases/card_excerpt.json` hold both to the same answers. A change
+to its rule raises `EXCERPT_RULE` in both files, to the same number: the stored excerpts are then
+worked out again, with no migration.
+
 ## Optional semantic memory
 
 Installing the `semantic` extra swaps recency-based recall for meaning-based
