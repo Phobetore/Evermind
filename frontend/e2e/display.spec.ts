@@ -557,8 +557,9 @@ test.describe("a phone set to very large text keeps every button and no sideways
       expect(resting.off, "the empty input is not one line high").toBeLessThanOrEqual(1);
       expect(resting.cut, "the placeholder wraps under the line").toBeLessThanOrEqual(0);
       // Cut to its room, and said to go on: a textarea's placeholder draws no ellipsis of its own.
+      // Whether a first letter of the name is left turns on half a pixel of how the machine draws the font.
       const hint = await placeholderOf(inputBox(page));
-      expect(hint.text, "the placeholder is not cut where it says so").toMatch(/^Write to .*…$/);
+      expect(hint.text, "the placeholder is not cut where it says so").toMatch(/^Write to.*…$/);
       expect(hint.over, "the placeholder is wider than its box").toBeLessThanOrEqual(0);
       await expect(inputBox(page), "a screen reader hears it cut").toHaveAccessibleName(sayTo(UNBROKEN_NAME));
 
