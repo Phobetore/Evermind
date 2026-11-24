@@ -263,17 +263,18 @@ In Evermind, go to **Settings**, then **My AIs**, then **Add**.
    box itself. Under that sentence, change the **Server address** to
    `http://host.docker.internal:1234/v1` and click **Try again**.
 4. Evermind then shows the whole list of the server's models (a search field
-   appears above it when it is long, 12 models or more). Tick the ones you want. You do not type the
-   model's name, and you do not set
-   its size: Evermind reads what the server says about each model, among other
-   things how much it can read at once (the size loaded, for LM Studio).
+   appears above it when it is long, 12 models or more). Tick the ones you
+   want. You do not type the model's name, and you do not set its size:
+   Evermind reads what the server says about each model, among other things
+   how much it can read at once (the size loaded, for LM Studio).
 5. Click **Add 1 AI** (**Add 2 AIs**, and so on, as many as you ticked). They
    appear under **My AIs**. Your first AI answers new conversations; you can
    change that on an AI's page.
 
 If the list does not have a model you know exists, and your server is a local
 one, load that model in the server first (in LM Studio, load it, then start the
-server), then click your server's button again: Evermind asks it afresh.
+server), then click **Read again** under the list: Evermind asks the server
+afresh.
 
 ---
 
