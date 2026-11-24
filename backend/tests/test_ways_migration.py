@@ -199,6 +199,18 @@ async def test_a_model_has_not_said_what_it_counts_yet(start):
         {"id": "c1", "usage_seen": None}, {"id": "c2", "usage_seen": None}]
 
 
+async def test_a_model_says_it_counts_or_it_does_not_and_nothing_else(start):
+    await start()
+    ai("c1", "Brume", "http://localhost:11434/v1", "brume:12b")
+    await start(MIGRATION)
+
+    run("UPDATE models SET usage_seen = 0")
+    run("UPDATE models SET usage_seen = 1")
+    with pytest.raises(sqlite3.IntegrityError):
+        run("UPDATE models SET usage_seen = 2")
+    assert rows("SELECT usage_seen FROM models") == [{"usage_seen": 1}]
+
+
 async def test_a_failure_half_way_leaves_the_database_as_it_was(start):
     await start()
     setting("history_limit", 40)
@@ -234,3 +246,20 @@ async def test_the_copy_before_the_update_is_named_for_3_8_0(start):
     finally:
         conn.close()
     assert "play_style" not in columns
+
+
+async def test_a_conversation_the_release_before_makes_after_the_update_plays_balanced(start):
+    # 3.7.0 run again on the migrated database knows no play_style: the column's default is what
+    # such a row gets, whatever the way the settings became. The update never runs a second time,
+    # so this is said in the upgrade note, not mended.
+    await start()
+    setting("history_limit", 40)
+    await start(MIGRATION)
+    assert stored("default_play_style") == "mine"
+    run("INSERT INTO characters (id, name, created_at, updated_at)"
+        " VALUES ('serana', 'Serana', '2026-01-01', '2026-01-01')")
+
+    run("INSERT INTO conversations (id, character_id, created_at, updated_at)"
+        " VALUES ('later', 'serana', '2026-01-03', '2026-01-03')")
+
+    assert played() == {"later": ("balanced", None)}
