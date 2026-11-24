@@ -517,6 +517,31 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 .chat-banner { background: rgba(217, 106, 95, 0.1); }
 .over-backdrop .chat-banner { background: var(--color-ink-900); }
 
+/* The home page's tiles (CharacterCard) and their grid. Out of every layer, so that below sm they win
+   over the utilities the computer's tile keeps from sm up. */
+/* 300 tiles: those far from the screen are neither laid out nor painted, nor their pictures loaded. */
+.card-tile { content-visibility: auto; contain-intrinsic-size: auto 260px; }
+@media (width < 40rem) {
+  /* Two columns at most; one where the system's text is about 150 % or more, as 8.5rem grows with it. */
+  .card-grid { grid-template-columns: repeat(auto-fill, minmax(max(8.5rem, calc(50% - 0.375rem)), 1fr)); }
+  /* Darker and higher than the computer's: the text and the tags sit on the picture's lower half. */
+  .card-shade { background-image: linear-gradient(to top, var(--color-ink-950) 0%,
+    rgb(15 13 18 / 0.9) 30%, rgb(15 13 18 / 0.45) 55%, transparent 78%); }
+  /* One row that a finger slides, without a script: the last tag fades out, and the margin on the
+     right lets it come out of the fade. */
+  .card-tags { display: flex; gap: 0.3rem; overflow-x: auto; overscroll-behavior-x: contain;
+    scrollbar-width: none; padding-right: 1.7rem;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.7rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.7rem), transparent); }
+  .card-tags::-webkit-scrollbar { display: none; }
+  /* A card reached by the keyboard shows all its tags, its text still said by aria-describedby, and
+     keeps its caption 3rem under the top, so that the name never slides under the kind's label. */
+  .card-tile:focus-visible .card-tags { flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none;
+    mask-image: none; }
+  .card-tile:focus-visible .card-text { display: none; }
+  .card-tile:focus-visible .card-caption { max-height: calc(100% - 3rem); overflow: hidden; }
+}
+
 /* Less motion: animations are cut to an instant rather than removed, so that what they end on is
    still drawn (the entry animations hold their last frame). */
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
@@ -10,7 +10,7 @@ function pastTheEdge(page: Page, width: number) {
     const guilty: string[] = [];
     for (const el of document.querySelectorAll("body *")) {
       const box = el.getBoundingClientRect();
-      const inARail = el.closest(".overflow-x-auto");
+      const inARail = el.closest(".overflow-x-auto, .card-tags");
       if (box.width > 0 && box.right > seen + 1 && !inARail
           && getComputedStyle(el).position !== "fixed") {
         guilty.push(el.tagName.toLowerCase() + "." + String(el.className).split(" ")[0]);
@@ -219,7 +219,8 @@ test("a card's long tagline and tags widen neither the home page, the library no
   const longTag = "L".repeat(10_000);
   const tags = [longTag, ...Array.from({ length: 19 }, (_, i) => `tag ${i + 2}`)];
   const card = await makeCharacter(request, { name, tagline, tags });
-  madeWide.push(card.id);
+  const untagged = await makeCharacter(request, { name: `${name} untagged`, tagline, tags: [] });
+  madeWide.push(card.id, untagged.id);
   const title = "L".repeat(2_000);
   const sideways = (target: Page) => target.evaluate(() => {
     const root = document.scrollingElement!;
@@ -236,25 +237,28 @@ test("a card's long tagline and tags widen neither the home page, the library no
     for (const box of await Promise.all((await chip.locator("xpath=../button").all()).map((b) => b.boundingBox()))) {
       expect(box!.width, "a chip is wider than its row").toBeLessThanOrEqual(rail.width + 1);
     }
-    const tale = page.locator(`a[href$="/characters/${card.id}"] p.italic`);
-    // The tile shows its tagline and tags from sm (640) up, so the test knows where they must be.
+    expect(await page.locator("#main").evaluate((el) => el.scrollWidth - el.clientWidth), "the home page slides sideways")
+      .toBeLessThanOrEqual(0);
+    // The tile shows its tagline and tags at every width: on a phone the tags in a row that slides.
+    const narrow = page.viewportSize()!.width < 640;
     const tile = page.locator(`a[href$="/characters/${card.id}"]`);
-    if (page.viewportSize()!.width >= 640) {
+    const cut = async (tale: Locator, lines: number, what: string) => {
       await expect(tale).toBeVisible();
       const { height, line } = await tale.evaluate((el) => ({
         height: el.getBoundingClientRect().height,
         line: parseFloat(getComputedStyle(el).lineHeight),
       }));
-      expect(height, "the tile's tagline is cut at two lines").toBeLessThanOrEqual(line * 2.5);
-      const tileChip = tile.locator("span", { has: page.locator(`[title="${title}"]`) }).last();
-      await expect(tileChip).toBeVisible();
-      const tileBox = (await tile.boundingBox())!;
-      const chipBox = (await tileChip.boundingBox())!;
-      expect(chipBox.x + chipBox.width, "the tile's chip runs past the tile").toBeLessThanOrEqual(tileBox.x + tileBox.width);
-      expect(chipBox.width, "the tile's chip is as wide as the tile").toBeLessThan(tileBox.width);
-    } else {
-      await expect(tale).toBeHidden();
-    }
+      expect(height, what).toBeLessThanOrEqual(line * (lines + 0.5));
+    };
+    await cut(tile.locator("p.italic"), 2, "the tile's tagline is cut at two lines");
+    await cut(page.locator(`a[href$="/characters/${untagged.id}"] p.italic`), narrow ? 3 : 2,
+      `the tagline of a tile without tags is cut at ${narrow ? "three" : "two"} lines`);
+    const tileChip = tile.locator("span", { has: page.locator(`[title="${title}"]`) }).last();
+    await expect(tileChip).toBeVisible();
+    const tileBox = (await tile.boundingBox())!;
+    const chipBox = (await tileChip.boundingBox())!;
+    expect(chipBox.x + chipBox.width, "the tile's chip runs past the tile").toBeLessThanOrEqual(tileBox.x + tileBox.width);
+    expect(chipBox.width, "the tile's chip is as wide as the tile").toBeLessThan(tileBox.width);
   };
   const library = async () => {
     await page.route("**/api/library", (route) => route.fulfill({
@@ -297,7 +301,7 @@ test("a card's long tagline and tags widen neither the home page, the library no
   await library();
   await editor();
   if (testInfo.project.name === "phone") {
-    // A phone on its side is past sm: the tile shows its tagline and tags, the row wraps.
+    // A phone on its side is past sm: the tile shows its first three tags, the row wraps.
     await page.setViewportSize({ width: 915, height: 412 });
     await home();
     await library();

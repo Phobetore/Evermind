@@ -51,7 +51,12 @@
       "dropHint": "or click to choose one. Several at once is fine.",
       "sizeNote": "Up to 15 MB per file. Nothing is uploaded anywhere: the file is read by your own copy of Evermind.",
       "maybeMade": "A copy of this card may be on the home page already: look there before importing it again."
-    }
+    },
+    "card": {
+      "tags": "Tags: {list}"
+    },
+    "searchingDescriptions": "Also searching the descriptions…",
+    "searchFailed": "The descriptions could not be searched: only names and taglines were."
   },
   "chatList": {
     "subtitle": "Pick up your stories right where you left them.",

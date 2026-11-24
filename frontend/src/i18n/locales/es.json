@@ -51,7 +51,12 @@
       "dropHint": "o haz clic para elegir una. Varias a la vez también vale.",
       "sizeNote": "Hasta 15 MB por archivo. Nada se sube a ningún sitio: el archivo lo lee tu propio Evermind.",
       "maybeMade": "Puede que ya haya una copia de esta ficha en la página de inicio: mira allí antes de volver a importarla."
-    }
+    },
+    "card": {
+      "tags": "Etiquetas: {list}"
+    },
+    "searchingDescriptions": "Buscando también en las descripciones…",
+    "searchFailed": "No se pudo buscar en las descripciones: solo en los nombres y los lemas."
   },
   "chatList": {
     "subtitle": "Retoma tus historias justo donde las dejaste.",

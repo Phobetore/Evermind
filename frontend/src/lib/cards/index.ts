@@ -122,9 +122,11 @@ export async function readCardFile(file: File): Promise<{ read: ReadCard; portra
 /** The character a creation whose answer was lost made after all: the one of this name among
  *  those `known` did not hold. None when there is no telling, or no such one, or several. */
 async function madeMeanwhile(name: string, known: ReadonlySet<string>): Promise<Character | null> {
-  const fresh = await data.characters.list()
+  const fresh = await data.characters.tiles()
     .then((list) => list.filter((c) => !known.has(c.id) && c.name === name), () => []);
-  return fresh.length === 1 ? fresh[0] : null;
+  if (fresh.length !== 1) return null;
+  // The light list has the ids and names, none of the fields a character is given back with.
+  return data.characters.get(fresh[0].id).catch(() => null);
 }
 
 /** The card, then its portrait; one whose portrait does not go is taken away, so a retry makes one.

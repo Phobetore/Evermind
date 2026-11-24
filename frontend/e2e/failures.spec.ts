@@ -25,12 +25,14 @@ const favourite = async (request: APIRequestContext, id: string): Promise<boolea
 
 test("the home page that cannot read its cards says so, and reads them again when asked", async ({ page, request }) => {
   const card = await makeCharacter(request, { name: `Read ${Date.now()}` });
-  await page.route("**/api/characters", offline);
+  // The home page reads api/characters?fields=card, which a pattern of the path alone would not take.
+  const list = (url: URL) => url.pathname.endsWith("/api/characters");
+  await page.route(list, offline);
   await page.goto("/#/");
   await expect(page.locator("main").getByText("Evermind is not answering")).toBeVisible();
   await expect(page.locator("main .animate-pulse-soft"), "cards pulsing for ever").toHaveCount(0);
 
-  await page.unroute("**/api/characters", offline);
+  await page.unroute(list, offline);
   const failure = page.locator("main").getByRole("alert");
   await failure.getByRole("button", { name: "Reload" }).click();
   await expect(page.locator("main").getByRole("heading", { name: card.name })).toBeVisible();
