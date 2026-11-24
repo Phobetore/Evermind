@@ -11,18 +11,25 @@ import { addModel, chat, conversationWithReply, MOCK, replyEnds } from "./fixtur
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-/** A conversation with one exchange in it, its model now told to end the next reply `how`. */
-async function endingWith(request: APIRequestContext, how: string, connection: Record<string, unknown> = {}) {
+/**
+ * An AI of the conversation's own, so that what is set here, or what it learns (that its model
+ * reasons, which stops its ceiling being sent), never reaches the one every other test uses.
+ */
+async function ownAi(request: APIRequestContext, conversationId: string, changes?: Record<string, unknown>) {
+  const own = await addModel(request, {
+    base_url: MOCK, model: `reply-ends-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, changes,
+  });
+  await request.patch(`${API}/api/conversations/${conversationId}`, { data: { model_id: own.id } });
+}
+
+/**
+ * A conversation with one exchange in it, its model now told to end the next reply `how`;
+ * `changes`: on an AI of its own.
+ */
+async function endingWith(request: APIRequestContext, how: string, changes?: Record<string, unknown>) {
   const convo = await conversationWithReply(request);
-  const patch: Record<string, unknown> = { author_note: how };
-  if (Object.keys(connection).length) {
-    // A model of its own, so that the ceiling set here is not the one every other test uses.
-    const own = await addModel(request, {
-      base_url: MOCK, model: `reply-ends-${Date.now()}`, changes: connection,
-    });
-    patch.model_id = own.id;
-  }
-  await request.patch(`${API}/api/conversations/${convo.id}`, { data: patch });
+  if (changes) await ownAi(request, convo.id, changes);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: how } });
   return convo;
 }
 
@@ -40,7 +47,7 @@ async function noSidewaysScroll(page: Page) {
 }
 
 test("a model that only reasoned says so, with what to change", { tag: "@desktop" }, async ({ page, request }) => {
-  const convo = await endingWith(request, "MOCK_REASONS_ONLY");
+  const convo = await endingWith(request, "MOCK_REASONS_ONLY", {});
   await sendFromTheBox(page, convo.id);
 
   const said = page.getByRole("alert");
@@ -117,6 +124,7 @@ test("an older reply cut by the max tokens keeps a short mark, without asking to
 
 test("the pen's advice on what to change stays until the next try", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await conversationWithReply(request);
+  await ownAi(request, convo.id);
   // A message the ghost-writer reads, which makes the model reason through all its room.
   await chat(request, { conversation_id: convo.id, mode: "send", content: "MOCK_REASONS_ONLY" });
   await page.goto(`/#/chat/${convo.id}`);
@@ -133,6 +141,7 @@ test("the pen's advice on what to change stays until the next try", { tag: "@des
 
 test("the pen's advice is gone once a reply is asked for another way", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await conversationWithReply(request);
+  await ownAi(request, convo.id);
   // A message the model answers with nothing but thought; the pen reads it too.
   await chat(request, { conversation_id: convo.id, mode: "send", content: "MOCK_REASONS_ONLY" });
   await page.goto(`/#/chat/${convo.id}`);
