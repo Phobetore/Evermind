@@ -12,6 +12,8 @@ import { MOCK_ROOT, forgetServices, routeServiceTo } from "./fixtures";
 const OPENROUTER = "https://openrouter.ai/api/v1";
 const MANY = `${MOCK_ROOT}/many/api/v1`;
 const LOCKED = `${MOCK_ROOT}/locked/api/v1`;
+/** The mock's plain list: two bare ids, nothing said of their size or price. */
+const PLAIN = `${MOCK_ROOT}/plain/v1`;
 
 interface Row {
   id: string;
@@ -349,6 +351,93 @@ test.describe("adding AIs", () => {
     const locked = services.find((s: { base_url: string }) => s.base_url.includes("/locked/"));
     expect(locked.api_key_hint).toBe("…good");
     expect(await aisOn(request, "/locked/")).toHaveLength(2);
+  });
+
+  test("what a service does not say is asked under the ticked row, and sent", async ({ page, request }) => {
+    await forgetServices(request, "/plain/");
+    // A list of bare ids, as most servers give: no size, no price.
+    await routeServiceTo(page, "https://api.groq.com/openai/v1", PLAIN);
+    const box = dialog(page);
+
+    await openAdd(page);
+    await chip(page, "Groq");
+    await withKey(page, "sk-e2e-any");
+    await expect(box.getByRole("radio")).toHaveCount(0);
+    await row(page, "evermind-demo").getByRole("checkbox").check();
+    const ticked = row(page, "evermind-demo");
+    await expect(ticked.getByRole("group", { name: "How much can it read at once?" })).toBeVisible();
+    await expect(ticked.getByRole("radio")).toHaveCount(4);
+    await expect(ticked.getByRole("radio", { name: "I don't know" })).toBeChecked();
+    await expect(ticked.getByText("Evermind then counts 16,384 tokens (≈ 33 pages), as today.")).toBeVisible();
+    await ticked.getByRole("radio", { name: /^Medium/ }).check();
+    await expect(ticked.getByText("Noted. Can be changed at any time on the AI's page.")).toBeVisible();
+    await expect(ticked.getByText("Its price, if you know it ($ per million tokens)")).toBeVisible();
+    await expect(ticked.getByText("As on Groq's pricing page. Optional.")).toBeVisible();
+    await ticked.getByLabel("Read", { exact: true }).fill("0,5");
+    await ticked.getByLabel("Written", { exact: true }).fill("1.5");
+    // Only under the ticked row.
+    await expect(box.getByRole("radio")).toHaveCount(4);
+
+    const sent = page.waitForRequest((asked) => asked.method() === "POST" && new URL(asked.url()).pathname === "/api/models");
+    await box.getByRole("button", { name: "Add 1 AI" }).click();
+    expect((await sent).postDataJSON().models).toEqual([
+      expect.objectContaining({ model: "evermind-demo", context_own: 32_000, price_own_in: 0.5, price_own_out: 1.5 }),
+    ]);
+    await expect(box.getByText("1 AI added")).toBeVisible();
+  });
+
+  test("a server at home that does not say its size is told what Evermind counts", async ({ page }) => {
+    const box = dialog(page);
+    await openAdd(page);
+    // Ollama's size is read from it when the model is added.
+    // Each at an address of its own: a list is kept a while by its address, whatever chip asked.
+    await routeServiceTo(page, "http://localhost:11434/v1", `${MOCK_ROOT}/home-ollama/v1`);
+    await chip(page, "Ollama");
+    await expect(row(page, "evermind-demo").getByText("Size read when it is added.")).toBeVisible();
+    await box.getByRole("button", { name: "Back", exact: true }).click();
+
+    await page.unrouteAll();
+    await routeServiceTo(page, "http://localhost:8080/v1", `${MOCK_ROOT}/home-llama/v1`);
+    await chip(page, "llama.cpp");
+    await expect(row(page, "evermind-demo").getByText(
+      "This server does not say the size it loads: Evermind counts 4,096. Can be changed on the AI's page.",
+    )).toBeVisible();
+    // A server at home asks neither a size nor a price.
+    await row(page, "evermind-demo").getByRole("checkbox").check();
+    await expect(box.getByRole("radio")).toHaveCount(0);
+    await expect(box.getByText("Its price, if you know it ($ per million tokens)")).toHaveCount(0);
+  });
+
+  test("a service with no ai can be removed, and a refusal is said on its row", async ({ page, request }) => {
+    await forgetServices(request, "/plain/");
+    await service(request, PLAIN, ["evermind-demo"]);
+    const services = await (await request.get(`${API}/api/connections`)).json();
+    const held = services.find((s: { base_url: string }) => s.base_url.includes("/plain/"));
+    // The release before can leave a service with no AI, which nothing here can make: one is shown
+    // to the page, and the one it shows as empty has had an AI added on it from elsewhere since.
+    const empty = { ...held, id: "e2e-empty-service", name: "Empty one", base_url: `${MOCK_ROOT}/emptied/v1`, model_count: 0 };
+    await page.route("**/api/connections", async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      const listed = await route.fetch();
+      const shown = (await listed.json()).map((s: { id: string }) => (s.id === held.id ? { ...s, model_count: 0 } : s));
+      await route.fulfill({ response: listed, json: [...shown, empty] });
+    });
+    await page.route(`**/api/connections/${empty.id}`, (route) => route.fulfill({ status: 204 }));
+    const box = dialog(page);
+    const entry = (fragment: string) => box.locator("li").filter({ hasText: fragment });
+
+    await openAdd(page);
+    await expect(entry("/emptied/").getByText("Already connected · no AI in your list")).toBeVisible();
+    await entry("/emptied/").getByRole("button", { name: "Remove" }).click();
+    const sure = page.getByRole("alertdialog", { name: "Remove Empty one? Its key will be forgotten." });
+    await sure.getByRole("button", { name: "Remove" }).press("Enter");
+    await expect(entry("/emptied/")).toHaveCount(0);
+
+    await entry("/plain/").getByRole("button", { name: "Remove" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).press("Enter");
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    await expect(entry("/plain/").getByRole("alert")).toContainText("This service now holds AIs: it was not removed.");
+    expect(await aisOn(request, "/plain/")).toHaveLength(1);
   });
 
   test("leaving the flow half-way changes nothing", async ({ page, request }) => {
