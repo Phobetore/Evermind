@@ -71,7 +71,9 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+    // The side gutters are layout, not text: in pixels at most, so that the largest text does not
+    // double them and take from the words the room they need.
+    <div className="mx-auto max-w-4xl px-[min(1.5rem,24px)] py-10">
       <header className="mb-8 animate-rise">
         {/* One long word at the largest text (Einstellungen): broken rather than slide the page. */}
         <h1 className="font-display text-3xl font-semibold break-words hyphens-auto">{t("nav.settings")}</h1>
@@ -476,9 +478,10 @@ function About({
           </label>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
+            {/* As on an AI's page: at the largest text the icon goes above, the words keep whole. */}
             <button
               type="button"
-              className="btn btn-ghost max-w-full whitespace-normal hyphens-auto !px-3 !py-1.5 text-sm [overflow-wrap:anywhere]"
+              className="btn btn-ghost max-w-full flex-wrap whitespace-normal break-words hyphens-auto !px-[min(1.1rem,17.6px)] !py-1.5 text-sm"
               onClick={checkNow}
               disabled={checking || !installed}
             >

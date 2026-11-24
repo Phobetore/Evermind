@@ -275,7 +275,14 @@ export async function inLocale(page: Page, locale: string): Promise<void> {
 
 /** What does not fit a phone, within the element `within` selects (the page by default): the page
  *  sliding sideways, a control past the screen's edges or wider than its own box, a select wider
- *  than the box it sits in, a word of a control's label broken in the middle. Each said in a line. */
+ *  than the box it sits in, a word of a control's label broken in the middle. Each said in a line.
+ *
+ *  What it lets through, so that a clean result is not taken for more than it is: a word wider than
+ *  the room its control has now (a control squeezed narrower than its words, as a flex item set to
+ *  break anywhere is, passes); text inside a child set to break anywhere; text cut by an ellipsis in
+ *  a child (the words are whole, only hidden); and anything that is not a button, a select, a link
+ *  drawn as a button (a.btn) or a [role=button]: labels, headings, paragraphs and fields are not
+ *  looked at, beyond the page sliding. */
 export async function misfits(page: Page, within = "body"): Promise<string[]> {
   // Measured in the page's own fonts: a fallback font has other widths.
   await page.evaluate(() => document.fonts.ready);

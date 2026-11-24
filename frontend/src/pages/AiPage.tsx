@@ -23,6 +23,10 @@ const TYPING_MS = 700;
 const SAVED_MS = 2000;
 /** The engine's floor (engine.py): a reading capacity under it is refused by the server. */
 const LEAST_CONTEXT = 512;
+/** The page's side gutters, and its server panel's: layout, not text, so in pixels at most. In rem
+ *  alone they would double with the largest text, and take from the words the room they need. */
+const GUTTER = "px-[min(1.5rem,24px)]";
+const PANEL_GUTTER = "px-[min(1.25rem,20px)]";
 
 /** The route /settings/ai/:id. Reads the list of AIs, and the one shown again from its server on
  *  opening (through the server's ten-minute list). */
@@ -130,17 +134,17 @@ function AiView({ id }: { id: string }) {
 
   if (loadFailure) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      <div className={clsx("mx-auto max-w-3xl py-10", GUTTER)}>
         <LoadFailure error={loadFailure.error} onRetry={load} />
       </div>
     );
   }
   if (ais === null) {
-    return <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 text-mist animate-pulse-soft">{t("common.loading")}</div>;
+    return <div className={clsx("mx-auto max-w-3xl py-10 text-mist animate-pulse-soft", GUTTER)}>{t("common.loading")}</div>;
   }
   if (ai === null) {
     return (
-      <div className="mx-auto flex max-w-3xl flex-col items-start gap-4 px-6 py-10">
+      <div className={clsx("mx-auto flex max-w-3xl flex-col items-start gap-4 py-10", GUTTER)}>
         <p className="font-display text-xl font-semibold">{t("ai.page.gone")}</p>
         <Link to="/settings" className="btn btn-ghost">{t("ai.add.backToSettings")}</Link>
       </div>
@@ -225,7 +229,7 @@ function AiView({ id }: { id: string }) {
   const onService = ais.filter((each) => each.service.id === ai.service.id).length;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <div className={clsx("mx-auto max-w-3xl py-10", GUTTER)}>
       <Link to="/settings" className="touch-target mb-4 inline-flex items-center gap-1.5 text-sm text-mist hover:text-parchment">
         <ArrowLeft className="h-4 w-4" />
         {t("nav.settings")}
@@ -378,7 +382,7 @@ function ServerRead({ ai, t, reading, failure, onReread, bench, benching, onBenc
   );
 
   return (
-    <section className="panel mb-6 px-4 py-4 sm:px-5">
+    <section className={clsx("panel mb-6 py-4", PANEL_GUTTER)}>
       <p className="ui-label mb-3">
         {ai.limits_read_at ? t("ai.page.readAt", { age: timeAgo(ai.limits_read_at, t) }) : t("ai.page.notRead")}
       </p>
@@ -398,11 +402,13 @@ function ServerRead({ ai, t, reading, failure, onReread, bench, benching, onBenc
         <dd className="text-parchment-dim">{price}</dd>
       </dl>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" className="btn btn-ghost max-w-full whitespace-normal hyphens-auto !px-3 !py-1.5 text-sm [overflow-wrap:anywhere]" onClick={onReread} disabled={reading}>
+        {/* At the largest text the icon takes a line of its own, and the words the whole width: a word
+            is broken only when it alone is wider. The padding is layout: in pixels at most. */}
+        <button type="button" className="btn btn-ghost max-w-full flex-wrap whitespace-normal break-words hyphens-auto !px-[min(1.1rem,17.6px)] !py-1.5 text-sm" onClick={onReread} disabled={reading}>
           {reading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           {t("ai.page.reread")}
         </button>
-        <button type="button" className="btn btn-ghost max-w-full whitespace-normal hyphens-auto !px-3 !py-1.5 text-sm [overflow-wrap:anywhere]" onClick={onBenchmark} disabled={benching}>
+        <button type="button" className="btn btn-ghost max-w-full flex-wrap whitespace-normal break-words hyphens-auto !px-[min(1.1rem,17.6px)] !py-1.5 text-sm" onClick={onBenchmark} disabled={benching}>
           {benching && <Loader2 className="h-4 w-4 animate-spin" />}
           {t("ai.page.benchmark")}
         </button>
@@ -797,6 +803,10 @@ function CeilingControl({ ai, t, grouped, onSave, said }: {
   );
 }
 
+/** Two settings side by side from 360px, as one column under it, and as one column too when the
+ *  text is large enough that two would squeeze their labels (8rem each). */
+const PAIR = "grid grid-cols-1 gap-3 min-[360px]:grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))]";
+
 function Sampling({ ai, t, onSave, said }: { ai: Ai; t: Translate; onSave: Save; said: Said }) {
   const ids = useId();
   const field = (key: "temperature" | "top_p" | "frequency_penalty" | "presence_penalty", label: string) => (
@@ -814,7 +824,7 @@ function Sampling({ ai, t, onSave, said }: { ai: Ai; t: Translate; onSave: Save;
   );
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3">
+      <div className={PAIR}>
         {field("temperature", t("ai.page.temperature"))}
         {field("top_p", t("ai.page.topP"))}
       </div>
@@ -822,7 +832,7 @@ function Sampling({ ai, t, onSave, said }: { ai: Ai; t: Translate; onSave: Save;
       {/* Anthropic is never sent them (providers/anthropic.py). */}
       {ai.service.provider !== "anthropic" && (
         <>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3">
+          <div className={PAIR}>
             {field("frequency_penalty", t("ai.page.frequency"))}
             {field("presence_penalty", t("ai.page.presence"))}
           </div>
@@ -841,7 +851,8 @@ function PriceFields({ ai, t, hint, onSave, said }: { ai: Ai; t: Translate; hint
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-sm text-parchment-dim">{t("ai.list.priceTitle")}</p>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3">
+      {/* Side by side, even at 320px in the advanced part (113px each); stacked only at large text. */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6.5rem),1fr))] gap-3">
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-mist" htmlFor={`${ids}-in`}>
           {t("ai.list.priceIn")}
           <FigureField

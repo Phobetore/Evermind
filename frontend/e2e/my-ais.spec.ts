@@ -700,3 +700,21 @@ test.describe("an ai's page at very large text keeps its choices and buttons on 
     });
   }
 });
+
+// The same for Settings, where My AIs and their buttons are.
+test.describe("settings at very large text keep to the screen", () => {
+  for (const locale of ["en", "fr", "de", "es"]) {
+    test(`in ${locale}`, async ({ page }) => {
+      await inLocale(page, locale);
+      await page.addInitScript(rootAt, "32px");
+      for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+        await page.setViewportSize(size);
+        await page.goto("/#/settings");
+        await expect(page.locator("main a[href^='#/settings/ai/']").first()).toBeVisible();
+        await page.waitForLoadState("networkidle");
+        expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+        expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+      }
+    });
+  }
+});
