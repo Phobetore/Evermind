@@ -222,6 +222,17 @@ test("the redo button goes as soon as a reply is being written", async ({ page, 
   }
 });
 
+test("no redo button when the last message is the greeting", async ({ page, request }) => {
+  await sylve(request);
+  const convo = await makeConversation(request);
+  expect((await conversation(request, convo.id)).messages.at(-1).meta?.greeting).toBeTruthy();
+  await page.goto(`/#/chat/${convo.id}`);
+  const sheet = await openSheet(page);
+  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await expect(toastOf(page)).toContainText("Sylve answers from now on.");
+  await noButtonIn(toastOf(page));
+});
+
 test("a toast is heard through the page's one status line", async ({ page, request }) => {
   await sylve(request);
   const convo = await makeConversation(request);
@@ -261,6 +272,72 @@ test("a capped ai is said in the sheet, and letting Evermind set it is confirmed
   // Opened again, the sheet no longer warns of it.
   await openSheet(page);
   await expect(sheetOf(page)).not.toContainText("keeps a ceiling of");
+});
+
+test("a row touched says it is on its way until the server answers", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  await sylve(request);
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() !== "PATCH") return route.continue();
+    await released;
+    await route.continue();
+  });
+  await page.goto(`/#/chat/${convo.id}`);
+
+  const sheet = await openSheet(page);
+  const row = sheet.getByRole("radio", { name: /^Sylve/ });
+  await row.click();
+  await expect(row).toHaveAttribute("aria-busy", "true");
+  await expect(sheet).toBeVisible();
+  release();
+  await expect(sheet).toHaveCount(0);
+  await expect(chipOf(page)).toHaveAccessibleName("AI: Sylve. Change.");
+});
+
+test("of several rows touched in a row, the last one counts", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  await sylve(request);
+  const bruine = await addModel(request, { base_url: MOCK, model: "MOCK_SAYS_Bruine", name: "Bruine" });
+  let release = () => {};
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  let patches = 0;
+  let firstDone = () => {};
+  const firstAnswered = new Promise<void>((resolve) => { firstDone = resolve; });
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() !== "PATCH") return route.continue();
+    if (++patches > 1) return route.continue();
+    // The first pick reaches the server, and its answer comes back last.
+    const answered = await route.fetch();
+    await released;
+    await route.fulfill({ response: answered });
+    firstDone();
+  });
+  await page.goto(`/#/chat/${convo.id}`);
+
+  const sheet = await openSheet(page);
+  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await expect(sheet.getByRole("radio", { name: /^Sylve/ })).toHaveAttribute("aria-busy", "true");
+  await sheet.getByRole("radio", { name: new RegExp(`^${bruine.name}`) }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(chipOf(page)).toHaveAccessibleName(`AI: ${bruine.name}. Change.`);
+  release();
+  await firstAnswered;
+  await expect(chipOf(page)).toHaveAccessibleName(`AI: ${bruine.name}. Change.`);
+  expect((await conversation(request, convo.id)).model_id).toBe(bruine.id);
+});
+
+test("a pen that fails says so in passing", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  await page.route("**/impersonate", (route) =>
+    route.fulfill({ status: 500, contentType: "text/html", body: "<html>Server error</html>" }));
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.getByTitle("Write my reply for me (editable before sending)").click();
+  await expect(toastOf(page)).toBeVisible();
+  await expect(toastOf(page)).not.toBeEmpty();
+  // Not advice, which keeps a line of its own under the box.
+  await expect(page.locator("[data-input-hint]")).toBeEmpty();
 });
 
 test("another model from the conversation is six taps and comes back with it chosen", async ({ page, request }) => {
@@ -350,6 +427,25 @@ test("an ai removed elsewhere is said once, and the default answers", async ({ p
   await page.reload();
   await expect(line).toContainText("Gone one was removed from your AIs, and none is left.");
   await expect(chipOf(page)).toHaveText("Add an AI");
+});
+
+test("choosing another ai clears the line saying one was removed", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const gone = await addModel(request, { base_url: MOCK, model: `e2e-gone-${Date.now()}`, name: `Gone ${Date.now()}` });
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: gone.id } });
+  expect((await request.delete(`${API}/api/models/${gone.id}`)).ok()).toBe(true);
+  await sylve(request);
+  await page.goto(`/#/chat/${convo.id}`);
+
+  const line = page.locator("[data-model-lost]");
+  await expect(line).toBeVisible();
+  const sheet = await openSheet(page);
+  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(line).toHaveCount(0);
+  await page.reload();
+  await expect(chipOf(page)).toHaveAccessibleName("AI: Sylve. Change.");
+  await expect(line).toHaveCount(0);
 });
 
 test("with no ai the chip adds one in place", async ({ page, request }) => {
