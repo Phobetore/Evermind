@@ -254,6 +254,26 @@ test.describe("my ais", () => {
     await request.delete(`${API}/api/models/${ai.id}`);
   });
 
+  test("a price typed is saved as typed, and a negative one is refused and said", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "Price");
+    await openPage(page, ai.id);
+    await openAdvanced(page);
+    const saves = () => page.waitForResponse((r) => r.request().method() === "PUT" && r.url().endsWith(`/api/models/${ai.id}`));
+    let saved = saves();
+    await page.getByLabel("Read", { exact: true }).fill("0.5");
+    await saved;
+    await expect(page.getByText("Saved.")).toBeVisible();
+    expect((await aiOf(request, ai.id)) as unknown as { price: { own_in: number | null } }).toMatchObject({ price: { own_in: 0.5 } });
+
+    // Not thrown away in silence: the server's refusal is said under the fields, and nothing is cleared.
+    saved = saves();
+    await page.getByLabel("Read", { exact: true }).fill("-1");
+    expect((await saved).status()).toBe(422);
+    await expect(page.getByRole("alert")).toHaveText("Evermind could not accept this: something in it is missing or not valid.");
+    expect((await aiOf(request, ai.id)) as unknown as { price: { own_in: number | null } }).toMatchObject({ price: { own_in: 0.5 } });
+    await request.delete(`${API}/api/models/${ai.id}`);
+  });
+
   test("every advanced control saves on change and says so @desktop", async ({ page, request }) => {
     const ai = await lmstudioAi(request, "Controls");
     await openPage(page, ai.id);

@@ -737,7 +737,9 @@ function Sampling({ ai, t, onSave, said }: { ai: Ai; t: Translate; onSave: Save;
   );
 }
 
-/** Its price, typed, when the server gives none: per million tokens read and written. */
+/** Its price, typed, when the server gives none: per million tokens read and written. A negative
+ *  one is sent as typed, for the server's refusal to be said under the fields rather than the
+ *  figure dropped in silence. */
 function PriceFields({ ai, t, hint, onSave, said }: { ai: Ai; t: Translate; hint: string; onSave: Save; said: Said }) {
   const ids = useId();
   return (
@@ -750,7 +752,7 @@ function PriceFields({ ai, t, hint, onSave, said }: { ai: Ai; t: Translate; hint
             parse={decimalOf}
             id={`${ids}-in`}
             value={ai.price.own_in}
-            onSave={(value) => void onSave("price", { price_own_in: value === null || value >= 0 ? value : null })}
+            onSave={(value) => void onSave("price", { price_own_in: value })}
           />
         </label>
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-mist" htmlFor={`${ids}-out`}>
@@ -759,7 +761,7 @@ function PriceFields({ ai, t, hint, onSave, said }: { ai: Ai; t: Translate; hint
             parse={decimalOf}
             id={`${ids}-out`}
             value={ai.price.own_out}
-            onSave={(value) => void onSave("price", { price_own_out: value === null || value >= 0 ? value : null })}
+            onSave={(value) => void onSave("price", { price_own_out: value })}
           />
         </label>
       </div>
