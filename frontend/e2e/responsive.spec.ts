@@ -428,6 +428,8 @@ test.describe("on a phone, in every language", () => {
       await page.goto(`${GATED}/#/settings`);
       await page.getByLabel(/password/i).fill(GATE_PASSWORD);
       await page.getByRole("button", { name: /enter/i }).click();
+      // The password page has a heading of its own: the page behind it is there once its field is gone.
+      await expect(page.getByLabel(/password/i)).toHaveCount(0);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       await page.evaluate((chosen) => localStorage.setItem("evermind:locale", chosen), locale);
       for (const size of PHONES) {
