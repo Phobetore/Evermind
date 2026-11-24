@@ -514,7 +514,7 @@
     "entryNumber": "Eintrag {number}",
     "constantLabel": "Immer aktiv",
     "secondaryKeysLabel": "Zweitstichwörter",
-    "secondaryKeysPlaceholder": "Zweitstichwörter, dann Enter",
+    "secondaryKeysPlaceholder": "Stichwörter, dann Enter",
     "selectiveLabel": "Ein Zweitstichwort verlangen",
     "logicLabel": "Wirkung der Zweitstichwörter",
     "logic": {

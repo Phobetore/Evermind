@@ -372,6 +372,25 @@ test.describe("on a phone, in every language", () => {
             `"${placeholder.slice(0, 30)}" is cut at ${size.width}px`).toBeLessThanOrEqual(0.5);
         }
       }
+      // An entry added, its settings opened: the secondary keywords' field. After the rest, as the
+      // page keeps its draft, entry included, from one width to the next.
+      const secondary = words.lorebook.secondaryKeysPlaceholder;
+      for (const size of PHONES) {
+        await page.setViewportSize(size);
+        await page.goto("/#/characters/new");
+        const settings = page.getByRole("button", { name: words.lorebook.settingsFor.replace("{name}", "harbour"), exact: true });
+        if (!(await settings.count())) {
+          const keys = page.getByPlaceholder(words.lorebook.keysPlaceholder, { exact: true });
+          await keys.fill("harbour");
+          await keys.press("Enter");
+          await page.getByPlaceholder(words.lorebook.contentPlaceholder, { exact: true }).fill("The harbour freezes in winter.");
+          await page.getByRole("button", { name: words.lorebook.addEntryButton, exact: true }).click();
+        }
+        // The same address again keeps the page as it was: the settings may be open already.
+        if ((await settings.first().getAttribute("aria-expanded")) !== "true") await settings.first().click();
+        expect(await placeholderOver(page.getByPlaceholder(secondary, { exact: true })),
+          `"${secondary.slice(0, 30)}" is cut at ${size.width}px`).toBeLessThanOrEqual(0.5);
+      }
     });
 
     test(`a reply that failed says so across the width, in ${locale}`, async ({ page, request }) => {

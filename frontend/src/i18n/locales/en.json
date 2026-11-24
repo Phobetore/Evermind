@@ -514,7 +514,7 @@
     "entryNumber": "entry {number}",
     "constantLabel": "Always active",
     "secondaryKeysLabel": "Secondary keys",
-    "secondaryKeysPlaceholder": "Secondary keywords, then Enter",
+    "secondaryKeysPlaceholder": "Keywords, then Enter",
     "selectiveLabel": "Require a secondary key",
     "logicLabel": "How secondary keys apply",
     "logic": {

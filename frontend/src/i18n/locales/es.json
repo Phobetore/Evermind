@@ -514,7 +514,7 @@
     "entryNumber": "entrada {number}",
     "constantLabel": "Siempre activa",
     "secondaryKeysLabel": "Claves secundarias",
-    "secondaryKeysPlaceholder": "Palabras clave secundarias, luego Enter",
+    "secondaryKeysPlaceholder": "Claves secundarias y Enter",
     "selectiveLabel": "Exigir una clave secundaria",
     "logicLabel": "Efecto de las claves secundarias",
     "logic": {
