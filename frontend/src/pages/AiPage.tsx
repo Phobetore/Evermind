@@ -102,7 +102,17 @@ function AiView({ id }: { id: string }) {
     if (savedTimer.current) clearTimeout(savedTimer.current);
   }, []);
 
-  async function save(at: string, change: ModelUpdate) {
+  // One save at a time, in the order they were made: on a slow link two sent side by side could
+  // reach the server in the other order, and the one made first would be the one kept. Each waits
+  // for the one before it to be answered, or to fail.
+  const saves = useRef<Promise<void>>(Promise.resolve());
+  function save(at: string, change: ModelUpdate): Promise<void> {
+    const next = saves.current.then(() => send(at, change));
+    saves.current = next;
+    return next;
+  }
+
+  async function send(at: string, change: ModelUpdate) {
     setSaveError(null);
     try {
       const saved: AiSaved = await connections.models.update(id, change);

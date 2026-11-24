@@ -533,6 +533,56 @@ test.describe("my ais", () => {
   });
 });
 
+/** The saves of an AI's page on a slow link: what reaches the server, in what order, and what the
+ *  page says after. Typed faster than the pause after which a figure is saved, as a person does. */
+test.describe("an ai's page on a slow link", () => {
+  /** Every PUT of the AI, the first held on the way for `hold` ms; their bodies, in the order sent. */
+  async function watchSaves(page: Page, id: string, hold = 0) {
+    const bodies: unknown[] = [];
+    await page.route(`**/api/models/${id}`, async (route) => {
+      if (route.request().method() !== "PUT") return route.continue();
+      bodies.push(route.request().postDataJSON());
+      if (bodies.length === 1 && hold) await new Promise((resolve) => setTimeout(resolve, hold));
+      await route.continue();
+    });
+    return bodies;
+  }
+
+  /** Types a figure over what the field of `group` holds, without leaving it. */
+  async function typeOver(group: ReturnType<Page["getByRole"]>, figure: string) {
+    const field = group.getByRole("textbox");
+    await field.click();
+    await field.press("ControlOrMeta+a");
+    await field.pressSequentially(figure, { delay: 20 });
+  }
+
+  /** Long enough for every save the page meant to make to have left and been answered: nothing more
+   *  is the answer waited for. */
+  const settled = (page: Page, hold = 0) => page.waitForTimeout(hold + 2000);
+
+  test("a figure typed, then another, ends on the last", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "Twice");
+    try {
+      await request.put(`${API}/api/models/${ai.id}`, { data: { context_own: 16000 } });
+      const bodies = await watchSaves(page, ai.id, 1500);
+      await openPage(page, ai.id);
+      await openAdvanced(page);
+      const capacity = page.getByRole("group", { name: "Reading capacity" });
+      const first = page.waitForRequest((r) => r.method() === "PUT" && r.url().endsWith(`/api/models/${ai.id}`));
+      await typeOver(capacity, "8000");
+      await first;
+      await typeOver(capacity, "9000");
+      await settled(page, 1500 + 700);
+      expect(bodies.at(-1)).toEqual({ context_own: 9000 });
+      expect((await aiOf(request, ai.id))?.context.own).toBe(9000);
+      await expect(capacity.getByRole("button", { name: /^My value/ })).toContainText("9,000");
+      await expect(capacity.getByRole("textbox")).toHaveValue("9000");
+    } finally {
+      await request.delete(`${API}/api/models/${ai.id}`);
+    }
+  });
+});
+
 // Text set to its largest on a phone, the root at 32px: long German and Spanish labels fill a line.
 test.describe("an ai's page at very large text keeps its choices and buttons on the screen", () => {
   for (const locale of ["en", "fr", "de", "es"]) {
