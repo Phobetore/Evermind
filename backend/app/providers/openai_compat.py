@@ -31,7 +31,7 @@ LIST_TIMEOUT_S = 10
 _now = time.monotonic
 # Per list, as the catalog keeps them: when it last could not be read. The catalog keeps only the
 # lists it read, so this is what spares a failing server a request in front of every pass.
-_failed_lists: dict[tuple[str, str, str], float] = {}
+_failed_lists: dict[tuple[str, str, catalog.Family, str], float] = {}
 # The (base_url, model) pairs whose server refused a "reasoning" field: never sent again to them.
 _refused: set[tuple[str, str]] = set()
 

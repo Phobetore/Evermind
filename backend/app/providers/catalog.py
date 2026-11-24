@@ -697,15 +697,22 @@ class _Kept:
     key_checked: bool
 
 
-# Per API type, address and key: never the service's id (a draft has none yet, and a memory pass
-# only knows its call). In memory only, never on the disk.
-_cache: dict[tuple[str, str, str], _Kept] = {}
+# Per API type, address, family read as and key: never the service's id (a draft has none yet,
+# and a memory pass only knows its call). The family, because each reads its own routes: an
+# address read as Ollama is not the same list read as llama.cpp. A pass reads only OpenRouter's
+# list, whose address names its family, so it still shares the list the page read. In memory
+# only, never on the disk.
+_cache: dict[tuple[str, str, Family, str], _Kept] = {}
 _now = time.monotonic
 
 
-def cache_key(service: dict) -> tuple[str, str, str]:
+def cache_key(service: dict) -> tuple[str, str, Family, str]:
+    provider = service.get("provider") or ""
+    base_url = service.get("base_url") or ""
     key = service.get("api_key") or ""
-    return (service.get("provider") or "", _bare(service.get("base_url")),
+    return (provider, _bare(base_url),
+            family_of(provider, base_url, service.get("family") or "generic",
+                      service.get("family_url")),
             hashlib.sha256(key.encode("utf-8", "surrogatepass")).hexdigest())
 
 

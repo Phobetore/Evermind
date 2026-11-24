@@ -442,7 +442,7 @@ test.describe("adding AIs", () => {
     const box = dialog(page);
     await openAdd(page);
     // Ollama's size is read from it when the model is added.
-    // Each at an address of its own: a list is kept a while by its address, whatever chip asked.
+    // Each at an address of its own, as two servers at home are.
     await routeServiceTo(page, "http://localhost:11434/v1", `${MOCK_ROOT}/home-ollama/v1`);
     await chip(page, "Ollama");
     await expect(row(page, "evermind-demo").getByText("Size read when it is added.")).toBeVisible();

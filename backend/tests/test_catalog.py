@@ -338,6 +338,52 @@ async def test_a_list_read_without_probes_is_not_kept_for_a_read_that_wants_them
     assert server.paths().count("/v1/models") == 2
 
 
+async def test_a_list_is_kept_for_the_family_it_was_read_as():
+    """Each family reads its own routes: an address read as Ollama, then as llama.cpp, is read
+    again, and each read says its own family."""
+    base = "http://192.168.1.30:7000/v1"
+    server = Server({"/v1/models": {"data": [{"id": "brume"}]},
+                     "/api/ps": fixture("ollama_ps.json"),
+                     "/props": fixture("llamacpp_props.json")})
+
+    async def read(family: str) -> Catalog:
+        return await read_catalog(service(base, family=family, family_url=base),
+                                  client_factory=server.factory)
+
+    assert (await read("ollama")).family == "ollama"
+    assert (await read("llamacpp")).family == "llamacpp"
+    assert server.paths().count("/v1/models") == 2
+    assert (await read("llamacpp")).family == "llamacpp"
+    assert server.paths().count("/v1/models") == 2
+
+
+async def test_a_memory_pass_shares_the_openrouter_list_the_page_read():
+    """OpenRouter's address names its family whatever is stored: a pass, whose call carries no
+    family, is served the list a page read for a service stored as OpenRouter."""
+    model = "deepseek/deepseek-v4.1-flash"
+    listing = {"data": [{"id": model, "reasoning": {
+        "mandatory": False, "supported_efforts": ["high", "low", "none"]}}],
+        "links": {"next": None}}
+    chats: list[dict] = []
+
+    def chat(request: httpx.Request):
+        chats.append(json.loads(request.content))
+        return httpx.Response(200, content=sse([
+            json.dumps({"choices": [{"delta": {"content": "{}"}, "finish_reason": "stop"}]}),
+            "[DONE]"]))
+
+    server = Server({"/api/v1/models": listing, "/api/v1/key": OPENROUTER_KEY_OK,
+                     "/api/v1/chat/completions": chat})
+    svc = service(OPENROUTER, model=model)
+    await read_catalog({**svc, "family": "openrouter", "family_url": OPENROUTER},
+                       client_factory=server.factory)
+    provider = OpenAICompatProvider({**svc, "least_reasoning": True})
+    provider._client_factory = server.factory
+    assert (await complete_answer(provider, PAYLOAD)).text == "{}"
+    assert chats[-1]["reasoning"] == {"effort": "none"}
+    assert server.paths().count("/api/v1/models") == 1
+
+
 async def test_a_list_that_failed_is_not_kept():
     calls = []
 
