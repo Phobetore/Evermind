@@ -133,6 +133,11 @@ class OpenAICompatProvider(Provider):
         except TimeoutError:
             logger.warning("the list of models of %s did not come within %d seconds",
                            self.base_url, LIST_TIMEOUT_S)
+        except Exception as exc:  # noqa: BLE001
+            # Whatever else breaks the read, the pass goes out as it did before the list was
+            # read: a list the catalog cannot take must never fail every memory pass.
+            logger.warning("the list of models of %s could not be read: %s", self.base_url,
+                           scrub(f"{type(exc).__name__}: {exc}", self.api_key))
         else:
             _failed_lists.pop(key, None)
             return {m.id: m.reasoning for m in read.models}

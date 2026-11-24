@@ -3,8 +3,10 @@ at once, how long a reply may be, its price and whether it reasons first. A serv
 badly, slowly or not at all never breaks the read, and no test here reaches a real address."""
 
 import asyncio
+import copy
 import gzip
 import json
+import math
 import time
 from pathlib import Path
 
@@ -34,7 +36,7 @@ from app.providers.catalog import (
     service_name,
     whole,
 )
-from app.providers.openai_compat import OpenAICompatProvider
+from app.providers.openai_compat import OpenAICompatProvider, least_reasoning
 
 from .conftest import PAYLOAD, anth_provider, collect, oai_provider, sse
 
@@ -428,6 +430,180 @@ async def test_odd_values_are_not_told():
     assert models["v/half�"].name == "Brume: Half � moon"
     assert models["12"].name is None
     json.dumps(relayed(read)).encode("utf-8")
+
+
+# Each shape a field can come in that is not the one its documentation gives.
+ODD = [None, True, 0, -1, 1.5, 2**80, "text", "", "1e999999", "http://[::1", [], [1], [{"x": 1}],
+       {}, {"x": 1}]
+# A body nested deeper than Python's own parser can follow.
+DEEP = b"[" * 100_000 + b"]" * 100_000
+
+
+def put(value, path: tuple, odd):
+    """``value`` with the field at ``path`` (keys and list indexes) set to ``odd``."""
+    value = copy.deepcopy(value)
+    here = value
+    for step in path[:-1]:
+        here = here[step]
+    here[path[-1]] = odd
+    return value
+
+
+def sane(read: Catalog) -> None:
+    """Every field of every model is of the type it is declared with, and the page can take it."""
+    for m in read.models:
+        assert isinstance(m.id, str)
+        for text in (m.name, m.vendor):
+            assert text is None or isinstance(text, str)
+        for count in (m.created, m.served, m.configured, m.max, m.max_output):
+            assert count is None or (type(count) is int and 0 < count <= 2**53 - 1)
+        for price in (m.price_in, m.price_out, m.price_cache_read, m.price_cache_write):
+            assert price is None or (type(price) is float and math.isfinite(price) and price >= 0)
+        assert m.reasoning is None or isinstance(m.reasoning, dict)
+        assert m.reasons in (None, True, False)
+        assert all(type(flag) is bool for flag in (m.price_varies, m.chats, m.batch))
+        least_reasoning(m.reasoning)
+    json.dumps(relayed(read)).encode("utf-8")
+
+
+OPENROUTER_ENTRY = {
+    "id": "v/a", "name": "V: A", "created": 1794614400, "context_length": 8192,
+    "top_provider": {"max_completion_tokens": 1024},
+    "pricing": {"prompt": "0.000001", "completion": "0.000002", "input_cache_read": "0",
+                "input_cache_write": "0"},
+    "architecture": {"output_modalities": ["text"]},
+    "reasoning": {"mandatory": False, "default_enabled": True, "supported_efforts": ["low", "none"]},
+    "supported_parameters": ["reasoning"],
+}
+OPENROUTER_FIELDS = [
+    ("name",), ("created",), ("context_length",), ("top_provider",),
+    ("top_provider", "max_completion_tokens"), ("pricing",), ("pricing", "prompt"),
+    ("pricing", "completion"), ("pricing", "input_cache_read"), ("pricing", "input_cache_write"),
+    ("architecture",), ("architecture", "output_modalities"),
+    ("architecture", "output_modalities", 0), ("reasoning",), ("reasoning", "mandatory"),
+    ("reasoning", "default_enabled"), ("reasoning", "supported_efforts"),
+    ("reasoning", "supported_efforts", 0), ("supported_parameters",), ("supported_parameters", 0),
+]
+
+
+async def test_a_field_of_an_odd_shape_never_breaks_openrouter_s_list():
+    for path in OPENROUTER_FIELDS:
+        for odd in ODD:
+            entry = put(OPENROUTER_ENTRY, path, odd)
+            server = Server({"/api/v1/models": {"data": [entry], "links": {"next": None}},
+                             "/api/v1/key": OPENROUTER_KEY_OK})
+            read = await server.read(service(OPENROUTER))
+            assert [m.id for m in read.models] == ["v/a"], (path, odd)
+            sane(read)
+    # The page around the entries: where its next page is. An address that cannot be read ends
+    # the list on what it has; one that can is asked, and a refusal there is the list's own.
+    for links in [*ODD, *({"next": odd} for odd in [*ODD, "//[", "http://[::1]:x/", "::::"])]:
+        server = Server({"/api/v1/models": {"data": [OPENROUTER_ENTRY], "links": links},
+                         "/api/v1/key": OPENROUTER_KEY_OK})
+        try:
+            read = await server.read(service(OPENROUTER))
+        except ProviderError:
+            assert set(server.paths()) - {"/api/v1/models", "/api/v1/key"}, links
+            continue
+        assert [m.id for m in read.models] == ["v/a"], links
+        sane(read)
+    for unreadable in ("http://[::1", "//[", "http://[::1]:x/"):
+        server = Server({"/api/v1/models": {"data": [OPENROUTER_ENTRY],
+                                            "links": {"next": unreadable}},
+                         "/api/v1/key": OPENROUTER_KEY_OK})
+        assert [m.id for m in (await server.read(service(OPENROUTER))).models] == ["v/a"]
+
+
+async def test_a_field_of_an_odd_shape_never_breaks_another_family_s_list():
+    anthropic = {"type": "model", "id": "claude-a", "display_name": "Claude A",
+                 "max_input_tokens": 200000, "max_tokens": 64000}
+    for path in [("display_name",), ("max_input_tokens",), ("max_tokens",)]:
+        for odd in ODD:
+            server = Server({"/v1/models": {"data": [put(anthropic, path, odd)]}})
+            read = await server.read(service("https://api.anthropic.com", provider="anthropic"))
+            assert [m.id for m in read.models] == ["claude-a"], (path, odd)
+            sane(read)
+    for odd in ODD:
+        for page in ({"data": [anthropic], "has_more": odd, "last_id": "claude-a"},
+                     {"data": [anthropic], "has_more": True, "last_id": odd}):
+            server = Server({"/v1/models": page})
+            read = await server.read(service("https://api.anthropic.com", provider="anthropic"))
+            assert [m.id for m in read.models] == ["claude-a"], page
+            sane(read)
+
+    generic = {"id": "m", "context_window": 8192, "max_context_length": 8192,
+               "context_length": 8192, "max_model_len": 8192, "max_completion_tokens": 1024,
+               "meta": {"n_ctx": 8192, "n_ctx_train": 131072}}
+    for path in [("context_window",), ("max_context_length",), ("context_length",),
+                 ("max_model_len",), ("max_completion_tokens",), ("meta",), ("meta", "n_ctx"),
+                 ("meta", "n_ctx_train")]:
+        for odd in ODD:
+            server = Server({"/v1/models": {"data": [put(generic, path, odd)]}})
+            read = await server.read(service("https://proxy.example.com/v1"), probes=False)
+            assert [m.id for m in read.models] == ["m"], (path, odd)
+            sane(read)
+
+
+async def test_a_native_answer_of_an_odd_shape_is_not_told_and_breaks_nothing():
+    lmstudio = {"key": "brume", "type": "llm", "display_name": "Brume",
+                "max_context_length": 131072, "capabilities": {"reasoning": {"default": "on"}},
+                "loaded_instances": [{"config": {"context_length": 8192}}]}
+    ps = {"name": "brume", "model": "brume", "context_length": 8192}
+    show = {"model_info": {"llama.context_length": 131072}, "parameters": "num_ctx 16384"}
+    cases = [
+        ("http://localhost:1234/v1", "/api/v1/models", lambda path, odd: {
+            "models": [put(lmstudio, path, odd)]}, [
+            ("key",), ("type",), ("display_name",), ("max_context_length",), ("capabilities",),
+            ("capabilities", "reasoning"), ("capabilities", "reasoning", "default"),
+            ("loaded_instances",), ("loaded_instances", 0), ("loaded_instances", 0, "config"),
+            ("loaded_instances", 0, "config", "context_length")]),
+        ("http://localhost:11434/v1", "/api/ps", lambda path, odd: {
+            "models": [put(ps, path, odd)]}, [("name",), ("model",), ("context_length",)]),
+        ("http://localhost:11434/v1", "/api/show", lambda path, odd: put(show, path, odd), [
+            ("model_info",), ("model_info", "llama.context_length"), ("parameters",)]),
+        ("http://localhost:8080/v1", "/props", lambda path, odd: {
+            "default_generation_settings": put({"n_ctx": 8192}, path, odd)}, [("n_ctx",)]),
+        ("http://localhost:5001/v1", "/api/extra/true_max_context_length",
+         lambda path, odd: put({"value": 12288}, path, odd), [("value",)]),
+    ]
+    for base, route, answer, paths in cases:
+        for path in paths:
+            for odd in ODD:
+                server = Server({"/v1/models": {"data": [{"id": "brume"}]},
+                                 route: answer(path, odd)})
+                read = await server.read(service(base))
+                assert [m.id for m in read.models] == ["brume"], (route, path, odd)
+                sane(read)
+                listed, _ = await read_one(service(base), "brume", client_factory=server.factory)
+                sane(Catalog("generic", "", [listed]))
+        # The whole answer of an odd shape, or nested past what the parser follows.
+        for whole_answer in [*ODD, httpx.Response(200, content=DEEP)]:
+            server = Server({"/v1/models": {"data": [{"id": "brume"}]}, route: whole_answer})
+            read = await server.read(service(base))
+            assert [m.id for m in read.models] == ["brume"], (route, whole_answer)
+            await read_one(service(base), "brume", client_factory=server.factory)
+    # A generic address, whose every probe answers past the parser's depth.
+    deep = httpx.Response(200, content=DEEP)
+    server = Server({"/v1/models": {"data": [{"id": "brume"}]}, "/api/ps": deep,
+                     "/api/v1/models": deep, "/props": deep,
+                     "/api/extra/true_max_context_length": deep})
+    assert (await server.read(service())).family == "generic"
+
+
+async def test_a_list_nested_past_the_parser_s_depth_is_unreadable_not_a_crash():
+    for svc, route in [(service("https://proxy.example.com/v1"), "/v1/models"),
+                       (service(OPENROUTER), "/api/v1/models")]:
+        server = Server({route: httpx.Response(200, content=DEEP),
+                         "/api/v1/key": OPENROUTER_KEY_OK})
+        with pytest.raises(ProviderError) as raised:
+            await server.read(svc, probes=False)
+        assert raised.value.kind == "model_unreadable"
+    # A refusal whose words are nested as deep still says its status.
+    server = Server({"/api/v1/models": {"data": [{"id": "v/a"}]},
+                     "/api/v1/key": httpx.Response(401, content=DEEP)})
+    with pytest.raises(ProviderError) as raised:
+        await server.read(service(OPENROUTER))
+    assert (raised.value.kind, raised.value.message) == (AUTH_REFUSED, "HTTP 401")
 
 
 # The other families

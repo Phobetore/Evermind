@@ -199,6 +199,36 @@ async def test_a_list_slow_to_come_adds_nothing_and_does_not_hold_the_request(cl
     assert server.lists == 1
 
 
+async def test_an_odd_entry_beside_the_model_does_not_take_its_least_reasoning_away(clock):
+    odd = [{"id": "x/painter", "architecture": {"output_modalities": [{"x": 1}]}},
+           {"id": "x/priced", "pricing": {"prompt": "1e999999", "completion": {"x": 1}}}]
+    server = OpenRouter([*odd, *listed(THE_OWNERS)])
+    assert (await server.ask())["reasoning"] == {"effort": "none"}
+
+
+async def test_a_read_that_fails_in_any_way_adds_nothing_and_waits_five_minutes(
+        clock, monkeypatch, caplog):
+    """Whatever breaks the read of the list, the pass goes out as it did before the list was read,
+    says so once, and does not ask again for five minutes."""
+    reads = []
+
+    async def broken(*_, **__):
+        reads.append(1)
+        raise TypeError("unhashable type: 'dict'")
+
+    monkeypatch.setattr("app.providers.catalog.read_catalog", broken)
+    server = OpenRouter(listed(THE_OWNERS))
+    with caplog.at_level(logging.WARNING):
+        assert "reasoning" not in await server.ask()
+        assert "reasoning" not in await server.ask()
+    assert len(reads) == 1
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1 and "TypeError" in warnings[0]
+    clock[0] += 5 * 60
+    assert "reasoning" not in await server.ask()
+    assert len(reads) == 2
+
+
 async def test_a_refusal_of_another_kind_is_not_asked_again(clock):
     from app.providers.base import ProviderError
 

@@ -138,7 +138,11 @@ def per_million(value: object) -> float | None:
     number = _decimal(value)
     if number is None or number < 0:
         return None
-    result = float(number * 1_000_000)
+    try:
+        result = float(number * 1_000_000)
+    except ArithmeticError:
+        # Past what a decimal holds ("1e999999"): no price.
+        return None
     return result if math.isfinite(result) else None
 
 
@@ -345,7 +349,8 @@ def _listed(entry: dict, family: Family, provider: str) -> Listed | None:
     varies = any((_decimal(pricing.get(key)) or 0) < 0 for key in ("prompt", "completion"))
     architecture = entry.get("architecture")
     outputs = architecture.get("output_modalities") if isinstance(architecture, dict) else None
-    outputs = outputs if isinstance(outputs, list) else None
+    # Only the names in it: anything else in the list says nothing, and could not be compared.
+    outputs = [o for o in outputs if isinstance(o, str)] if isinstance(outputs, list) else None
     # A model that also writes an image, a sound or a video and lists 0 is billed another way
     # than by the token: "free" would be wrong.
     if outputs and set(outputs) - {"text"} and price_in == 0 and price_out == 0:
@@ -413,10 +418,14 @@ async def _page(client: httpx.AsyncClient, url: str, headers: dict, service: dic
     return _object(body)
 
 
+# What a body that is not JSON raises, or one nested deeper than the parser follows.
+NOT_JSON = (ValueError, RecursionError)
+
+
 def _object(body: bytes) -> dict:
     try:
         data = json.loads(body)
-    except ValueError:
+    except NOT_JSON:
         raise ProviderError(UNREADABLE, MODEL_UNREADABLE)
     if not isinstance(data, dict):
         raise ProviderError(UNREADABLE, MODEL_UNREADABLE)
@@ -466,9 +475,12 @@ async def _openrouter_list(client, base: str, headers: dict, service: dict) -> l
             if not isinstance(following, str) or not following:
                 break
             # Against the origin, never after base_url, and never to another host: the key
-            # goes with every request.
-            target = urljoin(origin + "/", following)
-            there = urlsplit(target)
+            # goes with every request. An address that cannot be read ends the list there.
+            try:
+                target = urljoin(origin + "/", following)
+                there = urlsplit(target)
+            except ValueError:
+                break
             if f"{there.scheme}://{there.netloc}" != origin or target in followed:
                 break
             followed.add(target)
@@ -581,7 +593,7 @@ async def _probe(client, root: str, paths: tuple[str, ...], shape: Callable, hea
         try:
             status, body = await _fetch(client, root + path, headers, root)
             told = shape(json.loads(body)) if status == 200 else None
-        except (ProviderError, ValueError):
+        except (ProviderError, *NOT_JSON):
             told = None
         if told is not None:
             return told
@@ -647,7 +659,8 @@ def _with_natives(models: list[Listed], family: Family, told: object) -> list[Li
 
 def _lmstudio_model(model: Listed, entry: dict) -> Listed:
     served = None
-    for instance in entry.get("loaded_instances") or []:
+    instances = entry.get("loaded_instances")
+    for instance in instances if isinstance(instances, list) else []:
         config = instance.get("config") if isinstance(instance, dict) else None
         if isinstance(config, dict) and (served := whole(config.get("context_length"))):
             break
@@ -755,7 +768,7 @@ async def read_one(service: dict, model_id: str, *, fresh: bool = False,
             status, body = await _fetch(client, root + "/api/show", _headers(service), root,
                                         method="POST", body={"model": model_id})
         shown = json.loads(body) if status == 200 else None
-    except (ProviderError, ValueError, TimeoutError):
+    except (ProviderError, TimeoutError, *NOT_JSON):
         shown = None
     if not isinstance(shown, dict):
         return listed, read.family

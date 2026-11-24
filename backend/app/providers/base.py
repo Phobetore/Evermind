@@ -118,7 +118,8 @@ def scrub(message: str, api_key: str | None) -> str:
 def _refusal(status: int, body: bytes, api_key: str | None = None) -> ProviderError:
     try:
         words = words_of(json.loads(body))
-    except ValueError:
+    except (ValueError, RecursionError):
+        # Not JSON, or nested deeper than the parser follows: the status alone.
         words = ""
     kind = {401: AUTH_REFUSED, 404: MODEL_NOT_FOUND, 429: RATE_LIMITED}.get(status, MODEL_ERROR)
     return ProviderError(scrub(words, api_key) or f"HTTP {status}", kind, status)
