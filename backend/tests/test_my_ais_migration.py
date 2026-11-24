@@ -18,6 +18,8 @@ OPENAI = "https://api.openai.com/v1"
 ANTHROPIC = "https://api.anthropic.com"
 OPENROUTER = "https://openrouter.ai/api/v1"
 LAN = "http://192.168.1.20:8000/v1"
+GROQ = "https://api.groq.com/openai/v1"
+MISTRAL = "https://api.mistral.ai/v1"
 
 
 @pytest.fixture()
@@ -215,22 +217,26 @@ async def test_ais_that_would_share_a_name_are_told_apart(start):
     connection("k2", "OpenRouter", OPENROUTER, "vent/vent-mini", api_key="sk-or-2")
     connection("e", "OpenRouter", OPENROUTER, "", api_key="sk-or-1")
     connection("late", "aurore-large", OPENROUTER, "q/aurore-large", api_key="sk-or-4")
+    # Ids the API before took as typed: one ends in "/", one is nothing but it.
+    connection("g", "Groq", GROQ, "weird/", api_key="gsk-1")
+    connection("s", "Mistral", MISTRAL, "/", api_key="ms-1")
     before = by_id("connections")
 
     await start(MIGRATION)
 
     names = {"a1": "aurore-large (2)", "a2": "sylve-2.5", "b1": "brume-12b",
              "b2": "brume-12b (2)", "p": "PC du salon", "m": "Mon OR", "k2": "vent-mini",
-             "e": "OpenRouter", "late": "aurore-large"}
+             "e": "OpenRouter", "late": "aurore-large", "g": "weird", "s": "Mistral"}
     held_by = {"a1": "a1", "a2": "a1", "b1": "b1", "b2": "b1", "p": "p", "m": "a1", "k2": "k2",
-               "e": "a1", "late": "late"}
+               "e": "a1", "late": "late", "g": "g", "s": "s"}
     assert by_id("models") == {
         i: ai_of(before[i], name=names[i], connection_id=held_by[i], reply_cap_mode="unsent")
         for i in before}
     assert {i: (c["name"], c["family"]) for i, c in by_id("connections").items()} == {
         "a1": ("OpenRouter", "openrouter"), "b1": ("LM Studio", "lmstudio"),
         "p": ("PC du salon", "generic"), "k2": ("OpenRouter (2)", "openrouter"),
-        "late": ("OpenRouter (3)", "openrouter")}
+        "late": ("OpenRouter (3)", "openrouter"), "g": ("Groq", "groq"),
+        "s": ("Mistral", "mistral")}
 
 
 async def test_a_hand_written_window_sends_what_it_sent(start):

@@ -99,16 +99,19 @@ UPDATE connections SET name = CASE family
 -- twice, beside a service of that name, and rows never show the model's id. An AI named after
 -- its service's chip (a known family: a "generic" service took its own oldest row's name, which
 -- is the person's, never a chip's), or after another AI, takes its model's id after the last "/"
--- (the rtrim/replace pair cuts up to the last "/"); names still shared then get " (2)", " (3)":
--- a name the person chose keeps it bare, a derived name takes the number, then creation order.
--- Done before the services are numbered, so that it compares with the chip's label itself. The
--- rows are chosen before any is renamed, so the order of the update cannot change the result.
-CREATE TEMP TABLE renamed AS SELECT m.id FROM models AS m
-WHERE m.model <> '' AND (
+-- (the rtrim/replace pair cuts up to the last "/"; a "/" at the end is dropped first, and an id
+-- with nothing but "/" gives no name, so its row keeps its own); names still shared then get
+-- " (2)", " (3)": a name the person chose keeps it bare, a derived name takes the number, then
+-- creation order. Done before the services are numbered, so that it compares with the chip's
+-- label itself. The rows are chosen before any is renamed, so the order of the update cannot
+-- change the result.
+CREATE TEMP TABLE renamed AS SELECT m.id, rtrim(m.model, '/') AS bare FROM models AS m
+WHERE rtrim(m.model, '/') <> '' AND (
     m.name IN (SELECT name FROM connections
                WHERE connections.id = m.connection_id AND connections.family <> 'generic')
     OR m.name IN (SELECT o.name FROM models AS o WHERE o.id <> m.id));
-UPDATE models SET name = replace(model, rtrim(model, replace(model, '/', '')), '')
+UPDATE models SET name = (SELECT replace(bare, rtrim(bare, replace(bare, '/', '')), '')
+                          FROM renamed WHERE renamed.id = models.id)
 WHERE id IN (SELECT id FROM renamed);
 UPDATE models SET name = models.name || ' (' || r.n || ')'
 FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY name
