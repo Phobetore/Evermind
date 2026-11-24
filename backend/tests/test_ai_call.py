@@ -1,8 +1,6 @@
 """What is sent as a reply ceiling, and the room and window counted, for each mode. Pure: no
 database, no network."""
 
-import itertools
-
 import pytest
 
 from app.services import ai_call
@@ -11,7 +9,6 @@ from app.services.ai_call import (
     REPLY_ROOM,
     SIZE_UNTOLD,
     THINKING_ALLOWANCE,
-    UNSENT_RESERVE,
     call_for,
     ceiling,
     for_engine,
@@ -24,47 +21,93 @@ ROOMS = [512, 1024, 2048]
 OUTS = [None, 1500, 64000]
 
 
-def _cap(value, out):
-    return value if out is None else min(value, out)
-
-
-def _expected(mode, reasons, anthropic, family, room, out, fixed=1024):
-    """The plan's table, written out by hand, one cell at a time."""
-    if mode == "fixed":
-        return fixed, fixed
-    if mode == "unsent":
-        return None, UNSENT_RESERVE
-    if reasons:
-        reserve = _cap(room + THINKING_ALLOWANCE, out)
-        if anthropic:
-            return _cap(max(room + THINKING_ALLOWANCE, 4096), out), reserve
-        return None, reserve
-    if anthropic:
-        sent = _cap(max(room, 4096), out)
-        return sent, sent
-    if family == "openai":
-        return None, _cap(room, out)
-    sent = _cap(room, out)
-    return sent, sent
-
-
-CELLS = [
-    (mode, reasons, anthropic, family, room, out)
-    for mode, reasons, (anthropic, family), room, out in itertools.product(
-        ["auto", "unsent", "fixed"], [0, 1],
-        [(True, "anthropic"), (False, "generic"), (False, "openai")], ROOMS, OUTS)
+# One row per cell, every figure worked out by hand (allowance 3072, floor 4096).
+AUTO_ROWS = [
+    # (reasons, anthropic, family, room, out, sent, reserve)
+    (0, True, "anthropic", 512, None, 4096, 4096),
+    (0, True, "anthropic", 1024, None, 4096, 4096),
+    (0, True, "anthropic", 2048, None, 4096, 4096),
+    (0, True, "anthropic", 512, 1500, 1500, 1500),
+    (0, True, "anthropic", 1024, 1500, 1500, 1500),
+    (0, True, "anthropic", 2048, 1500, 1500, 1500),
+    (0, True, "anthropic", 512, 64000, 4096, 4096),
+    (0, True, "anthropic", 1024, 64000, 4096, 4096),
+    (0, True, "anthropic", 2048, 64000, 4096, 4096),
+    (0, False, "generic", 512, None, 512, 512),
+    (0, False, "generic", 1024, None, 1024, 1024),
+    (0, False, "generic", 2048, None, 2048, 2048),
+    (0, False, "generic", 512, 1500, 512, 512),
+    (0, False, "generic", 1024, 1500, 1024, 1024),
+    (0, False, "generic", 2048, 1500, 1500, 1500),
+    (0, False, "generic", 512, 64000, 512, 512),
+    (0, False, "generic", 1024, 64000, 1024, 1024),
+    (0, False, "generic", 2048, 64000, 2048, 2048),
+    (0, False, "openai", 512, None, None, 512),
+    (0, False, "openai", 1024, None, None, 1024),
+    (0, False, "openai", 2048, None, None, 2048),
+    (0, False, "openai", 512, 1500, None, 512),
+    (0, False, "openai", 1024, 1500, None, 1024),
+    (0, False, "openai", 2048, 1500, None, 1500),
+    (0, False, "openai", 512, 64000, None, 512),
+    (0, False, "openai", 1024, 64000, None, 1024),
+    (0, False, "openai", 2048, 64000, None, 2048),
+    (1, True, "anthropic", 512, None, 4096, 4096),
+    (1, True, "anthropic", 1024, None, 4096, 4096),
+    (1, True, "anthropic", 2048, None, 5120, 5120),
+    (1, True, "anthropic", 512, 1500, 1500, 1500),
+    (1, True, "anthropic", 1024, 1500, 1500, 1500),
+    (1, True, "anthropic", 2048, 1500, 1500, 1500),
+    (1, True, "anthropic", 512, 64000, 4096, 4096),
+    (1, True, "anthropic", 1024, 64000, 4096, 4096),
+    (1, True, "anthropic", 2048, 64000, 5120, 5120),
+    (1, False, "generic", 512, None, None, 3584),
+    (1, False, "generic", 1024, None, None, 4096),
+    (1, False, "generic", 2048, None, None, 5120),
+    (1, False, "generic", 512, 1500, None, 1500),
+    (1, False, "generic", 1024, 1500, None, 1500),
+    (1, False, "generic", 2048, 1500, None, 1500),
+    (1, False, "generic", 512, 64000, None, 3584),
+    (1, False, "generic", 1024, 64000, None, 4096),
+    (1, False, "generic", 2048, 64000, None, 5120),
+    (1, False, "openai", 512, None, None, 3584),
+    (1, False, "openai", 1024, None, None, 4096),
+    (1, False, "openai", 2048, None, None, 5120),
+    (1, False, "openai", 512, 1500, None, 1500),
+    (1, False, "openai", 1024, 1500, None, 1500),
+    (1, False, "openai", 2048, 1500, None, 1500),
+    (1, False, "openai", 512, 64000, None, 3584),
+    (1, False, "openai", 1024, 64000, None, 4096),
+    (1, False, "openai", 2048, 64000, None, 5120),
 ]
 
 
-@pytest.mark.parametrize("mode,reasons,anthropic,family,room,out", CELLS)
-def test_the_ceiling_table(mode, reasons, anthropic, family, room, out):
+@pytest.mark.parametrize("reasons,anthropic,family,room,out,sent,reserve", AUTO_ROWS)
+def test_the_ceiling_table_in_auto(reasons, anthropic, family, room, out, sent, reserve):
+    model = {"reply_cap_mode": "auto", "reasons": reasons, "output_read": out}
+    got = ceiling(model, anthropic=anthropic, family=family, room=room)
+    assert (got.sent, got.reserve) == (sent, reserve)
+
+
+@pytest.mark.parametrize("mode,reasons,anthropic,family,room,out,sent,reserve", [
+    ("fixed", 0, True, "anthropic", 512, None, 1024, 1024),
+    ("fixed", 1, True, "anthropic", 2048, 64000, 1024, 1024),
+    ("fixed", 0, False, "generic", 2048, 1500, 1024, 1024),
+    ("fixed", 1, False, "openai", 512, 1500, 1024, 1024),
+    ("unsent", 0, True, "anthropic", 512, None, None, 1024),
+    ("unsent", 1, True, "anthropic", 2048, 64000, None, 1024),
+    ("unsent", 0, False, "generic", 2048, 1500, None, 1024),
+    ("unsent", 1, False, "openai", 1024, 64000, None, 1024),
+])
+def test_fixed_and_unsent_ignore_the_service_the_room_the_output_and_the_reasoning(
+        mode, reasons, anthropic, family, room, out, sent, reserve):
     model = {"reply_cap_mode": mode, "reply_cap_tokens": 1024 if mode == "fixed" else None,
              "reasons": reasons, "output_read": out}
     got = ceiling(model, anthropic=anthropic, family=family, room=room)
-    assert (got.sent, got.reserve) == _expected(mode, reasons, anthropic, family, room, out)
+    assert (got.sent, got.reserve) == (sent, reserve)
 
 
 @pytest.mark.parametrize("anthropic,family,room,out,sent,reserve", [
+    (True, "anthropic", 512, None, 4096, 4096),        # the room kept is what is sent
     (True, "anthropic", 1024, None, 4096, 4096),       # conception B: 1 024 becomes 4 096
     (False, "generic", 1024, 64000, None, 4096),       # reasons, compatible: nothing sent
     (False, "generic", 1024, 1500, None, 1500),

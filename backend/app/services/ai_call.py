@@ -7,7 +7,7 @@ so that what a prompt keeps for the reply and what the server is told never drif
 from dataclasses import dataclass
 from typing import Literal
 
-from app.providers.catalog import LOCAL_FAMILIES, Family, family_of
+from ..providers.catalog import LOCAL_FAMILIES, Family, family_of
 
 REPLY_ROOM = {"short": 512, "medium": 1024, "long": 2048}
 # A connection with no ceiling has always kept 1024 for the reply, whatever length was asked;
@@ -22,7 +22,8 @@ ASSUMED_WINDOW = 16384
 # A server that loads a size of its own and has not said it: Ollama's documented default.
 SIZE_UNTOLD = 4096
 
-# A size that was typed to follow the server is only worth a notice when the server really said it.
+# The kinds of a read size the server really said (what it serves, what it is set to load, what
+# was observed): they count as read. A maximum does not.
 _TOLD = ("served", "configured", "observed")
 # Under this a fixed ceiling cuts long replies short (the room a long reply needs).
 _LONG_ROOM = REPLY_ROOM["long"]
@@ -85,8 +86,9 @@ def ceiling(model: dict, *, anthropic: bool, family: Family, room: int) -> Ceili
         # Its thinking comes out of the same ceiling: leave room for it, or send none.
         reserve = _at_most(room + thinking_allowance(model), out)
         if anthropic:
-            return Ceiling(_at_most(max(room + thinking_allowance(model), ANTHROPIC_FLOOR), out),
-                           reserve)
+            # What the request may write is all kept: the prompt and the reply must fit together.
+            sent = _at_most(max(room + thinking_allowance(model), ANTHROPIC_FLOOR), out)
+            return Ceiling(sent, sent)
         return Ceiling(None, reserve)
     if anthropic:
         sent = _at_most(max(room, ANTHROPIC_FLOOR), out)
