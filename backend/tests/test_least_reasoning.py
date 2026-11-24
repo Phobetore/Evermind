@@ -4,6 +4,7 @@ its own list of models says each one accepts, and no other server is asked anyth
 import asyncio
 import json
 import logging
+import re
 import time
 
 import httpx
@@ -233,6 +234,7 @@ async def test_a_read_that_fails_in_any_way_adds_nothing_and_waits_five_minutes(
     assert len(reads) == 1
     warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1 and "TypeError" in warnings[0]
+    assert re.search(r"\.py:\d+ in \w+", warnings[0])
     clock[0] += 5 * 60
     assert "reasoning" not in await server.ask()
     assert len(reads) == 2

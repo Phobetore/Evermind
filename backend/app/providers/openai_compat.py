@@ -7,7 +7,9 @@ OpenAI, Groq, Mistral, DeepSeek, Together — anything speaking
 
 import asyncio
 import logging
+import os
 import time
+import traceback
 from collections.abc import AsyncIterator
 from contextlib import aclosing
 
@@ -132,8 +134,12 @@ class OpenAICompatProvider(Provider):
         except Exception as exc:  # noqa: BLE001
             # Whatever else breaks the read, the pass goes out as it did before the list was
             # read: a list the catalog cannot take must never fail every memory pass.
+            # Where it was raised, not the traceback: a full one could print the key.
+            frame = traceback.extract_tb(exc.__traceback__)[-1] if exc.__traceback__ else None
+            where = (f" at {os.path.basename(frame.filename)}:{frame.lineno} in {frame.name}"
+                     if frame else "")
             logger.warning("the list of models of %s could not be read: %s", self.base_url,
-                           scrub(f"{type(exc).__name__}: {exc}", self.api_key))
+                           scrub(f"{type(exc).__name__}: {exc}{where}", self.api_key))
         else:
             _failed_lists.pop(key, None)
             return {m.id: m.reasoning for m in read.models}
