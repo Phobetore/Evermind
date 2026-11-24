@@ -293,7 +293,8 @@ function Where({ services, loadError, connections, onChoose }: {
                       <span className="block font-display text-sm font-medium text-parchment">{service.name}</span>
                       <span className="block text-xs text-mist [overflow-wrap:anywhere]">
                         {service.base_url}
-                        {service.api_key_set && ` · …${service.api_key_hint}`}
+                        {/* The hint carries its own ellipsis. */}
+                        {service.api_key_set && ` · ${service.api_key_hint}`}
                       </span>
                       <span className="block text-xs text-mist">
                         {service.model_count > 0

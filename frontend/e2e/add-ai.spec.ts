@@ -88,8 +88,11 @@ test.describe("adding AIs", () => {
       if (sent.url().endsWith("/api/connections/probe") && (sent.postData() ?? "").includes("api_key")) keyAsked = true;
     });
     await page.getByRole("button", { name: "Add", exact: true }).click();
-    await dialog(page).getByRole("button", { name: /Already connected · 2 AIs in your list · see its other models/ })
-      .filter({ hasText: "/many/" }).click();
+    const saved = dialog(page).getByRole("button", { name: /Already connected · 2 AIs in your list · see its other models/ })
+      .filter({ hasText: "/many/" });
+    // The end of the key, as the server gives it: with its own ellipsis, and only that one.
+    await expect(saved).toContainText(" · …once");
+    await saved.click();
     await expect(dialog(page).getByText(/^List read/)).toBeVisible();
     await expect(dialog(page).getByPlaceholder("Paste the key here")).toHaveCount(0);
     for (const { id } of [first, second]) {
