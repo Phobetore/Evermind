@@ -137,7 +137,7 @@ export function AddAiFlow({ origin, onAdded, onClose }: {
   const name = state.chip?.label ?? saved?.name ?? null;
 
   return (
-    <Modal title={t("ai.add.title")} onClose={onClose} wide>
+    <Modal title={t("ai.add.title")} onClose={onClose} wide tall>
       {state.step === "where" && (
         <Where services={services} loadError={loadError} connections={connections} onChoose={go} />
       )}
@@ -567,7 +567,8 @@ function Pick({ state, name, family, have: already, rereading, failure, onEvent,
         onAnswer={(id, answer) => onEvent({ type: "answer", id, answer })}
         onReread={onReread}
       />
-      <div className="sticky bottom-0 -mx-4 -mb-4 mt-2 border-t border-ink-700 bg-ink-900 px-4 py-3 sm:-mx-6 sm:-mb-6 sm:px-6">
+      {/* Stuck at the box's own edge, over its padding: no row shows below it. */}
+      <div className="sticky -bottom-4 -mx-4 -mb-4 mt-2 border-t border-ink-700 bg-ink-900 px-4 py-3 sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:px-6">
         {state.addError && <p role="alert" className="mb-2 text-sm text-blood">{state.addError.message}</p>}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <button type="button" className="btn btn-ghost" onClick={onBack} disabled={state.pending}>{t("ai.add.back")}</button>

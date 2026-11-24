@@ -63,6 +63,9 @@ export function ModelPickList({
   const [tickedOnly, setTickedOnly] = useState<Set<string> | null>(null);
   const tickedShown = tickedOnly !== null;
   const [focused, setFocused] = useState(false);
+  // While the field is typed in, the list holds at least the height of the box it scrolls in: with
+  // a single result, the box could not stay scrolled, and the field would drop under the finger.
+  const [room, setRoom] = useState<number | null>(null);
   const shownAgain = useRef<ReturnType<typeof setTimeout> | null>(null);
   const top = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
@@ -119,17 +122,21 @@ export function ModelPickList({
     return () => watcher.disconnect();
   }, [viewKey, drawn, more]);
 
+  /** The box that scrolls, which the stuck block sticks to: moved alone, the page behind stays still. */
+  function scroller(): HTMLElement | null {
+    let box = top.current?.parentElement ?? null;
+    while (box && getComputedStyle(box).overflowY !== "auto" && getComputedStyle(box).overflowY !== "scroll") {
+      box = box.parentElement;
+    }
+    return box;
+  }
+
   /** Back to the top of the results: the field at the top of the screen, the first result under it.
    *  Only when the view has gone past it: above, the title stays in sight. */
   function toTop(always = false) {
     const mark = top.current;
-    if (!mark) return;
-    // The box that scrolls, which the stuck block sticks to: moved alone, the page behind stays still.
-    let box = mark.parentElement;
-    while (box && getComputedStyle(box).overflowY !== "auto" && getComputedStyle(box).overflowY !== "scroll") {
-      box = box.parentElement;
-    }
-    if (!box) return;
+    const box = scroller();
+    if (!mark || !box) return;
     const past = mark.getBoundingClientRect().top - box.getBoundingClientRect().top;
     if (always ? past !== 0 : past < 0) box.scrollTop += past;
   }
@@ -203,9 +210,10 @@ export function ModelPickList({
   );
 
   return (
-    <div className="min-w-0">
+    <div className="min-w-0" style={focused && room !== null ? { minHeight: room } : undefined}>
       <div ref={top} />
-      <div className="sticky top-0 z-10 -mx-4 bg-ink-900 px-4 pt-2 sm:-mx-6 sm:px-6">
+      {/* Stuck at the box's own edge, over its padding: no row shows above it. */}
+      <div className="sticky -top-4 z-10 -mx-4 bg-ink-900 px-4 pt-2 sm:-top-6 sm:-mx-6 sm:px-6">
         {searchShown && (
           <div className="relative mb-2">
             <label className="sr-only" htmlFor={searchId}>{t("ai.list.search")}</label>
@@ -224,6 +232,7 @@ export function ModelPickList({
               onFocus={() => {
                 if (shownAgain.current) clearTimeout(shownAgain.current);
                 setFocused(true);
+                setRoom(scroller()?.clientHeight ?? null);
                 // After the browser's own move of a focused field into sight, which would undo this one.
                 requestAnimationFrame(() => requestAnimationFrame(() => toTop(true)));
               }}

@@ -8,12 +8,16 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  tall = false,
   role = "dialog",
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   wide?: boolean;
+  /** As high as it may be, whatever it holds: what is typed in it never moves as its content changes.
+   *  Nor does the browser follow a line that typing took away, which would drop the field with it. */
+  tall?: boolean;
   /** A question that must be answered before anything else is an alert dialog. */
   role?: "dialog" | "alertdialog";
 }) {
@@ -44,7 +48,7 @@ export function Modal({
       className="fixed inset-0 z-40 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-ink-950/75 p-3 text-parchment backdrop-blur-sm animate-fade backdrop:bg-transparent sm:p-4"
     >
       <div
-        className={`panel max-h-[92dvh] w-full sm:max-h-[88dvh] ${wide ? "max-w-2xl" : "max-w-md"} overflow-y-auto p-4 animate-rise sm:p-6`}
+        className={`panel max-h-[92dvh] w-full sm:max-h-[88dvh] ${tall ? "h-[92dvh] [overflow-anchor:none] sm:h-[88dvh]" : ""} ${wide ? "max-w-2xl" : "max-w-md"} overflow-y-auto p-4 animate-rise sm:p-6`}
       >
         <div className="mb-4 flex items-center justify-between gap-4">
           {/* A title can be a name, whatever its owner typed: a handle is one long word. */}

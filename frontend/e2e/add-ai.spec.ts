@@ -123,24 +123,70 @@ test.describe("adding AIs", () => {
     });
 
     await openAdd(page);
+    const box = dialog(page);
+    // As high as the screen allows at every step, whatever each one holds.
+    const panel = box.locator(".panel");
+    const high = (await panel.boundingBox())!.height;
     await chip(page, "OpenRouter");
     await withKey(page, "sk-e2e-any");
-    const box = dialog(page);
     await expect(box.getByText('384 models · 87 "batch" copies not listed')).toBeVisible();
+    expect(Math.abs((await panel.boundingBox())!.height - high)).toBeLessThan(1);
     const search = box.getByRole("searchbox");
     await expect(search).not.toBeFocused();
 
+    // The foot stays on the dialog's own edge as the list goes by under it: no row shows below it.
+    const foot = box.getByRole("button", { name: "Back", exact: true }).locator("xpath=../..");
+    const bottom = async (of: typeof panel) => {
+      const edge = (await of.boundingBox())!;
+      return edge.y + edge.height;
+    };
+    expect(Math.abs(await bottom(panel) - 1 - await bottom(foot))).toBeLessThan(1);
+
     // Drawn a slice at a time as the list nears the bottom: down to the last one.
     const boxes = box.getByRole("checkbox");
+    await expect(boxes).toHaveCount(30);
     for (let drawn = await boxes.count(); drawn < rows.length; drawn = await boxes.count()) {
       await boxes.last().scrollIntoViewIfNeeded();
       await expect.poll(() => boxes.count()).toBeGreaterThan(drawn);
     }
     await row(page, last.id).getByRole("checkbox").check();
+    // The block stuck on top keeps to the dialog's edge too: no row shows above it.
+    const stuck = (await search.locator("xpath=../..").boundingBox())!;
+    expect(Math.abs(stuck.y - (await panel.boundingBox())!.y - 1)).toBeLessThan(1);
 
-    // While the field is typed in, the sort and the count give it their room.
+    // A new order, or a filter, shows the results from their first.
+    const first = box.locator("li").first();
+    await expect(first).not.toBeInViewport();
+    await box.getByRole("combobox").selectOption({ label: "By name" });
+    await expect(first).toBeInViewport();
+    await boxes.last().scrollIntoViewIfNeeded();
+    await expect(first).not.toBeInViewport();
+    await box.getByRole("button", { name: "Free", exact: true }).click();
+    await expect(first).toBeInViewport();
+    await box.getByRole("button", { name: "Free", exact: true }).click();
+    await box.getByRole("combobox").selectOption({ label: "Service's order" });
+
+    // The newest ones are marked.
+    await box.getByRole("combobox").selectOption({ label: "Newest" });
+    await expect(first.getByText("new", { exact: true })).toBeVisible();
+    await box.getByRole("combobox").selectOption({ label: "Service's order" });
+
+    // While the field is typed in, the sort and the count give it their room, and the field stays
+    // where it is: the dialog keeps its height whatever the results, and the rows typing takes away
+    // do not take the field with them.
+    await panel.evaluate((scrolled) => scrolled.scrollBy(0, 900));
     await search.click();
-    await search.pressSequentially("eclair");
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
+    const at = (await search.boundingBox())!.y;
+    await search.press("a");
+    // A keystroke draws the first slice again, never the whole list.
+    await expect(boxes).toHaveCount(30);
+    for (const key of "ur") await search.press(key);
+    await expect(boxes).toHaveCount(1);
+    expect((await search.boundingBox())!.y).toBe(at);
+    await search.fill("eclair");
+    await expect(boxes).toHaveCount(1);
+    expect((await search.boundingBox())!.y).toBe(at);
     await expect(box.getByRole("combobox")).toBeHidden();
     await search.press("Enter");
     await expect(box.getByText("1 of 384", { exact: true })).toBeVisible();
