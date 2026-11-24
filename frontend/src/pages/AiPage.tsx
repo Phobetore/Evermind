@@ -423,7 +423,9 @@ function decimalOf(text: string): number | null | undefined {
 }
 
 /** A figure saved as it is typed: once the keys stop for a moment, and when the field is left. A
- *  value under `least` waits for the field to be left, being most likely on its way to a larger one. */
+ *  value under `least` waits for the field to be left, being most likely on its way to a larger one;
+ *  so does an emptied one there, most likely cleared to type another: saved, it would let go of
+ *  the figure (a capacity back to its server, the field closed under the person's keys). */
 function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder, inputMode = "decimal" }: {
   id?: string;
   value: number | null;
@@ -452,7 +454,7 @@ function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder,
   function commit(typed: string, leaving: boolean) {
     const parsed = parse(typed);
     if (parsed === undefined || parsed === sent.current) return;
-    if (!leaving && parsed !== null && least !== undefined && parsed < least) return;
+    if (!leaving && least !== undefined && (parsed === null || parsed < least)) return;
     sent.current = parsed;
     onSave(parsed);
   }

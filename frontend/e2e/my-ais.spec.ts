@@ -175,6 +175,54 @@ test.describe("my ais", () => {
     await request.delete(`${API}/api/models/${ai.id}`);
   });
 
+  test("a reading capacity cleared to type another stays open and saves nothing meanwhile", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "Cleared");
+    let puts = 0;
+    page.on("request", (r) => {
+      if (r.method() === "PUT" && r.url().endsWith(`/api/models/${ai.id}`)) puts += 1;
+    });
+    try {
+      for (const [n, size] of [{ width: 390, height: 844 }, { width: 320, height: 640 }].entries()) {
+        await page.setViewportSize(size);
+        const own = 16384 + n;
+        await request.put(`${API}/api/models/${ai.id}`, { data: { context_own: own } });
+        await openPage(page, ai.id);
+        await openAdvanced(page);
+        const capacity = page.getByRole("group", { name: "Reading capacity" });
+        const field = capacity.getByRole("textbox");
+        await expect(field).toHaveValue(String(own));
+        puts = 0;
+
+        await field.click();
+        await field.press("ControlOrMeta+a");
+        await field.press("Backspace");
+        // Longer than the pause after which a figure typed is saved.
+        await page.waitForTimeout(1500);
+        await expect(field, `${size.width}: the field went away under the typing`).toBeFocused();
+        await expect(field).toHaveValue("");
+        await expect(capacity.getByRole("button", { name: /^My value/ })).toHaveAttribute("aria-pressed", "true");
+        expect(puts, `${size.width}: an empty field was saved while typed in`).toBe(0);
+        expect((await aiOf(request, ai.id))?.context.own).toBe(own);
+
+        const saved = page.waitForResponse((r) => r.request().method() === "PUT" && r.url().endsWith(`/api/models/${ai.id}`));
+        await field.pressSequentially("20000");
+        await saved;
+        await expect(field).toBeFocused();
+        expect((await aiOf(request, ai.id))?.context.own).toBe(20000);
+      }
+
+      // Left empty, it follows the server, as its other choice does.
+      const field = page.getByRole("group", { name: "Reading capacity" }).getByRole("textbox");
+      await field.fill("");
+      const saved = page.waitForResponse((r) => r.request().method() === "PUT" && r.url().endsWith(`/api/models/${ai.id}`));
+      await field.blur();
+      await saved;
+      expect((await aiOf(request, ai.id))?.context.own).toBeNull();
+    } finally {
+      await request.delete(`${API}/api/models/${ai.id}`);
+    }
+  });
+
   test("reread on the ai's page skips the server's list cache", async ({ page, request }) => {
     const ai = await lmstudioAi(request, "Reread");
     await openPage(page, ai.id);
