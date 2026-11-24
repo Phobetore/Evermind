@@ -43,6 +43,17 @@ test.describe("on a page that is not a secure context", () => {
     await expect(page.locator("svg.lucide-check").first()).toBeVisible();
   });
 
+  // The clipboard cannot be read from such a page: the phone's own long press is the way to paste a key.
+  test("no paste button over plain http, and the long press is said", async ({ page }) => {
+    await page.goto("/#/settings");
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    const box = page.getByRole("dialog", { name: "Add an AI" });
+    await box.getByRole("button", { name: "OpenRouter", exact: true }).click();
+    await expect(box.getByPlaceholder("Paste the key here")).toBeVisible();
+    await expect(box.getByRole("button", { name: "Paste", exact: true })).toHaveCount(0);
+    await expect(box.getByText('Long press in the field, then "Paste".')).toBeVisible();
+  });
+
   // Copying selects a box of its own. Left there, the focus fell to the page: the row, shown
   // while one of its buttons has it, faded with its tick, and the next Tab began at the top.
   test("copying a message from the keyboard leaves the focus on its button", { tag: "@desktop" }, async ({ page, request }) => {

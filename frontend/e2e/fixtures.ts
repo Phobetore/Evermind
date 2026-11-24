@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page, type Route } from "@playwright/test";
 import { crc32 } from "node:zlib";
 import { API } from "../playwright.config";
 
@@ -21,6 +21,39 @@ export async function addModel(
   const ai = made.models[0];
   if (changes) await request.put(`${API}/api/models/${ai.id}`, { data: changes });
   return ai;
+}
+
+/** The mock server's own address, under which its paths choose an answer (/many/, /broken/…). */
+export const MOCK_ROOT = MOCK.replace(/\/v1$/, "");
+
+/** Sends what the page asks of a real service's address to another one: the chips name the real
+ *  addresses, which nothing here may call. The page still sends the chip's family, so that
+ *  OpenRouter's key check and prices are read as OpenRouter's. Only the probe and the add. */
+export async function routeServiceTo(page: Page, from: string, to: string): Promise<void> {
+  const moved = async (route: Route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown> | null;
+    const service = (body && "service" in body ? body.service : body) as { base_url?: string } | null;
+    if (service && typeof service.base_url === "string") service.base_url = service.base_url.replace(from, to);
+    await route.continue({ postData: body === null ? undefined : JSON.stringify(body) });
+  };
+  await page.route("**/api/connections/probe", moved);
+  await page.route("**/api/models", (route) => (route.request().method() === "POST" ? moved(route) : route.continue()));
+}
+
+/** Takes away, through the API, every AI whose service's address holds `fragment`; its service goes
+ *  with the last of them. A service left with none is taken away too. The suite's server is shared
+ *  between tests and a retry: a test that counts begins with this. */
+export async function forgetServices(request: APIRequestContext, fragment: string): Promise<void> {
+  const ais = await (await request.get(`${API}/api/models`)).json();
+  for (const ai of ais as { id: string; service: { base_url: string } }[]) {
+    if (ai.service.base_url.includes(fragment)) await request.delete(`${API}/api/models/${ai.id}`);
+  }
+  const services = await (await request.get(`${API}/api/connections`)).json();
+  for (const service of services as { id: string; base_url: string; model_count: number }[]) {
+    if (service.base_url.includes(fragment) && service.model_count === 0) {
+      await request.delete(`${API}/api/connections/${service.id}`);
+    }
+  }
 }
 
 async function defaultModel(request: APIRequestContext): Promise<string> {

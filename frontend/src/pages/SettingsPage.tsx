@@ -1,3 +1,4 @@
+import { AddAiFlow } from "@/components/ai/AddAiFlow";
 import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
 import { LanguageSelect } from "@/components/layout/LanguageSelect";
@@ -11,13 +12,14 @@ import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
 import { isNewer, latestRelease, type Release } from "@/lib/releases";
 import type { Ai, Installation, Settings } from "@/types";
-import { Cable, Loader2, LogOut, RefreshCw } from "lucide-react";
+import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 export function SettingsPage() {
   const t = useT();
   const { status: accessStatus } = useAccess();
   const [ais, setAis] = useState<Ai[] | null>(null);
+  const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -101,7 +103,19 @@ export function SettingsPage() {
         <section className="mb-10">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="ui-label">{t("settings.connectionsTitle")}</h2>
+            <button type="button" className="btn btn-ghost !py-1.5 text-sm" onClick={() => setAdding(true)}>
+              <Plus className="h-4 w-4" />
+              {t("ai.add.open")}
+            </button>
           </div>
+          {adding && (
+            <AddAiFlow
+              origin={{ from: "settings" }}
+              // Read again whole: the first AI added becomes the default, which the list shows.
+              onAdded={() => data.connections?.models.list().then(setAis, () => {})}
+              onClose={() => setAdding(false)}
+            />
+          )}
 
           {ais === null ? (
             !loadFailure && <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
