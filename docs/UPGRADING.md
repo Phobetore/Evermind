@@ -45,6 +45,9 @@ know what changes.
   load (small, on a phone; the computer keeps its pictures whole). Search still
   finds every word of a description. Those words arrive a moment after the
   others.
+- **A conversation loads less.** Its round portraits, and those of the list of
+  conversations, read the small copy of the picture instead of the whole file.
+  The card's page reads the larger copy.
 - **The first time an older card shows**, its whole picture is loaded once (your
   browser usually has it already). Then your device makes two smaller copies and
   sends them, one card at a time, never while a reply is being written. Each
