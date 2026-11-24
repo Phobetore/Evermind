@@ -593,6 +593,32 @@ async def test_a_read_from_the_old_address_is_not_stored_after_a_move(client, li
     assert (after["context"]["read"], after["limits_read_at"]) == (None, None)
 
 
+async def test_adding_to_a_service_removed_meanwhile_is_not_found_and_writes_nothing(
+        client, lists):
+    lists.routes.update({"/v1/models": {"data": [{"id": "brume:12b"}, {"id": "sylve:7b"}]},
+                         "/api/ps": {"models": []}})
+    first = (await add(client, {"provider": "openai-compatible", "base_url": OLLAMA},
+                       {"model": "brume:12b"})).json()["models"][0]
+    asked, release = asyncio.Event(), asyncio.Event()
+
+    async def held(_):
+        asked.set()
+        await release.wait()
+        return {"parameters": "num_ctx 16384"}
+
+    lists.routes["/api/show"] = held
+    adding = asyncio.create_task(add(client, {"id": first["service"]["id"]},
+                                     {"model": "sylve:7b"}))
+    await asyncio.wait_for(asked.wait(), 5)
+    assert (await client.delete(f"/api/models/{first['id']}")).status_code == 204
+    release.set()
+    gone = await adding
+
+    assert gone.status_code == 404, gone.text
+    assert (gone.json()["kind"], gone.json()["resource"]) == ("not_found", "connection")
+    assert (await services_of(client), await models_of(client)) == ([], [])
+
+
 async def test_a_turn_refused_for_credit_says_so(client, monkeypatch):
     Model((402, {"error": {"message": "Insufficient credits"}})).serve(monkeypatch)
     convo = await setup_conversation(client)

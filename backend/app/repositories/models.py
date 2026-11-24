@@ -4,6 +4,7 @@ price. A conversation names one; the service holds the key."""
 import aiosqlite
 
 from ..db import write_transaction
+from ..errors import NotFoundError
 from ..providers.catalog import (
     LOCAL_FAMILIES,
     Listed,
@@ -184,7 +185,8 @@ async def create_many(db: aiosqlite.Connection, service: dict | None, service_id
     saved one (its new key, a family learned), the AIs, and the conversation that asked for them,
     given the last. ``items``: {model, name, context_own, price_own_in, price_own_out, read,
     reasons_read, label}. A model already on the service is not added twice: its AI is returned.
-    None when the conversation no longer exists, with nothing written."""
+    None when the conversation no longer exists, and NotFoundError when the saved service no
+    longer does, with nothing written."""
     from . import conversations as convo_repo
 
     made: list[str] = []
@@ -194,6 +196,9 @@ async def create_many(db: aiosqlite.Connection, service: dict | None, service_id
             return {}
         if service_id is None:
             service_id = await services_repo.insert(db, service)
+        elif await services_repo.get_raw(db, service_id) is None:
+            # Removed since it was looked up, with its last AI: nothing is written.
+            raise NotFoundError("Service not found.", "connection")
         elif service:
             saved = await services_repo.get_raw(db, service_id)
             if service.get("api_key") is not None:

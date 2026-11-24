@@ -109,6 +109,8 @@ async def create_models(payload: ModelsCreate, db: aiosqlite.Connection = Depend
                                                         await services_repo.names(db))}
 
     service = new or await services_repo.get_raw(db, service_id)
+    if service is None:
+        raise NotFoundError("Service not found.", "connection")
     family = catalog.family_of(service["provider"], service["base_url"], service["family"],
                                service.get("family_url") or bare(service["base_url"]))
     if family == "generic" and ref.family:
