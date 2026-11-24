@@ -447,10 +447,6 @@ function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder,
     if (document.activeElement !== field.current) setText(value === null ? "" : String(value));
   }, [value]);
 
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
-
   function commit(typed: string, leaving: boolean) {
     const parsed = parse(typed);
     if (parsed === undefined || parsed === sent.current) return;
@@ -458,6 +454,17 @@ function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder,
     sent.current = parsed;
     onSave(parsed);
   }
+
+  // Gone from the page with a figure typed and not saved (the browser's back, which is Android's
+  // back button, leaves no field): saved as leaving the field saves it. Nothing changed, nothing sent.
+  const latest = useRef({ text, commit });
+  useEffect(() => {
+    latest.current = { text, commit };
+  });
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+    latest.current.commit(latest.current.text, true);
+  }, []);
 
   return (
     <input
@@ -499,6 +506,18 @@ function TextField({ label, value, onSave, mono = false }: {
     setSaved(value);
     setText(value);
   }
+  // Gone from the page with a text typed and not saved: saved as leaving the field saves it.
+  // What was last sent, so that a text sent as the field was left is not sent a second time.
+  const sent = useRef(value);
+  const latest = useRef({ text, value, onSave });
+  useEffect(() => {
+    latest.current = { text, value, onSave };
+  });
+  useEffect(() => () => {
+    const { text: typed, value: before, onSave: save } = latest.current;
+    const kept = typed.trim();
+    if (kept && kept !== before && kept !== sent.current) save(kept);
+  }, []);
   return (
     <label className="flex flex-col gap-1.5" htmlFor={id}>
       <span className="ui-label">{label}</span>
@@ -515,7 +534,10 @@ function TextField({ label, value, onSave, mono = false }: {
         onBlur={() => {
           const typed = text.trim();
           if (!typed) setText(value);
-          else if (typed !== value) onSave(typed);
+          else if (typed !== value) {
+            sent.current = typed;
+            onSave(typed);
+          }
         }}
       />
     </label>
@@ -571,7 +593,12 @@ function Choice({ pressed, onClick, children, small }: {
     <button
       type="button"
       aria-pressed={pressed}
-      onClick={onClick}
+      onClick={(e) => {
+        // Focused first, as Chrome does and Safari does not: a figure being typed is left, and
+        // saved, before the choice that may take its field away.
+        e.currentTarget.focus();
+        onClick();
+      }}
       className={clsx(
         // No min-w-0: a narrow screen takes a choice's words to the next line, never one cut mid-word.
         "flex min-h-11 flex-1 flex-col items-center justify-center rounded-lg border px-2 py-1.5 text-center text-sm",

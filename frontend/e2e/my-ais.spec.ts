@@ -480,4 +480,55 @@ test.describe("my ais", () => {
     expect((await aiOf(request, ai.id))?.temperature).toBeNull();
     await request.delete(`${API}/api/models/${ai.id}`);
   });
+  test("what is typed and not yet saved is saved when the page is left with the browser's back", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "Left");
+    let puts = 0;
+    page.on("request", (r) => {
+      if (r.method() === "PUT" && r.url().endsWith(`/api/models/${ai.id}`)) puts += 1;
+    });
+    /** The page opened from Settings, as a phone reaches it, its advanced part open. */
+    async function fromSettings() {
+      await page.goto("/#/settings");
+      await expect(lineOf(page, ai.id)).toBeVisible();
+      await lineOf(page, ai.id).click();
+      await expect(page).toHaveURL(new RegExp(`/settings/ai/${ai.id}$`));
+      await openAdvanced(page);
+    }
+    /** Android's back button: the history's back, the field still focused. */
+    async function back() {
+      await page.goBack();
+      await expect(page.getByRole("heading", { name: "My AIs" })).toBeVisible();
+    }
+    try {
+      // Nothing typed: nothing saved. Waited for, as nothing is the answer.
+      await fromSettings();
+      await page.getByLabel("Display name", { exact: true }).click();
+      await back();
+      await page.waitForTimeout(1500);
+      expect(puts, "a field left as it was was saved").toBe(0);
+
+      // A name typed, never left.
+      await fromSettings();
+      const name = `Typed ${Date.now()}`;
+      await page.getByLabel("Display name", { exact: true }).fill(name);
+      await back();
+      await expect.poll(async () => (await aiOf(request, ai.id))?.name).toBe(name);
+
+      // A figure typed, the page left before its pause is over.
+      await fromSettings();
+      await page.getByLabel("Temperature", { exact: true }).fill("0.4");
+      await back();
+      await expect.poll(async () => (await aiOf(request, ai.id))?.temperature).toBe(0.4);
+
+      // A reading capacity typed: saved as leaving the field saves it.
+      await fromSettings();
+      const capacity = page.getByRole("group", { name: "Reading capacity" });
+      await capacity.getByRole("button", { name: /^My value/ }).click();
+      await capacity.getByRole("textbox").fill("24000");
+      await back();
+      await expect.poll(async () => (await aiOf(request, ai.id))?.context.own).toBe(24000);
+    } finally {
+      await request.delete(`${API}/api/models/${ai.id}`);
+    }
+  });
 });
