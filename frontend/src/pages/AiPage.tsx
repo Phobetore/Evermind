@@ -432,11 +432,25 @@ function decimalOf(text: string): number | null | undefined {
   return Number.isFinite(value) ? value : undefined;
 }
 
+/** What a control's choices tell the field of "My value" they sit above. */
+type FieldHandle = {
+  /** A choice is being pressed: the field left now is left for it, and saves nothing yet. */
+  hold(): void;
+  /** A choice that hides the field was pressed: what was typed and not saved is dropped. */
+  drop(): void;
+};
+
 /** A figure saved as it is typed: once the keys stop for a moment, and when the field is left. A
  *  value under `least` waits for the field to be left, being most likely on its way to a larger one;
  *  so does an emptied one there, most likely cleared to type another: saved, it would let go of
- *  the figure (a capacity back to its server, the field closed under the person's keys). */
-function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder, inputMode = "decimal" }: {
+ *  the figure (a capacity back to its server, the field closed under the person's keys).
+ *
+ *  Under a control's choices (`handleRef`), a choice pressed wins over the figure being typed. Where a
+ *  pressed button takes the focus (Chrome), the field is left for the choice before its click: that
+ *  leaving, told by the choice's pointer going down or by the focus going to a choice of the same
+ *  control, saves only after a typing pause, so that the click can drop it first. Where it does not
+ *  (Safari), the field is never left, and the click drops the figure. */
+function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder, inputMode = "decimal", handleRef }: {
   id?: string;
   value: number | null;
   parse(text: string): number | null | undefined;
@@ -445,11 +459,30 @@ function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder,
   labelledBy?: string;
   placeholder?: string;
   inputMode?: "decimal" | "numeric";
+  handleRef?: React.RefObject<FieldHandle | null>;
 }) {
   const field = useRef<HTMLInputElement>(null);
   const [text, setText] = useState(value === null ? "" : String(value));
   const sent = useRef(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holding = useRef(false);
+  const dropped = useRef(false);
+
+  useEffect(() => {
+    if (!handleRef) return;
+    handleRef.current = {
+      hold: () => {
+        holding.current = true;
+      },
+      drop: () => {
+        if (timer.current) clearTimeout(timer.current);
+        dropped.current = true;
+      },
+    };
+    return () => {
+      handleRef.current = null;
+    };
+  }, [handleRef]);
 
   // A value changed elsewhere (a notice's button) shows, unless the person is typing in it.
   useEffect(() => {
@@ -458,6 +491,7 @@ function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder,
   }, [value]);
 
   function commit(typed: string, leaving: boolean) {
+    if (dropped.current) return;
     const parsed = parse(typed);
     if (parsed === undefined || parsed === sent.current) return;
     if (!leaving && least !== undefined && (parsed === null || parsed < least)) return;
@@ -493,9 +527,22 @@ function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder,
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => commit(typed, false), TYPING_MS);
       }}
+      onFocus={() => {
+        holding.current = false;
+      }}
       onBlur={(e) => {
         if (timer.current) clearTimeout(timer.current);
-        commit(e.target.value, true);
+        const typed = e.target.value;
+        const to = e.relatedTarget;
+        const group = e.currentTarget.closest("[role=group]");
+        const toChoice = to instanceof HTMLElement && to.hasAttribute("aria-pressed") && group !== null && to.closest("[role=group]") === group;
+        if (handleRef && (holding.current || toChoice)) {
+          // Left for a choice: saved after a pause, unless the choice drops it meanwhile.
+          holding.current = false;
+          timer.current = setTimeout(() => commit(typed, true), TYPING_MS);
+          return;
+        }
+        commit(typed, true);
       }}
     />
   );
@@ -593,22 +640,20 @@ function DefaultSwitch({ ai, t, onSave }: { ai: Ai; t: Translate; onSave(): void
 }
 
 /** Two or three choices side by side, the one in force pressed, with its figure under its name. */
-function Choice({ pressed, onClick, children, small }: {
+function Choice({ pressed, onClick, children, small, field }: {
   pressed: boolean;
   onClick(): void;
   children: React.ReactNode;
   small?: string;
+  /** The field of "My value" under the choices: told a choice is being pressed before it is left. */
+  field: React.RefObject<FieldHandle | null>;
 }) {
   return (
     <button
       type="button"
       aria-pressed={pressed}
-      onClick={(e) => {
-        // Focused first, as Chrome does and Safari does not: a figure being typed is left, and
-        // saved, before the choice that may take its field away.
-        e.currentTarget.focus();
-        onClick();
-      }}
+      onPointerDown={() => field.current?.hold()}
+      onClick={onClick}
       className={clsx(
         // No min-w-0: a choice is never narrower than its longest word. A row with no room for them
         // side by side takes the next choice to a line of its own (flex-wrap on the row).
@@ -641,6 +686,7 @@ function ContextControl({ ai, t, grouped, onSave, said }: {
   // A server that loads a size of its own and has not said which.
   const untoldServer = LOCAL_FAMILIES.has(ai.service.family) && !(kind === "served" || kind === "configured" || kind === "observed");
   const warned = warningsOf(ai).includes("above_read_window");
+  const field = useRef<FieldHandle | null>(null);
   return (
     <div role="group" aria-labelledby={`${ids}-label`} className="flex flex-col gap-2">
       <span id={`${ids}-label`} className="ui-label">{t("ai.page.context")}</span>
@@ -648,19 +694,24 @@ function ContextControl({ ai, t, grouped, onSave, said }: {
         <Choice
           pressed={!ownMode}
           small={read === null ? t("ai.page.untold") : grouped.format(read)}
+          field={field}
           onClick={() => {
+            // A figure typed and not saved goes with its field; and the choice is sent whatever
+            // this render believes was saved, a save of the field being perhaps still on its way.
+            field.current?.drop();
+            if (ownMode || own !== null) void onSave("context", { context_own: null });
             setOwnMode(false);
-            if (own !== null) void onSave("context", { context_own: null });
           }}
         >
           {t("ai.page.followServer")}
         </Choice>
-        <Choice pressed={ownMode} small={own === null ? t("ai.page.toType") : grouped.format(own)} onClick={() => setOwnMode(true)}>
+        <Choice pressed={ownMode} small={own === null ? t("ai.page.toType") : grouped.format(own)} field={field} onClick={() => setOwnMode(true)}>
           {t("ai.page.ownValue")}
         </Choice>
       </div>
       {ownMode && (
         <FigureField
+          handleRef={field}
           value={own}
           parse={tokensOf}
           least={LEAST_CONTEXT}
@@ -694,19 +745,23 @@ function CeilingControl({ ai, t, grouped, onSave, said }: {
     setShown(mode);
   }
   const warnings = warningsOf(ai);
+  const field = useRef<FieldHandle | null>(null);
   const choose = (next: "auto" | "unsent") => {
+    // As for the reading capacity: the figure typed is dropped, and leaving "My value" is sent.
+    field.current?.drop();
+    if (shown !== next || mode !== next) void onSave("cap", { reply_cap: { mode: next } });
     setShown(next);
-    if (mode !== next) void onSave("cap", { reply_cap: { mode: next } });
   };
   return (
     <div role="group" aria-labelledby={`${ids}-label`} className="flex flex-col gap-2">
       <span id={`${ids}-label`} className="ui-label">{t("ai.page.cap")}</span>
       <div className="flex flex-wrap gap-2">
-        <Choice pressed={shown === "auto"} onClick={() => choose("auto")}>{t("ai.page.capAuto")}</Choice>
-        <Choice pressed={shown === "unsent"} onClick={() => choose("unsent")}>{t("ai.page.capUnsent")}</Choice>
+        <Choice pressed={shown === "auto"} field={field} onClick={() => choose("auto")}>{t("ai.page.capAuto")}</Choice>
+        <Choice pressed={shown === "unsent"} field={field} onClick={() => choose("unsent")}>{t("ai.page.capUnsent")}</Choice>
         <Choice
           pressed={shown === "fixed"}
           small={tokens === null ? t("ai.page.toType") : grouped.format(tokens)}
+          field={field}
           onClick={() => {
             setShown("fixed");
             // Its figure from before, if it had one: back as it was.
@@ -718,6 +773,7 @@ function CeilingControl({ ai, t, grouped, onSave, said }: {
       </div>
       {shown === "fixed" && (
         <FigureField
+          handleRef={field}
           value={tokens}
           parse={tokensOf}
           least={1}

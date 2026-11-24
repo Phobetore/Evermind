@@ -560,6 +560,97 @@ test.describe("an ai's page on a slow link", () => {
    *  is the answer waited for. */
   const settled = (page: Page, hold = 0) => page.waitForTimeout(hold + 2000);
 
+  test("a reading capacity typed and then let go to the server is not saved", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "LetGo");
+    try {
+      const bodies = await watchSaves(page, ai.id);
+      await openPage(page, ai.id);
+      await openAdvanced(page);
+      const capacity = page.getByRole("group", { name: "Reading capacity" });
+      await capacity.getByRole("button", { name: /^My value/ }).click();
+      await typeOver(capacity, "8000");
+      await capacity.getByRole("button", { name: /^Follow the server/ }).click();
+      await settled(page);
+      expect(bodies).not.toContainEqual({ context_own: 8000 });
+      expect((await aiOf(request, ai.id))?.context.own).toBeNull();
+      await expect(capacity.getByRole("button", { name: /^Follow the server/ })).toHaveAttribute("aria-pressed", "true");
+      await expect(capacity.getByRole("button", { name: /^My value/ })).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      await request.delete(`${API}/api/models/${ai.id}`);
+    }
+  });
+
+  for (const [title, hold, press] of [
+    ["", 0, "click"],
+    [", the first save held on the way", 1500, "click"],
+    // Safari's press: the button takes no focus, and the field is never left before the choice.
+    [", pressed as Safari presses", 0, "dispatch"],
+  ] as const) {
+    test(`a reading capacity of its own, another typed and then let go to the server${title}, follows the server`, async ({ page, request }) => {
+      const ai = await lmstudioAi(request, "Follow");
+      try {
+        await request.put(`${API}/api/models/${ai.id}`, { data: { context_own: 16000 } });
+        const bodies = await watchSaves(page, ai.id, hold);
+        await openPage(page, ai.id);
+        await openAdvanced(page);
+        const capacity = page.getByRole("group", { name: "Reading capacity" });
+        await typeOver(capacity, "8000");
+        const follow = capacity.getByRole("button", { name: /^Follow the server/ });
+        if (press === "click") await follow.click();
+        else await follow.dispatchEvent("click");
+        await settled(page, hold);
+        expect(bodies).not.toContainEqual({ context_own: 8000 });
+        expect(bodies.at(-1)).toEqual({ context_own: null });
+        expect((await aiOf(request, ai.id))?.context.own).toBeNull();
+        await expect(follow).toHaveAttribute("aria-pressed", "true");
+        await expect(capacity.getByRole("button", { name: /^My value/ })).toHaveAttribute("aria-pressed", "false");
+      } finally {
+        await request.delete(`${API}/api/models/${ai.id}`);
+      }
+    });
+  }
+
+  test("a reply ceiling typed and then left to evermind is set by evermind", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "CapLetGo");
+    try {
+      await request.put(`${API}/api/models/${ai.id}`, { data: { reply_cap: { mode: "auto" } } });
+      const bodies = await watchSaves(page, ai.id);
+      await openPage(page, ai.id);
+      await openAdvanced(page);
+      const ceiling = page.getByRole("group", { name: "Reply ceiling" });
+      await ceiling.getByRole("button", { name: /^My value/ }).click();
+      await typeOver(ceiling, "500");
+      await ceiling.getByRole("button", { name: "Set by Evermind" }).click();
+      await settled(page);
+      expect(bodies).not.toContainEqual({ reply_cap: { mode: "fixed", tokens: 500 } });
+      expect((await aiOf(request, ai.id))?.reply_cap).toEqual({ mode: "auto", tokens: null });
+      await expect(ceiling.getByRole("button", { name: "Set by Evermind" })).toHaveAttribute("aria-pressed", "true");
+      await expect(ceiling.getByRole("button", { name: /^My value/ })).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      await request.delete(`${API}/api/models/${ai.id}`);
+    }
+  });
+
+  test("a reply ceiling of its own, another typed and then left to evermind on a slow link, is set by evermind", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "CapSlow");
+    try {
+      await request.put(`${API}/api/models/${ai.id}`, { data: { reply_cap: { mode: "fixed", tokens: 300 } } });
+      const bodies = await watchSaves(page, ai.id, 1500);
+      await openPage(page, ai.id);
+      await openAdvanced(page);
+      const ceiling = page.getByRole("group", { name: "Reply ceiling" });
+      await typeOver(ceiling, "500");
+      await ceiling.getByRole("button", { name: "Set by Evermind" }).click();
+      await settled(page, 1500);
+      expect(bodies).not.toContainEqual({ reply_cap: { mode: "fixed", tokens: 500 } });
+      expect((await aiOf(request, ai.id))?.reply_cap).toEqual({ mode: "auto", tokens: null });
+      await expect(ceiling.getByRole("button", { name: "Set by Evermind" })).toHaveAttribute("aria-pressed", "true");
+      await expect(ceiling.getByRole("button", { name: /^My value/ })).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      await request.delete(`${API}/api/models/${ai.id}`);
+    }
+  });
+
   test("a figure typed, then another, ends on the last", async ({ page, request }) => {
     const ai = await lmstudioAi(request, "Twice");
     try {
