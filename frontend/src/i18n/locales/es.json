@@ -424,7 +424,7 @@
       "alternateGreetingsEmptyHint": "Opcional: otras aperturas de escena, intercambiables con el primer mensaje.",
       "tagsLabel": "Etiquetas",
       "exampleDialoguesLabel": "Diálogos de ejemplo",
-      "exampleDialoguesHint": "Muestran el estilo de escritura. Separe cada ejemplo con <START>. Macros {{char}} / {{user}}.",
+      "exampleDialoguesHint": "Muestre el estilo de escritura. Separe cada ejemplo con <START>. Macros {{char}} / {{user}}.",
       "exampleDialoguesPlaceholder": "<START>\n{{user}}: ¿Estás bien?\n{{char}}: *Se sacudió el polvo de la capa.* Define «bien».",
       "advancedSettingsToggle": "Ajustes avanzados",
       "systemPromptLabel": "Prompt de sistema personalizado",
@@ -517,7 +517,7 @@
     "entryNumber": "entrada {number}",
     "constantLabel": "Siempre activa",
     "secondaryKeysLabel": "Claves secundarias",
-    "secondaryKeysPlaceholder": "Palabras clave secundarias y Intro",
+    "secondaryKeysPlaceholder": "Palabras clave secundarias, luego Enter",
     "selectiveLabel": "Exigir una clave secundaria",
     "logicLabel": "Efecto de las claves secundarias",
     "logic": {
