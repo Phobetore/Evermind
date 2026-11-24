@@ -342,6 +342,20 @@ async function textAt(page: Page, percent: number) {
   await expect(sheetOf(page)).toHaveCount(0);
 }
 
+/** The placeholder of the box, and by how much it is wider than the room inside it, measured with
+ *  the box's own font in a line of the page. */
+const placeholderOf = (box: Locator) => box.evaluate((el: HTMLTextAreaElement) => {
+  const style = getComputedStyle(el);
+  const probe = document.createElement("span");
+  probe.textContent = el.placeholder;
+  Object.assign(probe.style, { font: style.font, letterSpacing: style.letterSpacing, whiteSpace: "pre", position: "absolute", visibility: "hidden" });
+  document.body.append(probe);
+  const width = probe.getBoundingClientRect().width;
+  probe.remove();
+  return { text: el.placeholder, over: width - (el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) };
+});
+const sayTo = (name: string) => `Write to ${name}… (*asterisks* for your actions)`;
+
 const LONG_NAME = "Ottoline Wilhelmina Fairweather-Montrose";
 /** As long, with no space to break at. */
 const UNBROKEN_NAME = "OttolineWilhelminaFairweatherMontroseXYZ";
@@ -542,6 +556,11 @@ test.describe("a phone set to very large text keeps every button and no sideways
       });
       expect(resting.off, "the empty input is not one line high").toBeLessThanOrEqual(1);
       expect(resting.cut, "the placeholder wraps under the line").toBeLessThanOrEqual(0);
+      // Cut to its room, and said to go on: a textarea's placeholder draws no ellipsis of its own.
+      const hint = await placeholderOf(inputBox(page));
+      expect(hint.text, "the placeholder is not cut where it says so").toMatch(/^Write to .*…$/);
+      expect(hint.over, "the placeholder is wider than its box").toBeLessThanOrEqual(0);
+      await expect(inputBox(page), "a screen reader hears it cut").toHaveAccessibleName(sayTo(UNBROKEN_NAME));
 
       // The input folds its two buttons into one.
       await expect(more(page)).toBeVisible();
@@ -618,6 +637,24 @@ test("a long name takes its own line at two hundred percent", async ({ page, req
   const name = (await message.getByText(LONG_NAME, { exact: true }).boundingBox())!;
   const edit = (await message.getByTitle("Edit", { exact: true }).boundingBox())!;
   expect(edit.y + edit.height / 2, "the buttons sit beside the name").toBeGreaterThan(name.y + name.height);
+});
+
+test("the placeholder is whole where it has room, and cut with an ellipsis where it has not", async ({ page, request }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  const convo = await makeConversation(request, { name: "Mara" });
+  await openConversation(page, convo.id);
+  // By its class: this wide, the side panel's boxes come after it.
+  const box = page.locator(".chat-input");
+  await expect.poll(async () => (await placeholderOf(box)).text).toBe(sayTo("Mara"));
+  // Narrowed, the box no longer holds it; widened again, it is whole again.
+  await page.setViewportSize({ width: 360, height: 768 });
+  await expect.poll(async () => (await placeholderOf(box)).text, "not cut as the box narrowed").toMatch(/^Write to Mara.*…$/);
+  expect((await placeholderOf(box)).over, "wider than its box").toBeLessThanOrEqual(0);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await expect.poll(async () => (await placeholderOf(box)).text, "still cut once the box widened").toBe(sayTo("Mara"));
+  // A larger text in the same box is measured again.
+  await textAt(page, 200);
+  await expect.poll(async () => (await placeholderOf(box)).over, "wider than its box at two hundred percent").toBeLessThanOrEqual(0);
 });
 
 test("the empty input rests at one line", async ({ page, request }) => {

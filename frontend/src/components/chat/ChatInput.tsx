@@ -4,6 +4,7 @@ import { useT } from "@/i18n/useT";
 import { inputScale, useDisplay } from "@/lib/display";
 import { loadDraft, openBox, saveDraft, type MessageMode } from "@/lib/drafts";
 import { describeError } from "@/lib/errors";
+import { oneLine } from "@/lib/oneLine";
 import { onItsWay } from "@/lib/useTurn";
 import { clsx } from "clsx";
 import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Plus, Send, Square } from "lucide-react";
@@ -17,6 +18,10 @@ const hasKeyboard = () => window.matchMedia("(hover: hover) and (pointer: fine)"
 const LINES = 6;
 /** Nor more than this share of the visible height: at 200 % of the system's text, six lines would cover the screen. */
 const MOST_OF_SCREEN = 0.4;
+
+let pen: CanvasRenderingContext2D | null | undefined;
+/** A canvas's context, which measures a line of text without laying anything out; none where there is no canvas. */
+const measuring = () => (pen === undefined ? (pen = document.createElement("canvas").getContext("2d")) : pen);
 
 const MODES: Record<MessageMode, {
   next: MessageMode;
@@ -139,6 +144,36 @@ export function ChatInput({
     viewport.addEventListener("resize", fit);
     return () => viewport.removeEventListener("resize", fit);
   }, [fit]);
+
+  // The placeholder on the one line it has, cut short with an ellipsis where it does not fit: the
+  // browser would clip it mid-word with no sign that it goes on. Whole, it stays the box's name.
+  const fullPlaceholder = t(MODES[mode].placeholderKey, { name: characterName });
+  const [placeholder, setPlaceholder] = useState(fullPlaceholder);
+  const fitPlaceholder = useCallback(() => {
+    const el = ref.current;
+    const pen = measuring();
+    if (!el || !pen) return setPlaceholder(fullPlaceholder);
+    const style = getComputedStyle(el);
+    const room = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    pen.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    pen.letterSpacing = style.letterSpacing === "normal" ? "0px" : style.letterSpacing;
+    // A pixel to spare, for the rounding of the two measures.
+    setPlaceholder(oneLine(fullPlaceholder, (line) => pen.measureText(line).width <= room - 1));
+  }, [fullPlaceholder]);
+  useLayoutEffect(fitPlaceholder, [fitPlaceholder, scale]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const resized = new ResizeObserver(fitPlaceholder);
+    resized.observe(el);
+    // Measured again once the page's own font is in: until then the fallback's widths were used.
+    let open = true;
+    void document.fonts?.ready.then(() => open && fitPlaceholder());
+    return () => {
+      open = false;
+      resized.disconnect();
+    };
+  }, [fitPlaceholder]);
 
   // Under 18rem the mode and the pen fold into one button, which opens a row of the two above the line.
   const [folded, setFolded] = useState(false);
@@ -310,7 +345,8 @@ export function ChatInput({
             }
           }}
           rows={1}
-          placeholder={t(MODES[mode].placeholderKey, { name: characterName })}
+          placeholder={placeholder}
+          aria-label={fullPlaceholder}
           className={clsx(
             "chat-input field min-w-0 flex-1 !rounded-2xl @max-[240px]:order-first @max-[240px]:basis-full",
             mode === "narrate" && "!border-arcane-500/50",
