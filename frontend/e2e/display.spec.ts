@@ -327,6 +327,13 @@ const sizeOf = async (target: Locator) => {
 /** The page's root size, which every size in rem is a multiple of. */
 const rootOf = (page: Page) => page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
 
+/** A root size of the page's own, as Safari and Firefox set it for very large system text. */
+function rootAt(size: string) {
+  const set = () => document.documentElement.style.setProperty("font-size", size);
+  if (document.documentElement) set();
+  else document.addEventListener("DOMContentLoaded", set);
+}
+
 /** Sets the size from the Aa sheet, and closes it. */
 async function textAt(page: Page, percent: number) {
   await aa(page).click();
@@ -336,6 +343,8 @@ async function textAt(page: Page, percent: number) {
 }
 
 const LONG_NAME = "Ottoline Wilhelmina Fairweather-Montrose";
+/** As long, with no space to break at. */
+const UNBROKEN_NAME = "OttolineWilhelminaFairweatherMontroseXYZ";
 const LONG_WORD = "anticonstitutionnellement";
 const ADDRESS = `https://example.com/${"a".repeat(60)}`;
 
@@ -416,6 +425,29 @@ test("the input grows with its text and scrolls past six lines", async ({ page, 
   expect(await box.evaluate((el) => el.scrollHeight > el.clientHeight), "the seventh line has no room to scroll to").toBe(true);
 });
 
+/* The kept size is read as the conversation's page mounts, while it waits for its opening scene, so it
+   is settled long before a message is drawn: that the first read gives it is held in display.test.ts.
+   What this holds is the column's own --chat-scale, in place in every frame of the first message. */
+test("the input stops at forty percent of what the screen shows", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 420 });
+  await page.addInitScript(rootAt, "32px");
+  const convo = await conversationWithReply(request);
+  await openConversation(page, convo.id);
+  const box = inputBox(page);
+  await box.fill(Array.from({ length: 9 }, (_, i) => `Line ${i + 1}`).join("\n"));
+  // Six lines of 32px text would be twice as high: the share of the screen is what stops it.
+  const fit = () => box.evaluate((el) => {
+    const visible = window.visualViewport?.height ?? window.innerHeight;
+    return { off: Math.abs(el.getBoundingClientRect().height - 0.4 * visible), scrolls: el.scrollHeight > el.clientHeight };
+  });
+  await expect.poll(async () => (await fit()).off, "not forty percent of the screen high").toBeLessThanOrEqual(1);
+  expect((await fit()).scrolls, "the lines past it have no room to scroll to").toBe(true);
+
+  // The keyboard opening shrinks what the screen shows: the box follows.
+  await page.setViewportSize({ width: 390, height: 320 });
+  await expect.poll(async () => (await fit()).off, "the box kept its height as the screen shrank").toBeLessThanOrEqual(1);
+});
+
 test("the first message drawn already has the chosen size", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
   await page.addInitScript(() => {
@@ -467,33 +499,49 @@ test.describe("a phone set to very large text keeps every button and no sideways
     { name: "a page zoomed to 200 percent", width: 195, height: 400, root: 16 },
   ]) {
     test(screen.name, async ({ page, request }) => {
-      expect([LONG_NAME.length, LONG_WORD.length, ADDRESS.length]).toEqual([40, 25, 80]);
+      expect([UNBROKEN_NAME.length, LONG_WORD.length, ADDRESS.length]).toEqual([40, 25, 80]);
       await page.setViewportSize({ width: screen.width, height: screen.height });
-      if (screen.root !== 16) {
-        await page.addInitScript((size) => {
-          const set = () => document.documentElement.style.setProperty("font-size", size);
-          if (document.documentElement) set();
-          else document.addEventListener("DOMContentLoaded", set);
-        }, `${screen.root}px`);
-      }
-      const convo = await makeConversation(request, { name: LONG_NAME, greeting: `${LONG_WORD} ${ADDRESS}` });
-      await chat(request, { conversation_id: convo.id, mode: "send", content: `${LONG_WORD} ${ADDRESS}` });
+      if (screen.root !== 16) await page.addInitScript(rootAt, `${screen.root}px`);
+      const unbroken = `${LONG_WORD} ${ADDRESS}`;
+      const convo = await makeConversation(request, { name: UNBROKEN_NAME, greeting: unbroken });
+      await chat(request, { conversation_id: convo.id, mode: "send", content: unbroken });
+      await chat(request, { conversation_id: convo.id, mode: "send", content: unbroken, message_mode: "narrate" });
+      await chat(request, { conversation_id: convo.id, mode: "send", content: unbroken, message_mode: "ooc" });
       await openConversation(page, convo.id);
       expect(await rootOf(page)).toBe(screen.root);
 
       for (const scroller of [page.locator("#main"), story(page)]) {
         expect(await scroller.evaluate((el) => el.scrollWidth - el.clientWidth), "it scrolls sideways").toBeLessThanOrEqual(0);
       }
+      // Each text in its own box: the prose clips, so a word that would not break is cut, not scrolled to.
+      for (const kind of [".rp-prose", ".chat-narration", ".chat-ooc", ".chat-name"]) {
+        const texts = story(page).locator(kind);
+        expect(await texts.count(), `no ${kind} to measure`).toBeGreaterThan(0);
+        const wider = await texts.evaluateAll((all) => {
+          const right = document.querySelector("[data-story]")!.getBoundingClientRect().right;
+          return all.filter((el) => el.scrollWidth > el.clientWidth || el.getBoundingClientRect().right > right + 0.5).length;
+        });
+        expect(wider, `a ${kind} wider than its box`).toBe(0);
+      }
       const buttons = [
         page.getByRole("link", { name: "Back to conversations" }),
         aa(page),
         page.getByRole("button", { name: "Conversation memory and settings" }),
+        more(page),
+        page.getByTitle("Send", { exact: true }),
       ];
       for (const button of buttons) {
         const box = (await button.boundingBox())!;
         expect([Math.round(box.width), Math.round(box.height)]).toEqual([44, 44]);
         expect(box.x + box.width, "out of the screen").toBeLessThanOrEqual(screen.width);
       }
+      // Empty, it rests at one line, and its placeholder does not wrap into a second one it would cut.
+      const resting = await inputBox(page).evaluate((el) => {
+        const font = parseFloat(getComputedStyle(el).fontSize);
+        return { off: Math.abs(el.getBoundingClientRect().height - (2.6 * font + 2)), cut: el.scrollHeight - el.clientHeight };
+      });
+      expect(resting.off, "the empty input is not one line high").toBeLessThanOrEqual(1);
+      expect(resting.cut, "the placeholder wraps under the line").toBeLessThanOrEqual(0);
 
       // The input folds its two buttons into one.
       await expect(more(page)).toBeVisible();
@@ -513,7 +561,7 @@ test.describe("a phone set to very large text keeps every button and no sideways
       await expect(pen).toHaveCount(0);
       await expect(inputBox(page)).toBeFocused();
 
-      const portrait = page.getByRole("button", { name: `About ${LONG_NAME}` });
+      const portrait = page.getByRole("button", { name: `About ${UNBROKEN_NAME}` });
       const box = inputBox(page);
       const line = box.locator("xpath=..");
       const panel = page.getByRole("button", { name: "Conversation memory and settings" });
@@ -534,10 +582,29 @@ test.describe("a phone set to very large text keeps every button and no sideways
         for (const below of [more(page), page.getByTitle("Send", { exact: true })]) {
           expect((await below.boundingBox())!.y, "not under the input").toBeGreaterThanOrEqual(typed.y + typed.height);
         }
+
+        // A touch on the story closes the row, and gives the focus to nothing in particular.
+        await more(page).click();
+        await expect(mode).toBeFocused();
+        await story(page).click({ position: { x: 4, y: 4 } });
+        await expect(mode).toHaveCount(0);
+        await expect(more(page)).not.toBeFocused();
+        // Sending closes it too: sent from the keyboard, so that no touch elsewhere does it instead.
+        await more(page).click();
+        await expect(mode).toBeVisible();
+        await box.fill("Go on.");
+        await expect(mode, "typing closed the row").toBeVisible();
+        await page.getByTitle("Send", { exact: true }).focus();
+        await page.keyboard.press("Enter");
+        await expect(mode, "the row stayed open once the message was sent").toHaveCount(0);
+        // On the server by then, so the stop has a turn to stop.
+        await expect(story(page).getByText("Go on.", { exact: true })).toBeVisible();
+        await stopTurn(request, convo.id);
+
         await panel.click();
         await cardInShort.click();
         await expect(page.getByRole("button", { name: "Close panel" })).toHaveCount(0);
-        await expect(page.getByRole("dialog", { name: LONG_NAME })).toBeVisible();
+        await expect(page.getByRole("dialog", { name: UNBROKEN_NAME })).toBeVisible();
       }
     });
   }

@@ -474,6 +474,8 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   min-height: calc(2.6em + 2px);
   resize: none;
 }
+/* One line, cut short: in the box at rest a second line would show only its top half. */
+.chat-input::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Less motion: animations are cut to an instant rather than removed, so that what they end on is
    still drawn (the entry animations hold their last frame). */
