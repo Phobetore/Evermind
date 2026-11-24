@@ -166,12 +166,19 @@ def _bare(base_url: str) -> str:
     return (base_url or "").rstrip("/")
 
 
+def is_openrouter(base_url: str) -> bool:
+    """OpenRouter's own host, or one under it (eu.openrouter.ai): the one test of it, for the
+    family of a service and for the least reasoning of a memory pass alike."""
+    host = _host(base_url)
+    return host == "openrouter.ai" or host.endswith(".openrouter.ai")
+
+
 def guess_family(provider: str, base_url: str) -> Family:
     """The family an address names, as the update that made services decided it; else generic."""
     low = (base_url or "").lower()
     if provider == "anthropic" or "//api.anthropic.com" in low:
         return "anthropic"
-    if "//openrouter.ai/" in low:
+    if is_openrouter(base_url):
         return "openrouter"
     if "//api.openai.com" in low:
         return "openai"

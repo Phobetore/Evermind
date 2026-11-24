@@ -28,6 +28,7 @@ class OpenRouter:
         self.refuse = refuse
         self.refuse_all: int | None = None  # a refusal of every request, the field or not
         self.list_takes = 0.0  # seconds the list takes to come
+        self.per_page: int | None = None  # models a page, each page linking to the next
         self.lists = 0
         self.gets: list[str] = []  # every GET, kept before it is judged: a refusal may be swallowed
         self.bodies: list[dict] = []
@@ -40,8 +41,15 @@ class OpenRouter:
             await asyncio.sleep(self.list_takes)
             if self.models is None:
                 return httpx.Response(503, json={"error": {"message": "busy"}})
-            # As OpenRouter answers: every model on one page, and no page after it.
-            return httpx.Response(200, json={"data": self.models, "links": {"next": None}})
+            if self.per_page is None:
+                # As OpenRouter answers: every model on one page, and no page after it.
+                return httpx.Response(200, json={"data": self.models, "links": {"next": None}})
+            offset = int(request.url.params.get("offset", 0))
+            end = offset + self.per_page
+            following = (f"{request.url.path}?offset={end}&limit={self.per_page}"
+                         if end < len(self.models) else None)
+            return httpx.Response(200, json={"data": self.models[offset:end],
+                                             "links": {"next": following}})
         body = json.loads(request.content)
         self.bodies.append(body)
         if self.refuse_all:
@@ -252,6 +260,15 @@ async def test_another_server_is_asked_nothing_and_sent_nothing(clock, base_url)
 async def test_a_subdomain_of_openrouter_is_openrouter(clock):
     server = OpenRouter(listed(THE_OWNERS))
     assert (await server.ask(base_url="https://eu.openrouter.ai/api/v1"))["reasoning"]
+
+
+async def test_a_subdomain_of_openrouter_is_read_page_after_page(clock):
+    # The model is on the second page: only a list read as OpenRouter's follows its links.
+    server = OpenRouter(listed(THE_OWNERS))
+    server.per_page = 1
+    body = await server.ask(base_url="https://eu.openrouter.ai/api/v1")
+    assert body["reasoning"] == {"effort": "none"}
+    assert server.gets == ["/api/v1/models"] * 2
 
 
 async def test_a_caller_that_did_not_ask_is_sent_nothing(clock):

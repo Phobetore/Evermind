@@ -27,6 +27,7 @@ from app.providers.catalog import (
     display_name,
     dropped,
     family_of,
+    guess_family,
     is_local,
     is_loopback,
     per_million,
@@ -36,7 +37,7 @@ from app.providers.catalog import (
     service_name,
     whole,
 )
-from app.providers.openai_compat import OpenAICompatProvider, least_reasoning
+from app.providers.openai_compat import OpenAICompatProvider, is_openrouter, least_reasoning
 
 from .conftest import PAYLOAD, anth_provider, collect, oai_provider, sse
 
@@ -901,6 +902,17 @@ def test_a_family_holds_for_the_address_it_was_decided_at():
     assert family_of("openai-compatible", "http://localhost:1234/v1", "openrouter",
                      OPENROUTER) == "lmstudio"
     assert family_of("anthropic", "https://gateway.example.com", "generic", None) == "anthropic"
+
+
+def test_openrouter_is_its_host_and_every_host_under_it():
+    for base_url in (OPENROUTER, "https://openrouter.ai", "https://eu.openrouter.ai/api/v1",
+                     "http://check.openrouter.ai/v1", "HTTPS://OpenRouter.AI/api/v1"):
+        assert guess_family("openai-compatible", base_url) == "openrouter", base_url
+        assert is_openrouter(base_url), base_url
+    for base_url in ("https://openrouter.ai.evil.example/v1", "https://notopenrouter.ai/api/v1",
+                     "https://proxy.example.com/openrouter.ai/v1", "http://[::1", ""):
+        assert guess_family("openai-compatible", base_url) == "generic", base_url
+        assert not is_openrouter(base_url), base_url
 
 
 def test_is_local_by_family_and_address():

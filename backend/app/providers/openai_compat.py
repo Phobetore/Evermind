@@ -10,11 +10,11 @@ import logging
 import time
 from collections.abc import AsyncIterator
 from contextlib import aclosing
-from urllib.parse import urlsplit
 
 from ..prompting.engine import PromptPayload
 from . import catalog
 from .base import REFUSED_AS_WRITTEN, Provider, ProviderError, ProviderEvent, scrub, words_of
+from .catalog import is_openrouter
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +32,6 @@ _now = time.monotonic
 _failed_lists: dict[tuple[str, str, str], float] = {}
 # The (base_url, model) pairs whose server refused a "reasoning" field: never sent again to them.
 _refused: set[tuple[str, str]] = set()
-
-
-def is_openrouter(base_url: str) -> bool:
-    host = urlsplit(base_url).hostname or ""
-    return host == "openrouter.ai" or host.endswith(".openrouter.ai")
 
 
 def least_reasoning(reasoning: object) -> dict | None:
@@ -117,9 +112,7 @@ class OpenAICompatProvider(Provider):
     async def _reasoning_of_models(self) -> dict[str, dict | None] | None:
         """Each listed model's "reasoning" object (None: none given), or None for a list that
         could not be read. Read by the catalog, which keeps one list for every reader of it."""
-        # The host already says OpenRouter, a subdomain included: its list is read as one.
-        service = {**self.connection, "family": "openrouter", "family_url": self.base_url}
-        key = catalog.cache_key(service)
+        key = catalog.cache_key(self.connection)
         failed_at = _failed_lists.get(key)
         if failed_at is not None and _now() - failed_at < FAILED_LIST_KEPT_S:
             return None
@@ -127,9 +120,9 @@ class OpenAICompatProvider(Provider):
             async with asyncio.timeout(LIST_TIMEOUT_S):
                 # The list alone, in one request: the key is not checked here, and a key
                 # refused fails the pass itself.
-                read = await catalog.read_catalog(service, probes=False, max_age=LIST_KEPT_S,
-                                                  check_key=False,
-                                                  client_factory=self._client_factory)
+                read = await catalog.read_catalog(
+                    self.connection, probes=False, max_age=LIST_KEPT_S, check_key=False,
+                    client_factory=self._client_factory)
         except ProviderError as exc:
             logger.warning("the list of models of %s could not be read: %s",
                            self.base_url, exc.message)
