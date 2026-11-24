@@ -248,6 +248,26 @@ async def test_impersonate_gives_no_share_of_the_chat_to_the_facts(client, fake_
     assert await messages_read() == whole_chat
 
 
+async def test_impersonate_reads_the_recent_messages_a_reply_reads(client, fake_provider):
+    """The setting "Recent messages sent to the model" holds for the pen as for a reply."""
+    convo = await setup_conversation(client)
+    for i in range(6):
+        await send(client, convo["id"], content=f"Message {i}.")
+    await client.put("/api/settings", json={"history_limit": 4})
+
+    await send(client, convo["id"], content="One more.")
+    replied = [m["content"] for m in fake_provider.captured["payload"].messages]
+    fake_provider.script = [ProviderEvent(type="delta", text="*Je souris.*"),
+                            ProviderEvent(type="done")]
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
+
+    assert resp.status_code == 200, resp.text
+    penned = [m["content"] for m in fake_provider.captured["payload"].messages]
+    assert len(penned) == 4
+    # The reply read up to the message it answered; the pen reads up to that reply.
+    assert penned[:-1] == replied[1:]
+
+
 async def test_narrate_and_ooc_modes(client, fake_provider):
     convo = await setup_conversation(client)
     # narration: stored raw, marked up for the model, no auto title

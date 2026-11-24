@@ -95,9 +95,40 @@ def words_of(said: object) -> str:
     """
     if isinstance(said, dict):
         said = said.get("error", said)
+    host = _host_said(said) if isinstance(said, dict) and said.get("message") else ""
     if isinstance(said, dict):
         said = said.get("message") or said
-    return well_formed(str(said)[:300]) if said else ""
+    words = str(said)[:300] if said else ""
+    room = 300 - len(words) - len(" ()")
+    if host and room > 0:
+        words += f" ({host[:room]})"
+    return well_formed(words)
+
+
+def _host_said(error: dict) -> str:
+    """The host a router sent the request to, and what that host said, from the error's
+    metadata: the router's own message only says that a host failed, not whether it is down
+    or refused the request."""
+    metadata = error.get("metadata")
+    if not isinstance(metadata, dict):
+        return ""
+    name = metadata.get("provider_name")
+    raw = metadata.get("raw")
+    if isinstance(raw, str):
+        try:  # a host's JSON, passed on as text
+            parsed = json.loads(raw)
+        except ValueError:
+            parsed = None
+        raw = parsed if isinstance(parsed, dict) else raw
+    if isinstance(raw, dict):
+        inner = raw.get("error")
+        inner = inner.get("message") if isinstance(inner, dict) else inner
+        message = inner if isinstance(inner, str) and inner else raw.get("message")
+        raw = message if isinstance(message, str) and message else json.dumps(raw, ensure_ascii=False)
+    elif raw is not None and not isinstance(raw, str):
+        raw = json.dumps(raw, ensure_ascii=False)
+    parts = [part.strip() for part in (name, raw) if isinstance(part, str)]
+    return ": ".join(part for part in parts if part)
 
 
 def _refusal(status: int, body: bytes) -> ProviderError:

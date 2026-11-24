@@ -47,18 +47,27 @@ const plain = (system: string, messages: PlainPayload["messages"], stop: string[
 /** What the ghostwriter reads: the chat, without its memory, which it has no use for. */
 export type ImpersonateInput = Pick<
   ChatInput,
-  "character" | "persona" | "conversation" | "messages" | "connection"
+  "character" | "persona" | "conversation" | "messages" | "connection" | "history_limit"
 >;
 
-/** The prompt that ghost-writes the player's next message. */
+/** The prompt that ghost-writes the player's next message, from the same recent messages a
+ * reply reads: the older ones are the story's summary's to tell, as they are for a reply. */
 export function buildImpersonatePayload(input: ImpersonateInput): PlainPayload {
-  // Only these five: a fact given along would take room from the turns in the chat payload.
-  const { character, persona, conversation, messages, connection } = input;
+  // Only these six: a fact given along would take room from the turns in the chat payload.
+  const { character, persona, conversation, messages, connection, history_limit } = input;
   const charName = speakingName(character);
   const userName = persona?.name || "User";
   // Without what the card says to the character among the turns: the player's pen reads no
   // reminder meant for the character.
-  const base = buildChatPayload({ character, persona, conversation, messages, connection, insertions: false });
+  const base = buildChatPayload({
+    character,
+    persona,
+    conversation,
+    messages,
+    connection,
+    insertions: false,
+    history_limit,
+  });
 
   const contextBits: string[] = [];
   if (persona?.description) contextBits.push(`ABOUT ${userName}: ${persona.description}`);
