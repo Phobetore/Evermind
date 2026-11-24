@@ -196,6 +196,15 @@ describe("the choice", () => {
     expect(reduce(listed(), { type: "adding" }).pending).toBe(false);
   });
 
+  test("while an add is on its way, ticks, names and Back change nothing", () => {
+    // What was sent is what the count and the answering name are said of.
+    const adding = run(listed(CONVERSATION), { type: "pick", id: "a/one" }, { type: "adding" });
+    expect(reduce(adding, { type: "pick", id: "b/two" })).toBe(adding);
+    expect(reduce(adding, { type: "pick", id: "a/one" })).toBe(adding);
+    expect(reduce(adding, { type: "useAsIs", id: "zz-absent" })).toBe(adding);
+    expect(reduce(adding, { type: "back" })).toBe(adding);
+  });
+
   test("an add that fails stays on the list with its ticks; one that works is done", () => {
     const adding = run(listed(), { type: "pick", id: "a/one" }, { type: "adding" });
     const failed = reduce(adding, { type: "addFailed", error: broken });
@@ -271,7 +280,11 @@ describe("back", () => {
     );
     const key = reduce(read, { type: "back" });
     expect(key).toMatchObject({ step: "key", newKey: true });
-    expect(reduce(key, { type: "back" })).toMatchObject({ step: "failed", error: refused });
+    const failed = reduce(key, { type: "back" });
+    expect(failed).toMatchObject({ step: "failed", error: refused });
+    // The key typed again goes with its step: asked once more, the field is empty.
+    expect(failed.draft?.api_key).toBeUndefined();
+    expect(reduce(failed, { type: "newKey" }).draft?.api_key).toBeUndefined();
   });
 });
 
@@ -282,6 +295,9 @@ describe("what is sent", () => {
       service: { provider: "openai-compatible", base_url: "https://openrouter.ai/api/v1", api_key: "sk-typed", family: "openrouter" },
       models: [{ model: "a/one", read: row("a/one") }, { model: "zz-absent" }],
     });
+    // Still so when a list read again has a model of that name.
+    const reread = run(state, { type: "retry" }, { type: "read", list: list({ models: [row("a/one"), row("zz-absent")] }) });
+    expect(toCreate(reread).models).toEqual([{ model: "a/one", read: row("a/one") }, { model: "zz-absent" }]);
   });
 
   test("the answers go with their model, and a conversation is named", () => {
