@@ -6,11 +6,12 @@ import type { Character } from "@/types";
 export function timeAgo(
   iso: string | null | undefined,
   t: (key: string, vars?: Record<string, string | number>) => string,
+  now: number = Date.now(),
 ): string {
   if (!iso) return "";
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "";
-  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  const seconds = Math.max(0, Math.floor((now - then) / 1000));
   if (seconds < 60) return t("time.justNow");
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return t("time.minutesAgo", { count: minutes });

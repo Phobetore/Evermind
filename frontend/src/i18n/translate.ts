@@ -20,19 +20,29 @@ function lookup(dict: Dict, key: string): string | undefined {
 const plurals: Partial<Record<Locale, Intl.PluralRules>> = {};
 const numbers: Partial<Record<Locale, Intl.NumberFormat>> = {};
 const grouped: Partial<Record<Locale, Intl.NumberFormat>> = {};
+const wholePrices: Partial<Record<Locale, Intl.NumberFormat>> = {};
+const pricesWithCents: Partial<Record<Locale, Intl.NumberFormat>> = {};
+
+function numberFormat(locale: Locale, modifier: string | undefined, value: number): Intl.NumberFormat {
+  if (modifier === ":grouped") return (grouped[locale] ??= new Intl.NumberFormat(locale));
+  if (modifier === ":price") {
+    return Number.isInteger(value)
+      ? (wholePrices[locale] ??= new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }))
+      : (pricesWithCents[locale] ??= new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 }));
+  }
+  return (numbers[locale] ??= new Intl.NumberFormat(locale, { useGrouping: false }));
+}
 
 /** A number as the language writes it: "54,1" in French. Not grouped, as before: "16384 tokens";
- *  a sentence that tells large estimates asks for `{name:grouped}`: "31 000" in French. */
+ *  a sentence that tells large estimates asks for `{name:grouped}`: "31 000" in French; one that
+ *  tells a price asks for `{name:price}`: "3" and "5,70", never "5,7", and "0,075" in full. */
 function interpolate(locale: Locale, str: string, vars?: Record<string, string | number>): string {
   if (!vars) return str;
-  return str.replace(/\{(\w+)(:grouped)?\}/g, (whole, k, group) => {
+  return str.replace(/\{(\w+)(:grouped|:price)?\}/g, (whole, k, modifier) => {
     if (!(k in vars)) return whole;
     const value = vars[k];
     if (typeof value !== "number") return value;
-    const format = group
-      ? (grouped[locale] ??= new Intl.NumberFormat(locale))
-      : (numbers[locale] ??= new Intl.NumberFormat(locale, { useGrouping: false }));
-    return format.format(value);
+    return numberFormat(locale, modifier, value).format(value);
   });
 }
 

@@ -735,5 +735,24 @@
   "memoryMark": {
     "label": "La mémoire de cette conversation n'a pas pu être mise à jour",
     "retry": "Réessayer"
+  },
+  "ai": {
+    "mine": "Mes IA",
+    "serviceOnline": "{name}, en ligne",
+    "serviceOnThisPc": "{name}, sur ce PC",
+    "serviceOnYourNetwork": "{name}, sur votre réseau",
+    "reads": "lit ≈ {pages:grouped} pages à la fois",
+    "readsUntold": "capacité de lecture non dite",
+    "free": "gratuit",
+    "priceNone": "prix non indiqué",
+    "priceVaries": "prix selon le modèle choisi par le service",
+    "priceKnown": "{input:price} $ lus, {output:price} $ écrits, le million de tokens",
+    "default": "Par défaut",
+    "thinksBeforeWriting": "réfléchit avant d'écrire",
+    "thinks": "réfléchit",
+    "new": "nouveau",
+    "typedByHand": "tapé à la main",
+    "listRead": "Liste lue {age}",
+    "listReadNow": "Liste lue il y a quelques secondes"
   }
 }

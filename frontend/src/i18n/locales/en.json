@@ -735,5 +735,24 @@
   "memoryMark": {
     "label": "This conversation's memory could not be updated",
     "retry": "Try again"
+  },
+  "ai": {
+    "mine": "My AIs",
+    "serviceOnline": "{name}, online",
+    "serviceOnThisPc": "{name}, on this PC",
+    "serviceOnYourNetwork": "{name}, on your network",
+    "reads": "reads ≈ {pages:grouped} pages at once",
+    "readsUntold": "reading capacity not given",
+    "free": "free",
+    "priceNone": "price not given",
+    "priceVaries": "price depends on the model the service picks",
+    "priceKnown": "${input:price} read, ${output:price} written, per million tokens",
+    "default": "Default",
+    "thinksBeforeWriting": "thinks before writing",
+    "thinks": "thinks",
+    "new": "new",
+    "typedByHand": "typed by hand",
+    "listRead": "List read {age}",
+    "listReadNow": "List read a few seconds ago"
   }
 }

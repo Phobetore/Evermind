@@ -735,5 +735,24 @@
   "memoryMark": {
     "label": "Das Gedächtnis dieser Unterhaltung konnte nicht aktualisiert werden",
     "retry": "Noch einmal versuchen"
+  },
+  "ai": {
+    "mine": "Meine KIs",
+    "serviceOnline": "{name}, online",
+    "serviceOnThisPc": "{name}, auf diesem PC",
+    "serviceOnYourNetwork": "{name}, in Ihrem Netzwerk",
+    "reads": "liest ≈ {pages:grouped} Seiten auf einmal",
+    "readsUntold": "Leseumfang nicht angegeben",
+    "free": "kostenlos",
+    "priceNone": "Preis nicht angegeben",
+    "priceVaries": "Preis richtet sich nach dem Modell, das der Dienst wählt",
+    "priceKnown": "{input:price} $ gelesen, {output:price} $ geschrieben, pro Million Tokens",
+    "default": "Standard",
+    "thinksBeforeWriting": "denkt vor dem Schreiben nach",
+    "thinks": "denkt nach",
+    "new": "neu",
+    "typedByHand": "von Hand eingegeben",
+    "listRead": "Liste {age} gelesen",
+    "listReadNow": "Liste vor wenigen Sekunden gelesen"
   }
 }

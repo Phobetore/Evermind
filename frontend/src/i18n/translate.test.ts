@@ -70,3 +70,19 @@ describe("a number", () => {
     expect(translate(locale, "connections.temperatureHint")).toMatch(/\b0,8\b/);
   });
 });
+
+describe("a price", () => {
+  const price = { input: 5.7, output: 0.075 };
+  it.each([
+    ["en", "$5.70 read, $0.075 written, per million tokens"],
+    ["fr", "5,70 $ lus, 0,075 $ écrits, le million de tokens"],
+    ["de", "5,70 $ gelesen, 0,075 $ geschrieben, pro Million Tokens"],
+    ["es", "5,70 $ leídos, 0,075 $ escritos, por millón de tokens"],
+  ] as const)("keeps its cents and its small figures in %s", (locale, sentence) => {
+    expect(translate(locale, "ai.priceKnown", price)).toBe(sentence);
+  });
+
+  it("is written whole when it is", () => {
+    expect(translate("fr", "ai.priceKnown", { input: 3, output: 15 })).toBe("3 $ lus, 15 $ écrits, le million de tokens");
+  });
+});
