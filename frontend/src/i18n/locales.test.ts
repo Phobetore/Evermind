@@ -61,3 +61,16 @@ describe("a sentence reads right where it is shown", () => {
     expect(new Map(flatten({ en, fr, de, es }[locale])).get(key)).toBe(said);
   });
 });
+
+describe("who a sentence speaks to", () => {
+  // The German of Evermind says "du"; "Sie" or "sie" meaning she or they is not an address.
+  it("is du in German, never Sie, Ihr, Ihre or Ihnen", () => {
+    const formal = flatten(de).filter(([, v]) => typeof v === "string" && /\bIhr\w*|\bIhnen\b|[A-Za-zäöüß] Sie\b/.test(v));
+    expect(formal.map(([k]) => k)).toEqual([]);
+  });
+
+  it("is tú in Spanish, never usted", () => {
+    const formal = flatten(es).filter(([, v]) => typeof v === "string" && /\bustedes?\b/i.test(v));
+    expect(formal.map(([k]) => k)).toEqual([]);
+  });
+});
