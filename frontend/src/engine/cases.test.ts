@@ -85,6 +85,8 @@ const ADAPTERS: Record<string, Adapter> = {
 
   continue_instruction: via([], () => engine.CONTINUE_INSTRUCTION),
   auto_title: via(["autoTitle"], (i) => engine.autoTitle(i.content)),
+
+  card_excerpt: via(["cardExcerpt"], (i) => engine.cardExcerpt(i.description, i.name)),
 };
 
 // toStrictEqual tells two classes apart by their `.constructor`, and on an object with

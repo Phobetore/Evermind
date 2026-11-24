@@ -192,6 +192,9 @@ class ConversationPatch(Input):
     summary_was: str | None = None  # the summary the new one was typed over
     author_note: str | None = None
     connection_id: str | None = None
+    backdrop: Literal["auto", "none", "image"] | None = None
+    backdrop_strength: float | None = Field(default=None, ge=0, le=1)  # null: the device's
+    # The strength of the chosen picture. A page opened before backdrops still sends it.
     wallpaper_opacity: float | None = Field(default=None, ge=0, le=1)
 
 

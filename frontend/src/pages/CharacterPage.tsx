@@ -11,7 +11,7 @@ import { data } from "@/data";
 import { speakingName } from "@/engine";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import { firstCodePoints, previewMacros, timeAgo } from "@/lib/utils";
+import { firstCodePoints, mediumPortrait, previewMacros, timeAgo } from "@/lib/utils";
 import type { Character, CharacterWithLore, Conversation } from "@/types";
 import { MessageCircle, Pencil, Star } from "lucide-react";
 import { clsx } from "clsx";
@@ -104,7 +104,7 @@ function CharacterDetail({ id }: { id: string }) {
           <div className="relative mx-auto w-56 overflow-hidden rounded-2xl border border-ink-700 shadow-card lg:mx-0">
             <Avatar
               name={character.name}
-              src={character.avatar_url}
+              src={mediumPortrait(character)}
               rounded="rounded-none"
               className="aspect-[3/4] w-full text-7xl"
             />

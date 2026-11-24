@@ -1,6 +1,7 @@
 import aiosqlite
 
 from ..db import write_transaction
+from ..errors import AppError
 from ..prompting.memory_changes import MAX_TURNS_PER_RUN
 from . import characters as characters_repo
 from .base import dumps, loads, new_id, now_iso
@@ -71,22 +72,65 @@ async def list_all(db: aiosqlite.Connection, character_id: str | None = None) ->
     return out
 
 
+_BACKDROP = ("SELECT backdrop, backdrop_strength, wallpaper_path, wallpaper_opacity"
+             " FROM conversations WHERE id = ?")
+
+
+def _no_wallpaper(row, fields: dict) -> bool:
+    return fields.get("backdrop") == "image" and not fields.get("wallpaper_path",
+                                                                 row["wallpaper_path"])
+
+
+def _backdrop_writes(row, fields: dict) -> dict:
+    """What a request writes of a conversation's backdrop. ``backdrop_strength`` given as None
+    is written: it is the device's strength followed again, not a value left out."""
+    writes = {}
+    backdrop = fields.get("backdrop")
+    after = backdrop or row["backdrop"]
+    if backdrop is not None and backdrop != row["backdrop"]:
+        writes["backdrop"] = backdrop
+        # A picture comes back at the strength it was left at; anything else follows the device.
+        writes["backdrop_strength"] = (fields.get("wallpaper_opacity", row["wallpaper_opacity"])
+                                       if backdrop == "image" else None)
+    if fields.get("wallpaper_opacity") is not None:
+        writes["wallpaper_opacity"] = fields["wallpaper_opacity"]
+        # A page from before backdrops sets the one strength it knows.
+        writes["backdrop_strength"] = fields["wallpaper_opacity"]
+    if "backdrop_strength" in fields:
+        strength = writes["backdrop_strength"] = fields["backdrop_strength"]
+        # The version before shows only the chosen picture: at the strength it was last given.
+        if strength is not None and after == "image" and fields.get("wallpaper_opacity") is None:
+            writes["wallpaper_opacity"] = strength
+    return writes
+
+
 async def update(db: aiosqlite.Connection, convo_id: str, fields: dict) -> dict | None:
-    if not await (await db.execute(
-            "SELECT id FROM conversations WHERE id = ?", (convo_id,))).fetchone():
+    row = await (await db.execute(_BACKDROP, (convo_id,))).fetchone()
+    if not row:
         return None
+    if _no_wallpaper(row, fields):  # before anything else in the request is written
+        raise AppError("No wallpaper to show.", 409, kind="no_wallpaper")
     if fields.get("summary") is not None:
         await _type_summary(db, convo_id, fields["summary"], fields.get("summary_was"))
     sets, params = [], []
-    for key in ("title", "author_note", "connection_id", "wallpaper_path", "wallpaper_opacity"):
+    for key in ("title", "author_note", "connection_id", "wallpaper_path"):
         if key in fields and fields[key] is not None:
             sets.append(f"{key} = ?")
             params.append(fields[key])
-    sets.append("updated_at = ?")
-    params.append(now_iso())
-    params.append(convo_id)
-    await db.execute(f"UPDATE conversations SET {', '.join(sets)} WHERE id = ?", params)
-    await db.commit()
+    async with write_transaction(db):
+        # Read again where it is written: what the request changes depends on what is there.
+        row = await (await db.execute(_BACKDROP, (convo_id,))).fetchone()
+        if not row:
+            return None
+        if _no_wallpaper(row, fields):
+            raise AppError("No wallpaper to show.", 409, kind="no_wallpaper")
+        for key, value in _backdrop_writes(row, fields).items():
+            sets.append(f"{key} = ?")
+            params.append(value)
+        sets.append("updated_at = ?")
+        params.append(now_iso())
+        params.append(convo_id)
+        await db.execute(f"UPDATE conversations SET {', '.join(sets)} WHERE id = ?", params)
     return await get(db, convo_id, with_messages=False)
 
 
@@ -212,13 +256,13 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
         await db.execute(
             "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
             " summary, author_note, memory_position, forked_from, wallpaper_path,"
-            " wallpaper_opacity, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " wallpaper_opacity, backdrop, backdrop_strength, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (branch_id, source["character_id"], source["persona_id"],
              source["connection_id"], source["title"], source["summary"],
              source["author_note"] or "", source["memory_position"],
              source["id"], source["wallpaper_path"],
-             source["wallpaper_opacity"], now, now),
+             source["wallpaper_opacity"], source["backdrop"], source["backdrop_strength"], now, now),
         )
 
         messages = await (await db.execute(

@@ -14,7 +14,7 @@ import pytest
 
 from app.prompting import defaults, engine, lorebook, macros, memory_changes, payloads, tokens
 from app.prompting.memory_changes import plan_consolidation, plan_memory_changes
-from app.services import card_assistant, chat_service, llm_json
+from app.services import card_assistant, card_text, chat_service, llm_json
 
 CASES_DIR = Path(__file__).parent / "cases"
 
@@ -101,6 +101,7 @@ FUNCTIONS = {f.__name__: f for f in (
     parse_llm_json, partial_json,
     card_assistant.clean_card_draft, with_room_for_a_card,
     continue_instruction, auto_title,
+    card_text.card_excerpt,
 )}
 FILES = sorted(CASES_DIR.glob("*.json"))
 

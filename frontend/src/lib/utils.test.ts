@@ -1,19 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { SHOWN_TEXT_BOUND, cardText, cssUrl, firstCodePoints, namesFit, previewMacros } from "./utils";
-
-describe("cssUrl", () => {
-  test("an address with parentheses, an apostrophe and quotes stays one string", () => {
-    expect(cssUrl('a (1)\'s "x".png')).toBe('url("a (1)\'s \\"x\\".png")');
-  });
-
-  test("an inline image comes out whole, between quotes", () => {
-    expect(cssUrl("data:image/webp;base64,AAAA")).toBe('url("data:image/webp;base64,AAAA")');
-  });
-
-  test("a backslash is escaped and a line break is dropped", () => {
-    expect(cssUrl("a\\b\r\nc\nd")).toBe('url("a\\\\bcd")');
-  });
-});
+import { SHOWN_TEXT_BOUND, cardText, firstCodePoints, mediumPortrait, namesFit, previewMacros, smallPortrait } from "./utils";
 
 describe("a card's text for people", () => {
   test("a card's own text is shown as its rules have it", () => {
@@ -86,5 +72,20 @@ describe("a card's text for people", () => {
     expect([...cut]).toHaveLength(2_000);
 
     expect(firstCodePoints("short 😀", 2_000)).toBe("short 😀");
+  });
+});
+
+describe("the copy of a portrait", () => {
+  const whole = "api/media/face.png";
+  test("a small picture reads the 480 copy, and the whole picture until it exists", () => {
+    expect(smallPortrait({ avatar_url: whole, avatar_thumb_url: "api/media/face-480.webp" })).toBe("api/media/face-480.webp");
+    expect(smallPortrait({ avatar_url: whole, avatar_thumb_url: null })).toBe(whole);
+    expect(smallPortrait({ avatar_url: null, avatar_thumb_url: null })).toBeNull();
+  });
+
+  test("a larger picture reads the 960 copy, and the whole picture until it exists", () => {
+    expect(mediumPortrait({ avatar_url: whole, avatar_backdrop_url: "api/media/face-960.webp" })).toBe("api/media/face-960.webp");
+    expect(mediumPortrait({ avatar_url: whole, avatar_backdrop_url: null })).toBe(whole);
+    expect(mediumPortrait({ avatar_url: null, avatar_backdrop_url: null })).toBeNull();
   });
 });

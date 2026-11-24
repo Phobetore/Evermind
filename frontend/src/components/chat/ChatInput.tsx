@@ -1,21 +1,34 @@
 import { ModelSilent } from "@/components/chat/ModelSilent";
 import { DataError, data } from "@/data";
 import { useT } from "@/i18n/useT";
+import { inputScale, useDisplay } from "@/lib/display";
 import { loadDraft, openBox, saveDraft, type MessageMode } from "@/lib/drafts";
 import { describeError, isAdvice } from "@/lib/errors";
+import { oneLine } from "@/lib/oneLine";
 import { onItsWay } from "@/lib/useTurn";
 import { clsx } from "clsx";
-import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Send, Square } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Plus, Send, Square } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /** A pointing device that hovers, which in practice means a real keyboard is
  *  attached too. Read at the moment of the keypress rather than remembered. */
 const hasKeyboard = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
+/** The most lines the box grows to before its text scrolls in it. */
+const LINES = 6;
+/** Nor more than this share of the visible height: at 200 % of the system's text, six lines would cover the screen. */
+const MOST_OF_SCREEN = 0.4;
+
+let pen: CanvasRenderingContext2D | null | undefined;
+/** A canvas's context, which measures a line of text without laying anything out; none where there is no canvas. */
+const measuring = () => (pen === undefined ? (pen = document.createElement("canvas").getContext("2d")) : pen);
+
 const MODES: Record<MessageMode, {
   next: MessageMode;
   icon: typeof MessageCircle;
   labelKey: string;
+  /** The mode's short name, on the button of the folded row, which a finger reads rather than hovers. */
+  shortKey: string;
   color: string;
   placeholderKey: string;
 }> = {
@@ -23,6 +36,7 @@ const MODES: Record<MessageMode, {
     next: "narrate",
     icon: MessageCircle,
     labelKey: "chat.input.modes.say.label",
+    shortKey: "chat.input.modes.say.short",
     color: "text-mist",
     placeholderKey: "chat.input.modes.say.placeholder",
   },
@@ -30,6 +44,7 @@ const MODES: Record<MessageMode, {
     next: "ooc",
     icon: BookOpenText,
     labelKey: "chat.input.modes.narrate.label",
+    shortKey: "chat.input.modes.narrate.short",
     color: "text-arcane-300 border-arcane-500/60 bg-arcane-glow",
     placeholderKey: "chat.input.modes.narrate.placeholder",
   },
@@ -37,6 +52,7 @@ const MODES: Record<MessageMode, {
     next: "say",
     icon: Megaphone,
     labelKey: "chat.input.modes.ooc.label",
+    shortKey: "chat.input.modes.ooc.short",
     color: "text-ember-300 border-ember-500/60 bg-ember-glow",
     placeholderKey: "chat.input.modes.ooc.placeholder",
   },
@@ -110,12 +126,80 @@ export function ChatInput({
     };
   }, [onTheWay]);
 
+  const scale = inputScale(useDisplay().text);
+  /** The height of its text, up to six lines and to 40 % of what the screen shows (the keyboard
+   *  takes the rest); past that its text scrolls in it. */
+  const fit = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Empty, it rests at one line: a placeholder that wraps would count in its height.
+    if (!el.value) {
+      el.style.height = "";
+      return;
+    }
+    const style = getComputedStyle(el);
+    const borders = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+    const lines = LINES * parseFloat(style.lineHeight) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + borders;
+    const visible = window.visualViewport?.height ?? window.innerHeight;
+    el.style.height = "0px";
+    el.style.height = `${Math.min(el.scrollHeight + borders, lines, visible * MOST_OF_SCREEN)}px`;
+  }, []);
+  useLayoutEffect(fit, [value, scale, fit]);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    viewport.addEventListener("resize", fit);
+    return () => viewport.removeEventListener("resize", fit);
+  }, [fit]);
+
+  // The placeholder on the one line it has, cut short with an ellipsis where it does not fit: the
+  // browser would clip it mid-word with no sign that it goes on. Whole, it stays the box's name.
+  const fullPlaceholder = t(MODES[mode].placeholderKey, { name: characterName });
+  const [placeholder, setPlaceholder] = useState(fullPlaceholder);
+  const fitPlaceholder = useCallback(() => {
+    const el = ref.current;
+    const pen = measuring();
+    if (!el || !pen) return setPlaceholder(fullPlaceholder);
+    const style = getComputedStyle(el);
+    const room = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    pen.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    pen.letterSpacing = style.letterSpacing === "normal" ? "0px" : style.letterSpacing;
+    // A pixel to spare, for the rounding of the two measures.
+    setPlaceholder(oneLine(fullPlaceholder, (line) => pen.measureText(line).width <= room - 1));
+  }, [fullPlaceholder]);
+  useLayoutEffect(fitPlaceholder, [fitPlaceholder, scale]);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.style.height = "0px";
-    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
-  }, [value]);
+    const resized = new ResizeObserver(fitPlaceholder);
+    resized.observe(el);
+    // Measured again once the page's own font is in: until then the fallback's widths were used.
+    let open = true;
+    void document.fonts?.ready.then(() => open && fitPlaceholder());
+    return () => {
+      open = false;
+      resized.disconnect();
+    };
+  }, [fitPlaceholder]);
+
+  // Under 18rem the mode and the pen fold into one button, which opens a row of the two above the line.
+  const [folded, setFolded] = useState(false);
+  const plus = useRef<HTMLButtonElement>(null);
+  const row = useRef<HTMLDivElement>(null);
+  const rowMode = useRef<HTMLButtonElement>(null);
+  const opening = useRef(false);
+  useEffect(() => {
+    if (!folded) return;
+    if (opening.current) rowMode.current?.focus();
+    opening.current = false;
+    // A touch anywhere else closes it, and leaves the focus where it was.
+    const away = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (!row.current?.contains(target) && !plus.current?.contains(target)) setFolded(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [folded]);
 
   // The notice that a draft came back, for a few seconds.
   useEffect(() => {
@@ -135,6 +219,7 @@ export function ChatInput({
     if (!content || busy || sending) return;
     // The reply about to be asked for reports its own silence, in the conversation: one notice at a time.
     setSilent(false);
+    setFolded(false);
     setHint(null);
     setHintIsAdvice(false);
     change(content);
@@ -173,10 +258,15 @@ export function ChatInput({
     setGhostwriting(false);
   }
 
+  const ModeIcon = MODES[mode].icon;
+  // In px, as the header's: under a root of 32px, sizes in rem would make each button twice as wide.
+  const square = "btn btn-ghost size-[44px] min-h-0 shrink-0 !rounded-2xl !p-0 sm:size-[48px]";
   return (
+    // A container: under 18rem of its own width the mode and the pen fold into "+", under 240px the
+    // box takes a line of its own. Asked of the box, not of the screen: the side panel narrows it too.
     <div
-      className="border-t border-ink-700 bg-ink-900 px-4 py-3 md:bg-ink-900/80 md:backdrop-blur"
-      style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      className="@container border-t border-ink-700 bg-ink-900 px-4 py-3 md:bg-ink-900/80 md:backdrop-blur"
+      style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))", "--input-scale": scale } as React.CSSProperties}
     >
       {/* Right above the box, which is where you were looking when you asked. */}
       {silent && (
@@ -184,29 +274,76 @@ export function ChatInput({
           <ModelSilent onRetry={ghostwrite} />
         </div>
       )}
-      <div className="mx-auto flex max-w-3xl items-end gap-2.5">
+      {/* Two more buttons, not those of the line moved here: drawn only while open, and with no title,
+          their text being their name. Hidden from 18rem with "+", and shown again open if the box narrows. */}
+      {folded && (
+        <div
+          ref={row}
+          className="mx-auto mb-2.5 flex max-w-3xl gap-[10px] @min-[18rem]:hidden"
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            setFolded(false);
+            plus.current?.focus();
+          }}
+        >
+          {/* Changing mode leaves the row open: the mode wanted may be two touches away. */}
+          <button
+            ref={rowMode}
+            className={clsx("btn btn-ghost min-w-0 flex-1 !rounded-2xl", MODES[mode].color)}
+            onClick={() => setMode(MODES[mode].next)}
+            disabled={busy || sending}
+          >
+            <ModeIcon className="size-[18px] shrink-0" />
+            <span className="truncate">{t(MODES[mode].shortKey)}</span>
+          </button>
+          <button
+            className="btn btn-ghost min-w-0 flex-1 !rounded-2xl"
+            onClick={() => {
+              setFolded(false);
+              // Where the words arrive.
+              ref.current?.focus();
+              void ghostwrite();
+            }}
+            disabled={busy || sending || ghostwriting}
+          >
+            <PenLine className="size-[18px] shrink-0" />
+            <span className="truncate">{t("chat.input.penLabel")}</span>
+          </button>
+        </div>
+      )}
+      <div className="mx-auto flex max-w-3xl items-end gap-[10px] @max-[240px]:flex-wrap">
         <button
-          className={clsx("btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12", MODES[mode].color)}
+          className={clsx(square, "@max-[18rem]:hidden", MODES[mode].color)}
           onClick={() => setMode(MODES[mode].next)}
           disabled={busy || sending}
           title={t(MODES[mode].labelKey)}
         >
-          {(() => {
-            const Icon = MODES[mode].icon;
-            return <Icon className="h-4.5 w-4.5" />;
-          })()}
+          <ModeIcon className="size-[18px]" />
         </button>
         <button
-          className="btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
+          className={clsx(square, "@max-[18rem]:hidden")}
           onClick={ghostwrite}
           disabled={busy || sending || ghostwriting}
           title={t("chat.input.ghostwriteTitle")}
         >
           {ghostwriting ? (
-            <Loader2 className="h-4.5 w-4.5 animate-spin" />
+            <Loader2 className="size-[18px] animate-spin" />
           ) : (
-            <PenLine className="h-4.5 w-4.5" />
+            <PenLine className="size-[18px]" />
           )}
+        </button>
+        <button
+          ref={plus}
+          className={clsx(square, "hidden @max-[18rem]:inline-flex")}
+          onClick={() => {
+            opening.current = !folded;
+            setFolded(!folded);
+          }}
+          onKeyDown={(e) => e.key === "Escape" && setFolded(false)}
+          aria-expanded={folded}
+          aria-label={t("chat.input.more")}
+        >
+          <Plus className="size-[18px]" />
         </button>
         <textarea
           ref={ref}
@@ -221,9 +358,10 @@ export function ChatInput({
             }
           }}
           rows={1}
-          placeholder={t(MODES[mode].placeholderKey, { name: characterName })}
+          placeholder={placeholder}
+          aria-label={fullPlaceholder}
           className={clsx(
-            "field max-h-56 flex-1 !rounded-2xl !py-3 leading-relaxed",
+            "chat-input field min-w-0 flex-1 !rounded-2xl @max-[240px]:order-first @max-[240px]:basis-full",
             mode === "narrate" && "!border-arcane-500/50",
             mode === "ooc" && "!border-ember-500/50",
           )}
@@ -231,21 +369,21 @@ export function ChatInput({
         {busy ? (
           <button
             ref={stopRef}
-            className="btn btn-ghost h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
+            className={clsx(square, "@max-[240px]:ml-auto")}
             onClick={onStop}
             title={t("chat.input.stopTitle")}
           >
-            <Square className="h-4.5 w-4.5 fill-current" />
+            <Square className="size-[18px] fill-current" />
           </button>
         ) : (
           <button
-            className="btn btn-primary h-11 w-11 shrink-0 !rounded-2xl !p-0 sm:h-12 sm:w-12"
+            className="btn btn-primary size-[44px] min-h-0 shrink-0 !rounded-2xl !p-0 sm:size-[48px] @max-[240px]:ml-auto"
             onClick={submit}
             disabled={!value.trim() || sending}
             title={t("chat.input.sendTitle")}
           >
             {/* Waking on wifi can take a few seconds, and the message waits here for the server. */}
-            {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            {sending ? <Loader2 className="size-[20px] animate-spin" /> : <Send className="size-[20px]" />}
           </button>
         )}
       </div>

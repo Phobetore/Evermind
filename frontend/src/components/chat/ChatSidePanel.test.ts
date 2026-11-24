@@ -5,8 +5,14 @@ import { renderToString } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { expect, test } from "vitest";
 import { ChatSidePanel } from "./ChatSidePanel";
+import type { ConversationBackdrop } from "./useConversationBackdrop";
 
 const character = { id: "c1", kind: "character", name: "Vane", scenario: "", card_rules: 2 } as unknown as Character;
+
+/** The conversation's backdrop as the page holds it: nothing here chooses one. */
+const backdrop: ConversationBackdrop = {
+  setStrength: () => {}, failed: null, forget: () => {}, choose: async () => null,
+};
 
 function opened(fields: Partial<Conversation>) {
   const conversation = {
@@ -16,7 +22,8 @@ function opened(fields: Partial<Conversation>) {
   return renderToString(createElement(MemoryRouter, null, createElement(I18nProvider, {
     initialLocale: "en",
     children: createElement(ChatSidePanel, {
-      conversation, persona: null, onClose: () => {}, onConversationChange: () => {}, onAdjustWallpaper: () => {},
+      conversation, backdrop, persona: null, onClose: () => {}, onConversationChange: () => {},
+      onOpenDisplay: () => {}, onShowCard: () => {},
     }),
   })));
 }

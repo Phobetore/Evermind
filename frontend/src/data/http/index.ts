@@ -1,5 +1,5 @@
 import type {
-  Character, CharacterWithLore, Connection, Conversation, Installation, LibraryItem, Memory,
+  Character, CharacterTile, CharacterWithLore, Connection, Conversation, Installation, LibraryItem, Memory,
   Message, Persona, Settings, TurnEvent, TurnState,
 } from "@/types";
 import type { DataSource } from "../contract";
@@ -9,8 +9,9 @@ import { request, send } from "./request";
 import type {
   Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConnectionInput,
   ConnectionTestResult, ConsolidateResult, ConversationInput, ConversationPatch, ExtractResult,
-  LoreEntryInput, OriginalCard, PersonaInput, StoredCard, TurnRequest,
+  LoreEntryInput, OriginalCard, PersonaInput, PortraitSizes, StoredCard, TurnRequest,
 } from "../types";
+import { DataError } from "../errors";
 
 export { onLocked } from "./request";
 
@@ -37,6 +38,8 @@ const upload = <T>(path: string, file: File) => {
 export const data: DataSource = {
   characters: {
     list: () => get<Character[]>("api/characters"),
+    tiles: () => get<CharacterTile[]>("api/characters?fields=card"),
+    search: (text: string, asking?: Asking) => fresh<string[]>(`api/characters/search?q=${seg(text)}`, asking),
     get: (id: string) => get<CharacterWithLore>(`api/characters/${seg(id)}`),
     /** `lore_entries` is the whole lorebook: an entry with no keyword or no text is left out. */
     create: (input: CharacterInput & { lore_entries?: LoreEntryInput[]; card?: OriginalCard }) =>
@@ -48,6 +51,21 @@ export const data: DataSource = {
     card: (id: string) => get<StoredCard | null>(`api/characters/${seg(id)}/card`),
     remove: (id: string) => del(`api/characters/${seg(id)}`),
     uploadAvatar: (id: string, file: File) => upload<Character>(`api/characters/${seg(id)}/avatar`, file),
+    /** A portrait replaced meanwhile answers 409: no failure, only copies that are not wanted any more. */
+    async saveSizes(id: string, sizes: PortraitSizes, asking?: Asking) {
+      const form = new FormData();
+      form.append("portrait", sizes.from.slice(sizes.from.lastIndexOf("/") + 1));
+      const named = (name: string, blob: Blob) =>
+        form.append(name, blob, `${name}.${blob.type === "image/webp" ? "webp" : "jpg"}`);
+      named("grid", sizes.grid);
+      named("backdrop", sizes.backdrop);
+      try {
+        return await request<Character>(`api/characters/${seg(id)}/avatar/sizes`, { method: "POST", body: form }, asking);
+      } catch (error) {
+        if (error instanceof DataError && error.kind === "portrait_changed") return null;
+        throw error;
+      }
+    },
     /** The card is written by a job the server owns, which outlives the page: `start` answers at
      *  once, `state` says how far it is, `stop` ends it and keeps what was complete. Asked for again
      *  under the same `client_id`, `start` is the job begun the first time. */
@@ -76,8 +94,13 @@ export const data: DataSource = {
     withoutMessages: (id: string, asking?: Asking) =>
       fresh<Conversation>(`api/conversations/${seg(id)}?messages=false`, asking),
     create: (input: ConversationInput) => post<Conversation>("api/conversations", input),
-    update: (id: string, changes: ConversationPatch) =>
-      patch<Conversation>(`api/conversations/${seg(id)}`, changes),
+    update: (id: string, changes: ConversationPatch, options?: { outlivePage?: boolean }) =>
+      request<Conversation>(`api/conversations/${seg(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(changes),
+        // A few dozen bytes, far under the 64 KB a request kept past its page may carry.
+        ...(options?.outlivePage ? { keepalive: true } : {}),
+      }),
     remove: (id: string) => del(`api/conversations/${seg(id)}`),
     setWallpaper: (id: string, file: File) =>
       upload<Conversation>(`api/conversations/${seg(id)}/wallpaper`, file),
@@ -134,8 +157,9 @@ export const data: DataSource = {
   },
 
   /** An image the server serves, such as a portrait, as a file to draw or to send back. */
-  async file(url: string) {
-    const blob = await (await send(url)).blob();
+  async file(url: string, asking?: Asking) {
+    // The same signal cuts the reading of the body: a fetch aborted after its headers stops there too.
+    const blob = await (await send(url, {}, asking)).blob();
     return new File([blob], "image", { type: blob.type });
   },
 

@@ -37,7 +37,7 @@ export function ImportModal({
     const done: Result[] = [];
     // The characters there are, once for the batch: a creation whose answer is lost on a slow road
     // is found among the new ones rather than made twice. Without them, an import still goes.
-    const known = await data.characters.list().then((list) => new Set(list.map((c) => c.id)), () => undefined);
+    const known = await data.characters.tiles().then((list) => new Set(list.map((c) => c.id)), () => undefined);
     // One at a time: a failure part way through should not cost the ones that already worked.
     for (const file of files) {
       try {

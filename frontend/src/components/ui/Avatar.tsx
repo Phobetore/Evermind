@@ -20,20 +20,42 @@ export function Avatar({
   src,
   className,
   rounded = "rounded-full",
+  loading,
+  decoding,
+  onLoad,
+  alt,
+  wideSrc,
 }: {
   name: string;
   src?: string | null;
   className?: string;
   rounded?: string;
+  loading?: "lazy" | "eager";
+  decoding?: "async" | "auto";
+  onLoad?: () => void;
+  /** The name when left out; "" where the name is already said beside the picture. */
+  alt?: string;
+  /** The picture from sm up, where `src` would be drawn larger than it was made. */
+  wideSrc?: string;
 }) {
   if (src) {
-    return (
+    const img = (
       <img
         src={src}
-        alt={name}
+        alt={alt ?? name}
+        loading={loading}
+        decoding={decoding}
+        onLoad={onLoad}
         className={clsx("object-cover", rounded, className)}
         draggable={false}
       />
+    );
+    if (!wideSrc) return img;
+    return (
+      <picture>
+        <source media="(min-width: 40rem)" srcSet={wideSrc} />
+        {img}
+      </picture>
     );
   }
   const [bg, fg] = PALETTE[hashName(name || "?") % PALETTE.length];

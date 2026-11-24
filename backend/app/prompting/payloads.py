@@ -40,14 +40,17 @@ LIST_FIELDS = ("alternate_greetings", "tags")
 
 
 def build_impersonate_payload(character: dict, persona: dict | None, conversation: dict,
-                              messages: list[dict], connection: dict) -> PromptPayload:
-    """The prompt that ghost-writes the player's next message."""
+                              messages: list[dict], connection: dict,
+                              history_limit: int = 0) -> PromptPayload:
+    """The prompt that ghost-writes the player's next message, from the same recent messages a
+    reply reads: the older ones are the story's summary's to tell, as they are for a reply."""
     char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     # Without what the card says to the character among the turns: the player's pen reads no
     # reminder meant for the character.
     base = build_chat_payload(character=character, persona=persona, conversation=conversation,
-                              messages=messages, connection=connection, insertions=False)
+                              messages=messages, connection=connection, insertions=False,
+                              history_limit=history_limit)
 
     context_bits = []
     if (persona or {}).get("description"):

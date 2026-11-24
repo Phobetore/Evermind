@@ -51,7 +51,12 @@
       "dropHint": "o haz clic para elegir una. Varias a la vez también vale.",
       "sizeNote": "Hasta 15 MB por archivo. Nada se sube a ningún sitio: el archivo lo lee tu propio Evermind.",
       "maybeMade": "Puede que ya haya una copia de esta ficha en la página de inicio: mira allí antes de volver a importarla."
-    }
+    },
+    "card": {
+      "tags": "Etiquetas: {list}"
+    },
+    "searchingDescriptions": "Buscando también en las descripciones…",
+    "searchFailed": "No se pudo buscar en las descripciones: solo en los nombres y los lemas."
   },
   "chatList": {
     "subtitle": "Retoma tus historias justo donde las dejaste.",
@@ -201,7 +206,8 @@
     "header": {
       "backAriaLabel": "Volver a las conversaciones",
       "renameTitle": "Renombrar la conversación",
-      "memorySettingsAriaLabel": "Memoria y ajustes de la conversación"
+      "memorySettingsAriaLabel": "Memoria y ajustes de la conversación",
+      "displayAriaLabel": "Pantalla: tamaño del texto y fondo"
     },
     "cardSummary": {
       "aboutAriaLabel": "Acerca de {name}",
@@ -229,15 +235,18 @@
       "modes": {
         "say": {
           "label": "Hablar / acción (haz clic para cambiar de modo)",
-          "placeholder": "Escribe a {name}… (*asteriscos* para tus acciones)"
+          "placeholder": "Escribe a {name}… (*asteriscos* para tus acciones)",
+          "short": "Hablar"
         },
         "narrate": {
           "label": "Narración: describes el mundo, la escena, los acontecimientos",
-          "placeholder": "Describe la escena, el mundo, un acontecimiento…"
+          "placeholder": "Describe la escena, el mundo, un acontecimiento…",
+          "short": "Narrar"
         },
         "ooc": {
           "label": "Instrucción fuera de personaje: una nota para la IA, invisible en la historia",
-          "placeholder": "Instrucción para la IA (p. ej.: termina siempre tus frases)…"
+          "placeholder": "Instrucción para la IA (p. ej.: termina siempre tus frases)…",
+          "short": "Fuera de personaje"
         }
       },
       "ghostwriteTitle": "Escribir mi respuesta por mí (editable antes de enviar)",
@@ -246,7 +255,9 @@
       "sendTitle": "Enviar",
       "hintDefault": "Enter para enviar · Mayús+Enter para una nueva línea · pluma: la IA redacta tu respuesta",
       "hintTouch": "Pulsa enviar cuando quieras. La pluma redacta tu respuesta.",
-      "draftRestored": "Borrador restaurado"
+      "draftRestored": "Borrador restaurado",
+      "more": "Hablar, narrar, fuera de personaje o escribir por mí",
+      "penLabel": "Escribir por mí"
     },
     "message": {
       "youFallback": "Tú",
@@ -315,18 +326,25 @@
       "sceneAnchor": {
         "title": "Ancla de escena",
         "youFallback": "tú"
-      }
+      },
+      "cardSummary": "La ficha en breve"
     },
     "wallpaper": {
       "title": "Fondo",
-      "description": "Una imagen detrás de esta conversación. Pertenece solo a esta conversación, no al personaje.",
-      "choose": "Elegir una imagen",
       "replace": "Reemplazar",
       "remove": "Quitar",
-      "opacity": "Intensidad",
       "adjust": "Ajustar la intensidad",
-      "done": "Listo",
-      "failed": "No se ha podido poner el fondo."
+      "failed": "No se ha podido poner el fondo.",
+      "description": "Esta elección pertenece solo a esta conversación.",
+      "portrait": "La imagen del personaje",
+      "portraitHint": "La elección de origen. Sigue el ajuste de este dispositivo.",
+      "other": "Otra imagen",
+      "otherHint": "Elegida entre tus archivos, como hasta ahora.",
+      "none": "Sin fondo",
+      "noneHint": "La página desnuda, aunque este dispositivo muestre imágenes.",
+      "noPicture": "Esta ficha no tiene imagen: la página queda desnuda.",
+      "portraitHidden": "Oculta en este dispositivo.",
+      "portraitHiddenOpen": "Cambiarlo en Pantalla"
     },
     "writing": {
       "title": "Escritura",
@@ -721,6 +739,32 @@
     "daysAgo": "hace {count} d",
     "monthsAgo": "hace {count} mes(es)",
     "yearsAgo": "hace {count} año(s)"
+  },
+  "display": {
+    "title": "Pantalla",
+    "settingsTitle": "Pantalla · en este dispositivo",
+    "sheetHint": "La conversación de arriba cambia mientras ajustas.",
+    "textSize": "Tamaño del texto de las conversaciones",
+    "scale": "{pct} %",
+    "scaleOriginal": "{pct} % · original",
+    "smaller": "Más pequeño",
+    "larger": "Más grande",
+    "portrait": "Imagen del personaje de fondo",
+    "portraitHint": "En este dispositivo, cuando la conversación no tiene fondo propio.",
+    "strength": "Intensidad de la imagen",
+    "strengthDevice": "{pct} % · este dispositivo",
+    "strengthConversation": "{pct} % · esta conversación",
+    "hidden": "imagen oculta",
+    "noneHere": "sin fondo aquí",
+    "noPicture": "esta ficha no tiene imagen",
+    "faint": "suave",
+    "strong": "intensa",
+    "ownStrength": "Ajustar solo para esta conversación",
+    "deviceStrength": "Usar la intensidad del dispositivo ({pct} %)",
+    "softened": "Bajo el texto, la imagen siempre se atenúa: se lee con cualquier intensidad.",
+    "perDevice": "Estos ajustes se quedan en este dispositivo: tu teléfono y tu PC guardan cada uno los suyos.",
+    "sheetFoot": "Bajo el texto, la imagen siempre se atenúa. Para cambiar o quitar la imagen aquí: el botón de ajustes, «Fondo».",
+    "sample": "*La linterna se balancea al final de su brazo.* Llegas tarde. **Tres inviernos** tarde, para ser exacta."
   },
   "memoryMark": {
     "label": "No se ha podido actualizar la memoria de esta conversación",

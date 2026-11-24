@@ -60,6 +60,8 @@
 
 :root {
   color-scheme: dark;
+  /* The page's colour, as the plate over a backdrop takes it: a light theme will have only this to change. */
+  --page-rgb: 15 13 18;
 }
 
 html, body {
@@ -270,7 +272,11 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 
 /* Clipped at the bubble's edge: thousands of combining marks stacked on one letter would paint
    over the messages and sections around it. */
-.rp-prose { font-size: 1.05rem; overflow: clip; }
+/* --chat-scale is set only on the column of a conversation and on the sample in Settings: every
+   other place that shows a message's text keeps its size. */
+/* Anywhere: at 200 % a long word or an address breaks rather than scroll the column sideways, and
+   the clip then never cuts a word. */
+.rp-prose { font-size: calc(1.05rem * var(--chat-scale, 1)); overflow: clip; overflow-wrap: anywhere; }
 /* Lines as they were typed. A hard break ends its line too, so its <br> would add a second. */
 .rp-prose p { margin: 0 0 0.65em; white-space: pre-line; }
 .rp-prose p br { display: none; }
@@ -447,6 +453,97 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 }
 
 } /* end @layer components */
+
+/* The sizes of a conversation's text, which follow --chat-scale (set on its column). Out of every
+   layer, so that they win over the utilities of the element that carries them; for the same reason
+   none goes on an element with a hover: or disabled: variant of the property it sets, and the
+   utility each replaces is taken off that element. */
+.chat-name { font-size: calc(0.95rem * var(--chat-scale, 1)); overflow-wrap: anywhere; }
+/* The body's size, which narration inherited. */
+.chat-narration { font-size: calc(1.0625rem * var(--chat-scale, 1)); overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--color-arcane-300) 90%, transparent); }
+.chat-ooc { font-size: calc(0.875rem * var(--chat-scale, 1)); overflow-wrap: anywhere;
+  background: color-mix(in srgb, var(--color-ink-900) 60%, transparent); }
+/* Never under 16px, where iOS zooms into a focused box. */
+.chat-editor { font-size: max(16px, calc(0.98rem * var(--chat-scale, 1))); }
+/* The box a message is typed in follows only up to --input-scale's 130 %: past that it would eat the
+   conversation with the keyboard open. At rest one line, the height of the buttons beside it; its
+   height follows its text (ChatInput), so a handle dragged by hand would be undone at the next letter. */
+.chat-input {
+  font-size: max(16px, calc(1rem * var(--input-scale, 1)));
+  line-height: 1.4;
+  padding: 0.6em 0.8em;
+  min-height: calc(2.6em + 2px);
+  resize: none;
+}
+/* One line: in the box at rest a second line would show only its top half. A placeholder takes no
+   text-overflow, so the cut and its ellipsis are made in ChatInput, to the room the box has. */
+.chat-input::placeholder { white-space: nowrap; overflow: hidden; }
+
+/* The picture behind a conversation (Backdrop.tsx). A size container: the column's own shape, not
+   the screen's, says whether a portrait fills it or stands in its middle. */
+.chat-backdrop { container-type: size; }
+.chat-backdrop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  object-position: center; }
+/* Faces sit high in a portrait. */
+.chat-backdrop img[data-kind="portrait"] { object-position: 50% 20%; }
+/* A wide column would crop a portrait to a strip: it takes the column's height instead, in the
+   middle, its edges fading into the page. */
+@media (min-width: 48rem) {
+  @container (orientation: landscape) {
+    .chat-backdrop img[data-kind="portrait"] { left: 50%; right: auto; width: auto; max-width: 100%;
+      transform: translateX(-50%);
+      mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent); }
+  }
+}
+
+/* Over a picture (.over-backdrop, set on the story with --plate, from plateAlpha): each message
+   sits on a plate of the page's colour, so that the picture never weighs more than 12 % under the
+   text, whatever its strength. With no picture, nothing here changes. */
+.msg-body { border-radius: 0.5rem; }
+.over-backdrop .msg-body { background: rgb(var(--page-rgb) / var(--plate));
+  box-shadow: 0 0 0 0.4rem rgb(var(--page-rgb) / var(--plate)); }
+/* The pale tints of a message: today's colour here, a plainer one over a picture. The buttons take
+   the colour of their row, so that their own hover colours still win. */
+.msg-actions, .msg-interrupted, .msg-swipes { color: var(--color-mist-dim); }
+.over-backdrop :is(.msg-actions, .msg-interrupted, .msg-swipes) { color: var(--color-mist); }
+@media (hover: none) {
+  .over-backdrop .msg-actions { opacity: 1; }
+}
+.over-backdrop .chat-narration { color: var(--color-arcane-300); }
+.over-backdrop .chat-ooc { background: var(--color-ink-900); }
+/* What else sits in the story: on a solid surface over a picture, and as it is without one. */
+.over-backdrop .chat-surface { background: var(--color-ink-900); border-radius: 0.75rem; }
+.chat-banner { background: rgba(217, 106, 95, 0.1); }
+.over-backdrop .chat-banner { background: var(--color-ink-900); }
+
+/* The home page's tiles (CharacterCard) and their grid. Out of every layer, so that below sm they win
+   over the utilities the computer's tile keeps from sm up. */
+/* 300 tiles: those far from the screen are neither laid out nor painted, nor their pictures loaded. */
+.card-tile { content-visibility: auto; contain-intrinsic-size: auto 260px; }
+@media (width < 40rem) {
+  /* Two columns at most; one where the system's text is about 150 % or more, as 8.5rem grows with it. */
+  .card-grid { grid-template-columns: repeat(auto-fill, minmax(max(8.5rem, calc(50% - 0.375rem)), 1fr)); }
+  /* Darker and higher than the computer's: the text and the tags sit on the picture's lower half. */
+  .card-shade { background-image: linear-gradient(to top, var(--color-ink-950) 0%,
+    rgb(15 13 18 / 0.9) 30%, rgb(15 13 18 / 0.45) 55%, transparent 78%); }
+  /* One row that a finger slides, without a script: the last tag fades out, and the margin after it
+     lets it come out of the fade. On the last tag, not the row: a padding there would narrow every
+     tag's max-w-full and cut short tags that the row has room for. */
+  .card-tags { display: flex; gap: 0.3rem; overflow-x: auto; overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.7rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.7rem), transparent); }
+  .card-tags > :last-child { margin-right: 1.7rem; }
+  .card-tags::-webkit-scrollbar { display: none; }
+  /* A card reached by the keyboard shows all its tags, its text still said by aria-describedby, and
+     keeps its caption 3rem under the top, so that the name never slides under the kind's label. */
+  .card-tile:focus-visible .card-tags { flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none;
+    mask-image: none; }
+  .card-tile:focus-visible .card-tags > :last-child { margin-right: 0; }
+  .card-tile:focus-visible .card-text { display: none; }
+  .card-tile:focus-visible .card-caption { max-height: calc(100% - 3rem); overflow: hidden; }
+}
 
 /* Less motion: animations are cut to an instant rather than removed, so that what they end on is
    still drawn (the entry animations hold their last frame). */

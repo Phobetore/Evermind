@@ -115,6 +115,22 @@ describe("the engine", () => {
     );
   });
 
+  it("the ghostwriter reads the recent messages a reply reads", () => {
+    const messages = Array.from({ length: 30 }, (_, i) => ({
+      role: i % 2 ? "assistant" : "user",
+      variants: [`Turn ${i}.`],
+      position: i,
+    }));
+    const input = { character: { name: "Ana" }, persona: { name: "Alex" }, conversation: {}, messages, connection: {} };
+    const contents = (payload: { messages: { content: string }[] }) => payload.messages.map((m) => m.content);
+
+    const penned = engine.buildImpersonatePayload({ ...input, history_limit: 10 });
+    expect(contents(penned)).toStrictEqual(Array.from({ length: 10 }, (_, i) => `Turn ${i + 20}.`));
+    expect(contents(penned)).toStrictEqual(contents(engine.buildChatPayload({ ...input, history_limit: 10 })));
+    // 0 is no limit.
+    expect(engine.buildImpersonatePayload({ ...input, history_limit: 0 }).messages).toHaveLength(30);
+  });
+
   it("the smallest of several numbers is the first, as Python's min picks it", () => {
     expect(pyMin([], 7)).toBe(7);
     expect(pyMin([3, 1, 2], 0)).toBe(1);

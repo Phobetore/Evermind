@@ -112,6 +112,76 @@ describe("what is sent", () => {
     ]);
   });
 
+  test("asks for the light list of cards", async () => {
+    await data.characters.tiles();
+    expect(calls[0].url).toBe("api/characters?fields=card");
+  });
+
+  test("asks for a search, its words encoded", async () => {
+    replies.push(json(["c1"]));
+    await expect(data.characters.search("a&b")).resolves.toEqual(["c1"]);
+    expect(calls[0].url).toBe("api/characters/search?q=a%26b");
+    expect(calls[0].init.cache).toBe("no-store");
+  });
+
+  test("a search gives up in its own time", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal("fetch", (_url: unknown, init: RequestInit = {}) => new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      }));
+      const asked = data.characters.search("elf", { within: 500 }).catch((e) => e);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await asked).toMatchObject({ kind: "network" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("sends the two copies of a portrait with the name of the portrait they come from", async () => {
+    replies.push(json({ id: "c1" }));
+    const sizes = {
+      from: "api/media/0123456789abcdef0123456789abcdef.png",
+      grid: new Blob(["g"], { type: "image/webp" }),
+      backdrop: new Blob(["b"], { type: "image/jpeg" }),
+    };
+    await data.characters.saveSizes("c/1", sizes);
+    expect(calls[0]).toMatchObject({ url: "api/characters/c%2F1/avatar/sizes", init: { method: "POST" } });
+    const form = calls[0].init.body as FormData;
+    expect([...form.keys()].sort()).toEqual(["backdrop", "grid", "portrait"]);
+    expect(form.get("portrait")).toBe("0123456789abcdef0123456789abcdef.png");
+    expect((form.get("grid") as File).name).toBe("grid.webp");
+    expect((form.get("backdrop") as File).name).toBe("backdrop.jpg");
+    expect(new Headers(calls[0].init.headers).has("Content-Type")).toBe(false);
+  });
+
+  test("a portrait changed meanwhile is no error", async () => {
+    const sizes = { from: "x/a.png", grid: new Blob(["g"]), backdrop: new Blob(["b"]) };
+    replies.push(json({ error: "The portrait changed.", kind: "portrait_changed" }, 409), json({ error: "No.", kind: "not_found" }, 404));
+    await expect(data.characters.saveSizes("c1", sizes)).resolves.toBeNull();
+    await expect(data.characters.saveSizes("c1", sizes)).rejects.toMatchObject({ kind: "not_found" });
+  });
+
+  test("a change sent as the page closes asks to outlive it", async () => {
+    await data.conversations.update("v1", { backdrop_strength: 0.5 }, { outlivePage: true });
+    await data.conversations.update("v1", { backdrop_strength: 0.5 });
+    expect(calls[0]).toMatchObject({ url: "api/conversations/v1", init: { method: "PATCH", keepalive: true } });
+    expect(calls[1].init.keepalive).toBeUndefined();
+    for (const call of calls) {
+      expect(JSON.parse(call.init.body as string)).toEqual({ backdrop_strength: 0.5 });
+      expect(new Headers(call.init.headers).get("Content-Type")).toBe("application/json");
+    }
+  });
+
+  test("a file or a copy is given up with its signal", async () => {
+    const { signal } = new AbortController();
+    replies.push(new Response(new Uint8Array([1]), { headers: { "Content-Type": "image/png" } }), json({ id: "c1" }));
+    await data.file("api/media/a.png", { signal });
+    await data.characters.saveSizes("c1", { from: "a.png", grid: new Blob(["g"]), backdrop: new Blob(["b"]) }, { signal });
+    expect(calls[0].init.signal).toBe(signal);
+    expect(calls[1].init.signal).toBe(signal);
+  });
+
   test("an image read back is a file of the type the server gave", async () => {
     replies.push(new Response(new Uint8Array([0xff, 0xd8]), { headers: { "Content-Type": "image/jpeg" } }));
     const file = await data.file("api/media/a.jpg");

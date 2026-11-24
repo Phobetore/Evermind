@@ -1,19 +1,26 @@
+import { Backdrop } from "@/components/chat/Backdrop";
 import { CardSummary } from "@/components/chat/CardSummary";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ModelSilent } from "@/components/chat/ModelSilent";
 import { ChatSidePanel } from "@/components/chat/ChatSidePanel";
 import { RpText } from "@/components/chat/RpText";
+import { useConversationBackdrop } from "@/components/chat/useConversationBackdrop";
+import { DisplayControls } from "@/components/display/DisplayControls";
 import { Avatar } from "@/components/ui/Avatar";
 import { PageWait } from "@/components/ui/PageWait";
+import { Sheet } from "@/components/ui/Sheet";
 import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
+import { backdropOf, plateAlpha, useDisplay } from "@/lib/display";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeCeiling } from "@/lib/cutShort";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { memoryFailed } from "@/lib/memoryMark";
+import { holdSizes, wantSizes } from "@/lib/portraitSizes";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
-import { cssUrl, newId, nothingFocused } from "@/lib/utils";
+import { newId, nothingFocused, smallPortrait } from "@/lib/utils";
+import { clsx } from "clsx";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -25,6 +32,10 @@ const DRAWN = 100;
 const WIDE = "(min-width: 48rem)";
 /** From which it opens there by default: narrower, beside the sidebar, it leaves the story a sliver. */
 const ROOMY = "(min-width: 64rem)";
+
+/** The header's icon buttons: 44px squares at any width and any size of the system's text. */
+const headerSquare =
+  "inline-flex size-[44px] shrink-0 items-center justify-center rounded-lg text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1";
 
 /** Keyed by the id, so that a branch starts from its own messages, not from those it was cut from. */
 export function ChatPage() {
@@ -44,9 +55,9 @@ function StreamBubble({ text, character, arriving, onGrow }: {
   useEffect(onGrow, [words, onGrow]);
   return (
     <div className="flex gap-3.5 px-1 py-3">
-      <Avatar name={character.name} src={character.avatar_url} className="mt-0.5 h-10 w-10 shrink-0 text-lg" />
-      <div className="min-w-0 flex-1">
-        <span className="font-display text-[0.95rem] font-semibold text-ember-300">{character.name}</span>
+      <Avatar name={character.name} src={smallPortrait(character)} className="mt-0.5 size-[40px] shrink-0 text-lg" />
+      <div className="msg-body min-w-0 flex-1">
+        <span className="chat-name font-display font-semibold text-ember-300">{character.name}</span>
         <div className="mt-1">
           {words ? (
             <RpText text={words} streaming={arriving} />
@@ -88,13 +99,12 @@ function ChatView({ id }: { id: string }) {
     setPanelByHand(true);
     setPanelOpen(open);
   }
-  // The backdrop's strength is set under the conversation, where it can be judged.
-  const [adjustingWallpaper, setAdjustingWallpaper] = useState(false);
-  // What the strength was asked for from, which Done gives the focus back to while it is there.
-  const adjustedFrom = useRef<Element | null>(null);
   const panelButton = useRef<HTMLButtonElement>(null);
-  const opacityWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const opacityHeld = useRef<number | undefined>(undefined); // what the server holds
+  // The Display sheet, over the conversation it changes: where the focus goes back to once it
+  // closes, if what opened it has gone (the panel closes under it on a phone).
+  const [displaySheet, setDisplaySheet] = useState<{ focusStrength: boolean; returnTo: () => HTMLElement | null } | null>(null);
+  const displayButton = useRef<HTMLButtonElement>(null);
+  const display = useDisplay();
   // Counts the times the server took the memory back, for the side panel to read it again.
   const [storyCuts, setStoryCuts] = useState(0);
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
@@ -145,20 +155,11 @@ function ChatView({ id }: { id: string }) {
     }
   }
 
-  /** Live on every pixel of the drag, written once it settles. One the server does not take
-   *  goes back to what it holds, unless moved since. */
-  function setWallpaperOpacity(value: number) {
-    opacityHeld.current ??= conversation?.wallpaper_opacity;
-    setConversation((c) => (c ? { ...c, wallpaper_opacity: value } : c));
-    if (opacityWrite.current) clearTimeout(opacityWrite.current);
-    opacityWrite.current = setTimeout(async () => {
-      if (await write(() => data.conversations.update(id, { wallpaper_opacity: value }))) {
-        opacityHeld.current = value;
-      } else {
-        const held = opacityHeld.current;
-        setConversation((c) => (c?.wallpaper_opacity === value ? { ...c, wallpaper_opacity: held } : c));
-      }
-    }, 350);
+  const backdrop = useConversationBackdrop(conversation, setConversation);
+  function openDisplay(focusStrength: boolean, returnTo: () => HTMLElement | null) {
+    // Only what the sheet itself writes is said in it, and only from now on.
+    backdrop.forget();
+    setDisplaySheet({ focusStrength, returnTo });
   }
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -214,6 +215,15 @@ function ChatView({ id }: { id: string }) {
   const turn = useTurn(id, read, add, settled);
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
+
+  // The home's link belongs to the reply while it is written: a portrait's copies wait for its end.
+  useEffect(() => holdSizes(busy), [busy]);
+  useEffect(() => () => holdSizes(false), []);
+  // A portrait from before its copies existed, or whose copies no device has made yet.
+  const pictured = conversation?.character ?? null;
+  useEffect(() => {
+    if (pictured) wantSizes(pictured);
+  }, [pictured]);
 
   // A screen reader hears nothing of the words arriving: it is told a reply is being written, then that it is in.
   // A reply the connection's max tokens cut is told so with it, once: the line under it is not live.
@@ -271,11 +281,59 @@ function ChatView({ id }: { id: string }) {
     fromBottom.current = null;
   }, [drawn]);
 
+  // The message being read: the first whose bottom is below the top of the story, and how far
+  // above that top its own top is, as a share of its height.
+  const reading = useRef<{ id: string; share: number } | null>(null);
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const top = el.getBoundingClientRect().top;
+    for (const message of el.querySelectorAll<HTMLElement>("[data-message-id]")) {
+      const box = message.getBoundingClientRect();
+      if (box.bottom <= top) continue;
+      reading.current = { id: message.dataset.messageId!, share: box.height ? (top - box.top) / box.height : 0 };
+      return;
+    }
+    reading.current = null;
   }, []);
+
+  /** Puts the place being read back where it was once the text has flowed again, before it is
+   *  painted. The browser's own anchoring is off on the story: Chrome's would move the view, and its
+   *  scroll event would unstick the bottom while a reply is being written; Safari has none at all. */
+  const keepPlace = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (stickToBottom.current) {
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    const place = reading.current;
+    const message = place && el.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(place.id)}"]`);
+    if (!place || !message) return;
+    const box = message.getBoundingClientRect();
+    el.scrollTop += box.top + place.share * box.height - el.getBoundingClientRect().top;
+  }, []);
+  useLayoutEffect(keepPlace, [display.text, keepPlace]);
+  // The text flows again when the story's width changes too: the panel opened or closed beside it,
+  // a phone turned. Not its height alone, the keyboard opening, which moves nothing at the top.
+  // Called after layout, before paint.
+  const [storyNode, setStoryNode] = useState<HTMLDivElement | null>(null);
+  const storyRef = useCallback((node: HTMLDivElement | null) => {
+    scrollRef.current = node;
+    setStoryNode(node);
+  }, []);
+  useEffect(() => {
+    if (!storyNode) return;
+    let width = storyNode.clientWidth;
+    const watch = new ResizeObserver(() => {
+      if (storyNode.clientWidth === width) return;
+      width = storyNode.clientWidth;
+      keepPlace();
+    });
+    watch.observe(storyNode);
+    return () => watch.disconnect();
+  }, [storyNode, keepPlace]);
 
   /** Settles at the server's answer or at patience's end; either way the page then finds out how things stand. */
   function ask(request: Omit<TurnRequest, "conversation_id">) {
@@ -366,7 +424,6 @@ function ChatView({ id }: { id: string }) {
   }
 
   const character = conversation.character;
-  const strength = Math.round((conversation.wallpaper_opacity ?? 0.25) * 100);
   const silent = failure?.kind === "unreachable";
   // That another reply is being written, only as long as it is.
   const refusal = refused instanceof DataError && refused.kind === "turn_running" && !busy ? null : refused;
@@ -384,31 +441,43 @@ function ChatView({ id }: { id: string }) {
   const perf = latest?.perf as TurnPerf | undefined;
   // The message being written is drawn from its words as they arrive.
   const visibleMessages = messages.filter((m) => m.id !== writing);
+  const shown = backdropOf(conversation, character, display);
+  // The plate under the text, only where a picture is drawn: with none, nothing changes.
+  const veiled = shown.src !== null && shown.strength > 0;
   const drawnMessages = visibleMessages.slice(-drawn);
 
   return (
     <div className="flex h-full">
       {/* Under the panel, which covers it below md, out of the keyboard's reach. */}
-      <div className="flex min-w-0 flex-1 flex-col" inert={panelOpen && !wide}>
-        <header className="flex items-center gap-3 border-b border-ink-700 bg-ink-900 px-4 py-3 pointer-coarse:py-[13px] md:bg-ink-900/80 md:backdrop-blur">
+      {/* The scale of the story's text, here only: the panel and the card beside it keep theirs. A
+          container, for the header to make room under 320px, in px like its buttons. */}
+      <div
+        className="@container/column flex min-w-0 flex-1 flex-col"
+        inert={panelOpen && !wide}
+        style={{ "--chat-scale": display.text } as React.CSSProperties}
+      >
+        {/* Its widths in px, which the system's text size leaves alone: under a root of 32px, buttons in
+            rem would leave the name nothing. Only the name and the title follow that size. Under 320px the
+            portrait goes (the panel opens the card in short then) and the gaps and sides narrow. */}
+        <header className="flex items-center gap-[12px] border-b border-ink-700 bg-ink-900 px-[16px] py-3 pointer-coarse:py-[13px] md:bg-ink-900/80 md:backdrop-blur @max-[320px]/column:gap-[4px] @max-[320px]/column:px-[8px]">
           <Link
             to="/chat"
-            // 44px on a touch screen, over the header's padding; the title below the name needs 14px beyond it, hence 13px there.
-            className="rounded-lg p-1.5 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
+            // Over the header's padding on a touch screen; the title below the name needs 14px beyond it, hence 13px there.
+            className={headerSquare}
             aria-label={t("chat.header.backAriaLabel")}
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="size-[20px]" />
           </Link>
           {/* The avatar opens the card in short, as in a messaging app. Not the name too: stacked over
               the title, a second 44px area would take the title's touches. */}
           <button
             onClick={() => setShowCard(true)}
-            className="shrink-0 rounded-lg transition-opacity hover:opacity-80 pointer-coarse:-my-1 pointer-coarse:p-1"
+            className="inline-flex size-[44px] shrink-0 items-center justify-center rounded-lg transition-opacity hover:opacity-80 pointer-coarse:-my-1 @max-[320px]/column:hidden"
             aria-label={t("chat.cardSummary.aboutAriaLabel", { name: character.name })}
             title={t("chat.cardSummary.aboutAriaLabel", { name: character.name })}
             aria-haspopup="dialog"
           >
-            <Avatar name={character.name} src={character.avatar_url} className="h-9 w-9 text-base" />
+            <Avatar name={character.name} src={smallPortrait(character)} className="size-[36px] text-base" />
           </button>
           <div className="min-w-0">
             <h1 className="truncate font-display font-semibold leading-tight">{character.name}</h1>
@@ -443,7 +512,7 @@ function ChatView({ id }: { id: string }) {
               </button>
             )}
           </div>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-[12px] @max-[320px]/column:gap-[4px]">
             {contextStats && (
               <div
                 className="hidden items-center gap-2 sm:flex"
@@ -470,25 +539,36 @@ function ChatView({ id }: { id: string }) {
                 </span>
               </div>
             )}
+            <button
+              ref={displayButton}
+              onClick={() => openDisplay(false, () => displayButton.current)}
+              className={headerSquare}
+              aria-label={t("chat.header.displayAriaLabel")}
+              title={t("chat.header.displayAriaLabel")}
+              aria-haspopup="dialog"
+            >
+              {/* As wide and tall as the icon of the button beside it. */}
+              <span aria-hidden className="block h-[20px] min-w-[20px] font-display text-[16px] leading-[20px]">Aa</span>
+            </button>
             {!panelOpen && (
               <button
                 ref={panelButton}
                 autoFocus={panelByHand}
                 onClick={() => showPanel(true)}
-                className="relative rounded-lg p-2 text-mist transition-colors hover:bg-ink-800 hover:text-parchment pointer-coarse:-my-1 pointer-coarse:p-3"
+                className={clsx(headerSquare, "relative")}
                 aria-label={t("chat.header.memorySettingsAriaLabel")}
                 // Heard with the button: a button's name is its label alone, and its content is not read.
                 aria-describedby={memoryFailed(conversation) ? "memory-mark" : undefined}
                 title={memoryFailed(conversation) ? t("memoryMark.label") : undefined}
               >
-                <SlidersHorizontal className="h-5 w-5" />
+                <SlidersHorizontal className="size-[20px]" />
                 {/* Over the icon's corner, taking no room: the header neither grows nor wraps for it. */}
                 {memoryFailed(conversation) && (
                   <span
                     id="memory-mark"
                     role="img"
                     aria-label={t("memoryMark.label")}
-                    className="absolute right-1 top-1 h-2 w-2 rounded-full bg-blood pointer-coarse:right-2 pointer-coarse:top-2"
+                    className="absolute right-[8px] top-[8px] size-[8px] rounded-full bg-blood"
                   />
                 )}
               </button>
@@ -496,64 +576,65 @@ function ChatView({ id }: { id: string }) {
           </div>
         </header>
 
-        <div ref={scrollRef} onScroll={onScroll} className="relative flex-1 overflow-y-auto">
-          {conversation.wallpaper_url && (
-            // Pinned to the column: a backdrop that scrolls with the text is a picture in the conversation, not behind it.
-            <div aria-hidden className="pointer-events-none sticky top-0 h-0 w-full">
-              <div
-                className="h-[100dvh] w-full bg-cover bg-center bg-no-repeat"
-                style={{
-                  backgroundImage: cssUrl(conversation.wallpaper_url),
-                  opacity: conversation.wallpaper_opacity ?? 0.25,
-                }}
-              />
-            </div>
-          )}
-          <div className="relative mx-auto max-w-3xl px-4 py-6">
-            {drawnMessages.length < visibleMessages.length && (
-              <button className="btn btn-ghost mx-auto mb-2 block text-xs" onClick={showEarlier}>
-                {t("chat.showEarlier")}
-              </button>
-            )}
-            {drawnMessages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                character={character}
-                persona={persona}
-                isLast={message.id === last?.id}
-                busy={busy}
-                replyRef={message.id === last?.id ? replyButton : undefined}
-                onSwipe={(index) => write(() => swipe(message, index),
-                  (now) => swiped(message, now.find((m) => m.id === message.id)))}
-                onRegenerate={() => ask({ mode: "regenerate" })}
-                onContinue={() => ask({ mode: "continue" })}
-                onEdit={(content, index) => write(() => edit(message, content, index))}
-                onDeleteFrom={() => write(() => deleteFrom(message), (now) => {
-                  if (!now.some((m) => m.id === message.id)) cut();
-                })}
-                onBranch={() => write(() => branchFrom(message))}
-              />
-            ))}
-
-            {busy && <StreamBubble text={text} character={character} arriving={!lost} onGrow={followBottom} />}
-
-            {silent && (
-              <div className="mx-1 my-3">
-                <ModelSilent onRetry={retry} />
-              </div>
-            )}
-
-            {problem && (
-              <div className="mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 bg-blood/10 px-4 py-3">
-                <p role="alert" className="text-sm text-blood">{problem}</p>
-                {!busy && !lost && !refusal && (
-                  <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
-                    {t("chat.errors.retryButton")}
+        {/* The picture takes the story's box exactly, under the part that scrolls: it stays put while
+            the text moves, and follows the column as the keyboard opens or the panel takes a share. */}
+        <div className="relative min-h-0 flex-1">
+          <Backdrop shown={shown} />
+          <div
+            ref={storyRef}
+            data-story
+            onScroll={onScroll}
+            className={clsx("absolute inset-0 overflow-y-auto [overflow-anchor:none]", veiled && "over-backdrop")}
+            style={veiled ? ({ "--plate": plateAlpha(shown.strength) } as React.CSSProperties) : undefined}
+          >
+            <div className="mx-auto max-w-3xl px-4 py-6">
+              {drawnMessages.length < visibleMessages.length && (
+                <div className="chat-surface mx-auto mb-2 w-fit">
+                  <button className="btn btn-ghost block text-xs" onClick={showEarlier}>
+                    {t("chat.showEarlier")}
                   </button>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+              {drawnMessages.map((message) => (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  character={character}
+                  persona={persona}
+                  isLast={message.id === last?.id}
+                  busy={busy}
+                  replyRef={message.id === last?.id ? replyButton : undefined}
+                  onSwipe={(index) => write(() => swipe(message, index),
+                    (now) => swiped(message, now.find((m) => m.id === message.id)))}
+                  onRegenerate={() => ask({ mode: "regenerate" })}
+                  onContinue={() => ask({ mode: "continue" })}
+                  onEdit={(content, index) => write(() => edit(message, content, index))}
+                  onDeleteFrom={() => write(() => deleteFrom(message), (now) => {
+                    if (!now.some((m) => m.id === message.id)) cut();
+                  })}
+                  onBranch={() => write(() => branchFrom(message))}
+                />
+              ))}
+
+              {busy && <StreamBubble text={text} character={character} arriving={!lost} onGrow={followBottom} />}
+
+              {silent && (
+                <div className="chat-surface mx-1 my-3">
+                  <ModelSilent onRetry={retry} />
+                </div>
+              )}
+
+              {problem && (
+                <div className="chat-banner mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 px-4 py-3">
+                  <p role="alert" className="text-sm text-blood">{problem}</p>
+                  {!busy && !lost && !refusal && (
+                    <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
+                      {t("chat.errors.retryButton")}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -566,37 +647,6 @@ function ChatView({ id }: { id: string }) {
           <p role="alert" className="border-t border-ink-700 bg-ink-900 px-4 py-2 text-center text-sm text-blood">
             {describeError(writeError.error, t)}
           </p>
-        )}
-        {adjustingWallpaper && conversation.wallpaper_url && (
-          <div className="border-t border-ink-700 bg-ink-900 px-4 py-3">
-            <div className="mx-auto max-w-3xl">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="text-mist">{t("chat.wallpaper.opacity")}</span>
-                <span className="tabular-nums text-parchment-dim">{strength}%</span>
-              </div>
-              <input
-                type="range"
-                autoFocus
-                min={0}
-                max={100}
-                value={strength}
-                onChange={(e) => setWallpaperOpacity(Number(e.target.value) / 100)}
-                className="w-full accent-[#e29a3e]"
-                aria-label={t("chat.wallpaper.opacity")}
-              />
-              <button
-                type="button"
-                className="btn btn-primary mt-3 w-full"
-                onClick={() => {
-                  setAdjustingWallpaper(false);
-                  const from = adjustedFrom.current;
-                  (from instanceof HTMLElement && from.isConnected ? from : panelButton.current)?.focus();
-                }}
-              >
-                {t("chat.wallpaper.done")}
-              </button>
-            </div>
-          </div>
         )}
         <ChatInput
           conversationId={conversation.id}
@@ -611,6 +661,7 @@ function ChatView({ id }: { id: string }) {
       {panelOpen && (
         <ChatSidePanel
           conversation={conversation}
+          backdrop={backdrop}
           persona={persona}
           storyCuts={storyCuts}
           takeFocus={panelByHand}
@@ -619,16 +670,38 @@ function ChatView({ id }: { id: string }) {
             if ("summary" in patch) summaries.current += 1;
             setConversation((c) => (c ? { ...c, ...patch } : c));
           }}
-          onAdjustWallpaper={() => {
-            adjustedFrom.current = document.activeElement;
+          onShowCard={() => {
+            setPanelByHand(false);
+            setPanelOpen(false);
+            setShowCard(true);
+          }}
+          onOpenDisplay={(focus) => {
             // Over the conversation, it would hide what is being judged.
             if (!wide) {
               setPanelByHand(false);
               setPanelOpen(false);
             }
-            setAdjustingWallpaper(true);
+            // Beside the conversation the panel stays, and the focus goes back to it by itself.
+            openDisplay(focus === "strength", () => panelButton.current);
           }}
         />
+      )}
+      {displaySheet && (
+        <Sheet
+          title={t("display.title")}
+          hint={t("display.sheetHint")}
+          seeThrough
+          alert={backdrop.failed !== null ? describeError(backdrop.failed, t) : null}
+          returnTo={displaySheet.returnTo}
+          onClose={() => setDisplaySheet(null)}
+        >
+          <DisplayControls
+            where="conversation"
+            conversation={conversation}
+            backdrop={backdrop}
+            focusStrength={displaySheet.focusStrength}
+          />
+        </Sheet>
       )}
       {showCard && (
         <CardSummary character={character} personaName={persona?.name ?? null} onClose={() => setShowCard(false)} />

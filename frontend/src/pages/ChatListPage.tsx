@@ -7,7 +7,7 @@ import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { clearDraft, pruneDrafts } from "@/lib/drafts";
 import { describeError } from "@/lib/errors";
-import { timeAgo } from "@/lib/utils";
+import { smallPortrait, timeAgo } from "@/lib/utils";
 import type { Conversation, Persona } from "@/types";
 import { BookOpenText, GitBranch, MessagesSquare, Pencil, PenLine, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -117,7 +117,7 @@ export function ChatListPage() {
                   title={t("chat.cardSummary.aboutAriaLabel", { name: convo.character.name })}
                   aria-haspopup="dialog"
                 >
-                  <Avatar name={convo.character.name} src={convo.character.avatar_url} className="h-12 w-12 text-lg" />
+                  <Avatar name={convo.character.name} src={smallPortrait(convo.character)} className="h-12 w-12 text-lg" />
                 </button>
               ) : (
                 <Avatar name="?" className="h-12 w-12 shrink-0 text-lg" />

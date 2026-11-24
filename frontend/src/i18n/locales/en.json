@@ -51,7 +51,12 @@
       "dropHint": "or click to choose one. Several at once is fine.",
       "sizeNote": "Up to 15 MB per file. Nothing is uploaded anywhere: the file is read by your own copy of Evermind.",
       "maybeMade": "A copy of this card may be on the home page already: look there before importing it again."
-    }
+    },
+    "card": {
+      "tags": "Tags: {list}"
+    },
+    "searchingDescriptions": "Also searching the descriptions…",
+    "searchFailed": "The descriptions could not be searched: only names and taglines were."
   },
   "chatList": {
     "subtitle": "Pick up your stories right where you left them.",
@@ -201,7 +206,8 @@
     "header": {
       "backAriaLabel": "Back to conversations",
       "renameTitle": "Rename conversation",
-      "memorySettingsAriaLabel": "Conversation memory and settings"
+      "memorySettingsAriaLabel": "Conversation memory and settings",
+      "displayAriaLabel": "Display: text size and backdrop"
     },
     "cardSummary": {
       "aboutAriaLabel": "About {name}",
@@ -229,15 +235,18 @@
       "modes": {
         "say": {
           "label": "Say / action (click to change mode)",
-          "placeholder": "Write to {name}… (*asterisks* for your actions)"
+          "placeholder": "Write to {name}… (*asterisks* for your actions)",
+          "short": "Say"
         },
         "narrate": {
           "label": "Narration: you describe the world, the scene, the events",
-          "placeholder": "Describe the scene, the world, an event…"
+          "placeholder": "Describe the scene, the world, an event…",
+          "short": "Narrate"
         },
         "ooc": {
           "label": "Out-of-character instruction: a note for the AI, invisible in the story",
-          "placeholder": "Instruction for the AI (e.g.: always finish your sentences)…"
+          "placeholder": "Instruction for the AI (e.g.: always finish your sentences)…",
+          "short": "Out of character"
         }
       },
       "ghostwriteTitle": "Write my reply for me (editable before sending)",
@@ -246,7 +255,9 @@
       "sendTitle": "Send",
       "hintDefault": "Enter to send · Shift+Enter for a new line · quill: the AI drafts your reply",
       "hintTouch": "Tap send when you are ready. The quill drafts your reply.",
-      "draftRestored": "Draft restored"
+      "draftRestored": "Draft restored",
+      "more": "Say, narrate, out of character, or write mine for me",
+      "penLabel": "Write mine for me"
     },
     "message": {
       "youFallback": "You",
@@ -315,18 +326,25 @@
       "sceneAnchor": {
         "title": "Scene anchor",
         "youFallback": "you"
-      }
+      },
+      "cardSummary": "The card in short"
     },
     "wallpaper": {
       "title": "Backdrop",
-      "description": "An image behind this conversation. It belongs to this conversation alone, not to the character.",
-      "choose": "Choose an image",
       "replace": "Replace",
       "remove": "Remove",
-      "opacity": "Strength",
       "adjust": "Adjust strength",
-      "done": "Done",
-      "failed": "Could not set the backdrop."
+      "failed": "Could not set the backdrop.",
+      "description": "This choice belongs to this conversation alone.",
+      "portrait": "The character's picture",
+      "portraitHint": "The original choice. Follows this device's setting.",
+      "other": "Another picture",
+      "otherHint": "Chosen from your files, as before.",
+      "none": "No backdrop",
+      "noneHint": "The bare page, even if this device shows pictures.",
+      "noPicture": "This card has no picture: the page stays bare.",
+      "portraitHidden": "Hidden on this device.",
+      "portraitHiddenOpen": "Change it in Display"
     },
     "writing": {
       "title": "Writing",
@@ -721,6 +739,32 @@
     "daysAgo": "{count} d ago",
     "monthsAgo": "{count} month(s) ago",
     "yearsAgo": "{count} year(s) ago"
+  },
+  "display": {
+    "title": "Display",
+    "settingsTitle": "Display · on this device",
+    "sheetHint": "The conversation above changes as you adjust.",
+    "textSize": "Conversation text size",
+    "scale": "{pct}%",
+    "scaleOriginal": "{pct}% · original",
+    "smaller": "Smaller",
+    "larger": "Larger",
+    "portrait": "Character's picture as backdrop",
+    "portraitHint": "On this device, when the conversation has no backdrop of its own.",
+    "strength": "Picture strength",
+    "strengthDevice": "{pct}% · this device",
+    "strengthConversation": "{pct}% · this conversation",
+    "hidden": "picture hidden",
+    "noneHere": "no backdrop here",
+    "noPicture": "this card has no picture",
+    "faint": "faint",
+    "strong": "strong",
+    "ownStrength": "Set for this conversation only",
+    "deviceStrength": "Use this device's strength ({pct}%)",
+    "softened": "Under the text the picture is always softened: it reads at any strength.",
+    "perDevice": "These settings stay on this device: your phone and your PC each keep their own.",
+    "sheetFoot": "Under the text the picture is always softened. To change or remove the picture here: the settings button, \"Backdrop\".",
+    "sample": "*The lantern sways at the end of her arm.* You are late. **Three winters** late, to be exact."
   },
   "memoryMark": {
     "label": "This conversation's memory could not be updated",
