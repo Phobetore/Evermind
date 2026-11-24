@@ -129,6 +129,30 @@ test.describe("my ais", () => {
     expect(followed.context.used).toBe(32768);
     // Nothing else was changed by it: its ceiling is still the one it came with.
     expect(followed.reply_cap).toEqual({ mode: "fixed", tokens: 1024 });
+
+    // On its own page, the choices under Advanced follow what a notice's button saved.
+    await request.put(`${API}/api/models/${brume.id}`, {
+      data: { context_own: 16384, reply_cap: { mode: "fixed", tokens: 1024 }, notices_kept: false },
+    });
+    await openPage(page, brume.id);
+    await openAdvanced(page);
+    const capacity = page.getByRole("group", { name: "Reading capacity" });
+    const ceiling = page.getByRole("group", { name: "Reply ceiling" });
+    await expect(capacity.getByRole("button", { name: /^My value/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(ceiling.getByRole("button", { name: /^My value/ })).toHaveAttribute("aria-pressed", "true");
+
+    await main.getByRole("button", { name: "Follow the server", exact: true }).click();
+    await expect(main.getByText("Brume 12B now follows its server.", { exact: false })).toBeVisible();
+    await expect(capacity.getByRole("button", { name: /^Follow the server/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(capacity.getByRole("button", { name: /^My value/ })).toHaveAttribute("aria-pressed", "false");
+    await expect(capacity.getByRole("textbox")).toHaveCount(0);
+
+    await main.getByRole("button", { name: "Let Evermind set it" }).click();
+    await expect(main.getByText("Brume 12B no longer has a ceiling of its own: Evermind keeps the room it needs.")).toBeVisible();
+    await expect(ceiling.getByRole("button", { name: "Set by Evermind" })).toHaveAttribute("aria-pressed", "true");
+    await expect(ceiling.getByRole("button", { name: /^My value/ })).toHaveAttribute("aria-pressed", "false");
+    await expect(ceiling.getByRole("textbox")).toHaveCount(0);
+    expect((await aiOf(request, brume.id))?.reply_cap).toEqual({ mode: "auto", tokens: null });
   });
 
   test("a reading capacity above the server's is kept and said", async ({ page, request }) => {

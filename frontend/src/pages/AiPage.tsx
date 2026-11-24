@@ -592,6 +592,12 @@ function ContextControl({ ai, t, grouped, onSave, said }: {
   const ids = useId();
   const { own, read, read_kind: kind, used, source } = ai.context;
   const [ownMode, setOwnMode] = useState(own !== null);
+  // A value saved elsewhere (a notice's button) presses the choice it is: never "My value" left empty.
+  const [savedOwn, setSavedOwn] = useState(own);
+  if (savedOwn !== own) {
+    setSavedOwn(own);
+    setOwnMode(own !== null);
+  }
   // A server that loads a size of its own and has not said which.
   const untoldServer = LOCAL_FAMILIES.has(ai.service.family) && !(kind === "served" || kind === "configured" || kind === "observed");
   const warned = warningsOf(ai).includes("above_read_window");
@@ -641,6 +647,12 @@ function CeilingControl({ ai, t, grouped, onSave, said }: {
   const ids = useId();
   const { mode, tokens } = ai.reply_cap;
   const [shown, setShown] = useState(mode);
+  // The same for a ceiling saved elsewhere: the choice pressed is the one in force.
+  const [savedMode, setSavedMode] = useState(mode);
+  if (savedMode !== mode) {
+    setSavedMode(mode);
+    setShown(mode);
+  }
   const warnings = warningsOf(ai);
   const choose = (next: "auto" | "unsent") => {
     setShown(next);
