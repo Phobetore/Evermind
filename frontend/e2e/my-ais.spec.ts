@@ -218,6 +218,14 @@ test.describe("my ais", () => {
     const ai = await lmstudioAi(request, "Default");
     await request.put(`${API}/api/models/${ai.id}`, { data: { is_default: true } });
     await request.post(`${API}/api/conversations`, { data: { character_id: character.id, model_id: ai.id } });
+    // A second AI on its service: the key stays with it, and the box does not say it goes.
+    const made = await request.post(`${API}/api/models`, {
+      data: { service: { id: ai.service.id }, models: [{ model: "brume-12b-q8", name: `Second ${Date.now()}` }] },
+    });
+    expect(made.ok()).toBe(true);
+    const second: Ai = (await made.json()).models[0];
+    expect(second.service.id).toBe(ai.service.id);
+    expect(second.id).not.toBe(ai.id);
     const others = (await ais(request)).filter((other) => other.id !== ai.id);
     const oldest = others.reduce((a, b) => (Date.parse(b.created_at) < Date.parse(a.created_at) ? b : a));
     try {
@@ -225,10 +233,12 @@ test.describe("my ais", () => {
       await page.getByRole("button", { name: "Remove this AI" }).click();
       const box = page.getByRole("alertdialog", { name: `Remove ${ai.name}?` });
       await expect(box.getByText(`1 conversation will move to ${oldest.name}.`)).toBeVisible();
+      await expect(box.getByText("It is the last AI of", { exact: false })).toHaveCount(0);
       await answer(page, false);
       expect(await aiOf(request, ai.id)).toBeTruthy();
     } finally {
       await e2eDefault(request);
+      await request.delete(`${API}/api/models/${second.id}`);
       await request.delete(`${API}/api/models/${ai.id}`);
       await request.delete(`${API}/api/characters/${character.id}`);
     }
@@ -254,6 +264,54 @@ test.describe("my ais", () => {
     await request.delete(`${API}/api/models/${ai.id}`);
   });
 
+  test("a service moved to a new address asks for its key before anything is sent", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "Moved");
+    let sent = 0;
+    page.on("request", (r) => {
+      if (r.method() === "PUT" && r.url().includes("/api/connections/")) sent += 1;
+    });
+    await openPage(page, ai.id);
+    await openAdvanced(page);
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    const box = page.getByRole("dialog", { name: `Edit ${ai.service.name}` });
+    await box.getByLabel("Server address").fill(`${MOCK_ROOT}/elsewhere/v1`);
+    await box.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(box.getByRole("alert")).toHaveText(
+      "New address: type the key again, or choose \"No key\". Evermind only sends it to the address you gave it for.",
+    );
+    expect(sent).toBe(0);
+    expect((await (await request.get(`${API}/api/connections`)).json()).find((s: { id: string }) => s.id === ai.service.id).base_url)
+      .toBe(LMSTUDIO);
+    await request.delete(`${API}/api/models/${ai.id}`);
+  });
+
+  test("the page of a removed ai says it no longer exists", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "Removed");
+    await request.delete(`${API}/api/models/${ai.id}`);
+    await page.goto(`/#/settings/ai/${ai.id}`);
+    await expect(page.getByText("This AI no longer exists.")).toBeVisible();
+    await page.getByRole("link", { name: "Back to settings" }).click();
+    await expect(page.getByRole("heading", { name: "My AIs" })).toBeVisible();
+  });
+
+  test("the default switch makes the ai the default", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "Switch");
+    try {
+      await openPage(page, ai.id);
+      const toggle = page.getByRole("switch", { name: "Default AI" });
+      await expect(toggle).toHaveAttribute("aria-checked", "false");
+      const saved = page.waitForResponse((r) => r.request().method() === "PUT" && r.url().endsWith(`/api/models/${ai.id}`));
+      await toggle.click();
+      await saved;
+      await expect(toggle).toHaveAttribute("aria-checked", "true");
+      await expect(toggle).toBeDisabled();
+      expect((await aiOf(request, ai.id))?.is_default).toBe(true);
+    } finally {
+      await e2eDefault(request);
+      await request.delete(`${API}/api/models/${ai.id}`);
+    }
+  });
+
   test("a price typed is saved as typed, and a negative one is refused and said", async ({ page, request }) => {
     const ai = await lmstudioAi(request, "Price");
     await openPage(page, ai.id);
@@ -272,6 +330,50 @@ test.describe("my ais", () => {
     await expect(page.getByRole("alert")).toHaveText("Evermind could not accept this: something in it is missing or not valid.");
     expect((await aiOf(request, ai.id)) as unknown as { price: { own_in: number | null } }).toMatchObject({ price: { own_in: 0.5 } });
     await request.delete(`${API}/api/models/${ai.id}`);
+  });
+
+  test("a read the server refuses says why, and what is shown instead", async ({ page, request }) => {
+    const made = await request.post(`${API}/api/models`, {
+      data: {
+        service: { provider: "openai-compatible", base_url: `${MOCK_ROOT}/locked/api/v1`, api_key: `sk-e2e-bad-${Date.now()}`, family: "openrouter" },
+        models: [{ model: "locked/one", name: `Refused ${Date.now()}` }],
+      },
+    });
+    expect(made.ok()).toBe(true);
+    const ai: Ai = (await made.json()).models[0];
+    try {
+      await openPage(page, ai.id);
+      await expect(page.getByRole("alert")).toHaveText(
+        `${ai.service.name} refuses its key: change it under Advanced, “Service”, “Edit”. These are the values of the previous read.`,
+      );
+      await expect(page.getByText("the server does not say", { exact: true })).toBeVisible();
+
+      await page.route(`**/api/models/${ai.id}/benchmark`, (route) => route.fulfill({ status: 500, body: "" }));
+      await page.getByRole("button", { name: "Measure the speed" }).click();
+      await expect(page.getByText("Evermind answered with an error (HTTP 500).")).toBeVisible();
+    } finally {
+      await request.delete(`${API}/api/models/${ai.id}`);
+    }
+  });
+
+  test("an anthropic ai offers no penalties, which anthropic is never sent", async ({ page, request }) => {
+    const made = await request.post(`${API}/api/models`, {
+      data: {
+        service: { provider: "anthropic", base_url: `${MOCK_ROOT}/anthropic-e2e`, api_key: `sk-ant-e2e-${Date.now()}` },
+        models: [{ model: "claude-e2e", name: `Penalties ${Date.now()}` }],
+      },
+    });
+    expect(made.ok()).toBe(true);
+    const ai: Ai = (await made.json()).models[0];
+    try {
+      await openPage(page, ai.id);
+      await openAdvanced(page);
+      await expect(page.getByLabel("Temperature", { exact: true })).toBeVisible();
+      await expect(page.getByLabel("Frequency penalty", { exact: true })).toHaveCount(0);
+      await expect(page.getByLabel("Presence penalty", { exact: true })).toHaveCount(0);
+    } finally {
+      await request.delete(`${API}/api/models/${ai.id}`);
+    }
   });
 
   test("every advanced control saves on change and says so @desktop", async ({ page, request }) => {
