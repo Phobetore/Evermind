@@ -503,7 +503,7 @@
     "enabledLabel": "activa",
     "deleteEntryAriaLabel": "Eliminar la entrada",
     "emptyState": "Aún no hay entradas.",
-    "keysPlaceholder": "Palabras clave que la activan, luego Enter",
+    "keysPlaceholder": "Claves de activación y Enter",
     "contentPlaceholder": "Lo que el modelo debe saber cuando aparecen estas palabras…",
     "addEntryButton": "Añadir entrada",
     "entryRequiredError": "Una entrada necesita al menos una palabra clave y algo de contenido.",

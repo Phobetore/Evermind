@@ -15,6 +15,7 @@ import {
 } from "@/lib/assist";
 import { cardFile, findOriginal, rereadPlan, type ExportWarning, type FoundCard, type RereadMode } from "@/lib/cards";
 import { newLoreEntry } from "@/lib/loreEntry";
+import { usePlaceholderRoom } from "@/lib/placeholderRoom";
 import { savePortrait } from "@/lib/portraitSizes";
 import { describeError, isUnanswered } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
@@ -329,6 +330,11 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     }
   }
 
+  const briefPlaceholder = draft.kind === "scenario"
+    ? t("characters.assist.briefPlaceholderScenario")
+    : t("characters.assist.briefPlaceholderCharacter");
+  const briefRoom = usePlaceholderRoom(briefPlaceholder);
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
@@ -415,18 +421,16 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
             </span>
           </div>
           <textarea
+            ref={briefRoom}
             className="field min-h-20"
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
             disabled={generating}
-            placeholder={
-              draft.kind === "scenario"
-                ? t("characters.assist.briefPlaceholderScenario")
-                : t("characters.assist.briefPlaceholderCharacter")
-            }
+            placeholder={briefPlaceholder}
           />
           <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2">
+            {/* The sentence takes the width; the select goes above it when both do not fit side by side. */}
+            <div className="flex min-w-0 flex-[1_1_16rem] flex-wrap items-center gap-2">
               {ais.length > 1 && (
                 <select
                   className="field !w-auto max-w-52 !py-1.5 text-xs"
@@ -446,7 +450,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
                   ))}
                 </select>
               )}
-              <p className="text-xs text-mist-dim">
+              <p className="min-w-0 flex-[1_1_10rem] text-xs text-mist-dim">
                 {t("characters.assist.fieldsKeptHint")}
               </p>
             </div>

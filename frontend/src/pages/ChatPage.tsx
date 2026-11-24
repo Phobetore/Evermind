@@ -773,9 +773,10 @@ function ChatView({ id }: { id: string }) {
                 </div>
               )}
 
+              {/* The sentence takes the width; the button goes under it when both do not fit side by side. */}
               {problem && (
-                <div className="chat-banner mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 px-4 py-3">
-                  <p role="alert" className="text-sm text-blood">{problem}</p>
+                <div className="chat-banner mx-1 my-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-blood/40 px-4 py-3">
+                  <p role="alert" className="min-w-0 flex-[1_1_12rem] text-sm text-blood">{problem}</p>
                   {!busy && !lost && !refusal && (
                     <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
                       {t("chat.errors.retryButton")}

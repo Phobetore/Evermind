@@ -2,6 +2,7 @@ import { LoreEntrySettings } from "@/components/editor/LoreEntrySettings";
 import { TagInput } from "@/components/editor/TagInput";
 import { useT } from "@/i18n/useT";
 import { newLoreEntry } from "@/lib/loreEntry";
+import { usePlaceholderRoom } from "@/lib/placeholderRoom";
 import { newId } from "@/lib/utils";
 import type { LoreEntry } from "@/types";
 import { BookMarked, ChevronDown, Plus, Trash2 } from "lucide-react";
@@ -25,6 +26,7 @@ export function LorebookSection({
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const [newKeys, setNewKeys] = useState<string[]>([]);
   const [newContent, setNewContent] = useState("");
+  const contentRoom = usePlaceholderRoom(t("lorebook.contentPlaceholder"));
   const [error, setError] = useState<string | null>(null);
 
   function addEntry() {
@@ -152,6 +154,7 @@ export function LorebookSection({
           placeholder={t("lorebook.keysPlaceholder")}
         />
         <textarea
+          ref={contentRoom}
           className="field min-h-16 text-sm"
           value={newContent}
           onChange={(e) => setNewContent(e.target.value)}

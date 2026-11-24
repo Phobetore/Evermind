@@ -503,7 +503,7 @@
     "enabledLabel": "active",
     "deleteEntryAriaLabel": "Supprimer l'entrée",
     "emptyState": "Aucune entrée pour l'instant.",
-    "keysPlaceholder": "Mots-clés déclencheurs puis Entrée",
+    "keysPlaceholder": "Mots déclencheurs puis Entrée",
     "contentPlaceholder": "Ce que le modèle doit savoir quand ces mots apparaissent…",
     "addEntryButton": "Ajouter l'entrée",
     "entryRequiredError": "Une entrée demande au moins un mot-clé et un contenu.",
