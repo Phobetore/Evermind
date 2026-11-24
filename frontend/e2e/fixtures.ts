@@ -8,25 +8,37 @@ export const MOCK = `http://127.0.0.1:${process.env.E2E_MOCK_PORT ?? 5699}/v1`;
  *  its way to a conversation would fail for reasons that have nothing to do
  *  with what it is checking. */
 
-async function defaultConnection(request: APIRequestContext): Promise<string> {
-  const existing = await (await request.get(`${API}/api/connections`)).json();
-  const found = existing.find((c: { name: string }) => c.name === "e2e");
+/** An AI on its service, made as the page adds one; `changes` are then saved on it (an AI's own
+ *  fields, such as `reply_cap`). A model already on that service is the AI already there. */
+export async function addModel(
+  request: APIRequestContext,
+  { base_url, model, api_key = "none", name, changes }:
+    { base_url: string; model: string; api_key?: string; name?: string; changes?: Record<string, unknown> },
+): Promise<{ id: string; name: string }> {
+  const made = await (await request.post(`${API}/api/models`, {
+    data: { service: { provider: "openai-compatible", base_url, api_key }, models: [{ model, name }] },
+  })).json();
+  const ai = made.models[0];
+  if (changes) await request.put(`${API}/api/models/${ai.id}`, { data: changes });
+  return ai;
+}
+
+async function defaultModel(request: APIRequestContext): Promise<string> {
+  const existing = await (await request.get(`${API}/api/models`)).json();
+  const found = existing.find((ai: { name: string }) => ai.name === "e2e");
   if (!found) {
-    return (await (await request.post(`${API}/api/connections`, {
-      data: {
-        name: "e2e", provider: "openai-compatible", base_url: MOCK,
-        api_key: "none", model: "evermind-demo", is_default: true,
-      },
-    })).json()).id;
+    const ai = await addModel(request, { base_url: MOCK, model: "evermind-demo", name: "e2e" });
+    await request.put(`${API}/api/models/${ai.id}`, { data: { is_default: true } });
+    return ai.id;
   }
   if (!found.is_default) {
-    await request.put(`${API}/api/connections/${found.id}`, { data: { ...found, is_default: true } });
+    await request.put(`${API}/api/models/${found.id}`, { data: { is_default: true } });
   }
   return found.id;
 }
 
 export async function makeCharacter(request: APIRequestContext, fields: Record<string, unknown> = {}) {
-  await defaultConnection(request);
+  await defaultModel(request);
   return (await request.post(`${API}/api/characters`, {
     data: {
       name: "Vane",

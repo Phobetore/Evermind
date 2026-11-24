@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { chat, conversationWithReply, MOCK, replyEnds } from "./fixtures";
+import { addModel, chat, conversationWithReply, MOCK, replyEnds } from "./fixtures";
 
 /**
  * A reply that ends without what was asked for says why, as a person on a phone reads it
@@ -16,13 +16,11 @@ async function endingWith(request: APIRequestContext, how: string, connection: R
   const convo = await conversationWithReply(request);
   const patch: Record<string, unknown> = { author_note: how };
   if (Object.keys(connection).length) {
-    const own = await (await request.post(`${API}/api/connections`, {
-      data: {
-        name: `reply-ends ${Date.now()}`, provider: "openai-compatible", base_url: MOCK,
-        api_key: "none", model: "evermind-demo", ...connection,
-      },
-    })).json();
-    patch.connection_id = own.id;
+    // A model of its own, so that the ceiling set here is not the one every other test uses.
+    const own = await addModel(request, {
+      base_url: MOCK, model: `reply-ends-${Date.now()}`, changes: connection,
+    });
+    patch.model_id = own.id;
   }
   await request.patch(`${API}/api/conversations/${convo.id}`, { data: patch });
   return convo;
@@ -65,7 +63,7 @@ test("an answer its server withheld quotes the server's word", { tag: "@desktop"
 });
 
 test("a reply cut by the max tokens says why under it, and Continue carries it to its end", { tag: "@desktop" }, async ({ page, request }) => {
-  const convo = await endingWith(request, "MOCK_HITS_CEILING", { max_tokens: 1024 });
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
   await sendFromTheBox(page, convo.id);
 
   const reply = page.locator("[data-message-id]").last();
@@ -96,7 +94,7 @@ test("a reply cut by the max tokens says why under it, and Continue carries it t
 });
 
 test("an older reply cut by the max tokens keeps a short mark, without asking to continue it", { tag: "@desktop" }, async ({ page, request }) => {
-  const convo = await endingWith(request, "MOCK_HITS_CEILING", { max_tokens: 1024 });
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
   await sendFromTheBox(page, convo.id);
   await expect(page.locator("[data-ceiling]")).toHaveCount(1);
 

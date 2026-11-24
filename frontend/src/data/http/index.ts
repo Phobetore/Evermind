@@ -1,15 +1,16 @@
 import type {
-  Character, CharacterTile, CharacterWithLore, Connection, Conversation, Installation, LibraryItem, Memory,
-  Message, Persona, Settings, TurnEvent, TurnState,
+  Ai, Character, CharacterTile, CharacterWithLore, Conversation, Installation, LibraryItem, Memory,
+  Message, Persona, ProbeResult, Service, Settings, TurnEvent, TurnState,
 } from "@/types";
 import type { DataSource } from "../contract";
 import { device } from "./device";
 import { readEvents } from "./events";
 import { request, send } from "./request";
 import type {
-  Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConnectionInput,
-  ConnectionTestResult, ConsolidateResult, ConversationInput, ConversationPatch, ExtractResult,
-  LoreEntryInput, OriginalCard, PersonaInput, PortraitSizes, StoredCard, TurnRequest,
+  AiSaved, Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConsolidateResult,
+  ConversationInput, ConversationPatch, ExtractResult, LoreEntryInput, ModelsCreate, ModelUpdate,
+  OriginalCard, PersonaInput, PortraitSizes, SavedRef, ServiceDraft, ServiceUpdate, StoredCard,
+  TurnRequest,
 } from "../types";
 import { DataError } from "../errors";
 
@@ -169,15 +170,27 @@ export const data: DataSource = {
   remoteImages: true,
 
   connections: {
-    list: () => get<Connection[]>("api/connections"),
-    create: (input: ConnectionInput) => post<Connection>("api/connections", input),
-    update: (id: string, input: ConnectionInput) => put<Connection>(`api/connections/${seg(id)}`, input),
-    remove: (id: string) => del(`api/connections/${seg(id)}`),
-    // Both save nothing. With no key typed, the saved connection `id` lends its own.
-    test: (input: ConnectionInput & { id?: string }) =>
-      post<ConnectionTestResult>("api/connections/test", input),
-    benchmark: (input: ConnectionInput & { id?: string }) =>
-      post<BenchmarkResult>("api/connections/benchmark", input),
+    services: {
+      list: () => get<Service[]>("api/connections"),
+      update: (id: string, input: ServiceUpdate) => put<Service>(`api/connections/${seg(id)}`, input),
+      remove: (id: string) => del(`api/connections/${seg(id)}`),
+    },
+    models: {
+      list: () => get<Ai[]>("api/models"),
+      create: (input: ModelsCreate) =>
+        post<{ service: Service; models: Ai[]; conversation: Conversation | null }>("api/models", input),
+      update: (id: string, input: ModelUpdate) => put<AiSaved>(`api/models/${seg(id)}`, input),
+      remove: (id: string) => del(`api/models/${seg(id)}`),
+      refresh: (id: string, options: { fresh?: boolean } = {}) =>
+        post<{ model: Ai; read_ok: boolean; error: { kind: string; message: string } | null }>(
+          `api/models/${seg(id)}/refresh`, { fresh: options.fresh ?? false }),
+      benchmark: (id: string) => post<BenchmarkResult>(`api/models/${seg(id)}/benchmark`),
+    },
+    // Saves nothing; a list of hundreds of models on a slow link, which "Cancel" gives up on.
+    probe: (ref: SavedRef | ServiceDraft, options: { fresh?: boolean; asking?: Asking } = {}) =>
+      request<ProbeResult>("api/connections/probe", {
+        method: "POST", body: JSON.stringify({ ...ref, fresh: options.fresh ?? false }),
+      }, options.asking),
   },
 
   updates: {

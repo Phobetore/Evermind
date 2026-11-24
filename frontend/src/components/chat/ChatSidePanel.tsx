@@ -10,7 +10,7 @@ import { backdropOf, useDisplay } from "@/lib/display";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS } from "@/lib/useTurn";
 import { cardText, smallPortrait } from "@/lib/utils";
-import type { Backdrop, Connection, Conversation, Memory, Persona } from "@/types";
+import type { Ai, Backdrop, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, RotateCcw, SlidersHorizontal, Type, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type SetStateAction } from "react";
@@ -52,7 +52,7 @@ export function ChatSidePanel({
 }) {
   const t = useT();
   const character = conversation.character!;
-  const [connections, setConnections] = useState<Connection[]>([]);
+  const [ais, setAis] = useState<Ai[]>([]);
   // null unless typing: the box shows what the conversation holds. `over` is what it was typed over.
   const [summaryDraft, setSummaryDraft] = useState<{ text: string; over: string } | null>(null);
   const [directiveDraft, setDirectiveDraft] = useState<string | null>(null);
@@ -145,7 +145,7 @@ export function ChatSidePanel({
 
   // Caught: offline it rejects, and an unhandled rejection is noise in the console.
   useEffect(() => {
-    data.connections?.list().then(setConnections).catch(() => {});
+    data.connections?.models.list().then(setAis).catch(() => {});
   }, [conversation.id]);
   useEffect(() => {
     readFacts();
@@ -368,15 +368,16 @@ export function ChatSidePanel({
     }
   }
 
-  async function changeConnection(connectionId: string) {
+  async function changeAi(aiId: string) {
     fail("connection", null);
     try {
-      await data.conversations.update(conversation.id, { connection_id: connectionId });
+      await data.conversations.update(conversation.id, { model_id: aiId });
     } catch (e) {
       fail("connection", describeError(e, t));
       return;
     }
-    onConversationChange({ connection_id: connectionId });
+    // Another AI chosen: the line saying one was removed goes with it, as on the server.
+    onConversationChange({ model_id: aiId, model_lost: null });
   }
 
   async function saveSummary() {
@@ -442,15 +443,15 @@ export function ChatSidePanel({
         <Field label={t("chat.panel.modelLabel")}>
           <select
             className="field"
-            value={conversation.connection_id ?? ""}
-            onChange={(e) => changeConnection(e.target.value)}
+            value={conversation.model_id ?? ""}
+            onChange={(e) => changeAi(e.target.value)}
           >
             <option value="" disabled>
               {t("chat.panel.chooseModelOption")}
             </option>
-            {connections.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} {c.model ? `· ${c.model}` : ""}
+            {ais.map((ai) => (
+              <option key={ai.id} value={ai.id}>
+                {ai.name}
               </option>
             ))}
           </select>

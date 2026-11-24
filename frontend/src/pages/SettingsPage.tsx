@@ -2,7 +2,6 @@ import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
 import { LanguageSelect } from "@/components/layout/LanguageSelect";
 import { DisplayControls } from "@/components/display/DisplayControls";
-import { ConnectionForm } from "@/components/settings/ConnectionForm";
 import { useConfirm } from "@/components/ui/Confirm";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
@@ -11,16 +10,15 @@ import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
 import { isNewer, latestRelease, type Release } from "@/lib/releases";
-import type { Connection, Installation, Settings } from "@/types";
-import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
+import type { Ai, Installation, Settings } from "@/types";
+import { Cable, Loader2, LogOut, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 export function SettingsPage() {
   const t = useT();
   const { status: accessStatus } = useAccess();
-  const [connections, setConnections] = useState<Connection[] | null>(null);
+  const [ais, setAis] = useState<Ai[] | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [editing, setEditing] = useState<Connection | "new" | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
@@ -30,7 +28,7 @@ export function SettingsPage() {
 
   const load = useCallback(() => {
     Promise.all([
-      data.connections?.list().then(setConnections),
+      data.connections?.models.list().then(setAis),
       data.settings.get().then(setSettings),
     ]).then(() => setLoadFailure(null), (error) => setLoadFailure({ error }));
   }, []);
@@ -97,46 +95,36 @@ export function SettingsPage() {
         </Field>
       </section>
 
-      {/* Connections: only an edition that keeps its own models has them. */}
+      {/* AIs: only an edition that keeps its own models has them. Added and changed on pages of
+          their own; until then, one plain line each. */}
       {data.connections && (
         <section className="mb-10">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="ui-label">{t("settings.connectionsTitle")}</h2>
-            <button className="btn btn-primary !py-2 text-sm" onClick={() => setEditing("new")}>
-              <Plus className="h-4 w-4" /> {t("settings.addConnection")}
-            </button>
           </div>
 
-          {connections === null ? (
+          {ais === null ? (
             !loadFailure && <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
-          ) : connections.length === 0 ? (
+          ) : ais.length === 0 ? (
             <EmptyState icon={Cable} title={t("settings.emptyState.title")}>
               {t("settings.emptyState.body")}
             </EmptyState>
           ) : (
-            <div className="stagger flex flex-col gap-3">
-              {connections.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setEditing(c)}
-                  className="panel flex items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:border-ember-600/40"
-                >
+            <ul className="stagger flex flex-col gap-3">
+              {ais.map((ai) => (
+                <li key={ai.id} className="panel flex items-center justify-between gap-4 px-5 py-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-display font-semibold">{c.name}</h3>
-                      {c.is_default && <Tag tone="ember">{t("settings.defaultTag")}</Tag>}
+                      <h3 className="font-display font-semibold">{ai.name}</h3>
+                      {ai.is_default && <Tag tone="ember">{t("settings.defaultTag")}</Tag>}
                     </div>
                     <p className="mt-0.5 truncate text-sm text-mist">
-                      {c.provider === "anthropic" ? "Anthropic" : "OpenAI-compatible"} ·{" "}
-                      {c.model || t("settings.noModel")} · {c.base_url}
+                      {ai.service.name} · {ai.model}
                     </p>
                   </div>
-                  <span className="shrink-0 font-mono text-xs text-mist-dim">
-                    {c.api_key_set ? t("settings.keyHint", { hint: c.api_key_hint }) : t("settings.noKey")}
-                  </span>
-                </button>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </section>
       )}
@@ -249,17 +237,6 @@ export function SettingsPage() {
         />
       )}
 
-      {editing && data.connections && (
-        <ConnectionForm
-          source={data.connections}
-          connection={editing === "new" ? null : editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null);
-            load();
-          }}
-        />
-      )}
     </div>
   );
 }

@@ -1,11 +1,12 @@
 import type {
-  Character, CharacterTile, CharacterWithLore, Connection, Conversation, Installation, LibraryItem, Memory,
-  Message, Persona, Settings, TurnEvent, TurnState,
+  Ai, Character, CharacterTile, CharacterWithLore, Conversation, Installation, LibraryItem, Memory,
+  Message, Persona, ProbeResult, Service, Settings, TurnEvent, TurnState,
 } from "@/types";
 import type {
-  Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConnectionInput,
-  ConnectionTestResult, ConsolidateResult, ConversationInput, ConversationPatch, ExtractResult,
-  LoreEntryInput, OriginalCard, PersonaInput, PortraitSizes, StoredCard, TurnRequest,
+  AiSaved, Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConsolidateResult,
+  ConversationInput, ConversationPatch, ExtractResult, LoreEntryInput, ModelsCreate, ModelUpdate,
+  OriginalCard, PersonaInput, PortraitSizes, SavedRef, ServiceDraft, ServiceUpdate, StoredCard,
+  TurnRequest,
 } from "./types";
 
 /** A few words kept on this device and nowhere else. It never throws: a store that cannot keep
@@ -138,14 +139,29 @@ export interface DataSource {
    *  blocks every image from another site. */
   readonly remoteImages: boolean;
 
+  /** Services (a server and its key) and the AIs on them. The name stays: it is what every screen
+   *  asks for before it draws anything of the AIs. */
   connections?: {
-    list(): Promise<Connection[]>;
-    create(input: ConnectionInput): Promise<Connection>;
-    update(id: string, input: ConnectionInput): Promise<Connection>;
-    remove(id: string): Promise<void>;
-    // Both save nothing. With no key typed, the saved connection `id` lends its own.
-    test(input: ConnectionInput & { id?: string }): Promise<ConnectionTestResult>;
-    benchmark(input: ConnectionInput & { id?: string }): Promise<BenchmarkResult>;
+    services: {
+      list(): Promise<Service[]>;
+      update(id: string, input: ServiceUpdate): Promise<Service>;
+      /** Only a service that holds no AI. */
+      remove(id: string): Promise<void>;
+    };
+    models: {
+      list(): Promise<Ai[]>;
+      /** The service (new, or saved) and its AIs in one write; with `conversation_id`, that
+       *  conversation is given the last of them. */
+      create(input: ModelsCreate): Promise<{ service: Service; models: Ai[]; conversation: Conversation | null }>;
+      update(id: string, input: ModelUpdate): Promise<AiSaved>;
+      remove(id: string): Promise<void>;
+      /** What the server says of it now; a read that fails keeps what was read before. `fresh`:
+       *  past the list the server keeps for ten minutes. */
+      refresh(id: string, options?: { fresh?: boolean }): Promise<{ model: Ai; read_ok: boolean; error: { kind: string; message: string } | null }>;
+      benchmark(id: string): Promise<BenchmarkResult>;
+    };
+    /** Saves nothing. A SavedRef: the saved service as it is. `fresh`: past the server's cache. */
+    probe(ref: SavedRef | ServiceDraft, options?: { fresh?: boolean; asking?: Asking }): Promise<ProbeResult>;
   };
 
   updates?: {

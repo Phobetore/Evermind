@@ -16,7 +16,7 @@ const backdrop: ConversationBackdrop = {
 
 function opened(fields: Partial<Conversation>) {
   const conversation = {
-    id: "v1", character_id: "c1", persona_id: null, connection_id: null, title: "", summary: "",
+    id: "v1", character_id: "c1", persona_id: null, model_id: null, model_lost: null, title: "", summary: "",
     character, ...fields,
   } as Conversation;
   return renderToString(createElement(MemoryRouter, null, createElement(I18nProvider, {
