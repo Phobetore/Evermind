@@ -346,6 +346,7 @@ async def test_a_brief_the_connections_context_cannot_hold_is_refused_before_the
     assert resp.status_code == 422, resp.text
     body = resp.json()
     assert body["kind"] == "brief_too_long"
+    assert "for this AI" in body["error"] and "connection" not in body["error"]
     # What the request would need: the brief, the assistant's instructions, and room for the card.
     assert body["params"]["context"] == 16_384
     assert body["params"]["needed"] > estimate_tokens("x" * 100_000)
@@ -376,6 +377,7 @@ async def test_what_the_card_already_holds_is_told_apart_from_the_brief(client, 
         "prompt": "A seller of maps", "existing": {"description": "y" * 60_000}})
     assert resp.status_code == 422, resp.text
     assert resp.json()["kind"] == "card_too_long"
+    assert "for this AI" in resp.json()["error"] and "connection" not in resp.json()["error"]
     assert resp.json()["params"]["context"] == 16_384
     # The same overflow from the brief alone is the brief's.
     resp = await client.post("/api/characters/assist", json={"prompt": "y" * 60_000})

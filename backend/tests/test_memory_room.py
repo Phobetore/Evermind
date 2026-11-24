@@ -263,6 +263,7 @@ async def test_a_learned_room_the_server_now_refuses_is_forgotten(story, caplog)
         resp = await story.extract()
     assert resp.status_code == 200, resp.text
     assert any("max_tokens is too large" in r.getMessage() for r in caplog.records)
+    assert any(r.getMessage().endswith("asking with this AI's own.") for r in caplog.records)
     await send(story.client, story.id, content="Again")
     assert (await story.extract()).status_code == 200
     assert server.asked() == [2048, 8192, 8192, 2048, 2048]

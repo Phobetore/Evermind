@@ -32,6 +32,11 @@ def test_an_answer_with_nothing_written_says_why_when_how_it_ended_tells(answer,
     assert error_body(error).get("reason") == reason
 
 
+def test_an_only_thought_answer_points_to_this_ai_s_ceiling_not_a_connection():
+    message = unwritten(Answer("", 500, "length")).message
+    assert "this AI's reply ceiling" in message and "connection" not in message
+
+
 def test_the_server_s_own_word_is_quoted():
     error = unwritten(Answer("", 0, "content_filter"))
     assert error.message == 'The model\'s server withheld the answer ("content_filter").'
