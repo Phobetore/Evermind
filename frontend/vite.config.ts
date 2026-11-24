@@ -20,8 +20,12 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
     },
-    // The app is one file, past the 500 kB at which Vite advises splitting it.
-    build: { chunkSizeWarningLimit: 800 },
+    // The app is one file, but for what draws a card's presentation, fetched when one is shown:
+    // nothing else can go missing on a weak link, or after an update while a page is still open.
+    // A browser fetches it once for a version, since the server calls it immutable. Vite advises
+    // splitting past 500 kB; this is the size at which the question is asked again (822 kB at
+    // 3.6.0, of which the four languages are a quarter).
+    build: { chunkSizeWarningLimit: 1200 },
     // Development only: the interface on PORT, and the API it calls on the
     // backend's own port behind it, so the browser still sees a single origin.
     server: {
