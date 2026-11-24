@@ -105,6 +105,10 @@ describe("a name cut in the middle", () => {
     expect(splitName("12345678901234")).toEqual(["12345678901234", ""]);
   });
 
+  test("a name of 15 characters is cut", () => {
+    expect(splitName("Brume Large 12B")).toEqual(["Brume Large", " 12B"]);
+  });
+
   test("the last word, with its separator, stays at the end", () => {
     const name = "Obsidienne R1 Distill Llama 70B Instruct";
     expect(splitName(name)).toEqual(["Obsidienne R1 Distill Llama 70B", " Instruct"]);
@@ -174,6 +178,13 @@ describe("search", () => {
     expect(found("mistral large")).not.toContain("Aurore Large");
   });
 
+  test("a model is found by its id when its name does not say the words", () => {
+    const byId = made([row("Le Grand", { id: "mistralai/mistral-large-2411" }), row("Autre")]);
+    for (const q of ["mistral large", "large mistral"]) {
+      expect(search(byId, q).map((h) => [h.row.name, h.score])).toEqual([["Le Grand", 2]]);
+    }
+  });
+
   test("a gap, a dash or none read the same", () => {
     for (const q of ["gpt4o", "gpt 4o", "gpt-4o"]) expect(found(q)).toEqual(["gpt-4o"]);
     for (const q of ["sylve 2.5", "sylve-2-5", "sylve25"]) expect(found(q)).toEqual(["Sylve 2.5"]);
@@ -188,6 +199,11 @@ describe("search", () => {
     expect(search(rows, "obsidiene").find((h) => h.row.name === "Obsidienne")?.score).toBe(2);
     expect(search(rows, "osbidienne").find((h) => h.row.name === "Obsidienne")?.score).toBe(2);
     expect(found("aurroe")).toContain("Aurore Large");
+  });
+
+  test("a typo of a word only the vendor holds scores 3, where a near name scores 2", () => {
+    const typo = made([row("Zephyr", { vendor: "Aurore" }), row("Aurore Large")]);
+    expect(search(typo, "aurroe").map((h) => [h.row.name, h.score])).toEqual([["Zephyr", 3], ["Aurore Large", 2]]);
   });
 
   test("a word some row holds exactly is never read as a typo", () => {
@@ -341,6 +357,13 @@ describe("the lines of an ai", () => {
     expect(readsLine(16_384, fr)).toBe("lit ≈ 33 pages à la fois");
     expect(readsLine(1_048_576, fr)).toBe("lit ≈ 2 100 pages à la fois");
     expect(readsLine(null, fr)).toBe("capacité de lecture non dite");
+  });
+
+  test("a capacity under a page and a half says one page, not 1 pages", () => {
+    expect(readsLine(500, fr)).toBe("lit ≈ 1 page à la fois");
+    expect(readsLine(512, en)).toBe("reads ≈ 1 page at once");
+    expect(readsLine(512, (k, v) => translate("de", k, v))).toBe("liest ≈ 1 Seite auf einmal");
+    expect(readsLine(512, (k, v) => translate("es", k, v))).toBe("lee ≈ 1 página de una vez");
   });
 
   test("what it costs", () => {
