@@ -519,12 +519,15 @@ async def _anthropic_list(client, base: str, headers: dict, service: dict) -> li
     return entries
 
 
-async def _the_list(client, service: dict, family: Family, headers: dict) -> list[dict]:
+async def _the_list(client, service: dict, family: Family, headers: dict,
+                    check_key: bool) -> list[dict]:
     base = _bare(service.get("base_url"))
     if service.get("provider") == "anthropic":
         return await _anthropic_list(client, base, headers, service)
     if family != "openrouter":
         return _entries(await _page(client, base + "/models", headers, service))
+    if not check_key:
+        return await _openrouter_list(client, base, headers, service)
     checking = asyncio.ensure_future(_key_refused(client, base, headers, service))
     try:
         entries = await _openrouter_list(client, base, headers, service)
@@ -684,6 +687,7 @@ class _Kept:
     at: float
     catalog: Catalog
     probed: bool
+    key_checked: bool
 
 
 # Per API type, address and key: never the service's id (a draft has none yet, and a memory pass
@@ -699,32 +703,37 @@ def cache_key(service: dict) -> tuple[str, str, str]:
 
 
 async def read_catalog(service: dict, *, probes: bool = True, fresh: bool = False,
-                       max_age: float = 600, client_factory=None) -> Catalog:
+                       max_age: float = 600, check_key: bool = True,
+                       client_factory=None) -> Catalog:
     """The models a service's server lists, with what it says of each.
 
-    probes=False reads the list alone. fresh=True skips the list kept from an earlier read;
-    max_age is how old that one may be for this caller, in seconds: ten minutes for what a person
-    looks at (OpenRouter's list weighs 850 KB on the PC's link), more for a memory pass. A failed
-    read is never kept. client_factory: None takes this module's door; a provider passes its own.
+    probes=False reads the list alone. check_key=False leaves out OpenRouter's check of the key,
+    for a memory pass: its list is public, a refused key fails the pass itself, and the check
+    would cost the pass a request within its few seconds. fresh=True skips the list kept from an
+    earlier read; max_age is how old that one may be for this caller, in seconds: ten minutes for
+    what a person looks at (OpenRouter's list weighs 850 KB on the PC's link), more for a memory
+    pass. A failed read is never kept. client_factory: None takes this module's door; a provider
+    passes its own.
     """
     key = cache_key(service)
     kept = _cache.get(key)
+    # A list read without the probes, or without checking the key, does not answer for them.
     if (not fresh and kept is not None and _now() - kept.at < max_age
-            and (kept.probed or not probes)):
+            and (kept.probed or not probes) and (kept.key_checked or not check_key)):
         return kept.catalog
     factory = client_factory if client_factory is not None else globals()["client_factory"]
     try:
         async with asyncio.timeout(LIST_WHOLE_S):
-            read = await _read(service, probes, factory)
+            read = await _read(service, probes, check_key, factory)
     except TimeoutError:
         raise ProviderError(
             f"The list of models of {_bare(service.get('base_url'))} did not come within "
             f"{LIST_WHOLE_S} seconds.", LIST_TIMEOUT)
-    _cache[key] = _Kept(_now(), read, probes)
+    _cache[key] = _Kept(_now(), read, probes, check_key)
     return read
 
 
-async def _read(service: dict, probes: bool, factory) -> Catalog:
+async def _read(service: dict, probes: bool, check_key: bool, factory) -> Catalog:
     provider = service.get("provider") or ""
     base_url = service.get("base_url") or ""
     family = family_of(provider, base_url, service.get("family") or "generic",
@@ -734,7 +743,7 @@ async def _read(service: dict, probes: bool, factory) -> Catalog:
         natives = asyncio.ensure_future(_natives(client, family, service, headers)) if probes \
             else None
         try:
-            entries = await _the_list(client, service, family, headers)
+            entries = await _the_list(client, service, family, headers, check_key)
             learned, told = await natives if natives is not None else (family, None)
         finally:
             if natives is not None:

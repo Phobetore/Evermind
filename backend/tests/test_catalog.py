@@ -350,6 +350,9 @@ async def test_a_memory_pass_reads_its_reasoning_through_the_catalog(monkeypatch
     def lists() -> int:
         return server.paths().count("/api/v1/models")
 
+    def keys() -> int:
+        return server.paths().count("/api/v1/key")
+
     async def memory_pass() -> dict:
         provider = OpenAICompatProvider({**svc, "least_reasoning": True})
         provider._client_factory = server.factory
@@ -359,7 +362,7 @@ async def test_a_memory_pass_reads_its_reasoning_through_the_catalog(monkeypatch
     probed = await read_catalog(svc)
     assert all("reasoning" not in shown for shown in relayed(probed))
     assert (await memory_pass())["reasoning"] == {"effort": "none"}
-    assert lists() == 1
+    assert (lists(), keys()) == (1, 1)
 
     now[0] += 6 * HOURS - 1 * MINUTES
     assert (await memory_pass())["reasoning"] == {"effort": "none"}
@@ -367,6 +370,8 @@ async def test_a_memory_pass_reads_its_reasoning_through_the_catalog(monkeypatch
     now[0] += 2 * MINUTES
     assert (await memory_pass())["reasoning"] == {"effort": "none"}
     assert lists() == 2
+    # A pass reads the list alone: its key is checked by the reads a person sees, not by it.
+    assert keys() == 1
 
     server.routes["/api/v1/models"] = lambda _: httpx.Response(503)
     now[0] += 7 * HOURS
@@ -379,6 +384,36 @@ async def test_a_memory_pass_reads_its_reasoning_through_the_catalog(monkeypatch
     now[0] += 2 * MINUTES
     assert (await memory_pass())["reasoning"] == {"effort": "none"}
     assert lists() == 4
+    assert keys() == 1
+
+
+async def test_a_memory_pass_does_not_check_the_key_and_its_list_does_not_vouch_for_one():
+    """A key OpenRouter refuses fails the pass itself, not its least reasoning; and a list a pass
+    read without checking the key is not served to a read that checks it."""
+    model = "deepseek/deepseek-v4.1-flash"
+    listing = {"data": [{"id": model, "reasoning": {"mandatory": False,
+                                                     "supported_efforts": None}}],
+               "links": {"next": None}}
+    chats: list[dict] = []
+
+    def chat(request: httpx.Request):
+        chats.append(json.loads(request.content))
+        return httpx.Response(200, content=sse([
+            json.dumps({"choices": [{"delta": {"content": "{}"}, "finish_reason": "stop"}]}),
+            "[DONE]"]))
+
+    server = Server({"/api/v1/models": listing, "/api/v1/chat/completions": chat,
+                     "/api/v1/key": httpx.Response(401, json={"error": {"message": "No"}})})
+    svc = service(OPENROUTER, model=model)
+    provider = OpenAICompatProvider({**svc, "least_reasoning": True})
+    provider._client_factory = server.factory
+    assert (await complete_answer(provider, PAYLOAD)).text == "{}"
+    assert chats[-1]["reasoning"] == {"effort": "none"}
+    assert server.paths() == ["/api/v1/models", "/api/v1/chat/completions"]
+
+    with pytest.raises(ProviderError) as raised:
+        await read_catalog(svc, probes=False, client_factory=server.factory)
+    assert raised.value.kind == AUTH_REFUSED
 
 
 # Prices and odd values

@@ -29,13 +29,12 @@ class OpenRouter:
         self.refuse_all: int | None = None  # a refusal of every request, the field or not
         self.list_takes = 0.0  # seconds the list takes to come
         self.lists = 0
+        self.gets: list[str] = []  # every GET, kept before it is judged: a refusal may be swallowed
         self.bodies: list[dict] = []
 
     async def handler(self, request: httpx.Request) -> httpx.Response:
-        if request.method == "GET" and request.url.path.endswith("/key"):
-            # OpenRouter's check of the key, which goes with each read of its list.
-            return httpx.Response(200, json={"data": {}})
         if request.method == "GET":
+            self.gets.append(request.url.path)
             assert request.url.path.endswith("/models")
             self.lists += 1
             await asyncio.sleep(self.list_takes)
@@ -129,6 +128,8 @@ async def test_the_list_is_read_once_and_again_after_six_hours(clock):
     clock[0] += 2
     assert (await server.ask())["reasoning"] == {"effort": "none"}
     assert server.lists == 2
+    # One request for each read, as before the catalog: the pass does not check the key.
+    assert server.gets == ["/api/v1/models"] * 2
 
 
 async def test_a_list_that_cannot_be_read_adds_nothing_and_is_read_again_later(clock):
@@ -245,6 +246,7 @@ async def test_another_server_is_asked_nothing_and_sent_nothing(clock, base_url)
     body = await server.ask(base_url=base_url)
     assert "reasoning" not in body
     assert server.lists == 0
+    assert server.gets == []
 
 
 async def test_a_subdomain_of_openrouter_is_openrouter(clock):
@@ -256,6 +258,7 @@ async def test_a_caller_that_did_not_ask_is_sent_nothing(clock):
     server = OpenRouter(listed(THE_OWNERS))
     assert "reasoning" not in await server.ask(least=False)
     assert server.lists == 0
+    assert server.gets == []
 
 
 async def test_a_chat_turn_sends_no_reasoning_field(client, monkeypatch, clock):
@@ -268,3 +271,4 @@ async def test_a_chat_turn_sends_no_reasoning_field(client, monkeypatch, clock):
     await send(client, convo["id"])
     assert server.bodies and all("reasoning" not in body for body in server.bodies)
     assert server.lists == 0
+    assert server.gets == []

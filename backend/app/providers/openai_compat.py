@@ -125,7 +125,10 @@ class OpenAICompatProvider(Provider):
             return None
         try:
             async with asyncio.timeout(LIST_TIMEOUT_S):
+                # The list alone, in one request: the key is not checked here, and a key
+                # refused fails the pass itself.
                 read = await catalog.read_catalog(service, probes=False, max_age=LIST_KEPT_S,
+                                                  check_key=False,
                                                   client_factory=self._client_factory)
         except ProviderError as exc:
             logger.warning("the list of models of %s could not be read: %s",
