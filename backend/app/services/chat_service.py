@@ -357,14 +357,15 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 
 async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Ghost-write the player's next message. Returns {"text": ...}."""
-    convo, character, persona, connection, _ = await _resolve(db, convo_id)
+    convo, character, persona, connection, settings = await _resolve(db, convo_id)
     char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     messages = await convo_repo.list_messages(db, convo_id)
     if not messages:
         raise AppError("Nothing to write: the conversation is empty.", kind="conversation_empty")
 
-    payload = build_impersonate_payload(character, persona, convo, messages, connection)
+    payload = build_impersonate_payload(character, persona, convo, messages, connection,
+                                        history_limit=int(settings.get("history_limit") or 0))
     answer = await complete_answer(get_provider(connection), payload)
     text = trim_reply(answer.text, char_name=user_name, user_name=char_name)
     if not text:
