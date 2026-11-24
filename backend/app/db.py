@@ -8,6 +8,7 @@ BEGIN or COMMIT. Before an update that changes an existing database, `evermind.b
 is written beside it.
 """
 
+import logging
 import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -19,6 +20,8 @@ from . import __version__
 from .config import db_path
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
+# Its debug lines carry every value read or written, a service's key among them: never shown.
+logging.getLogger("aiosqlite").setLevel(logging.INFO)
 # Seconds a write waits for another: Python's sqlite3 gives 5, fewer than a busy disk can take.
 BUSY_TIMEOUT_S = 30
 

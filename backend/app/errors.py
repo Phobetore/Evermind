@@ -42,6 +42,16 @@ BRIEF_TOO_LONG = "brief_too_long"
 CARD_TOO_LONG = "card_too_long"
 # The same, where the instructions and the room for a card alone outgrow it, on an empty card.
 CONTEXT_TOO_SMALL = "context_too_small"
+# A service's address changed with no key typed: its key is only ever lent where it was given.
+KEY_NEEDED = "key_needed"
+# A service removed while it still holds AIs, which only a page from before AIs asks for.
+SERVICE_IN_USE = "service_in_use"
+# What only a page opened before the update sends: its message says to reload, in English, as
+# such a page has no sentence of its own for a kind it does not know.
+PAGE_OUTDATED = "page_outdated"
+# A model's server that refused for want of credit (402).
+MODEL_NO_CREDIT = "model_no_credit"
+RELOAD = "Evermind has been updated: reload this page."
 
 _LENGTH_BOUNDS = {"string_too_long": (TEXT_TOO_LONG, "max_length"),
                   "string_too_short": (TEXT_TOO_SHORT, "min_length")}

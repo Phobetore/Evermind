@@ -15,6 +15,7 @@ from app.providers.openai_compat import OpenAICompatProvider
 from app.services import memory_service
 
 from .conftest import send, setup_conversation, sse, within
+from .helpers import set_ai
 from .test_memory import EXTRACTION_JSON, Said, add_facts
 
 
@@ -76,8 +77,7 @@ async def story(client, monkeypatch):
         return server
 
     async def set_connection(**fields):
-        connection = (await client.get("/api/connections")).json()[0]
-        await client.put(f"/api/connections/{connection['id']}", json={**connection, **fields})
+        await set_ai(client, **fields)
 
     async def extract():
         return await client.post(f"/api/conversations/{convo['id']}/memories/extract")
@@ -205,8 +205,7 @@ async def test_an_empty_answer_that_ran_out_of_room_says_so(story):
 async def test_an_automatic_pass_that_only_thought_keeps_why(client, monkeypatch):
     monkeypatch.setattr("app.services.chat_service.get_provider", Said)
     convo = await setup_conversation(client)
-    connection = (await client.get("/api/connections")).json()[0]
-    await client.put(f"/api/connections/{connection['id']}", json={**connection, "max_tokens": 300})
+    await set_ai(client, max_tokens=300)
     server = Server(thinking(5120), thinking(5120))
     monkeypatch.setattr("app.services.memory_service.get_provider", server.provider)
     for n in range(memory_service.MAINTENANCE_EVERY):

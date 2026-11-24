@@ -3,8 +3,8 @@
 The draft is written on a job the server owns, so that a page that goes away, or a phone that
 locks, loses nothing: the page asks how far it has got, and fetches the draft once it has ended.
 A card the model did not finish still gives the fields it did. Nothing is persisted here: the
-draft goes to the editor for the creator to adjust. Uses the requested connection, else the
-default one.
+draft goes to the editor for the creator to adjust. Uses the requested AI, else the default
+one.
 """
 
 import asyncio
@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 
 import aiosqlite
 
+from ..db import _connect
 from ..errors import (
     BRIEF_TOO_LONG,
     CARD_TOO_LONG,
@@ -43,7 +44,9 @@ from ..prompting.text import text_of
 from ..prompting.tokens import estimate_tokens
 from ..providers import get_provider
 from ..providers.base import STOPPED_FOR_LENGTH, Answer, Provider, unwritten
-from ..repositories import connections as connections_repo
+from ..repositories import models as models_repo
+from ..repositories import settings as settings_repo
+from .ai_call import call_for, reply_room
 from .llm_json import describe_answer, parse_llm_json, partial_json
 
 logger = logging.getLogger(__name__)
@@ -69,13 +72,17 @@ def _now() -> float:
     return time.monotonic()
 
 
-async def _resolve_connection(db: aiosqlite.Connection, connection_id: str | None) -> dict:
-    connection = await connections_repo.resolve(db, connection_id)
-    if connection is None:
+async def _resolve_connection(db: aiosqlite.Connection, model_id: str | None) -> dict:
+    # A page from before AIs names a service: its first AI answers.
+    asked = await models_repo.by_any_id(db, model_id)
+    resolved = await models_repo.resolve(db, asked["id"] if asked else None)
+    if resolved is None:
         raise AppError(
             "No LLM connection configured. Add one in Settings → LLM connections.",
             kind=NO_CONNECTION)
-    return connection
+    model, service = resolved
+    # No conversation: the room of the reply length set for every one.
+    return call_for(model, service, room=reply_room(None, await settings_repo.get_all(db)))
 
 
 def _same(text: str) -> str:
@@ -245,7 +252,7 @@ async def start(db: aiosqlite.Connection, request: CardAssistRequest) -> str:
     _forget()
     if job := _joined(request.client_id):
         return job.id
-    connection = await _resolve_connection(db, request.connection_id)
+    connection = await _resolve_connection(db, request.model_id)
     # Asked twice at once: the second has waited for the database while the first began.
     if job := _joined(request.client_id):
         return job.id
@@ -255,7 +262,7 @@ async def start(db: aiosqlite.Connection, request: CardAssistRequest) -> str:
     job = Job(uuid.uuid4().hex, request.client_id, dict(request.existing or {}), _now())
     _jobs[job.id] = job
     _forget()
-    job.task = asyncio.create_task(_run(job, provider, payload))
+    job.task = asyncio.create_task(_run(job, provider, payload, connection))
     return job.id
 
 
@@ -272,7 +279,7 @@ async def _read(job: Job, provider: Provider, payload: PromptPayload) -> None:
                 job.stop_reason = event.stop
 
 
-async def _run(job: Job, provider: Provider, payload: PromptPayload) -> None:
+async def _run(job: Job, provider: Provider, payload: PromptPayload, call: dict) -> None:
     error: BaseException | None = None
     try:
         if not job.stopped:
@@ -293,8 +300,24 @@ async def _run(job: Job, provider: Provider, payload: PromptPayload) -> None:
         except Exception:  # the job ends whatever happens, or whoever waits for it waits forever
             logger.exception("card assistant: a job could not end cleanly")
             job.error = {"error": "The card could not be finished.", "kind": "internal"}
+        if job.thought > 0:
+            await _learn_it_reasons(call)
         job.ended = _now()
         job.finished.set()
+
+
+async def _learn_it_reasons(call: dict) -> None:
+    """The model showed reasoning, however the card ended: its AI's next ceiling leaves room for
+    it. On a connection of its own, as the job outlives its request."""
+    try:
+        db = await _connect()
+        try:
+            await models_repo.learn_reasons(db, call["model_id"], call["model"])
+        finally:
+            await db.close()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("card assistant: what the model showed could not be kept: %s",
+                       type(exc).__name__)
 
 
 def _progress(job: Job) -> dict:

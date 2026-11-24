@@ -18,12 +18,23 @@ async def lifespan(_: FastAPI):
     await gate.end_sessions_if_the_password_changed()
     import asyncio
 
-    from .services import memory_service
+    from .db import connect
+    from .repositories import connections
+    from .services import limits, memory_service
+
+    db = await connect()
+    try:
+        # The release before may have made a service, or moved one, since this one last ran.
+        await connections.name_families(db)
+    finally:
+        await db.close()
     filling = asyncio.create_task(memory_service.fill_vectors())
     yield
     # Ended first, so that it hands no thread new work once the threads are waited for, below.
     filling.cancel()
     await asyncio.wait([filling])
+    # A read of a slow server's list would hold the stop for a minute: what it read is not needed.
+    await limits.drain(cancel=True)
     # A Remember or a consolidation outlives its request, not the server: ended whole, not half-written.
     await memory_service.stop()
     # A task cancelled leaves its thread running: the semantic model loading, a vector being worked

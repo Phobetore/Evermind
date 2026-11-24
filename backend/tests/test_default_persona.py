@@ -11,6 +11,7 @@ from app.providers.base import ProviderEvent
 from app.repositories.base import dumps
 
 from .conftest import FakeProvider, send
+from .helpers import add_model
 
 SETTING = "default_persona_id"
 
@@ -38,11 +39,7 @@ async def marked(client) -> list[str]:
 
 
 async def connect(client):
-    resp = await client.post("/api/connections", json={
-        "name": "Local", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test",
-    })
-    assert resp.status_code == 201, resp.text
+    await add_model(client, base_url="http://localhost:1234/v1", model="test", name="Local")
 
 
 async def start(client, **fields):

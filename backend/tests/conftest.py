@@ -15,7 +15,9 @@ from app.providers import catalog, openai_compat
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import ProviderEvent
 from app.providers.openai_compat import OpenAICompatProvider
-from app.services import card_assistant, memory_service, turns
+from app.services import card_assistant, limits, memory_service, turns
+
+from .helpers import add_model
 
 # A 1x1 image, for the tests that send one.
 PNG = base64.b64decode(
@@ -63,6 +65,15 @@ def _nothing_learned_of_models_by_another_test():
     openai_compat._failed_lists.clear()
     openai_compat._refused.clear()
     memory_service._learned.clear()
+    limits.forget()
+
+
+@pytest.fixture(autouse=True)
+async def _no_read_left_running():
+    # A read of an AI's limits after a reply runs in the background, on the test's database: it
+    # ends before the test's folder goes.
+    yield
+    await limits.drain()
 
 
 def _unreachable(request: httpx.Request) -> httpx.Response:
@@ -143,10 +154,7 @@ class FakeProvider:
 async def setup_conversation(client, greeting="*She stirs.* Hi {{user}}."):
     char = (await client.post("/api/characters", json={"name": "Serana", "greeting": greeting})).json()
     (await client.post("/api/personas", json={"name": "Alex"})).json()
-    (await client.post("/api/connections", json={
-        "name": "Local", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test",
-    })).json()
+    await add_model(client, base_url="http://localhost:1234/v1", model="test", name="Local")
     convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
     return convo
 

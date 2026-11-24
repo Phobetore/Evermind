@@ -14,6 +14,7 @@ from app.providers import complete_answer
 from app.providers.openai_compat import OpenAICompatProvider
 
 from .conftest import PAYLOAD, send, setup_conversation, sse
+from .helpers import set_ai
 
 OPENROUTER = "https://openrouter.ai/api/v1"
 MODEL = "deepseek/deepseek-v4.1-flash"
@@ -282,9 +283,7 @@ async def test_a_caller_that_did_not_ask_is_sent_nothing(clock):
 
 async def test_a_chat_turn_sends_no_reasoning_field(client, monkeypatch, clock):
     convo = await setup_conversation(client)
-    connection = (await client.get("/api/connections")).json()[0]
-    await client.put(f"/api/connections/{connection['id']}",
-                     json={**connection, "base_url": OPENROUTER, "model": MODEL})
+    await set_ai(client, base_url=OPENROUTER, model=MODEL)
     server = OpenRouter(listed(THE_OWNERS))
     monkeypatch.setattr("app.services.chat_service.get_provider", server.provider)
     await send(client, convo["id"])

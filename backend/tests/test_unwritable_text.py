@@ -24,6 +24,7 @@ async def made(client):
         "character": convo["character_id"],
         "persona": (await client.get("/api/personas")).json()[0]["id"],
         "connection": (await client.get("/api/connections")).json()[0]["id"],
+        "model": (await client.get("/api/models")).json()[0]["id"],
         "conversation": convo["id"],
         "message": (await messages_of(client, convo["id"]))[0]["id"],
     }
@@ -41,8 +42,10 @@ ROUTES = [
     ("PUT", "/api/characters/{character}", {"alternate_greetings": [BROKEN]}, ["alternate_greetings"]),
     ("POST", "/api/personas", {"name": "Sam", "description": BROKEN}, ["description"]),
     ("PUT", "/api/personas/{persona}", {"description": BROKEN}, ["description"]),
-    ("POST", "/api/connections", {"name": "Other", "model": BROKEN}, ["model"]),
-    ("PUT", "/api/connections/{connection}", {"name": "Local", "model": BROKEN}, ["model"]),
+    ("POST", "/api/models", {"service": {"provider": "openai-compatible", "base_url": "http://x/v1"},
+                             "models": [{"model": BROKEN}]}, ["models", 0, "model"]),
+    ("PUT", "/api/models/{model}", {"name": BROKEN}, ["name"]),
+    ("PUT", "/api/connections/{connection}", {"name": BROKEN}, ["name"]),
     ("POST", "/api/connections/test", {"name": "Local", "base_url": BROKEN}, ["base_url"]),
     ("PATCH", "/api/conversations/{conversation}", {"title": BROKEN}, ["title"]),
     ("PATCH", "/api/conversations/{conversation}", {"summary": BROKEN}, ["summary"]),
@@ -62,7 +65,7 @@ ROUTES = [
 @pytest.mark.parametrize(("method", "url", "body", "field"), ROUTES)
 async def test_a_text_with_half_of_an_emoji_is_refused_by_name(client, made, method, url, body, field):
     before = [(await client.get(f"/api/{what}")).json()
-              for what in ("characters", "personas", "connections", "settings")]
+              for what in ("characters", "personas", "connections", "models", "settings")]
     filled = json.loads(json.dumps(body).replace("{conversation}", made["conversation"]))
 
     resp = await ask(client, method, url.format(**made), filled)
@@ -70,7 +73,7 @@ async def test_a_text_with_half_of_an_emoji_is_refused_by_name(client, made, met
     assert resp.status_code == 422, resp.text
     assert [error["loc"] for error in resp.json()["detail"]] == [["body", *field]]
     assert [(await client.get(f"/api/{what}")).json()
-            for what in ("characters", "personas", "connections", "settings")] == before
+            for what in ("characters", "personas", "connections", "models", "settings")] == before
 
 
 async def test_nothing_of_the_conversation_changes(client, made):

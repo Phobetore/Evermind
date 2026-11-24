@@ -38,6 +38,7 @@ def register_routers(app: FastAPI) -> None:
         library,
         media,
         memories,
+        models,
         personas,
         settings_router,
     )
@@ -50,6 +51,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(characters.router)
     app.include_router(personas.router)
     app.include_router(connections.router)
+    app.include_router(models.router)
     app.include_router(conversations.router)
     app.include_router(settings_router.router)
     app.include_router(media.router)

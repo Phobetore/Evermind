@@ -13,6 +13,7 @@ from app.providers.base import ProviderError, ProviderEvent
 from app.services import card_assistant
 
 from .conftest import FakeProvider, assist, within
+from .helpers import add_model, cap
 
 CARD = {
     "name": "Nyra",
@@ -87,11 +88,10 @@ def clock(monkeypatch):
     return now
 
 
-async def add_connection(client, **fields):
-    return (await client.post("/api/connections", json={
-        "name": "Mock", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test", **fields,
-    })).json()
+async def add_connection(client, context_size: int = 16384, max_tokens: int | None = None):
+    """An AI as a connection with this window and these max tokens was."""
+    return await add_model(client, base_url="http://localhost:1234/v1", model="test",
+                           context_own=context_size, **cap(max_tokens))
 
 
 async def begin(client, **body) -> str:

@@ -35,14 +35,15 @@ from ..prompting.tokens import estimate_tokens
 from ..providers import Answer, ProviderError, complete_answer, get_provider, max_tokens_sent
 from ..providers.base import STOPPED_FOR_LENGTH, unwritten
 from ..repositories import characters as characters_repo
-from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
 from ..repositories import lore as lore_repo
 from ..repositories import memories as memories_repo
+from ..repositories import models as models_repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
 from ..repositories.base import new_id
-from . import memory_service
+from . import limits, memory_service
+from .ai_call import call_for, for_engine, reply_room
 from .llm_json import describe_answer
 
 logger = logging.getLogger(__name__)
@@ -85,12 +86,20 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
     if not character:
         raise NotFoundError("Character not found.", "character")
     persona = await personas_repo.for_conversation(db, convo)
-    connection = await connections_repo.resolve(db, convo.get("connection_id"))
-    if connection is None:
+    resolved = await models_repo.resolve(db, convo.get("model_id"))
+    if resolved is None:
         raise AppError("No LLM connection configured. Add one in Settings → LLM connections.",
                        kind=NO_CONNECTION)
     settings = await settings_repo.get_all(db)
-    return convo, character, persona, connection, settings
+    model, service = resolved
+    # What the provider sends, and what the engine keeps for the reply, from one place.
+    call = call_for(model, service, room=reply_room(convo, settings))
+    return convo, character, persona, call, settings, (model, service)
+
+
+async def learned_it_reasons(db: aiosqlite.Connection, call: dict) -> None:
+    """A reply showed reasoning: kept on its AI, so that its next ceiling leaves room for it."""
+    await models_repo.learn_reasons(db, call["model_id"], call["model"])
 
 
 def _cut_short(message: dict) -> list[int]:
@@ -108,7 +117,7 @@ def _cut_at_ceiling(message: dict) -> dict[str, int | None]:
 async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict | None:
     """Writes one reply, and says how it ended if it failed or added nothing. A request it cannot
     run raises before anything is saved."""
-    convo, character, persona, connection, settings = await _resolve(db, request.conversation_id)
+    convo, character, persona, call, settings, ai = await _resolve(db, request.conversation_id)
     char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     messages = await convo_repo.list_messages(db, convo["id"])
@@ -183,7 +192,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     def _build(passages=None, fold_leading_assistant=False):
         return build_chat_payload(
             character=character, persona=persona, conversation=convo,
-            messages=history, connection=connection,
+            messages=history, connection=for_engine(call),
             global_instructions=settings.get("global_instructions") or "",
             memories=memories, lore_entries=lore_entries,
             reply_length=settings.get("reply_length") or "medium",
@@ -236,7 +245,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         """Touches no database, so that a stop, which cancels it, cannot land in a write."""
         nonlocal usage, first_token_at, stop, thought
         stop, thought = None, 0
-        async with aclosing(get_provider(connection).stream_chat(payload)) as stream:
+        async with aclosing(get_provider(call).stream_chat(payload)) as stream:
             async for event in stream:
                 if event.type == "done":
                     usage, stop = event.usage, event.stop
@@ -267,7 +276,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         ceilings = {k: v for k, v in (_cut_at_ceiling(target) if target else {}).items()
                     if k != str(index)}
         if at_ceiling:
-            ceilings[str(index)] = max_tokens_sent(connection)
+            # What was sent, never the room the engine kept: an AI that sends none says none.
+            ceilings[str(index)] = max_tokens_sent(call)
         if ceilings:
             meta["ceiling"] = ceilings
         if target:
@@ -310,6 +320,16 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
                 and payload.messages and payload.messages[0]["role"] == "assistant"):
             break
         payload = _build(passages, fold_leading_assistant=True)
+
+    # However the turn ends: a model whose reasoning ate its whole ceiling wrote nothing, and is
+    # the one whose next ceiling must leave room for it.
+    if thought > 0 or "".join(chunks).lstrip().startswith("<think>"):
+        await learned_it_reasons(db, call)
+    if chunks or thought:
+        # What its server says of it now, after a reply rather than in front of one.
+        model, service = ai
+        if why := limits.due(model, service, limits.started_at, after_reply=True):
+            limits.schedule_refresh(model["id"], fresh=why == "loaded")
 
     text = trim_reply("".join(chunks), char_name=char_name, user_name=user_name)
     if error is not None and not isinstance(error, ProviderError):
@@ -357,16 +377,18 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 
 async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Ghost-write the player's next message. Returns {"text": ...}."""
-    convo, character, persona, connection, settings = await _resolve(db, convo_id)
+    convo, character, persona, call, settings, _ = await _resolve(db, convo_id)
     char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     messages = await convo_repo.list_messages(db, convo_id)
     if not messages:
         raise AppError("Nothing to write: the conversation is empty.", kind="conversation_empty")
 
-    payload = build_impersonate_payload(character, persona, convo, messages, connection,
+    payload = build_impersonate_payload(character, persona, convo, messages, for_engine(call),
                                         history_limit=int(settings.get("history_limit") or 0))
-    answer = await complete_answer(get_provider(connection), payload)
+    answer = await complete_answer(get_provider(call), payload)
+    if answer.thought > 0:
+        await learned_it_reasons(db, call)
     text = trim_reply(answer.text, char_name=user_name, user_name=char_name)
     if not text:
         logger.warning("impersonation: empty answer, %s, %d characters of reasoning, stopped with %r",

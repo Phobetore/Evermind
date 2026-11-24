@@ -24,6 +24,7 @@ from .conftest import (
     setup_conversation,
     sse,
 )
+from .helpers import add_model
 
 PROVIDERS = [("openai-compatible", oai_provider), ("anthropic", anth_provider)]
 
@@ -237,14 +238,15 @@ def patch_providers(monkeypatch, make):
     """Every service that talks to a model talks to one built by ``make``."""
     for module in ("chat_service", "card_assistant", "memory_service"):
         monkeypatch.setattr(f"app.services.{module}.get_provider", lambda connection: make())
-    monkeypatch.setattr("app.routers.connections.get_provider", lambda connection: make())
+    for router in ("connections", "models"):
+        monkeypatch.setattr(f"app.routers.{router}.get_provider", lambda connection: make())
 
 
 async def saved_connection(client):
-    return (await client.post("/api/connections", json={
-        "name": "Mock", "provider": "openai-compatible",
-        "base_url": "http://mock/v1", "model": "test-model",
-    })).json()
+    """A saved AI, and its service as a page from before AIs sends it to be tested."""
+    ai = await add_model(client, base_url="http://mock/v1", model="test-model")
+    return {"id": ai["service"]["id"], "name": "Mock", "provider": "openai-compatible",
+            "base_url": "http://mock/v1", "model": "test-model", "ai": ai["id"]}
 
 
 async def test_a_connection_test_names_what_failed(client, monkeypatch):
@@ -295,21 +297,28 @@ async def test_trying_a_saved_connection_as_edited_lends_it_its_key_and_saves_no
         return oai_provider(answer)
 
     monkeypatch.setattr("app.routers.connections.get_provider", provider)
-    saved = (await client.post("/api/connections", json={
-        "name": "Mock", "base_url": "http://mock/v1", "api_key": "sk-kept", "model": "kept",
-    })).json()
+    monkeypatch.setattr("app.routers.models.get_provider", provider)
+    saved = await add_model(client, base_url="http://mock/v1", api_key="sk-kept", model="kept")
 
-    body = (await client.post(f"/api/connections/{action}", json={**saved, "model": "oops"})).json()
+    if action == "test":
+        # A page from before AIs tests its form, which names the model it holds.
+        body = (await client.post("/api/connections/test", json={
+            "id": saved["service"]["id"], "name": "Mock", "base_url": "http://mock/v1",
+            "model": "oops"})).json()
+    else:
+        body = (await client.post(f"/api/models/{saved['id']}/benchmark")).json()
 
     assert body["ok"] is True
-    assert (tried["api_key"], tried["model"]) == ("sk-kept", "oops")
-    assert (await client.get("/api/connections")).json()[0]["model"] == "kept"
+    assert tried["api_key"] == "sk-kept"
+    if action == "benchmark":
+        assert tried["model"] == "kept"
+    assert (await client.get("/api/models")).json()[0]["model"] == "kept"
 
 
 async def test_a_benchmark_names_what_failed(client, monkeypatch):
     patch_providers(monkeypatch, lambda: oai_provider(answering(429, {"error": "slow down"})))
     connection = await saved_connection(client)
-    resp = await client.post("/api/connections/benchmark", json=connection)
+    resp = await client.post(f"/api/models/{connection['ai']}/benchmark")
     assert resp.status_code == 502
     assert resp.json() == {"error": "slow down", "kind": "model_rate_limited"}
 
@@ -320,7 +329,7 @@ async def test_a_benchmark_that_produced_nothing_says_so(client, monkeypatch):
 
     patch_providers(monkeypatch, lambda: oai_provider(handler))
     connection = await saved_connection(client)
-    resp = await client.post("/api/connections/benchmark", json=connection)
+    resp = await client.post(f"/api/models/{connection['ai']}/benchmark")
     assert resp.status_code == 502
     assert resp.json() == {"error": "No text generated.", "kind": "model_no_text"}
 

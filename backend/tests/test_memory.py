@@ -17,6 +17,7 @@ from .conftest import (
     waiting_provider,
     within,
 )
+from .helpers import set_ai
 
 EXTRACTION_JSON = json.dumps({
     "facts": [
@@ -191,8 +192,7 @@ async def test_a_pass_asks_for_room_to_answer_whatever_the_connection_allows(cli
     """A reply cut at a few hundred tokens leaves JSON that cannot be read, and every pass
     after it fails the same way."""
     convo = await setup_conversation(client)
-    connection = (await client.get("/api/connections")).json()[0]
-    await client.put(f"/api/connections/{connection['id']}", json={**connection, "max_tokens": 300})
+    await set_ai(client, max_tokens=300)
     await send(client, convo["id"])
     fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
                             ProviderEvent(type="done")]
@@ -205,8 +205,7 @@ async def test_a_pass_asks_for_room_to_answer_whatever_the_connection_allows(cli
 async def test_a_pass_sets_no_cap_on_a_connection_that_has_none(client, fake_provider):
     """Some providers refuse the field, and chat works without it."""
     convo = await setup_conversation(client)
-    connection = (await client.get("/api/connections")).json()[0]
-    await client.put(f"/api/connections/{connection['id']}", json={**connection, "max_tokens": None})
+    await set_ai(client, max_tokens=None)
     await send(client, convo["id"])
     fake_provider.script = [ProviderEvent(type="delta", text=EXTRACTION_JSON),
                             ProviderEvent(type="done")]

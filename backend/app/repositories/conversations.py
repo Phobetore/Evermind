@@ -22,6 +22,8 @@ def message_to_out(row) -> dict:
 
 def convo_to_out(row) -> dict:
     out = dict(row)
+    # Frozen at the update, for the release before: a conversation names its AI.
+    out.pop("connection_id", None)
     wallpaper = out.pop("wallpaper_path", None)
     out["wallpaper_url"] = f"api/media/{wallpaper}" if wallpaper else None
     return out
@@ -31,10 +33,10 @@ async def create(db: aiosqlite.Connection, fields: dict) -> dict | None:
     convo_id = new_id()
     now = now_iso()
     await db.execute(
-        "INSERT INTO conversations (id, character_id, persona_id, connection_id, title, summary,"
+        "INSERT INTO conversations (id, character_id, persona_id, model_id, title, summary,"
         " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (convo_id, fields["character_id"], fields.get("persona_id"),
-         fields.get("connection_id"), fields.get("title") or "", "", now, now),
+         fields.get("model_id"), fields.get("title") or "", "", now, now),
     )
     await db.commit()
     return await get(db, convo_id)
@@ -113,10 +115,14 @@ async def update(db: aiosqlite.Connection, convo_id: str, fields: dict) -> dict 
     if fields.get("summary") is not None:
         await _type_summary(db, convo_id, fields["summary"], fields.get("summary_was"))
     sets, params = [], []
-    for key in ("title", "author_note", "connection_id", "wallpaper_path"):
+    for key in ("title", "author_note", "model_id", "wallpaper_path"):
         if key in fields and fields[key] is not None:
             sets.append(f"{key} = ?")
             params.append(fields[key])
+    # Another AI chosen, or the line saying one was removed seen: the line goes.
+    if fields.get("model_id") is not None or fields.get("model_lost_seen"):
+        sets.append("model_lost = ?")
+        params.append(None)
     async with write_transaction(db):
         # Read again where it is written: what the request changes depends on what is there.
         row = await (await db.execute(_BACKDROP, (convo_id,))).fetchone()
@@ -254,12 +260,12 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
         now = now_iso()
         # A branch is the same scene carried on differently: its directive and backdrop follow.
         await db.execute(
-            "INSERT INTO conversations (id, character_id, persona_id, connection_id, title,"
+            "INSERT INTO conversations (id, character_id, persona_id, model_id, title,"
             " summary, author_note, memory_position, forked_from, wallpaper_path,"
             " wallpaper_opacity, backdrop, backdrop_strength, created_at, updated_at)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (branch_id, source["character_id"], source["persona_id"],
-             source["connection_id"], source["title"], source["summary"],
+             source["model_id"], source["title"], source["summary"],
              source["author_note"] or "", source["memory_position"],
              source["id"], source["wallpaper_path"],
              source["wallpaper_opacity"], source["backdrop"], source["backdrop_strength"], now, now),

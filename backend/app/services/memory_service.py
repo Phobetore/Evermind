@@ -41,12 +41,13 @@ from ..prompting.payloads import (
 from ..providers import Answer, ProviderError, complete_answer, get_provider
 from ..providers.base import NO_TEXT, REFUSED_AS_WRITTEN, STOPPED_FOR_LENGTH, unwritten
 from ..repositories import characters as characters_repo
-from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
 from ..repositories import memories as memories_repo
+from ..repositories import models as models_repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
 from . import turns as chat_turns
+from .ai_call import call_for, reply_room
 from .llm_json import describe_answer, parse_llm_json
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ _tasks: set[asyncio.Task] = set()
 # Refusals that say nothing failed in the memory: another operation ran, what it read changed, or
 # there was too little to merge. Whoever asked is told; nothing is kept of them.
 _NOT_FAILURES = (MEMORY_BUSY, CONVERSATION_CHANGED, FACTS_CHANGED, TOO_FEW_FACTS, NOT_FOUND)
-# The max_tokens a second ask read with, by connection id and model: where the next pass starts,
+# The max_tokens a second ask read with, by AI id and model: where the next pass starts,
 # so that a model that needs more room pays one call, not two. Lost at restart, on purpose.
 _learned: dict[tuple[str, str], int] = {}
 
@@ -241,14 +242,24 @@ async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
 
 
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
-    connection = await connections_repo.resolve(db, convo.get("connection_id"))
-    if connection is None:
+    resolved = await models_repo.resolve(db, convo.get("model_id"))
+    if resolved is None:
         raise AppError("No LLM connection configured.", kind=NO_CONNECTION)
+    model, service = resolved
+    settings = await settings_repo.get_all(db)
+    # Its prompts are not the engine's: the provider is given the call itself.
+    call = call_for(model, service, room=reply_room(convo, settings))
     # A pass writes JSON, which reasoning does not improve, and every token of it is paid for.
-    connection = {**connection, "least_reasoning": True}
-    if connection.get("max_tokens"):
-        connection = {**connection, "max_tokens": max(connection["max_tokens"], MIN_ANSWER_TOKENS)}
-    return connection
+    call = {**call, "least_reasoning": True}
+    if call.get("max_tokens"):
+        call = {**call, "max_tokens": max(call["max_tokens"], MIN_ANSWER_TOKENS)}
+    return call
+
+
+async def _learn_if_it_thought(db: aiosqlite.Connection, call: dict, answer: Answer) -> None:
+    """An answer that came with reasoning says its AI reasons, whether or not it reads."""
+    if answer.thought > 0:
+        await models_repo.learn_reasons(db, call["model_id"], call["model"])
 
 
 async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], bool],
@@ -260,7 +271,8 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
     ask gives it more, never past what the context leaves, and the next pass starts there. The
     answer is returned whether it reads or not: ``_unreadable`` says why it did not."""
     own = connection.get("max_tokens") or 0
-    key = (connection.get("id") or "", connection.get("model") or "")
+    # Per AI: two AIs of one model on two services each learn their own room.
+    key = (connection.get("model_id") or "", connection.get("model") or "")
     left = None
     if context := connection.get("context_size"):
         left = context - prompt_tokens(payload) - CONTEXT_MARGIN
@@ -349,6 +361,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
 
     what = "consolidation"
     answer = await _ask(connection, payload, lambda text: merge(text) is not None, what)
+    await _learn_if_it_thought(db, connection, answer)
     merged = merge(answer.text)
     if merged is None:
         raise _unreadable(answer, what, "Unreadable consolidation — try again.")
@@ -429,6 +442,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
 
     what = "memory extraction"
     answer = await _ask(connection, payload, lambda text: parse_llm_json(text) is not None, what)
+    await _learn_if_it_thought(db, connection, answer)
     parsed = parse_llm_json(answer.text)
     if parsed is None:
         raise _unreadable(answer, what, "Unreadable memory response (JSON expected).")

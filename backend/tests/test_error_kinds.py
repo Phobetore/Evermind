@@ -11,6 +11,7 @@ import app as app_package
 from app.providers.base import ProviderError, ProviderEvent
 
 from .conftest import FakeProvider, assist, send, setup_conversation
+from .helpers import add_model
 
 
 @pytest.fixture()
@@ -24,10 +25,7 @@ def provider(monkeypatch):
 
 
 async def add_connection(client):
-    return (await client.post("/api/connections", json={
-        "name": "Mock", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test",
-    })).json()
+    return await add_model(client, base_url="http://localhost:1234/v1", model="test")
 
 
 APP_DIR = Path(app_package.__file__).parent
@@ -68,7 +66,8 @@ NOT_FOUND = [
     ("patch", "/api/messages/nope", {"content": "x"}, "Message not found.", "message"),
     ("post", "/api/messages/nope/branch", None, "Message not found.", "message"),
     ("put", "/api/personas/nope", {"name": "x"}, "Persona not found.", "persona"),
-    ("delete", "/api/connections/nope", None, "Connection not found.", "connection"),
+    ("delete", "/api/connections/nope", None, "Service not found.", "connection"),
+    ("delete", "/api/models/nope", None, "AI not found.", "model"),
     ("patch", "/api/memories/nope", {"is_pinned": True}, "Fact not found.", "fact"),
     ("get", "/api/library/nope.json/avatar", None, "No illustration for this card.",
      "illustration"),

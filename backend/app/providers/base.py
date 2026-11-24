@@ -9,7 +9,7 @@ from typing import Literal
 
 import httpx
 
-from ..errors import MODEL_ERROR, MODEL_ONLY_THOUGHT, MODEL_WITHHELD, AppError
+from ..errors import MODEL_ERROR, MODEL_NO_CREDIT, MODEL_ONLY_THOUGHT, MODEL_WITHHELD, AppError
 from ..prompting.engine import PromptPayload
 
 # Local generation can be slow: generous read timeout, snappy connect timeout.
@@ -156,7 +156,8 @@ def _refusal(status: int, body: bytes, api_key: str | None = None) -> ProviderEr
     except (ValueError, RecursionError):
         # Not JSON, or nested deeper than the parser follows: the status alone.
         words = ""
-    kind = {401: AUTH_REFUSED, 404: MODEL_NOT_FOUND, 429: RATE_LIMITED}.get(status, MODEL_ERROR)
+    kind = {401: AUTH_REFUSED, 402: MODEL_NO_CREDIT, 404: MODEL_NOT_FOUND,
+            429: RATE_LIMITED}.get(status, MODEL_ERROR)
     return ProviderError(words or f"HTTP {status}", kind, status)
 
 

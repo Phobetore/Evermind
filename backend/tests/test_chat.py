@@ -6,6 +6,7 @@ from app.providers.base import ProviderError, ProviderEvent
 from app.services import turns
 
 from .conftest import FakeProvider, messages_of, send, setup_conversation
+from .helpers import set_ai
 
 
 @pytest.fixture()
@@ -226,9 +227,7 @@ async def test_impersonate_prompt_holds_the_persona_and_the_story_so_far(client,
 async def test_impersonate_gives_no_share_of_the_chat_to_the_facts(client, fake_provider):
     """The facts are not in the prompt that ghost-writes the message: they take none of its window."""
     convo = await setup_conversation(client)
-    connection = (await client.get("/api/connections")).json()[0]
-    await client.put(f"/api/connections/{connection['id']}",
-                     json={**connection, "context_size": 2048, "max_tokens": 16})
+    await set_ai(client, context_size=2048, max_tokens=16)
     for _ in range(4):
         fake_provider.script = [ProviderEvent(type="delta", text="word " * 60),
                                 ProviderEvent(type="done")]
