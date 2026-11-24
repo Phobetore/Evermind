@@ -193,8 +193,11 @@ test.describe("adding AIs", () => {
     await search.fill("batch");
     await expect(box.getByText('No model matches "batch".')).toBeVisible();
 
-    // Two touches before the first is answered send one request.
-    await box.getByRole("button", { name: "Add 3 AIs" }).dblclick();
+    // Two touches in one frame, before the button is drawn disabled, send one request.
+    await box.getByRole("button", { name: "Add 3 AIs" }).evaluate((button: HTMLElement) => {
+      button.click();
+      button.click();
+    });
     await expect(box.getByText("3 AIs added")).toBeVisible();
     expect(adds).toBe(1);
     expect((await aisOn(request, "/many/")).map((ai) => ai.model).sort()).toEqual([eclair.id, last.id, "zz-absent"].sort());
