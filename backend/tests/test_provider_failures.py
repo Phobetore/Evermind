@@ -88,6 +88,57 @@ async def test_the_servers_words_are_found_where_it_puts_them(body):
     assert (await failure_of(reply, oai_provider(answering(500, body)))).message == "Model not loaded."
 
 
+def routed(**metadata) -> dict:
+    """What a router answers when the host it sent the request to failed it."""
+    return {"error": {"code": 502, "message": "Provider returned error", "metadata": metadata}}
+
+
+@pytest.mark.parametrize(("metadata", "words"), [
+    ({"raw": "upstream connect error", "provider_name": "Parasail"},
+     "Provider returned error (Parasail: upstream connect error)"),
+    ({"provider_name": "Parasail"}, "Provider returned error (Parasail)"),
+    ({"raw": "upstream connect error"}, "Provider returned error (upstream connect error)"),
+    ({"raw": {"error": {"message": "Model is overloaded"}}, "provider_name": "Parasail"},
+     "Provider returned error (Parasail: Model is overloaded)"),
+    ({"raw": {"message": "Model is overloaded"}, "provider_name": "Parasail"},
+     "Provider returned error (Parasail: Model is overloaded)"),
+    ({"raw": {"detail": "busy"}, "provider_name": "Parasail"},
+     'Provider returned error (Parasail: {"detail": "busy"})'),
+    ({"raw": '{"error": {"message": "Model is overloaded"}}', "provider_name": "Parasail"},
+     "Provider returned error (Parasail: Model is overloaded)"),
+    ({"raw": "", "provider_name": ""}, "Provider returned error"),
+    ({}, "Provider returned error"),
+], ids=["name-and-words", "name", "words", "object-error", "object-message", "object-json",
+        "json-in-a-string", "empty", "no-metadata"])
+async def test_a_router_names_the_host_that_failed_and_what_it_said(metadata, words):
+    """A router's own words say only that a host failed: which host, and what it said, tell a
+    host that is down from a request it refused."""
+    error = await failure_of(reply, oai_provider(answering(502, routed(**metadata))))
+    assert (error.kind, error.message) == ("model_error", words)
+
+
+async def test_what_a_host_said_stays_whole_and_within_the_words_kept():
+    long = await failure_of(reply, oai_provider(answering(502, routed(
+        raw="x" * 1000, provider_name="Parasail"))))
+    assert long.message.startswith("Provider returned error (Parasail: xxx")
+    assert long.message.endswith("x)")
+    assert len(long.message) == 300
+
+    # A half of a character, escaped in the JSON as a server may send it.
+    body = json.dumps(routed(raw="busy \ud83d", provider_name="Parasail")).encode()
+    half = await failure_of(reply, oai_provider(lambda _: httpx.Response(502, content=body)))
+    assert half.message == "Provider returned error (Parasail: busy �)"
+
+
+@pytest.mark.parametrize(("make", "body"), [
+    (oai_provider, sse([json.dumps(routed(raw="busy", provider_name="Parasail")), "[DONE]"])),
+    (anth_provider, f"data: {json.dumps({'type': 'error', **routed(raw='busy', provider_name='Parasail')})}\n\n".encode()),
+], ids=["openai", "anthropic"])
+async def test_a_host_that_fails_inside_a_stream_is_named_too(make, body):
+    error = await failure_of(reply, make(lambda _: httpx.Response(200, content=body)))
+    assert error.message == "Provider returned error (Parasail: busy)"
+
+
 @pytest.mark.parametrize("content", [b"", b"<html><body><h1>502 Bad Gateway</h1></body></html>"])
 async def test_an_error_status_without_words_says_its_status(content):
     def handler(_: httpx.Request) -> httpx.Response:
