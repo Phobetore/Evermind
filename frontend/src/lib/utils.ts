@@ -119,6 +119,10 @@ export function newId(): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+/** A pointing device that hovers, which in practice means a real keyboard is
+ *  attached too. Read at the moment it matters rather than remembered. */
+export const hasKeyboard = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
 /** Whether the focus is on the page itself, as when what held it has gone: a keyboard is then nowhere. */
 export const nothingFocused = () => !document.activeElement || document.activeElement === document.body;
 

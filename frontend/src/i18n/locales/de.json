@@ -221,6 +221,22 @@
       "more": "Sprechen, erzählen, außerhalb der Rolle oder für mich schreiben",
       "penLabel": "Für mich schreiben"
     },
+    "ai": {
+      "chip": "KI: {name}. Ändern.",
+      "addOne": "Eine KI hinzufügen",
+      "sheetTitle": "Welche KI antwortet?",
+      "sheetHint": "Nur für diese Unterhaltung.",
+      "capped": "{name} behält eine Obergrenze von {tokens:grouped} Tokens pro Antwort, in all ihren Unterhaltungen: Lange Antworten würden abgeschnitten.",
+      "cappedOther": "Antworten werden bei {tokens:grouped} Tokens abgeschnitten, solange ihre Obergrenze nicht aufgehoben ist.",
+      "otherModel": "Anderes Modell…",
+      "manage": "Meine KIs verwalten",
+      "switched": "{name} antwortet ab jetzt.",
+      "redo": "Letzte Antwort neu schreiben",
+      "redone": "Letzte Antwort von {name} neu geschrieben. Die alte bleibt daneben.",
+      "lost": "{lost} wurde aus deinen KIs entfernt: {name} antwortet an ihrer Stelle.",
+      "lostNone": "{lost} wurde aus deinen KIs entfernt, und es ist keine mehr übrig.",
+      "seen": "Verstanden"
+    },
     "message": {
       "youFallback": "Du",
       "modeBadge": {
@@ -249,8 +265,6 @@
       "kindScenario": "Szenario",
       "kindCharacter": "Charakter",
       "youArePlaying": "Du spielst als",
-      "modelLabel": "Modell für diese Unterhaltung",
-      "chooseModelOption": "Modell wählen",
       "directive": {
         "title": "Szenen-Anweisung",
         "description": "Eine dauerhafte Anweisung, an die die KI bei jeder Antwort erinnert wird. Der stärkste Hebel, um einen hartnäckigen Tick zu korrigieren („beende immer deine Sätze“, „variiere deine Formulierungen“, „bleib explizit“…).",

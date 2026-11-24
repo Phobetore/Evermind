@@ -1,5 +1,4 @@
 import type { ConversationBackdrop } from "@/components/chat/useConversationBackdrop";
-import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { PlainText } from "@/components/ui/PlainText";
 import { data, DataError } from "@/data";
@@ -10,13 +9,13 @@ import { backdropOf, useDisplay } from "@/lib/display";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS } from "@/lib/useTurn";
 import { cardText, smallPortrait } from "@/lib/utils";
-import type { Ai, Backdrop, Conversation, Memory, Persona } from "@/types";
+import type { Backdrop, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, RotateCcw, SlidersHorizontal, Type, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type SetStateAction } from "react";
 import { Link } from "react-router";
 
-type Where = "connection" | "directive" | "summary" | "memory";
+type Where = "directive" | "summary" | "memory";
 type Operation = NonNullable<Conversation["memory_operation"]>;
 
 /** The operation a read of the conversation says is under way, or null; a server that says one
@@ -52,7 +51,6 @@ export function ChatSidePanel({
 }) {
   const t = useT();
   const character = conversation.character!;
-  const [ais, setAis] = useState<Ai[]>([]);
   // null unless typing: the box shows what the conversation holds. `over` is what it was typed over.
   const [summaryDraft, setSummaryDraft] = useState<{ text: string; over: string } | null>(null);
   const [directiveDraft, setDirectiveDraft] = useState<string | null>(null);
@@ -143,10 +141,6 @@ export function ChatSidePanel({
     if (failed) setWallpaperError(describeError(failed, t, t("chat.wallpaper.failed")));
   }
 
-  // Caught: offline it rejects, and an unhandled rejection is noise in the console.
-  useEffect(() => {
-    data.connections?.models.list().then(setAis).catch(() => {});
-  }, [conversation.id]);
   useEffect(() => {
     readFacts();
   }, [readFacts, storyCuts]);
@@ -368,18 +362,6 @@ export function ChatSidePanel({
     }
   }
 
-  async function changeAi(aiId: string) {
-    fail("connection", null);
-    try {
-      await data.conversations.update(conversation.id, { model_id: aiId });
-    } catch (e) {
-      fail("connection", describeError(e, t));
-      return;
-    }
-    // Another AI chosen: the line saying one was removed goes with it, as on the server.
-    onConversationChange({ model_id: aiId, model_lost: null });
-  }
-
   async function saveSummary() {
     fail("summary", null);
     try {
@@ -437,26 +419,6 @@ export function ChatSidePanel({
         <div className="break-words text-sm text-mist">
           {t("chat.panel.youArePlaying")} <span className="font-display font-semibold text-parchment-dim">{persona.name}</span>
         </div>
-      )}
-
-      {data.connections && (
-        <Field label={t("chat.panel.modelLabel")}>
-          <select
-            className="field"
-            value={conversation.model_id ?? ""}
-            onChange={(e) => changeAi(e.target.value)}
-          >
-            <option value="" disabled>
-              {t("chat.panel.chooseModelOption")}
-            </option>
-            {ais.map((ai) => (
-              <option key={ai.id} value={ai.id}>
-                {ai.name}
-              </option>
-            ))}
-          </select>
-          {errors.connection && <p className="mt-1.5 break-words text-xs text-blood">{errors.connection}</p>}
-        </Field>
       )}
 
       {/* What the text box understands: only what this app renders or does. */}

@@ -5,6 +5,8 @@ import {
   type Hit,
   type Searchable,
   ageLine,
+  answering,
+  cappedUnder,
   cheapestKey,
   freeOnly,
   isNew,
@@ -418,5 +420,36 @@ describe("what is said of a figure typed above what the server says", () => {
     expect(warningsOf(ai({ reply_cap: { mode: "fixed", tokens: 16_384 - 512 } }))).toEqual([]);
     // Only a ceiling of the person's own: Evermind's never says it.
     expect(warningsOf(ai({ output_read: 1, reply_cap: { mode: "auto", tokens: null } }))).toEqual([]);
+  });
+});
+
+describe("the ai a conversation shows under its input", () => {
+  const first = ai({ id: "a", is_default: true });
+  const second = ai({ id: "b" });
+
+  test("the one it names", () => {
+    expect(answering("b", [first, second])?.id).toBe("b");
+  });
+
+  test("none named, or one no longer listed: the first, the default, as the server answers with", () => {
+    expect(answering(null, [first, second])?.id).toBe("a");
+    expect(answering("gone", [first, second])?.id).toBe("a");
+  });
+
+  test("no ai at all", () => {
+    expect(answering(null, [])).toBeNull();
+    expect(answering("b", [])).toBeNull();
+  });
+});
+
+describe("a ceiling of its own under the room a reply needs", () => {
+  test("a fixed ceiling below the room is said with its figure", () => {
+    expect(cappedUnder(ai({ reply_cap: { mode: "fixed", tokens: 1024 } }), 2048)).toBe(1024);
+  });
+
+  test("one at the room or above, Evermind's own, or none sent, is not", () => {
+    expect(cappedUnder(ai({ reply_cap: { mode: "fixed", tokens: 2048 } }), 2048)).toBeNull();
+    expect(cappedUnder(ai({ reply_cap: { mode: "auto", tokens: null } }), 2048)).toBeNull();
+    expect(cappedUnder(ai({ reply_cap: { mode: "unsent", tokens: null } }), 2048)).toBeNull();
   });
 });

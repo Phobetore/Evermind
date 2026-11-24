@@ -6,13 +6,10 @@ import { loadDraft, openBox, saveDraft, type MessageMode } from "@/lib/drafts";
 import { describeError, isAdvice } from "@/lib/errors";
 import { oneLine } from "@/lib/oneLine";
 import { onItsWay } from "@/lib/useTurn";
+import { hasKeyboard } from "@/lib/utils";
 import { clsx } from "clsx";
 import { BookOpenText, Loader2, Megaphone, MessageCircle, PenLine, Plus, Send, Square } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-
-/** A pointing device that hovers, which in practice means a real keyboard is
- *  attached too. Read at the moment of the keypress rather than remembered. */
-const hasKeyboard = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 /** The most lines the box grows to before its text scrolls in it. */
 const LINES = 6;
@@ -65,6 +62,9 @@ export function ChatInput({
   busy,
   characterName,
   stopRef,
+  say,
+  above,
+  status,
 }: {
   conversationId: string;
   /** Settles at the server's answer, which takes the message out of whichever box shows it, or at patience's end. */
@@ -73,6 +73,12 @@ export function ChatInput({
   busy: boolean;
   characterName: string;
   stopRef?: React.Ref<HTMLButtonElement>;
+  /** Says something in passing, over the box: a draft come back, the pen failing. */
+  say: (text: string) => void;
+  /** Lines the conversation shows over the box, out of the story that scrolls. */
+  above?: React.ReactNode;
+  /** The line under the box. */
+  status: React.ReactNode;
 }) {
   const t = useT();
   // The page is keyed by conversation: the unsent draft is read once, as the input appears.
@@ -82,18 +88,15 @@ export function ChatInput({
   const [onTheWay] = useState(() => onItsWay(conversationId));
   const [sending, setSending] = useState(onTheWay !== undefined);
   const [ghostwriting, setGhostwriting] = useState(false);
-  const [hint, setHint] = useState<string | null>(null);
-  const hintFades = useRef<ReturnType<typeof setTimeout>>(undefined);
-  // Advice does not fade, so it is cleared when a turn starts, whoever started it.
-  const [hintIsAdvice, setHintIsAdvice] = useState(false);
-  if (busy && hintIsAdvice) {
-    setHint(null);
-    setHintIsAdvice(false);
-  }
+  // The pen's advice on what to change, which takes reading: it stays under the box until the next
+  // try or the next turn, whoever starts it, where anything else is only said in passing.
+  const [advice, setAdvice] = useState<string | null>(null);
+  if (busy && advice !== null) setAdvice(null);
   // Stays until the next attempt, rather than fading: something has to be
   // switched on before trying again is worth anything.
   const [silent, setSilent] = useState(false);
-  const [restored, setRestored] = useState(value !== "");
+  // Counts the drafts that came back, each said once: the one read as the box appears, then any given back to it.
+  const [restored, setRestored] = useState(value !== "" ? 1 : 0);
   const ref = useRef<HTMLTextAreaElement>(null);
   const held = useRef({ value, mode });
   // The pen's last suggestion, which pressing it again replaces while it is as written.
@@ -110,7 +113,7 @@ export function ChatInput({
         held.current = { value: text, mode: nextMode };
         setValue(text);
         setMode(nextMode);
-        setRestored(text.trim() !== "");
+        if (text.trim() !== "") setRestored((n) => n + 1);
       },
     }),
     [conversationId],
@@ -201,12 +204,10 @@ export function ChatInput({
     return () => document.removeEventListener("pointerdown", away);
   }, [folded]);
 
-  // The notice that a draft came back, for a few seconds.
+  // That a draft came back, said in passing.
   useEffect(() => {
-    if (!restored) return;
-    const timer = setTimeout(() => setRestored(false), 4000);
-    return () => clearTimeout(timer);
-  }, [restored]);
+    if (restored > 0) say(t("chat.input.draftRestored"));
+  }, [restored, say, t]);
 
   /** Kept as it is typed: a phone can drop the page at any moment. */
   function change(text: string) {
@@ -220,8 +221,7 @@ export function ChatInput({
     // The reply about to be asked for reports its own silence, in the conversation: one notice at a time.
     setSilent(false);
     setFolded(false);
-    setHint(null);
-    setHintIsAdvice(false);
+    setAdvice(null);
     change(content);
     suggested.current = ""; // sent, it is the person's message, refused or not
     setSending(true);
@@ -232,9 +232,7 @@ export function ChatInput({
   async function ghostwrite() {
     if (busy || sending || ghostwriting) return;
     setGhostwriting(true);
-    clearTimeout(hintFades.current);
-    setHint(null);
-    setHintIsAdvice(false);
+    setAdvice(null);
     setSilent(false);
     try {
       const result = await data.turns.impersonate(conversationId);
@@ -249,10 +247,9 @@ export function ChatInput({
       if (e instanceof DataError && e.kind === "unreachable") {
         setSilent(true);
       } else {
-        setHint(describeError(e, t, t("chat.input.ghostwriteError")));
-        // Advice on what to change stays until the next try or message: it takes reading.
-        setHintIsAdvice(isAdvice(e));
-        if (!isAdvice(e)) hintFades.current = setTimeout(() => setHint(null), 4000);
+        const said = describeError(e, t, t("chat.input.ghostwriteError"));
+        if (isAdvice(e)) setAdvice(said);
+        else say(said);
       }
     }
     setGhostwriting(false);
@@ -268,6 +265,7 @@ export function ChatInput({
       className="@container border-t border-ink-700 bg-ink-900 px-4 py-3 md:bg-ink-900/80 md:backdrop-blur"
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))", "--input-scale": scale } as React.CSSProperties}
     >
+      {above}
       {/* Right above the box, which is where you were looking when you asked. */}
       {silent && (
         <div className="mb-2.5">
@@ -387,12 +385,11 @@ export function ChatInput({
           </button>
         )}
       </div>
-      <p data-input-hint className="mx-auto mt-1.5 max-w-3xl text-center text-[0.7rem] text-mist-dim">
-        {hint ??
-          (restored
-            ? t("chat.input.draftRestored")
-            : t(hasKeyboard() ? "chat.input.hintDefault" : "chat.input.hintTouch"))}
+      {/* A line of its own, between the box and the line under it, while there is advice. */}
+      <p data-input-hint className="mx-auto mt-1.5 max-w-3xl text-center text-[0.7rem] text-mist-dim empty:hidden">
+        {advice}
       </p>
+      {status}
     </div>
   );
 }

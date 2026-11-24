@@ -221,6 +221,22 @@
       "more": "Say, narrate, out of character, or write mine for me",
       "penLabel": "Write mine for me"
     },
+    "ai": {
+      "chip": "AI: {name}. Change.",
+      "addOne": "Add an AI",
+      "sheetTitle": "Which AI answers?",
+      "sheetHint": "For this conversation only.",
+      "capped": "{name} keeps a ceiling of {tokens:grouped} tokens per reply, in all its conversations: long replies would be cut short.",
+      "cappedOther": "Replies cut at {tokens:grouped} tokens as long as its ceiling is not lifted.",
+      "otherModel": "Other model…",
+      "manage": "Manage my AIs",
+      "switched": "{name} answers from now on.",
+      "redo": "Redo the last reply",
+      "redone": "Last reply redone by {name}. The old one stays beside it.",
+      "lost": "{lost} was removed from your AIs: {name} answers in its place.",
+      "lostNone": "{lost} was removed from your AIs, and none is left.",
+      "seen": "Got it"
+    },
     "message": {
       "youFallback": "You",
       "modeBadge": {
@@ -249,8 +265,6 @@
       "kindScenario": "Scenario",
       "kindCharacter": "Character",
       "youArePlaying": "You are playing as",
-      "modelLabel": "Model for this conversation",
-      "chooseModelOption": "Choose a model",
       "directive": {
         "title": "Scene directive",
         "description": "A standing instruction reminded to the AI on every reply. It's the strongest lever for correcting a stubborn tic (\"always finish your sentences\", \"vary your phrasing\", \"stay explicit\"…).",

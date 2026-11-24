@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { MOCK_ROOT, forgetServices, routeServiceTo } from "./fixtures";
+import { MOCK_ROOT, forgetServices, makeConversation, routeServiceTo } from "./fixtures";
 
 /**
  * Adding AIs from Settings. The chips name the real services' addresses: OpenRouter's is sent to
@@ -625,6 +625,40 @@ test.describe("adding AIs", () => {
       await (await request.get(`${API}/api/models`)).json(),
       await (await request.get(`${API}/api/connections`)).json(),
     ]).toEqual(before);
+    const kept = await page.evaluate(() => JSON.stringify([{ ...localStorage }, { ...sessionStorage }]));
+    expect(kept).not.toContain("sk-e2e-half-way");
+  });
+
+  test("leaving the flow half-way from a conversation changes nothing", async ({ page, request }) => {
+    await forgetServices(request, "/many/");
+    const [first, second] = await relayed(request);
+    const convo = await makeConversation(request);
+    const before = [
+      await (await request.get(`${API}/api/models`)).json(),
+      await (await request.get(`${API}/api/connections`)).json(),
+      (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id,
+    ];
+    await routeServiceTo(page, OPENROUTER, MANY);
+
+    await page.goto(`/#/chat/${convo.id}`);
+    const aiChip = page.locator("[data-status-row]").getByRole("button").first();
+    await expect(aiChip).toHaveAccessibleName("AI: e2e. Change.");
+    await aiChip.click();
+    await page.getByRole("dialog", { name: "Which AI answers?" }).getByRole("button", { name: "Other model…" }).click();
+    await chip(page, "OpenRouter");
+    await withKey(page, "sk-e2e-half-way");
+    await row(page, first.id).getByRole("checkbox").check();
+    await row(page, second.id).getByRole("checkbox").check();
+    await expect(dialog(page).getByRole("button", { name: /will answer here/ })).toBeVisible();
+    await dialog(page).getByRole("button", { name: "Close" }).click();
+    await expect(dialog(page)).toHaveCount(0);
+
+    expect([
+      await (await request.get(`${API}/api/models`)).json(),
+      await (await request.get(`${API}/api/connections`)).json(),
+      (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id,
+    ]).toEqual(before);
+    await expect(aiChip).toHaveAccessibleName("AI: e2e. Change.");
     const kept = await page.evaluate(() => JSON.stringify([{ ...localStorage }, { ...sessionStorage }]));
     expect(kept).not.toContain("sk-e2e-half-way");
   });

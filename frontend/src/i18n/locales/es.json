@@ -221,6 +221,22 @@
       "more": "Hablar, narrar, fuera de personaje o escribir por mí",
       "penLabel": "Escribir por mí"
     },
+    "ai": {
+      "chip": "IA: {name}. Cambiar.",
+      "addOne": "Añadir una IA",
+      "sheetTitle": "¿Qué IA responde?",
+      "sheetHint": "Solo para esta conversación.",
+      "capped": "{name} mantiene un tope de {tokens:grouped} tokens por respuesta, en todas sus conversaciones: las respuestas largas se cortarían.",
+      "cappedOther": "Respuestas cortadas a {tokens:grouped} tokens mientras no se levante su tope.",
+      "otherModel": "Otro modelo…",
+      "manage": "Gestionar mis IA",
+      "switched": "{name} responde a partir de ahora.",
+      "redo": "Rehacer la última respuesta",
+      "redone": "Última respuesta rehecha por {name}. La anterior queda al lado.",
+      "lost": "{lost} se quitó de tus IA: {name} responde en su lugar.",
+      "lostNone": "{lost} se quitó de tus IA, y no queda ninguna.",
+      "seen": "Entendido"
+    },
     "message": {
       "youFallback": "Tú",
       "modeBadge": {
@@ -249,8 +265,6 @@
       "kindScenario": "Escenario",
       "kindCharacter": "Personaje",
       "youArePlaying": "Interpretas a",
-      "modelLabel": "Modelo para esta conversación",
-      "chooseModelOption": "Elegir un modelo",
       "directive": {
         "title": "Directiva de escena",
         "description": "Una instrucción permanente que se recuerda a la IA en cada respuesta. Es la palanca más fuerte para corregir un tic tenaz («termina siempre tus frases», «varía tus formulaciones», «mantente explícito»…).",

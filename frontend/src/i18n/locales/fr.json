@@ -221,6 +221,22 @@
       "more": "Parole, narration, hors-jeu, ou écrire à ma place",
       "penLabel": "Écrire à ma place"
     },
+    "ai": {
+      "chip": "IA\u00a0: {name}. Changer.",
+      "addOne": "Ajouter une IA",
+      "sheetTitle": "Quelle IA répond\u00a0?",
+      "sheetHint": "Pour cette conversation seulement.",
+      "capped": "{name} garde un plafond de {tokens:grouped} tokens par réponse, dans toutes ses conversations\u00a0: les réponses longues seraient coupées.",
+      "cappedOther": "Réponses coupées à {tokens:grouped} tokens tant que son plafond n'est pas levé.",
+      "otherModel": "Autre modèle…",
+      "manage": "Gérer mes IA",
+      "switched": "{name} répond à partir de maintenant.",
+      "redo": "Refaire la dernière réponse",
+      "redone": "Dernière réponse refaite par {name}. L'ancienne reste à côté.",
+      "lost": "{lost} a été retirée de vos IA\u00a0: {name} répond à sa place.",
+      "lostNone": "{lost} a été retirée de vos IA, et il n'en reste aucune.",
+      "seen": "Compris"
+    },
     "message": {
       "youFallback": "Vous",
       "modeBadge": {
@@ -249,8 +265,6 @@
       "kindScenario": "Scénario",
       "kindCharacter": "Personnage",
       "youArePlaying": "Vous incarnez",
-      "modelLabel": "Modèle de cette conversation",
-      "chooseModelOption": "Choisir un modèle",
       "directive": {
         "title": "Directive de scène",
         "description": "Consigne permanente rappelée à l'IA à chaque réponse. C'est le levier le plus fort pour corriger un tic tenace («\u00a0finis toujours tes phrases\u00a0», «\u00a0varie tes formulations\u00a0», «\u00a0reste cru\u00a0»…).",

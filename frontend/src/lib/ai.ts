@@ -238,6 +238,19 @@ export function successorOf(ai: Ai, ais: Ai[]): Ai | null {
   return oldest;
 }
 
+/** The AI a conversation shows as answering it: the one it names, else the first listed, the
+ *  default, which is the one the server answers it with (models.resolve). Null with none at all. */
+export function answering(modelId: string | null, ais: Ai[]): Ai | null {
+  return ais.find((ai) => ai.id === modelId) ?? ais[0] ?? null;
+}
+
+/** The ceiling of its own an AI keeps below the room a reply needs, which cuts long replies short;
+ *  null when it keeps none, or one with room enough. */
+export function cappedUnder(ai: Ai, room: number): number | null {
+  const { mode, tokens } = ai.reply_cap;
+  return mode === "fixed" && tokens !== null && tokens < room ? tokens : null;
+}
+
 /** Created within the 30 days before the list was read. */
 export function isNew(row: ProbeModel, readAt: string): boolean {
   const read = Date.parse(readAt);

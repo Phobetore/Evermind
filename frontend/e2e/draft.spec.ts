@@ -24,14 +24,18 @@ test("an unsent message is still there when the page comes back", async ({ page,
   await expect(page.locator("textarea").first()).toHaveValue("I was about to say");
 });
 
-test("the notice about a restored draft goes away by itself", async ({ page, request }) => {
+test("the notice about a restored draft is said in passing and goes away by itself", async ({ page, request }) => {
   const convo = await makeConversation(request);
   await page.goto(`/#/chat/${convo.id}`);
   await page.locator("textarea").first().fill("Hold on");
 
   await page.reload();
-  await expect(page.getByText("Draft restored")).toBeVisible();
-  await expect(page.getByText("Draft restored")).toBeHidden({ timeout: 8000 });
+  // Above the box, where the conversation says what passes, and no longer under it.
+  const toast = page.locator("[data-chat-toast]");
+  await expect(toast).toHaveText("Draft restored");
+  await expect(toast).toHaveAttribute("role", "status");
+  await expect(page.locator("[data-status-row]")).not.toContainText("Draft restored");
+  await expect(toast).toBeHidden({ timeout: 8000 });
   await expect(page.locator("textarea").first()).toHaveValue("Hold on");
 });
 

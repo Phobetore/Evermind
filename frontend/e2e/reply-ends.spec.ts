@@ -100,6 +100,44 @@ test("a reply cut by the max tokens says why under it, and Continue carries it t
   await noSidewaysScroll(page);
 });
 
+test("a reply cut at a ceiling of its ai's offers to let Evermind set it", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
+  const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
+  await sendFromTheBox(page, convo.id);
+
+  const reply = page.locator("[data-message-id]").last();
+  const lift = reply.getByRole("button", { name: "Let Evermind set it" });
+  await expect(reply.locator("[data-ceiling]")).toContainText("1,024 tokens");
+  await expect(lift).toBeVisible();
+  await noSidewaysScroll(page);
+  await lift.click();
+  await expect(page.locator("[data-chat-toast]")).toContainText("no longer has a ceiling of its own: Evermind keeps the room it needs.");
+  const ais = await (await request.get(`${API}/api/models`)).json();
+  expect(ais.find((ai: { id: string }) => ai.id === aiId).reply_cap.mode).toBe("auto");
+  // The line stays, for what it says of this reply, without its button.
+  await expect(reply.locator("[data-ceiling]")).toBeVisible();
+  await expect(lift).toHaveCount(0);
+
+  // Continue ends the reply as it does today.
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
+  await page.waitForLoadState("networkidle");
+  const ends = replyEnds(page, convo.id);
+  await reply.locator('button[title="Continue the reply"]').click({ force: true });
+  await ends;
+  await expect(reply.locator("[data-ceiling]")).toHaveCount(0);
+});
+
+test("a reply cut where its ai sends no ceiling offers nothing to lift", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "unsent" } });
+  await sendFromTheBox(page, convo.id);
+
+  const reply = page.locator("[data-message-id]").last();
+  await expect(reply.locator("[data-ceiling]")).toHaveText(
+    "Cut short: this reply reached the most the model's server lets it write, and the model's thinking counts toward it. Continue the reply to carry on.",
+  );
+  await expect(reply.getByRole("button", { name: "Let Evermind set it" })).toHaveCount(0);
+});
+
 test("an older reply cut by the max tokens keeps a short mark, without asking to continue it", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
   await sendFromTheBox(page, convo.id);

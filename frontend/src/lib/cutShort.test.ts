@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { describeCeiling, isCutAtCeiling, isCutShort } from "./cutShort";
+import { ceilingTokens, describeCeiling, isCutAtCeiling, isCutShort } from "./cutShort";
 import { translate } from "@/i18n/translate";
 
 test("the version on screen is one the server says was cut short", () => {
@@ -59,4 +59,12 @@ test.each(["en", "fr", "de", "es"] as const)("in %s, an older cut reply has a sh
   const mark = translate(locale, "chat.message.cutAtCeilingShort");
   expect(mark).not.toContain("chat.message");
   expect(mark).not.toBe(translate(locale, "chat.message.interrupted"));
+});
+
+test("the figure a version was cut at, when the line has one", () => {
+  expect(ceilingTokens({ meta: { ceiling: { "1": 1024 } }, active_index: 1 })).toBe(1024);
+  expect(ceilingTokens({ meta: { ceiling: { "0": null } }, active_index: 0 })).toBeNull();
+  expect(ceilingTokens({ meta: { ceiling: { "0": "many" } }, active_index: 0 })).toBeNull();
+  expect(ceilingTokens({ meta: { ceiling: { "1": 1024 } }, active_index: 0 })).toBeNull();
+  expect(ceilingTokens({ meta: {}, active_index: 0 })).toBeNull();
 });
