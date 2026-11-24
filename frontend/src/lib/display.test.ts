@@ -104,6 +104,18 @@ describe("what is kept", () => {
     expect(next.getDisplay().text).toBe(1.5);
   });
 
+  test("the first read already gives what was kept, with no change to hear after it", async () => {
+    store.kept.set("evermind:display", JSON.stringify({ text: 1.5 }));
+    const { getDisplay, subscribeDisplay } = await load();
+    const heard = vi.fn();
+    subscribeDisplay(heard);
+    // A page draws its first message from this read: the defaults first would be a frame at 100 %.
+    expect(getDisplay().text).toBe(1.5);
+    await Promise.resolve();
+    expect(heard).not.toHaveBeenCalled();
+    expect(getDisplay().text).toBe(1.5);
+  });
+
   test("a change is held to the same bounds as a read", async () => {
     const { getDisplay, setDisplay } = await load();
     setDisplay({ text: 5, strength: -1 });
