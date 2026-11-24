@@ -132,7 +132,6 @@ function ChatView({ id }: { id: string }) {
   const [room, setRoom] = useState(0);
   const [aiSheet, setAiSheet] = useState(false);
   const [addingAi, setAddingAi] = useState(false);
-  const { toast, node: toastNode } = useChatToast();
   useEffect(() => {
     // Caught: offline it rejects, and an unhandled rejection is noise in the console.
     data.connections?.models.list().then(setAis, () => {});
@@ -232,6 +231,7 @@ function ChatView({ id }: { id: string }) {
   const turn = useTurn(id, read, add, settled);
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
+  const { toast, node: toastNode, heard: toastHeard } = useChatToast(busy);
 
   // A reply redone by the AI just chosen, said once it is in: not when it failed or was refused.
   const redoing = useRef<string | null>(null);
@@ -733,9 +733,11 @@ function ChatView({ id }: { id: string }) {
           </div>
         </div>
 
-        <p role="status" className="sr-only">
+        {/* The page's one status line, which says the toasts too: each part is heard as it changes. */}
+        <p role="status" aria-atomic="false" className="sr-only">
           {heard.said && t(heard.said === "typing" ? "chat.stream.assistantTyping" : "chat.stream.replied", { name: character.name })}
           {heard.cut && ` ${heard.cut}`}
+          {toastHeard}
         </p>
         {/* Out of the scrolling: what failed may be far above, or in the header. */}
         {writeError && (

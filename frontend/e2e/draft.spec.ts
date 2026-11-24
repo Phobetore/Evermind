@@ -15,7 +15,7 @@ test("an unsent message is still there when the page comes back", async ({ page,
 
   await page.reload();
   await expect(page.locator("textarea").first()).toHaveValue("I was about to say");
-  await expect(page.getByText("Draft restored")).toBeVisible();
+  await expect(page.locator("[data-chat-toast]")).toHaveText("Draft restored");
 
   // The draft belongs to its conversation.
   await page.goto(`/#/chat/${second.id}`);
@@ -33,7 +33,8 @@ test("the notice about a restored draft is said in passing and goes away by itse
   // Above the box, where the conversation says what passes, and no longer under it.
   const toast = page.locator("[data-chat-toast]");
   await expect(toast).toHaveText("Draft restored");
-  await expect(toast).toHaveAttribute("role", "status");
+  // Heard through the page's one status line.
+  await expect(page.getByRole("status")).toContainText("Draft restored");
   await expect(page.locator("[data-status-row]")).not.toContainText("Draft restored");
   await expect(toast).toBeHidden({ timeout: 8000 });
   await expect(page.locator("textarea").first()).toHaveValue("Hold on");

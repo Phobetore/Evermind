@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
 import {
   MOCK, MOCK_ROOT, addModel, chat, conversation, conversationWithReply, forgetServices, makeConversation, replyEnds,
@@ -43,6 +43,12 @@ async function longReplies(page: Page) {
     const read = await route.fetch();
     await route.fulfill({ response: read, json: { ...(await read.json()), reply_length: "long" } });
   });
+}
+
+/** Counted at once, once the toast's words are in: drawn with its words, a button would be there
+ *  already, and waiting would only see the toast go. */
+async function noButtonIn(toast: Locator) {
+  expect(await toast.getByRole("button").count(), "the toast offers a button").toBe(0);
 }
 
 /** The ai sheet, opened from the chip. */
@@ -178,7 +184,7 @@ test("no redo button when the last message is the person's or a reply is being w
   let sheet = await openSheet(page);
   await sheet.getByRole("radio", { name: /^Sylve/ }).click();
   await expect(toastOf(page)).toContainText("Sylve answers from now on.");
-  await expect(toastOf(page).getByRole("button")).toHaveCount(0);
+  await noButtonIn(toastOf(page));
 
   const slow = await conversationWithReply(request, { slowly: true });
   await page.goto(`/#/chat/${slow.id}`);
@@ -189,10 +195,42 @@ test("no redo button when the last message is the person's or a reply is being w
     sheet = await openSheet(page);
     await sheet.getByRole("radio", { name: /^Sylve/ }).click();
     await expect(toastOf(page)).toContainText("Sylve answers from now on.");
-    await expect(toastOf(page).getByRole("button")).toHaveCount(0);
+    await noButtonIn(toastOf(page));
   } finally {
     await stopTurn(request, slow.id);
   }
+});
+
+test("the redo button goes as soon as a reply is being written", async ({ page, request }) => {
+  await sylve(request);
+  const slow = await conversationWithReply(request, { slowly: true });
+  await page.goto(`/#/chat/${slow.id}`);
+  const sheet = await openSheet(page);
+  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  const redo = toastOf(page).getByRole("button", { name: "Redo the last reply" });
+  await expect(redo).toBeVisible();
+
+  await page.locator("textarea").first().fill("Go on.");
+  await page.locator('button[title="Send"]').click();
+  try {
+    await expect(page.locator('button[title="Stop generation"]')).toBeVisible();
+    // At once, not when the toast's time runs out: the words stay, the button goes.
+    await expect(redo).toHaveCount(0, { timeout: 1500 });
+    await expect(toastOf(page)).toContainText("Sylve answers from now on.");
+  } finally {
+    await stopTurn(request, slow.id);
+  }
+});
+
+test("a toast is heard through the page's one status line", async ({ page, request }) => {
+  await sylve(request);
+  const convo = await makeConversation(request);
+  await page.goto(`/#/chat/${convo.id}`);
+  const sheet = await openSheet(page);
+  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await expect(toastOf(page)).toContainText("Sylve answers from now on.");
+  expect(await page.getByRole("status").count(), "status elements while the toast shows").toBe(1);
+  await expect(page.getByRole("status")).toContainText("Sylve answers from now on.");
 });
 
 test("a capped ai is said in the sheet, and letting Evermind set it is confirmed in view", async ({ page, request }) => {
