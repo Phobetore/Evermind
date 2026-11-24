@@ -577,6 +577,160 @@ test("when the ais cannot be read the row says so and reads them again when touc
   await expect(unread).toHaveCount(0);
 });
 
+/** Holds the page's reads of the list of AIs whose rank (1 for the read as the page opens) is in
+ *  `held`: each is answered by the server at once, and handed to the page only when let go. */
+async function holdAiReads(page: Page, held: number[]) {
+  type Gate = { open: Promise<void>; go(): void; landed: Promise<void>; land(): void };
+  const gates = new Map<number, Gate>();
+  for (const rank of held) {
+    const gate = {} as Gate;
+    gate.open = new Promise<void>((resolve) => { gate.go = resolve; });
+    gate.landed = new Promise<void>((resolve) => { gate.land = resolve; });
+    gates.set(rank, gate);
+  }
+  let n = 0;
+  await page.route((url) => url.pathname === "/api/models", async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const gate = gates.get(++n);
+    if (!gate) return route.continue();
+    const answered = await route.fetch();
+    const json = await answered.json();
+    await gate.open;
+    await route.fulfill({ response: answered, json });
+    gate.land();
+  });
+  return {
+    /** Lets the read of that rank reach the page, and waits until it has. */
+    async letGo(rank: number) {
+      const gate = gates.get(rank)!;
+      gate.go();
+      await gate.landed;
+    },
+  };
+}
+
+test("a read of the ais that answers after the ceiling was lifted in the sheet does not bring it back", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const mine = await capped(request, `Ardoise ${shortTag()}`);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: mine.id } });
+  await longReplies(page);
+  // The read as the sheet opens, and the one as it opens again, held.
+  const reads = await holdAiReads(page, [2, 3]);
+  await page.goto(`/#/chat/${convo.id}`);
+
+  const sheet = await openSheet(page);
+  await expect(sheet).toContainText("keeps a ceiling of 1,024 tokens");
+  await sheet.getByRole("button", { name: "Let Evermind set it" }).click();
+  await expect(toastOf(page)).toContainText(`${mine.name} no longer has a ceiling of its own`);
+  await expect(sheet).toHaveCount(0);
+  // The read sent as the sheet opened, from before the ceiling was lifted, lands now.
+  await reads.letGo(2);
+  // Long enough for the page to take what it was handed: nothing changing is the answer.
+  await page.waitForTimeout(500);
+
+  await openSheet(page);
+  await expect(sheetOf(page)).not.toContainText("keeps a ceiling of");
+  await reads.letGo(3);
+});
+
+test("a read of the ais that answers after one was added from the sheet keeps the chip on it", async ({ page, request }) => {
+  await forgetServices(request, "/many/");
+  const listed = await request.post(`${API}/api/connections/probe`, {
+    data: { provider: "openai-compatible", base_url: MANY, api_key: "sk-e2e-any", family: "openrouter" },
+  });
+  const rows: { id: string; name: string }[] = (await listed.json()).models;
+  const eclair = rows.find((r) => r.name === "Eclair Mini")!;
+  const first = rows.find((r) => r.id !== eclair.id)!;
+  const made = await request.post(`${API}/api/models`, {
+    data: {
+      service: { provider: "openai-compatible", base_url: MANY, api_key: "sk-e2e-late", family: "openrouter" },
+      models: [{ model: first.id }],
+    },
+  });
+  expect(made.ok()).toBe(true);
+  const convo = await makeConversation(request);
+  // The read as the sheet opens, held until the AI is added.
+  const reads = await holdAiReads(page, [2]);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(chipOf(page)).toHaveAccessibleName("AI: e2e. Change.");
+
+  await chipOf(page).click();
+  await sheetOf(page).getByRole("button", { name: "Other model…" }).click();
+  const box = addDialog(page);
+  await box.getByRole("button", { name: /Already connected · 1 AI/ }).filter({ hasText: "/many/" }).click();
+  const search = box.getByRole("searchbox");
+  await search.click();
+  await search.pressSequentially("eclair");
+  await box.locator("li").filter({ has: page.getByText(eclair.id, { exact: true }) }).getByRole("checkbox").check();
+  await box.getByRole("button", { name: "Add and answer with Eclair Mini" }).click();
+  await expect(box).toHaveCount(0);
+  await expect(chipOf(page)).toHaveAccessibleName("AI: Eclair Mini. Change.");
+
+  await reads.letGo(2);
+  // Long enough for the page to take what it was handed: nothing changing is the answer.
+  await page.waitForTimeout(500);
+  await expect(chipOf(page)).toHaveAccessibleName("AI: Eclair Mini. Change.");
+});
+
+test("a conversation that names no ai follows a default changed elsewhere at the next reply", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const other = await sylve(request);
+  const e2e = (await (await request.get(`${API}/api/models`)).json()).find((ai: { name: string }) => ai.name === "e2e");
+  // As one created when no AI existed, or whose last AI was removed: it names none.
+  await page.route(`**/api/conversations/${convo.id}`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const read = await route.fetch();
+    await route.fulfill({ response: read, json: { ...(await read.json()), model_id: null, model_lost: null } });
+  });
+  try {
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(chipOf(page)).toHaveAccessibleName("AI: e2e. Change.");
+
+    await request.put(`${API}/api/models/${other.id}`, { data: { is_default: true } });
+    await page.locator("textarea").first().fill("Who answers now?");
+    const ends = replyEnds(page, convo.id);
+    await page.locator('button[title="Send"]').click();
+    await ends;
+    await expect(chipOf(page)).toHaveAccessibleName(`AI: ${other.name}. Change.`);
+  } finally {
+    await request.put(`${API}/api/models/${e2e.id}`, { data: { is_default: true } });
+  }
+});
+
+test("a reply in a conversation that names its ai does not read the ais again", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const reads = aiReads(page);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(chipOf(page)).toHaveAccessibleName("AI: e2e. Change.");
+  await page.locator("textarea").first().fill("Again?");
+  const ends = replyEnds(page, convo.id);
+  await page.locator('button[title="Send"]').click();
+  await ends;
+  // Waited for, as nothing more is the answer.
+  await page.waitForTimeout(1500);
+  expect(reads.n, "reads of the list for one turn, the page's own included").toBe(1);
+});
+
+test("ais that could not be read as the page opened are read when a reply ends", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  let broken = true;
+  await page.route("**/api/models", (route) =>
+    route.request().method() === "GET" && broken
+      ? route.fulfill({ status: 500, contentType: "text/html", body: "<html>Server error</html>" })
+      : route.continue());
+  await page.goto(`/#/chat/${convo.id}`);
+  const unread = page.locator("[data-status-row]").getByRole("button", { name: "Your AIs could not be read. Try again." });
+  await expect(unread).toBeVisible();
+
+  broken = false;
+  await page.locator("textarea").first().fill("Still unread?");
+  const ends = replyEnds(page, convo.id);
+  await page.locator('button[title="Send"]').click();
+  await ends;
+  await expect(chipOf(page)).toHaveAccessibleName("AI: e2e. Change.");
+  await expect(unread).toHaveCount(0);
+});
+
 // Text set to its largest on a phone, the root at 32px: the toast's button takes two lines rather
 // than run past the screen.
 test.describe("at very large text the toast's button stays on the screen", () => {

@@ -153,6 +153,12 @@ function ChatView({ id }: { id: string }) {
       },
     );
   }, []);
+  /** A change the page makes to its own list (a ceiling lifted, an AI added, a row dropped): a read
+   *  sent before it, answering late, would put back the list from before. */
+  const changeAis = useCallback((change: (now: Ai[] | null) => Ai[] | null) => {
+    aisAsked.current += 1;
+    setAis(change);
+  }, []);
   // The room a reply needs, from the settings read once with the page: 0 until then, warning of nothing.
   // Only where the edition keeps AIs of its own: nothing else here reads it.
   const [room, setRoom] = useState(0);
@@ -246,10 +252,13 @@ function ChatView({ id }: { id: string }) {
       takeSummary(conversation);
       const before = shownConversation.current;
       const held = aisHeld.current;
-      // An AI the page does not hold, or one just said removed: the list changed elsewhere. Not
-      // as the page opens, whose own read of the list is on its way.
-      if (before && held && (
-        (conversation.model_id && !held.some((ai) => ai.id === conversation.model_id))
+      // An AI the page does not hold, or one just said removed: the list changed elsewhere. None
+      // named: the default answers, which another device may have changed. No list held: the read
+      // as the page opened failed. Not as the page opens, whose own read of the list is on its way.
+      if (before && (
+        held === null
+        || !conversation.model_id
+        || !held.some((ai) => ai.id === conversation.model_id)
         || (conversation.model_lost && conversation.model_lost !== before.model_lost)
       )) readAis();
       setConversation((shown) => (shown
@@ -511,12 +520,12 @@ function ChatView({ id }: { id: string }) {
 
   /** An AI as the server saved it, in the list the page holds. */
   function tookAi(saved: AiSaved) {
-    setAis((now) => now && now.map((ai) => (ai.id === saved.id ? saved : ai)));
+    changeAis((now) => now && now.map((ai) => (ai.id === saved.id ? saved : ai)));
   }
 
   /** An AI the server no longer has, picked in the sheet: its row goes, and the list is read again. */
   function aiGone(gone: Ai) {
-    setAis((now) => now && now.filter((ai) => ai.id !== gone.id));
+    changeAis((now) => now && now.filter((ai) => ai.id !== gone.id));
     readAis();
   }
 
@@ -895,7 +904,7 @@ function ChatView({ id }: { id: string }) {
         <AddAiFlow
           origin={{ from: "conversation", conversationId: conversation.id }}
           onAdded={(result) => {
-            setAis((now) => [...(now ?? []).filter((ai) => !result.models.some((made) => made.id === ai.id)), ...result.models]);
+            changeAis((now) => [...(now ?? []).filter((ai) => !result.models.some((made) => made.id === ai.id)), ...result.models]);
             setAddingAi(false);
             const chosen = result.models.find((ai) => ai.id === result.conversation?.model_id) ?? result.models.at(-1);
             if (chosen) switched(chosen);
