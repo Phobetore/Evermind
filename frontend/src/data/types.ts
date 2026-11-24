@@ -62,7 +62,7 @@ export interface AssistState {
   cut: boolean;
   /** Someone stopped the job. */
   stopped: boolean;
-  error: { error: string; kind: string } | null;
+  error: { error: string; kind: string; reason?: string } | null;
 }
 
 export type LoreEntryInput = Omit<LoreEntry, "id">;

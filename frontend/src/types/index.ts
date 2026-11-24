@@ -98,10 +98,13 @@ export interface Conversation {
   title: string;
   summary: string;
   author_note?: string;
-  /** Why the last automatic pass of the memory failed, until one succeeds. */
-  memory_error?: { error: string; kind?: string } | null;
+  /** Why the memory's pass (automatic, or a Remember) or a Condense last failed, and which one,
+   *  until that work succeeds. */
+  memory_error?: { error: string; kind?: string; reason?: string; operation?: "pass" | "extract" | "consolidate" } | null;
   /** Whether a memory pass or a consolidation is under way. */
   memory_running?: boolean;
+  /** Which, while one is: the automatic pass, a Remember or a consolidation, asked from wherever. */
+  memory_operation?: "pass" | "extract" | "consolidate" | null;
   wallpaper_url?: string | null;
   wallpaper_opacity?: number;
   backdrop: Backdrop;
@@ -204,6 +207,8 @@ export interface TurnFailure {
   kind: string;
   message: string;
   resource?: string;
+  /** A model server's own word for why it withheld the reply. */
+  reason?: string;
 }
 
 /** What the server says of a conversation's turn: the message being written, as far as it has

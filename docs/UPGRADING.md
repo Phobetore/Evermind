@@ -8,7 +8,7 @@ program, and your data lives somewhere of its own (the `data` folder, or the
 If you are installing for the first time, you want [INSTALL.md](../INSTALL.md)
 instead. Coming from further back, read every section from your version up.
 
-## From 3.5.3 to 3.6.0
+## From 3.5.x to 3.6.0
 
 This update asks for a restart and a reload of your pages. The database gains
 new columns when Evermind starts, and a copy of it is kept first. Read this to

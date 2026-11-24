@@ -14,7 +14,9 @@ import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
 import { backdropOf, plateAlpha, useDisplay } from "@/lib/display";
 import { beginSending, type MessageMode } from "@/lib/drafts";
+import { describeCeiling } from "@/lib/cutShort";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
+import { memoryFailed } from "@/lib/memoryMark";
 import { holdSizes, wantSizes } from "@/lib/portraitSizes";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
 import { newId, nothingFocused } from "@/lib/utils";
@@ -170,12 +172,13 @@ function ChatView({ id }: { id: string }) {
   useEffect(() => {
     panelShown.current = panelOpen;
   }, [panelOpen]);
-  /** For a read about to be sent: what takes its summary, unless another came since. */
+  /** For a read about to be sent: what takes its summary, and whether the last pass of the memory
+   *  failed, which the header marks, unless another read came since. */
   const summaryTaker = useCallback(() => {
     // Sent with the panel open, it is left to the panel, whose own reads it knows nothing of.
     const sent = panelShown.current ? null : ++summaries.current;
-    return (summary: string) => {
-      if (sent === summaries.current) setConversation((c) => (c ? { ...c, summary } : c));
+    return ({ summary, memory_error = null }: Pick<Conversation, "summary" | "memory_error">) => {
+      if (sent === summaries.current) setConversation((c) => (c ? { ...c, summary, memory_error } : c));
     };
   }, []);
 
@@ -186,7 +189,7 @@ function ChatView({ id }: { id: string }) {
     const conversation = await data.conversations.get(id, asking);
     const show = () => {
       if (changesByHand.current !== changes) return false;
-      takeSummary(conversation.summary);
+      takeSummary(conversation);
       setConversation((shown) => (shown ? { ...shown, title: conversation.title } : conversation));
       setMessages(conversation.messages ?? []);
       return true;
@@ -223,9 +226,14 @@ function ChatView({ id }: { id: string }) {
   }, [pictured]);
 
   // A screen reader hears nothing of the words arriving: it is told a reply is being written, then that it is in.
-  const [heard, setHeard] = useState<{ writing: string | null; said: "" | "typing" | "replied" }>({ writing, said: "" });
+  // A reply the connection's max tokens cut is told so with it, once: the line under it is not live.
+  const [heard, setHeard] = useState<{ writing: string | null; said: "" | "typing" | "replied"; cut: string | null }>(
+    { writing, said: "", cut: null });
   if (heard.writing !== writing) {
-    setHeard({ writing, said: writing !== null ? "typing" : heard.said && !outcome ? "replied" : "" });
+    const said = writing !== null ? "typing" : heard.said && !outcome ? "replied" : "";
+    const newest = messages.at(-1);
+    const cut = said === "replied" && newest?.role === "assistant" ? describeCeiling(newest, t) : null;
+    setHeard({ writing, said, cut });
   }
 
   // The focus a reply's button lost goes to Stop, then to the reply, leaving the story where it is read.
@@ -249,7 +257,7 @@ function ChatView({ id }: { id: string }) {
     summaryRead.current?.abort();
     const reading = (summaryRead.current = new AbortController());
     const takeSummary = summaryTaker();
-    data.conversations.withoutMessages(id, { signal: reading.signal }).then(({ summary }) => takeSummary(summary), () => {});
+    data.conversations.withoutMessages(id, { signal: reading.signal }).then(takeSummary, () => {});
   }, [id, summaryTaker]);
 
   useEffect(() => {
@@ -547,10 +555,22 @@ function ChatView({ id }: { id: string }) {
                 ref={panelButton}
                 autoFocus={panelByHand}
                 onClick={() => showPanel(true)}
-                className={headerSquare}
+                className={clsx(headerSquare, "relative")}
                 aria-label={t("chat.header.memorySettingsAriaLabel")}
+                // Heard with the button: a button's name is its label alone, and its content is not read.
+                aria-describedby={memoryFailed(conversation) ? "memory-mark" : undefined}
+                title={memoryFailed(conversation) ? t("memoryMark.label") : undefined}
               >
                 <SlidersHorizontal className="size-[20px]" />
+                {/* Over the icon's corner, taking no room: the header neither grows nor wraps for it. */}
+                {memoryFailed(conversation) && (
+                  <span
+                    id="memory-mark"
+                    role="img"
+                    aria-label={t("memoryMark.label")}
+                    className="absolute right-[8px] top-[8px] size-[8px] rounded-full bg-blood"
+                  />
+                )}
               </button>
             )}
           </div>
@@ -620,6 +640,7 @@ function ChatView({ id }: { id: string }) {
 
         <p role="status" className="sr-only">
           {heard.said && t(heard.said === "typing" ? "chat.stream.assistantTyping" : "chat.stream.replied", { name: character.name })}
+          {heard.cut && ` ${heard.cut}`}
         </p>
         {/* Out of the scrolling: what failed may be far above, or in the header. */}
         {writeError && (

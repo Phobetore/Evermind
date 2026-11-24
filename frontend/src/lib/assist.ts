@@ -222,7 +222,7 @@ export function describeOutcome(
   label: (field: AssistField) => string,
 ): string | null {
   const said: string[] = [];
-  if (ended.error) said.push(describeFailure({ kind: ended.error.kind, message: ended.error.error }, t));
+  if (ended.error) said.push(describeFailure({ kind: ended.error.kind, message: ended.error.error, reason: ended.error.reason }, t));
   if (ended.missing.length > 0) {
     const key = ended.cut ? "missingCut" : ended.stopped ? "missingStopped" : "missing";
     said.push(t(`characters.assist.${key}`, { fields: ended.missing.map(label).join(", ") }));

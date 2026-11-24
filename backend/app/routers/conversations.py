@@ -99,7 +99,8 @@ async def get_conversation(convo_id: str, messages: bool = True,
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
     return {**convo, "memory_error": memory_service.failure_of(convo_id),
-            "memory_running": memory_service.is_running(convo_id)}
+            "memory_running": memory_service.is_running(convo_id),
+            "memory_operation": memory_service.operation_of(convo_id)}
 
 
 @router.patch("/conversations/{convo_id}")
@@ -155,13 +156,21 @@ async def patch_message(message_id: str, payload: MessagePatch,
     index = message["active_index"] if payload.active_index is None else payload.active_index
     if index >= len(message["variants"]):
         raise AppError("Variant index out of range.", kind="variant_out_of_range")
-    variants = None
+    variants = meta = None
     if payload.content is not None:
         variants = list(message["variants"])
         variants[index] = payload.content
+        # Words of the person's are not where the max tokens cut the model's. Cut short by a stop
+        # or a failure, it stays so: the rewrite may only have put a typo right.
+        ceiling = dict((message["meta"] or {}).get("ceiling") or {})
+        if str(index) in ceiling:
+            del ceiling[str(index)]
+            meta = {k: v for k, v in message["meta"].items() if k != "ceiling"}
+            if ceiling:
+                meta["ceiling"] = ceiling
     # A swipe shows other words; not an edit, where a typo put right would undo every pass since.
     return await repo.update_message(db, message_id, variants=variants,
-                                     active_index=payload.active_index,
+                                     active_index=payload.active_index, meta=meta,
                                      reread=index != message["active_index"])
 
 

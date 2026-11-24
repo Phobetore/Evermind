@@ -266,6 +266,9 @@
         "ooc": "instruction"
       },
       "interrupted": "interrompu",
+      "cutAtCeiling": "Réponse coupée : elle a atteint la limite de la connexion, {tokens:grouped} tokens, et la réflexion du modèle compte dedans. Prolongez la réponse pour continuer.",
+      "cutAtCeilingUnset": "Réponse coupée : elle a atteint le maximum que le serveur du modèle laisse écrire, et la réflexion du modèle compte dedans. Prolongez la réponse pour continuer.",
+      "cutAtCeilingShort": "coupé à la limite",
       "regenerateTitle": "Régénérer",
       "continueTitle": "Prolonger la réponse",
       "editTitle": "Modifier",
@@ -711,11 +714,12 @@
     "modelEmpty": "Le modèle a renvoyé une réponse vide. Réessayez ou changez de modèle.",
     "modelUnreadable": "La réponse du modèle n'a pas pu être lue. Réessayez.",
     "modelOnlyThought": "Le modèle a passé toute sa réponse à réfléchir et n'a rien écrit. Augmentez le nombre maximal de tokens de la connexion, ou prenez un modèle qui réfléchit moins longtemps.",
+    "modelWithheld": "Le serveur du modèle a retenu la réponse (« {reason} »). Réessayez, ou changez de modèle ou de fournisseur.",
     "modelAuthRefused": "Le serveur du modèle a refusé la clé d'API. Vérifiez la clé dans la connexion. Le serveur a indiqué\u00a0: {message}",
     "modelNotFound": "Le serveur du modèle ne connaît ni cette adresse ni ce modèle. Vérifiez l'URL et le nom du modèle dans la connexion. Le serveur a indiqué\u00a0: {message}",
     "modelRateLimited": "Le serveur du modèle a atteint sa limite de requêtes. Réessayez dans un instant. Le serveur a indiqué\u00a0: {message}",
     "modelNetworkError": "Le modèle a mis trop de temps à répondre, ou la connexion à son serveur a été coupée.",
-    "modelNoText": "Le modèle n'a produit aucun texte.",
+    "modelNoText": "Le modèle n'a produit aucun texte. Réessayez, ou choisissez un autre modèle.",
     "emptyMessage": "Écrivez d'abord un message.",
     "nothingToRegenerate": "Il n'y a pas encore de réponse à régénérer. Envoyez d'abord un message.",
     "nothingToContinue": "Le dernier message n'est pas une réponse\u00a0: il n'y a rien à prolonger.",
@@ -761,5 +765,9 @@
     "perDevice": "Ces réglages restent sur cet appareil : votre téléphone et votre PC gardent chacun les leurs.",
     "sheetFoot": "Sous le texte, l'image est toujours adoucie. Changer d'image ou l'enlever ici : bouton des réglages, « Fond d'écran ».",
     "sample": "*La lanterne se balance au bout de son bras.* Vous êtes en retard. **Trois hivers** de retard, pour être exacte."
+  },
+  "memoryMark": {
+    "label": "La mémoire de cette conversation n'a pas pu être mise à jour",
+    "retry": "Réessayer"
   }
 }

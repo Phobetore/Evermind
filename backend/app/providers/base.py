@@ -9,7 +9,7 @@ from typing import Literal
 
 import httpx
 
-from ..errors import MODEL_ERROR, MODEL_UNREADABLE, AppError
+from ..errors import MODEL_ERROR, MODEL_ONLY_THOUGHT, MODEL_UNREADABLE, MODEL_WITHHELD, AppError
 from ..prompting.engine import PromptPayload
 
 # Local generation can be slow: generous read timeout, snappy connect timeout.
@@ -24,6 +24,8 @@ AUTH_REFUSED = "model_auth_refused"
 MODEL_NOT_FOUND = "model_not_found"
 RATE_LIMITED = "model_rate_limited"
 NO_TEXT = "model_no_text"
+# What a server says of a request it will not take as written, as opposed to a key or a limit.
+REFUSED_AS_WRITTEN = (400, 404, 422)
 
 
 # How a model stopped when it ran out of room, whatever its server calls it.
@@ -93,9 +95,40 @@ def words_of(said: object) -> str:
     """
     if isinstance(said, dict):
         said = said.get("error", said)
+    host = _host_said(said) if isinstance(said, dict) and said.get("message") else ""
     if isinstance(said, dict):
         said = said.get("message") or said
-    return well_formed(str(said)[:300]) if said else ""
+    words = str(said)[:300] if said else ""
+    room = 300 - len(words) - len(" ()")
+    if host and room > 0:
+        words += f" ({host[:room]})"
+    return well_formed(words)
+
+
+def _host_said(error: dict) -> str:
+    """The host a router sent the request to, and what that host said, from the error's
+    metadata: the router's own message only says that a host failed, not whether it is down
+    or refused the request."""
+    metadata = error.get("metadata")
+    if not isinstance(metadata, dict):
+        return ""
+    name = metadata.get("provider_name")
+    raw = metadata.get("raw")
+    if isinstance(raw, str):
+        try:  # a host's JSON, passed on as text
+            parsed = json.loads(raw)
+        except ValueError:
+            parsed = None
+        raw = parsed if isinstance(parsed, dict) else raw
+    if isinstance(raw, dict):
+        inner = raw.get("error")
+        inner = inner.get("message") if isinstance(inner, dict) else inner
+        message = inner if isinstance(inner, str) and inner else raw.get("message")
+        raw = message if isinstance(message, str) and message else json.dumps(raw, ensure_ascii=False)
+    elif raw is not None and not isinstance(raw, str):
+        raw = json.dumps(raw, ensure_ascii=False)
+    parts = [part.strip() for part in (name, raw) if isinstance(part, str)]
+    return ": ".join(part for part in parts if part)
 
 
 def _refusal(status: int, body: bytes) -> ProviderError:
@@ -122,6 +155,12 @@ class Provider:
     def _headers(self) -> dict:
         raise NotImplementedError
 
+    @classmethod
+    def max_tokens_sent(cls, connection: dict) -> int | None:
+        """The max_tokens a request on this connection carries: None when it carries none and the
+        server's own limit applies."""
+        return connection.get("max_tokens") or None
+
     async def stream_chat(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
         """The reply as it arrives, then its end. A failure raises a ProviderError.
 
@@ -146,6 +185,10 @@ class Provider:
         yield  # pragma: no cover
 
     async def list_models(self) -> list[str]:
+        return [well_formed(str(m["id"])) for m in await self._model_objects()]
+
+    async def _model_objects(self) -> list[dict]:
+        """The models the server lists, each as it describes itself, all of them with an id."""
         try:
             async with self._client_factory() as client:
                 response = await client.get(self.base_url + self.MODELS, headers=self._headers())
@@ -155,7 +198,7 @@ class Provider:
             raise _refusal(response.status_code, response.content)
         try:
             models = response.json().get("data") or []
-            return [well_formed(str(m["id"])) for m in models if isinstance(m, dict) and m.get("id")]
+            return [m for m in models if isinstance(m, dict) and m.get("id")]
         except (ValueError, AttributeError, TypeError):
             raise ProviderError("The list of models could not be read.", MODEL_UNREADABLE)
 
@@ -197,6 +240,26 @@ class Answer:
     text: str
     thought: int  # characters of reasoning that came with it, only counted
     stop: str | None  # what ``ProviderEvent.stop`` says on the "done" event
+
+
+# How a model stops when it simply has nothing more to say, whatever its server calls it.
+_ORDINARY_ENDS = ("stop", "end_turn", "stop_sequence")
+ONLY_THOUGHT = ("The model spent its whole answer thinking and wrote nothing. Raise the "
+                "connection's max tokens, or use a model that does not think as long.")
+
+
+def unwritten(answer: Answer, only_thought: str = ONLY_THOUGHT) -> AppError | None:
+    """Why an answer has nothing written, when how it ended tells: it reasoned, or ran out of
+    room, or its server withheld it and said so. None when it has words, or no clue: each caller
+    says that in its own way."""
+    if answer.text.strip():
+        return None
+    if answer.thought or answer.stop == STOPPED_FOR_LENGTH:
+        return AppError(only_thought, 502, kind=MODEL_ONLY_THOUGHT)
+    if answer.stop and answer.stop not in _ORDINARY_ENDS:
+        return AppError(f'The model\'s server withheld the answer ("{answer.stop}").', 502,
+                        kind=MODEL_WITHHELD, reason=answer.stop)
+    return None
 
 
 async def complete_answer(provider: Provider, payload: PromptPayload) -> Answer:

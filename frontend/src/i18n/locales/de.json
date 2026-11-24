@@ -266,6 +266,9 @@
         "ooc": "Anweisung"
       },
       "interrupted": "unterbrochen",
+      "cutAtCeiling": "Abgeschnitten: Die Antwort hat die Grenze der Verbindung von {tokens:grouped} Tokens erreicht, und das Nachdenken des Modells zählt mit. Setze die Antwort fort, um weiterzumachen.",
+      "cutAtCeilingUnset": "Abgeschnitten: Die Antwort hat das Höchstmaß erreicht, das der Server des Modells schreiben lässt, und das Nachdenken des Modells zählt mit. Setze die Antwort fort, um weiterzumachen.",
+      "cutAtCeilingShort": "am Limit abgeschnitten",
       "regenerateTitle": "Neu generieren",
       "continueTitle": "Antwort fortsetzen",
       "editTitle": "Bearbeiten",
@@ -711,11 +714,12 @@
     "modelEmpty": "Das Modell hat eine leere Antwort geliefert. Versuch es noch einmal oder wechsle das Modell.",
     "modelUnreadable": "Die Antwort des Modells ließ sich nicht lesen. Versuch es noch einmal.",
     "modelOnlyThought": "Das Modell hat seine ganze Antwort mit Nachdenken verbraucht und nichts geschrieben. Erhöhe in der Verbindung die maximale Tokenzahl oder nimm ein Modell, das nicht so lange nachdenkt.",
+    "modelWithheld": "Der Server des Modells hat die Antwort zurückgehalten („{reason}“). Versuch es noch einmal oder wechsle das Modell oder den Anbieter.",
     "modelAuthRefused": "Der Server des Modells hat den API-Schlüssel abgelehnt. Prüfe den Schlüssel in der Verbindung. Der Server meldet: {message}",
     "modelNotFound": "Der Server des Modells kennt diese Adresse oder dieses Modell nicht. Prüfe die URL und den Modellnamen in der Verbindung. Der Server meldet: {message}",
     "modelRateLimited": "Der Server des Modells hat sein Anfragelimit erreicht. Versuch es gleich noch einmal. Der Server meldet: {message}",
     "modelNetworkError": "Das Modell hat zu lange für die Antwort gebraucht, oder die Verbindung zu seinem Server ist abgebrochen.",
-    "modelNoText": "Das Modell hat keinen Text erzeugt.",
+    "modelNoText": "Das Modell hat keinen Text erzeugt. Versuch es noch einmal oder wähle ein anderes Modell.",
     "emptyMessage": "Schreib zuerst eine Nachricht.",
     "nothingToRegenerate": "Es gibt noch keine Antwort, die neu generiert werden könnte. Sende zuerst eine Nachricht.",
     "nothingToContinue": "Die letzte Nachricht ist keine Antwort, also gibt es nichts fortzusetzen.",
@@ -761,5 +765,9 @@
     "perDevice": "Diese Einstellungen bleiben auf diesem Gerät: Dein Handy und dein PC behalten jeweils ihre eigenen.",
     "sheetFoot": "Unter dem Text ist das Bild immer abgeschwächt. Das Bild hier ändern oder entfernen: Einstellungsknopf, „Hintergrund“.",
     "sample": "*Die Laterne schwingt am Ende ihres Arms.* Du kommst zu spät. **Drei Winter** zu spät, um genau zu sein."
+  },
+  "memoryMark": {
+    "label": "Das Gedächtnis dieser Unterhaltung konnte nicht aktualisiert werden",
+    "retry": "Noch einmal versuchen"
   }
 }

@@ -2,6 +2,7 @@
 
 from app.prompting.engine import build_chat_payload
 from app.prompting.macros import substitute
+from app.prompting.payloads import build_impersonate_payload
 from app.prompting.tokens import estimate_tokens
 
 from .conftest import PERSONA, make_character, make_connection, make_message
@@ -260,7 +261,26 @@ def test_history_limit_caps_raw_turns():
         character=make_character(), persona=PERSONA, conversation={"summary": ""},
         messages=messages, connection=make_connection(),
     )
-    assert len(uncapped.messages) == 30  # 0 = unlimited (impersonate)
+    assert len(uncapped.messages) == 30  # 0 = unlimited
+
+
+def test_the_pen_reads_the_recent_messages_a_reply_reads():
+    """The pen is paid by the token like a reply: past the setting's cap, the older turns are
+    the story's summary's to tell, not the prompt's."""
+    messages = [make_message("user" if i % 2 == 0 else "assistant", f"turn {i}", i)
+                for i in range(30)]
+
+    def pen(history_limit):
+        return build_impersonate_payload(make_character(), PERSONA, {"summary": "So far."},
+                                         messages, make_connection(), history_limit=history_limit)
+
+    assert [m["content"] for m in pen(10).messages] == [f"turn {i}" for i in range(20, 30)]
+    assert len(pen(0).messages) == 30  # 0 = unlimited
+    reply = build_chat_payload(
+        character=make_character(), persona=PERSONA, conversation={"summary": "So far."},
+        messages=messages, connection=make_connection(), history_limit=10,
+    )
+    assert [m["content"] for m in pen(10).messages] == [m["content"] for m in reply.messages]
 
 
 def test_history_limit_frees_facts_for_reinjection():

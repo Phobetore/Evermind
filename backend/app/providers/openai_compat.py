@@ -5,14 +5,61 @@ OpenAI, Groq, Mistral, DeepSeek, Together — anything speaking
 `POST {base_url}/chat/completions` with SSE streaming.
 """
 
+import asyncio
+import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import aclosing
+from urllib.parse import urlsplit
 
 from ..prompting.engine import PromptPayload
-from .base import Provider, ProviderError, ProviderEvent, words_of
+from .base import REFUSED_AS_WRITTEN, Provider, ProviderError, ProviderEvent, words_of
+
+logger = logging.getLogger(__name__)
 
 # Each is sent only when the connection holds a value: empty leaves it to the model.
 SAMPLING = ("max_tokens", "temperature", "top_p", "frequency_penalty", "presence_penalty")
+
+LIST_KEPT_S = 6 * 3600  # how long a server's list of models is trusted
+FAILED_LIST_KEPT_S = 300  # how long a list that could not be read waits to be asked for again
+# The list is read in front of a request: one slow to come is not worth holding the request for.
+LIST_TIMEOUT_S = 10
+
+_now = time.monotonic
+# Per base_url: when its list was read, and each model's "reasoning" object (None: none given),
+# or None for a list that could not be read.
+_model_lists: dict[str, tuple[float, dict[str, dict | None] | None]] = {}
+# The (base_url, model) pairs whose server refused a "reasoning" field: never sent again to them.
+_refused: set[tuple[str, str]] = set()
+
+
+def is_openrouter(base_url: str) -> bool:
+    host = urlsplit(base_url).hostname or ""
+    return host == "openrouter.ai" or host.endswith(".openrouter.ai")
+
+
+def least_reasoning(reasoning: object) -> dict | None:
+    """The field that asks a model for the least reasoning it allows, from what OpenRouter's list
+    says of it, or None when there is nothing to ask for.
+
+    Its "supported_efforts" go from the highest down; null means every effort is taken, and no
+    such key means the model gives no choice of effort. A mandatory model refuses "none"."""
+    if not isinstance(reasoning, dict):
+        return None
+    mandatory = reasoning.get("mandatory") is True
+    if "supported_efforts" not in reasoning:
+        return None if mandatory else {"enabled": False}
+    efforts = reasoning["supported_efforts"]
+    if efforts is None:
+        return {"effort": "minimal" if mandatory else "none"}
+    if not isinstance(efforts, list):
+        return None
+    if not mandatory and "none" in efforts:
+        return {"effort": "none"}
+    lowest = [effort for effort in efforts if isinstance(effort, str) and effort != "none"]
+    if lowest:
+        return {"effort": lowest[-1]}
+    return None if mandatory else {"enabled": False}
 
 
 class OpenAICompatProvider(Provider):
@@ -50,9 +97,73 @@ class OpenAICompatProvider(Provider):
             body["stop"] = payload.stop[:4]
         return body
 
+    async def _reasoning_field(self) -> dict | None:
+        """What to send as "reasoning" for a caller that wants the least of it.
+
+        Only OpenRouter says, model by model, which efforts each accepts. Other servers each
+        have their own switch, or none, so they are sent nothing and asked nothing."""
+        if not self.connection.get("least_reasoning") or not is_openrouter(self.base_url):
+            return None
+        if (self.base_url, self.model) in _refused:
+            return None
+        models = await self._reasoning_of_models()
+        if models is None:
+            return None
+        # A routing suffix (":nitro", ":online") is not a model of its own, unless listed as one.
+        model = self.model if self.model in models else self.model.rsplit(":", 1)[0]
+        return least_reasoning(models.get(model))
+
+    async def _reasoning_of_models(self) -> dict[str, dict | None] | None:
+        kept = _model_lists.get(self.base_url)
+        if kept:
+            read_at, models = kept
+            if _now() - read_at < (LIST_KEPT_S if models is not None else FAILED_LIST_KEPT_S):
+                return models
+        try:
+            listed = await asyncio.wait_for(self._model_objects(), LIST_TIMEOUT_S)
+            models = {str(m["id"]): m.get("reasoning") for m in listed}
+        except ProviderError as exc:
+            logger.warning("the list of models of %s could not be read: %s",
+                           self.base_url, exc.message)
+            models = None
+        except TimeoutError:
+            logger.warning("the list of models of %s did not come within %d seconds",
+                           self.base_url, LIST_TIMEOUT_S)
+            models = None
+        _model_lists[self.base_url] = (_now(), models)
+        return models
+
     async def _events(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
+        body = self._build_body(payload)
+        if reasoning := await self._reasoning_field():
+            body["reasoning"] = reasoning
+        arrived = False
+        try:
+            async with aclosing(self._read(body)) as events:
+                async for event in events:
+                    arrived = True
+                    yield event
+            return
+        except ProviderError as exc:
+            if "reasoning" not in body or arrived or exc.status not in REFUSED_AS_WRITTEN:
+                raise
+            refusal = exc.message
+        # Asked again without the field. Only an answer then says the field was why: the same
+        # refusal again was about something else (the context, the max tokens), and the field,
+        # which keeps the bill down, is still sent next time.
+        del body["reasoning"]
+        async with aclosing(self._read(body)) as events:
+            async for event in events:
+                if (self.base_url, self.model) not in _refused:
+                    _refused.add((self.base_url, self.model))
+                    logger.warning("%s refused to be told how much %s should reason (%s), and "
+                                   "answered without: it is not told again", self.base_url,
+                                   self.model, refusal)
+                yield event
+
+    async def _read(self, body: dict) -> AsyncIterator[ProviderEvent]:
         usage = stop = None
-        async with aclosing(self._sse("/chat/completions", self._build_body(payload))) as events:
+        async with aclosing(self._sse("/chat/completions", body)) as events:
             async for event in events:
                 if event.get("error"):
                     raise ProviderError(words_of(event))

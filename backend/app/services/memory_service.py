@@ -19,9 +19,9 @@ from ..errors import (
     CONVERSATION_CHANGED,
     FACTS_CHANGED,
     MEMORY_BUSY,
-    MODEL_ONLY_THOUGHT,
     MODEL_UNREADABLE,
     NO_CONNECTION,
+    NOT_FOUND,
     TOO_FEW_FACTS,
     AppError,
     NotFoundError,
@@ -39,7 +39,7 @@ from ..prompting.payloads import (
     prompt_tokens,
 )
 from ..providers import Answer, ProviderError, complete_answer, get_provider
-from ..providers.base import NO_TEXT, STOPPED_FOR_LENGTH
+from ..providers.base import NO_TEXT, REFUSED_AS_WRITTEN, STOPPED_FOR_LENGTH, unwritten
 from ..repositories import characters as characters_repo
 from ..repositories import connections as connections_repo
 from ..repositories import conversations as convo_repo
@@ -58,20 +58,112 @@ MIN_ANSWER_TOKENS = 2048  # a pass's JSON is cut, and unreadable, in less than t
 # A model that reasons before it writes needs room for both: the second ask of a pass that ran out.
 MORE_ROOM_TOKENS = 8192
 
-_running: set[str] = set()
-# Conversations whose last automatic pass failed: the error body, and how many replies to wait.
+# The operation under way for a conversation: "pass" (automatic), "extract" or "consolidate".
+_running: dict[str, str] = {}
+# Conversations whose pass or Condense failed: the error body of each ("pass", "consolidate"), the
+# newest ("last"), and how many replies the automatic pass waits before it tries again ("left").
 _failed: dict[str, dict] = {}
+# Every operation the server runs: none belongs to a request, and the server's stop ends them.
+_tasks: set[asyncio.Task] = set()
+# Refusals that say nothing failed in the memory: another operation ran, what it read changed, or
+# there was too little to merge. Whoever asked is told; nothing is kept of them.
+_NOT_FAILURES = (MEMORY_BUSY, CONVERSATION_CHANGED, FACTS_CHANGED, TOO_FEW_FACTS, NOT_FOUND)
+# The max_tokens a second ask read with, by connection id and model: where the next pass starts,
+# so that a model that needs more room pays one call, not two. Lost at restart, on purpose.
+_learned: dict[tuple[str, str], int] = {}
 
 
 def is_running(convo_id: str) -> bool:
-    """Whether a pass or a consolidation is under way for the conversation."""
+    """Whether a pass, a Remember or a consolidation is under way for the conversation."""
     return convo_id in _running
 
 
+def operation_of(convo_id: str) -> str | None:
+    """Which one, for a page that opens while it runs and shows it as if asked from there."""
+    return _running.get(convo_id)
+
+
+def _own(work: Awaitable[dict | None]) -> asyncio.Task:
+    task = asyncio.get_running_loop().create_task(work)
+    _tasks.add(task)
+    task.add_done_callback(_forget)
+    return task
+
+
+def _forget(task: asyncio.Task) -> None:
+    _tasks.discard(task)
+    # Read, so that asyncio does not report it: its asker was told, or its failure is kept.
+    if not task.cancelled():
+        task.exception()
+
+
+async def stop() -> None:
+    """At the server's stop. What an operation writes is one transaction, rolled back whole when
+    it is cancelled, so none is left half-written."""
+    for task in list(_tasks):
+        task.cancel()
+    await asyncio.gather(*_tasks, return_exceptions=True)
+
+
+async def asked(convo_id: str, operation: str) -> dict:
+    """A Remember ("extract") or a consolidation someone asked for, run by a task of the server's
+    own, as a reply is: the asker gets its answer as before, but a page that goes away, and the
+    request it leaves, cancel nothing. A failure is kept for the conversation to tell, since its
+    asker may be gone, until an operation succeeds."""
+    return await asyncio.shield(_own(_asked(convo_id, operation)))
+
+
+async def _asked(convo_id: str, operation: str) -> dict:
+    db = await _connect()
+    try:
+        if operation == "extract":
+            result = await run_maintenance(db, convo_id, hold_back=0, operation="extract")
+            result = {**result, "memories": await memories_repo.list_for_conversation(db, convo_id)}
+        else:
+            result = await consolidate(db, convo_id)
+    except AppError as exc:
+        if exc.kind not in _NOT_FAILURES:
+            _keep(convo_id, _slot(operation), {**error_body(exc), "operation": operation})
+        raise
+    except Exception:
+        _keep(convo_id, _slot(operation),
+              {"error": "The memory task failed.", "kind": "internal", "operation": operation})
+        raise
+    finally:
+        await db.close()
+    if operation == "consolidate":
+        # A Condense that succeeds says nothing of whether a pass would: it clears only its own.
+        # A Remember that succeeds is a pass, and run_maintenance has cleared the pass's.
+        _keep(convo_id, "consolidate", None)
+    return result
+
+
+def _keep(convo_id: str, slot: str, body: dict | None, left: int | None = None) -> None:
+    """Keep why the pass ("pass": the automatic one or a Remember, the same work) or a Condense
+    ("consolidate") failed, or forget it with no body. Each is kept apart, for a success of one
+    to say nothing of the other; the newest is told. ``left`` is the automatic pass's wait, which
+    an operation asked for neither shortens nor starts."""
+    entry = _failed.setdefault(convo_id, {"left": 0})
+    if left is not None:
+        entry["left"] = left
+    if body is None:
+        entry.pop(slot, None)
+    else:
+        entry[slot] = body
+        entry["last"] = slot
+    if "pass" not in entry and "consolidate" not in entry and entry["left"] <= 0:
+        _failed.pop(convo_id, None)
+
+
 def failure_of(convo_id: str) -> dict | None:
-    """Why the last automatic pass failed, shaped as an error response, until one succeeds."""
-    failed = _failed.get(convo_id)
-    return failed["error"] if failed else None
+    """Why the pass or a Condense last failed, shaped as an error response with the operation that
+    failed ("pass", "extract" or "consolidate"), until that work succeeds."""
+    failed = _failed.get(convo_id) or {}
+    return failed.get(failed.get("last") or "") or failed.get("pass") or failed.get("consolidate")
+
+
+def _slot(operation: str) -> str:
+    return "consolidate" if operation == "consolidate" else "pass"
 
 
 async def _new_assistant_count(db: aiosqlite.Connection, convo: dict) -> int:
@@ -111,46 +203,49 @@ def schedule_if_due(convo_id: str) -> None:
             if exc.kind in (MEMORY_BUSY, CONVERSATION_CHANGED, FACTS_CHANGED):
                 return  # the next reply asks again
             logger.warning("memory maintenance failed for %s: %s", convo_id, exc.message)
-            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1, "error": error_body(exc)}
+            _keep(convo_id, "pass", {**error_body(exc), "operation": "pass"}, MAINTENANCE_EVERY - 1)
         except Exception:
             logger.exception("memory maintenance failed for %s", convo_id)
-            _failed[convo_id] = {"left": MAINTENANCE_EVERY - 1,
-                                 "error": {"error": "The memory pass failed.", "kind": "internal"}}
+            _keep(convo_id, "pass", {"error": "The memory pass failed.", "kind": "internal",
+                                     "operation": "pass"}, MAINTENANCE_EVERY - 1)
         finally:
             await db.close()
 
-    asyncio.get_running_loop().create_task(_task())
+    _own(_task())
 
 
-async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]]) -> dict:
+async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
+                        operation: str = "pass") -> dict:
     """Run ``work``, unless another memory task is running for this conversation. A pass and a
     consolidation each read the memory, wait for a model, and write what it said, so that the
     two would cross."""
     if convo_id in _running:
         raise AppError("Another memory task is running.", 409, kind=MEMORY_BUSY)
-    _running.add(convo_id)
+    _running[convo_id] = operation
     try:
         return await work()
     finally:
-        _running.discard(convo_id)
+        _running.pop(convo_id, None)
 
 
 async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
-                          hold_back: int = HOLD_BACK) -> dict:
+                          hold_back: int = HOLD_BACK, operation: str = "pass") -> dict:
     """One extraction+summary pass, which leaves the ``hold_back`` newest messages for the
     next. Returns {"facts_added": [...], "summary": str}."""
     async def work() -> dict:
         result = await _run(db, convo_id, hold_back)
-        _failed.pop(convo_id, None)
+        _keep(convo_id, "pass", None, 0)
         return result
 
-    return await one_at_a_time(convo_id, work)
+    return await one_at_a_time(convo_id, work, operation)
 
 
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
     connection = await connections_repo.resolve(db, convo.get("connection_id"))
     if connection is None:
         raise AppError("No LLM connection configured.", kind=NO_CONNECTION)
+    # A pass writes JSON, which reasoning does not improve, and every token of it is paid for.
+    connection = {**connection, "least_reasoning": True}
     if connection.get("max_tokens"):
         connection = {**connection, "max_tokens": max(connection["max_tokens"], MIN_ANSWER_TOKENS)}
     return connection
@@ -162,56 +257,75 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
 
     A model that reasons before it writes can spend the whole ceiling thinking and answer nothing,
     and a JSON cut short is as unreadable. Either is a lack of room, not of will, so the second
-    ask gives it more, never past what the context leaves. The answer is returned whether it
-    reads or not: ``_unreadable`` says why it did not."""
-    answer = await complete_answer(get_provider(connection), payload)
+    ask gives it more, never past what the context leaves, and the next pass starts there. The
+    answer is returned whether it reads or not: ``_unreadable`` says why it did not."""
+    own = connection.get("max_tokens") or 0
+    key = (connection.get("id") or "", connection.get("model") or "")
+    left = None
+    if context := connection.get("context_size"):
+        left = context - prompt_tokens(payload) - CONTEXT_MARGIN
+    first = own
+    if (learned := _learned.get(key, 0)) > own:
+        first = max(own, learned if left is None else min(learned, left))
+    if first == own:
+        answer = await complete_answer(get_provider(connection), payload)
+    else:
+        try:
+            answer = await complete_answer(get_provider({**connection, "max_tokens": first}),
+                                           payload)
+        except ProviderError as exc:
+            if exc.status not in REFUSED_AS_WRITTEN:
+                raise
+            # Its server's limit came down since: the connection's own ceiling is where to start,
+            # and this ask is the pass's second, so it is not followed by another.
+            _learned.pop(key, None)
+            logger.warning("%s: max_tokens %d, learned on an earlier pass, was refused (%s); "
+                           "asking with the connection's own.", what, first, exc.message)
+            return await complete_answer(get_provider(connection), payload)
     if reads(answer.text):
         return answer
-    own = connection.get("max_tokens") or 0
     ran_out = answer.stop == STOPPED_FOR_LENGTH or (
-        not answer.text.strip() and answer.thought > 0 and own > 0)
+        not answer.text.strip() and answer.thought > 0 and first > 0)
     if not ran_out:
         return answer
-    room = max(MORE_ROOM_TOKENS, 4 * own)
-    if context := connection.get("context_size"):
-        room = min(room, context - prompt_tokens(payload) - CONTEXT_MARGIN)
-    if room <= own:
+    room = max(MORE_ROOM_TOKENS, 4 * first)
+    if left is not None:
+        room = min(room, left)
+    # With no ceiling sent, the server's own default ran out, and it may be above a smaller one.
+    if room <= first or (not first and room < MORE_ROOM_TOKENS):
         return answer
-    logger.info("%s: the answer ran out of room (%d characters of reasoning, stopped with %r); "
-                "asking again with max_tokens %s instead of %s", what, answer.thought, answer.stop,
-                room, own or "unset")
+    logger.warning("%s: the model ran out of room (%d characters of reasoning, stopped with %r, "
+                   "max_tokens %s); asking again with %d. Raising the connection's max tokens "
+                   "avoids the second call.", what, answer.thought, answer.stop, first or "unset",
+                   room)
     try:
-        return await complete_answer(get_provider({**connection, "max_tokens": room}), payload)
+        second = await complete_answer(get_provider({**connection, "max_tokens": room}), payload)
     except ProviderError as exc:
         # A server whose output limit is lower refuses it: the first answer's failure stands.
         logger.warning("%s: the second ask was refused: %s", what, exc.message)
         return answer
+    if reads(second.text):
+        _learned[key] = room
+    return second
 
 
 def _unreadable(answer: Answer, what: str, said: str) -> AppError:
-    """Why a pass has nothing to use, by how the model's answer ended: it only thought, its server
-    gave no text, or what it wrote cannot be read."""
+    """Why a pass has nothing to use, by how the model's answer ended: it only thought or ran out
+    of room, its server withheld it, it gave no text, or what it wrote cannot be read."""
     logger.warning("%s: unreadable answer, %s, %d characters of reasoning, stopped with %r",
                    what, describe_answer(answer.text), answer.thought, answer.stop)
     if answer.text.strip():
         return AppError(said, 502, kind=MODEL_UNREADABLE)
-    if answer.thought:
-        return AppError(
-            "The model only thought, and wrote no memory. Give its connection more max tokens, "
-            "or use a model that thinks less.", 502, kind=MODEL_ONLY_THOUGHT)
-    if answer.stop == STOPPED_FOR_LENGTH:
-        message = "The model returned no text: it ran out of room."
-    elif answer.stop and answer.stop != "stop":
-        message = f'The model returned no text (its server ended the answer with "{answer.stop}").'
-    else:
-        message = "The model returned no text."
-    return AppError(message, 502, kind=NO_TEXT)
+    only_thought = ("The model only thought, and wrote no memory. Give its connection more max "
+                    "tokens, or use a model that thinks less.")
+    return unwritten(answer, only_thought) or AppError("The model returned no text.", 502,
+                                                       kind=NO_TEXT)
 
 
 async def consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Merge the model's unpinned facts into a shorter, denser set.
     Returns {"before": n, "after": n, "memories": [...]}."""
-    return await one_at_a_time(convo_id, lambda: _consolidate(db, convo_id))
+    return await one_at_a_time(convo_id, lambda: _consolidate(db, convo_id), "consolidate")
 
 
 async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
@@ -229,6 +343,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
                        409, kind=TOO_FEW_FACTS)
 
     payload = build_consolidation_payload(character, persona, movable)
+
     def merge(text: str) -> dict | None:
         return plan_consolidation(parse_llm_json(text), movable)
 

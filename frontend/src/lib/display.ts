@@ -113,7 +113,8 @@ export function subscribeDisplay(listener: () => void): () => void {
 }
 
 export function useDisplay(): Display {
-  return useSyncExternalStore(subscribeDisplay, getDisplay);
+  // The third reader is for a page drawn without a browser (a test): the same display.
+  return useSyncExternalStore(subscribeDisplay, getDisplay, getDisplay);
 }
 
 /** How opaque the page-coloured plate over the picture is, for the picture to weigh at most

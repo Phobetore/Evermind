@@ -144,8 +144,9 @@ async def test_reasoning_a_server_sends_apart_changes_nothing_in_the_reply(clien
     await send(client, convo["id"])
     assert (await messages_of(client, convo["id"]))[-1]["content"] == "*She smiles.*"
 
+    # Reasoning and no reply is told as such: "an empty reply" would hide where its room went.
     fake_provider.script = [ProviderEvent(type="thought", count=40), ProviderEvent(type="done")]
-    assert (await send(client, convo["id"], content="Again"))["kind"] == "model_empty"
+    assert (await send(client, convo["id"], content="Again"))["kind"] == "model_only_thought"
 
 
 async def test_auto_title_strips_rp_markup(client, fake_provider):
@@ -245,6 +246,26 @@ async def test_impersonate_gives_no_share_of_the_chat_to_the_facts(client, fake_
     await client.post(f"/api/conversations/{convo['id']}/memories",
                       json={"content": "Serana owes Alex a boot. " * 30, "is_pinned": True})
     assert await messages_read() == whole_chat
+
+
+async def test_impersonate_reads_the_recent_messages_a_reply_reads(client, fake_provider):
+    """The setting "Recent messages sent to the model" holds for the pen as for a reply."""
+    convo = await setup_conversation(client)
+    for i in range(6):
+        await send(client, convo["id"], content=f"Message {i}.")
+    await client.put("/api/settings", json={"history_limit": 4})
+
+    await send(client, convo["id"], content="One more.")
+    replied = [m["content"] for m in fake_provider.captured["payload"].messages]
+    fake_provider.script = [ProviderEvent(type="delta", text="*Je souris.*"),
+                            ProviderEvent(type="done")]
+    resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
+
+    assert resp.status_code == 200, resp.text
+    penned = [m["content"] for m in fake_provider.captured["payload"].messages]
+    assert len(penned) == 4
+    # The reply read up to the message it answered; the pen reads up to that reply.
+    assert penned[:-1] == replied[1:]
 
 
 async def test_narrate_and_ooc_modes(client, fake_provider):

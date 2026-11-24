@@ -11,10 +11,11 @@ import httpx
 import pytest
 
 from app.prompting.engine import PromptPayload
+from app.providers import openai_compat
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import ProviderEvent
 from app.providers.openai_compat import OpenAICompatProvider
-from app.services import card_assistant, turns
+from app.services import card_assistant, memory_service, turns
 
 # A 1x1 image, for the tests that send one.
 PNG = base64.b64decode(
@@ -43,9 +44,25 @@ def _no_wrong_passwords_counted():
 
 
 @pytest.fixture(autouse=True)
+def _log_file_of_its_own(tmp_path):
+    # A test that logs without starting an application would otherwise write into data/ at the root.
+    from app import log_file
+
+    log_file.install(lambda: tmp_path / "evermind.log")
+
+
+@pytest.fixture(autouse=True)
 def _no_card_drafts_from_another_test():
     # The server keeps them in its memory, which every test shares.
     card_assistant._jobs.clear()
+
+
+@pytest.fixture(autouse=True)
+def _nothing_learned_of_models_by_another_test():
+    # What a server's models accept, and the room a model needed, live in the process's memory.
+    openai_compat._model_lists.clear()
+    openai_compat._refused.clear()
+    memory_service._learned.clear()
 
 
 @pytest.fixture()

@@ -42,7 +42,7 @@ from ..prompting.payloads import (
 from ..prompting.text import text_of
 from ..prompting.tokens import estimate_tokens
 from ..providers import get_provider
-from ..providers.base import STOPPED_FOR_LENGTH, Provider
+from ..providers.base import STOPPED_FOR_LENGTH, Answer, Provider, unwritten
 from ..repositories import connections as connections_repo
 from .llm_json import describe_answer, parse_llm_json, partial_json
 
@@ -337,6 +337,8 @@ def _end(job: Job, error: BaseException | None) -> None:
     elif not text and job.thought:
         _fail(job, "The model only thought, and wrote no card. Give it more room, or try again.",
               MODEL_ONLY_THOUGHT)
+    elif not text and (silence := unwritten(Answer(text, job.thought, job.stop_reason))):
+        job.error = error_body(silence)
     elif not draft and not progress["parsed"]:
         logger.warning("card assistant: unreadable answer, %s", describe_answer(text))
         _fail(job, "The model did not return a readable card. Try again.", MODEL_UNREADABLE)
