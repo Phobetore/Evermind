@@ -16,6 +16,8 @@ import pytest
 from app.providers import catalog, complete_answer
 from app.providers.base import (
     AUTH_REFUSED,
+    DEFAULT_TIMEOUT,
+    LIST_DELAYS,
     LIST_TIMEOUT,
     UNREACHABLE,
     ProviderError,
@@ -210,6 +212,16 @@ async def test_openrouter_refuses_a_bad_key_although_its_list_is_public():
         await refused.read(service(OPENROUTER))
     assert raised.value.kind == AUTH_REFUSED
 
+    # A check of the key that hangs does not hold the list.
+    async def hangs(_: httpx.Request):
+        await asyncio.sleep(10)
+        return OPENROUTER_KEY_OK
+
+    started = time.monotonic()
+    server = Server({"/api/v1/models": listing, "/api/v1/key": hangs})
+    assert [m.id for m in (await server.read(service(OPENROUTER))).models] == ["v/a"]
+    assert time.monotonic() - started < 3
+
     for key in (httpx.Response(404), ConnectionRefusedError):
         def answer(request: httpx.Request, key=key):
             if key is ConnectionRefusedError:
@@ -309,6 +321,21 @@ async def test_a_list_is_kept_ten_minutes_unless_asked_fresh(monkeypatch):
     # The same address with its final "/" is the same list.
     await read({**svc, "base_url": svc["base_url"] + "/"})
     assert len(server.requests) == 4
+
+
+async def test_a_list_read_without_probes_is_not_kept_for_a_read_that_wants_them():
+    base = "http://localhost:1234/v1"
+    server = Server({"/v1/models": {"data": [{"id": "brume"}]},
+                     "/api/v1/models": {"models": [{"key": "brume", "type": "llm",
+                                                    "max_context_length": 32768}]}})
+    alone = await read_catalog(service(base), probes=False, client_factory=server.factory)
+    assert alone.models[0].max is None
+    probed = await read_catalog(service(base), client_factory=server.factory)
+    assert probed.models[0].max == 32768
+    assert server.paths().count("/api/v1/models") == 1
+    # And the other way: a probed list answers a read of the list alone.
+    await read_catalog(service(base), probes=False, client_factory=server.factory)
+    assert server.paths().count("/v1/models") == 2
 
 
 async def test_a_list_that_failed_is_not_kept():
@@ -433,6 +460,9 @@ def test_per_million_reads_a_price_per_token_without_rounding_errors():
     assert per_million("0.000003") == 3.0
     assert per_million("0.0000003") == 0.3
     assert per_million("0") == 0.0
+    # Two that a product of floats gets wrong: 2.9000000000000004 and 0.09999999999999999.
+    assert per_million("0.0000029") == 2.9
+    assert per_million("0.0000001") == 0.1
     for odd in ("-1", "nan", "inf", "x", "", None, True, "1e400000"):
         assert per_million(odd) is None
 
@@ -760,6 +790,13 @@ async def test_a_generic_address_tries_every_probe_and_learns_its_family():
                      "/api/v1/models": lmstudio_later})
     assert (await server.read(service())).family == "lmstudio"
 
+    # An empty list where LM Studio's would be says nothing of LM Studio; and a generic address
+    # is asked its newer route only, once.
+    for empty in ({"data": []}, {"models": []}):
+        server = Server({"/v1/models": listing, "/api/v1/models": empty})
+        assert (await server.read(service())).family == "generic", empty
+        assert "/api/v0/models" not in server.paths()
+
     # The list alone: no probe.
     server = Server({"/v1/models": listing})
     assert (await server.read(service(), probes=False)).family == "generic"
@@ -780,6 +817,29 @@ async def test_a_slow_or_dead_probe_is_not_told_and_does_not_hold_the_list():
     read = await server.read(service())
     assert time.monotonic() - started < 3
     assert (read.family, [m.id for m in read.models]) == ("generic", ["a"])
+
+
+async def test_each_request_of_a_list_has_the_list_s_delays():
+    """A provider's own client waits 900 s for a first word: a list asks with its own delays."""
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.path, request.extensions["timeout"]))
+        if request.url.path == "/api/show":
+            return httpx.Response(200, json={})
+        return httpx.Response(200, json={"data": [{"id": "brume"}]})
+
+    def factory():
+        return httpx.AsyncClient(transport=httpx.MockTransport(handler),
+                                 timeout=DEFAULT_TIMEOUT)
+
+    await read_one(service("http://localhost:11434/v1"), "brume", fresh=True,
+                   client_factory=factory)
+    await read_catalog(service(OPENROUTER), fresh=True, client_factory=factory)
+    assert {path for path, _ in seen} >= {"/v1/models", "/api/ps", "/api/show",
+                                          "/api/v1/models", "/api/v1/key"}
+    wanted = httpx.Timeout(LIST_DELAYS).as_dict()
+    assert all(delays == wanted for _, delays in seen), seen
 
 
 async def test_a_trickling_server_is_given_up_after_the_whole_delay(monkeypatch):
@@ -839,6 +899,16 @@ async def test_a_server_that_echoes_the_key_does_not_show_it():
         server = Server({"/v1/models": httpx.Response(status, json=said)})
         with pytest.raises(ProviderError) as raised:
             await server.read(service("https://proxy.example.com/v1"), probes=False)
+        assert "…4f2a" in raised.value.message
+        assert "sk-test-SECRET" not in raised.value.message
+    # OpenRouter's first page, and its check of the key.
+    for routes in ({"/api/v1/models": httpx.Response(500, json=said),
+                    "/api/v1/key": OPENROUTER_KEY_OK},
+                   {"/api/v1/models": {"data": [{"id": "v/a"}]},
+                    "/api/v1/key": httpx.Response(401, json=said)}):
+        server = Server(routes)
+        with pytest.raises(ProviderError) as raised:
+            await server.read(service(OPENROUTER))
         assert "…4f2a" in raised.value.message
         assert "sk-test-SECRET" not in raised.value.message
 
