@@ -7,7 +7,7 @@ import {
 import type { Family, ProbeModel, ProbeResult } from "@/types";
 import { clsx } from "clsx";
 import { RefreshCw } from "lucide-react";
-import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { HOSTED_FAMILIES, LOCAL_FAMILIES, type Answer } from "./addFlow";
 
 /** Rows drawn at a time: a keystroke never lays out more, whatever the list holds. */
@@ -63,10 +63,15 @@ export function ModelPickList({
   const [tickedOnly, setTickedOnly] = useState<Set<string> | null>(null);
   const tickedShown = tickedOnly !== null;
   const [focused, setFocused] = useState(false);
-  // While the field is typed in, the list holds at least the height of the box it scrolls in: with
-  // a single result, the box could not stay scrolled, and the field would drop under the finger.
+  // Once the field is typed in, the list holds at least the height of the box it scrolls in: with a
+  // single result, the box could not stay scrolled, and the field, then the row under the finger,
+  // would drop. Kept after the field lets go, for the same row.
   const [room, setRoom] = useState<number | null>(null);
   const shownAgain = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The first row under the stuck block, and where it was, as the sort and the count come back.
+  const held = useRef<{ row: Element; at: number } | null>(null);
+  const whole = useRef<HTMLDivElement>(null);
+  const rowList = useRef<HTMLUListElement>(null);
   const top = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
   const sentinel = useRef<HTMLLIElement>(null);
@@ -129,6 +134,37 @@ export function ModelPickList({
       box = box.parentElement;
     }
     return box;
+  }
+
+  // The sort and the count come back above the rows: the box scrolls by what they push down, so no row
+  // moves under the finger. The browser does not do it here: the dialog follows no line (Modal's `tall`).
+  useLayoutEffect(() => {
+    const was = held.current;
+    if (focused || !was) return;
+    const box = scroller();
+    if (!box || !whole.current || !was.row.isConnected) {
+      held.current = null;
+      return;
+    }
+    const by = was.row.getBoundingClientRect().top - was.at;
+    const short = box.scrollTop + by - (box.scrollHeight - box.clientHeight);
+    // Not enough below to scroll that far: the list first takes the room it lacks.
+    if (short > 0.5) {
+      setRoom(whole.current.offsetHeight + Math.ceil(short));
+      return;
+    }
+    held.current = null;
+    box.scrollTop += by;
+  }, [focused, room]);
+
+  /** The first row whose top is under the stuck block, and where it is now. */
+  function holdRow() {
+    held.current = null;
+    const block = top.current?.nextElementSibling;
+    if (!block || !rowList.current) return;
+    const edge = block.getBoundingClientRect().bottom;
+    const row = [...rowList.current.children].find((li) => li.getBoundingClientRect().top >= edge);
+    held.current = row ? { row, at: row.getBoundingClientRect().top } : null;
   }
 
   /** Back to the top of the results: the field at the top of the screen, the first result under it.
@@ -210,7 +246,7 @@ export function ModelPickList({
   );
 
   return (
-    <div className="min-w-0" style={focused && room !== null ? { minHeight: room } : undefined}>
+    <div ref={whole} className="min-w-0" style={room !== null ? { minHeight: room } : undefined}>
       <div ref={top} />
       {/* Stuck at the box's own edge, over its padding: no row shows above it. */}
       <div className="sticky -top-4 z-10 -mx-4 bg-ink-900 px-4 pt-2 sm:-top-6 sm:-mx-6 sm:px-6">
@@ -237,7 +273,10 @@ export function ModelPickList({
                 requestAnimationFrame(() => requestAnimationFrame(() => toTop(true)));
               }}
               onBlur={() => {
-                shownAgain.current = setTimeout(() => setFocused(false), SHOW_AFTER_BLUR_MS);
+                shownAgain.current = setTimeout(() => {
+                  holdRow();
+                  setFocused(false);
+                }, SHOW_AFTER_BLUR_MS);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
@@ -256,7 +295,7 @@ export function ModelPickList({
 
       {list === null && <p className="mb-3 text-sm text-mist">{t("ai.add.byHandHint")}</p>}
 
-      <ul className="flex flex-col gap-2">
+      <ul ref={rowList} className="flex flex-col gap-2">
         {visible.map((row) => (
           <Row
             key={row.id}

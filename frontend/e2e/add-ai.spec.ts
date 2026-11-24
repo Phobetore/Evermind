@@ -251,6 +251,58 @@ test.describe("adding AIs", () => {
     expect((await aisOn(request, "/many/")).map((ai) => ai.model).sort()).toEqual([eclair.id, last.id, "zz-absent"].sort());
   });
 
+  test("a row tapped while the field lets go stays under the finger", async ({ page, request }) => {
+    test.setTimeout(120_000);
+    await forgetServices(request, "/many/");
+    await routeServiceTo(page, OPENROUTER, MANY);
+    const box = dialog(page);
+    const panel = box.locator(".panel");
+    const search = box.getByRole("searchbox");
+    const boxes = box.getByRole("checkbox");
+    const frames = () => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
+
+    /** Taps a row's box, and says where it was just after and once the sort and count are back. */
+    async function tapped(which: ReturnType<typeof boxes.nth>) {
+      await which.tap();
+      const after = (await which.boundingBox())!.y;
+      // Past the moment the sort and the count come back.
+      await page.waitForTimeout(600);
+      return [after, (await which.boundingBox())!.y];
+    }
+
+    // Phones of today, and the smallest one still sold.
+    for (const size of [null, { width: 390, height: 844 }, { width: 320, height: 640 }]) {
+      if (size) await page.setViewportSize(size);
+      await openAdd(page);
+      await chip(page, "OpenRouter");
+      await withKey(page, "sk-e2e-any");
+      await expect(boxes).toHaveCount(30);
+
+      // Deep in the results: the rows come back under the sort, and none moves.
+      await search.click();
+      await frames();
+      await search.press("a");
+      await expect(boxes).toHaveCount(30);
+      await panel.evaluate((scrolled) => scrolled.scrollBy(0, 400));
+      await frames();
+      const [deep, deepLater] = await tapped(boxes.nth(6));
+      await expect(boxes.nth(6)).toBeChecked();
+      expect(Math.abs(deepLater - deep)).toBeLessThan(1);
+
+      // One result, the list shorter than the box: still nothing moves.
+      await search.click();
+      await search.fill("eclair");
+      await expect(boxes).toHaveCount(1);
+      await frames();
+      const [alone, aloneLater] = await tapped(boxes.first());
+      await expect(boxes.first()).toBeChecked();
+      expect(Math.abs(aloneLater - alone)).toBeLessThan(1);
+
+      await box.getByRole("button", { name: "Close" }).click();
+      await expect(box).toHaveCount(0);
+    }
+  });
+
   test("a server that fails says what failed and can be asked again", async ({ page, request }) => {
     test.setTimeout(120_000);
     for (const fragment of ["/broken/", "/empty/", "/locked/", "/slow/", "/many/"]) await forgetServices(request, fragment);
