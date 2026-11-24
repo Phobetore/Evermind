@@ -425,9 +425,6 @@ test("the input grows with its text and scrolls past six lines", async ({ page, 
   expect(await box.evaluate((el) => el.scrollHeight > el.clientHeight), "the seventh line has no room to scroll to").toBe(true);
 });
 
-/* The kept size is read as the conversation's page mounts, while it waits for its opening scene, so it
-   is settled long before a message is drawn: that the first read gives it is held in display.test.ts.
-   What this holds is the column's own --chat-scale, in place in every frame of the first message. */
 test("the input stops at forty percent of what the screen shows", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 420 });
   await page.addInitScript(rootAt, "32px");
@@ -448,6 +445,9 @@ test("the input stops at forty percent of what the screen shows", async ({ page,
   await expect.poll(async () => (await fit()).off, "the box kept its height as the screen shrank").toBeLessThanOrEqual(1);
 });
 
+/* The kept size is read as the conversation's page mounts, while it waits for its opening scene, so it
+   is settled long before a message is drawn: that the first read gives it is held in display.test.ts.
+   What this holds is the column's own --chat-scale, in place in every frame of the first message. */
 test("the first message drawn already has the chosen size", async ({ page, request }) => {
   const convo = await conversationWithReply(request);
   await page.addInitScript(() => {
