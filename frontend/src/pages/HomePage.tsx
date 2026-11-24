@@ -121,8 +121,10 @@ export function HomePage() {
               key={value}
               onClick={() => setTab(value)}
               className={clsx(
-                // Under very large text a label goes onto two lines, between words, or anywhere at last.
-                "min-w-0 flex-1 rounded-lg px-2 py-3 font-display text-sm font-medium transition-colors [overflow-wrap:anywhere] sm:flex-none sm:px-4 sm:py-1.5",
+                // Each tab as wide as its label, the spare room shared: equal widths would break the
+                // longest label at 320 pixels. Under very large text a label goes onto two lines,
+                // between words, or anywhere at last.
+                "min-w-0 flex-auto rounded-lg px-2 py-3 font-display text-sm font-medium transition-colors [overflow-wrap:anywhere] sm:flex-none sm:px-4 sm:py-1.5",
                 tab === value
                   ? "bg-ink-700 text-parchment shadow-sm"
                   : "text-mist hover:text-parchment",

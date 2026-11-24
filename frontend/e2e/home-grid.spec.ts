@@ -188,6 +188,25 @@ test("on the narrowest phone a short tag is drawn whole and the last one leaves 
   expect(last.x + last.width, "the last tag stays in the fade").toBeLessThanOrEqual(frame.x + frame.width - fade + 0.5);
 });
 
+test("on the narrowest phone each tab keeps its label on one line", async ({ page, request }) => {
+  await card(request, { name: `Tabs ${Date.now()}` });
+  await page.setViewportSize({ width: 320, height: 700 });
+  for (const locale of ["fr", "en", "de", "es"]) {
+    await page.goto("/#/");
+    await page.evaluate((chosen) => localStorage.setItem("evermind:locale", chosen), locale);
+    await page.reload();
+    await expect(page.locator("main .card-grid a").first()).toBeVisible();
+    const tabs = page.locator("main header + div > div:first-child > button");
+    await expect(tabs).toHaveCount(3);
+    const lines = await tabs.evaluateAll((buttons) => buttons.map((button) => {
+      const range = document.createRange();
+      range.selectNodeContents(button);
+      return { label: button.textContent, lines: new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size };
+    }));
+    expect(lines.filter((tab) => tab.lines > 1), `${locale}: a tab's label breaks`).toEqual([]);
+  }
+});
+
 test("the keyboard never stops on a row of tags", async ({ page, request }) => {
   const stamp = Date.now();
   const tags = Array.from({ length: 6 }, (_, i) => `a rather long tag ${i + 1}`);
