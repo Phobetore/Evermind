@@ -73,14 +73,25 @@ def _at_most(value: int, out: int | None) -> int:
     return value if out is None else min(value, out)
 
 
-def ceiling(model: dict, *, anthropic: bool, family: Family, room: int) -> Ceiling:
-    """`anthropic` is the service's provider; `room` is `reply_room(...)`."""
+def ceiling(model: dict, *, anthropic: bool, family: Family, room: int,
+            window: int | None = None) -> Ceiling:
+    """`anthropic` is the service's provider; `room` is `reply_room(...)`. `window` is what the
+    AI is counted to read: given, `auto` never keeps (or sends) more than half of it."""
     mode = model.get("reply_cap_mode") or "auto"
     if mode == "fixed":
         tokens = model["reply_cap_tokens"]
         return Ceiling(tokens, tokens)
     if mode == "unsent":
         return Ceiling(None, UNSENT_RESERVE)
+    got = _auto(model, anthropic=anthropic, family=family, room=room)
+    if window is None:
+        return got
+    # A reply that takes the whole window leaves the engine only its floor for the story.
+    half = window // 2
+    return Ceiling(None if got.sent is None else min(got.sent, half), min(got.reserve, half))
+
+
+def _auto(model: dict, *, anthropic: bool, family: Family, room: int) -> Ceiling:
     out = model.get("output_read")
     if model.get("reasons") == 1:
         # Its thinking comes out of the same ceiling: leave room for it, or send none.
@@ -107,7 +118,8 @@ def call_for(model: dict, service: dict, *, room: int) -> dict:
     family = family_of(provider, base_url, service.get("family") or "generic",
                        service.get("family_url"))
     counted = window(model, family=family)
-    cap = ceiling(model, anthropic=provider == "anthropic", family=family, room=room)
+    cap = ceiling(model, anthropic=provider == "anthropic", family=family, room=room,
+                  window=counted.tokens)
     return {
         "provider": provider,
         "base_url": base_url,

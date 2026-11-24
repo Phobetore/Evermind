@@ -264,3 +264,40 @@ def test_notices_kept_silences_them_all():
 
 def test_thinking_allowance_is_the_constant_until_it_is_measured():
     assert ai_call.thinking_allowance({}) == THINKING_ALLOWANCE == 3072
+
+
+@pytest.mark.parametrize("mode,reasons,anthropic,family,room,out,window_tokens,sent,reserve", [
+    ("auto", 1, False, "lmstudio", 1024, None, 4096, None, 2048),
+    ("auto", 1, False, "generic", 2048, None, 8192, None, 4096),
+    ("auto", 1, False, "generic", 2048, None, 16384, None, 5120),     # not bounded
+    ("auto", 1, True, "anthropic", 1024, None, 4096, 2048, 2048),
+    ("auto", 1, True, "anthropic", 1024, 64000, 200000, 4096, 4096),  # not bounded
+    ("auto", 0, False, "generic", 2048, None, 2048, 1024, 1024),
+    ("auto", 0, False, "generic", 1024, None, 16384, 1024, 1024),     # not bounded
+    ("auto", None, False, "openai", 2048, None, 2048, None, 1024),
+    ("auto", 0, True, "anthropic", 1024, None, 4096, 2048, 2048),
+    ("auto", 1, False, "generic", 1024, 1500, 4096, None, 1500),      # the output read is lower
+    ("fixed", 1, False, "generic", 1024, None, 4096, 3000, 3000),     # the person's own figure
+    ("unsent", 1, False, "ollama", 1024, None, 1024, None, 1024),
+])
+def test_in_auto_the_reply_never_takes_more_than_half_the_window(
+        mode, reasons, anthropic, family, room, out, window_tokens, sent, reserve):
+    model = {"reply_cap_mode": mode, "reply_cap_tokens": 3000 if mode == "fixed" else None,
+             "reasons": reasons, "output_read": out}
+    got = ceiling(model, anthropic=anthropic, family=family, room=room, window=window_tokens)
+    assert (got.sent, got.reserve) == (sent, reserve)
+
+
+def test_a_reasoning_model_on_a_server_that_does_not_say_its_size_leaves_room_for_the_story():
+    model = {"id": "m", "name": "M", "model": "x", "reply_cap_mode": "auto", "reasons": 1,
+             "output_read": None, "context_own": None, "context_read": 32768,
+             "context_read_kind": "max"}
+    service = {"provider": "openai", "base_url": "http://localhost:1234/v1", "api_key": "",
+               "family": "lmstudio", "family_url": None}
+    call = call_for(model, service, room=1024)
+    assert call["context_size"] == 4096
+    assert call["reserve"] == 2048
+    assert call["max_tokens"] is None
+    assert for_engine(call)["max_tokens"] == 2048
+    # What this buys: 1848 tokens for the prompt, where the engine used to keep its floor of 512.
+    assert 4096 - 2048 - 200 == 1848
