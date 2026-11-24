@@ -1,6 +1,7 @@
 import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
 import { LanguageSelect } from "@/components/layout/LanguageSelect";
+import { DisplayControls } from "@/components/display/DisplayControls";
 import { ConnectionForm } from "@/components/settings/ConnectionForm";
 import { useConfirm } from "@/components/ui/Confirm";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,7 +13,7 @@ import { describeError } from "@/lib/errors";
 import { isNewer, latestRelease, type Release } from "@/lib/releases";
 import type { Connection, Installation, Settings } from "@/types";
 import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 export function SettingsPage() {
   const t = useT();
@@ -25,6 +26,7 @@ export function SettingsPage() {
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorLine = useRef<HTMLParagraphElement>(null);
+  const displayTitle = useId();
 
   const load = useCallback(() => {
     Promise.all([
@@ -193,6 +195,12 @@ export function SettingsPage() {
           </Field>
         </section>
       )}
+
+      {/* Kept on this device, not on the server: shown even when the server's settings could not be read. */}
+      <section className="mb-10 max-w-xl" aria-labelledby={displayTitle}>
+        <h2 id={displayTitle} className="ui-label mb-3">{t("display.settingsTitle")}</h2>
+        <DisplayControls where="settings" />
+      </section>
 
       {settings && (
         <section className="mb-10">

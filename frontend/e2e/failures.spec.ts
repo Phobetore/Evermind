@@ -25,12 +25,14 @@ const favourite = async (request: APIRequestContext, id: string): Promise<boolea
 
 test("the home page that cannot read its cards says so, and reads them again when asked", async ({ page, request }) => {
   const card = await makeCharacter(request, { name: `Read ${Date.now()}` });
-  await page.route("**/api/characters", offline);
+  // The home page reads api/characters?fields=card, which a pattern of the path alone would not take.
+  const list = (url: URL) => url.pathname.endsWith("/api/characters");
+  await page.route(list, offline);
   await page.goto("/#/");
   await expect(page.locator("main").getByText("Evermind is not answering")).toBeVisible();
   await expect(page.locator("main .animate-pulse-soft"), "cards pulsing for ever").toHaveCount(0);
 
-  await page.unroute("**/api/characters", offline);
+  await page.unroute(list, offline);
   const failure = page.locator("main").getByRole("alert");
   await failure.getByRole("button", { name: "Reload" }).click();
   await expect(page.locator("main").getByRole("heading", { name: card.name })).toBeVisible();
@@ -248,12 +250,15 @@ test("a favourite that is not saved on a card's page says so by its button, whic
   expect(await favourite(request, card.id)).toBe(true);
 });
 
-test("a backdrop's strength that is not saved says so, and its slider goes back to what is stored", { tag: "@desktop" }, async ({ page, request }) => {
+test("a backdrop's strength that is not saved says so in the sheet, and its slider goes back to what is stored", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await makeConversation(request);
   await request.post(`${API}/api/conversations/${convo.id}/wallpaper`, {
     multipart: { file: { name: "backdrop.png", mimeType: "image/png", buffer: PNG } },
   });
-  const held = async () => (await (await stored(request, convo.id)).json()).wallpaper_opacity;
+  const held = async () => (await (await stored(request, convo.id)).json()).backdrop_strength;
+  // A short screen, where the sheet's body is taller than the sheet and scrolls. Its own width
+  // is kept: on a wide one the sheet is narrower and the side panel sits beside the conversation.
+  await page.setViewportSize({ width: page.viewportSize()!.width, height: 400 });
   await page.goto(`/#/chat/${convo.id}`);
   // Beside the conversation on a wide screen; behind this button on a phone.
   const opener = page.getByRole("button", { name: "Conversation memory and settings" });
@@ -261,12 +266,23 @@ test("a backdrop's strength that is not saved says so, and its slider goes back 
   await expect(opener.or(adjust).first()).toBeVisible();
   if (await opener.isVisible()) await opener.click();
   await adjust.click();
-  const strength = page.getByRole("slider", { name: "Strength" });
-  const said = page.getByRole("alert");
+  const sheet = page.getByRole("dialog", { name: "Display" });
+  const strength = sheet.getByRole("slider", { name: "Picture strength" });
+  // In the sheet, where the slider is: the page behind it is out of reach and may be covered.
+  const said = sheet.getByRole("alert");
 
   await failing(page, "PATCH", `/api/conversations/${convo.id}`, offline);
   await strength.fill("60");
   await expect(said).toContainText("Evermind is not answering");
+  // However far the body is scrolled, the alert stays in sight.
+  const scrolledBack = await strength.evaluate((slider) => {
+    let body = slider.parentElement;
+    while (body && body.scrollHeight <= body.clientHeight) body = body.parentElement;
+    if (!body || body.matches("dialog, html, body")) return false;
+    body.scrollTop = 0;
+    return true;
+  });
+  expect(scrolledBack, "the sheet's body does not scroll here").toBe(true);
   await expect(said).toBeInViewport();
   await expect(strength, "the slider is not what the server holds").toHaveValue("25");
   expect(await held()).toBe(0.25);

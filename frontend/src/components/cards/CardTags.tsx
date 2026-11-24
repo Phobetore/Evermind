@@ -3,8 +3,13 @@ import { useT } from "@/i18n/useT";
 import { useState } from "react";
 
 // A card keeps every tag it was read with, with no bound of number: on a phone, a thousand would
-// push what follows out of reach.
-const SHOWN_FIRST = 8;
+// push what follows out of reach. The home page's tile shows as many, by the same rule.
+export const SHOWN_FIRST = 8;
+
+/** How many tags are left once the first SHOWN_FIRST are shown. */
+export function otherTags(tags: readonly string[]): number {
+  return Math.max(0, tags.length - SHOWN_FIRST);
+}
 
 /** A card's tags as the header shows them, on the page and in the summary: the first eight, each
  *  on one line at most, then a « +N » button that shows the others for this mount. Nothing when
@@ -14,7 +19,7 @@ export function CardTags({ tags }: { tags: string[] }) {
   const [all, setAll] = useState(false);
   if (tags.length === 0) return null;
   const shown = all ? tags : tags.slice(0, SHOWN_FIRST);
-  const others = tags.length - shown.length;
+  const others = all ? 0 : otherTags(tags);
   return (
     <div className="mt-3 flex flex-wrap items-center gap-1.5">
       {shown.map((tag, i) => (

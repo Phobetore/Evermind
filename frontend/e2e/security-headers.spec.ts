@@ -65,6 +65,51 @@ test("no page of the app breaks the policy it is served with @desktop", async ({
   await noViolations(page, "the personas");
 });
 
+// What this release draws: the picture behind a conversation (its variables set through React's
+// style property, its copies read by fetch), the Aa sheet, and tiles whose pictures load lazily.
+test("the backdrop, the display sheet and the home page's pictures keep to the policy @desktop", async ({ page, request }) => {
+  await watchPolicy(page);
+  const portrait = (id: string) => request.post(`${API}/api/characters/${id}/avatar`, {
+    multipart: { file: { name: "portrait.png", mimeType: "image/png", buffer: PNG } },
+  });
+
+  const convo = await conversationWithReply(request);
+  made.push(convo.character_id);
+  expect((await portrait(convo.character_id)).ok()).toBe(true);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator(`[data-message-id="${convo.messages.at(-1).id}"]`)).toBeVisible();
+  await expect(page.locator("[data-backdrop] img")).toBeAttached();
+  await noViolations(page, "a conversation behind its character's picture");
+
+  await page.getByRole("button", { name: "Display: text size and backdrop" }).click();
+  await expect(page.getByRole("dialog", { name: "Display" })).toBeVisible();
+  await noViolations(page, "the display sheet");
+
+  const chosen = await request.post(`${API}/api/conversations/${convo.id}/wallpaper`, {
+    multipart: { file: { name: "backdrop.png", mimeType: "image/png", buffer: PNG } },
+  });
+  expect(chosen.ok()).toBe(true);
+  const wallpaper = (await chosen.json()).wallpaper_url as string;
+  // Read again: the same address would not load the conversation anew.
+  await page.reload();
+  await expect(page.locator("[data-backdrop] img")).toHaveAttribute("src", wallpaper);
+  await noViolations(page, "a conversation behind a picture of its own");
+
+  const stamp = Date.now();
+  for (let i = 0; i < 3; i++) {
+    const tiled = await makeCharacter(request, { name: `Tiled ${stamp} ${i}` });
+    made.push(tiled.id);
+    expect((await portrait(tiled.id)).ok()).toBe(true);
+  }
+  await page.goto("/#/");
+  await page.getByPlaceholder("Search by name, mood…").fill(`Tiled ${stamp}`);
+  const pictures = page.locator("main a[href*='/characters/'] img");
+  await expect(pictures).toHaveCount(3);
+  await expect.poll(() => pictures.evaluateAll((all) => all.every((el) => (el as HTMLImageElement).complete
+    && (el as HTMLImageElement).naturalWidth > 0))).toBe(true);
+  await noViolations(page, "the home page's tiles");
+});
+
 test("the app's own writes pass under the referrer policy", async ({ page, request }) => {
   const writes: Request[] = [];
   page.on("request", (r) => {

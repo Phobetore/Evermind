@@ -51,7 +51,12 @@
       "dropHint": "oder klicken, um eine auszuwählen. Mehrere auf einmal geht auch.",
       "sizeNote": "Höchstens 15 MB pro Datei. Nichts wird irgendwohin hochgeladen: die Datei liest dein eigenes Evermind.",
       "maybeMade": "Eine Kopie dieser Karte ist vielleicht schon auf der Startseite: Sieh dort nach, bevor du sie erneut importierst."
-    }
+    },
+    "card": {
+      "tags": "Tags: {list}"
+    },
+    "searchingDescriptions": "Sucht auch in den Beschreibungen…",
+    "searchFailed": "Die Beschreibungen konnten nicht durchsucht werden: nur die Namen und die Slogans."
   },
   "chatList": {
     "subtitle": "Setze deine Geschichten genau dort fort, wo du aufgehört hast.",
@@ -201,7 +206,8 @@
     "header": {
       "backAriaLabel": "Zurück zu den Unterhaltungen",
       "renameTitle": "Unterhaltung umbenennen",
-      "memorySettingsAriaLabel": "Gedächtnis und Einstellungen der Unterhaltung"
+      "memorySettingsAriaLabel": "Gedächtnis und Einstellungen der Unterhaltung",
+      "displayAriaLabel": "Anzeige: Textgröße und Hintergrund"
     },
     "cardSummary": {
       "aboutAriaLabel": "Über {name}",
@@ -229,15 +235,18 @@
       "modes": {
         "say": {
           "label": "Sprechen / Handlung (klicken, um den Modus zu wechseln)",
-          "placeholder": "Schreib an {name}… (*Sternchen* für deine Handlungen)"
+          "placeholder": "Schreib an {name}… (*Sternchen* für deine Handlungen)",
+          "short": "Sprechen"
         },
         "narrate": {
           "label": "Erzählung: Du beschreibst die Welt, die Szene, die Ereignisse",
-          "placeholder": "Beschreibe die Szene, die Welt, ein Ereignis…"
+          "placeholder": "Beschreibe die Szene, die Welt, ein Ereignis…",
+          "short": "Erzählen"
         },
         "ooc": {
           "label": "Anweisung außerhalb der Rolle: eine Notiz für die KI, in der Geschichte unsichtbar",
-          "placeholder": "Anweisung für die KI (z. B.: Beende immer deine Sätze)…"
+          "placeholder": "Anweisung für die KI (z. B.: Beende immer deine Sätze)…",
+          "short": "Außerhalb der Rolle"
         }
       },
       "ghostwriteTitle": "Meine Antwort für mich schreiben (vor dem Senden bearbeitbar)",
@@ -246,7 +255,9 @@
       "sendTitle": "Senden",
       "hintDefault": "Enter zum Senden · Umschalt+Enter für eine neue Zeile · Feder: Die KI entwirft deine Antwort",
       "hintTouch": "Zum Abschicken auf Senden tippen. Die Feder entwirft deine Antwort.",
-      "draftRestored": "Entwurf wiederhergestellt"
+      "draftRestored": "Entwurf wiederhergestellt",
+      "more": "Sprechen, erzählen, außerhalb der Rolle oder für mich schreiben",
+      "penLabel": "Für mich schreiben"
     },
     "message": {
       "youFallback": "Du",
@@ -315,18 +326,25 @@
       "sceneAnchor": {
         "title": "Szenen-Anker",
         "youFallback": "du"
-      }
+      },
+      "cardSummary": "Die Karte in Kürze"
     },
     "wallpaper": {
       "title": "Hintergrund",
-      "description": "Ein Bild hinter dieser Unterhaltung. Es gehört nur zu dieser Unterhaltung, nicht zur Figur.",
-      "choose": "Bild wählen",
       "replace": "Ersetzen",
       "remove": "Entfernen",
-      "opacity": "Stärke",
       "adjust": "Stärke einstellen",
-      "done": "Fertig",
-      "failed": "Der Hintergrund ließ sich nicht setzen."
+      "failed": "Der Hintergrund ließ sich nicht setzen.",
+      "description": "Diese Wahl gehört nur zu dieser Unterhaltung.",
+      "portrait": "Das Bild der Figur",
+      "portraitHint": "Die ursprüngliche Wahl. Folgt der Einstellung dieses Geräts.",
+      "other": "Ein anderes Bild",
+      "otherHint": "Aus deinen Dateien gewählt, wie bisher.",
+      "none": "Kein Hintergrund",
+      "noneHint": "Die leere Seite, auch wenn dieses Gerät Bilder zeigt.",
+      "noPicture": "Diese Karte hat kein Bild: Die Seite bleibt leer.",
+      "portraitHidden": "Auf diesem Gerät ausgeblendet.",
+      "portraitHiddenOpen": "In Anzeige ändern"
     },
     "writing": {
       "title": "Schreiben",
@@ -721,6 +739,32 @@
     "daysAgo": "vor {count} T.",
     "monthsAgo": "vor {count} Monat(en)",
     "yearsAgo": "vor {count} Jahr(en)"
+  },
+  "display": {
+    "title": "Anzeige",
+    "settingsTitle": "Anzeige · auf diesem Gerät",
+    "sheetHint": "Die Unterhaltung darüber ändert sich, während du einstellst.",
+    "textSize": "Textgröße der Unterhaltungen",
+    "scale": "{pct} %",
+    "scaleOriginal": "{pct} % · Original",
+    "smaller": "Kleiner",
+    "larger": "Größer",
+    "portrait": "Bild der Figur als Hintergrund",
+    "portraitHint": "Auf diesem Gerät, wenn die Unterhaltung keinen eigenen Hintergrund hat.",
+    "strength": "Stärke des Bildes",
+    "strengthDevice": "{pct} % · dieses Gerät",
+    "strengthConversation": "{pct} % · diese Unterhaltung",
+    "hidden": "Bild ausgeblendet",
+    "noneHere": "hier kein Hintergrund",
+    "noPicture": "diese Karte hat kein Bild",
+    "faint": "dezent",
+    "strong": "kräftig",
+    "ownStrength": "Nur für diese Unterhaltung einstellen",
+    "deviceStrength": "Stärke dieses Geräts übernehmen ({pct} %)",
+    "softened": "Unter dem Text ist das Bild immer abgeschwächt: Der Text bleibt bei jeder Stärke lesbar.",
+    "perDevice": "Diese Einstellungen bleiben auf diesem Gerät: Dein Handy und dein PC behalten jeweils ihre eigenen.",
+    "sheetFoot": "Unter dem Text ist das Bild immer abgeschwächt. Das Bild hier ändern oder entfernen: Einstellungsknopf, „Hintergrund“.",
+    "sample": "*Die Laterne schwingt am Ende ihres Arms.* Du kommst zu spät. **Drei Winter** zu spät, um genau zu sein."
   },
   "memoryMark": {
     "label": "Das Gedächtnis dieser Unterhaltung konnte nicht aktualisiert werden",

@@ -6,7 +6,7 @@ import { speakingName } from "@/engine";
 import { useI18n } from "@/i18n/I18nProvider";
 import { plainPresentation } from "@/lib/cards/read";
 import { chosenNotes, notesVersions } from "@/lib/presentation/notes";
-import { cardText, firstCodePoints, previewMacros } from "@/lib/utils";
+import { cardText, firstCodePoints, previewMacros, smallPortrait } from "@/lib/utils";
 import type { Character } from "@/types";
 import { ArrowRight } from "lucide-react";
 import { useMemo } from "react";
@@ -54,7 +54,7 @@ export function CardSummary({
   return (
     <Modal title={character.name} onClose={onClose}>
       <div className="flex items-start gap-4">
-        <Avatar name={character.name} src={character.avatar_url} className="h-20 w-20 shrink-0 text-3xl" />
+        <Avatar name={character.name} src={smallPortrait(character)} className="h-20 w-20 shrink-0 text-3xl" />
         <div className="min-w-0">
           <Tag tone={isScenario ? "arcane" : "ember"}>
             {isScenario ? t("chat.panel.kindScenario") : t("chat.panel.kindCharacter")}

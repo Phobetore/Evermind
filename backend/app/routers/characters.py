@@ -1,8 +1,10 @@
+from typing import Literal
+
 import aiosqlite
-from fastapi import APIRouter, Depends, UploadFile
+from fastapi import APIRouter, Depends, Form, Query, UploadFile
 
 from ..db import get_db
-from ..errors import NotFoundError
+from ..errors import AppError, NotFoundError
 from ..models.schemas import CardAssistRequest, CharacterIn, CharacterUpdate
 from ..repositories import characters as repo
 from ..repositories import conversations as convo_repo
@@ -13,9 +15,17 @@ router = APIRouter(prefix="/api/characters", tags=["characters"])
 
 
 @router.get("")
-async def list_characters(db: aiosqlite.Connection = Depends(get_db)):
-    """All of them: the interface searches the list it has."""
-    return await repo.list_all(db)
+async def list_characters(fields: Literal["card"] | None = None,
+                          db: aiosqlite.Connection = Depends(get_db)):
+    """All of them. `fields=card` is the light list of the home page: what a tile draws, no more."""
+    return await repo.list_tiles(db) if fields == "card" else await repo.list_all(db)
+
+
+# Declared before the routes of a character, so that no id of a card ever stands for it.
+@router.get("/search")
+async def search_characters(q: str = Query(""), db: aiosqlite.Connection = Depends(get_db)):
+    """The ids of the cards whose name, tagline or description holds `q` in one piece."""
+    return await repo.search(db, q)
 
 
 @router.post("", status_code=201)
@@ -79,4 +89,41 @@ async def upload_avatar(char_id: str, file: UploadFile,
     data, extension = await media.read_image_upload(file)
     if not await repo.get(db, char_id):
         raise NotFoundError("Character not found.", "character")
-    return await repo.update(db, char_id, {"avatar_path": media.save(data, extension)})
+    portrait = await repo.set_portrait(db, char_id, media.save(data, extension))
+    if not portrait:
+        raise NotFoundError("Character not found.", "character")
+    return portrait
+
+
+@router.post("/{char_id}/avatar/sizes")
+async def keep_portrait_sizes(char_id: str, grid: UploadFile, backdrop: UploadFile,
+                              portrait: str = Form(pattern=r"^[0-9a-f]{32}\.(png|jpg|webp)$"),
+                              db: aiosqlite.Connection = Depends(get_db)):
+    """The smaller copies of a portrait, made by a browser: one for the grid, one for the backdrop.
+    `portrait` names the picture they were made from, so that copies of one replaced meanwhile
+    are refused rather than shown under the new one."""
+    if not await repo.get(db, char_id):
+        raise NotFoundError("Character not found.", "character")
+    copies = [await media.read_image_upload(file) for file in (grid, backdrop)]
+    for data, extension in copies:
+        # The page makes no PNG copies, and a card's PNG can carry megabytes of text.
+        if extension == ".png" or not media.matches_type(data, extension):
+            raise AppError("Unsupported image format (JPEG or WebP).", kind="unsupported_image")
+    names: list[str] = []
+    outcome = None
+    try:
+        for data, extension in copies:
+            names.append(media.save(data, extension))
+        outcome = await repo.keep_sizes(db, char_id, portrait, *names)
+    finally:
+        # Unless kept, nothing points to what this request wrote, a full disk or a locked
+        # database included. Only those names: the copies already kept stay.
+        if outcome != "kept":
+            for name in names:
+                media.discard(name)
+    if outcome == "portrait_changed":
+        raise AppError("The portrait changed while its copies were made.", 409,
+                       kind="portrait_changed")
+    if outcome == "not_found":
+        raise NotFoundError("Character not found.", "character")
+    return await get_character(char_id, db)

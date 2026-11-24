@@ -7,7 +7,8 @@ import { TagText } from "@/components/ui/Tag";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import type { Character, Kind } from "@/types";
+import { PATIENCE_MS } from "@/lib/useTurn";
+import type { Character, CharacterTile, Kind } from "@/types";
 import { clsx } from "clsx";
 import { FileUp, LibraryBig, Plus, Search, Sparkles, Star } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -15,6 +16,12 @@ import { Link } from "react-router";
 
 /** These three lose their labels on a phone, and their side padding: at 53px each, Create would not fit at 320px. */
 const SQUARE_ON_PHONE = "max-sm:w-11 max-sm:!px-0";
+
+/** How long the search waits after the last letter before asking the server to read the descriptions. */
+const SEARCH_AFTER_MS = 300;
+
+/** What the server said of a text: the cards whose description holds it, or that it could not say. */
+type Described = { text: string; ids: ReadonlySet<string> } | { text: string; failed: true };
 
 const TABS: { value: Kind | "all"; labelKey: string }[] = [
   { value: "all", labelKey: "home.tabs.all" },
@@ -24,9 +31,10 @@ const TABS: { value: Kind | "all"; labelKey: string }[] = [
 
 export function HomePage() {
   const t = useT();
-  const [characters, setCharacters] = useState<Character[] | null>(null);
+  const [characters, setCharacters] = useState<CharacterTile[] | null>(null);
   const [tab, setTab] = useState<Kind | "all">("all");
   const [query, setQuery] = useState("");
+  const [described, setDescribed] = useState<Described | null>(null);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
@@ -35,8 +43,9 @@ export function HomePage() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
+  // The light list: what a tile draws, without the long fields that make the whole one megabytes.
   const load = () =>
-    data.characters.list().then((list) => {
+    data.characters.tiles().then((list) => {
       setCharacters(list);
       setFailure(null);
     }, (error) => setFailure({ error }));
@@ -44,10 +53,13 @@ export function HomePage() {
     load();
   }, []);
 
+  // The star is all a favourite changes on a tile; the card returned is a whole one.
   const replace = (updated: Character) =>
-    setCharacters((prev) => (prev ? prev.map((c) => (c.id === updated.id ? updated : c)) : prev));
+    setCharacters((prev) => (prev
+      ? prev.map((c) => (c.id === updated.id ? { ...c, is_favorite: updated.is_favorite } : c))
+      : prev));
 
-  async function toggleFavorite(character: Character) {
+  async function toggleFavorite(character: CharacterTile) {
     setFavoriteFailure(null);
     try {
       replace(await data.characters.update(character.id, { is_favorite: !character.is_favorite }));
@@ -58,9 +70,35 @@ export function HomePage() {
     }
   }
 
-  const words = query.trim().toLowerCase();
+  // The names and taglines are searched here, at once; the descriptions, which the light list does
+  // not carry, by the server once the typing pauses. The previous question is dropped, and one left
+  // unanswered (a phone changing networks) ends as a failure rather than a wait that never ends.
+  const typed = query.trim();
+  useEffect(() => {
+    if (!typed) return;
+    const asking = new AbortController();
+    const timer = setTimeout(() => {
+      data.characters.search(typed, { signal: asking.signal, within: PATIENCE_MS }).then(
+        (ids) => setDescribed({ text: typed, ids: new Set(ids) }),
+        () => {
+          if (!asking.signal.aborted) setDescribed({ text: typed, failed: true });
+        },
+      );
+    }, SEARCH_AFTER_MS);
+    return () => {
+      clearTimeout(timer);
+      asking.abort();
+    };
+  }, [typed]);
+  const answer = typed !== "" && described?.text === typed ? described : null;
+  const searching = typed !== "" && !answer;
+  const searchFailed = !!answer && "failed" in answer;
+
+  const words = typed.toLowerCase();
+  // Found by the server or here, a card is then held to the tab, the tag and the favourites alike.
   const found = (characters ?? []).filter((c) => (tab === "all" || c.kind === tab)
-    && [c.name, c.tagline, c.description].some((text) => text.toLowerCase().includes(words)));
+    && ([c.name, c.tagline].some((text) => text.toLowerCase().includes(words))
+      || (!!answer && "ids" in answer && answer.ids.has(c.id))));
   const allTags = [...new Set(found.flatMap((c) => c.tags))].slice(0, 12);
   const shown = characters && found.filter((c) =>
     (!activeTag || c.tags.includes(activeTag)) && (!favoritesOnly || c.is_favorite));
@@ -68,7 +106,8 @@ export function HomePage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
       <header className="mb-6 animate-rise sm:mb-8">
-        <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[2.75rem]">
+        {/* A word of the title can be wider than a phone's column under very large text. */}
+        <h1 className="font-display text-3xl font-semibold tracking-tight max-sm:[overflow-wrap:anywhere] sm:text-4xl lg:text-[2.75rem]">
           {t("home.hero.title")}<span className="text-ember-400">.</span>
         </h1>
         <p className="mt-2 max-w-xl text-mist">{t("home.hero.subtitle")}</p>
@@ -82,7 +121,10 @@ export function HomePage() {
               key={value}
               onClick={() => setTab(value)}
               className={clsx(
-                "flex-1 rounded-lg px-4 py-3 font-display text-sm font-medium transition-colors sm:flex-none sm:py-1.5",
+                // Each tab as wide as its label, the spare room shared: equal widths would break the
+                // longest label at 320 pixels. Under very large text a label goes onto two lines,
+                // between words, or anywhere at last.
+                "min-w-0 flex-auto rounded-lg px-2 py-3 font-display text-sm font-medium transition-colors [overflow-wrap:anywhere] sm:flex-none sm:px-4 sm:py-1.5",
                 tab === value
                   ? "bg-ink-700 text-parchment shadow-sm"
                   : "text-mist hover:text-parchment",
@@ -105,8 +147,9 @@ export function HomePage() {
         </div>
 
         {/* display:contents from sm up, so the four actions go back to being
-            direct children of the wrapping row on wider screens. */}
-        <div className="flex gap-3 sm:contents">
+            direct children of the wrapping row on wider screens. Under very large text, Create
+            takes a line of its own. */}
+        <div className="flex flex-wrap gap-3 sm:contents">
           <button
             className={clsx(
               "btn " + SQUARE_ON_PHONE,
@@ -167,11 +210,14 @@ export function HomePage() {
       {failure ? (
         <LoadFailure error={failure.error} onRetry={load} />
       ) : shown === null ? (
-        <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
+        <div className="card-grid grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="aspect-[3/4] animate-pulse-soft rounded-2xl bg-ink-850" />
+            <div key={i} className="aspect-[2/3] animate-pulse-soft rounded-2xl bg-ink-850 sm:aspect-[3/4]" />
           ))}
         </div>
+      ) : shown.length === 0 && searching ? (
+        // Not the empty page yet: the descriptions may still hold the text.
+        <p role="status" className="text-sm text-mist-dim">{t("home.searchingDescriptions")}</p>
       ) : shown.length === 0 ? (
         <EmptyState icon={Sparkles} title={t("home.emptyState.title")}>
           <span className="block">
@@ -183,7 +229,7 @@ export function HomePage() {
           </span>
         </EmptyState>
       ) : (
-        <div className="stagger grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
+        <div className="stagger card-grid grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
           {shown.map((character) => (
             <CharacterCard
               key={character.id}
@@ -193,6 +239,12 @@ export function HomePage() {
             />
           ))}
         </div>
+      )}
+      {shown && shown.length > 0 && searching && (
+        <p role="status" className="mt-4 text-sm text-mist-dim">{t("home.searchingDescriptions")}</p>
+      )}
+      {searchFailed && !failure && (
+        <p role="status" className="mt-4 text-sm text-mist">{t("home.searchFailed")}</p>
       )}
 
       {showLibrary && (

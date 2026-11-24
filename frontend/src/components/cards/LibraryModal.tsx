@@ -33,7 +33,7 @@ export function LibraryModal({
 
   // What cannot be read is no empty library. A card counts as installed when one has its name.
   const load = () =>
-    Promise.all([data.library.list(), data.characters.list()]).then(([shelf, characters]) => {
+    Promise.all([data.library.list(), data.characters.tiles()]).then(([shelf, characters]) => {
       const names = new Set(characters.map((c) => c.name));
       setItems(shelf.flatMap(({ filename, card, has_avatar }) => {
         // Read as a file of its text would be, so that it is installed with its card kept whole.

@@ -15,6 +15,7 @@ import {
 } from "@/lib/assist";
 import { cardFile, findOriginal, rereadPlan, type ExportWarning, type FoundCard, type RereadMode } from "@/lib/cards";
 import { newLoreEntry } from "@/lib/loreEntry";
+import { savePortrait } from "@/lib/portraitSizes";
 import { describeError, isUnanswered } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
 import type { CharacterWithLore, Connection, LoreEntry, NoteRole } from "@/types";
@@ -294,7 +295,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
       // A job begun on this card while it was not saved is the new card's now.
       if (!initial) moveJob("new", saved.id);
       if (avatarFile) {
-        await data.characters.uploadAvatar(saved.id, avatarFile);
+        await savePortrait(saved.id, avatarFile);
       }
       navigate(`/characters/${saved.id}`);
     } catch (e) {

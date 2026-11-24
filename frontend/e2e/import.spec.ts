@@ -239,3 +239,42 @@ test("an import whose answer is lost finds what it made rather than make it twic
     for (const made of await madeSince(request, before)) await request.delete(`${API}/api/characters/${made.id}`);
   }
 });
+
+// The whole list carries every long field of every card: the import needs only ids and names.
+test("the import dialog and the lost-answer search ask only for the light list", async ({ page, request }) => {
+  const before = new Set((await listed(request)).map((c) => c.id));
+  const whole: string[] = [];
+  page.on("request", (r) => {
+    const url = new URL(r.url());
+    if (r.method() === "GET" && url.pathname.endsWith("/api/characters") && url.searchParams.get("fields") !== "card") {
+      whole.push(r.url());
+    }
+  });
+  const portrait = (name: string) => ({
+    name: `${name}.png`, mimeType: "image/png",
+    buffer: cardPortrait({ spec: "chara_card_v2", spec_version: "2.0", data: { name, description: "Light." } }),
+  });
+  try {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.getByTitle(/^import a card/i).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.locator('input[type="file"]').setInputFiles(portrait("Light first"));
+    await expect(dialog.getByRole("group", { name: "Light first" })).toBeVisible();
+
+    let lost = false;
+    await page.route((url) => url.pathname.endsWith("/api/characters"), async (route) => {
+      if (lost || route.request().method() !== "POST") return route.continue();
+      lost = true;
+      await route.fetch();
+      await route.abort("connectionfailed");
+    });
+    await dialog.locator('input[type="file"]').setInputFiles(portrait("Light lost"));
+    await expect(dialog.getByRole("group", { name: "Light lost" })).toBeVisible();
+    expect(lost).toBe(true);
+    expect((await madeSince(request, before)).map((c) => c.name).sort()).toEqual(["Light first", "Light lost"]);
+    expect(whole, "the whole list was asked for").toEqual([]);
+  } finally {
+    for (const made of await madeSince(request, before)) await request.delete(`${API}/api/characters/${made.id}`);
+  }
+});

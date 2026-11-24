@@ -13,6 +13,7 @@ const TIMED = [
   "src/lib/presentation/style.test.ts",
   "src/lib/presentation/notes.test.ts",
   "src/components/chat/RpText.test.ts",
+  "src/engine/excerpt.test.ts",
 ];
 
 export default defineConfig({

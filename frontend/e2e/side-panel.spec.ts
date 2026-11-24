@@ -242,14 +242,16 @@ test.describe("the panel beside a conversation keeps everything inside it", () =
 
 test("a backdrop whose address has a parenthesis and an apostrophe still shows", async ({ page, request }) => {
   const convo = await makeConversation(request);
-  // The address is rewritten on its way in: a stored one cannot hold these, but a link to someone
-  // else's picture can, and unquoted in the style it ends the url() at the first parenthesis.
+  // A stored address cannot hold these, but a link to someone else's picture can.
   const hostile = `${API}/backdrops/it (1)'s.png`;
   await page.route(readOf(convo.id), async (route) => {
     if (route.request().method() !== "GET") return route.fallback();
     const response = await route.fetch();
     const body = await response.json();
-    await route.fulfill({ response, json: { ...body, wallpaper_url: hostile, wallpaper_opacity: 0.5 } });
+    await route.fulfill({
+      response,
+      json: { ...body, wallpaper_url: hostile, wallpaper_opacity: 0.5, backdrop: "image", backdrop_strength: 0.5 },
+    });
   });
   let asked = 0;
   await page.route(/\/backdrops\//, (route) => {
@@ -257,12 +259,10 @@ test("a backdrop whose address has a parenthesis and an apostrophe still shows",
     return route.fulfill({ status: 200, contentType: "image/png", body: PNG });
   });
   await page.goto(`/#/chat/${convo.id}`);
-  const backdrop = page.locator("div[aria-hidden].sticky > div");
+  const backdrop = page.locator("[data-backdrop] img");
   await expect(backdrop).toBeAttached();
-  // The browser only fetches a background it could parse; a broken one is never asked for.
   await expect.poll(() => asked, { message: "the backdrop picture was never requested" }).toBeGreaterThan(0);
-  // Read back, the address is the one the browser asked for, its space written %20.
-  await expect(backdrop).toHaveCSS("background-image", /it%20\(1\)'s\.png/);
+  await expect(backdrop).toHaveAttribute("src", hostile);
 });
 
 // A phone turned upright, or a window made narrow: beside the story there, the panel would cover it.

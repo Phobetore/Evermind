@@ -8,7 +8,7 @@ import { cardFile, cardToCharacter, installCard, readCardFile } from "./index";
 import { withCards } from "./png";
 import { readCardJson } from "./read";
 import { oldReading } from "./reread";
-import type { Character } from "@/types";
+import type { Character, CharacterTile, CharacterWithLore } from "@/types";
 
 const PNG = Uint8Array.from(
   atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="),
@@ -261,6 +261,7 @@ describe("an import whose answer is lost", () => {
   const read = readCardJson({ spec: "chara_card_v2", spec_version: "2.0", data: { name: "Vane" } }, "{}", "json")!;
   const lost = () => new DataError("Offline.", { kind: "network" });
   const character = (id: string, name: string, avatar_url: string | null = null) => ({ id, name, avatar_url }) as Character;
+  const tile = (id: string, name: string) => ({ id, name }) as CharacterTile;
 
   test("finds the character the server made, and gives it its portrait", async () => {
     const server = [character("old", "Vane")];
@@ -268,13 +269,17 @@ describe("an import whose answer is lost", () => {
       server.push(character("new", "Vane"));
       throw lost();
     });
-    vi.spyOn(data.characters, "list").mockImplementation(async () => server);
+    const list = vi.spyOn(data.characters, "list");
+    vi.spyOn(data.characters, "tiles").mockImplementation(async () => server as unknown as CharacterTile[]);
+    vi.spyOn(data.characters, "get").mockImplementation(async (id) => ({ ...character(id, "Vane"), lore_entries: [] }) as CharacterWithLore);
     const upload = vi.spyOn(data.characters, "uploadAvatar").mockImplementation(async (id) => character(id, "Vane", "api/media/v.png"));
     const portrait = new File([PNG], "vane.png", { type: "image/png" });
     try {
       const made = await installCard(read, portrait, new Set(["old"]));
       expect(made.id).toBe("new");
       expect(upload).toHaveBeenCalledWith("new", portrait);
+      // The whole list carries every long field of every card: the light one has the ids and names.
+      expect(list).not.toHaveBeenCalled();
     } finally {
       vi.restoreAllMocks();
     }
@@ -282,7 +287,7 @@ describe("an import whose answer is lost", () => {
 
   test("still fails when the server made none, or when it cannot be known", async () => {
     vi.spyOn(data.characters, "create").mockRejectedValue(lost());
-    const list = vi.spyOn(data.characters, "list").mockResolvedValue([character("old", "Vane")]);
+    const list = vi.spyOn(data.characters, "tiles").mockResolvedValue([tile("old", "Vane")]);
     try {
       await expect(installCard(read, null, new Set(["old"]))).rejects.toMatchObject({ kind: "network" });
       list.mockRejectedValue(lost());
@@ -295,7 +300,7 @@ describe("an import whose answer is lost", () => {
 
   test("still fails when two of that name are new: neither is taken at random", async () => {
     vi.spyOn(data.characters, "create").mockRejectedValue(lost());
-    vi.spyOn(data.characters, "list").mockResolvedValue([character("a", "Vane"), character("b", "Vane")]);
+    vi.spyOn(data.characters, "tiles").mockResolvedValue([tile("a", "Vane"), tile("b", "Vane")]);
     try {
       await expect(installCard(read, null, new Set(["old"]))).rejects.toMatchObject({ kind: "network" });
     } finally {
@@ -306,7 +311,7 @@ describe("an import whose answer is lost", () => {
   test("a creation the server answered and refused is not looked for", async () => {
     const refused = new DataError("Refused.", { status: 422 });
     vi.spyOn(data.characters, "create").mockRejectedValue(refused);
-    const list = vi.spyOn(data.characters, "list").mockResolvedValue([character("new", "Vane")]);
+    const list = vi.spyOn(data.characters, "tiles").mockResolvedValue([tile("new", "Vane")]);
     try {
       await expect(installCard(read, null, new Set(["old"]))).rejects.toBe(refused);
       expect(list).not.toHaveBeenCalled();
