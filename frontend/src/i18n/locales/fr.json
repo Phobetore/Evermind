@@ -96,7 +96,6 @@
   },
   "settings": {
     "subtitle": "Vos modèles, vos règles\u00a0: Evermind se branche sur l'IA que vous choisissez.",
-    "defaultTag": "Par défaut",
     "defaultConnectionLabel": "IA par défaut",
     "replyLengthLabel": "Longueur des réponses",
     "replyLengthHint": "S'applique à toutes les conversations. Evermind garde la place nécessaire aux IA réglées par lui\u00a0; une IA à plafond fixe peut couper les réponses longues\u00a0: voir Mes IA.",
@@ -151,9 +150,6 @@
       "upToDate": "Vous avez la dernière version.",
       "unreachable": "GitHub est injoignable."
     }
-  },
-  "connections": {
-    "modelLabel": "Modèle"
   },
   "chat": {
     "openingScene": "Ouverture de la scène…",
@@ -604,6 +600,7 @@
     },
     "startChatModal": {
       "title": "Rejoindre {name}",
+      "aiLabel": "IA",
       "personaHint": "Gérez vos identités dans l'onglet Personas.",
       "noPersonaOption": "Sans persona",
       "noConnectionOption": "Aucune IA",

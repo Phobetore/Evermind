@@ -96,7 +96,6 @@
   },
   "settings": {
     "subtitle": "Your models, your rules: Evermind connects to the AI you choose.",
-    "defaultTag": "Default",
     "defaultConnectionLabel": "Default AI",
     "replyLengthLabel": "Reply length",
     "replyLengthHint": "Applies to every conversation. Evermind keeps the room needed by the AIs it sets itself; an AI with a fixed ceiling may cut long replies: see My AIs.",
@@ -151,9 +150,6 @@
       "upToDate": "You are on the newest release.",
       "unreachable": "Could not reach GitHub."
     }
-  },
-  "connections": {
-    "modelLabel": "Model"
   },
   "chat": {
     "openingScene": "Opening the scene…",
@@ -604,6 +600,7 @@
     },
     "startChatModal": {
       "title": "Join {name}",
+      "aiLabel": "AI",
       "personaHint": "Manage your identities in the Personas tab.",
       "noPersonaOption": "No persona",
       "noConnectionOption": "No AI",

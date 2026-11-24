@@ -99,7 +99,7 @@ export function StartChatModal({
             </Field>
 
             {data.connections && (
-              <Field label={t("connections.modelLabel")}>
+              <Field label={t("cards.startChatModal.aiLabel")}>
                 <select
                   className="field"
                   value={aiId}

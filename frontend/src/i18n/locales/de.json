@@ -96,7 +96,6 @@
   },
   "settings": {
     "subtitle": "Ihre Modelle, Ihre Regeln: Evermind verbindet sich mit der KI Ihrer Wahl.",
-    "defaultTag": "Standard",
     "defaultConnectionLabel": "Standard-KI",
     "replyLengthLabel": "Antwortlänge",
     "replyLengthHint": "Gilt für alle Unterhaltungen. Evermind hält den nötigen Platz für KIs frei, die es selbst einstellt; eine KI mit fester Obergrenze kann lange Antworten abschneiden: siehe Meine KIs.",
@@ -151,9 +150,6 @@
       "upToDate": "Sie haben die neueste Version.",
       "unreachable": "GitHub war nicht erreichbar."
     }
-  },
-  "connections": {
-    "modelLabel": "Modell"
   },
   "chat": {
     "openingScene": "Die Szene wird eröffnet…",
@@ -604,6 +600,7 @@
     },
     "startChatModal": {
       "title": "Mit {name} spielen",
+      "aiLabel": "KI",
       "personaHint": "Verwalten Sie Ihre Identitäten im Tab „Personas“.",
       "noPersonaOption": "Keine Persona",
       "noConnectionOption": "Keine KI",
