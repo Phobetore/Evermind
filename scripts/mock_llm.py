@@ -52,6 +52,18 @@ CATALOG_REFERENCE = 1794614400
 SLOW_LIST_FOR = 4.0
 # The one key /locked/ takes.
 GOOD_KEY = "sk-e2e-good"
+# What the LM Studio under /lmstudio/ has loaded brume-12b with; a test changes it by a POST to
+# /lmstudio/loaded, and puts it back.
+LMSTUDIO_LOADED = 32768
+
+
+def _lmstudio_native() -> dict:
+    """LM Studio's own list (/api/v1/models), which says the size a model is loaded with."""
+    return {"models": [{
+        "type": "llm", "publisher": "brume", "key": "brume-12b", "display_name": "Brume 12B",
+        "max_context_length": 131072,
+        "loaded_instances": [{"id": "brume-12b", "config": {"context_length": LMSTUDIO_LOADED}}],
+    }]}
 
 
 def _catalog() -> dict:
@@ -93,6 +105,14 @@ class Handler(BaseHTTPRequestHandler):
             self._json(json.dumps({"error": {"message": "The mock list is broken."}}), status=500)
         elif path == "/empty/v1/models":
             self._json(json.dumps({"data": []}))
+        elif path == "/lmstudio/v1/models":
+            # The list where an AI's model is looked for, and LM Studio's own beside it.
+            self._json(json.dumps({"data": [{"id": "brume-12b"}]}))
+        elif path == "/lmstudio/api/v1/models":
+            self._json(json.dumps(_lmstudio_native()))
+        elif path.startswith("/lmstudio/"):
+            # No other family's route: its probes find nothing of their own here.
+            self._json(json.dumps({"error": "Unexpected endpoint or method."}), status=404)
         elif path in ("/many/api/v1/key", "/locked/api/v1/key"):
             # /many/ takes any key; /locked/ only the good one.
             good = path.startswith("/many/") or self.headers.get("Authorization") == f"Bearer {GOOD_KEY}"
@@ -107,8 +127,13 @@ class Handler(BaseHTTPRequestHandler):
             self._json(json.dumps({"ok": True}))
 
     def do_POST(self):
+        global LMSTUDIO_LOADED
         length = int(self.headers.get("Content-Length", 0))
         payload = json.loads(self.rfile.read(length) or b"{}")
+        if urlsplit(self.path).path.rstrip("/") == "/lmstudio/loaded":
+            LMSTUDIO_LOADED = int(payload["context_length"])
+            self._json(json.dumps({"context_length": LMSTUDIO_LOADED}))
+            return
         if not urlsplit(self.path).path.rstrip("/").endswith("/chat/completions"):
             self._json(json.dumps({"error": {"message": "unknown endpoint"}}), status=404)
             return
