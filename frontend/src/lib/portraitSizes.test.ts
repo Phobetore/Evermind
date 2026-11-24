@@ -201,6 +201,20 @@ describe("the queue of copies", () => {
     h.queue.hold(false);
     await vi.waitFor(() => expect(h.save).toHaveBeenCalledTimes(2));
     expect(h.save.mock.calls.map(([id]) => id)).toEqual(["a", "b"]);
+
+    // A reply that begins while the queue waits for the page to rest: the job does not start.
+    vi.useFakeTimers();
+    const r = harness();
+    r.queue.want(portrait("c", "c.png"));
+    await vi.advanceTimersByTimeAsync(100);
+    r.queue.hold(true);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(r.read).not.toHaveBeenCalled();
+    expect(r.make).not.toHaveBeenCalled();
+    r.queue.hold(false);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(r.make).toHaveBeenCalledTimes(1);
+    expect(r.save.mock.calls.map(([id]) => id)).toEqual(["c"]);
   });
 
   test("a stalled transfer frees the queue", async () => {
