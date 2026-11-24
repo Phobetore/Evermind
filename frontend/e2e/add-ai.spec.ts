@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { MOCK_ROOT, forgetServices, makeConversation, routeServiceTo } from "./fixtures";
+import { MOCK_ROOT, forgetServices, makeConversation, rootAt, routeServiceTo } from "./fixtures";
 
 /**
  * Adding AIs from Settings. The chips name the real services' addresses: OpenRouter's is sent to
@@ -276,6 +276,7 @@ test.describe("adding AIs", () => {
   };
   /** Past the moment the sort and the count come back. */
   const settled = (page: Page) => page.waitForTimeout(600);
+
   // Phones of today, and the smallest one still sold.
   const PHONES = [{ width: 390, height: 844 }, { width: 320, height: 640 }];
 
@@ -661,5 +662,85 @@ test.describe("adding AIs", () => {
     await expect(aiChip).toHaveAccessibleName("AI: e2e. Change.");
     const kept = await page.evaluate(() => JSON.stringify([{ ...localStorage }, { ...sessionStorage }]));
     expect(kept).not.toContain("sk-e2e-half-way");
+  });
+
+  /** Whether what is drawn at the middle of the element is the element itself, or something inside it:
+   *  nothing lies over it. */
+  const uncovered = (target: Locator) => target.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const there = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return there !== null && (there === el || el.contains(there));
+  });
+
+  // Text set to its largest on the smallest phone still sold: the root at 32px on 320x640.
+  test.describe("at very large text on a small phone", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.addInitScript(rootAt, "32px");
+      await page.setViewportSize({ width: 320, height: 640 });
+    });
+
+    test("a row of the list can be seen whole and ticked, and the confirm button reached and pressed", async ({ page, request }) => {
+      await forgetServices(request, "/many/");
+      await routeServiceTo(page, OPENROUTER, MANY);
+      await openAdd(page);
+      expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+      const box = dialog(page);
+      await chip(page, "OpenRouter");
+      await withKey(page, "sk-e2e-any");
+      const boxes = box.getByRole("checkbox");
+      await expect(boxes).toHaveCount(30);
+      const panel = box.locator(".panel");
+      const block = box.getByRole("searchbox").locator("xpath=../..");
+      const confirm = box.getByRole("button", { name: "Tick at least one model" });
+
+      // As the list comes: the foot takes no more than a third of the box, and the search lies over
+      // none of its buttons.
+      await frames(page);
+      const shownOf = async (target: Locator) => {
+        const it = await edges(target);
+        const room = await edges(panel);
+        return Math.max(0, Math.min(it.bottom, room.bottom) - Math.max(it.top, room.top));
+      };
+      const boxHeight = (await panel.boundingBox())!.height;
+      expect(await shownOf(confirm.locator("xpath=../..")), "the foot takes more than a third of the box")
+        .toBeLessThanOrEqual(boxHeight / 3);
+      for (const button of [confirm, box.getByRole("button", { name: "Back", exact: true })]) {
+        if (await shownOf(button) > 0) expect(await uncovered(button), "something lies over a button of the foot").toBe(true);
+      }
+
+      // The foot no longer covers the list. A row there is taller than the box (750px of text on a
+      // 589px box), so its top is what must come whole into sight, between the stuck search and the
+      // box's bottom, or the foot's top where the foot stays: its box to tick.
+      const first = box.locator("li").first();
+      const top = boxes.first();
+      // Its top to the box's top, then down by the search stuck there.
+      await first.evaluate((li) => li.scrollIntoView({ block: "start" }));
+      await frames(page);
+      const stuckHeight = (await block.boundingBox())!.height;
+      await panel.evaluate((scrolled, by) => scrolled.scrollBy(0, -by), stuckHeight + 8);
+      await frames(page);
+      const row = await edges(top);
+      expect(row.top, "the row is under the search").toBeGreaterThanOrEqual((await edges(block)).bottom - 0.5);
+      const foot = await edges(confirm.locator("xpath=../.."));
+      const floor = foot.top > row.top ? Math.min((await edges(panel)).bottom, foot.top) : (await edges(panel)).bottom;
+      expect(row.bottom, "the row's top is under the foot, or past the box").toBeLessThanOrEqual(floor + 0.5);
+      expect(await uncovered(boxes.first()), "something lies over the row's box").toBe(true);
+      await boxes.first().tap();
+      await expect(boxes.first()).toBeChecked();
+
+      // Narrowed to one, ticked, and added: its button reached by scrolling, and nothing over it.
+      const search = box.getByRole("searchbox");
+      await search.click();
+      await search.fill("eclair");
+      await search.press("Enter");
+      await expect(boxes).toHaveCount(1);
+      await boxes.first().check();
+      const add = box.getByRole("button", { name: "Add 2 AIs" });
+      await add.scrollIntoViewIfNeeded();
+      await frames(page);
+      expect(await uncovered(add), "something lies over the confirm button").toBe(true);
+      await add.tap();
+      await expect(box.getByText("2 AIs added")).toBeVisible();
+    });
   });
 });

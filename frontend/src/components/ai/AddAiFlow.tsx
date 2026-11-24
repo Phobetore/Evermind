@@ -5,6 +5,7 @@ import type { Translate } from "@/i18n/I18nProvider";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
 import type { Ai, Conversation, Family, Service } from "@/types";
+import { clsx } from "clsx";
 import { ChevronRight, Loader2 } from "lucide-react";
 import { useEffect, useId, useReducer, useRef, useState } from "react";
 import {
@@ -523,6 +524,7 @@ function Pick({ state, name, family, have: already, rereading, failure, onEvent,
 }) {
   const t = useT();
   const foot = footOf(state);
+  const [placeFoot, footStuck] = useStuckFoot();
   const nameOf = (id: string) => state.list?.models.find((m) => m.id === id)?.name ?? id;
   // The price's sentence names the service; another address, its host.
   const shownName = name ?? hostOf(state.draft?.base_url ?? "");
@@ -569,8 +571,15 @@ function Pick({ state, name, family, have: already, rereading, failure, onEvent,
         onAnswer={(id, answer) => onEvent({ type: "answer", id, answer })}
         onReread={onReread}
       />
-      {/* Stuck at the box's own edge, over its padding: no row shows below it. */}
-      <div className="sticky -bottom-4 -mx-4 -mb-4 mt-2 border-t border-ink-700 bg-ink-900 px-4 py-3 sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:px-6">
+      {/* Stuck at the box's own edge, over its padding: no row shows below it. Unless it would take more
+          than a third of the box (very large text on a small phone): it then comes after the list. */}
+      <div
+        ref={placeFoot}
+        className={clsx(
+          "-mx-4 -mb-4 mt-2 border-t border-ink-700 bg-ink-900 px-4 py-3 sm:-mx-6 sm:-mb-6 sm:px-6",
+          footStuck && "sticky -bottom-4 sm:-bottom-6",
+        )}
+      >
         {state.addError && <p role="alert" className="mb-2 text-sm text-blood">{state.addError.message}</p>}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <button type="button" className="btn btn-ghost" onClick={onBack} disabled={state.pending}>{t("ai.add.back")}</button>
@@ -586,6 +595,24 @@ function Pick({ state, name, family, have: already, rereading, failure, onEvent,
       </div>
     </div>
   );
+}
+
+/** Whether the foot of the list stays at the bottom of the box: as long as it takes no more than a
+ *  third of the box's height, measured again as either changes size. */
+function useStuckFoot() {
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    const box = node?.closest(".panel");
+    if (!node || !box) return;
+    const measure = () => setOn(node.offsetHeight <= box.clientHeight / 3);
+    const watch = new ResizeObserver(measure);
+    watch.observe(node);
+    watch.observe(box);
+    measure();
+    return () => watch.disconnect();
+  }, [node]);
+  return [setNode, on] as const;
 }
 
 function hostOf(address: string): string {
