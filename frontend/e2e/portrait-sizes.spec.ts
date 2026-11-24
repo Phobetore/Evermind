@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { makeConversation, PNG } from "./fixtures";
+import { cardPortrait, conversationWithReply, makeConversation, PNG, turnRunning } from "./fixtures";
 
 /** The smaller copies of a portrait, made by the browser and kept by the server: one 480 px wide
  *  for the grid, one 960 px wide for the backdrop. */
@@ -112,6 +112,60 @@ test("an old card makes its copies when one of its conversations opens", { tag: 
   expect(card.avatar_thumb_url).toBeTruthy();
 });
 
+test("an imported card gets the copies of its portrait", { tag: "@desktop" }, async ({ page, request }) => {
+  const name = `Imported ${Date.now()}`;
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await page.getByTitle(/^import a card/i).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: "imported.png", mimeType: "image/png",
+    buffer: cardPortrait({ spec: "chara_card_v2", spec_version: "2.0", data: { name, description: "Brought in." } }),
+  });
+  await expect(dialog.getByRole("group", { name })).toBeVisible();
+  const listed: { id: string; name: string }[] = await (await request.get(`${API}/api/characters`)).json();
+  const made = listed.filter((c) => c.name === name);
+  expect(made).toHaveLength(1);
+  try {
+    const card = await copiesOf(request, made[0].id);
+    expect(card.avatar_thumb_url).toBeTruthy();
+  } finally {
+    await request.delete(`${API}/api/characters/${made[0].id}`);
+  }
+});
+
+test("copies wait for the end of a reply being written", { tag: "@desktop" }, async ({ page, request }) => {
+  test.setTimeout(120_000); // the slow reply alone takes about twenty seconds
+  const convo = await conversationWithReply(request, { slowly: true });
+  const portrait = await request.post(`${API}/api/characters/${convo.character_id}/avatar`, {
+    multipart: { file: { name: "portrait.png", mimeType: "image/png", buffer: PNG } },
+  });
+  expect(portrait.ok()).toBe(true);
+  expect((await cardOf(request, convo.character_id)).avatar_thumb_url).toBeNull();
+  const posted: number[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST" && new URL(r.url()).pathname.endsWith("/avatar/sizes")) posted.push(Date.now());
+  });
+  // The page's own word that nothing is being written any more, timed as it arrives, before it is read.
+  let ended = 0;
+  const ends = page.waitForResponse(async (r) => {
+    if (r.request().method() !== "GET" || !new URL(r.url()).pathname.endsWith(`/api/conversations/${convo.id}/turn`)) return false;
+    const at = Date.now();
+    const over = (await r.json().catch(() => ({ running: true }))).running === false;
+    if (over) ended = at;
+    return over;
+  });
+  // Begun as another device would, so that the conversation opens on a reply already being written.
+  await request.post(`${API}/api/chat`, { data: { conversation_id: convo.id, message_mode: "say", mode: "send", content: "Go on." } });
+  await expect.poll(() => turnRunning(request, convo.id)).toBe(true);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.getByTitle("Stop generation")).toBeVisible();
+  await ends;
+  await copiesOf(request, convo.character_id);
+  expect(posted).toHaveLength(1);
+  expect(posted[0], "copies were sent while the reply was being written").toBeGreaterThanOrEqual(ended);
+});
+
 test("a picture this browser cannot decode leaves the card as it was", { tag: "@desktop" }, async ({ page, request }) => {
   const failures: Error[] = [];
   page.on("pageerror", (error) => failures.push(error));
@@ -174,19 +228,22 @@ test("a WebP this browser cannot write becomes a JPEG that still shows the portr
   const card = await copiesOf(request, id);
   expect(card.avatar_thumb_url).toMatch(/\.jpg$/);
   expect(card.avatar_backdrop_url).toMatch(/\.jpg$/);
-  const centre = await page.evaluate(async (url) => {
+  const { centre, corner } = await page.evaluate(async (url) => {
     const bitmap = await createImageBitmap(await (await fetch(url)).blob());
     const canvas = document.createElement("canvas");
     canvas.width = bitmap.width;
     canvas.height = bitmap.height;
     const context = canvas.getContext("2d")!;
     context.drawImage(bitmap, 0, 0);
-    return [...context.getImageData(bitmap.width / 2, bitmap.height / 2, 1, 1).data.slice(0, 3)];
+    const at = (x: number, y: number) => [...context.getImageData(x, y, 1, 1).data.slice(0, 3)];
+    return { centre: at(bitmap.width / 2, bitmap.height / 2), corner: at(5, 5) };
   }, card.avatar_thumb_url!);
   const [r, g, b] = centre;
   expect(Math.abs(r - 255), `centre ${centre}`).toBeLessThanOrEqual(40);
   expect(g, `centre ${centre}`).toBeLessThanOrEqual(40);
   expect(b, `centre ${centre}`).toBeLessThanOrEqual(40);
+  // Where the portrait is transparent, the page's colour #0f0d12, not the black of a JPEG left bare.
+  [15, 13, 18].forEach((channel, i) => expect(Math.abs(corner[i] - channel), `corner ${corner}`).toBeLessThanOrEqual(12));
 });
 
 test("a browser that does not know from-image still makes the copies", { tag: "@desktop" }, async ({ page, request }) => {
