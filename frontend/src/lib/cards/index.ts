@@ -1,5 +1,6 @@
 import { data, DataError, type CardCharacter, type StoredCard } from "@/data";
 import { isUnanswered } from "@/lib/errors";
+import { savePortrait } from "@/lib/portraitSizes";
 import type { Character } from "@/types";
 import { cardForExport } from "./export";
 import { chunks, isPng, MAX_BYTES, pngTexts, textKeyword, withCards } from "./png";
@@ -141,7 +142,7 @@ export async function installCard(read: ReadCard, portrait: File | null, known?:
   }
   if (!portrait) return made;
   try {
-    return await data.characters.uploadAvatar(made.id, portrait);
+    return await savePortrait(made.id, portrait);
   } catch (error) {
     await data.characters.remove(made.id).catch(() => {});
     throw error;

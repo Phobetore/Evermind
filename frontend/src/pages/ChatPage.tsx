@@ -15,6 +15,7 @@ import { useT } from "@/i18n/useT";
 import { backdropOf, plateAlpha, useDisplay } from "@/lib/display";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
+import { holdSizes, wantSizes } from "@/lib/portraitSizes";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
 import { newId, nothingFocused } from "@/lib/utils";
 import { clsx } from "clsx";
@@ -211,6 +212,15 @@ function ChatView({ id }: { id: string }) {
   const turn = useTurn(id, read, add, settled);
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
+
+  // The home's link belongs to the reply while it is written: a portrait's copies wait for its end.
+  useEffect(() => holdSizes(busy), [busy]);
+  useEffect(() => () => holdSizes(false), []);
+  // A portrait from before its copies existed, or whose copies no device has made yet.
+  const pictured = conversation?.character ?? null;
+  useEffect(() => {
+    if (pictured) wantSizes(pictured);
+  }, [pictured]);
 
   // A screen reader hears nothing of the words arriving: it is told a reply is being written, then that it is in.
   const [heard, setHeard] = useState<{ writing: string | null; said: "" | "typing" | "replied" }>({ writing, said: "" });
