@@ -2,10 +2,14 @@
 the ways of playing can be shown to send every model the same ones.
 
 The seed is the one of requests_before.json, brought to 3.7.0 (every migration up to 021 run on
-it, then the rest of them), in two variants of the three settings that were the way of playing,
+it, then the rest of them), in three variants of the three settings that were the way of playing,
 written by SQL before the update: ``untouched`` (no row) and ``touched`` (reply_length "long",
-history_limit 4, passage_budget 3000, as settings_repo.put writes them). For each, the four calls
-of every connection and the turn's meta.context, as test_requests_before holds them.
+history_limit 4, passage_budget 3000, as settings_repo.put writes them). The third, ``recalling``,
+is ``touched`` with what the first two never meet: an embedder, so that retrieval returns
+passages, a first message long enough to fit the passage budget of 3000 and not the 1500 it was
+before, and four AIs the update before set to ``auto``, so that the reply room reaches the
+request. For each, the four calls of every connection and the turn's meta.context, as
+test_requests_before holds them.
 
 It is recorded, never written by hand, on the code of 3.7.0 (the base of the ways of playing):
 ``python -m tests.test_requests_3_7 --record`` from backend/ of that code. Later tasks add the
@@ -19,12 +23,15 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 import httpx
+import numpy as np
 
 from app import db
 from app.config import db_path
+from app.prompting import embeddings
 
 from .test_requests_before import (
     CALLS,
@@ -39,10 +46,35 @@ RECORDED = Path(__file__).resolve().parent / "fixtures" / "requests_3_7.json"
 MIGRATION = "021_my_ais.sql"
 
 # The settings the release before kept as the way of playing, written as settings_repo.put does.
+TOUCHED = {"reply_length": "long", "history_limit": 4, "passage_budget": 3000}
 VARIANTS = {
     "untouched": {},
-    "touched": {"reply_length": "long", "history_limit": 4, "passage_budget": 3000},
+    "touched": TOUCHED,
+    "recalling": TOUCHED,
 }
+# About 2000 tokens as the engine counts: a passage that fits a budget of 3000, not of 1500.
+LONG_FIRST_MESSAGE = "*The carvings are long and old.* " * 210
+# AIs whose reply room is the way's: the AIs of 3.7.0 that Evermind sets (the seed's own were
+# fixed or unsent when the connections became AIs).
+AUTO = ("c-ollama", "c-openai", "c-anthropic-unset", "c-openrouter")
+
+
+class Embedder:
+    """Every text lands on the same vector: retrieval returns whatever fits the budget."""
+
+    def encode(self, texts, normalize_embeddings=False):
+        return np.array([[1.0, 0.0] for _ in texts], dtype=np.float32)
+
+
+@contextmanager
+def embedding(variant: str):
+    was = embeddings._model
+    if variant == "recalling":
+        embeddings._model = Embedder()
+    try:
+        yield
+    finally:
+        embeddings._model = was
 
 
 async def sent_in(variant: str, folder: Path) -> dict:
@@ -66,6 +98,9 @@ async def sent_in(variant: str, folder: Path) -> dict:
             for key, value in VARIANTS[variant].items():
                 conn.execute("INSERT INTO settings (key, value) VALUES (?, ?)",
                              (key, json.dumps(value)))
+            if variant == "recalling":
+                conn.execute("UPDATE messages SET variants = ? WHERE position = 0",
+                             (json.dumps([LONG_FIRST_MESSAGE]),))
             conn.commit()
         finally:
             conn.close()
@@ -76,8 +111,16 @@ async def sent_in(variant: str, folder: Path) -> dict:
 
         app = create_app()
         await db.init_db()  # the update
+        if variant == "recalling":
+            conn = sqlite3.connect(db_path())
+            try:
+                conn.execute("UPDATE models SET reply_cap_mode = 'auto', reply_cap_tokens = NULL"
+                             f" WHERE id IN ({', '.join('?' for _ in AUTO)})", AUTO)
+                conn.commit()
+            finally:
+                conn.close()
         server = Server()
-        with lent_to_every_provider(server):
+        with lent_to_every_provider(server), embedding(variant):
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
                                          base_url="http://localhost") as client:
                 sent = await call_each(client, server)
@@ -141,6 +184,13 @@ def test_the_recording_is_whole():
     for conn_id, calls in touched.items():
         assert calls["turn_context"]["messages_included"] == 4, conn_id
         assert "LENGTH OVERRIDE: write expansive replies" in json.dumps(calls["turn"]), conn_id
+    # The passages of the long first message, and the room the length gave: the only variant
+    # that holds the passage budget and the reply room against what 3.7.0 sent.
+    for conn_id, calls in recorded["recalling"].items():
+        assert "RELEVANT PAST" in json.dumps(calls["turn"]), conn_id
+        assert LONG_FIRST_MESSAGE[:40] in json.dumps(calls["turn"]), conn_id
+    for conn_id in AUTO:
+        assert (recorded["recalling"][conn_id]["turn"] != touched[conn_id]["turn"]), conn_id
     # Never touched, 3.7.0 sent what 3.6.0 sent.
     for conn_id, calls in recorded["untouched"].items():
         for call in CALLS:
