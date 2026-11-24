@@ -324,18 +324,21 @@ async def delete(db: aiosqlite.Connection, model_id: str) -> bool:
     return True
 
 
-async def store_read(db: aiosqlite.Connection, model_id: str, model: str, listed: Listed | None,
-                     family: str | None) -> None:
-    """What a read of ``model`` found, kept only while the AI still names that model, and only
-    where it says more: a size never replaced by a less sure one, reasoning never unlearned. A
-    model no longer listed keeps all it had. The family found is kept for a generic service."""
+async def store_read(db: aiosqlite.Connection, model_id: str, model: str, read_from: dict,
+                     listed: Listed | None, family: str | None) -> None:
+    """What a read of ``model`` at the service ``read_from`` (as it was when the read began)
+    found, kept only while the AI still names that model and its service is still at that API
+    and address, and only where it says more: a size never replaced by a less sure one,
+    reasoning never unlearned. A model no longer listed keeps all it had. The family found is
+    kept for a generic service."""
     async with write_transaction(db):
         current = await get_row(db, model_id)
         if current is None or current["model"] != model:
             return
         service = await services_repo.get_raw(db, current["connection_id"])
-        if service is not None:
-            await services_repo.learn_family(db, service, family)
+        if service is None or not services_repo.same_server(service, read_from):
+            return  # moved meanwhile: what the old address said is not this one's
+        await services_repo.learn_family(db, service, family)
         sets: dict = {"limits_read_at": now_iso()}
         if listed is not None:
             for kind in ("served", "configured", "max"):

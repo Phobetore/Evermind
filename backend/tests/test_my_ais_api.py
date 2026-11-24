@@ -550,6 +550,49 @@ async def test_a_read_for_the_old_model_id_is_not_stored_on_the_new_one(client, 
     assert (await model_of(client, ai["id"]))["reasons"] is None
 
 
+async def test_a_service_moved_to_another_address_has_its_ais_read_again(client):
+    ai = await add_model(client, base_url=HOSTED, model="m", as_added=True,
+                         read={"id": "m", "context": {"served": 200000}})
+    service_id = ai["service"]["id"]
+    read_at = ai["limits_read_at"]
+    assert read_at is not None
+
+    renamed = await client.put(f"/api/connections/{service_id}",
+                               json={"name": "Elsewhere", "base_url": HOSTED + "/"})
+    assert renamed.status_code == 200, renamed.text
+    assert (await model_of(client, ai["id"]))["limits_read_at"] == read_at
+
+    moved = await client.put(f"/api/connections/{service_id}",
+                             json={"base_url": "https://moved.example.com/v1"})
+    assert moved.status_code == 200, moved.text
+    after = await model_of(client, ai["id"])
+    assert after["limits_read_at"] is None
+    assert after["context"]["read"] == 200000
+
+
+async def test_a_read_from_the_old_address_is_not_stored_after_a_move(client, lists):
+    asked, release = asyncio.Event(), asyncio.Event()
+
+    async def held(_):
+        asked.set()
+        await release.wait()
+        return {"data": [{"id": "m", "context_length": 200000}]}
+
+    lists.routes["/v1/models"] = held
+    ai = await add_model(client, base_url=HOSTED, model="m", as_added=True)
+    reading = asyncio.create_task(
+        client.post(f"/api/models/{ai['id']}/refresh", json={"fresh": True}))
+    await asyncio.wait_for(asked.wait(), 5)
+    moved = await client.put(f"/api/connections/{ai['service']['id']}",
+                             json={"base_url": "https://moved.example.com/v1"})
+    assert moved.status_code == 200, moved.text
+    release.set()
+    assert (await reading).status_code == 200
+
+    after = await model_of(client, ai["id"])
+    assert (after["context"]["read"], after["limits_read_at"]) == (None, None)
+
+
 async def test_a_turn_refused_for_credit_says_so(client, monkeypatch):
     Model((402, {"error": {"message": "Insufficient credits"}})).serve(monkeypatch)
     convo = await setup_conversation(client)

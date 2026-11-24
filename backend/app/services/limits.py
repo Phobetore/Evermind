@@ -106,7 +106,8 @@ async def _refresh(model_id: str, fresh: bool) -> None:
                         getattr(exc, "message", None) or type(exc).__name__)
             return
         _failed.pop(model_id, None)
-        await models_repo.store_read(db, model_id, model["model"], listed, family)
+        await models_repo.store_read(db, model_id, model["model"], service, listed,
+                                    family)
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001

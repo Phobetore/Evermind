@@ -6,6 +6,7 @@ frozen at the update, read and written by nothing here, for the release before t
 
 import aiosqlite
 
+from ..db import write_transaction
 from ..providers.catalog import family_of, is_local, is_loopback
 from .base import new_id, now_iso
 
@@ -13,6 +14,11 @@ from .base import new_id, now_iso
 def bare(base_url: str | None) -> str:
     """An address without its final "/": the same server either way."""
     return (base_url or "").rstrip("/")
+
+
+def same_server(one: dict, other: dict) -> bool:
+    """The same API at the same address, a final "/" apart."""
+    return (one["provider"], bare(one["base_url"])) == (other["provider"], bare(other["base_url"]))
 
 
 def hint(key: str | None) -> str:
@@ -98,24 +104,26 @@ async def learn_family(db: aiosqlite.Connection, service: dict, family: str | No
 
 async def update(db: aiosqlite.Connection, service_id: str, fields: dict) -> dict | None:
     """``fields``: name, provider, base_url, api_key (None keeps it, "" clears it). A changed
-    address or API asks the family again."""
-    saved = await get_raw(db, service_id)
-    if saved is None:
-        return None
-    after = {**saved, **{k: v for k, v in fields.items() if v is not None and k != "api_key"}}
-    family, family_url = saved["family"], saved["family_url"]
-    if (after["provider"], bare(after["base_url"])) != (saved["provider"],
-                                                          bare(saved["base_url"])):
-        family = family_of(after["provider"], after["base_url"], saved["family"],
-                           saved["family_url"])
-        family_url = bare(after["base_url"])
-    await db.execute(
-        "UPDATE connections SET name = ?, provider = ?, base_url = ?,"
-        " api_key = COALESCE(?, api_key), family = ?, family_url = ?, updated_at = ?"
-        " WHERE id = ?",
-        (after["name"], after["provider"], after["base_url"], fields.get("api_key"), family,
-         family_url, now_iso(), service_id))
-    await db.commit()
+    address or API asks the family again, and has every AI of the service read again: what was
+    read stays until then, but is no longer taken as fresh."""
+    async with write_transaction(db):
+        saved = await get_raw(db, service_id)
+        if saved is None:
+            return None
+        after = {**saved, **{k: v for k, v in fields.items() if v is not None and k != "api_key"}}
+        family, family_url = saved["family"], saved["family_url"]
+        if not same_server(after, saved):
+            family = family_of(after["provider"], after["base_url"], saved["family"],
+                               saved["family_url"])
+            family_url = bare(after["base_url"])
+            await db.execute("UPDATE models SET limits_read_at = NULL WHERE connection_id = ?",
+                             (service_id,))
+        await db.execute(
+            "UPDATE connections SET name = ?, provider = ?, base_url = ?,"
+            " api_key = COALESCE(?, api_key), family = ?, family_url = ?, updated_at = ?"
+            " WHERE id = ?",
+            (after["name"], after["provider"], after["base_url"], fields.get("api_key"), family,
+             family_url, now_iso(), service_id))
     return await get(db, service_id)
 
 

@@ -163,7 +163,7 @@ async def refresh_model(model_id: str, payload: RefreshIn | None = None,
         # Whatever else breaks a read, the page says so; what was read stays.
         error = {"kind": MODEL_UNREADABLE, "message": type(exc).__name__}
     else:
-        await repo.store_read(db, model_id, model["model"], listed, family)
+        await repo.store_read(db, model_id, model["model"], service, listed, family)
     current = await repo.get(db, model_id)
     if current is None:
         raise _not_found()
