@@ -125,7 +125,7 @@ export function AiSheet({ conversation, ais, room, onPick, onGone, onAddOther, o
           <p>
             <Bolded text={t("chat.ai.capped", { name: current.name, tokens: capped })} bold={current.name} />
           </p>
-          <button type="button" className="btn btn-ghost mt-2 !py-1.5 text-sm" disabled={lifting} onClick={() => lift(current)}>
+          <button type="button" className="btn btn-ghost mt-2 max-w-full whitespace-normal !py-1.5 text-sm" disabled={lifting} onClick={() => lift(current)}>
             {lifting && <Loader2 className="h-4 w-4 animate-spin" />}
             {t("ai.notice.letEvermind")}
           </button>

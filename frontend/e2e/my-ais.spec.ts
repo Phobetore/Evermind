@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { MOCK_ROOT, answer, boxHears, makeCharacter } from "./fixtures";
+import { MOCK_ROOT, answer, boxHears, inLocale, makeCharacter, misfits, rootAt } from "./fixtures";
 
 /**
  * My AIs in Settings, and the page of each AI. The suite's server started on a database from the
@@ -531,4 +531,31 @@ test.describe("my ais", () => {
       await request.delete(`${API}/api/models/${ai.id}`);
     }
   });
+});
+
+// Text set to its largest on a phone, the root at 32px: long German and Spanish labels fill a line.
+test.describe("an ai's page at very large text keeps its choices and buttons on the screen", () => {
+  for (const locale of ["en", "fr", "de", "es"]) {
+    test(`in ${locale}`, async ({ page, request }, info) => {
+      test.skip(info.project.name !== "phone", "Brume 12B exists once, on the server both projects share");
+      const brume = (await ais(request)).find((ai) => ai.name === "Brume 12B" && ai.migrated) as Ai;
+      // With its two notices, and a ceiling of its own, as the update leaves it.
+      await request.put(`${API}/api/models/${brume.id}`, {
+        data: { context_own: 16384, reply_cap: { mode: "fixed", tokens: 1024 }, notices_kept: false },
+      });
+      await inLocale(page, locale);
+      await page.addInitScript(rootAt, "32px");
+      for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+        await page.setViewportSize(size);
+        await openPage(page, brume.id);
+        expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+        await page.locator("details summary").click();
+        await expect(page.locator("details [role=group] button[aria-pressed]")).toHaveCount(5);
+        expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+        const low = await page.locator("details [role=group] button[aria-pressed]").evaluateAll(
+          (choices) => choices.map((choice) => choice.getBoundingClientRect().height).filter((height) => height < 44));
+        expect(low, `a choice under a finger's height at ${size.width}px`).toEqual([]);
+      }
+    });
+  }
 });

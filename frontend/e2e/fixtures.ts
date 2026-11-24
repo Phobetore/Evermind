@@ -259,3 +259,63 @@ export async function answer(page: Page, accept: boolean): Promise<void> {
   await (accept ? buttons.last() : box.getByRole("button", { name: "Cancel" })).click();
   await expect(box).toHaveCount(0);
 }
+
+/** A root size of the page's own, as Safari and Firefox set it for very large system text: given to
+ *  `page.addInitScript` before the first `goto`, with "32px" (as display.spec.ts sets it). */
+export function rootAt(size: string) {
+  const set = () => document.documentElement.style.setProperty("font-size", size);
+  if (document.documentElement) set();
+  else document.addEventListener("DOMContentLoaded", set);
+}
+
+/** The language of every page the tab opens from the next one: given before the first `goto`. */
+export async function inLocale(page: Page, locale: string): Promise<void> {
+  await page.addInitScript((chosen) => localStorage.setItem("evermind:locale", chosen), locale);
+}
+
+/** What does not fit a phone, within the element `within` selects (the page by default): the page
+ *  sliding sideways, a control past the screen's edges or wider than its own box, a select wider
+ *  than the box it sits in, a word of a control's label broken in the middle. Each said in a line. */
+export async function misfits(page: Page, within = "body"): Promise<string[]> {
+  // Measured in the page's own fonts: a fallback font has other widths.
+  await page.evaluate(() => document.fonts.ready);
+  return page.evaluate((selector) => {
+    const found: string[] = [];
+    const root = document.documentElement;
+    const width = root.clientWidth;
+    if (root.scrollWidth > width) found.push(`the page slides ${root.scrollWidth - width}px`);
+    const main = document.querySelector("main");
+    if (main && main.scrollWidth > main.clientWidth) found.push(`<main> slides ${main.scrollWidth - main.clientWidth}px`);
+    const scope = document.querySelector(selector) ?? document.body;
+    for (const el of scope.querySelectorAll<HTMLElement>("button, a.btn, select, [role=button]")) {
+      const box = el.getBoundingClientRect();
+      if (box.width === 0 || getComputedStyle(el).visibility === "hidden") continue;
+      const name = (el.textContent?.trim() || el.getAttribute("aria-label") || el.tagName).slice(0, 40);
+      // A rail of chips scrolls sideways on purpose.
+      if (!el.closest(".overflow-x-auto") && (box.right > width + 0.5 || box.left < -0.5)) {
+        found.push(`"${name}" at ${Math.round(box.left)}..${Math.round(box.right)} of ${width}`);
+      }
+      if (el.tagName === "SELECT") {
+        const room = el.parentElement!.getBoundingClientRect();
+        if (box.right > room.right + 0.5) found.push(`select "${name}" ${Math.round(box.width)} wide in ${Math.round(room.width)}`);
+        continue;
+      }
+      if (el.scrollWidth > el.clientWidth + 1) found.push(`"${name}" ${el.scrollWidth} wide in ${el.clientWidth}`);
+      const texts = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let node = texts.nextNode(); node; node = texts.nextNode()) {
+        for (const word of (node.textContent ?? "").matchAll(/\S+/g)) {
+          const range = document.createRange();
+          range.setStart(node, word.index);
+          range.setEnd(node, word.index + word[0].length);
+          const lines = new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top)));
+          // Unless the word alone is wider than the control can hold.
+          const style = getComputedStyle(el);
+          const room = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+          const long = [...range.getClientRects()].reduce((sum, r) => sum + r.width, 0);
+          if (lines.size > 1 && long <= room) found.push(`"${word[0]}" broken in the middle in "${name}"`);
+        }
+      }
+    }
+    return found;
+  }, within);
+}
