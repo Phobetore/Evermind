@@ -527,17 +527,20 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
   /* Darker and higher than the computer's: the text and the tags sit on the picture's lower half. */
   .card-shade { background-image: linear-gradient(to top, var(--color-ink-950) 0%,
     rgb(15 13 18 / 0.9) 30%, rgb(15 13 18 / 0.45) 55%, transparent 78%); }
-  /* One row that a finger slides, without a script: the last tag fades out, and the margin on the
-     right lets it come out of the fade. */
+  /* One row that a finger slides, without a script: the last tag fades out, and the margin after it
+     lets it come out of the fade. On the last tag, not the row: a padding there would narrow every
+     tag's max-w-full and cut short tags that the row has room for. */
   .card-tags { display: flex; gap: 0.3rem; overflow-x: auto; overscroll-behavior-x: contain;
-    scrollbar-width: none; padding-right: 1.7rem;
+    scrollbar-width: none;
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.7rem), transparent);
     mask-image: linear-gradient(to right, #000 calc(100% - 1.7rem), transparent); }
+  .card-tags > :last-child { margin-right: 1.7rem; }
   .card-tags::-webkit-scrollbar { display: none; }
   /* A card reached by the keyboard shows all its tags, its text still said by aria-describedby, and
      keeps its caption 3rem under the top, so that the name never slides under the kind's label. */
   .card-tile:focus-visible .card-tags { flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none;
     mask-image: none; }
+  .card-tile:focus-visible .card-tags > :last-child { margin-right: 0; }
   .card-tile:focus-visible .card-text { display: none; }
   .card-tile:focus-visible .card-caption { max-height: calc(100% - 3rem); overflow: hidden; }
 }

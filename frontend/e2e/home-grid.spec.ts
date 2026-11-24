@@ -166,6 +166,28 @@ test("a swipe across the tags scrolls them and opens nothing", async ({ page, re
   await expect(page).toHaveURL(new RegExp(`#/characters/${wide.id}$`));
 });
 
+test("on the narrowest phone a short tag is drawn whole and the last one leaves the fade", async ({ page, request }) => {
+  const stamp = Date.now();
+  const tags = ["tag numéro 0", ...Array.from({ length: 5 }, (_, i) => `a rather long tag ${i + 1}`)];
+  const narrow = await card(request, { name: `Narrow ${stamp}`, tags });
+  await page.setViewportSize({ width: 320, height: 700 });
+  await homeWith(page, String(stamp));
+  const tile = tileOf(page, narrow.id);
+  const row = tile.locator(".card-tags");
+  await expect(row).toBeVisible();
+
+  const first = chipsOf(tile).first().locator("span");
+  await expect(first).toHaveText("tag numéro 0");
+  expect(await first.evaluate((el) => el.scrollWidth - el.clientWidth), "a tag that fits the row is cut").toBeLessThanOrEqual(0);
+
+  // Slid to its end, the row shows its last tag clear of the 1.7rem fade.
+  await row.evaluate((el) => { el.scrollLeft = el.scrollWidth; });
+  const fade = await page.evaluate(() => 1.7 * parseFloat(getComputedStyle(document.documentElement).fontSize));
+  const frame = (await row.boundingBox())!;
+  const last = (await chipsOf(tile).last().boundingBox())!;
+  expect(last.x + last.width, "the last tag stays in the fade").toBeLessThanOrEqual(frame.x + frame.width - fade + 0.5);
+});
+
 test("the keyboard never stops on a row of tags", async ({ page, request }) => {
   const stamp = Date.now();
   const tags = Array.from({ length: 6 }, (_, i) => `a rather long tag ${i + 1}`);
