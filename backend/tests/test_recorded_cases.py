@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from app.prompting import defaults, engine, lorebook, macros, memory_changes, payloads, tokens
+from app.prompting import defaults, engine, lorebook, macros, memory_changes, payloads, tokens, ways
 from app.prompting.memory_changes import plan_consolidation, plan_memory_changes
-from app.services import card_assistant, card_text, chat_service, llm_json
+from app.services import ai_call, card_assistant, card_text, chat_service, llm_json
 
 CASES_DIR = Path(__file__).parent / "cases"
 
@@ -87,6 +87,11 @@ def auto_title(content):
     return chat_service._auto_title(content)
 
 
+def reply_reserve(model, family, anthropic, room, window, allowance):
+    return ai_call.ceiling(model, anthropic=anthropic, family=family, room=room, window=window,
+                           allowance=allowance).reserve
+
+
 FUNCTIONS = {f.__name__: f for f in (
     memory_reply, consolidation_reply, default_prompts,
     build_chat_payload,
@@ -102,6 +107,8 @@ FUNCTIONS = {f.__name__: f for f in (
     card_assistant.clean_card_draft, with_room_for_a_card,
     continue_instruction, auto_title,
     card_text.card_excerpt,
+    ways.way_of, ways.applied, ways.level_of, ways.facts_budget, ways.lore_budget,
+    ways.passage_budget, ways.outlook_entry, ways.stand_in_passages, reply_reserve,
 )}
 FILES = sorted(CASES_DIR.glob("*.json"))
 

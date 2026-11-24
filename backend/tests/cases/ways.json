@@ -1,0 +1,2450 @@
+{
+ "cases": [
+  {
+   "fn": "way_of",
+   "name": "the built-in way light as it comes",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": []
+    },
+    "way_id": "light",
+    "default_id": "balanced"
+   },
+   "expected": {
+    "id": "light",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 16,
+    "reply_length": "short",
+    "reply_room": 512,
+    "facts_cap": 700,
+    "max_facts": 60,
+    "lore_cap": 400,
+    "lore_share": 0.06,
+    "passage_cap": 0,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "the built-in way balanced as it comes",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": []
+    },
+    "way_id": "balanced",
+    "default_id": "balanced"
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "the built-in way immersive as it comes",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": []
+    },
+    "way_id": "immersive",
+    "default_id": "balanced"
+   },
+   "expected": {
+    "id": "immersive",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 60,
+    "reply_length": "long",
+    "reply_room": 2048,
+    "facts_cap": 4000,
+    "max_facts": 120,
+    "lore_cap": 1600,
+    "lore_share": 0.06,
+    "passage_cap": 3000,
+    "passage_share": 0.1
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "the built-in way maximum as it comes",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": []
+    },
+    "way_id": "maximum",
+    "default_id": "balanced"
+   },
+   "expected": {
+    "id": "maximum",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 0,
+    "reply_length": "long",
+    "reply_room": 2048,
+    "facts_cap": 4000,
+    "max_facts": 120,
+    "lore_cap": 1600,
+    "lore_share": 0.06,
+    "passage_cap": 3000,
+    "passage_share": 0.1
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "an unknown way plays the default",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": []
+    },
+    "way_id": "gone",
+    "default_id": "light"
+   },
+   "expected": {
+    "id": "light",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 16,
+    "reply_length": "short",
+    "reply_room": 512,
+    "facts_cap": 700,
+    "max_facts": 60,
+    "lore_cap": 400,
+    "lore_share": 0.06,
+    "passage_cap": 0,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "an unknown way and an unknown default play balanced",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": []
+    },
+    "way_id": "gone",
+    "default_id": "gone-too"
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "no way named plays the default",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": []
+    },
+    "way_id": null,
+    "default_id": "immersive"
+   },
+   "expected": {
+    "id": "immersive",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 60,
+    "reply_length": "long",
+    "reply_room": 2048,
+    "facts_cap": 4000,
+    "max_facts": 120,
+    "lore_cap": 1600,
+    "lore_share": 0.06,
+    "passage_cap": 3000,
+    "passage_share": 0.1
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "nothing stored and nothing named plays balanced",
+   "input": {
+    "play_styles": null,
+    "way_id": null,
+    "default_id": null
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a built-in way with stored edits keeps the rest as it comes",
+   "input": {
+    "play_styles": {
+     "overrides": {
+      "balanced": {
+       "history_limit": 30,
+       "lore_share": 0.05
+      }
+     },
+     "custom": []
+    },
+    "way_id": "balanced",
+    "default_id": "balanced"
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": true,
+    "history_limit": 30,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": 0.05,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a built-in way whose stored edit equals its value is not overridden",
+   "input": {
+    "play_styles": {
+     "overrides": {
+      "light": {
+       "history_limit": 16
+      }
+     },
+     "custom": []
+    },
+    "way_id": "light",
+    "default_id": "balanced"
+   },
+   "expected": {
+    "id": "light",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 16,
+    "reply_length": "short",
+    "reply_room": 512,
+    "facts_cap": 700,
+    "max_facts": 60,
+    "lore_cap": 400,
+    "lore_share": 0.06,
+    "passage_cap": 0,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a stored key that is no field of a way is left out",
+   "input": {
+    "play_styles": {
+     "overrides": {
+      "immersive": {
+       "color": "red",
+       "reply_room": null
+      }
+     },
+     "custom": []
+    },
+    "way_id": "immersive",
+    "default_id": "balanced"
+   },
+   "expected": {
+    "id": "immersive",
+    "name": null,
+    "built_in": true,
+    "overridden": true,
+    "history_limit": 60,
+    "reply_length": "long",
+    "reply_room": null,
+    "facts_cap": 4000,
+    "max_facts": 120,
+    "lore_cap": 1600,
+    "lore_share": 0.06,
+    "passage_cap": 3000,
+    "passage_share": 0.1
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "the way mine made from the old settings",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": [
+      {
+       "id": "mine",
+       "name": null,
+       "history_limit": 30,
+       "reply_length": "long",
+       "reply_room": 2048,
+       "facts_cap": 2000,
+       "max_facts": 60,
+       "lore_cap": 800,
+       "lore_share": null,
+       "passage_cap": 1500,
+       "passage_share": null
+      }
+     ]
+    },
+    "way_id": "mine",
+    "default_id": "mine"
+   },
+   "expected": {
+    "id": "mine",
+    "name": null,
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 30,
+    "reply_length": "long",
+    "reply_room": 2048,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a custom way with its name, played as the default",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": [
+      {
+       "id": "w1",
+       "name": "Slow burn",
+       "history_limit": 80,
+       "reply_length": "medium",
+       "reply_room": null,
+       "facts_cap": null,
+       "max_facts": null,
+       "lore_cap": null,
+       "lore_share": 0.06,
+       "passage_cap": null,
+       "passage_share": 0.1
+      }
+     ]
+    },
+    "way_id": "gone",
+    "default_id": "w1"
+   },
+   "expected": {
+    "id": "w1",
+    "name": "Slow burn",
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 80,
+    "reply_length": "medium",
+    "reply_room": null,
+    "facts_cap": null,
+    "max_facts": null,
+    "lore_cap": null,
+    "lore_share": 0.06,
+    "passage_cap": null,
+    "passage_share": 0.1
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a custom way missing fields plays them as balanced",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": [
+      {
+       "id": "w2",
+       "name": "Thin",
+       "history_limit": 8
+      }
+     ]
+    },
+    "way_id": "w2",
+    "default_id": "balanced"
+   },
+   "expected": {
+    "id": "w2",
+    "name": "Thin",
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 8,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "no overrides",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": null
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": false
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "empty overrides",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {}
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": false
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "a history limit of its own",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "history_limit": 10
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 10,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": true
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "a history limit equal to the way's is no adjustment",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "history_limit": 24
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": false
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "a history limit of zero rereads all",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "history_limit": 0
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 0,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": true
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "a longer reply takes its room",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "reply_length": "long"
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "long",
+    "reply_room": 2048,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": true
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "a shorter reply takes its room",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "reply_length": "short"
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "short",
+    "reply_room": 512,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": true
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "the way's own length keeps the way's own room",
+   "input": {
+    "way": {
+     "id": "w1",
+     "name": "Mine",
+     "built_in": false,
+     "overridden": false,
+     "history_limit": 40,
+     "reply_length": "long",
+     "reply_room": 3000,
+     "facts_cap": 2500,
+     "max_facts": 90,
+     "lore_cap": 900,
+     "lore_share": null,
+     "passage_cap": 2000,
+     "passage_share": null
+    },
+    "overrides": {
+     "reply_length": "long"
+    }
+   },
+   "expected": {
+    "id": "w1",
+    "name": "Mine",
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 40,
+    "reply_length": "long",
+    "reply_room": 3000,
+    "facts_cap": 2500,
+    "max_facts": 90,
+    "lore_cap": 900,
+    "lore_share": null,
+    "passage_cap": 2000,
+    "passage_share": null,
+    "adjusted": false
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "reminders of each level",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "reminders": "rich"
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 4000,
+    "max_facts": 120,
+    "lore_cap": 1600,
+    "lore_share": 0.06,
+    "passage_cap": 3000,
+    "passage_share": 0.1,
+    "adjusted": true
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "all the reminders",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "reminders": "all"
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": null,
+    "max_facts": null,
+    "lore_cap": null,
+    "lore_share": 0.06,
+    "passage_cap": null,
+    "passage_share": 0.1,
+    "adjusted": true
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "the way's own level is no adjustment",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "reminders": "normal"
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": false
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "a level on a way of its own measure",
+   "input": {
+    "way": {
+     "id": "w1",
+     "name": "Mine",
+     "built_in": false,
+     "overridden": false,
+     "history_limit": 40,
+     "reply_length": "long",
+     "reply_room": 3000,
+     "facts_cap": 2500,
+     "max_facts": 90,
+     "lore_cap": 900,
+     "lore_share": null,
+     "passage_cap": 2000,
+     "passage_share": null
+    },
+    "overrides": {
+     "reminders": "essential"
+    }
+   },
+   "expected": {
+    "id": "w1",
+    "name": "Mine",
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 40,
+    "reply_length": "long",
+    "reply_room": 3000,
+    "facts_cap": 700,
+    "max_facts": 60,
+    "lore_cap": 400,
+    "lore_share": 0.06,
+    "passage_cap": 0,
+    "passage_share": null,
+    "adjusted": true
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "the three together",
+   "input": {
+    "way": {
+     "id": "w1",
+     "name": "Mine",
+     "built_in": false,
+     "overridden": false,
+     "history_limit": 40,
+     "reply_length": "long",
+     "reply_room": 3000,
+     "facts_cap": 2500,
+     "max_facts": 90,
+     "lore_cap": 900,
+     "lore_share": null,
+     "passage_cap": 2000,
+     "passage_share": null
+    },
+    "overrides": {
+     "history_limit": 12,
+     "reply_length": "short",
+     "reminders": "normal"
+    }
+   },
+   "expected": {
+    "id": "w1",
+    "name": "Mine",
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 12,
+    "reply_length": "short",
+    "reply_room": 512,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": true
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "what cannot be read changes nothing",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "reply_length": "huge",
+     "reminders": "many",
+     "history_limit": null,
+     "other": 1
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": false
+   }
+  },
+  {
+   "fn": "level_of",
+   "name": "the level essential",
+   "input": {
+    "fields": {
+     "facts_cap": 700,
+     "max_facts": 60,
+     "lore_cap": 400,
+     "lore_share": 0.06,
+     "passage_cap": 0,
+     "passage_share": null
+    }
+   },
+   "expected": "essential"
+  },
+  {
+   "fn": "level_of",
+   "name": "the level normal",
+   "input": {
+    "fields": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    }
+   },
+   "expected": "normal"
+  },
+  {
+   "fn": "level_of",
+   "name": "the level rich",
+   "input": {
+    "fields": {
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    }
+   },
+   "expected": "rich"
+  },
+  {
+   "fn": "level_of",
+   "name": "the level all",
+   "input": {
+    "fields": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    }
+   },
+   "expected": "all"
+  },
+  {
+   "fn": "level_of",
+   "name": "the fields of a whole way",
+   "input": {
+    "fields": {
+     "history_limit": 60,
+     "reply_length": "long",
+     "reply_room": 2048,
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    }
+   },
+   "expected": "rich"
+  },
+  {
+   "fn": "level_of",
+   "name": "six fields of no level",
+   "input": {
+    "fields": {
+     "facts_cap": 4000,
+     "max_facts": 90,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    }
+   },
+   "expected": null
+  },
+  {
+   "fn": "level_of",
+   "name": "a share where the level has none",
+   "input": {
+    "fields": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": 0.06,
+     "passage_cap": 1500,
+     "passage_share": null
+    }
+   },
+   "expected": null
+  },
+  {
+   "fn": "facts_budget",
+   "name": "no way given, at 512",
+   "input": {
+    "reminders": null,
+    "budget": 512
+   },
+   "expected": 700
+  },
+  {
+   "fn": "facts_budget",
+   "name": "no way given, at 15160",
+   "input": {
+    "reminders": null,
+    "budget": 15160
+   },
+   "expected": 1819
+  },
+  {
+   "fn": "facts_budget",
+   "name": "no way given, at 100000",
+   "input": {
+    "reminders": null,
+    "budget": 100000
+   },
+   "expected": 2000
+  },
+  {
+   "fn": "facts_budget",
+   "name": "a cap alone, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "budget": 512
+   },
+   "expected": 700
+  },
+  {
+   "fn": "facts_budget",
+   "name": "a cap alone, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "budget": 16000
+   },
+   "expected": 1920
+  },
+  {
+   "fn": "facts_budget",
+   "name": "a cap alone, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "budget": 40000
+   },
+   "expected": 2000
+  },
+  {
+   "fn": "facts_budget",
+   "name": "a share alone, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    },
+    "budget": 512
+   },
+   "expected": 700
+  },
+  {
+   "fn": "facts_budget",
+   "name": "a share alone, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    },
+    "budget": 16000
+   },
+   "expected": 1920
+  },
+  {
+   "fn": "facts_budget",
+   "name": "a share alone, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    },
+    "budget": 40000
+   },
+   "expected": 4800
+  },
+  {
+   "fn": "facts_budget",
+   "name": "a cap and a share, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    },
+    "budget": 512
+   },
+   "expected": 700
+  },
+  {
+   "fn": "facts_budget",
+   "name": "a cap and a share, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    },
+    "budget": 16000
+   },
+   "expected": 1920
+  },
+  {
+   "fn": "facts_budget",
+   "name": "a cap and a share, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    },
+    "budget": 40000
+   },
+   "expected": 4000
+  },
+  {
+   "fn": "facts_budget",
+   "name": "neither, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": null,
+     "passage_cap": null,
+     "passage_share": null
+    },
+    "budget": 512
+   },
+   "expected": 700
+  },
+  {
+   "fn": "facts_budget",
+   "name": "neither, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": null,
+     "passage_cap": null,
+     "passage_share": null
+    },
+    "budget": 16000
+   },
+   "expected": 1920
+  },
+  {
+   "fn": "facts_budget",
+   "name": "neither, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": null,
+     "passage_cap": null,
+     "passage_share": null
+    },
+    "budget": 40000
+   },
+   "expected": 4800
+  },
+  {
+   "fn": "facts_budget",
+   "name": "essential, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": 700,
+     "max_facts": 60,
+     "lore_cap": 400,
+     "lore_share": 0.06,
+     "passage_cap": 0,
+     "passage_share": null
+    },
+    "budget": 512
+   },
+   "expected": 700
+  },
+  {
+   "fn": "facts_budget",
+   "name": "essential, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": 700,
+     "max_facts": 60,
+     "lore_cap": 400,
+     "lore_share": 0.06,
+     "passage_cap": 0,
+     "passage_share": null
+    },
+    "budget": 16000
+   },
+   "expected": 700
+  },
+  {
+   "fn": "facts_budget",
+   "name": "essential, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": 700,
+     "max_facts": 60,
+     "lore_cap": 400,
+     "lore_share": 0.06,
+     "passage_cap": 0,
+     "passage_share": null
+    },
+    "budget": 40000
+   },
+   "expected": 700
+  },
+  {
+   "fn": "lore_budget",
+   "name": "no way given, at 512",
+   "input": {
+    "reminders": null,
+    "budget": 512
+   },
+   "expected": 800
+  },
+  {
+   "fn": "lore_budget",
+   "name": "no way given, at 15160",
+   "input": {
+    "reminders": null,
+    "budget": 15160
+   },
+   "expected": 800
+  },
+  {
+   "fn": "lore_budget",
+   "name": "no way given, at 100000",
+   "input": {
+    "reminders": null,
+    "budget": 100000
+   },
+   "expected": 800
+  },
+  {
+   "fn": "lore_budget",
+   "name": "a cap alone, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "budget": 512
+   },
+   "expected": 800
+  },
+  {
+   "fn": "lore_budget",
+   "name": "a cap alone, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "budget": 16000
+   },
+   "expected": 800
+  },
+  {
+   "fn": "lore_budget",
+   "name": "a cap alone, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "budget": 40000
+   },
+   "expected": 800
+  },
+  {
+   "fn": "lore_budget",
+   "name": "a share alone, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    },
+    "budget": 512
+   },
+   "expected": 30
+  },
+  {
+   "fn": "lore_budget",
+   "name": "a share alone, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    },
+    "budget": 16000
+   },
+   "expected": 960
+  },
+  {
+   "fn": "lore_budget",
+   "name": "a share alone, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    },
+    "budget": 40000
+   },
+   "expected": 2400
+  },
+  {
+   "fn": "lore_budget",
+   "name": "a cap and a share, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    },
+    "budget": 512
+   },
+   "expected": 30
+  },
+  {
+   "fn": "lore_budget",
+   "name": "a cap and a share, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    },
+    "budget": 16000
+   },
+   "expected": 960
+  },
+  {
+   "fn": "lore_budget",
+   "name": "a cap and a share, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    },
+    "budget": 40000
+   },
+   "expected": 1600
+  },
+  {
+   "fn": "lore_budget",
+   "name": "neither, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": null,
+     "passage_cap": null,
+     "passage_share": null
+    },
+    "budget": 512
+   },
+   "expected": 512
+  },
+  {
+   "fn": "lore_budget",
+   "name": "neither, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": null,
+     "passage_cap": null,
+     "passage_share": null
+    },
+    "budget": 16000
+   },
+   "expected": 16000
+  },
+  {
+   "fn": "lore_budget",
+   "name": "neither, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": null,
+     "passage_cap": null,
+     "passage_share": null
+    },
+    "budget": 40000
+   },
+   "expected": 40000
+  },
+  {
+   "fn": "lore_budget",
+   "name": "essential, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": 700,
+     "max_facts": 60,
+     "lore_cap": 400,
+     "lore_share": 0.06,
+     "passage_cap": 0,
+     "passage_share": null
+    },
+    "budget": 512
+   },
+   "expected": 30
+  },
+  {
+   "fn": "lore_budget",
+   "name": "essential, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": 700,
+     "max_facts": 60,
+     "lore_cap": 400,
+     "lore_share": 0.06,
+     "passage_cap": 0,
+     "passage_share": null
+    },
+    "budget": 16000
+   },
+   "expected": 400
+  },
+  {
+   "fn": "lore_budget",
+   "name": "essential, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": 700,
+     "max_facts": 60,
+     "lore_cap": 400,
+     "lore_share": 0.06,
+     "passage_cap": 0,
+     "passage_share": null
+    },
+    "budget": 40000
+   },
+   "expected": 400
+  },
+  {
+   "fn": "passage_budget",
+   "name": "no way given, at 512",
+   "input": {
+    "reminders": null,
+    "budget": 512
+   },
+   "expected": 1500
+  },
+  {
+   "fn": "passage_budget",
+   "name": "no way given, at 15160",
+   "input": {
+    "reminders": null,
+    "budget": 15160
+   },
+   "expected": 1500
+  },
+  {
+   "fn": "passage_budget",
+   "name": "no way given, at 100000",
+   "input": {
+    "reminders": null,
+    "budget": 100000
+   },
+   "expected": 1500
+  },
+  {
+   "fn": "passage_budget",
+   "name": "a cap alone, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "budget": 512
+   },
+   "expected": 1500
+  },
+  {
+   "fn": "passage_budget",
+   "name": "a cap alone, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "budget": 16000
+   },
+   "expected": 1500
+  },
+  {
+   "fn": "passage_budget",
+   "name": "a cap alone, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "budget": 40000
+   },
+   "expected": 1500
+  },
+  {
+   "fn": "passage_budget",
+   "name": "a share alone, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    },
+    "budget": 512
+   },
+   "expected": 51
+  },
+  {
+   "fn": "passage_budget",
+   "name": "a share alone, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    },
+    "budget": 16000
+   },
+   "expected": 1600
+  },
+  {
+   "fn": "passage_budget",
+   "name": "a share alone, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    },
+    "budget": 40000
+   },
+   "expected": 4000
+  },
+  {
+   "fn": "passage_budget",
+   "name": "a cap and a share, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    },
+    "budget": 512
+   },
+   "expected": 51
+  },
+  {
+   "fn": "passage_budget",
+   "name": "a cap and a share, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    },
+    "budget": 16000
+   },
+   "expected": 1600
+  },
+  {
+   "fn": "passage_budget",
+   "name": "a cap and a share, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": 4000,
+     "max_facts": 120,
+     "lore_cap": 1600,
+     "lore_share": 0.06,
+     "passage_cap": 3000,
+     "passage_share": 0.1
+    },
+    "budget": 40000
+   },
+   "expected": 3000
+  },
+  {
+   "fn": "passage_budget",
+   "name": "neither, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": null,
+     "passage_cap": null,
+     "passage_share": null
+    },
+    "budget": 512
+   },
+   "expected": 512
+  },
+  {
+   "fn": "passage_budget",
+   "name": "neither, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": null,
+     "passage_cap": null,
+     "passage_share": null
+    },
+    "budget": 16000
+   },
+   "expected": 16000
+  },
+  {
+   "fn": "passage_budget",
+   "name": "neither, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": null,
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": null,
+     "passage_cap": null,
+     "passage_share": null
+    },
+    "budget": 40000
+   },
+   "expected": 40000
+  },
+  {
+   "fn": "passage_budget",
+   "name": "essential, at 512",
+   "input": {
+    "reminders": {
+     "facts_cap": 700,
+     "max_facts": 60,
+     "lore_cap": 400,
+     "lore_share": 0.06,
+     "passage_cap": 0,
+     "passage_share": null
+    },
+    "budget": 512
+   },
+   "expected": 0
+  },
+  {
+   "fn": "passage_budget",
+   "name": "essential, at 16000",
+   "input": {
+    "reminders": {
+     "facts_cap": 700,
+     "max_facts": 60,
+     "lore_cap": 400,
+     "lore_share": 0.06,
+     "passage_cap": 0,
+     "passage_share": null
+    },
+    "budget": 16000
+   },
+   "expected": 0
+  },
+  {
+   "fn": "passage_budget",
+   "name": "essential, at 40000",
+   "input": {
+    "reminders": {
+     "facts_cap": 700,
+     "max_facts": 60,
+     "lore_cap": 400,
+     "lore_share": 0.06,
+     "passage_cap": 0,
+     "passage_share": null
+    },
+    "budget": 40000
+   },
+   "expected": 0
+  },
+  {
+   "fn": "outlook_entry",
+   "name": "nothing measured, a ratio of one",
+   "input": {
+    "stats": {
+     "used_tokens": 3001,
+     "budget": 7015,
+     "context_size": 8192,
+     "messages_included": 21,
+     "messages_total": 64,
+     "lore_matched": 2,
+     "oldest_visible": 44,
+     "fact_positions": [
+      3,
+      9
+     ],
+     "parts": {
+      "card": 1201,
+      "reminders": 899,
+      "history": 901
+     }
+    },
+    "ratio": 1.0,
+    "history_limit": 24,
+    "reply_room": 1024,
+    "cap_short": null
+   },
+   "expected": {
+    "used_tokens": 3001,
+    "budget": 7015,
+    "context_size": 8192,
+    "messages_included": 21,
+    "messages_total": 64,
+    "history_limit": 24,
+    "reply_room": 1024,
+    "parts": {
+     "card": 1201,
+     "reminders": 899,
+     "history": 901
+    },
+    "cap_short": null
+   }
+  },
+  {
+   "fn": "outlook_entry",
+   "name": "a ratio measured",
+   "input": {
+    "stats": {
+     "used_tokens": 3001,
+     "budget": 7015,
+     "context_size": 8192,
+     "messages_included": 21,
+     "messages_total": 64,
+     "lore_matched": 2,
+     "oldest_visible": 44,
+     "fact_positions": [
+      3,
+      9
+     ],
+     "parts": {
+      "card": 1201,
+      "reminders": 899,
+      "history": 901
+     }
+    },
+    "ratio": 1.17,
+    "history_limit": 60,
+    "reply_room": 2048,
+    "cap_short": 1500
+   },
+   "expected": {
+    "used_tokens": 3511,
+    "budget": 8208,
+    "context_size": 8192,
+    "messages_included": 21,
+    "messages_total": 64,
+    "history_limit": 60,
+    "reply_room": 2048,
+    "parts": {
+     "card": 1405,
+     "reminders": 1052,
+     "history": 1054
+    },
+    "cap_short": 1500
+   }
+  },
+  {
+   "fn": "outlook_entry",
+   "name": "halves round to the even number",
+   "input": {
+    "stats": {
+     "used_tokens": 5,
+     "budget": 7,
+     "context_size": 8192,
+     "messages_included": 21,
+     "messages_total": 64,
+     "lore_matched": 2,
+     "oldest_visible": 44,
+     "fact_positions": [
+      3,
+      9
+     ],
+     "parts": {
+      "card": 1,
+      "reminders": 3,
+      "history": 9
+     }
+    },
+    "ratio": 0.5,
+    "history_limit": 0,
+    "reply_room": 512,
+    "cap_short": null
+   },
+   "expected": {
+    "used_tokens": 2,
+    "budget": 4,
+    "context_size": 8192,
+    "messages_included": 21,
+    "messages_total": 64,
+    "history_limit": 0,
+    "reply_room": 512,
+    "parts": {
+     "card": 0,
+     "reminders": 2,
+     "history": 4
+    },
+    "cap_short": null
+   }
+  },
+  {
+   "fn": "stand_in_passages",
+   "name": "a stand-in of 0 tokens",
+   "input": {
+    "tokens": 0
+   },
+   "expected": []
+  },
+  {
+   "fn": "stand_in_passages",
+   "name": "a stand-in of 1 tokens",
+   "input": {
+    "tokens": 1
+   },
+   "expected": [
+    {
+     "role": "user",
+     "position": 0,
+     "content": "x"
+    }
+   ]
+  },
+  {
+   "fn": "stand_in_passages",
+   "name": "a stand-in of 2 tokens",
+   "input": {
+    "tokens": 2
+   },
+   "expected": [
+    {
+     "role": "user",
+     "position": 0,
+     "content": "xxxx"
+    }
+   ]
+  },
+  {
+   "fn": "stand_in_passages",
+   "name": "a stand-in of 7 tokens",
+   "input": {
+    "tokens": 7
+   },
+   "expected": [
+    {
+     "role": "user",
+     "position": 0,
+     "content": "xxxxxxxxxxxxxxxxxxxxx"
+    }
+   ]
+  },
+  {
+   "fn": "stand_in_passages",
+   "name": "a stand-in of 1500 tokens",
+   "input": {
+    "tokens": 1500
+   },
+   "expected": [
+    {
+     "role": "user",
+     "position": 0,
+     "content": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   ]
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a ceiling set by hand is sent and kept",
+   "input": {
+    "model": {
+     "reply_cap_mode": "fixed",
+     "reply_cap_tokens": 700,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "generic",
+    "anthropic": false,
+    "room": 1024,
+    "window": 16384,
+    "allowance": 3072
+   },
+   "expected": 700
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a ceiling set by hand ignores a room left open",
+   "input": {
+    "model": {
+     "reply_cap_mode": "fixed",
+     "reply_cap_tokens": 700,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "generic",
+    "anthropic": false,
+    "room": null,
+    "window": 16384,
+    "allowance": 3072
+   },
+   "expected": 700
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "no ceiling sent keeps 1024 whatever the room",
+   "input": {
+    "model": {
+     "reply_cap_mode": "unsent",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "generic",
+    "anthropic": false,
+    "room": 2048,
+    "window": 16384,
+    "allowance": 3072
+   },
+   "expected": 1024
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "no ceiling sent keeps 1024 under a room left open",
+   "input": {
+    "model": {
+     "reply_cap_mode": "unsent",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "anthropic",
+    "anthropic": true,
+    "room": null,
+    "window": 16384,
+    "allowance": 3072
+   },
+   "expected": 1024
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "auto on a local server sends the room",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "ollama",
+    "anthropic": false,
+    "room": 1024,
+    "window": 16384,
+    "allowance": 3072
+   },
+   "expected": 1024
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "auto sends at most what the model writes",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": 800
+    },
+    "family": "generic",
+    "anthropic": false,
+    "room": 2048,
+    "window": 16384,
+    "allowance": 3072
+   },
+   "expected": 800
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "auto on OpenAI keeps the room and sends none",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "openai",
+    "anthropic": false,
+    "room": 2048,
+    "window": 16384,
+    "allowance": 3072
+   },
+   "expected": 2048
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "auto on Anthropic sends at least its floor",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "anthropic",
+    "anthropic": true,
+    "room": 1024,
+    "window": 200000,
+    "allowance": 3072
+   },
+   "expected": 4096
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "auto on Anthropic within what the model writes",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": 2000
+    },
+    "family": "anthropic",
+    "anthropic": true,
+    "room": 1024,
+    "window": 200000,
+    "allowance": 3072
+   },
+   "expected": 2000
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a model that reasons keeps room for its thinking",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 1,
+     "output_read": null
+    },
+    "family": "openrouter",
+    "anthropic": false,
+    "room": 1024,
+    "window": 32768,
+    "allowance": 3072
+   },
+   "expected": 4096
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a model that reasons with its thinking measured",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 1,
+     "output_read": null
+    },
+    "family": "openrouter",
+    "anthropic": false,
+    "room": 1024,
+    "window": 32768,
+    "allowance": 600
+   },
+   "expected": 1624
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a model that reasons on Anthropic",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 1,
+     "output_read": null
+    },
+    "family": "anthropic",
+    "anthropic": true,
+    "room": 2048,
+    "window": 200000,
+    "allowance": 3072
+   },
+   "expected": 5120
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a model that reasons within what it writes",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 1,
+     "output_read": 3000
+    },
+    "family": "generic",
+    "anthropic": false,
+    "room": 1024,
+    "window": 32768,
+    "allowance": 3072
+   },
+   "expected": 3000
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "auto keeps at most half of a small window",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "generic",
+    "anthropic": false,
+    "room": 2048,
+    "window": 2048,
+    "allowance": 3072
+   },
+   "expected": 1024
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a room left open keeps 4096",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "generic",
+    "anthropic": false,
+    "room": null,
+    "window": 16384,
+    "allowance": 3072
+   },
+   "expected": 4096
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a room left open keeps a quarter of a small window",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "generic",
+    "anthropic": false,
+    "room": null,
+    "window": 8192,
+    "allowance": 3072
+   },
+   "expected": 2048
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a room left open keeps what the model writes",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": 1500
+    },
+    "family": "openrouter",
+    "anthropic": false,
+    "room": null,
+    "window": 16384,
+    "allowance": 3072
+   },
+   "expected": 1500
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a room left open on Anthropic",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "anthropic",
+    "anthropic": true,
+    "room": null,
+    "window": 200000,
+    "allowance": 3072
+   },
+   "expected": 4096
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a room left open on Anthropic within what the model writes",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": 2500
+    },
+    "family": "anthropic",
+    "anthropic": true,
+    "room": null,
+    "window": 200000,
+    "allowance": 3072
+   },
+   "expected": 2500
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a room left open for a model that reasons",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 1,
+     "output_read": null
+    },
+    "family": "generic",
+    "anthropic": false,
+    "room": null,
+    "window": 32768,
+    "allowance": 3072
+   },
+   "expected": 4096
+  }
+ ]
+}

@@ -17,6 +17,8 @@ UNSENT_RESERVE = 1024
 THINKING_ALLOWANCE = 3072
 # Anthropic refuses a request with no ceiling, so its provider always sends at least this.
 ANTHROPIC_FLOOR = 4096
+# A way that leaves the reply's room to the AI: the most the prompt keeps for it.
+OPEN_ROOM = 4096
 # Nothing told, by a hosted service or an unknown server: the default Evermind has always used.
 ASSUMED_WINDOW = 16384
 # A server that loads a size of its own and has not said it: Ollama's documented default.
@@ -73,17 +75,22 @@ def _at_most(value: int, out: int | None) -> int:
     return value if out is None else min(value, out)
 
 
-def ceiling(model: dict, *, anthropic: bool, family: Family, room: int,
-            window: int | None = None) -> Ceiling:
-    """`anthropic` is the service's provider; `room` is `reply_room(...)`. `window` is what the
-    AI is counted to read: given, `auto` never keeps (or sends) more than half of it."""
+def ceiling(model: dict, *, anthropic: bool, family: Family, room: int | None,
+            window: int | None = None, allowance: int | None = None) -> Ceiling:
+    """`anthropic` is the service's provider; `room` is `reply_room(...)`, None for a way that
+    leaves the room to the AI. `window` is what the AI is counted to read: given, `auto` never
+    keeps (or sends) more than half of it. `allowance` is the room for a model's thinking,
+    `thinking_allowance(model)` when not given."""
     mode = model.get("reply_cap_mode") or "auto"
     if mode == "fixed":
         tokens = model["reply_cap_tokens"]
         return Ceiling(tokens, tokens)
     if mode == "unsent":
         return Ceiling(None, UNSENT_RESERVE)
-    got = _auto(model, anthropic=anthropic, family=family, room=room)
+    if allowance is None:
+        allowance = thinking_allowance(model)
+    got = _auto(model, anthropic=anthropic, family=family, room=room, window=window,
+                allowance=allowance)
     if window is None:
         return got
     # A reply that takes the whole window leaves the engine only its floor for the story.
@@ -91,14 +98,21 @@ def ceiling(model: dict, *, anthropic: bool, family: Family, room: int,
     return Ceiling(None if got.sent is None else min(got.sent, half), min(got.reserve, half))
 
 
-def _auto(model: dict, *, anthropic: bool, family: Family, room: int) -> Ceiling:
+def _auto(model: dict, *, anthropic: bool, family: Family, room: int | None,
+          window: int | None, allowance: int) -> Ceiling:
     out = model.get("output_read")
+    if room is None:
+        # No room asked: nothing is sent but what Anthropic requires, and the prompt keeps what
+        # a long reply could take, never more than a quarter of what the AI reads.
+        kept = min(b for b in (OPEN_ROOM, out, None if window is None else window // 4)
+                   if b is not None)
+        return Ceiling((ANTHROPIC_FLOOR if out is None else out) if anthropic else None, kept)
     if model.get("reasons") == 1:
         # Its thinking comes out of the same ceiling: leave room for it, or send none.
-        reserve = _at_most(room + thinking_allowance(model), out)
+        reserve = _at_most(room + allowance, out)
         if anthropic:
             # What the request may write is all kept: the prompt and the reply must fit together.
-            sent = _at_most(max(room + thinking_allowance(model), ANTHROPIC_FLOOR), out)
+            sent = _at_most(max(room + allowance, ANTHROPIC_FLOOR), out)
             return Ceiling(sent, sent)
         return Ceiling(None, reserve)
     if anthropic:

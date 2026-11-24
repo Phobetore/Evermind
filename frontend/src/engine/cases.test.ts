@@ -51,7 +51,10 @@ const ADAPTERS: Record<string, Adapter> = {
   ),
   key_matches: via(["keyMatches"], (i) => engine.keyMatches(i.key, i.text, i.whole_words)),
   strip_decorators: via(["stripDecorators"], (i) => engine.stripDecorators(i.content)),
-  select_facts: via(["selectFacts"], (i) => engine.selectFacts(i.memories, i.token_budget, i.relevance_scores)),
+  // A case that gives no max_facts leaves it undefined, which takes the default as Python does.
+  select_facts: via(["selectFacts"], (i) =>
+    engine.selectFacts(i.memories, i.token_budget, i.relevance_scores, i.max_facts),
+  ),
   active_content: via(["activeContent"], (i) => engine.activeContent(i.message)),
   is_out_of_character: via(["isOutOfCharacter"], (i) => engine.isOutOfCharacter(i.message)),
   split_examples: via(["splitExamples"], (i) => engine.splitExamples(i.text)),
@@ -87,6 +90,20 @@ const ADAPTERS: Record<string, Adapter> = {
   auto_title: via(["autoTitle"], (i) => engine.autoTitle(i.content)),
 
   card_excerpt: via(["cardExcerpt"], (i) => engine.cardExcerpt(i.description, i.name)),
+
+  way_of: via(["wayOf"], (i) => engine.wayOf(i.play_styles, i.way_id, i.default_id)),
+  applied: via(["applied"], (i) => engine.applied(i.way, i.overrides)),
+  level_of: via(["levelOf"], (i) => engine.levelOf(i.fields)),
+  facts_budget: via(["factsBudget"], (i) => engine.factsBudget(i.reminders, i.budget)),
+  lore_budget: via(["loreBudget"], (i) => engine.loreBudget(i.reminders, i.budget)),
+  passage_budget: via(["passageBudget"], (i) => engine.passageBudget(i.reminders, i.budget)),
+  outlook_entry: via(["outlookEntry"], (i) =>
+    engine.outlookEntry(i.stats, i.ratio, i.history_limit, i.reply_room, i.cap_short),
+  ),
+  stand_in_passages: via(["standInPassages"], (i) => engine.standInPassages(i.tokens)),
+  reply_reserve: via(["replyReserve"], (i) =>
+    engine.replyReserve(i.model, i.family, i.anthropic, i.room, i.window, i.allowance),
+  ),
 };
 
 // toStrictEqual tells two classes apart by their `.constructor`, and on an object with

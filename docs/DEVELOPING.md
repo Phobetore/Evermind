@@ -359,7 +359,11 @@ should.
 
 `backend/tests/cases/` holds cases `{fn, name, input, expected}` for the whole
 prompt engine: the chat prompt and its parts, the other prompts, the reading of a
-model's answer, the memory pass, the card draft and the default prompts. `input`
+model's answer, the memory pass, the card draft and the default prompts, and the
+ways of playing (`ways.json`: a way as stored and as a conversation adjusts it,
+the room each gives the facts, the lorebook and past passages, a conversation's
+outlook in the server's tokens, and what a prompt keeps for the reply, through
+`reply_reserve`, the reserve of `ai_call.ceiling`). `input`
 is the named arguments of the function and `expected` is what the Python code
 answered when the case was written. A change that moves one on purpose is
 regenerated from `backend/`:

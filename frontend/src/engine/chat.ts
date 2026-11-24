@@ -18,6 +18,7 @@ import {
 import { expandMacros, hasOriginalMacro, substitute, substituteOriginal } from "./macros";
 import { PY_WS, pyLower, pyLstrip, pyMin, pyRstrip, pyStrip, pyUpper, sliceCodePoints, stripThought } from "./text";
 import { estimateTokens } from "./tokens";
+import { factsBudget, loreBudget, maxFacts, type Parts, type ReminderFields } from "./ways";
 
 // Python has it in engine.py, beside the reply's cleanup: so does the engine's door.
 export { stripThought };
@@ -70,6 +71,10 @@ export interface PromptConversation {
 export interface PromptConnection {
   context_size?: number | null;
   max_tokens?: number | null;
+  /** Kept under the window; 200 when left out. */
+  margin?: number | null;
+  /** The server's count over the engine's estimate; 1 when left out. */
+  token_ratio?: number | null;
 }
 
 export interface ActiveMessage {
@@ -130,6 +135,10 @@ export interface ChatInput {
   /** False leaves out what the card says to the character among the turns (its note, its
    *  entries at a depth): the ghostwriter, who writes as the player, has no use for them. */
   insertions?: boolean;
+  /** A way of playing's six reminder fields (ways.ts); left out, the figures from before ways
+   *  existed. Given, the stats also say what the card, the reminders and the story each take
+   *  of what is used. */
+  reminders?: ReminderFields | null;
 }
 
 /** What the builder reports about the prompt it made: the first six are shown, the last
@@ -145,6 +154,8 @@ export interface PromptStats {
   oldest_visible: number;
   /** The `source_position` of each fact shown, null for a fact with none. */
   fact_positions: (number | null)[];
+  /** Only when a way's reminders are given: card + reminders + history = used_tokens. */
+  parts?: Parts;
 }
 
 export interface PromptPayload<S = PromptStats> {
@@ -182,8 +193,6 @@ const BUDGET_MARGIN = 200;
 const SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6;
 const MAX_FACTS = 60; // so that a long story cannot crowd out the card
 const FACTS_TOKEN_BUDGET = 700; // floor, used on tiny contexts
-const MAX_FACTS_TOKEN_BUDGET = 2000; // cap, so facts never dominate the window
-const FACTS_BUDGET_SHARE = 0.12; // of the budget, between the two
 const LORE_SCAN_MESSAGES = 6;
 const LORE_TOKEN_BUDGET = 800;
 const NOTE_DEPTH = 4; // CharacterIn's default, for a character that says nothing of it
@@ -234,11 +243,13 @@ export function splitExamples(text: string): string[] {
 
 /** Which facts get injected: pinned always survive, the rest fill the budget by relevance
  *  when scores are given, a fact with no vector yet first, else newest-first (recency).
- *  Returned oldest-first for chronological reading. */
+ *  Returned oldest-first for chronological reading. `maxFacts` null: as many as the budget
+ *  holds. */
 export function selectFacts<M extends PromptMemory>(
   memories: readonly M[],
   tokenBudget: number = FACTS_TOKEN_BUDGET,
   relevanceScores: Record<string, number> | null = null,
+  maxFacts: number | null = MAX_FACTS,
 ): M[] {
   const pinned = memories.filter((m) => m.is_pinned);
   const loose = memories.filter((m) => !m.is_pinned);
@@ -254,7 +265,7 @@ export function selectFacts<M extends PromptMemory>(
   const kept: M[] = [];
   let budget = tokenBudget;
   for (const memory of [...pinned, ...others]) {
-    if (kept.length >= MAX_FACTS) break;
+    if (maxFacts !== null && kept.length >= maxFacts) break;
     const cost = estimateTokens(memory.content || "");
     if (!memory.is_pinned && cost > budget) continue;
     budget -= cost;
@@ -267,8 +278,9 @@ function formatFacts(
   memories: readonly PromptMemory[],
   tokenBudget: number,
   relevanceScores: Record<string, number> | null,
+  maxFacts: number | null,
 ): string {
-  return selectFacts(memories, tokenBudget, relevanceScores)
+  return selectFacts(memories, tokenBudget, relevanceScores, maxFacts)
     .map((memory) => {
       const position = memory.source_position || 0;
       const prefix = position ? `(turn ${position}) ` : "";
@@ -282,6 +294,7 @@ function formatFacts(
 function matchLoreBeforeCards<E extends PromptLoreEntry>(
   entries: readonly E[],
   messages: readonly PromptMessage[],
+  loreBudget: number,
 ): E[] {
   if (!entries.length) return [];
   const recent = sortedBy(messages, (m) => m.position ?? 0).slice(-LORE_SCAN_MESSAGES);
@@ -293,7 +306,7 @@ function matchLoreBeforeCards<E extends PromptLoreEntry>(
       (entry.keys || []).some((key) => key && text.includes(pyLower(key))),
   );
   const kept: E[] = [];
-  let budget = LORE_TOKEN_BUDGET;
+  let budget = loreBudget;
   for (const entry of matched) {
     const cost = estimateTokens(entry.content || "");
     if (cost > budget) continue;
@@ -314,7 +327,7 @@ export function matchLore<E extends PromptLoreEntry>(
   charName = "Character",
   userName = "User",
 ): E[] {
-  if (rules !== 2) return matchLoreBeforeCards(entries, messages);
+  if (rules !== 2) return matchLoreBeforeCards(entries, messages, budget);
   if (!entries.length) return [];
   const recent = sortedBy(messages, (m) => m.position ?? 0).slice(-LORE_SCAN_MESSAGES);
   // Each turn under the name of who speaks, as SillyTavern reads them: a key {{char}} then
@@ -346,6 +359,7 @@ interface SystemParts {
   lore: readonly PromptLoreEntry[];
   loreBefore: readonly PromptLoreEntry[];
   factsBudget: number;
+  maxFacts: number | null;
   relevanceScores: Record<string, number> | null;
   passages: readonly PromptPassage[] | null;
   /** What the card's own fields go through first: their markers resolved on the rules of
@@ -353,11 +367,18 @@ interface SystemParts {
   cardText: (text: string) => string;
 }
 
-function buildSystem(parts: SystemParts): string {
+/** The system prompt, and what its reminders cost (the lorebook, the facts, the past
+ *  passages), each as it is written there. */
+function buildSystem(parts: SystemParts): { system: string; reminders: number } {
   const { character, persona, summary, globalInstructions, examples, charName, userName } = parts;
-  const { memories, lore, loreBefore, factsBudget, relevanceScores, passages, cardText } = parts;
+  const { memories, lore, loreBefore, factsBudget, maxFacts, relevanceScores, passages, cardText } = parts;
   const isScenario = character.kind === "scenario";
   const sections: string[] = [];
+  const reminders: string[] = [];
+  const reminder = (text: string) => {
+    reminders.push(text);
+    sections.push(text);
+  };
 
   sections.push(
     isScenario
@@ -367,7 +388,7 @@ function buildSystem(parts: SystemParts): string {
 
   if (loreBefore.length) {
     const block = loreBefore.map((entry) => pyStrip(entry.content || "")).join("\n\n");
-    sections.push(`### WORLD KNOWLEDGE (background)\n${block}`);
+    reminder(`### WORLD KNOWLEDGE (background)\n${block}`);
   }
 
   const identity: string[] = [];
@@ -394,13 +415,13 @@ function buildSystem(parts: SystemParts): string {
 
   if (lore.length) {
     const loreBlock = lore.map((entry) => pyStrip(entry.content || "")).join("\n\n");
-    sections.push(`### WORLD KNOWLEDGE (relevant to the current scene)\n${loreBlock}`);
+    reminder(`### WORLD KNOWLEDGE (relevant to the current scene)\n${loreBlock}`);
   }
 
   if (memories?.length) {
-    const facts = formatFacts(memories, factsBudget, relevanceScores);
+    const facts = formatFacts(memories, factsBudget, relevanceScores, maxFacts);
     if (facts) {
-      sections.push(
+      reminder(
         "### ESTABLISHED FACTS (hard canon — never contradict these, " +
           `${charName} never forgets them)\n${facts}`,
       );
@@ -412,7 +433,7 @@ function buildSystem(parts: SystemParts): string {
       const speaker = p.role === "assistant" ? charName : userName;
       return `(turn ${p.position || 0}) ${speaker}: ${pyStrip(p.content || "")}`;
     });
-    sections.push(
+    reminder(
       "### RELEVANT PAST (verbatim excerpts retrieved from earlier in this " +
         `story — may repeat; ${charName} recalls these)\n` +
         lines.join("\n"),
@@ -436,7 +457,10 @@ function buildSystem(parts: SystemParts): string {
     sections.push(`### PLAYER'S STANDING INSTRUCTIONS\n${pyStrip(globalInstructions)}`);
   }
 
-  return substitute(sections.join("\n\n"), charName, userName);
+  return {
+    system: substitute(sections.join("\n\n"), charName, userName),
+    reminders: reminders.reduce((sum, text) => sum + estimateTokens(substitute(text, charName, userName)), 0),
+  };
 }
 
 // A Map, not an object: "constructor" is no length.
@@ -570,7 +594,10 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
 
   const contextSize = int(connection.context_size || 8192);
   const maxTokens = int(connection.max_tokens || 1024);
-  const budget = Math.max(512, contextSize - maxTokens - BUDGET_MARGIN);
+  const margin = connection.margin ?? BUDGET_MARGIN;
+  const ratio = connection.token_ratio || 1;
+  const budget = Math.max(512, int((contextSize - maxTokens - margin) / ratio));
+  const reminders = input.reminders ?? null;
 
   // A card keeps the rules it was made with until its owner agrees to have it read again.
   // On those of community cards the lorebook has a share of the prompt, not a fixed amount,
@@ -594,7 +621,7 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
       depthTexts = textsAtDepths(note, character.character_note_depth ?? NOTE_DEPTH, atDepth, charName, userName);
     }
   } else {
-    lore = matchLore(input.lore_entries ?? [], messages);
+    lore = matchLore(input.lore_entries ?? [], messages, 1, loreBudget(reminders, budget));
   }
   // Said among the turns or in the closing block, these texts take their room from the story.
   let depthCost = 0;
@@ -608,12 +635,16 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   const cardNote = pyStrip(character.post_history_instructions || "");
   if (cardNote && !cardRules) postBits.push(cardNote);
   const pinned = (memories ?? []).filter((m) => m.is_pinned);
+  let restatedCost = 0;
   if (pinned.length) {
     const lines = pinned
       .slice(0, MAX_PINNED_RESTATED)
       .map((m) => `- ${pyStrip(m.content || "")}`)
       .join("\n");
-    postBits.push(`[Still true, and ${charName} has not forgotten any of it:\n${lines}]`);
+    const restated = `[Still true, and ${charName} has not forgotten any of it:\n${lines}]`;
+    postBits.push(restated);
+    // A fact said again is still a reminder, wherever it is said.
+    restatedCost = estimateTokens(substitute(restated, charName, userName));
   }
   const sceneDirective = pyStrip(conversation?.author_note || "");
   if (sceneDirective) postBits.push(`[Scene directive from ${userName}]: ${sceneDirective}`);
@@ -631,10 +662,8 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   }
   let postHistory = substitute(postBits.join("\n\n"), charName, userName);
 
-  const factsBudget = Math.min(
-    MAX_FACTS_TOKEN_BUDGET,
-    Math.max(FACTS_TOKEN_BUDGET, Math.trunc(budget * FACTS_BUDGET_SHARE)),
-  );
+  const factsRoom = factsBudget(reminders, budget);
+  const factsAtMost = maxFacts(reminders);
 
   // Newest first, the newest always kept, then reversed to read oldest first.
   const renderTurns = (room: number): Turn[] => {
@@ -682,7 +711,8 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
       memories: shown,
       lore,
       loreBefore,
-      factsBudget,
+      factsBudget: factsRoom,
+      maxFacts: factsAtMost,
       relevanceScores,
       passages,
       cardText,
@@ -693,16 +723,16 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
   // every fact in the system prompt.
   const fits = (system: string) => estimateTokens(system) <= budget * SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES;
 
-  const everyFact = systemWith(examples, memories);
+  const everyFact = systemWith(examples, memories).system;
   const provisional = renderTurns(budget - estimateTokens(everyFact) - estimateTokens(postHistory) - depthCost);
   const oldestVisible = oldestPosition(provisional, 0);
   const relevantMemories = (memories ?? []).filter(
     (m) => m.is_pinned || m.source === "user" || (m.source_position || 0) < oldestVisible,
   );
-  const factsShown = selectFacts(relevantMemories, factsBudget, relevanceScores);
+  const factsShown = selectFacts(relevantMemories, factsRoom, relevanceScores, factsAtMost);
 
-  let system = systemWith(examples, relevantMemories);
-  if (!fits(system)) {
+  let built = systemWith(examples, relevantMemories);
+  if (!fits(built.system)) {
     // On Evermind's own rules the examples go whole or not at all. On those of community cards
     // they are kept a block at a time, in order, for as long as the system prompt fits: it only
     // grows with each block, so the longest prefix that fits is found by halving, in a few
@@ -711,11 +741,12 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     let over = blocks.length;
     while (over - kept > 1) {
       const middle = Math.floor((kept + over) / 2);
-      if (fits(systemWith(blocks.slice(0, middle).join(EXAMPLE_SEPARATOR), relevantMemories))) kept = middle;
+      if (fits(systemWith(blocks.slice(0, middle).join(EXAMPLE_SEPARATOR), relevantMemories).system)) kept = middle;
       else over = middle;
     }
-    system = systemWith(blocks.slice(0, kept).join(EXAMPLE_SEPARATOR), relevantMemories);
+    built = systemWith(blocks.slice(0, kept).join(EXAMPLE_SEPARATOR), relevantMemories);
   }
+  let system = built.system;
 
   const rendered = renderTurns(budget - estimateTokens(system) - estimateTokens(postHistory) - depthCost);
   // The oldest turn actually sent: the estimate above, with every fact, may leave out older ones.
@@ -739,6 +770,9 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     }
   }
 
+  // The story as sent, before what the card says among its turns is placed in it.
+  const history = turns.reduce((sum, t) => sum + estimateTokens(t.content) + 4, 0);
+
   // Placed in the turns as sent, cut and folded, so that a depth counts what the model reads.
   const closing = placeAtDepths(turns, depthTexts);
   if (closing.length) postHistory = [...closing, postHistory].join("\n\n");
@@ -757,6 +791,15 @@ export function buildChatPayload(input: ChatInput): PromptPayload {
     oldest_visible: visibleOldest,
     fact_positions: factsShown.map((m) => m.source_position ?? null),
   };
+  if (reminders !== null) {
+    // The entries said among the turns are reminders too; the character's note is the card's.
+    const amongTurns = atDepth.reduce(
+      (sum, entry) => sum + estimateTokens(substitute(pyStrip(entry.content || ""), charName, userName)),
+      0,
+    );
+    const reminderCost = built.reminders + restatedCost + amongTurns;
+    stats.parts = { card: used - reminderCost - history, reminders: reminderCost, history };
+  }
   return { system, messages: turns, stop: [`\n${userName}:`], post_history: postHistory, stats };
 }
 
