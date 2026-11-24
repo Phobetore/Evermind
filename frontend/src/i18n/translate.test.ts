@@ -82,6 +82,11 @@ describe("a price", () => {
     expect(translate(locale, "ai.priceKnown", price)).toBe(sentence);
   });
 
+  it("that rounds to nothing is not written as nothing", () => {
+    expect(translate("en", "ai.priceKnown", { input: 0.00001, output: 3 })).toBe("$0.00001 read, $3 written, per million tokens");
+    expect(translate("fr", "ai.priceKnown", { input: 0.0000001, output: 3 })).toContain("0,0000001 $ lus");
+  });
+
   it("is written whole when it is", () => {
     expect(translate("fr", "ai.priceKnown", { input: 3, output: 15 })).toBe("3 $ lus, 15 $ écrits, le million de tokens");
   });

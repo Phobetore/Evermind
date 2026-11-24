@@ -22,10 +22,15 @@ const numbers: Partial<Record<Locale, Intl.NumberFormat>> = {};
 const grouped: Partial<Record<Locale, Intl.NumberFormat>> = {};
 const wholePrices: Partial<Record<Locale, Intl.NumberFormat>> = {};
 const pricesWithCents: Partial<Record<Locale, Intl.NumberFormat>> = {};
+const tinyPrices: Partial<Record<Locale, Intl.NumberFormat>> = {};
 
 function numberFormat(locale: Locale, modifier: string | undefined, value: number): Intl.NumberFormat {
   if (modifier === ":grouped") return (grouped[locale] ??= new Intl.NumberFormat(locale));
   if (modifier === ":price") {
+    // A price that is not nothing but rounds to it at 4 decimals keeps its first figures, not "0,00".
+    if (value > 0 && Math.round(value * 10_000) === 0) {
+      return (tinyPrices[locale] ??= new Intl.NumberFormat(locale, { maximumSignificantDigits: 2 }));
+    }
     return Number.isInteger(value)
       ? (wholePrices[locale] ??= new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }))
       : (pricesWithCents[locale] ??= new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 }));
