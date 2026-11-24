@@ -323,12 +323,20 @@
     },
     "wallpaper": {
       "title": "Hintergrund",
-      "description": "Ein Bild hinter dieser Unterhaltung. Es gehört nur zu dieser Unterhaltung, nicht zur Figur.",
-      "choose": "Bild wählen",
       "replace": "Ersetzen",
       "remove": "Entfernen",
       "adjust": "Stärke einstellen",
-      "failed": "Der Hintergrund ließ sich nicht setzen."
+      "failed": "Der Hintergrund ließ sich nicht setzen.",
+      "description": "Diese Wahl gehört nur zu dieser Unterhaltung.",
+      "portrait": "Das Bild der Figur",
+      "portraitHint": "Die ursprüngliche Wahl. Folgt der Einstellung dieses Geräts.",
+      "other": "Ein anderes Bild",
+      "otherHint": "Aus deinen Dateien gewählt, wie bisher.",
+      "none": "Kein Hintergrund",
+      "noneHint": "Die leere Seite, auch wenn dieses Gerät Bilder zeigt.",
+      "noPicture": "Diese Karte hat kein Bild: Die Seite bleibt leer.",
+      "portraitHidden": "Auf diesem Gerät ausgeblendet.",
+      "portraitHiddenOpen": "In Anzeige ändern"
     },
     "writing": {
       "title": "Schreiben",

@@ -1,3 +1,4 @@
+import { Backdrop } from "@/components/chat/Backdrop";
 import { CardSummary } from "@/components/chat/CardSummary";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatMessage } from "@/components/chat/ChatMessage";
@@ -11,11 +12,12 @@ import { PageWait } from "@/components/ui/PageWait";
 import { Sheet } from "@/components/ui/Sheet";
 import { DataError, data, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
-import { useDisplay } from "@/lib/display";
+import { backdropOf, plateAlpha, useDisplay } from "@/lib/display";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
-import { cssUrl, newId, nothingFocused } from "@/lib/utils";
+import { newId, nothingFocused } from "@/lib/utils";
+import { clsx } from "clsx";
 import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -51,7 +53,7 @@ function StreamBubble({ text, character, arriving, onGrow }: {
   return (
     <div className="flex gap-3.5 px-1 py-3">
       <Avatar name={character.name} src={character.avatar_url} className="mt-0.5 size-[40px] shrink-0 text-lg" />
-      <div className="min-w-0 flex-1">
+      <div className="msg-body min-w-0 flex-1">
         <span className="chat-name font-display font-semibold text-ember-300">{character.name}</span>
         <div className="mt-1">
           {words ? (
@@ -421,6 +423,9 @@ function ChatView({ id }: { id: string }) {
   const perf = latest?.perf as TurnPerf | undefined;
   // The message being written is drawn from its words as they arrive.
   const visibleMessages = messages.filter((m) => m.id !== writing);
+  const shown = backdropOf(conversation, character, display);
+  // The plate under the text, only where a picture is drawn: with none, nothing changes.
+  const veiled = shown.src !== null && shown.strength > 0;
   const drawnMessages = visibleMessages.slice(-drawn);
 
   return (
@@ -541,65 +546,65 @@ function ChatView({ id }: { id: string }) {
           </div>
         </header>
 
-        <div ref={storyRef} data-story onScroll={onScroll} className="relative flex-1 overflow-y-auto [overflow-anchor:none]">
-          {conversation.wallpaper_url && (
-            // Pinned to the column: a backdrop that scrolls with the text is a picture in the conversation, not behind it.
-            <div aria-hidden className="pointer-events-none sticky top-0 h-0 w-full">
-              <div
-                data-backdrop
-                className="h-[100dvh] w-full bg-cover bg-center bg-no-repeat"
-                style={{
-                  backgroundImage: cssUrl(conversation.wallpaper_url),
-                  opacity: conversation.backdrop_strength ?? conversation.wallpaper_opacity ?? 0.25,
-                }}
-              />
-            </div>
-          )}
-          <div className="relative mx-auto max-w-3xl px-4 py-6">
-            {drawnMessages.length < visibleMessages.length && (
-              <button className="btn btn-ghost mx-auto mb-2 block text-xs" onClick={showEarlier}>
-                {t("chat.showEarlier")}
-              </button>
-            )}
-            {drawnMessages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                character={character}
-                persona={persona}
-                isLast={message.id === last?.id}
-                busy={busy}
-                replyRef={message.id === last?.id ? replyButton : undefined}
-                onSwipe={(index) => write(() => swipe(message, index),
-                  (now) => swiped(message, now.find((m) => m.id === message.id)))}
-                onRegenerate={() => ask({ mode: "regenerate" })}
-                onContinue={() => ask({ mode: "continue" })}
-                onEdit={(content, index) => write(() => edit(message, content, index))}
-                onDeleteFrom={() => write(() => deleteFrom(message), (now) => {
-                  if (!now.some((m) => m.id === message.id)) cut();
-                })}
-                onBranch={() => write(() => branchFrom(message))}
-              />
-            ))}
-
-            {busy && <StreamBubble text={text} character={character} arriving={!lost} onGrow={followBottom} />}
-
-            {silent && (
-              <div className="mx-1 my-3">
-                <ModelSilent onRetry={retry} />
-              </div>
-            )}
-
-            {problem && (
-              <div className="mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 bg-blood/10 px-4 py-3">
-                <p role="alert" className="text-sm text-blood">{problem}</p>
-                {!busy && !lost && !refusal && (
-                  <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
-                    {t("chat.errors.retryButton")}
+        {/* The picture takes the story's box exactly, under the part that scrolls: it stays put while
+            the text moves, and follows the column as the keyboard opens or the panel takes a share. */}
+        <div className="relative min-h-0 flex-1">
+          <Backdrop shown={shown} />
+          <div
+            ref={storyRef}
+            data-story
+            onScroll={onScroll}
+            className={clsx("absolute inset-0 overflow-y-auto [overflow-anchor:none]", veiled && "over-backdrop")}
+            style={veiled ? ({ "--plate": plateAlpha(shown.strength) } as React.CSSProperties) : undefined}
+          >
+            <div className="mx-auto max-w-3xl px-4 py-6">
+              {drawnMessages.length < visibleMessages.length && (
+                <div className="chat-surface mx-auto mb-2 w-fit">
+                  <button className="btn btn-ghost block text-xs" onClick={showEarlier}>
+                    {t("chat.showEarlier")}
                   </button>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+              {drawnMessages.map((message) => (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  character={character}
+                  persona={persona}
+                  isLast={message.id === last?.id}
+                  busy={busy}
+                  replyRef={message.id === last?.id ? replyButton : undefined}
+                  onSwipe={(index) => write(() => swipe(message, index),
+                    (now) => swiped(message, now.find((m) => m.id === message.id)))}
+                  onRegenerate={() => ask({ mode: "regenerate" })}
+                  onContinue={() => ask({ mode: "continue" })}
+                  onEdit={(content, index) => write(() => edit(message, content, index))}
+                  onDeleteFrom={() => write(() => deleteFrom(message), (now) => {
+                    if (!now.some((m) => m.id === message.id)) cut();
+                  })}
+                  onBranch={() => write(() => branchFrom(message))}
+                />
+              ))}
+
+              {busy && <StreamBubble text={text} character={character} arriving={!lost} onGrow={followBottom} />}
+
+              {silent && (
+                <div className="chat-surface mx-1 my-3">
+                  <ModelSilent onRetry={retry} />
+                </div>
+              )}
+
+              {problem && (
+                <div className="chat-banner mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 px-4 py-3">
+                  <p role="alert" className="text-sm text-blood">{problem}</p>
+                  {!busy && !lost && !refusal && (
+                    <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
+                      {t("chat.errors.retryButton")}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -625,6 +630,7 @@ function ChatView({ id }: { id: string }) {
       {panelOpen && (
         <ChatSidePanel
           conversation={conversation}
+          backdrop={backdrop}
           persona={persona}
           storyCuts={storyCuts}
           takeFocus={panelByHand}

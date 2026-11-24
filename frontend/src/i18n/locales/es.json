@@ -323,12 +323,20 @@
     },
     "wallpaper": {
       "title": "Fondo",
-      "description": "Una imagen detrás de esta conversación. Pertenece solo a esta conversación, no al personaje.",
-      "choose": "Elegir una imagen",
       "replace": "Reemplazar",
       "remove": "Quitar",
       "adjust": "Ajustar la intensidad",
-      "failed": "No se ha podido poner el fondo."
+      "failed": "No se ha podido poner el fondo.",
+      "description": "Esta elección pertenece solo a esta conversación.",
+      "portrait": "La imagen del personaje",
+      "portraitHint": "La elección de origen. Sigue el ajuste de este dispositivo.",
+      "other": "Otra imagen",
+      "otherHint": "Elegida entre tus archivos, como hasta ahora.",
+      "none": "Sin fondo",
+      "noneHint": "La página desnuda, aunque este dispositivo muestre imágenes.",
+      "noPicture": "Esta ficha no tiene imagen: la página queda desnuda.",
+      "portraitHidden": "Oculta en este dispositivo.",
+      "portraitHiddenOpen": "Cambiarlo en Pantalla"
     },
     "writing": {
       "title": "Escritura",

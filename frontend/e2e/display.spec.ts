@@ -240,7 +240,7 @@ test("the drawn backdrop follows the sheet's slider", async ({ page, request }) 
   const convo = await conversationWithReply(request);
   await withWallpaper(request, convo.id);
   await openConversation(page, convo.id);
-  const drawn = page.locator("[data-backdrop]");
+  const drawn = page.locator("[data-backdrop] img");
   await expect(drawn).toHaveCSS("opacity", "0.25");
 
   await aa(page).click();

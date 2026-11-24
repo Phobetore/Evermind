@@ -1,3 +1,4 @@
+import type { ConversationBackdrop } from "@/components/chat/useConversationBackdrop";
 import { Field } from "@/components/editor/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { PlainText } from "@/components/ui/PlainText";
@@ -5,10 +6,11 @@ import { data, DataError } from "@/data";
 import { speakingName } from "@/engine";
 import { useT } from "@/i18n/useT";
 import { describeConsolidation, describeExtraction } from "@/lib/consolidation";
+import { backdropOf, useDisplay } from "@/lib/display";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS } from "@/lib/useTurn";
 import { cardText } from "@/lib/utils";
-import type { Connection, Conversation, Memory, Persona } from "@/types";
+import type { Backdrop, Connection, Conversation, Memory, Persona } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, SlidersHorizontal, Type, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type SetStateAction } from "react";
@@ -18,6 +20,7 @@ type Where = "connection" | "directive" | "summary" | "memory";
 
 export function ChatSidePanel({
   conversation,
+  backdrop,
   persona,
   storyCuts = 0,
   takeFocus = false,
@@ -27,6 +30,8 @@ export function ChatSidePanel({
   onShowCard,
 }: {
   conversation: Conversation;
+  /** The conversation's backdrop, as the page holds it: a choice made here goes through it. */
+  backdrop: ConversationBackdrop;
   persona: Persona | null;
   /** Changes when the server takes the memory back, with a cut or a reply written over. */
   storyCuts?: number;
@@ -73,34 +78,53 @@ export function ChatSidePanel({
   // The boxes are named by their titles: their placeholders are examples, not names.
   const directiveTitle = useId();
   const summaryTitle = useId();
-  const [wallpaperBusy, setWallpaperBusy] = useState(false);
+  // The backdrop being asked for, until the server answers: one at a time, so that a second touch
+  // while the Wi-Fi wakes up sends nothing.
+  const [pending, setPending] = useState<Backdrop | null>(null);
   const [wallpaperError, setWallpaperError] = useState<string | null>(null);
+  const display = useDisplay();
+  const shown = backdropOf(conversation, character, display);
+  const choicesId = useId();
 
-  async function pickWallpaper(file: File | undefined) {
-    if (!file) return;
-    setWallpaperBusy(true);
+  /** The server's answer, all of it: sending or removing a picture changes the choice and its strength too. */
+  const tookBackdrop = (c: Conversation) => onConversationChange({
+    wallpaper_url: c.wallpaper_url,
+    wallpaper_opacity: c.wallpaper_opacity,
+    backdrop: c.backdrop,
+    backdrop_strength: c.backdrop_strength,
+  });
+
+  async function wallpaperWrite(asked: Backdrop, change: () => Promise<Conversation>) {
+    setPending(asked);
     setWallpaperError(null);
     try {
-      const updated = await data.conversations.setWallpaper(conversation.id, file);
-      onConversationChange({
-        wallpaper_url: updated.wallpaper_url,
-        wallpaper_opacity: updated.wallpaper_opacity,
-      });
+      tookBackdrop(await change());
     } catch (e) {
       setWallpaperError(describeError(e, t, t("chat.wallpaper.failed")));
     }
-    setWallpaperBusy(false);
+    setPending(null);
   }
 
-  async function clearWallpaper() {
-    setWallpaperBusy(true);
-    try {
-      await data.conversations.clearWallpaper(conversation.id);
-      onConversationChange({ wallpaper_url: null });
-    } catch (e) {
-      setWallpaperError(describeError(e, t, t("chat.wallpaper.failed")));
+  function pickWallpaper(file: File | undefined) {
+    if (file) void wallpaperWrite("image", () => data.conversations.setWallpaper(conversation.id, file));
+  }
+
+  function clearWallpaper() {
+    void wallpaperWrite("auto", () => data.conversations.clearWallpaper(conversation.id));
+  }
+
+  async function chooseBackdrop(choice: Backdrop) {
+    if (pending || choice === conversation.backdrop) return;
+    // Another picture with none kept: its file is asked for, and sending it makes the choice.
+    if (choice === "image" && !conversation.wallpaper_url) {
+      wallpaperInput.current?.click();
+      return;
     }
-    setWallpaperBusy(false);
+    setPending(choice);
+    setWallpaperError(null);
+    const failed = await backdrop.choose(choice);
+    setPending(null);
+    if (failed) setWallpaperError(describeError(failed, t, t("chat.wallpaper.failed")));
   }
 
   // Caught: offline it rejects, and an unhandled rejection is noise in the console.
@@ -420,63 +444,111 @@ export function ChatSidePanel({
       <div>
         <div className="mb-1.5 flex items-center gap-2">
           <ImageIcon className="h-3.5 w-3.5 text-arcane-300" />
-          <span className="ui-label">{t("chat.wallpaper.title")}</span>
+          <span id={`${choicesId}-title`} className="ui-label">{t("chat.wallpaper.title")}</span>
         </div>
-        <p className="mb-2 text-xs leading-relaxed text-mist-dim">
+        <p id={`${choicesId}-about`} className="mb-2 text-xs leading-relaxed text-mist-dim">
           {t("chat.wallpaper.description")}
         </p>
 
-        {conversation.wallpaper_url ? (
-          <>
-            <div className="flex items-start gap-3">
-              <img
-                src={conversation.wallpaper_url}
-                alt=""
-                className="h-16 w-24 shrink-0 rounded-lg border border-ink-600 object-cover"
-                draggable={false}
-              />
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <button
-                  type="button"
-                  className="btn btn-ghost !py-1.5 text-xs"
-                  onClick={() => wallpaperInput.current?.click()}
-                  disabled={wallpaperBusy}
-                >
-                  {t("chat.wallpaper.replace")}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-danger !py-1.5 text-xs"
-                  onClick={clearWallpaper}
-                  disabled={wallpaperBusy}
-                >
-                  {t("chat.wallpaper.remove")}
-                </button>
-              </div>
-            </div>
+        {/* Checked is what the conversation holds, never what was just touched: it changes once the
+            server has agreed. */}
+        <div
+          role="radiogroup"
+          aria-labelledby={`${choicesId}-title`}
+          aria-describedby={`${choicesId}-about`}
+          aria-busy={pending !== null}
+          className="flex flex-col gap-1.5"
+        >
+          {([
+            ["auto", t("chat.wallpaper.portrait"), t("chat.wallpaper.portraitHint")],
+            ["image", t("chat.wallpaper.other"), t("chat.wallpaper.otherHint")],
+            ["none", t("chat.wallpaper.none"), t("chat.wallpaper.noneHint")],
+          ] as const).map(([value, label, hint]) => (
+            <div key={value}>
+              <label
+                className={clsx(
+                  "flex min-h-11 items-start gap-2.5 rounded-lg border px-3 py-2 transition-colors",
+                  conversation.backdrop === value ? "border-ember-600 bg-ember-glow" : "border-ink-700",
+                  pending === null ? "cursor-pointer hover:border-ink-500" : "cursor-wait",
+                )}
+              >
+                <input
+                  type="radio"
+                  name={`${choicesId}-backdrop`}
+                  value={value}
+                  checked={conversation.backdrop === value}
+                  disabled={pending !== null}
+                  onChange={() => void chooseBackdrop(value)}
+                  aria-labelledby={`${choicesId}-${value}`}
+                  aria-describedby={`${choicesId}-${value}-hint`}
+                  className="mt-1 size-4 shrink-0 accent-[#e29a3e]"
+                />
+                <span className="min-w-0 flex-1">
+                  <span id={`${choicesId}-${value}`} className="block break-words text-sm text-parchment-dim">{label}</span>
+                  <span id={`${choicesId}-${value}-hint`} className="block break-words text-xs leading-relaxed text-mist">{hint}</span>
+                </span>
+                {pending === value && <Loader2 aria-hidden className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-mist" />}
+              </label>
 
-            <button
-              type="button"
-              className="btn btn-ghost mt-3 w-full !py-1.5 text-xs"
-              onClick={() => onOpenDisplay("strength")}
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              {t("chat.wallpaper.adjust")}
-            </button>
-          </>
-        ) : (
+              {/* Why the character's picture, chosen, draws nothing here. */}
+              {value === "auto" && conversation.backdrop === "auto" && (
+                !character.avatar_url ? (
+                  <p className="mt-1.5 break-words px-1 text-xs leading-relaxed text-mist">{t("chat.wallpaper.noPicture")}</p>
+                ) : !display.portrait && (
+                  <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 px-1 text-xs leading-relaxed text-mist">
+                    <span>{t("chat.wallpaper.portraitHidden")}</span>
+                    {/* Where the switch is. */}
+                    <button
+                      type="button"
+                      className="touch-target text-left text-ember-300 underline decoration-ember-600/50 underline-offset-2 transition-colors hover:text-parchment"
+                      onClick={() => onOpenDisplay()}
+                    >
+                      {t("chat.wallpaper.portraitHiddenOpen")}
+                    </button>
+                  </p>
+                )
+              )}
+
+              {value === "image" && conversation.backdrop === "image" && conversation.wallpaper_url && (
+                <div className="mt-2 flex items-start gap-3">
+                  <img
+                    src={conversation.wallpaper_url}
+                    alt=""
+                    className="h-16 w-24 shrink-0 rounded-lg border border-ink-600 object-cover"
+                    draggable={false}
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-ghost !py-1.5 text-xs"
+                      onClick={() => wallpaperInput.current?.click()}
+                      disabled={pending !== null}
+                    >
+                      {t("chat.wallpaper.replace")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger !py-1.5 text-xs"
+                      onClick={clearWallpaper}
+                      disabled={pending !== null}
+                    >
+                      {t("chat.wallpaper.remove")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {shown.src !== null && (
           <button
             type="button"
-            className="btn btn-ghost w-full !py-1.5 text-xs"
-            onClick={() => wallpaperInput.current?.click()}
-            disabled={wallpaperBusy}
+            className="btn btn-ghost mt-3 w-full !py-1.5 text-xs"
+            onClick={() => onOpenDisplay("strength")}
           >
-            {wallpaperBusy ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <ImageIcon className="h-3.5 w-3.5" />
-            )}
-            {t("chat.wallpaper.choose")}
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {t("chat.wallpaper.adjust")}
           </button>
         )}
 

@@ -111,7 +111,7 @@ export function ChatMessage({
     // text, which asterisks turn into several elements.
     <div data-message-id={message.id} className="group flex gap-3.5 px-1 py-3 animate-fade">
       <Avatar name={name} src={avatarSrc} className="mt-0.5 size-[40px] shrink-0 text-lg" />
-      <div className="min-w-0 flex-1">
+      <div className="msg-body min-w-0 flex-1">
         {/* Wraps, for the sake of a touch screen: six buttons of 44px are wider
             than the name and the column beside it on some phones. */}
         <div className="flex flex-wrap items-baseline gap-x-2.5 pointer-coarse:items-center">
@@ -134,13 +134,13 @@ export function ChatMessage({
             </span>
           )}
           {interrupted && (
-            <span className="text-[0.68rem] uppercase tracking-wide text-mist-dim">{t("chat.message.interrupted")}</span>
+            <span className="msg-interrupted text-[0.68rem] uppercase tracking-wide">{t("chat.message.interrupted")}</span>
           )}
 
           {/* Always shown on touch, each button 44px across and the row giving back the height it takes;
               six that do not fit on a line break between the reply's two and the message's four, and
               four that do not fit either (a page zoomed to 200 %) break among themselves. */}
-          <div className="hover-actions ml-auto flex items-center gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:flex-wrap pointer-coarse:justify-end pointer-coarse:gap-0">
+          <div className="hover-actions msg-actions ml-auto flex items-center gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:flex-wrap pointer-coarse:justify-end pointer-coarse:gap-0">
             {isLast && !busy && (
               <div className="flex items-center justify-end gap-0.5 pointer-coarse:flex-wrap pointer-coarse:gap-0">
                 {/* On a message of the person's, the reply it is waiting for. Never on a greeting: it answers nothing. */}
@@ -221,11 +221,11 @@ export function ChatMessage({
               </div>
             </div>
           ) : messageMode === "narrate" ? (
-            <p className="chat-narration whitespace-pre-wrap italic leading-relaxed text-arcane-300/90">
+            <p className="chat-narration whitespace-pre-wrap italic leading-relaxed">
               {message.content}
             </p>
           ) : messageMode === "ooc" ? (
-            <p className="chat-ooc whitespace-pre-wrap rounded-lg border border-dashed border-ink-600 bg-ink-900/60 px-3 py-2 leading-relaxed text-mist">
+            <p className="chat-ooc whitespace-pre-wrap rounded-lg border border-dashed border-ink-600 px-3 py-2 leading-relaxed text-mist">
               {message.content}
             </p>
           ) : (
@@ -235,7 +235,7 @@ export function ChatMessage({
 
         {/* Swipes. 44px buttons on a touch screen, and the row gives the height back. */}
         {canSwipe && editing === null && (
-          <div className="mt-1.5 flex items-center gap-1.5 text-mist-dim pointer-coarse:mt-0 pointer-coarse:-mb-2.5 pointer-coarse:gap-0">
+          <div className="msg-swipes mt-1.5 flex items-center gap-1.5 pointer-coarse:mt-0 pointer-coarse:-mb-2.5 pointer-coarse:gap-0">
             <button
               ref={previous}
               className="rounded p-1.5 transition-colors hover:text-parchment disabled:opacity-30 md:p-0.5 pointer-coarse:p-3.5 md:pointer-coarse:p-3.5"
@@ -289,7 +289,8 @@ function IconButton({
       onClick={onClick}
       disabled={disabled}
       className={clsx(
-        "rounded-md p-1.5 text-mist-dim transition-colors disabled:cursor-wait pointer-coarse:p-[15px]",
+        // No colour of its own: it takes the row's (.msg-actions), and its hover colours go before that.
+        "rounded-md p-1.5 transition-colors disabled:cursor-wait pointer-coarse:p-[15px]",
         danger ? "hover:bg-blood/15 hover:text-blood" : "hover:bg-ink-700 hover:text-parchment",
       )}
     >

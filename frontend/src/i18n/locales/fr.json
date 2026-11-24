@@ -323,12 +323,20 @@
     },
     "wallpaper": {
       "title": "Fond d'écran",
-      "description": "Une image derrière cette conversation. Elle appartient à cette conversation seule, pas au personnage.",
-      "choose": "Choisir une image",
       "replace": "Remplacer",
       "remove": "Retirer",
       "adjust": "Régler l'intensité",
-      "failed": "Impossible de poser ce fond."
+      "failed": "Impossible de poser ce fond.",
+      "description": "Ce choix n'appartient qu'à cette conversation.",
+      "portrait": "L'image du personnage",
+      "portraitHint": "Le choix d'origine. Suit le réglage de cet appareil.",
+      "other": "Une autre image",
+      "otherHint": "Choisie dans vos fichiers, comme aujourd'hui.",
+      "none": "Aucun fond",
+      "noneHint": "La page nue, même si l'appareil affiche les images.",
+      "noPicture": "Cette fiche n'a pas d'image : la page reste nue.",
+      "portraitHidden": "Masquée sur cet appareil.",
+      "portraitHiddenOpen": "Changer dans Affichage"
     },
     "writing": {
       "title": "Écriture",

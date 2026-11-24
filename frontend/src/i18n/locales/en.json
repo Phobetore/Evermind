@@ -323,12 +323,20 @@
     },
     "wallpaper": {
       "title": "Backdrop",
-      "description": "An image behind this conversation. It belongs to this conversation alone, not to the character.",
-      "choose": "Choose an image",
       "replace": "Replace",
       "remove": "Remove",
       "adjust": "Adjust strength",
-      "failed": "Could not set the backdrop."
+      "failed": "Could not set the backdrop.",
+      "description": "This choice belongs to this conversation alone.",
+      "portrait": "The character's picture",
+      "portraitHint": "The original choice. Follows this device's setting.",
+      "other": "Another picture",
+      "otherHint": "Chosen from your files, as before.",
+      "none": "No backdrop",
+      "noneHint": "The bare page, even if this device shows pictures.",
+      "noPicture": "This card has no picture: the page stays bare.",
+      "portraitHidden": "Hidden on this device.",
+      "portraitHiddenOpen": "Change it in Display"
     },
     "writing": {
       "title": "Writing",
