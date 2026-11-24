@@ -239,6 +239,58 @@ async def test_ais_that_would_share_a_name_are_told_apart(start):
         "s": ("Mistral", "mistral")}
 
 
+async def test_an_ai_alone_under_its_chip_s_name_takes_its_model_s(start):
+    await start()
+    connection("mine", "Mon OR", OPENROUTER, "aurore/aurore-large", api_key="sk-or-1")
+    connection("lone", "OpenRouter", OPENROUTER, "nuit/nuit-7b", api_key="sk-or-2")
+
+    await start(MIGRATION)
+
+    # Compared with the chip's label before its service became "OpenRouter (2)".
+    assert {i: m["name"] for i, m in by_id("models").items()} == {
+        "mine": "Mon OR", "lone": "nuit-7b"}
+    assert {i: c["name"] for i, c in by_id("connections").items()} == {
+        "mine": "OpenRouter", "lone": "OpenRouter (2)"}
+
+
+async def test_a_known_address_or_api_names_its_service(start):
+    await start()
+    table = [  # id, address, API, key, then the service it makes: holder, family, name
+        ("ol", OLLAMA + "/", "openai-compatible", "", "ol", "ollama", "Ollama"),
+        ("lm", LMSTUDIO, "openai-compatible", "", "lm", "lmstudio", "LM Studio"),
+        ("cpp", "http://localhost:8080/v1/", "openai-compatible", "", "cpp", "llamacpp",
+         "llama.cpp"),
+        ("kob", "http://localhost:5001/v1", "openai-compatible", "", "kob", "koboldcpp",
+         "KoboldCpp"),
+        ("oa", OPENAI, "openai-compatible", "sk-oa", "oa", "openai", "OpenAI"),
+        ("or", OPENROUTER, "openai-compatible", "sk-or", "or", "openrouter", "OpenRouter"),
+        ("gq", GROQ, "openai-compatible", "gsk", "gq", "groq", "Groq"),
+        # The oldest of a group holds the service with the "/" it was typed with.
+        ("mi", MISTRAL + "/", "openai-compatible", "ms", "mi", "mistral", "Mistral"),
+        ("mi2", MISTRAL, "openai-compatible", "ms", "mi", "mistral", "Mistral"),
+        # One server and key under two APIs are two services.
+        ("an", ANTHROPIC, "anthropic", "sk-ant", "an", "anthropic", "Anthropic"),
+        ("an-oc", ANTHROPIC, "openai-compatible", "sk-ant", "an-oc", "anthropic",
+         "Anthropic (2)"),
+        ("an-lan", "http://192.168.1.21:9000", "anthropic", "", "an-lan", "anthropic",
+         "Anthropic (3)"),
+        ("lan", LAN, "openai-compatible", "", "lan", "generic", "Mine lan"),
+    ]
+    for conn_id, url, provider, key, *_ in table:
+        connection(conn_id, f"Mine {conn_id}", url, f"m-{conn_id}", provider=provider,
+                   api_key=key)
+    urls = {conn_id: url for conn_id, url, *_ in table}
+
+    await start(MIGRATION)
+
+    assert {i: m["connection_id"] for i, m in by_id("models").items()} == {
+        conn_id: holder for conn_id, _, _, _, holder, *_ in table}
+    assert {i: (c["family"], c["name"], c["family_url"])
+            for i, c in by_id("connections").items()} == {
+        holder: (family, name, urls[holder].rstrip("/"))
+        for _, _, _, _, holder, family, name in table}
+
+
 async def test_a_hand_written_window_sends_what_it_sent(start):
     await start()
     connection("c1", "Brume", OLLAMA, "brume:12b", context_size=0)
