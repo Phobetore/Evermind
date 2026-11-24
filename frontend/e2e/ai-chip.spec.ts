@@ -461,3 +461,118 @@ test("with no ai the chip adds one in place", async ({ page, request }) => {
   await addDialog(page).getByRole("button", { name: "Close" }).click();
   await expect(addDialog(page)).toHaveCount(0);
 });
+
+/** A short word of its own: the sheet does not cut a short name in the middle. */
+const shortTag = () => Math.random().toString(36).slice(2, 6);
+
+/** Counts the page's reads of the list of AIs. */
+function aiReads(page: Page) {
+  const count = { n: 0 };
+  page.on("request", (sent) => {
+    if (sent.method() === "GET" && new URL(sent.url()).pathname === "/api/models") count.n += 1;
+  });
+  return count;
+}
+
+test("an ai removed on another device while the conversation is open is said at the next reply", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const gone = await addModel(request, { base_url: MOCK, model: `e2e-gone-${Date.now()}`, name: `Gone ${shortTag()}` });
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: gone.id } });
+  const reads = aiReads(page);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(chipOf(page)).toHaveAccessibleName(`AI: ${gone.name}. Change.`);
+  // Opening asks for the list once, and nothing reads it again on its own.
+  await page.waitForTimeout(1500);
+  expect(reads.n, "reads of the list as the page opens").toBe(1);
+
+  // Removed on another device; then a message is sent from this one.
+  expect((await request.delete(`${API}/api/models/${gone.id}`)).ok()).toBe(true);
+  await page.locator("textarea").first().fill("Still there?");
+  const ends = replyEnds(page, convo.id);
+  await page.locator('button[title="Send"]').click();
+  await ends;
+  await expect(page.locator("[data-model-lost]")).toContainText(`${gone.name} was removed from your AIs: e2e answers in its place.`);
+  await expect(chipOf(page)).toHaveAccessibleName("AI: e2e. Change.");
+  const sheet = await openSheet(page);
+  await expect(sheet.getByRole("radio", { name: new RegExp(`^${gone.name}`) })).toHaveCount(0);
+});
+
+test("an ai chosen on another device names itself at the next reply", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const other = await addModel(request, { base_url: MOCK, model: "MOCK_SAYS_Elsewhere", name: `Elsewhere ${shortTag()}` });
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(chipOf(page)).toHaveAccessibleName("AI: e2e. Change.");
+
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: other.id } });
+  await page.locator("textarea").first().fill("Who is this?");
+  const ends = replyEnds(page, convo.id);
+  await page.locator('button[title="Send"]').click();
+  await ends;
+  await expect(page.locator("[data-message-id]").last()).toContainText("Elsewhere one two three");
+  await expect(chipOf(page)).toHaveAccessibleName(`AI: ${other.name}. Change.`);
+});
+
+test("the sheet shows the ais added and removed elsewhere since the page opened", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const leaving = await addModel(request, { base_url: MOCK, model: `e2e-leaving-${Date.now()}`, name: `Leaving ${shortTag()}` });
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(chipOf(page)).toBeVisible();
+
+  const coming = await addModel(request, { base_url: MOCK, model: `e2e-coming-${Date.now()}`, name: `Coming ${shortTag()}` });
+  expect((await request.delete(`${API}/api/models/${leaving.id}`)).ok()).toBe(true);
+  const sheet = await openSheet(page);
+  await expect(sheet.getByRole("radio", { name: new RegExp(`^${coming.name}`) })).toBeVisible();
+  await expect(sheet.getByRole("radio", { name: new RegExp(`^${leaving.name}`) })).toHaveCount(0);
+});
+
+test("an ai picked that no longer exists leaves the sheet, which says so", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  const gone = await addModel(request, { base_url: MOCK, model: `e2e-gone-${Date.now()}`, name: `Gone ${shortTag()}` });
+  // The list as it was before the AI went, until the pick: as if the sheet's own read were slow.
+  const stale = await (await request.get(`${API}/api/models`)).json();
+  let serveStale = true;
+  await page.route("**/api/models", (route) =>
+    route.request().method() === "GET" && serveStale ? route.fulfill({ json: stale }) : route.continue());
+  const reads = aiReads(page);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(chipOf(page)).toBeVisible();
+  expect((await request.delete(`${API}/api/models/${gone.id}`)).ok()).toBe(true);
+
+  const sheet = await openSheet(page);
+  const row = sheet.getByRole("radio", { name: new RegExp(`^${gone.name}`) });
+  await expect(row).toBeVisible();
+  await expect.poll(() => reads.n).toBe(2);
+  serveStale = false;
+  await row.click();
+  await expect(sheet.getByRole("alert")).toContainText("This AI no longer exists.");
+  await expect(row).toHaveCount(0);
+  await expect.poll(() => reads.n).toBe(3);
+  await expect(sheet).toBeVisible();
+  await expect(chipOf(page)).toHaveAccessibleName("AI: e2e. Change.");
+});
+
+test("when the ais cannot be read the row says so and reads them again when touched", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  let broken = true;
+  await page.route("**/api/models", (route) =>
+    route.request().method() === "GET" && broken
+      ? route.fulfill({ status: 500, contentType: "text/html", body: "<html>Server error</html>" })
+      : route.continue());
+  await page.goto(`/#/chat/${convo.id}`);
+  const unread = page.locator("[data-status-row]").getByRole("button", { name: "Your AIs could not be read. Try again." });
+  await expect(unread).toBeVisible();
+  if (test.info().project.name === "desktop") {
+    await expect(page.locator("[data-status-row]").getByText(HINT_KEYBOARD)).toBeVisible();
+  }
+  for (const [width, height] of [[390, 844], [320, 640]]) {
+    await page.setViewportSize({ width, height });
+    const box = (await unread.boundingBox())!;
+    expect(box.x + box.width, `the button is off the screen at ${width}px`).toBeLessThanOrEqual(width);
+    await noSidewaysScroll(page);
+  }
+
+  broken = false;
+  await unread.click();
+  await expect(chipOf(page)).toHaveAccessibleName("AI: e2e. Change.");
+  await expect(unread).toHaveCount(0);
+});

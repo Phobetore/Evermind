@@ -213,6 +213,7 @@
     "ai": {
       "chip": "IA: {name}. Cambiar.",
       "addOne": "Añadir una IA",
+      "unread": "No se han podido leer sus IA. Reintentar.",
       "sheetTitle": "¿Qué IA responde?",
       "sheetHint": "Solo para esta conversación.",
       "capped": "{name} mantiene un tope de {tokens:grouped} tokens por respuesta, en todas sus conversaciones: las respuestas largas se cortarían.",

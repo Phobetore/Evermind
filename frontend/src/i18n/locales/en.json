@@ -213,6 +213,7 @@
     "ai": {
       "chip": "AI: {name}. Change.",
       "addOne": "Add an AI",
+      "unread": "Your AIs could not be read. Try again.",
       "sheetTitle": "Which AI answers?",
       "sheetHint": "For this conversation only.",
       "capped": "{name} keeps a ceiling of {tokens:grouped} tokens per reply, in all its conversations: long replies would be cut short.",

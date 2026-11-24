@@ -213,6 +213,7 @@
     "ai": {
       "chip": "IA\u00a0: {name}. Changer.",
       "addOne": "Ajouter une IA",
+      "unread": "Vos IA n'ont pas pu être lues. Réessayer.",
       "sheetTitle": "Quelle IA répond\u00a0?",
       "sheetHint": "Pour cette conversation seulement.",
       "capped": "{name} garde un plafond de {tokens:grouped} tokens par réponse, dans toutes ses conversations\u00a0: les réponses longues seraient coupées.",

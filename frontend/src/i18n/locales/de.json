@@ -213,6 +213,7 @@
     "ai": {
       "chip": "KI: {name}. Ändern.",
       "addOne": "Eine KI hinzufügen",
+      "unread": "Ihre KIs konnten nicht gelesen werden. Erneut versuchen.",
       "sheetTitle": "Welche KI antwortet?",
       "sheetHint": "Nur für diese Unterhaltung.",
       "capped": "{name} behält eine Obergrenze von {tokens:grouped} Tokens pro Antwort, in all ihren Unterhaltungen: Lange Antworten würden abgeschnitten.",
