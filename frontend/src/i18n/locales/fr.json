@@ -692,6 +692,7 @@
       "persona": "Ce persona n'existe plus.",
       "connection": "Cette connexion n'existe plus.",
       "fact": "Ce fait n'existe plus.",
+      "model": "Cette IA n'existe plus.",
       "other": "Cet élément n'existe plus."
     },
     "pngWithoutCard": "Cette image PNG ne contient pas de fiche de personnage.",
@@ -723,7 +724,10 @@
     "emptyMessage": "Écrivez d'abord un message.",
     "nothingToRegenerate": "Il n'y a pas encore de réponse à régénérer. Envoyez d'abord un message.",
     "nothingToContinue": "Le dernier message n'est pas une réponse\u00a0: il n'y a rien à prolonger.",
-    "internal": "Une erreur est survenue dans Evermind\u00a0: {message}"
+    "internal": "Une erreur est survenue dans Evermind\u00a0: {message}",
+    "keyNeeded": "Nouvelle adresse : retapez la clé, ou choisissez « Sans clé ». Evermind ne l'envoie qu'à l'adresse où vous l'avez donnée.",
+    "serviceInUse": "Ce service porte maintenant des IA : il n'a pas été retiré.",
+    "modelNoCredit": "Le service refuse faute de crédit. Sans plafond de réponse, il compte sur la plus longue réponse possible : rechargez votre compte, ou donnez un plafond à cette IA (Mes IA, Avancé, « Ma valeur »). Il a indiqué : {message}"
   },
   "login": {
     "cookieRefused": "Votre navigateur n'a pas conservé la connexion. Autorisez les cookies pour cette adresse et réessayez.",

@@ -41,6 +41,8 @@ describe("an error the server named", () => {
     ["empty_message", "errors.emptyMessage"],
     ["nothing_to_regenerate", "errors.nothingToRegenerate"],
     ["nothing_to_continue", "errors.nothingToContinue"],
+    ["key_needed", "errors.keyNeeded"],
+    ["service_in_use", "errors.serviceInUse"],
   ])("%s is said as %s", (kind, key) => {
     expect(describeError(new DataError("English words", { kind, status: 400 }), t)).toBe(
       `${key} {"message":"English words"}`,
@@ -53,6 +55,7 @@ describe("an error the server named", () => {
     ["model_not_found", "errors.modelNotFound"],
     ["model_rate_limited", "errors.modelRateLimited"],
     ["model_error", "errors.modelError"],
+    ["model_no_credit", "errors.modelNoCredit"],
     ["internal", "errors.internal"],
   ])("%s is %s, which quotes what the server said", (kind, key) => {
     const error = new DataError("Incorrect key.", { kind, status: 502 });
@@ -60,7 +63,7 @@ describe("an error the server named", () => {
   });
 
   test.each(["modelUnreachable", "modelAuthRefused", "modelNotFound", "modelRateLimited", "modelError",
-    "internal"] as const)("errors.%s has a place for the server's words in every language", (key) => {
+    "modelNoCredit", "internal"] as const)("errors.%s has a place for the server's words in every language", (key) => {
     for (const locale of [en, fr, de, es]) expect(locale.errors[key]).toContain("{message}");
   });
 
@@ -80,6 +83,7 @@ describe("a missing thing", () => {
     ["persona", "errors.notFound.persona"],
     ["connection", "errors.notFound.connection"],
     ["fact", "errors.notFound.fact"],
+    ["model", "errors.notFound.model"],
   ])("a %s is said as %s", (resource, key) => {
     const error = new DataError("English words", { kind: "not_found", resource, status: 404 });
     expect(describeError(error, t)).toBe(key);
@@ -92,6 +96,13 @@ describe("a missing thing", () => {
       expect(describeError(error, t)).toBe("errors.notFound.other");
     },
   );
+});
+
+describe("a page opened before Evermind was updated", () => {
+  test("shows the server's own words, which ask to reload it", () => {
+    const error = new DataError("Evermind has been updated: reload this page.", { kind: "page_outdated", status: 410 });
+    expect(describeError(error, t)).toBe("Evermind has been updated: reload this page.");
+  });
 });
 
 describe("an error the request layer named", () => {

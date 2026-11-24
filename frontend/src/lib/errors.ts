@@ -40,6 +40,8 @@ const KIND_KEYS: Record<string, string> = {
   unreachable: "errors.modelUnreachable",
   model_connection_lost: "errors.modelNetworkError",
   model_auth_refused: "errors.modelAuthRefused",
+  // A 402: the service wants credit, often for a reply with no ceiling, counted at its longest.
+  model_no_credit: "errors.modelNoCredit",
   model_not_found: "errors.modelNotFound",
   model_rate_limited: "errors.modelRateLimited",
   model_error: "errors.modelError",
@@ -65,6 +67,9 @@ const KIND_KEYS: Record<string, string> = {
   // larger context helps, so the sentence names no text to shorten.
   context_too_small: "errors.contextTooSmall",
   internal: "errors.internal",
+  // A service's new address with no key typed: the saved key is only sent where it was given.
+  key_needed: "errors.keyNeeded",
+  service_in_use: "errors.serviceInUse",
   // No answer from Evermind itself.
   network: "errors.unreachable",
   offline: "errors.offline",
@@ -80,6 +85,7 @@ const NOT_FOUND_KEYS: Record<string, string> = {
   message: "errors.notFound.message",
   persona: "errors.notFound.persona",
   connection: "errors.notFound.connection",
+  model: "errors.notFound.model",
   fact: "errors.notFound.fact",
 };
 

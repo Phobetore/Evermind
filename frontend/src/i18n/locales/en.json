@@ -692,6 +692,7 @@
       "persona": "This persona no longer exists.",
       "connection": "This connection no longer exists.",
       "fact": "This fact no longer exists.",
+      "model": "This AI no longer exists.",
       "other": "This item no longer exists."
     },
     "pngWithoutCard": "This PNG image does not contain a character card.",
@@ -723,7 +724,10 @@
     "emptyMessage": "Write a message first.",
     "nothingToRegenerate": "There is no reply to regenerate yet. Send a message first.",
     "nothingToContinue": "The last message is not a reply, so there is nothing to continue.",
-    "internal": "Something went wrong inside Evermind: {message}"
+    "internal": "Something went wrong inside Evermind: {message}",
+    "keyNeeded": "New address: type the key again, or choose \"No key\". Evermind only sends it to the address you gave it for.",
+    "serviceInUse": "This service now holds AIs: it was not removed.",
+    "modelNoCredit": "The service refuses for lack of credit. With no reply ceiling, it counts on the longest reply possible: top up your account, or give this AI a ceiling (My AIs, Advanced, \"My value\"). It said: {message}"
   },
   "login": {
     "cookieRefused": "Your browser did not keep the sign-in. Allow cookies for this address and try again.",

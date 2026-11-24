@@ -692,6 +692,7 @@
       "persona": "Esta persona ya no existe.",
       "connection": "Esta conexión ya no existe.",
       "fact": "Este hecho ya no existe.",
+      "model": "Esta IA ya no existe.",
       "other": "Este elemento ya no existe."
     },
     "pngWithoutCard": "Esta imagen PNG no contiene una ficha de personaje.",
@@ -723,7 +724,10 @@
     "emptyMessage": "Escribe primero un mensaje.",
     "nothingToRegenerate": "Todavía no hay ninguna respuesta que regenerar. Envía primero un mensaje.",
     "nothingToContinue": "El último mensaje no es una respuesta, así que no hay nada que continuar.",
-    "internal": "Algo ha fallado dentro de Evermind: {message}"
+    "internal": "Algo ha fallado dentro de Evermind: {message}",
+    "keyNeeded": "Nueva dirección: vuelve a escribir la clave, o elige «Sin clave». Evermind solo la envía a la dirección para la que la diste.",
+    "serviceInUse": "Este servicio tiene ahora IA: no se ha quitado.",
+    "modelNoCredit": "El servicio se niega por falta de crédito. Sin tope de respuesta, cuenta con la respuesta más larga posible: recarga tu cuenta, o pon un tope a esta IA (Mis IA, Avanzado, «Mi valor»). Indicó: {message}"
   },
   "login": {
     "cookieRefused": "Tu navegador no ha guardado el inicio de sesión. Permite las cookies para esta dirección e inténtalo de nuevo.",
