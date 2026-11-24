@@ -67,6 +67,13 @@ UPDATE models SET connection_id = (
     ORDER BY s.created_at, s.rowid LIMIT 1);
 DELETE FROM connections WHERE id NOT IN (SELECT connection_id FROM models);
 
+-- The release before answers a conversation that names no connection with the one marked
+-- default: when that one was merged, the service that now holds the default AI takes the mark
+-- (a frozen column, written for the release before only).
+UPDATE connections SET is_default = 1
+WHERE id = (SELECT connection_id FROM models WHERE is_default = 1 ORDER BY created_at, rowid
+            LIMIT 1);
+
 -- A known address names the service after its chip; anything else keeps the oldest row's name
 -- and is told apart by the probes at the first read.
 UPDATE connections SET

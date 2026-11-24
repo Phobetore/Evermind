@@ -422,6 +422,21 @@ async def test_the_release_before_still_reads_and_writes_what_it_needs(start):
     assert "bare" not in by_id("connections")
 
 
+async def test_the_release_before_answers_on_the_default_s_service_when_it_was_merged(start):
+    await start()
+    connection("lm", "Brume", LMSTUDIO, "brume-12b")
+    connection("or1", "Aurore", OPENROUTER, "aurore/aurore-large", api_key="sk-or-1")
+    connection("or2", "Sylve", OPENROUTER, "sylve/sylve-2.5", api_key="sk-or-1", is_default=1)
+
+    await start(MIGRATION)
+
+    assert [m["id"] for m in rows("SELECT * FROM models WHERE is_default = 1")] == ["or2"]
+    # The release before answers a conversation that names no connection with the one that now
+    # holds the default AI's service, not with the oldest connection left.
+    assert keyed_rows(RESOLVE_BEFORE, (None,))[0]["id"] == "or1"
+    assert [c["id"] for c in rows("SELECT * FROM connections WHERE is_default = 1")] == ["or1"]
+
+
 async def test_coming_back_from_the_release_before_shows_what_it_made(start):
     await start()
     character()
