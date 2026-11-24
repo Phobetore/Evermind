@@ -96,7 +96,6 @@
   },
   "settings": {
     "subtitle": "Ihre Modelle, Ihre Regeln: Evermind verbindet sich mit der KI Ihrer Wahl.",
-    "defaultTag": "Standard",
     "defaultConnectionLabel": "Standard-KI",
     "replyLengthLabel": "Antwortlänge",
     "replyLengthHint": "Gilt für alle Unterhaltungen. Evermind hält den nötigen Platz für KIs frei, die es selbst einstellt; eine KI mit fester Obergrenze kann lange Antworten abschneiden: siehe Meine KIs.",
@@ -151,9 +150,6 @@
       "upToDate": "Sie haben die neueste Version.",
       "unreachable": "GitHub war nicht erreichbar."
     }
-  },
-  "connections": {
-    "modelLabel": "Modell"
   },
   "chat": {
     "openingScene": "Die Szene wird eröffnet…",
@@ -217,6 +213,7 @@
     "ai": {
       "chip": "KI: {name}. Ändern.",
       "addOne": "Eine KI hinzufügen",
+      "unread": "Ihre KIs konnten nicht gelesen werden. Erneut versuchen.",
       "sheetTitle": "Welche KI antwortet?",
       "sheetHint": "Nur für diese Unterhaltung.",
       "capped": "{name} behält eine Obergrenze von {tokens:grouped} Tokens pro Antwort, in all ihren Unterhaltungen: Lange Antworten würden abgeschnitten.",
@@ -506,7 +503,7 @@
     "enabledLabel": "aktiv",
     "deleteEntryAriaLabel": "Eintrag löschen",
     "emptyState": "Noch keine Einträge.",
-    "keysPlaceholder": "Auslösende Stichwörter, dann Enter",
+    "keysPlaceholder": "Auslösewörter, dann Enter",
     "contentPlaceholder": "Was das Modell wissen soll, wenn diese Wörter auftauchen…",
     "addEntryButton": "Eintrag hinzufügen",
     "entryRequiredError": "Ein Eintrag braucht mindestens ein Stichwort und etwas Inhalt.",
@@ -604,6 +601,7 @@
     },
     "startChatModal": {
       "title": "Mit {name} spielen",
+      "aiLabel": "KI",
       "personaHint": "Verwalten Sie Ihre Identitäten im Tab „Personas“.",
       "noPersonaOption": "Keine Persona",
       "noConnectionOption": "Keine KI",
@@ -966,7 +964,7 @@
       "title": "{name} bearbeiten",
       "name": "Name",
       "key": "Schlüssel",
-      "keyKeep": "Leer: Der gespeicherte Schlüssel bleibt",
+      "keyKeep": "Leer: Der alte Schlüssel bleibt",
       "noKey": "Ohne Schlüssel",
       "noKeyHint": "Für einen Server, der keinen verlangt: Der gespeicherte Schlüssel wird vergessen.",
       "type": "API-Typ",

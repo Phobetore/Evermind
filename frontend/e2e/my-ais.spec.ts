@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { MOCK_ROOT, answer, boxHears, makeCharacter } from "./fixtures";
+import { MOCK_ROOT, answer, boxHears, inLocale, makeCharacter, misfits, rootAt } from "./fixtures";
 
 /**
  * My AIs in Settings, and the page of each AI. The suite's server started on a database from the
@@ -480,4 +480,82 @@ test.describe("my ais", () => {
     expect((await aiOf(request, ai.id))?.temperature).toBeNull();
     await request.delete(`${API}/api/models/${ai.id}`);
   });
+  test("what is typed and not yet saved is saved when the page is left with the browser's back", async ({ page, request }) => {
+    const ai = await lmstudioAi(request, "Left");
+    let puts = 0;
+    page.on("request", (r) => {
+      if (r.method() === "PUT" && r.url().endsWith(`/api/models/${ai.id}`)) puts += 1;
+    });
+    /** The page opened from Settings, as a phone reaches it, its advanced part open. */
+    async function fromSettings() {
+      await page.goto("/#/settings");
+      await expect(lineOf(page, ai.id)).toBeVisible();
+      await lineOf(page, ai.id).click();
+      await expect(page).toHaveURL(new RegExp(`/settings/ai/${ai.id}$`));
+      await openAdvanced(page);
+    }
+    /** Android's back button: the history's back, the field still focused. */
+    async function back() {
+      await page.goBack();
+      await expect(page.getByRole("heading", { name: "My AIs" })).toBeVisible();
+    }
+    try {
+      // Nothing typed: nothing saved. Waited for, as nothing is the answer.
+      await fromSettings();
+      await page.getByLabel("Display name", { exact: true }).click();
+      await back();
+      await page.waitForTimeout(1500);
+      expect(puts, "a field left as it was was saved").toBe(0);
+
+      // A name typed, never left.
+      await fromSettings();
+      const name = `Typed ${Date.now()}`;
+      await page.getByLabel("Display name", { exact: true }).fill(name);
+      await back();
+      await expect.poll(async () => (await aiOf(request, ai.id))?.name).toBe(name);
+
+      // A figure typed, the page left before its pause is over.
+      await fromSettings();
+      await page.getByLabel("Temperature", { exact: true }).fill("0.4");
+      await back();
+      await expect.poll(async () => (await aiOf(request, ai.id))?.temperature).toBe(0.4);
+
+      // A reading capacity typed: saved as leaving the field saves it.
+      await fromSettings();
+      const capacity = page.getByRole("group", { name: "Reading capacity" });
+      await capacity.getByRole("button", { name: /^My value/ }).click();
+      await capacity.getByRole("textbox").fill("24000");
+      await back();
+      await expect.poll(async () => (await aiOf(request, ai.id))?.context.own).toBe(24000);
+    } finally {
+      await request.delete(`${API}/api/models/${ai.id}`);
+    }
+  });
+});
+
+// Text set to its largest on a phone, the root at 32px: long German and Spanish labels fill a line.
+test.describe("an ai's page at very large text keeps its choices and buttons on the screen", () => {
+  for (const locale of ["en", "fr", "de", "es"]) {
+    test(`in ${locale}`, async ({ page, request }, info) => {
+      test.skip(info.project.name !== "phone", "Brume 12B exists once, on the server both projects share");
+      const brume = (await ais(request)).find((ai) => ai.name === "Brume 12B" && ai.migrated) as Ai;
+      // With its two notices, and a ceiling of its own, as the update leaves it.
+      await request.put(`${API}/api/models/${brume.id}`, {
+        data: { context_own: 16384, reply_cap: { mode: "fixed", tokens: 1024 }, notices_kept: false },
+      });
+      await inLocale(page, locale);
+      await page.addInitScript(rootAt, "32px");
+      for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+        await page.setViewportSize(size);
+        await openPage(page, brume.id);
+        expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+        await page.locator("details summary").click();
+        await expect(page.locator("details [role=group] button[aria-pressed]")).toHaveCount(5);
+        expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+        const low = await page.locator("details [role=group] button[aria-pressed]").evaluateAll(
+          (choices) => choices.map((choice) => choice.getBoundingClientRect().height).filter((height) => height < 44));
+        expect(low, `a choice under a finger's height at ${size.width}px`).toEqual([]);
+      }
+    });
+  }
 });

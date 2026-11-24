@@ -11,6 +11,7 @@ import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
+import { usePlaceholderRoom } from "@/lib/placeholderRoom";
 import { isNewer, latestRelease, type Release } from "@/lib/releases";
 import type { Ai, Installation, Settings } from "@/types";
 import { Cable, ChevronRight, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
@@ -70,9 +71,10 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
+    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <header className="mb-8 animate-rise">
-        <h1 className="font-display text-3xl font-semibold">{t("nav.settings")}</h1>
+        {/* One long word at the largest text (Einstellungen): broken rather than slide the page. */}
+        <h1 className="font-display text-3xl font-semibold break-words hyphens-auto">{t("nav.settings")}</h1>
         <p className="mt-1 text-mist">{t("settings.subtitle")}</p>
       </header>
 
@@ -104,9 +106,9 @@ export function SettingsPage() {
           nothing is read from their servers here, the lines say the last read. */}
       {data.connections && (
         <section className="mb-10" aria-labelledby={aisTitle}>
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h2 id={aisTitle} className="ui-label">{t("ai.mine")}</h2>
-            <button type="button" className="btn btn-ghost !py-1.5 text-sm" onClick={() => setAdding(true)}>
+            <button type="button" className="btn btn-ghost max-w-full whitespace-normal !py-1.5 text-sm" onClick={() => setAdding(true)}>
               <Plus className="h-4 w-4" />
               {t("ai.add.open")}
             </button>
@@ -272,15 +274,17 @@ function GlobalInstructions({
 }) {
   const t = useT();
   const [value, setValue] = useState(initial);
+  const room = usePlaceholderRoom(t("settings.globalInstructionsPlaceholder"));
   return (
     <div>
       <textarea
+        ref={room}
         className="field min-h-32"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={t("settings.globalInstructionsPlaceholder")}
       />
-      <button className="btn btn-ghost mt-2" onClick={() => onSave(value)} disabled={value === initial}>
+      <button className="btn btn-ghost mt-2 max-w-full whitespace-normal" onClick={() => onSave(value)} disabled={value === initial}>
         {t("settings.saveInstructions")}
       </button>
     </div>
@@ -322,7 +326,7 @@ function Access() {
         <div className="mt-3 flex flex-wrap gap-3">
           <button
             type="button"
-            className="btn btn-ghost !py-1.5 text-sm"
+            className="btn btn-ghost max-w-full whitespace-normal !py-1.5 text-sm"
             onClick={() => signOut(false)}
             disabled={busy}
           >
@@ -331,7 +335,7 @@ function Access() {
           </button>
           <button
             type="button"
-            className="btn btn-ghost !py-1.5 text-sm"
+            className="btn btn-ghost max-w-full whitespace-normal !py-1.5 text-sm"
             onClick={() => signOut(true)}
             disabled={busy}
           >
@@ -474,7 +478,7 @@ function About({
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <button
               type="button"
-              className="btn btn-ghost !py-1.5 text-sm"
+              className="btn btn-ghost max-w-full whitespace-normal hyphens-auto !px-3 !py-1.5 text-sm [overflow-wrap:anywhere]"
               onClick={checkNow}
               disabled={checking || !installed}
             >

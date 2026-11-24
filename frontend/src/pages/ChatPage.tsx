@@ -1,5 +1,5 @@
 import { AddAiFlow } from "@/components/ai/AddAiFlow";
-import { AiChip, AiSheet } from "@/components/chat/AiSheet";
+import { AiChip, AiSheet, AiUnread } from "@/components/chat/AiSheet";
 import { Backdrop } from "@/components/chat/Backdrop";
 import { CardSummary } from "@/components/chat/CardSummary";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -126,17 +126,48 @@ function ChatView({ id }: { id: string }) {
   // Counts what the person has done to the messages, so that a read sent before one of those
   // does not undo it.
   const changesByHand = useRef(0);
-  // The AIs, read once with the page, where the edition keeps its own; null until they are.
+  // The AIs, where the edition keeps its own: read with the page, and again when the sheet that
+  // changes them opens or the conversation names one the page does not hold (changed on another
+  // device). Null until read; `aisUnread` once a read failed with nothing read before it.
   const [ais, setAis] = useState<Ai[] | null>(null);
+  const [aisUnread, setAisUnread] = useState(false);
+  const aisHeld = useRef<Ai[] | null>(null);
+  useEffect(() => {
+    aisHeld.current = ais;
+  }, [ais]);
+  // The last read sent is the one that counts: an earlier one answering late does not undo it.
+  const aisAsked = useRef(0);
+  const readAis = useCallback(() => {
+    const models = data.connections?.models;
+    if (!models) return;
+    const sent = ++aisAsked.current;
+    models.list().then(
+      (listed) => {
+        if (sent !== aisAsked.current) return;
+        setAis(listed);
+        setAisUnread(false);
+      },
+      // Caught: offline it rejects, and an unhandled rejection is noise in the console.
+      () => {
+        if (sent === aisAsked.current) setAisUnread(true);
+      },
+    );
+  }, []);
   // The room a reply needs, from the settings read once with the page: 0 until then, warning of nothing.
+  // Only where the edition keeps AIs of its own: nothing else here reads it.
   const [room, setRoom] = useState(0);
   const [aiSheet, setAiSheet] = useState(false);
   const [addingAi, setAddingAi] = useState(false);
   useEffect(() => {
-    // Caught: offline it rejects, and an unhandled rejection is noise in the console.
-    data.connections?.models.list().then(setAis, () => {});
+    if (!data.connections) return;
+    readAis();
     data.settings.get().then((settings) => setRoom(roomFor(settings)), () => {});
-  }, []);
+  }, [readAis]);
+  function openAiSheet() {
+    // What the page holds at once, and the list as it is now once it comes.
+    setAiSheet(true);
+    readAis();
+  }
 
   /** Whether the server took a change; given `landed`, a lost answer or a message gone shows what it holds. */
   async function write(change: () => Promise<unknown>, landed?: (messages: Message[]) => void) {
@@ -198,7 +229,14 @@ function ChatView({ id }: { id: string }) {
     };
   }, []);
 
-  // The messages, the title, which the server gives a new conversation, and the summary for a closed panel.
+  // What the page shows of the conversation, for a read to compare with what it brings.
+  const shownConversation = useRef<Conversation | null>(null);
+  useEffect(() => {
+    shownConversation.current = conversation;
+  }, [conversation]);
+
+  // The messages, the title, which the server gives a new conversation, the summary for a closed
+  // panel, and the AI that answers it, which another device may have changed or removed.
   const read = useCallback(async (asking: Asking) => {
     const changes = changesByHand.current;
     const takeSummary = summaryTaker();
@@ -206,12 +244,22 @@ function ChatView({ id }: { id: string }) {
     const show = () => {
       if (changesByHand.current !== changes) return false;
       takeSummary(conversation);
-      setConversation((shown) => (shown ? { ...shown, title: conversation.title } : conversation));
+      const before = shownConversation.current;
+      const held = aisHeld.current;
+      // An AI the page does not hold, or one just said removed: the list changed elsewhere. Not
+      // as the page opens, whose own read of the list is on its way.
+      if (before && held && (
+        (conversation.model_id && !held.some((ai) => ai.id === conversation.model_id))
+        || (conversation.model_lost && conversation.model_lost !== before.model_lost)
+      )) readAis();
+      setConversation((shown) => (shown
+        ? { ...shown, title: conversation.title, model_id: conversation.model_id, model_lost: conversation.model_lost }
+        : conversation));
       setMessages(conversation.messages ?? []);
       return true;
     };
     return { conversation, show };
-  }, [id, summaryTaker]);
+  }, [id, summaryTaker, readAis]);
 
   // The person's message as the server saved it, before the conversation is read again.
   const add = useCallback((sent: Message) => {
@@ -464,6 +512,12 @@ function ChatView({ id }: { id: string }) {
   /** An AI as the server saved it, in the list the page holds. */
   function tookAi(saved: AiSaved) {
     setAis((now) => now && now.map((ai) => (ai.id === saved.id ? saved : ai)));
+  }
+
+  /** An AI the server no longer has, picked in the sheet: its row goes, and the list is read again. */
+  function aiGone(gone: Ai) {
+    setAis((now) => now && now.filter((ai) => ai.id !== gone.id));
+    readAis();
   }
 
   /** The ceiling of its own the AI answering keeps, lifted: a setting of the AI's. */
@@ -719,9 +773,10 @@ function ChatView({ id }: { id: string }) {
                 </div>
               )}
 
+              {/* The sentence takes the width; the button goes under it when both do not fit side by side. */}
               {problem && (
-                <div className="chat-banner mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 px-4 py-3">
-                  <p role="alert" className="text-sm text-blood">{problem}</p>
+                <div className="chat-banner mx-1 my-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-blood/40 px-4 py-3">
+                  <p role="alert" className="min-w-0 flex-[1_1_12rem] text-sm text-blood">{problem}</p>
                   {!busy && !lost && !refusal && (
                     <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
                       {t("chat.errors.retryButton")}
@@ -758,7 +813,9 @@ function ChatView({ id }: { id: string }) {
             data.connections ? (
               // On a touch screen the chip takes the place of the keyboard's sentence.
               <ChatStatusRow keyboardHint={hasKeyboard() ? t("chat.input.hintDefault") : null}>
-                {chipShown && <AiChip ai={answeringAi} onOpen={() => (answeringAi ? setAiSheet(true) : setAddingAi(true))} />}
+                {chipShown
+                  ? <AiChip ai={answeringAi} onOpen={() => (answeringAi ? openAiSheet() : setAddingAi(true))} />
+                  : aisUnread && <AiUnread onRetry={readAis} />}
               </ChatStatusRow>
             ) : (
               <ChatStatusRow keyboardHint={t(hasKeyboard() ? "chat.input.hintDefault" : "chat.input.hintTouch")}>
@@ -820,6 +877,7 @@ function ChatView({ id }: { id: string }) {
           ais={ais}
           room={room}
           onPick={switched}
+          onGone={aiGone}
           onAddOther={() => {
             setAiSheet(false);
             setAddingAi(true);

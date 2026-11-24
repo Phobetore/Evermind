@@ -5,6 +5,7 @@ import type { Translate } from "@/i18n/I18nProvider";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
 import type { Ai, Conversation, Family, Service } from "@/types";
+import { clsx } from "clsx";
 import { ChevronRight, Loader2 } from "lucide-react";
 import { useEffect, useId, useReducer, useRef, useState } from "react";
 import {
@@ -24,7 +25,7 @@ const KEY_FIELD = {
   autoCapitalize: "none",
   autoCorrect: "off",
   spellCheck: false,
-  className: "field [-webkit-text-security:disc]",
+  className: "field min-w-[min(100%,10rem)] flex-1 [-webkit-text-security:disc]",
 } as const;
 
 /** Adding AIs: where the service runs, its key once, then any of its models. Nothing is written
@@ -264,7 +265,7 @@ function Where({ services, loadError, connections, onChoose }: {
     <button
       key={chip.label}
       type="button"
-      className="btn btn-ghost !px-3 !py-1.5 text-sm"
+      className="btn btn-ghost max-w-full whitespace-normal !px-3 !py-1.5 text-sm"
       onClick={() => onChoose({ type: "chip", chip })}
     >
       {chip.label}
@@ -327,7 +328,7 @@ function Where({ services, loadError, connections, onChoose }: {
         <div className="flex flex-wrap gap-2">{CHIPS.filter((c) => !c.local).map(chipButton)}</div>
       </section>
       <div>
-        <button type="button" className="btn btn-ghost !px-3 !py-1.5 text-sm" onClick={() => onChoose({ type: "other" })}>
+        <button type="button" className="btn btn-ghost max-w-full whitespace-normal !px-3 !py-1.5 text-sm" onClick={() => onChoose({ type: "other" })}>
           {t("ai.add.other")}
         </button>
       </div>
@@ -353,7 +354,8 @@ export function KeyField({ value, onChange, placeholder, id }: {
   const [paste] = useState(canPaste);
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex gap-2">
+      {/* The paste goes under the field when both do not fit side by side. */}
+      <div className="flex flex-wrap gap-2">
         <input
           {...KEY_FIELD}
           id={id}
@@ -364,7 +366,7 @@ export function KeyField({ value, onChange, placeholder, id }: {
         {paste && (
           <button
             type="button"
-            className="btn btn-ghost shrink-0"
+            className="btn btn-ghost max-w-full shrink-0 whitespace-normal"
             onClick={() => navigator.clipboard.readText().then(
               (text) => {
                 setPasteRefused(false);
@@ -405,8 +407,8 @@ function KeyStep({ service, initialKey, onKey, onBack }: {
       <KeyField id={id} value={key} onChange={setKey} placeholder={t("ai.add.keyPlaceholder")} />
       <p className="text-sm text-mist">{t("ai.add.keyOnce")}</p>
       <div className="mt-2 flex flex-wrap justify-between gap-2">
-        <button type="button" className="btn btn-ghost" onClick={onBack}>{t("ai.add.back")}</button>
-        <button type="submit" className="btn btn-primary" disabled={!key.trim()}>{t("ai.add.seeModels")}</button>
+        <button type="button" className="btn btn-ghost max-w-full whitespace-normal" onClick={onBack}>{t("ai.add.back")}</button>
+        <button type="submit" className="btn btn-primary max-w-full whitespace-normal" disabled={!key.trim()}>{t("ai.add.seeModels")}</button>
       </div>
     </form>
   );
@@ -450,8 +452,8 @@ function AddressStep({ initialAddress, initialKey, onAddress, onBack }: {
       <label className="text-sm text-parchment-dim" htmlFor={`${ids}-key`}>{t("ai.add.addressKeyLabel")}</label>
       <KeyField id={`${ids}-key`} value={key} onChange={setKey} placeholder={t("ai.add.addressKeyPlaceholder")} />
       <div className="mt-2 flex flex-wrap justify-between gap-2">
-        <button type="button" className="btn btn-ghost" onClick={onBack}>{t("ai.add.back")}</button>
-        <button type="submit" className="btn btn-primary" disabled={!address.trim()}>{t("ai.add.seeModels")}</button>
+        <button type="button" className="btn btn-ghost max-w-full whitespace-normal" onClick={onBack}>{t("ai.add.back")}</button>
+        <button type="submit" className="btn btn-primary max-w-full whitespace-normal" disabled={!address.trim()}>{t("ai.add.seeModels")}</button>
       </div>
     </form>
   );
@@ -490,19 +492,19 @@ function Failed({ state, line, onEvent }: { state: FlowState; line: string; onEv
         </label>
       )}
       <div className="flex flex-wrap gap-2">
-        <button type="submit" className="btn btn-primary">{t("ai.add.retry")}</button>
+        <button type="submit" className="btn btn-primary max-w-full whitespace-normal">{t("ai.add.retry")}</button>
         {refused && state.serviceId !== null && (
-          <button type="button" className="btn btn-ghost" onClick={() => onEvent({ type: "newKey" })}>
+          <button type="button" className="btn btn-ghost max-w-full whitespace-normal" onClick={() => onEvent({ type: "newKey" })}>
             {t("ai.add.changeKey")}
           </button>
         )}
       </div>
       {!refused && (
-        <button type="button" className="btn btn-ghost !px-3 !py-1.5 text-sm" onClick={() => onEvent({ type: "byHand" })}>
+        <button type="button" className="btn btn-ghost max-w-full whitespace-normal !px-3 !py-1.5 text-sm" onClick={() => onEvent({ type: "byHand" })}>
           {t("ai.add.byHand")}
         </button>
       )}
-      <button type="button" className="btn btn-ghost mt-2" onClick={() => onEvent({ type: "back" })}>
+      <button type="button" className="btn btn-ghost mt-2 max-w-full whitespace-normal" onClick={() => onEvent({ type: "back" })}>
         {t("ai.add.back")}
       </button>
     </form>
@@ -523,6 +525,7 @@ function Pick({ state, name, family, have: already, rereading, failure, onEvent,
 }) {
   const t = useT();
   const foot = footOf(state);
+  const [placeFoot, footStuck] = useStuckFoot();
   const nameOf = (id: string) => state.list?.models.find((m) => m.id === id)?.name ?? id;
   // The price's sentence names the service; another address, its host.
   const shownName = name ?? hostOf(state.draft?.base_url ?? "");
@@ -569,11 +572,18 @@ function Pick({ state, name, family, have: already, rereading, failure, onEvent,
         onAnswer={(id, answer) => onEvent({ type: "answer", id, answer })}
         onReread={onReread}
       />
-      {/* Stuck at the box's own edge, over its padding: no row shows below it. */}
-      <div className="sticky -bottom-4 -mx-4 -mb-4 mt-2 border-t border-ink-700 bg-ink-900 px-4 py-3 sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:px-6">
+      {/* Stuck at the box's own edge, over its padding: no row shows below it. Unless it would take more
+          than a third of the box (very large text on a small phone): it then comes after the list. */}
+      <div
+        ref={placeFoot}
+        className={clsx(
+          "-mx-4 -mb-4 mt-2 border-t border-ink-700 bg-ink-900 px-4 py-3 sm:-mx-6 sm:-mb-6 sm:px-6",
+          footStuck && "sticky -bottom-4 sm:-bottom-6",
+        )}
+      >
         {state.addError && <p role="alert" className="mb-2 text-sm text-blood">{state.addError.message}</p>}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <button type="button" className="btn btn-ghost" onClick={onBack} disabled={state.pending}>{t("ai.add.back")}</button>
+          <button type="button" className="btn btn-ghost max-w-full whitespace-normal" onClick={onBack} disabled={state.pending}>{t("ai.add.back")}</button>
           <button
             type="button"
             className="btn btn-primary min-w-0 !whitespace-normal"
@@ -586,6 +596,24 @@ function Pick({ state, name, family, have: already, rereading, failure, onEvent,
       </div>
     </div>
   );
+}
+
+/** Whether the foot of the list stays at the bottom of the box: as long as it takes no more than a
+ *  third of the box's height, measured again as either changes size. */
+function useStuckFoot() {
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    const box = node?.closest(".panel");
+    if (!node || !box) return;
+    const measure = () => setOn(node.offsetHeight <= box.clientHeight / 3);
+    const watch = new ResizeObserver(measure);
+    watch.observe(node);
+    watch.observe(box);
+    measure();
+    return () => watch.disconnect();
+  }, [node]);
+  return [setNode, on] as const;
 }
 
 function hostOf(address: string): string {

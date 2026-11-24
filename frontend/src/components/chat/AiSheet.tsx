@@ -1,13 +1,13 @@
 import { AiLine } from "@/components/ai/AiLine";
 import { Bolded } from "@/components/ai/MigrationNotice";
 import { Sheet } from "@/components/ui/Sheet";
-import { data, type AiSaved } from "@/data";
+import { data, DataError, type AiSaved } from "@/data";
 import { useT } from "@/i18n/useT";
 import { answering, cappedUnder, splitName } from "@/lib/ai";
 import { describeError } from "@/lib/errors";
 import type { Ai, Conversation } from "@/types";
 import { clsx } from "clsx";
-import { Bot, Check, ChevronDown, Loader2, Plus } from "lucide-react";
+import { Bot, Check, ChevronDown, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
 
@@ -47,15 +47,34 @@ export function AiChip({ ai, onOpen }: { ai: Ai | null; onOpen(): void }) {
   );
 }
 
+/** Where the chip would be when the AIs could not be read: says so, and reads them again when touched.
+ *  Its sentence wraps rather than being cut, at 32px high or more. */
+export function AiUnread({ onRetry }: { onRetry(): void }) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      data-ai-unread
+      className="touch-target inline-flex min-h-[32px] min-w-0 max-w-full items-center gap-1.5 rounded-full border border-ink-600 bg-ink-800/60 px-3 py-1 text-left text-xs text-parchment-dim transition-colors hover:border-ink-500 hover:text-parchment"
+      onClick={onRetry}
+    >
+      <RefreshCw className="size-[14px] shrink-0 text-ember-300" />
+      <span className="min-w-0 [overflow-wrap:anywhere]">{t("chat.ai.unread")}</span>
+    </button>
+  );
+}
+
 /** Which AI answers the conversation: a row for each, with what it reads and costs, since this is
  *  where one is changed. A row touched is sent at once and the sheet closes only at the answer, so
  *  that nobody believes the AI changed when it did not. `onCapLifted`: the AI answering now no longer
- *  keeps a ceiling of its own, a setting of the AI's, saved from here; the page closes the sheet to say so. */
-export function AiSheet({ conversation, ais, room, onPick, onAddOther, onClose, onCapLifted }: {
+ *  keeps a ceiling of its own, a setting of the AI's, saved from here; the page closes the sheet to say so.
+ *  `onGone`: the AI picked no longer exists on the server (removed on another device). */
+export function AiSheet({ conversation, ais, room, onPick, onGone, onAddOther, onClose, onCapLifted }: {
   conversation: Conversation;
   ais: Ai[];
   room: number;
   onPick(ai: Ai): void;
+  onGone(ai: Ai): void;
   onAddOther(): void;
   onClose(): void;
   onCapLifted(ai: AiSaved): void;
@@ -80,6 +99,7 @@ export function AiSheet({ conversation, ais, room, onPick, onAddOther, onClose, 
       if (sent !== asked.current) return;
       setPending(null);
       setFailed(describeError(error, t));
+      if (error instanceof DataError && error.kind === "not_found" && error.resource === "model") onGone(ai);
     }
   }
 
@@ -105,7 +125,7 @@ export function AiSheet({ conversation, ais, room, onPick, onAddOther, onClose, 
           <p>
             <Bolded text={t("chat.ai.capped", { name: current.name, tokens: capped })} bold={current.name} />
           </p>
-          <button type="button" className="btn btn-ghost mt-2 !py-1.5 text-sm" disabled={lifting} onClick={() => lift(current)}>
+          <button type="button" className="btn btn-ghost mt-2 max-w-full whitespace-normal !py-1.5 text-sm" disabled={lifting} onClick={() => lift(current)}>
             {lifting && <Loader2 className="h-4 w-4 animate-spin" />}
             {t("ai.notice.letEvermind")}
           </button>

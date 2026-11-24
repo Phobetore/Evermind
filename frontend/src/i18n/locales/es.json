@@ -96,7 +96,6 @@
   },
   "settings": {
     "subtitle": "Sus modelos, sus reglas: Evermind se conecta a la IA que elija.",
-    "defaultTag": "Predeterminada",
     "defaultConnectionLabel": "IA predeterminada",
     "replyLengthLabel": "Longitud de las respuestas",
     "replyLengthHint": "Se aplica a todas las conversaciones. Evermind guarda el espacio necesario para las IA que ajusta él; una IA con tope fijo puede cortar las respuestas largas: consulte Mis IA.",
@@ -151,9 +150,6 @@
       "upToDate": "Tiene la última versión.",
       "unreachable": "No se ha podido contactar con GitHub."
     }
-  },
-  "connections": {
-    "modelLabel": "Modelo"
   },
   "chat": {
     "openingScene": "Abriendo la escena…",
@@ -217,6 +213,7 @@
     "ai": {
       "chip": "IA: {name}. Cambiar.",
       "addOne": "Añadir una IA",
+      "unread": "No se han podido leer sus IA. Reintentar.",
       "sheetTitle": "¿Qué IA responde?",
       "sheetHint": "Solo para esta conversación.",
       "capped": "{name} mantiene un tope de {tokens:grouped} tokens por respuesta, en todas sus conversaciones: las respuestas largas se cortarían.",
@@ -506,7 +503,7 @@
     "enabledLabel": "activa",
     "deleteEntryAriaLabel": "Eliminar la entrada",
     "emptyState": "Aún no hay entradas.",
-    "keysPlaceholder": "Palabras clave que la activan, luego Enter",
+    "keysPlaceholder": "Claves de activación y Enter",
     "contentPlaceholder": "Lo que el modelo debe saber cuando aparecen estas palabras…",
     "addEntryButton": "Añadir entrada",
     "entryRequiredError": "Una entrada necesita al menos una palabra clave y algo de contenido.",
@@ -604,6 +601,7 @@
     },
     "startChatModal": {
       "title": "Unirse a {name}",
+      "aiLabel": "IA",
       "personaHint": "Gestione sus identidades en la pestaña Personas.",
       "noPersonaOption": "Sin persona",
       "noConnectionOption": "Ninguna IA",

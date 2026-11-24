@@ -97,7 +97,7 @@ export function MigrationNotice({ ais, onChanged, own = false }: {
                     </p>
                     <button
                       type="button"
-                      className="btn btn-ghost mt-2 !py-1.5 text-sm"
+                      className="btn btn-ghost mt-2 max-w-full whitespace-normal !py-1.5 text-sm"
                       disabled={busy !== null}
                       onClick={() => act(ai, { context_own: null },
                         t("ai.notice.followed", { name: ai.name, tokens: ai.context.own ?? 0 }))}
@@ -113,7 +113,7 @@ export function MigrationNotice({ ais, onChanged, own = false }: {
                     </p>
                     <button
                       type="button"
-                      className="btn btn-ghost mt-2 !py-1.5 text-sm"
+                      className="btn btn-ghost mt-2 max-w-full whitespace-normal !py-1.5 text-sm"
                       disabled={busy !== null}
                       onClick={() => act(ai, { reply_cap: { mode: "auto" } }, t("ai.notice.capLifted", { name: ai.name }))}
                     >
@@ -124,7 +124,7 @@ export function MigrationNotice({ ais, onChanged, own = false }: {
               </ul>
               <button
                 type="button"
-                className="btn btn-ghost mt-3 !py-1.5 text-sm"
+                className="btn btn-ghost mt-3 max-w-full whitespace-normal !py-1.5 text-sm"
                 disabled={busy !== null}
                 onClick={() => act(ai, { notices_kept: true }, t("ai.notice.kept", { name: ai.name }))}
               >

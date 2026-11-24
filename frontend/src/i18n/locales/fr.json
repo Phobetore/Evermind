@@ -96,7 +96,6 @@
   },
   "settings": {
     "subtitle": "Vos modèles, vos règles\u00a0: Evermind se branche sur l'IA que vous choisissez.",
-    "defaultTag": "Par défaut",
     "defaultConnectionLabel": "IA par défaut",
     "replyLengthLabel": "Longueur des réponses",
     "replyLengthHint": "S'applique à toutes les conversations. Evermind garde la place nécessaire aux IA réglées par lui\u00a0; une IA à plafond fixe peut couper les réponses longues\u00a0: voir Mes IA.",
@@ -151,9 +150,6 @@
       "upToDate": "Vous avez la dernière version.",
       "unreachable": "GitHub est injoignable."
     }
-  },
-  "connections": {
-    "modelLabel": "Modèle"
   },
   "chat": {
     "openingScene": "Ouverture de la scène…",
@@ -217,6 +213,7 @@
     "ai": {
       "chip": "IA\u00a0: {name}. Changer.",
       "addOne": "Ajouter une IA",
+      "unread": "Vos IA n'ont pas pu être lues. Réessayer.",
       "sheetTitle": "Quelle IA répond\u00a0?",
       "sheetHint": "Pour cette conversation seulement.",
       "capped": "{name} garde un plafond de {tokens:grouped} tokens par réponse, dans toutes ses conversations\u00a0: les réponses longues seraient coupées.",
@@ -506,7 +503,7 @@
     "enabledLabel": "active",
     "deleteEntryAriaLabel": "Supprimer l'entrée",
     "emptyState": "Aucune entrée pour l'instant.",
-    "keysPlaceholder": "Mots-clés déclencheurs puis Entrée",
+    "keysPlaceholder": "Mots déclencheurs puis Entrée",
     "contentPlaceholder": "Ce que le modèle doit savoir quand ces mots apparaissent…",
     "addEntryButton": "Ajouter l'entrée",
     "entryRequiredError": "Une entrée demande au moins un mot-clé et un contenu.",
@@ -604,6 +601,7 @@
     },
     "startChatModal": {
       "title": "Rejoindre {name}",
+      "aiLabel": "IA",
       "personaHint": "Gérez vos identités dans l'onglet Personas.",
       "noPersonaOption": "Sans persona",
       "noConnectionOption": "Aucune IA",

@@ -96,7 +96,6 @@
   },
   "settings": {
     "subtitle": "Your models, your rules: Evermind connects to the AI you choose.",
-    "defaultTag": "Default",
     "defaultConnectionLabel": "Default AI",
     "replyLengthLabel": "Reply length",
     "replyLengthHint": "Applies to every conversation. Evermind keeps the room needed by the AIs it sets itself; an AI with a fixed ceiling may cut long replies: see My AIs.",
@@ -151,9 +150,6 @@
       "upToDate": "You are on the newest release.",
       "unreachable": "Could not reach GitHub."
     }
-  },
-  "connections": {
-    "modelLabel": "Model"
   },
   "chat": {
     "openingScene": "Opening the scene…",
@@ -217,6 +213,7 @@
     "ai": {
       "chip": "AI: {name}. Change.",
       "addOne": "Add an AI",
+      "unread": "Your AIs could not be read. Try again.",
       "sheetTitle": "Which AI answers?",
       "sheetHint": "For this conversation only.",
       "capped": "{name} keeps a ceiling of {tokens:grouped} tokens per reply, in all its conversations: long replies would be cut short.",
@@ -604,6 +601,7 @@
     },
     "startChatModal": {
       "title": "Join {name}",
+      "aiLabel": "AI",
       "personaHint": "Manage your identities in the Personas tab.",
       "noPersonaOption": "No persona",
       "noConnectionOption": "No AI",

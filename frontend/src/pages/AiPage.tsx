@@ -120,13 +120,13 @@ function AiView({ id }: { id: string }) {
 
   if (loadFailure) {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-10">
+      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <LoadFailure error={loadFailure.error} onRetry={load} />
       </div>
     );
   }
   if (ais === null) {
-    return <div className="mx-auto max-w-3xl px-6 py-10 text-mist animate-pulse-soft">{t("common.loading")}</div>;
+    return <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 text-mist animate-pulse-soft">{t("common.loading")}</div>;
   }
   if (ai === null) {
     return (
@@ -215,7 +215,7 @@ function AiView({ id }: { id: string }) {
   const onService = ais.filter((each) => each.service.id === ai.service.id).length;
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <Link to="/settings" className="touch-target mb-4 inline-flex items-center gap-1.5 text-sm text-mist hover:text-parchment">
         <ArrowLeft className="h-4 w-4" />
         {t("nav.settings")}
@@ -323,7 +323,7 @@ function AiView({ id }: { id: string }) {
       )}
 
       <div className="flex flex-col items-start gap-2">
-        <button type="button" className="btn btn-danger" disabled={removing} onClick={() => remove(ai)}>
+        <button type="button" className="btn btn-danger max-w-full whitespace-normal" disabled={removing} onClick={() => remove(ai)}>
           {removing && <Loader2 className="h-4 w-4 animate-spin" />}
           {t("ai.page.remove")}
         </button>
@@ -368,7 +368,7 @@ function ServerRead({ ai, t, reading, failure, onReread, bench, benching, onBenc
   );
 
   return (
-    <section className="panel mb-6 px-5 py-4">
+    <section className="panel mb-6 px-4 py-4 sm:px-5">
       <p className="ui-label mb-3">
         {ai.limits_read_at ? t("ai.page.readAt", { age: timeAgo(ai.limits_read_at, t) }) : t("ai.page.notRead")}
       </p>
@@ -388,11 +388,11 @@ function ServerRead({ ai, t, reading, failure, onReread, bench, benching, onBenc
         <dd className="text-parchment-dim">{price}</dd>
       </dl>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" className="btn btn-ghost !py-1.5 text-sm" onClick={onReread} disabled={reading}>
+        <button type="button" className="btn btn-ghost max-w-full whitespace-normal hyphens-auto !px-3 !py-1.5 text-sm [overflow-wrap:anywhere]" onClick={onReread} disabled={reading}>
           {reading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           {t("ai.page.reread")}
         </button>
-        <button type="button" className="btn btn-ghost !py-1.5 text-sm" onClick={onBenchmark} disabled={benching}>
+        <button type="button" className="btn btn-ghost max-w-full whitespace-normal hyphens-auto !px-3 !py-1.5 text-sm [overflow-wrap:anywhere]" onClick={onBenchmark} disabled={benching}>
           {benching && <Loader2 className="h-4 w-4 animate-spin" />}
           {t("ai.page.benchmark")}
         </button>
@@ -447,10 +447,6 @@ function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder,
     if (document.activeElement !== field.current) setText(value === null ? "" : String(value));
   }, [value]);
 
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
-
   function commit(typed: string, leaving: boolean) {
     const parsed = parse(typed);
     if (parsed === undefined || parsed === sent.current) return;
@@ -458,6 +454,17 @@ function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder,
     sent.current = parsed;
     onSave(parsed);
   }
+
+  // Gone from the page with a figure typed and not saved (the browser's back, which is Android's
+  // back button, leaves no field): saved as leaving the field saves it. Nothing changed, nothing sent.
+  const latest = useRef({ text, commit });
+  useEffect(() => {
+    latest.current = { text, commit };
+  });
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+    latest.current.commit(latest.current.text, true);
+  }, []);
 
   return (
     <input
@@ -499,6 +506,18 @@ function TextField({ label, value, onSave, mono = false }: {
     setSaved(value);
     setText(value);
   }
+  // Gone from the page with a text typed and not saved: saved as leaving the field saves it.
+  // What was last sent, so that a text sent as the field was left is not sent a second time.
+  const sent = useRef(value);
+  const latest = useRef({ text, value, onSave });
+  useEffect(() => {
+    latest.current = { text, value, onSave };
+  });
+  useEffect(() => () => {
+    const { text: typed, value: before, onSave: save } = latest.current;
+    const kept = typed.trim();
+    if (kept && kept !== before && kept !== sent.current) save(kept);
+  }, []);
   return (
     <label className="flex flex-col gap-1.5" htmlFor={id}>
       <span className="ui-label">{label}</span>
@@ -515,7 +534,10 @@ function TextField({ label, value, onSave, mono = false }: {
         onBlur={() => {
           const typed = text.trim();
           if (!typed) setText(value);
-          else if (typed !== value) onSave(typed);
+          else if (typed !== value) {
+            sent.current = typed;
+            onSave(typed);
+          }
         }}
       />
     </label>
@@ -571,10 +593,16 @@ function Choice({ pressed, onClick, children, small }: {
     <button
       type="button"
       aria-pressed={pressed}
-      onClick={onClick}
+      onClick={(e) => {
+        // Focused first, as Chrome does and Safari does not: a figure being typed is left, and
+        // saved, before the choice that may take its field away.
+        e.currentTarget.focus();
+        onClick();
+      }}
       className={clsx(
-        // No min-w-0: a narrow screen takes a choice's words to the next line, never one cut mid-word.
-        "flex min-h-11 flex-1 flex-col items-center justify-center rounded-lg border px-2 py-1.5 text-center text-sm",
+        // No min-w-0: a choice is never narrower than its longest word. A row with no room for them
+        // side by side takes the next choice to a line of its own (flex-wrap on the row).
+        "flex min-h-11 max-w-full flex-1 flex-col items-center justify-center rounded-lg border px-2 py-1.5 text-center text-sm",
         pressed ? "border-ember-500 bg-ember-glow text-parchment" : "border-ink-600 text-mist hover:text-parchment",
       )}
     >
@@ -606,7 +634,7 @@ function ContextControl({ ai, t, grouped, onSave, said }: {
   return (
     <div role="group" aria-labelledby={`${ids}-label`} className="flex flex-col gap-2">
       <span id={`${ids}-label`} className="ui-label">{t("ai.page.context")}</span>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Choice
           pressed={!ownMode}
           small={read === null ? t("ai.page.untold") : grouped.format(read)}
@@ -663,7 +691,7 @@ function CeilingControl({ ai, t, grouped, onSave, said }: {
   return (
     <div role="group" aria-labelledby={`${ids}-label`} className="flex flex-col gap-2">
       <span id={`${ids}-label`} className="ui-label">{t("ai.page.cap")}</span>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Choice pressed={shown === "auto"} onClick={() => choose("auto")}>{t("ai.page.capAuto")}</Choice>
         <Choice pressed={shown === "unsent"} onClick={() => choose("unsent")}>{t("ai.page.capUnsent")}</Choice>
         <Choice
@@ -707,7 +735,7 @@ function Sampling({ ai, t, onSave, said }: { ai: Ai; t: Translate; onSave: Save;
   const ids = useId();
   const field = (key: "temperature" | "top_p" | "frequency_penalty" | "presence_penalty", label: string) => (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <label className="ui-label" htmlFor={`${ids}-${key}`}>{label}</label>
+      <label className="ui-label break-words" htmlFor={`${ids}-${key}`}>{label}</label>
       <FigureField
         id={`${ids}-${key}`}
         value={ai[key]}
@@ -720,7 +748,7 @@ function Sampling({ ai, t, onSave, said }: { ai: Ai; t: Translate; onSave: Save;
   );
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3">
         {field("temperature", t("ai.page.temperature"))}
         {field("top_p", t("ai.page.topP"))}
       </div>
@@ -728,7 +756,7 @@ function Sampling({ ai, t, onSave, said }: { ai: Ai; t: Translate; onSave: Save;
       {/* Anthropic is never sent them (providers/anthropic.py). */}
       {ai.service.provider !== "anthropic" && (
         <>
-          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3">
             {field("frequency_penalty", t("ai.page.frequency"))}
             {field("presence_penalty", t("ai.page.presence"))}
           </div>
@@ -747,7 +775,7 @@ function PriceFields({ ai, t, hint, onSave, said }: { ai: Ai; t: Translate; hint
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-sm text-parchment-dim">{t("ai.list.priceTitle")}</p>
-      <div className="flex gap-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3">
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-mist" htmlFor={`${ids}-in`}>
           {t("ai.list.priceIn")}
           <FigureField

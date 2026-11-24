@@ -95,7 +95,7 @@ test("the start window says nothing of a missing connection before it has read t
 
   await page.goto(`/#/characters/${character.id}`);
   await page.getByRole("button", { name: "Start a conversation" }).click();
-  const model = page.getByRole("dialog").getByLabel("Model");
+  const model = page.getByRole("dialog").getByRole("combobox", { name: "AI", exact: true });
   await expect(model.locator("option:checked")).toHaveText("Loading…");
   expect(await page.getByText("Add an AI first in Settings, My AIs").count()).toBe(0);
 
