@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from app.prompting.engine import PromptPayload
-from app.providers import openai_compat
+from app.providers import catalog, openai_compat
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import ProviderEvent
 from app.providers.openai_compat import OpenAICompatProvider
@@ -63,6 +63,19 @@ def _nothing_learned_of_models_by_another_test():
     openai_compat._model_lists.clear()
     openai_compat._refused.clear()
     memory_service._learned.clear()
+
+
+def _unreachable(request: httpx.Request) -> httpx.Response:
+    raise httpx.ConnectError("no test reaches a real address", request=request)
+
+
+@pytest.fixture(autouse=True)
+def _no_list_read_from_a_real_server(monkeypatch):
+    # Every list the catalog reads goes through its one door: here it opens on nothing, and a test
+    # that wants an answer sets its own transport. The lists it keeps live in the process's memory.
+    monkeypatch.setattr(catalog, "client_factory",
+                        lambda: httpx.AsyncClient(transport=httpx.MockTransport(_unreachable)))
+    catalog._cache.clear()
 
 
 @pytest.fixture()

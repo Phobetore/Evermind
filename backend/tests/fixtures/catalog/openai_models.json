@@ -1,0 +1,14 @@
+{
+ "object": "list",
+ "data": [
+  {"id": "gpt-4o", "object": "model", "created": 1715367049, "owned_by": "system"},
+  {"id": "text-embedding-3-large", "object": "model", "created": 1705953180, "owned_by": "system"},
+  {"id": "whisper-1", "object": "model", "created": 1677532384, "owned_by": "openai-internal"},
+  {"id": "dall-e-3", "object": "model", "created": 1698785189, "owned_by": "system"},
+  {"id": "tts-1", "object": "model", "created": 1681940951, "owned_by": "openai-internal"},
+  {"id": "gpt-image-1", "object": "model", "created": 1745517030, "owned_by": "system"},
+  {"id": "omni-moderation-latest", "object": "model", "created": 1731689265, "owned_by": "system"},
+  {"id": "gpt-4o-transcribe", "object": "model", "created": 1742068463, "owned_by": "system"},
+  {"id": "gpt-4o-audio-preview", "object": "model", "created": 1727460443, "owned_by": "system"}
+ ]
+}

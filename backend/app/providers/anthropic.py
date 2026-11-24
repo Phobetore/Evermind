@@ -10,15 +10,13 @@ from collections.abc import AsyncIterator
 from contextlib import aclosing
 
 from ..prompting.engine import PromptPayload
-from .base import STOPPED_FOR_LENGTH, Provider, ProviderError, ProviderEvent, words_of
+from .base import STOPPED_FOR_LENGTH, Provider, ProviderError, ProviderEvent, scrub, words_of
 
 API_VERSION = "2023-06-01"
 DEFAULT_MAX_TOKENS = 4096  # sent when the connection sets none: the API requires one
 
 
 class AnthropicProvider(Provider):
-    MODELS = "/v1/models"
-
     def _headers(self) -> dict:
         return {
             "Content-Type": "application/json",
@@ -84,7 +82,7 @@ class AnthropicProvider(Provider):
                     usage = event.get("usage") or usage
                     stop = (event.get("delta") or {}).get("stop_reason") or stop
                 elif kind == "error":
-                    raise ProviderError(words_of(event))
+                    raise ProviderError(scrub(words_of(event), self.api_key))
                 elif kind == "message_stop":
                     break
         if stop == "max_tokens":

@@ -1,0 +1,9 @@
+{
+ "modelfile": "FROM brume:12b",
+ "parameters": "num_ctx                        16384\nstop                           \"<|im_end|>\"",
+ "template": "{{ .Prompt }}",
+ "details": {"family": "llama", "parameter_size": "12B"},
+ "model_info": {"general.architecture": "llama", "general.parameter_count": 12000000000,
+                "llama.context_length": 131072, "llama.embedding_length": 5120},
+ "capabilities": ["completion"]
+}

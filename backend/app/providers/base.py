@@ -16,6 +16,9 @@ from ..prompting.engine import PromptPayload
 # read is per-chunk, but the FIRST token after a long prompt-eval on big
 # CPU-offloaded models (70B hybrid) can take many minutes — hence 900s.
 DEFAULT_TIMEOUT = httpx.Timeout(connect=10.0, read=900.0, write=30.0, pool=30.0)
+# A list of models is not a generation: no first word to wait minutes for, so 30s between two
+# pieces is already a server that has stopped sending. The whole read has its own bound (catalog).
+LIST_DELAYS = httpx.Timeout(connect=10.0, read=30.0, write=30.0, pool=30.0)
 
 # How a model's server failed, besides MODEL_ERROR, which is its own complaint.
 UNREACHABLE = "unreachable"
@@ -24,6 +27,8 @@ AUTH_REFUSED = "model_auth_refused"
 MODEL_NOT_FOUND = "model_not_found"
 RATE_LIMITED = "model_rate_limited"
 NO_TEXT = "model_no_text"
+# A list of models that kept arriving past the whole delay, which "unreachable" would misname.
+LIST_TIMEOUT = "list_timeout"
 # What a server says of a request it will not take as written, as opposed to a key or a limit.
 REFUSED_AS_WRITTEN = (400, 404, 422)
 
@@ -100,19 +105,37 @@ def words_of(said: object) -> str:
     return well_formed(str(said)[:300]) if said else ""
 
 
-def _refusal(status: int, body: bytes) -> ProviderError:
+def scrub(message: str, api_key: str | None) -> str:
+    """The message with the key it was asked with cut down to its end, as the page shows it.
+
+    A gateway can write the key it was sent into its error, and every error leaves: to the page,
+    and, for a 5xx or a list that failed, into evermind.log."""
+    if not api_key or api_key not in message:
+        return message
+    return message.replace(api_key, f"…{api_key[-4:]}")
+
+
+def _refusal(status: int, body: bytes, api_key: str | None = None) -> ProviderError:
     try:
         words = words_of(json.loads(body))
     except ValueError:
         words = ""
     kind = {401: AUTH_REFUSED, 404: MODEL_NOT_FOUND, 429: RATE_LIMITED}.get(status, MODEL_ERROR)
-    return ProviderError(words or f"HTTP {status}", kind, status)
+    return ProviderError(scrub(words, api_key) or f"HTTP {status}", kind, status)
+
+
+def lost(exc: Exception, base_url: str) -> ProviderError:
+    """A request that never reached the server at ``base_url``, or that broke off on the way."""
+    if isinstance(exc, httpx.ConnectError | httpx.ConnectTimeout
+                  | httpx.UnsupportedProtocol | httpx.InvalidURL):
+        return ProviderError(base_url, UNREACHABLE)
+    message = str(exc) or (
+        "The model took too long to answer, or the connection to its server broke.")
+    return ProviderError(message, CONNECTION_LOST)
 
 
 class Provider:
     """Built from a connection's settings for each use of it."""
-
-    MODELS = "/models"  # where the server lists its models, after base_url
 
     def __init__(self, connection: dict):
         self.connection = connection
@@ -154,17 +177,22 @@ class Provider:
         yield  # pragma: no cover
 
     async def list_models(self) -> list[str]:
-        return [well_formed(str(m["id"])) for m in await self._model_objects()]
+        # Imported here: the catalog builds on this module.
+        from .catalog import read_catalog
+
+        read = await read_catalog(self.connection, probes=False,
+                                  client_factory=self._client_factory)
+        return [m.id for m in read.models]
 
     async def _model_objects(self) -> list[dict]:
         """The models the server lists, each as it describes itself, all of them with an id."""
         try:
             async with self._client_factory() as client:
-                response = await client.get(self.base_url + self.MODELS, headers=self._headers())
+                response = await client.get(self.base_url + "/models", headers=self._headers())
         except (httpx.HTTPError, httpx.InvalidURL) as exc:
             raise self._lost(exc)
         if response.status_code >= 400:
-            raise _refusal(response.status_code, response.content)
+            raise _refusal(response.status_code, response.content, self.api_key)
         try:
             models = response.json().get("data") or []
             return [m for m in models if isinstance(m, dict) and m.get("id")]
@@ -178,7 +206,7 @@ class Provider:
                 "POST", self.base_url + path, headers=self._headers(), json=body,
             ) as response:
                 if response.status_code >= 400:
-                    raise _refusal(response.status_code, await response.aread())
+                    raise _refusal(response.status_code, await response.aread(), self.api_key)
                 async for line in response.aiter_lines():
                     data = line[5:].strip() if line.startswith("data:") else ""
                     if data == "[DONE]":
@@ -193,13 +221,7 @@ class Provider:
             raise self._lost(exc)
 
     def _lost(self, exc: Exception) -> ProviderError:
-        """A request that never reached the server, or that broke off on the way."""
-        if isinstance(exc, httpx.ConnectError | httpx.ConnectTimeout
-                      | httpx.UnsupportedProtocol | httpx.InvalidURL):
-            return ProviderError(self.base_url, UNREACHABLE)
-        message = str(exc) or (
-            "The model took too long to answer, or the connection to its server broke.")
-        return ProviderError(message, CONNECTION_LOST)
+        return lost(exc, self.base_url)
 
 
 @dataclass
