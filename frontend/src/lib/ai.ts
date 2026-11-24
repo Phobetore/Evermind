@@ -272,3 +272,23 @@ export function priceLine(price: Ai["price"], free: boolean, t: T): string {
   if (input === null || output === null) return t("ai.priceNone");
   return t("ai.priceKnown", { input, output });
 }
+
+/** What the person typed that the server says is too much, by the rule of the server's
+ *  models.warnings, which only a save answers with: read here from the AI as it is, the sentence
+ *  stays beside the figure for as long as the figure stays. */
+export type Warning = "above_read_window" | "above_read_output" | "cap_above_window";
+
+/** The least the engine's budget leaves the story (engine.py). */
+const ENGINE_FLOOR = 512;
+
+export function warningsOf(ai: Ai): Warning[] {
+  const said: Warning[] = [];
+  const { own, read, used } = ai.context;
+  if (own !== null && read !== null && own > read) said.push("above_read_window");
+  const { mode, tokens } = ai.reply_cap;
+  if (mode === "fixed" && tokens !== null) {
+    if (ai.output_read !== null && tokens > ai.output_read) said.push("above_read_output");
+    if (tokens + ENGINE_FLOOR > used) said.push("cap_above_window");
+  }
+  return said;
+}

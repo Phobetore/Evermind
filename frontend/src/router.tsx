@@ -3,6 +3,7 @@ import { AccessGate } from "@/components/layout/Access";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageError } from "@/components/layout/PageError";
 import { DropQuestionOnLeave } from "@/components/ui/Confirm";
+import { AiPage } from "@/pages/AiPage";
 import { CharacterPage } from "@/pages/CharacterPage";
 import { ChatListPage } from "@/pages/ChatListPage";
 import { ChatPage } from "@/pages/ChatPage";
@@ -39,6 +40,7 @@ export const router = createHashRouter([
           { path: "/characters/:id/edit", Component: EditCharacterPage },
           { path: "/personas", Component: PersonasPage },
           { path: "/settings", Component: SettingsPage },
+          { path: "/settings/ai/:id", Component: AiPage },
           { path: "/login", Component: LoginPage },
           { path: "*", element: <Navigate to="/" replace /> },
         ],

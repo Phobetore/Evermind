@@ -21,6 +21,7 @@ import {
   splitName,
   successorOf,
   suggestions,
+  warningsOf,
 } from "./ai";
 
 const fr = (key: string, vars?: Record<string, string | number>) => translate("fr", key, vars);
@@ -397,5 +398,25 @@ describe("who answers when an ai goes", () => {
 
   test("the last one leaves nobody", () => {
     expect(successorOf(second, [second])).toBeNull();
+  });
+});
+
+describe("what is said of a figure typed above what the server says", () => {
+  test("a reading capacity above the size read", () => {
+    expect(warningsOf(ai({ context: { own: 32_768, read: 16_384, read_kind: "served", used: 32_768, source: "own" } })))
+      .toEqual(["above_read_window"]);
+    expect(warningsOf(ai({ context: { own: 16_384, read: 16_384, read_kind: "served", used: 16_384, source: "own" } })))
+      .toEqual([]);
+    // Nothing read, nothing to be above.
+    expect(warningsOf(ai({ context: { own: 32_768, read: null, read_kind: null, used: 32_768, source: "own" } })))
+      .toEqual([]);
+  });
+
+  test("a ceiling above the most the server writes, or that leaves the story under 512 tokens", () => {
+    expect(warningsOf(ai({ output_read: 4096, reply_cap: { mode: "fixed", tokens: 8192 } }))).toEqual(["above_read_output"]);
+    expect(warningsOf(ai({ reply_cap: { mode: "fixed", tokens: 16_384 - 511 } }))).toEqual(["cap_above_window"]);
+    expect(warningsOf(ai({ reply_cap: { mode: "fixed", tokens: 16_384 - 512 } }))).toEqual([]);
+    // Only a ceiling of the person's own: Evermind's never says it.
+    expect(warningsOf(ai({ output_read: 1, reply_cap: { mode: "auto", tokens: null } }))).toEqual([]);
   });
 });

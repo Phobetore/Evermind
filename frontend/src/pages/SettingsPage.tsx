@@ -1,4 +1,6 @@
 import { AddAiFlow } from "@/components/ai/AddAiFlow";
+import { AiLine } from "@/components/ai/AiLine";
+import { MigrationNotice } from "@/components/ai/MigrationNotice";
 import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
 import { LanguageSelect } from "@/components/layout/LanguageSelect";
@@ -6,14 +8,14 @@ import { DisplayControls } from "@/components/display/DisplayControls";
 import { useConfirm } from "@/components/ui/Confirm";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
-import { Tag } from "@/components/ui/Tag";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
 import { isNewer, latestRelease, type Release } from "@/lib/releases";
 import type { Ai, Installation, Settings } from "@/types";
-import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
+import { Cable, ChevronRight, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Link } from "react-router";
 
 export function SettingsPage() {
   const t = useT();
@@ -27,6 +29,7 @@ export function SettingsPage() {
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorLine = useRef<HTMLParagraphElement>(null);
   const displayTitle = useId();
+  const aisTitle = useId();
 
   const load = useCallback(() => {
     Promise.all([
@@ -97,12 +100,12 @@ export function SettingsPage() {
         </Field>
       </section>
 
-      {/* AIs: only an edition that keeps its own models has them. Added and changed on pages of
-          their own; until then, one plain line each. */}
+      {/* My AIs: only an edition that keeps its own models has them. Each opens its own page;
+          nothing is read from their servers here, the lines say the last read. */}
       {data.connections && (
-        <section className="mb-10">
+        <section className="mb-10" aria-labelledby={aisTitle}>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="ui-label">{t("settings.connectionsTitle")}</h2>
+            <h2 id={aisTitle} className="ui-label">{t("ai.mine")}</h2>
             <button type="button" className="btn btn-ghost !py-1.5 text-sm" onClick={() => setAdding(true)}>
               <Plus className="h-4 w-4" />
               {t("ai.add.open")}
@@ -117,25 +120,30 @@ export function SettingsPage() {
             />
           )}
 
+          {ais && (
+            <MigrationNotice
+              ais={ais.filter((ai) => ai.migrated && ai.notices.length > 0)}
+              onChanged={(saved) => setAis((before) => before && before.map((ai) => ai.id === saved.id ? saved : ai))}
+            />
+          )}
+
           {ais === null ? (
             !loadFailure && <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
           ) : ais.length === 0 ? (
-            <EmptyState icon={Cable} title={t("settings.emptyState.title")}>
-              {t("settings.emptyState.body")}
+            <EmptyState icon={Cable} title={t("ai.empty.title")}>
+              {t("ai.empty.body")}
             </EmptyState>
           ) : (
             <ul className="stagger flex flex-col gap-3">
               {ais.map((ai) => (
-                <li key={ai.id} className="panel flex items-center justify-between gap-4 px-5 py-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-display font-semibold">{ai.name}</h3>
-                      {ai.is_default && <Tag tone="ember">{t("settings.defaultTag")}</Tag>}
-                    </div>
-                    <p className="mt-0.5 truncate text-sm text-mist">
-                      {ai.service.name} · {ai.model}
-                    </p>
-                  </div>
+                <li key={ai.id}>
+                  <Link
+                    to={`/settings/ai/${ai.id}`}
+                    className="panel flex items-center justify-between gap-3 px-5 py-4 hover:border-ink-600"
+                  >
+                    <AiLine ai={ai} />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-mist" aria-hidden="true" />
+                  </Link>
                 </li>
               ))}
             </ul>

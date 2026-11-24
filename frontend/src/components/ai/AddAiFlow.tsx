@@ -340,7 +340,9 @@ function Where({ services, loadError, connections, onChoose }: {
  *  own long press is the way. */
 const canPaste = () => window.isSecureContext && typeof navigator.clipboard?.readText === "function";
 
-function KeyField({ value, onChange, placeholder, id }: {
+/** The key's field, with the page's paste where the browser allows it: the add flow's, and the
+ *  service's form on an AI's page. */
+export function KeyField({ value, onChange, placeholder, id }: {
   value: string;
   onChange(value: string): void;
   placeholder: string;
