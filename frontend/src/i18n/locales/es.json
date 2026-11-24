@@ -686,7 +686,7 @@
     "modelOnlyThought": "El modelo ha gastado toda su respuesta en pensar y no ha escrito nada. Inténtalo de nuevo: Evermind sabe ahora que razona y le deja sitio, salvo que su tope de respuesta esté fijado a mano (Mis IA, en Avanzado). Si vuelve a pasar, usa una IA que razone menos tiempo.",
     "modelWithheld": "El servidor del modelo ha retenido la respuesta («{reason}»). Inténtalo de nuevo o cambia de modelo o de proveedor.",
     "modelAuthRefused": "El servicio ha rechazado la clave. Compruébala en Mis IA. Ha indicado: {message}",
-    "modelNotFound": "El servicio no reconoce esta dirección ni este modelo. Compruébalas en Mis IA. Ha indicado: {message}",
+    "modelNotFound": "El servicio no reconoce esta dirección ni este modelo. Compruébalos en Mis IA. Ha indicado: {message}",
     "modelRateLimited": "El servidor del modelo ha alcanzado su límite de peticiones. Inténtalo de nuevo en un momento. El servidor indicó: {message}",
     "modelNetworkError": "El modelo ha tardado demasiado en responder o se ha cortado la conexión con su servidor.",
     "modelNoText": "El modelo no ha generado ningún texto. Inténtalo de nuevo o elige otro modelo.",

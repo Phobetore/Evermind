@@ -52,6 +52,9 @@ describe("a sentence reads right where it is shown", () => {
     // The colon after a word that ends a line stays with it, in French.
     ["fr", "characters.assist.statusWriting", "Écriture : {field}…"],
     ["fr", "characters.assist.missing", "Il manque encore : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque."],
+    // A feminine and a masculine noun together take the masculine plural.
+    ["es", "errors.modelNotFound", "El servicio no reconoce esta dirección ni este modelo. Compruébalos en Mis IA. Ha indicado: {message}"],
+    ["en", "settings.replyLengthHint", "Applies to every conversation. Evermind keeps the room needed by the AIs it sets itself; an AI with a fixed ceiling may cut long replies: see My AIs."],
     // Every command shown starts Evermind itself.
     ["en", "settings.about.updateHint", "Stop Evermind, then run this from the folder you installed it in."],
     ["fr", "settings.about.updateHint", "Arrêtez Evermind, puis lancez ceci depuis le dossier où vous l'avez installé."],
@@ -63,14 +66,27 @@ describe("a sentence reads right where it is shown", () => {
 });
 
 describe("who a sentence speaks to", () => {
-  // The German of Evermind says "du"; "Sie" or "sie" meaning she or they is not an address.
+  // The German of Evermind says "du". A "Sie" that means she or they is not an address, so the
+  // keys where it does are named and every other "Sie" is read as the formal one.
+  // The plan's closing pass (after task 10) switches de to Sie and es to usted: it removes both tests.
+  const sheOrThey = [
+    "characters.form.exampleDialoguesPlaceholder", "cards.exportWarning.assetsLeft", "cards.libraryModal.description",
+    "ai.add.doneHint", "ai.add.doneHint_one", "ai.page.capAboveWindow",
+  ];
+
   it("is du in German, never Sie, Ihr, Ihre or Ihnen", () => {
-    const formal = flatten(de).filter(([, v]) => typeof v === "string" && /\bIhr\w*|\bIhnen\b|[A-Za-zäöüß] Sie\b/.test(v));
+    const formal = flatten(de).filter(
+      ([k, v]) => typeof v === "string" && (/\bIhr\w*|\bIhnen\b/.test(v) || (/\bSie\b/.test(v) && !sheOrThey.includes(k))),
+    );
     expect(formal.map(([k]) => k)).toEqual([]);
   });
 
-  it("is tú in Spanish, never usted", () => {
-    const formal = flatten(es).filter(([, v]) => typeof v === "string" && /\bustedes?\b/i.test(v));
+  it("is tú in Spanish, never usted or its imperatives", () => {
+    // "elija" inside a sentence is a subjunctive about someone else; only a sentence that opens on one gives an order.
+    const formal = flatten(es).filter(
+      ([, v]) => typeof v === "string"
+        && (/\busted(es)?\b/i.test(v) || /(^|[.:!?] )(Revise|Compruebe|Vuelva|Elija|Pulse|Añada|Revísela|Compruébela)\b/.test(v)),
+    );
     expect(formal.map(([k]) => k)).toEqual([]);
   });
 });

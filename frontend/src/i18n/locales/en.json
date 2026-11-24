@@ -99,7 +99,7 @@
     "defaultTag": "Default",
     "defaultConnectionLabel": "Default AI",
     "replyLengthLabel": "Reply length",
-    "replyLengthHint": "Applies to every conversation. Evermind keeps the room that the AIs it sets itself need; an AI with a fixed ceiling may cut long replies: see My AIs.",
+    "replyLengthHint": "Applies to every conversation. Evermind keeps the room needed by the AIs it sets itself; an AI with a fixed ceiling may cut long replies: see My AIs.",
     "replyLengthOptions": {
       "short": "Short: one dense paragraph",
       "medium": "Medium: 1 to 3 paragraphs",
