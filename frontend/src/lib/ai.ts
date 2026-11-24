@@ -260,7 +260,7 @@ export function serviceLine(ai: Ai, t: T): string {
 }
 
 export function readsLine(tokens: number | null, t: T): string {
-  return tokens === null ? t("ai.readsUntold") : t("ai.reads", { pages: pages(tokens) });
+  return tokens === null ? t("ai.readsUntold") : t("ai.reads", { count: pages(tokens) });
 }
 
 /** What it costs: free, the price read or typed (the one typed wins), or why there is none. */
