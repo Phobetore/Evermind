@@ -29,6 +29,22 @@ async function noSidewaysScroll(page: Page) {
   expect(wider, "the page scrolls sideways").toBeLessThanOrEqual(0);
 }
 
+/** An AI keeping a ceiling of 1,024 tokens of its own, under a name of its own. */
+const capped = (request: APIRequestContext, name: string) => addModel(request, {
+  base_url: MOCK, model: `e2e-capped-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name,
+  changes: { reply_cap: { mode: "fixed", tokens: 1024 } },
+});
+
+/** The page reads the settings as asking long replies, whose 2,048 tokens a ceiling of 1,024 would cut:
+ *  the suite's settings are shared between tests, so they are changed for this page alone. */
+async function longReplies(page: Page) {
+  await page.route("**/api/settings", async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const read = await route.fetch();
+    await route.fulfill({ response: read, json: { ...(await read.json()), reply_length: "long" } });
+  });
+}
+
 /** The ai sheet, opened from the chip. */
 async function openSheet(page: Page) {
   await chipOf(page).click();
@@ -177,6 +193,36 @@ test("no redo button when the last message is the person's or a reply is being w
   } finally {
     await stopTurn(request, slow.id);
   }
+});
+
+test("a capped ai is said in the sheet, and letting Evermind set it is confirmed in view", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  // Short names, which the sheet does not cut in the middle.
+  const mine = await capped(request, `Ardoise ${Math.random().toString(36).slice(2, 6)}`);
+  const other = await capped(request, `Basalte ${Math.random().toString(36).slice(2, 6)}`);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: mine.id } });
+  await longReplies(page);
+  await page.goto(`/#/chat/${convo.id}`);
+
+  const sheet = await openSheet(page);
+  await expect(sheet).toContainText(
+    `${mine.name} keeps a ceiling of 1,024 tokens per reply, in all its conversations: long replies would be cut short.`,
+  );
+  await expect(sheet.getByRole("radio", { name: new RegExp(`^${other.name}`) }))
+    .toContainText("Replies cut at 1,024 tokens as long as its ceiling is not lifted.");
+  await expect(sheet.getByRole("radio", { name: new RegExp(`^${mine.name}`) })).not.toContainText("Replies cut at");
+
+  await sheet.getByRole("button", { name: "Let Evermind set it" }).click();
+  const said = `${mine.name} no longer has a ceiling of its own: Evermind keeps the room it needs.`;
+  await expect(toastOf(page)).toContainText(said);
+  await expect(toastOf(page)).toBeInViewport();
+  await expect(sheet).toHaveCount(0);
+  const ais = await (await request.get(`${API}/api/models`)).json();
+  expect(ais.find((ai: { id: string }) => ai.id === mine.id).reply_cap.mode).toBe("auto");
+
+  // Opened again, the sheet no longer warns of it.
+  await openSheet(page);
+  await expect(sheetOf(page)).not.toContainText("keeps a ceiling of");
 });
 
 test("another model from the conversation is six taps and comes back with it chosen", async ({ page, request }) => {

@@ -50,7 +50,7 @@ export function AiChip({ ai, onOpen }: { ai: Ai | null; onOpen(): void }) {
 /** Which AI answers the conversation: a row for each, with what it reads and costs, since this is
  *  where one is changed. A row touched is sent at once and the sheet closes only at the answer, so
  *  that nobody believes the AI changed when it did not. `onCapLifted`: the AI answering now no longer
- *  keeps a ceiling of its own, a setting of the AI's, saved from here. */
+ *  keeps a ceiling of its own, a setting of the AI's, saved from here; the page closes the sheet to say so. */
 export function AiSheet({ conversation, ais, room, onPick, onAddOther, onClose, onCapLifted }: {
   conversation: Conversation;
   ais: Ai[];

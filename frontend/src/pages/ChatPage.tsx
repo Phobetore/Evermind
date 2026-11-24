@@ -825,6 +825,8 @@ function ChatView({ id }: { id: string }) {
           onClose={() => setAiSheet(false)}
           onCapLifted={(saved) => {
             tookAi(saved);
+            // Closed, so that the line saying it is read: on a phone the sheet covers it.
+            setAiSheet(false);
             toast(t("ai.notice.capLifted", { name: saved.name }));
           }}
         />
