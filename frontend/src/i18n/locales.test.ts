@@ -48,46 +48,49 @@ describe("a sentence reads right where it is shown", () => {
   it.each([
     ["es", "settings.about.updateAvailable", "Evermind {version} ya está disponible."],
     ["de", "cards.startChatModal.title", "Mit {name} spielen"],
-    ["de", "errors.notSent", "Diese Nachricht wurde nicht gesendet. Drücke auf Senden, um sie noch einmal zu schicken."],
+    ["de", "errors.notSent", "Diese Nachricht wurde nicht gesendet. Drücken Sie auf Senden, um sie noch einmal zu schicken."],
     // The colon after a word that ends a line stays with it, in French.
     ["fr", "characters.assist.statusWriting", "Écriture : {field}…"],
     ["fr", "characters.assist.missing", "Il manque encore : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque."],
     // A feminine and a masculine noun together take the masculine plural.
-    ["es", "errors.modelNotFound", "El servicio no reconoce esta dirección ni este modelo. Compruébalos en Mis IA. Ha indicado: {message}"],
+    ["es", "errors.modelNotFound", "El servicio no reconoce esta dirección ni este modelo. Compruébelos en Mis IA. Ha indicado: {message}"],
     ["en", "settings.replyLengthHint", "Applies to every conversation. Evermind keeps the room needed by the AIs it sets itself; an AI with a fixed ceiling may cut long replies: see My AIs."],
     // Every command shown starts Evermind itself.
     ["en", "settings.about.updateHint", "Stop Evermind, then run this from the folder you installed it in."],
     ["fr", "settings.about.updateHint", "Arrêtez Evermind, puis lancez ceci depuis le dossier où vous l'avez installé."],
-    ["de", "settings.about.updateHint", "Halte Evermind an und führe dann das hier in dem Ordner aus, in dem du es installiert hast."],
-    ["es", "settings.about.updateHint", "Detén Evermind y luego ejecuta esto en la carpeta donde lo instalaste."],
+    ["de", "settings.about.updateHint", "Halten Sie Evermind an und führen Sie dann das hier in dem Ordner aus, in dem Sie es installiert haben."],
+    ["es", "settings.about.updateHint", "Detenga Evermind y luego ejecute esto en la carpeta donde lo instaló."],
   ] as const)("in %s, %s", (locale, key, said) => {
     expect(new Map(flatten({ en, fr, de, es }[locale])).get(key)).toBe(said);
   });
 });
 
 describe("who a sentence speaks to", () => {
-  // The German of Evermind says "du". A "Sie" that means she or they is not an address, so the
-  // keys where it does are named and every other "Sie" is read as the formal one.
-  // The plan's closing pass (after task 10) switches de to Sie and es to usted: it removes both tests.
-  const sheOrThey = [
-    "characters.form.exampleDialoguesPlaceholder", "cards.exportWarning.assetsLeft", "cards.libraryModal.description",
-    "ai.add.doneHint", "ai.add.doneHint_one", "ai.page.capAboveWindow",
+  // Evermind speaks to the person as "Sie" in German and "usted" in Spanish, as it says "vous" in
+  // French. What is given as an example of words for the AI, or as a line of sample dialogue, is
+  // not said to the person: those keys are named, and no other sentence may hold a familiar word.
+  const notToThePerson = [
+    "chat.input.modes.ooc.placeholder", "chat.panel.directive.description", "chat.panel.directive.placeholder",
+    "settings.globalInstructionsPlaceholder", "characters.form.exampleDialoguesPlaceholder",
   ];
+  // A word, and an order that opens a sentence. The orders are the ones these files once gave: in
+  // Spanish only those that cannot be read as "it does", which a hint may well open on.
+  const familiar = {
+    de: [
+      /(?<!\p{L})(du|dich|dir|dein|deine|deinen|deinem|deiner|deines|euch|euer|eure|kannst|möchtest|hast|bist|willst|musst)(?!\p{L})/iu,
+      /(?:^|[.:!?…] )(Beschreibe|Denke|Drücke|Erhöhe|Erlaube|Erstelle|Füge|Gib|Halte|Hol|Installiere|Kürze|Lade|Melde|Nimm|Prüfe|Richte|Schreib|Sende|Setze|Sieh|Speichere|Trenne|Verbinde|Versuch|Versuche|Verwalte|Verwende|Warte|Wähle|Zeig|Ändere|Öffne)(?!\p{L})/u,
+    ],
+    es: [
+      /(?<!\p{L})(tú|tu|tus|te|ti|contigo|puedes|quieres|tienes|necesitas|estás|eres|debes)(?!\p{L})/iu,
+      /(?:^|[.:!?…] )(Detén|Mantén|Pon|Haz|Inténtalo|Acórtalo|Ábrelo|Compruébal[ao]s?|Revísal[ao]s?|Instálal[ao]s?)(?!\p{L})/u,
+    ],
+  };
 
-  it("is du in German, never Sie, Ihr, Ihre or Ihnen", () => {
-    const formal = flatten(de).filter(
-      ([k, v]) => typeof v === "string" && (/\bIhr\w*|\bIhnen\b/.test(v) || (/\bSie\b/.test(v) && !sheOrThey.includes(k))),
+  it.each([["de", de], ["es", es]] as const)("is the formal address in %s", (name, locale) => {
+    const said = flatten(locale).filter(
+      ([k, v]) => typeof v === "string" && !notToThePerson.includes(k) && familiar[name].some((word) => word.test(v)),
     );
-    expect(formal.map(([k]) => k)).toEqual([]);
-  });
-
-  it("is tú in Spanish, never usted or its imperatives", () => {
-    // "elija" inside a sentence is a subjunctive about someone else; only a sentence that opens on one gives an order.
-    const formal = flatten(es).filter(
-      ([, v]) => typeof v === "string"
-        && (/\busted(es)?\b/i.test(v) || /(^|[.:!?] )(Revise|Compruebe|Vuelva|Elija|Pulse|Añada|Revísela|Compruébela)\b/.test(v)),
-    );
-    expect(formal.map(([k]) => k)).toEqual([]);
+    expect(said.map(([k]) => k)).toEqual([]);
   });
 });
 

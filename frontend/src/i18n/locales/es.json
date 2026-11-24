@@ -12,7 +12,7 @@
     "conversations": "Conversaciones",
     "personas": "Personas",
     "settings": "Ajustes",
-    "tagline": "Tus personajes, tus modelos, tus reglas.",
+    "tagline": "Sus personajes, sus modelos, sus reglas.",
     "language": "Idioma",
     "skipToContent": "Ir al contenido"
   },
@@ -23,8 +23,8 @@
       "scenarios": "Escenarios"
     },
     "hero": {
-      "title": "Elige tu historia",
-      "subtitle": "Personajes que conocer, mundos que explorar, que cobran vida con el modelo de IA que elijas, sin salir de casa."
+      "title": "Elija su historia",
+      "subtitle": "Personajes que conocer, mundos que explorar, que cobran vida con el modelo de IA que elija, sin salir de casa."
     },
     "searchPlaceholder": "Buscar por nombre, ambiente…",
     "favoritesOnlyTitle": "Mostrar solo favoritos",
@@ -37,20 +37,20 @@
     "importError": "Error al importar",
     "emptyState": {
       "title": "El teatro está vacío",
-      "before": "Instala una ficha lista para jugar desde la",
+      "before": "Instale una ficha lista para jugar desde la",
       "libraryLink": "biblioteca",
-      "after": ", crea la tuya o importa una ficha existente (JSON / PNG). Las fichas de otras plataformas son compatibles."
+      "after": ", cree la suya o importe una ficha existente (JSON / PNG). Las fichas de otras plataformas son compatibles."
     },
     "importModal": {
       "title": "Importar una ficha",
-      "intro": "Trae un personaje o un escenario creado en otra parte. Las fichas siguen los formatos Character Card V2 y V3, que la mayoría de herramientas de rol saben leer y escribir. Todo lo que contiene una ficha se conserva, incluso lo que Evermind no usa.",
+      "intro": "Traiga un personaje o un escenario creado en otra parte. Las fichas siguen los formatos Character Card V2 y V3, que la mayoría de herramientas de rol saben leer y escribir. Todo lo que contiene una ficha se conserva, incluso lo que Evermind no usa.",
       "acceptsPng": "Una ficha en PNG, ilustración incluida. La ficha va dentro de la imagen.",
       "acceptsJson": "Una ficha en JSON exportada desde otra herramienta.",
       "acceptsLorebook": "Un lorebook adjunto viene con ella.",
-      "dropTitle": "Suelta una ficha aquí",
-      "dropHint": "o haz clic para elegir una. Varias a la vez también vale.",
-      "sizeNote": "Hasta 15 MB por archivo. Nada se sube a ningún sitio: el archivo lo lee tu propio Evermind.",
-      "maybeMade": "Puede que ya haya una copia de esta ficha en la página de inicio: mira allí antes de volver a importarla."
+      "dropTitle": "Suelte una ficha aquí",
+      "dropHint": "o haga clic para elegir una. Varias a la vez también vale.",
+      "sizeNote": "Hasta 15 MB por archivo. Nada se sube a ningún sitio: el archivo lo lee su propio Evermind.",
+      "maybeMade": "Puede que ya haya una copia de esta ficha en la página de inicio: mire allí antes de volver a importarla."
     },
     "card": {
       "tags": "Etiquetas: {list}"
@@ -59,13 +59,13 @@
     "searchFailed": "No se pudo buscar en las descripciones: solo en los nombres y los lemas."
   },
   "chatList": {
-    "subtitle": "Retoma tus historias justo donde las dejaste.",
+    "subtitle": "Retome sus historias justo donde las dejó.",
     "emptyState": {
       "title": "Aún no hay historias",
-      "body": "Elige un personaje o un escenario en la pestaña Descubrir para empezar tu primera conversación."
+      "body": "Elija un personaje o un escenario en la pestaña Descubrir para empezar su primera conversación."
     },
     "forkedBadge": "rama",
-    "draftTooltip": "Un mensaje sin terminar te espera en esta conversación",
+    "draftTooltip": "Un mensaje sin terminar le espera en esta conversación",
     "draftBadge": "borrador",
     "deletedCharacter": "Personaje eliminado",
     "newConversationFallback": "Nueva conversación",
@@ -76,11 +76,11 @@
     "untitled": "Sin título"
   },
   "personas": {
-    "subtitle": "¿Quién eres en tus historias?",
+    "subtitle": "¿Quién es usted en sus historias?",
     "newPersona": "Nueva persona",
     "emptyState": {
       "title": "Sin personas",
-      "body": "Crea una identidad (nombre y descripción) que tus personajes conocerán durante el rol."
+      "body": "Cree una identidad (nombre y descripción) que sus personajes conocerán durante el rol."
     },
     "defaultTag": "Predeterminada",
     "noDescription": "Sin descripción.",
@@ -91,15 +91,15 @@
     "avatarLabel": "Avatar",
     "nameLabel": "Nombre",
     "descriptionLabel": "Descripción",
-    "descriptionHint": "Aspecto, personalidad, trasfondo: lo que tus personajes sabrán de ti.",
+    "descriptionHint": "Aspecto, personalidad, trasfondo: lo que sus personajes sabrán de usted.",
     "useAsDefaultLabel": "Usar por defecto en las nuevas conversaciones"
   },
   "settings": {
-    "subtitle": "Tus modelos, tus reglas: Evermind se conecta a la IA que elijas.",
+    "subtitle": "Sus modelos, sus reglas: Evermind se conecta a la IA que elija.",
     "defaultTag": "Predeterminada",
     "defaultConnectionLabel": "IA predeterminada",
     "replyLengthLabel": "Longitud de las respuestas",
-    "replyLengthHint": "Se aplica a todas las conversaciones. Evermind guarda el espacio necesario para las IA que ajusta él; una IA con tope fijo puede cortar las respuestas largas: mira Mis IA.",
+    "replyLengthHint": "Se aplica a todas las conversaciones. Evermind guarda el espacio necesario para las IA que ajusta él; una IA con tope fijo puede cortar las respuestas largas: consulte Mis IA.",
     "replyLengthOptions": {
       "short": "Cortas: un párrafo denso",
       "medium": "Medias: de 1 a 3 párrafos",
@@ -108,7 +108,7 @@
     "historyLimitLabel": "Mensajes recientes enviados al modelo",
     "historyLimitHint": "Más allá de eso, los turnos antiguos solo perviven en el resumen y en los hechos establecidos. Ventana corta (16–30): el modelo sigue atento a las instrucciones en vez de imitar sus propias respuestas. Ventana larga: más historial sin filtrar, pero los modelos pequeños empiezan a divagar.",
     "passageBudgetLabel": "Recuerdo de pasajes (tokens)",
-    "passageBudgetHint": "Recupera extractos literales de mensajes antiguos relacionados semánticamente con la escena actual (requiere el extra «semantic»). ~1500 ≈ 10 % de un contexto de 16k. Pon 0 para desactivarlo. Cada token de recuerdo es un token menos de historial reciente.",
+    "passageBudgetHint": "Recupera extractos literales de mensajes antiguos relacionados semánticamente con la escena actual (requiere el extra «semantic»). ~1500 ≈ 10 % de un contexto de 16k. Ponga 0 para desactivarlo. Cada token de recuerdo es un token menos de historial reciente.",
     "autoMemoryTitle": "Memoria automática",
     "autoMemoryHint": {
       "before": "El modelo extrae automáticamente los",
@@ -117,8 +117,8 @@
     },
     "globalInstructionsTitle": "Instrucciones generales de rol",
     "globalInstructionsHint": {
-      "part1": "Se añaden a cada conversación, después de las reglas del personaje. Aquí fijas",
-      "emphasis": "tus",
+      "part1": "Se añaden a cada conversación, después de las reglas del personaje. Aquí es donde usted fija",
+      "emphasis": "sus",
       "part2": "preferencias y",
       "part3": "límites: estilo, longitud, temas, idioma. Evermind no impone nada."
     },
@@ -127,18 +127,18 @@
     "savedFlash": "Guardado.",
     "access": {
       "title": "Acceso",
-      "hint": "Este dispositivo mantiene la sesión iniciada hasta que la cierres o cambies la contraseña.",
+      "hint": "Este dispositivo mantiene la sesión iniciada hasta que usted la cierre o cambie la contraseña.",
       "logout": "Cerrar sesión en este dispositivo",
       "logoutEverywhere": "Cerrar sesión en todos los dispositivos",
       "logoutEverywhereConfirm": "Todos los dispositivos, este incluido, tendrán que volver a escribir la contraseña."
     },
     "about": {
       "title": "Acerca de",
-      "starHint": "Si Evermind te resulta útil, una estrella en el repositorio es lo que hace que otras personas lo encuentren.",
+      "starHint": "Si Evermind le resulta útil, una estrella en el repositorio es lo que hace que otras personas lo encuentren.",
       "projectLink": "El proyecto en GitHub",
       "reportLink": "Informar de un problema",
       "updateAvailable": "Evermind {version} ya está disponible.",
-      "updateHint": "Detén Evermind y luego ejecuta esto en la carpeta donde lo instalaste.",
+      "updateHint": "Detenga Evermind y luego ejecute esto en la carpeta donde lo instaló.",
       "zipHint": {
         "before": "Descargada como ZIP, esta copia se actualiza a mano:",
         "link": "los pasos están en INSTALL.md",
@@ -146,9 +146,9 @@
       },
       "builtHint": "Construida desde el código fuente, esta imagen se actualiza volviendo a construirla desde el código nuevo:",
       "releaseNotes": "Qué ha cambiado",
-      "checkHint": "Preguntar a GitHub, cada vez que se abre esta página, si hay una versión más nueva. La consulta no lleva nada de lo que has escrito, pero GitHub ve lo que cualquier sitio web ve de un navegador, incluida la dirección en la que has abierto Evermind. Sin la casilla no sale nada por su cuenta, y el botón de abajo sigue funcionando cuando lo pulsas.",
+      "checkHint": "Preguntar a GitHub, cada vez que se abre esta página, si hay una versión más nueva. La consulta no lleva nada de lo que usted ha escrito, pero GitHub ve lo que cualquier sitio web ve de un navegador, incluida la dirección en la que ha abierto Evermind. Sin la casilla no sale nada por su cuenta, y el botón de abajo sigue funcionando cuando lo pulsa.",
       "checkNow": "Comprobar ahora",
-      "upToDate": "Tienes la última versión.",
+      "upToDate": "Tiene la última versión.",
       "unreachable": "No se ha podido contactar con GitHub."
     }
   },
@@ -189,13 +189,13 @@
     "input": {
       "modes": {
         "say": {
-          "label": "Hablar / acción (haz clic para cambiar de modo)",
-          "placeholder": "Escribe a {name}… (*asteriscos* para tus acciones)",
+          "label": "Hablar / acción (haga clic para cambiar de modo)",
+          "placeholder": "Escribir a {name}… (*asteriscos* para las acciones)",
           "short": "Hablar"
         },
         "narrate": {
-          "label": "Narración: describes el mundo, la escena, los acontecimientos",
-          "placeholder": "Describe la escena, el mundo, un acontecimiento…",
+          "label": "Narración: usted describe el mundo, la escena, los acontecimientos",
+          "placeholder": "Describir la escena, el mundo, un acontecimiento…",
           "short": "Narrar"
         },
         "ooc": {
@@ -205,11 +205,11 @@
         }
       },
       "ghostwriteTitle": "Escribir mi respuesta por mí (editable antes de enviar)",
-      "ghostwriteError": "No se ha podido escribir tu respuesta.",
+      "ghostwriteError": "No se ha podido escribir por usted.",
       "stopTitle": "Detener la generación",
       "sendTitle": "Enviar",
-      "hintDefault": "Enter para enviar · Mayús+Enter para una nueva línea · pluma: la IA redacta tu respuesta",
-      "hintTouch": "Pulsa enviar cuando quieras. La pluma redacta tu respuesta.",
+      "hintDefault": "Enter para enviar · Mayús+Enter para una nueva línea · pluma: la IA le redacta la respuesta",
+      "hintTouch": "Pulse enviar cuando quiera. La pluma redacta su respuesta.",
       "draftRestored": "Borrador restaurado",
       "more": "Hablar, narrar, fuera de personaje o escribir por mí",
       "penLabel": "Escribir por mí"
@@ -226,19 +226,19 @@
       "switched": "{name} responde a partir de ahora.",
       "redo": "Rehacer la última respuesta",
       "redone": "Última respuesta rehecha por {name}. La anterior queda al lado.",
-      "lost": "{lost} se quitó de tus IA: {name} responde en su lugar.",
-      "lostNone": "{lost} se quitó de tus IA, y no queda ninguna.",
+      "lost": "{lost} se quitó de Mis IA: {name} responde en su lugar.",
+      "lostNone": "{lost} se quitó de Mis IA, y no queda ninguna.",
       "seen": "Entendido"
     },
     "message": {
-      "youFallback": "Tú",
+      "youFallback": "Usted",
       "modeBadge": {
         "narrate": "narración",
         "ooc": "instrucción"
       },
       "interrupted": "interrumpido",
-      "cutAtCeiling": "Respuesta cortada: llegó al tope de respuesta de esta IA, {tokens:grouped} tokens, y su razonamiento cuenta en él. Continúa la respuesta para seguir.",
-      "cutAtCeilingUnset": "Respuesta cortada: llegó al máximo que el servidor del modelo deja escribir, y el razonamiento del modelo cuenta en él. Continúa la respuesta para seguir.",
+      "cutAtCeiling": "Respuesta cortada: llegó al tope de respuesta de esta IA, {tokens:grouped} tokens, y su razonamiento cuenta en él. Continúe la respuesta para seguir.",
+      "cutAtCeilingUnset": "Respuesta cortada: llegó al máximo que el servidor del modelo deja escribir, y el razonamiento del modelo cuenta en él. Continúe la respuesta para seguir.",
       "cutAtCeilingShort": "cortado en el límite",
       "regenerateTitle": "Regenerar",
       "continueTitle": "Continuar la respuesta",
@@ -257,7 +257,7 @@
       "closeAriaLabel": "Cerrar el panel",
       "kindScenario": "Escenario",
       "kindCharacter": "Personaje",
-      "youArePlaying": "Interpretas a",
+      "youArePlaying": "Usted interpreta a",
       "directive": {
         "title": "Directiva de escena",
         "description": "Una instrucción permanente que se recuerda a la IA en cada respuesta. Es la palanca más fuerte para corregir un tic tenaz («termina siempre tus frases», «varía tus formulaciones», «mantente explícito»…).",
@@ -294,7 +294,7 @@
       },
       "sceneAnchor": {
         "title": "Ancla de escena",
-        "youFallback": "tú"
+        "youFallback": "usted"
       },
       "cardSummary": "La ficha en breve"
     },
@@ -308,7 +308,7 @@
       "portrait": "La imagen del personaje",
       "portraitHint": "La elección de origen. Sigue el ajuste de este dispositivo.",
       "other": "Otra imagen",
-      "otherHint": "Elegida entre tus archivos, como hasta ahora.",
+      "otherHint": "Elegida entre sus archivos, como hasta ahora.",
       "none": "Sin fondo",
       "noneHint": "La página desnuda, aunque este dispositivo muestre imágenes.",
       "noPicture": "Esta ficha no tiene imagen: la página queda desnuda.",
@@ -322,7 +322,7 @@
       "quote": "una línea citada",
       "list": "una lista",
       "code": "se queda tal cual",
-      "modes": "El botón a la izquierda del cuadro alterna entre hablar, narrar la escena tú mismo, y una nota para la IA en vez de para la historia."
+      "modes": "El botón a la izquierda del cuadro alterna entre hablar, narrar la escena usted mismo, y una nota para la IA en vez de para la historia."
     },
     "modelSilent": {
       "title": "El modelo no ha respondido.",
@@ -368,7 +368,7 @@
       "startConversationButton": "Empezar una conversación",
       "editButton": "Editar",
       "openingHeading": "Apertura",
-      "yourConversationsHeading": "Tus conversaciones",
+      "yourConversationsHeading": "Sus conversaciones",
       "rereadable": "Se puede releer con las nuevas reglas",
       "fromTheAuthor": "De parte del autor",
       "notesLanguage": "Idioma de la presentación",
@@ -379,7 +379,7 @@
       "previousGreeting": "Apertura anterior",
       "nextGreeting": "Apertura siguiente",
       "modelReads": "Lo que lee el modelo",
-      "modelReadsHint": "Se envía al modelo en cada turno, con el lorebook y la conversación. El formato es para ti: el modelo lee el texto tal como está escrito.",
+      "modelReadsHint": "Se envía al modelo en cada turno, con el lorebook y la conversación. El formato es para usted: el modelo lee el texto tal como está escrito.",
       "modelReadsLaidOut": "Con formato",
       "modelReadsAsWritten": "Tal como está escrito",
       "characterNoteAtEnd": "Nota del personaje, colocada después del último mensaje",
@@ -403,7 +403,7 @@
       "taglineLabel": "Lema",
       "taglineHint": "Una frase con gancho, visible en la ficha.",
       "descriptionLabel": "Descripción",
-      "descriptionHint": "¿Quién es este personaje? Aspecto, trasfondo, forma de hablar. Usa {{char}} y {{user}}.",
+      "descriptionHint": "¿Quién es este personaje? Aspecto, trasfondo, forma de hablar. Use {{char}} y {{user}}.",
       "personalityLabel": "Personalidad",
       "personalityHint": "Rasgos breves separados por comas.",
       "startingSituationLabel": "Situación inicial",
@@ -424,7 +424,7 @@
       "alternateGreetingsEmptyHint": "Opcional: otras aperturas de escena, intercambiables con el primer mensaje.",
       "tagsLabel": "Etiquetas",
       "exampleDialoguesLabel": "Diálogos de ejemplo",
-      "exampleDialoguesHint": "Muestran el estilo de escritura. Separa cada ejemplo con <START>. Macros {{char}} / {{user}}.",
+      "exampleDialoguesHint": "Muestran el estilo de escritura. Separe cada ejemplo con <START>. Macros {{char}} / {{user}}.",
       "exampleDialoguesPlaceholder": "<START>\n{{user}}: ¿Estás bien?\n{{char}}: *Se sacudió el polvo de la capa.* Define «bien».",
       "advancedSettingsToggle": "Ajustes avanzados",
       "systemPromptLabel": "Prompt de sistema personalizado",
@@ -450,7 +450,7 @@
     "reread": {
       "title": "Esta ficha se creó antes de que Evermind guardara enteras las fichas originales.",
       "added": "Se añadirá o se pondrá al día:",
-      "untouched": "Quedará como lo dejaste:",
+      "untouched": "Quedará como usted lo dejó:",
       "changes": "Lo que cambiará en sus conversaciones:",
       "change": {
         "budget": "El lorebook recibe una parte del contexto en lugar de un tamaño fijo.",
@@ -465,25 +465,25 @@
       "kind": "Personaje o escenario",
       "lore": "{count:grouped} entradas del lorebook",
       "lore_one": "{count:grouped} entrada del lorebook",
-      "left": "{count:grouped} entradas del lorebook se quedan como están: Evermind no pudo saber con certeza de qué entrada de la ficha vienen, o las escribiste tú aquí.",
-      "left_one": "{count:grouped} entrada del lorebook se queda como está: Evermind no pudo saber con certeza de qué entrada de la ficha viene, o la escribiste tú aquí.",
+      "left": "{count:grouped} entradas del lorebook se quedan como están: Evermind no pudo saber con certeza de qué entrada de la ficha vienen, o las escribió usted aquí.",
+      "left_one": "{count:grouped} entrada del lorebook se queda como está: Evermind no pudo saber con certeza de qué entrada de la ficha viene, o la escribió usted aquí.",
       "reread": "Releer la ficha original y pasar a las nuevas reglas",
       "keep": "Guardar solo la ficha original para la exportación",
       "keepHint": "Guardarla no cambia nada en sus conversaciones; este aviso se queda, para pasar más tarde a las nuevas reglas.",
       "switch": "Pasar a las nuevas reglas",
-      "saveToKeep": "Guarda para conservar este cambio.",
+      "saveToKeep": "Guarde para conservar este cambio.",
       "retry": "Buscar de nuevo la ficha original"
     },
     "assist": {
       "heading": "Creación asistida por IA",
-      "briefPlaceholderCharacter": "Describe el personaje que quieres: quién es, su carácter, su relación contigo, la situación inicial… La IA rellena toda la ficha y tú la ajustas después.",
-      "briefPlaceholderScenario": "Describe la aventura que quieres: escenario, ambiente, papel del jugador, lo que está en juego… La IA rellena toda la ficha y tú la ajustas después.",
+      "briefPlaceholderCharacter": "Describa el personaje que quiere: quién es, su carácter, su relación con usted, la situación inicial… La IA rellena toda la ficha y usted la ajusta después.",
+      "briefPlaceholderScenario": "Describa la aventura que quiere: escenario, ambiente, papel del jugador, lo que está en juego… La IA rellena toda la ficha y usted la ajusta después.",
       "connectionSelectTitle": "Modelo usado para escribir la ficha",
       "fieldsKeptHint": "Los campos ya rellenados se conservan.",
       "generateButton": "Generar la ficha",
       "generatingButton": "Escribiendo…",
       "generateError": "Error al generar",
-      "gone": "El resultado ya no está. Pulsa Generar para empezar de nuevo.",
+      "gone": "El resultado ya no está. Pulse Generar para empezar de nuevo.",
       "stopButton": "Detener",
       "stoppingButton": "Deteniendo…",
       "elapsedLabel": "Tiempo transcurrido",
@@ -494,9 +494,9 @@
       "statusWriting": "Escribiendo: {field}…",
       "statusBetween": "Escribiendo la ficha…",
       "connectionWait": "Esperando la conexión… mientras tanto la ficha sigue escribiéndose.",
-      "missing": "Aún falta: {fields}. Pulsa Generar otra vez para escribir solo lo que falta.",
-      "missingCut": "Al modelo se le acabó el espacio antes del final. Falta: {fields}. Pulsa Generar otra vez para escribir solo lo que falta.",
-      "missingStopped": "Se detuvo antes del final. Falta: {fields}. Pulsa Generar otra vez para escribir solo lo que falta."
+      "missing": "Aún falta: {fields}. Pulse Generar otra vez para escribir solo lo que falta.",
+      "missingCut": "Al modelo se le acabó el espacio antes del final. Falta: {fields}. Pulse Generar otra vez para escribir solo lo que falta.",
+      "missingStopped": "Se detuvo antes del final. Falta: {fields}. Pulse Generar otra vez para escribir solo lo que falta."
     }
   },
   "lorebook": {
@@ -604,15 +604,15 @@
     },
     "startChatModal": {
       "title": "Unirse a {name}",
-      "personaHint": "Gestiona tus identidades en la pestaña Personas.",
+      "personaHint": "Gestione sus identidades en la pestaña Personas.",
       "noPersonaOption": "Sin persona",
       "noConnectionOption": "Ninguna IA",
-      "noConnectionWarning": "Añade primero una IA en Ajustes, Mis IA (Ollama, LM Studio, OpenRouter, Anthropic…). Tú decides.",
+      "noConnectionWarning": "Añada primero una IA en Ajustes, Mis IA (Ollama, LM Studio, OpenRouter, Anthropic…). Usted decide.",
       "startError": "No se ha podido empezar",
       "enterButton": "Entrar en la historia"
     },
     "libraryModal": {
-      "description": "Fichas listas para jugar, incluidas con Evermind. Instálalas, edítalas, elimínalas: pasan a ser tuyas.",
+      "description": "Fichas listas para jugar, incluidas con Evermind. Instálelas, edítelas, elimínelas: pasan a ser suyas.",
       "emptyState": "La biblioteca está vacía (falta la carpeta library/).",
       "lorebookTag": "lorebook",
       "installedLabel": "Instalada",
@@ -622,7 +622,7 @@
   },
   "ui": {
     "tagInput": {
-      "placeholder": "Añade una etiqueta y pulsa Enter",
+      "placeholder": "Añadir una etiqueta y pulsar Enter",
       "removeAriaLabel": "Quitar {tag}"
     },
     "folded": {
@@ -640,20 +640,20 @@
     "server": "Evermind ha respondido con un error (HTTP {status}).",
     "unreachable": "Evermind no responde. ¿Sigue en marcha?",
     "offline": "Este dispositivo no tiene conexión.",
-    "notSent": "Este mensaje no se ha enviado. Pulsa Enviar para volver a enviarlo.",
+    "notSent": "Este mensaje no se ha enviado. Pulse Enviar para volver a enviarlo.",
     "invalid": "Evermind no ha podido procesar la petición: falta información o algún dato no es válido.",
     "textTooLong": "Este texto es demasiado largo: tiene {length} caracteres y el máximo es {limit}.",
     "textTooShort": "Este texto es demasiado corto: necesita al menos {limit} caracteres.",
     "textTooShort_one": "Este texto no puede quedar vacío.",
-    "briefTooLong": "Este texto es demasiado largo para este modelo: con las instrucciones del asistente, lo que la ficha ya contiene y el espacio para su respuesta, necesita unos {needed:grouped} tokens, y esta IA lee {context:grouped} de una vez. Acórtalo, aumenta su capacidad de lectura en Mis IA, en Avanzado, si el modelo admite más, o elige una IA que lea más.",
-    "cardTooLong": "Lo que la ficha ya contiene es demasiado largo para este modelo: con las instrucciones del asistente y el espacio para su respuesta, necesita unos {needed:grouped} tokens, y esta IA lee {context:grouped} de una vez. Acorta los campos más largos de la ficha, aumenta su capacidad de lectura en Mis IA, en Avanzado, si el modelo admite más, o elige una IA que lea más.",
-    "contextTooSmall": "El contexto de este modelo es demasiado pequeño para el asistente de fichas: sus instrucciones y el espacio para una ficha ya necesitan unos {needed:grouped} tokens, y esta IA lee {context:grouped} de una vez. Aumenta su capacidad de lectura en Mis IA, en Avanzado, si el modelo admite más, o elige una IA que lea más.",
-    "locked": "Tu sesión ha terminado. Vuelve a iniciar sesión.",
+    "briefTooLong": "Este texto es demasiado largo para este modelo: con las instrucciones del asistente, lo que la ficha ya contiene y el espacio para su respuesta, necesita unos {needed:grouped} tokens, y esta IA lee {context:grouped} de una vez. Acórtelo, aumente su capacidad de lectura en Mis IA, en Avanzado, si el modelo admite más, o elija una IA que lea más.",
+    "cardTooLong": "Lo que la ficha ya contiene es demasiado largo para este modelo: con las instrucciones del asistente y el espacio para su respuesta, necesita unos {needed:grouped} tokens, y esta IA lee {context:grouped} de una vez. Acorte los campos más largos de la ficha, aumente su capacidad de lectura en Mis IA, en Avanzado, si el modelo admite más, o elija una IA que lea más.",
+    "contextTooSmall": "El contexto de este modelo es demasiado pequeño para el asistente de fichas: sus instrucciones y el espacio para una ficha ya necesitan unos {needed:grouped} tokens, y esta IA lee {context:grouped} de una vez. Aumente su capacidad de lectura en Mis IA, en Avanzado, si el modelo admite más, o elija una IA que lea más.",
+    "locked": "Su sesión ha terminado. Vuelva a iniciar sesión.",
     "wrongPassword": "Acceso denegado.",
     "tooLarge": "Demasiado largo para ser la contraseña, o un proxy inverso lo ha transmitido sin indicar su longitud.",
-    "rateLimited": "Demasiados intentos. Vuelve a intentarlo en {minutes} min.",
+    "rateLimited": "Demasiados intentos. Vuelva a intentarlo en {minutes} min.",
     "crossOrigin": "Evermind ha rechazado esta petición porque parece venir de otra dirección. Detrás de un proxy inverso, el proxy debe conservar la cabecera Host original tal cual.",
-    "unknownHost": "Sin contraseña, Evermind no responde a este nombre. Ábrelo por su dirección (como http://192.168.1.42:3000) o por localhost, o establece una contraseña.",
+    "unknownHost": "Sin contraseña, Evermind no responde a este nombre. Ábralo por su dirección (como http://192.168.1.42:3000) o por localhost, o establezca una contraseña.",
     "notFound": {
       "character": "Esta ficha ya no existe.",
       "conversation": "Esta conversación ya no existe.",
@@ -666,44 +666,44 @@
     },
     "pngWithoutCard": "Esta imagen PNG no contiene una ficha de personaje.",
     "cardTooLarge": "Esta ficha es demasiado grande para leerse aquí (más de 60 MB de texto una vez descomprimida).",
-    "unrecognizedCardFile": "Este archivo no es una ficha. Elige una ficha JSON o una ficha PNG.",
+    "unrecognizedCardFile": "Este archivo no es una ficha. Elija una ficha JSON o una ficha PNG.",
     "variantOutOfRange": "Esa variante de la respuesta no existe.",
     "factExists": "Este hecho ya existe.",
     "factEmpty": "Un hecho necesita algo de texto.",
-    "memoryBusy": "Hay otra tarea de memoria en curso. No se ha modificado nada; inténtalo de nuevo en un momento.",
-    "factsChanged": "Los hechos han cambiado mientras el modelo trabajaba con ellos. No se ha conservado nada; inténtalo de nuevo.",
-    "conversationChanged": "La conversación ha cambiado mientras el modelo la leía. No se ha conservado nada; inténtalo de nuevo.",
+    "memoryBusy": "Hay otra tarea de memoria en curso. No se ha modificado nada; inténtelo de nuevo en un momento.",
+    "factsChanged": "Los hechos han cambiado mientras el modelo trabajaba con ellos. No se ha conservado nada; inténtelo de nuevo.",
+    "conversationChanged": "La conversación ha cambiado mientras el modelo la leía. No se ha conservado nada; inténtelo de nuevo.",
     "tooFewFacts": "Hay muy pocos hechos para condensar: solo se fusionan los que escribió el modelo y nadie fijó.",
     "fileTooLarge": "Este archivo es demasiado grande (15 MB como máximo).",
-    "unsupportedImage": "Este formato de imagen no es compatible. Usa PNG, JPEG o WebP.",
+    "unsupportedImage": "Este formato de imagen no es compatible. Use PNG, JPEG o WebP.",
     "conversationEmpty": "Esta conversación aún no tiene mensajes.",
-    "noConnection": "No hay ninguna IA configurada. Añade una en Ajustes, Mis IA.",
+    "noConnection": "No hay ninguna IA configurada. Añada una en Ajustes, Mis IA.",
     "modelError": "El modelo ha devuelto un error: {message}",
-    "modelUnreachable": "Evermind no puede conectar con el servidor de la IA en {message}. Comprueba que está en marcha y su dirección en Mis IA.",
+    "modelUnreachable": "Evermind no puede conectar con el servidor de la IA en {message}. Compruebe que está en marcha y su dirección en Mis IA.",
     "turnRunning": "Ya se está escribiendo una respuesta, así que esto no se ha enviado.",
-    "modelEmpty": "El modelo ha devuelto una respuesta vacía. Inténtalo de nuevo o cambia de modelo.",
-    "modelUnreadable": "No se ha podido leer la respuesta del modelo. Inténtalo de nuevo.",
-    "modelOnlyThought": "El modelo ha gastado toda su respuesta en pensar y no ha escrito nada. Inténtalo de nuevo: Evermind sabe ahora que razona y le deja sitio, salvo que su tope de respuesta esté fijado a mano (Mis IA, en Avanzado). Si vuelve a pasar, usa una IA que razone menos tiempo.",
-    "modelWithheld": "El servidor del modelo ha retenido la respuesta («{reason}»). Inténtalo de nuevo o cambia de modelo o de proveedor.",
-    "modelAuthRefused": "El servicio ha rechazado la clave. Compruébala en Mis IA. Ha indicado: {message}",
-    "modelNotFound": "El servicio no reconoce esta dirección ni este modelo. Compruébalos en Mis IA. Ha indicado: {message}",
-    "modelRateLimited": "El servidor del modelo ha alcanzado su límite de peticiones. Inténtalo de nuevo en un momento. El servidor indicó: {message}",
+    "modelEmpty": "El modelo ha devuelto una respuesta vacía. Inténtelo de nuevo o cambie de modelo.",
+    "modelUnreadable": "No se ha podido leer la respuesta del modelo. Inténtelo de nuevo.",
+    "modelOnlyThought": "El modelo ha gastado toda su respuesta en pensar y no ha escrito nada. Inténtelo de nuevo: Evermind sabe ahora que razona y le deja sitio, salvo que su tope de respuesta esté fijado a mano (Mis IA, en Avanzado). Si vuelve a pasar, use una IA que razone menos tiempo.",
+    "modelWithheld": "El servidor del modelo ha retenido la respuesta («{reason}»). Inténtelo de nuevo o cambie de modelo o de proveedor.",
+    "modelAuthRefused": "El servicio ha rechazado la clave. Compruébela en Mis IA. Ha indicado: {message}",
+    "modelNotFound": "El servicio no reconoce esta dirección ni este modelo. Compruébelos en Mis IA. Ha indicado: {message}",
+    "modelRateLimited": "El servidor del modelo ha alcanzado su límite de peticiones. Inténtelo de nuevo en un momento. El servidor indicó: {message}",
     "modelNetworkError": "El modelo ha tardado demasiado en responder o se ha cortado la conexión con su servidor.",
-    "modelNoText": "El modelo no ha generado ningún texto. Inténtalo de nuevo o elige otro modelo.",
-    "emptyMessage": "Escribe primero un mensaje.",
-    "nothingToRegenerate": "Todavía no hay ninguna respuesta que regenerar. Envía primero un mensaje.",
+    "modelNoText": "El modelo no ha generado ningún texto. Inténtelo de nuevo o elija otro modelo.",
+    "emptyMessage": "Escriba primero un mensaje.",
+    "nothingToRegenerate": "Todavía no hay ninguna respuesta que regenerar. Envíe primero un mensaje.",
     "nothingToContinue": "El último mensaje no es una respuesta, así que no hay nada que continuar.",
     "internal": "Algo ha fallado dentro de Evermind: {message}",
-    "keyNeeded": "Nueva dirección: vuelve a escribir la clave, o elige «Sin clave». Evermind solo la envía a la dirección para la que la diste.",
+    "keyNeeded": "Nueva dirección: vuelva a escribir la clave, o elija «Sin clave». Evermind solo la envía a la dirección para la que usted la dio.",
     "serviceInUse": "Este servicio tiene ahora IA: no se ha quitado.",
-    "modelNoCredit": "El servicio se niega por falta de crédito. Sin tope de respuesta, cuenta con la respuesta más larga posible: recarga tu cuenta, o pon un tope a esta IA (Mis IA, Avanzado, «Mi valor»). Indicó: {message}"
+    "modelNoCredit": "El servicio se niega por falta de crédito. Sin tope de respuesta, cuenta con la respuesta más larga posible: recargue su cuenta, o ponga un tope a esta IA (Mis IA, Avanzado, «Mi valor»). Indicó: {message}"
   },
   "login": {
-    "cookieRefused": "Tu navegador no ha guardado el inicio de sesión. Permite las cookies para esta dirección e inténtalo de nuevo.",
-    "tagline": "Tus personajes te esperan al otro lado.",
+    "cookieRefused": "Su navegador no ha guardado el inicio de sesión. Permita las cookies para esta dirección e inténtelo de nuevo.",
+    "tagline": "Sus personajes le esperan al otro lado.",
     "passwordLabel": "Contraseña",
     "enterButton": "Entrar",
-    "localAccessNote": "Acceso compartido en la red local. Tus datos nunca salen de esta máquina."
+    "localAccessNote": "Acceso compartido en la red local. Sus datos nunca salen de esta máquina."
   },
   "time": {
     "justNow": "ahora mismo",
@@ -716,7 +716,7 @@
   "display": {
     "title": "Pantalla",
     "settingsTitle": "Pantalla · en este dispositivo",
-    "sheetHint": "La conversación de arriba cambia mientras ajustas.",
+    "sheetHint": "La conversación de arriba cambia mientras usted ajusta.",
     "textSize": "Tamaño del texto de las conversaciones",
     "scale": "{pct} %",
     "scaleOriginal": "{pct} % · original",
@@ -735,9 +735,9 @@
     "ownStrength": "Ajustar solo para esta conversación",
     "deviceStrength": "Usar la intensidad del dispositivo ({pct} %)",
     "softened": "Bajo el texto, la imagen siempre se atenúa: se lee con cualquier intensidad.",
-    "perDevice": "Estos ajustes se quedan en este dispositivo: tu teléfono y tu PC guardan cada uno los suyos.",
+    "perDevice": "Estos ajustes se quedan en este dispositivo: su teléfono y su PC guardan cada uno los suyos.",
     "sheetFoot": "Bajo el texto, la imagen siempre se atenúa. Para cambiar o quitar la imagen aquí: el botón de ajustes, «Fondo».",
-    "sample": "*La linterna se balancea al final de su brazo.* Llegas tarde. **Tres inviernos** tarde, para ser exacta."
+    "sample": "*La linterna se balancea al final de su brazo.* Llega tarde. **Tres inviernos** tarde, para ser exacta."
   },
   "memoryMark": {
     "label": "No se ha podido actualizar la memoria de esta conversación",
@@ -747,7 +747,7 @@
     "mine": "Mis IA",
     "serviceOnline": "{name}, en línea",
     "serviceOnThisPc": "{name}, en este PC",
-    "serviceOnYourNetwork": "{name}, en tu red",
+    "serviceOnYourNetwork": "{name}, en su red",
     "reads": "lee ≈ {count:grouped} páginas de una vez",
     "reads_one": "lee ≈ 1 página de una vez",
     "readsUntold": "capacidad de lectura no indicada",
@@ -767,21 +767,21 @@
       "title": "Añadir una IA",
       "where": "¿Dónde funciona?",
       "savedTitle": "Ya conectados · nada que escribir",
-      "saved": "Ya conectado · {count} IA en tu lista · ver sus otros modelos",
-      "saved_one": "Ya conectado · 1 IA en tu lista · ver sus otros modelos",
-      "savedNone": "Ya conectado · ninguna IA en tu lista",
+      "saved": "Ya conectado · {count} IA en su lista · ver los otros modelos",
+      "saved_one": "Ya conectado · 1 IA en su lista · ver los otros modelos",
+      "savedNone": "Ya conectado · ninguna IA en su lista",
       "remove": "Quitar",
       "removeConfirm": "¿Quitar {service}? Su clave se olvidará.",
-      "localTitle": "En este PC o en tu red · gratis",
+      "localTitle": "En este PC o en su red · gratis",
       "onlineTitle": "En línea · con una clave",
       "other": "Otra dirección…",
       "findsItself": "Evermind busca por sí mismo la lista de modelos, lo que cada uno puede leer de una vez y, cuando el servicio lo dice, su precio.",
-      "keyTitle": "Tu clave de {service}",
-      "keyPlaceholder": "Pega la clave aquí",
+      "keyTitle": "Su clave de {service}",
+      "keyPlaceholder": "Pegue la clave aquí",
       "paste": "Pegar",
-      "longPress": "Mantén pulsado el campo y luego «Pegar».",
-      "pasteRefused": "El navegador no ha dejado leer el portapapeles: mantén pulsado el campo y luego «Pegar».",
-      "keyOnce": "Se pide una sola vez para todos los modelos de este servicio. Se queda en tu PC, en Evermind.",
+      "longPress": "Mantenga pulsado el campo y luego «Pegar».",
+      "pasteRefused": "El navegador no ha dejado leer el portapapeles: mantenga pulsado el campo y luego «Pegar».",
+      "keyOnce": "Se pide una sola vez para todos los modelos de este servicio. Se queda en su PC, en Evermind.",
       "seeModels": "Ver los modelos",
       "addressTitle": "Su dirección",
       "addressLabel": "Dirección del servidor",
@@ -794,20 +794,20 @@
       "unreachableHosted": "Evermind no logra llegar a {service}. ¿Tiene acceso a Internet el PC donde funciona Evermind?",
       "unreachableOther": "{service} no responde en {address}.",
       "timeout": "{service} no ha respondido en 60 s.",
-      "keyRefused": "{service} rechaza esta clave. Revísala y vuelve a intentarlo.",
+      "keyRefused": "{service} rechaza esta clave. Revísela y vuelva a intentarlo.",
       "rateLimited": "{service} pide esperar un poco antes de volver a intentarlo.",
       "unreadable": "{service} ha respondido, pero su lista de modelos no se puede leer.",
       "empty": "{service} responde, pero no ofrece ningún modelo.",
-      "emptyOllama": "{service} responde, pero no ofrece ningún modelo. Instala uno con ollama pull.",
+      "emptyOllama": "{service} responde, pero no ofrece ningún modelo. Instale uno con ollama pull.",
       "retry": "Reintentar",
       "changeKey": "Cambiar la clave",
       "byHand": "Escribir el nombre del modelo a mano",
-      "byHandHint": "Escribe el nombre exacto del modelo, tal como lo escribe el servicio.",
+      "byHandHint": "Escriba el nombre exacto del modelo, tal como lo escribe el servicio.",
       "answered": "{service} ha respondido.",
       "answeredServer": "El servidor ha respondido.",
-      "which": "¿Cuáles quieres?",
+      "which": "¿Cuáles quiere?",
       "back": "Volver",
-      "tickOne": "Marca al menos un modelo",
+      "tickOne": "Marque al menos un modelo",
       "addCount": "Añadir {count} IA",
       "addCount_one": "Añadir 1 IA",
       "saveKey": "Guardar la clave",
@@ -817,8 +817,8 @@
       "adding": "Añadiendo…",
       "done": "{count} IA añadidas",
       "done_one": "1 IA añadida",
-      "doneHint": "Ya están en la lista de tus conversaciones, bajo la zona de escritura.",
-      "doneHint_one": "Ya está en la lista de tus conversaciones, bajo la zona de escritura.",
+      "doneHint": "Ya están en la lista de sus conversaciones, bajo la zona de escritura.",
+      "doneHint_one": "Ya está en la lista de sus conversaciones, bajo la zona de escritura.",
       "backToSettings": "Volver a los ajustes"
     },
     "list": {
@@ -838,7 +838,7 @@
       "shown": "{shown:grouped} de {count:grouped}",
       "tickedOnly": " · solo marcados",
       "freeOnly": " · solo gratis",
-      "already": "Ya está en tus IA",
+      "already": "Ya está en sus IA",
       "sizeUntold": "Este servidor no dice el tamaño que carga: Evermind cuenta {size:grouped}. Se puede cambiar en la ficha de la IA.",
       "sizeAtAdd": "Tamaño leído al añadirla.",
       "sizeQuestion": "¿Cuánto puede leer de una vez?",
@@ -848,12 +848,12 @@
       "sizeUnknown": "No lo sé",
       "sizeUnknownHint": "Evermind cuenta entonces {tokens:grouped} tokens (≈ {count:grouped} páginas), como hasta ahora.",
       "sizeNoted": "Anotado. Se puede cambiar en cualquier momento en la ficha de la IA.",
-      "priceTitle": "Su precio, si lo conoces ($ por millón de tokens)",
+      "priceTitle": "Su precio, si lo conoce ($ por millón de tokens)",
       "priceIn": "Leídos",
       "priceOut": "Escritos",
       "priceHint": "Como en la página de precios de {service}. Opcional.",
       "none": "Ningún modelo coincide con «{query}».",
-      "didYouMean": "¿Quisiste decir {name}?",
+      "didYouMean": "¿Quiso decir {name}?",
       "useAsIs": "Usar «{query}» tal cual",
       "useAsIsHint": "Para un modelo que la lista aún no tiene: el servicio dirá si no lo conoce.",
       "reread": "Volver a leer"
@@ -861,13 +861,13 @@
     "benchmarkResult": "{tokensPerSecond} t/s · primer token en {firstTokenSeconds}\u00a0s",
     "empty": {
       "title": "Todavía ninguna IA",
-      "body": "Conecta un modelo en este PC (Ollama, LM Studio, llama.cpp, KoboldCpp) o un servicio en línea (OpenRouter, OpenAI, Anthropic…). Sin IA, los personajes se quedan callados."
+      "body": "Conecte un modelo en este PC (Ollama, LM Studio, llama.cpp, KoboldCpp) o un servicio en línea (OpenRouter, OpenAI, Anthropic…). Sin IA, los personajes se quedan callados."
     },
     "notice": {
-      "broughtOver": "{name} se ha traído de tu antigua conexión, con sus cifras.",
-      "against": "Dos de ellas quizá jueguen en tu contra:",
-      "against_one": "Una de sus cifras quizá juegue en tu contra:",
-      "onPage": "Traída de tu antigua conexión. Nada cambia mientras no toques nada.",
+      "broughtOver": "{name} se ha traído de su antigua conexión, con sus cifras.",
+      "against": "Dos de ellas quizá no le convengan:",
+      "against_one": "Una de sus cifras quizá no le convenga:",
+      "onPage": "Traída de su antigua conexión. Nada cambia mientras no toque nada.",
       "ownContext": "Capacidad de lectura escrita a mano: {tokens}.",
       "served": "{service} ha cargado este modelo con {tokens:grouped} tokens.",
       "configured": "{service} está configurado para cargar este modelo con {tokens:grouped} tokens.",
@@ -877,12 +877,12 @@
       "letEvermind": "Dejar que Evermind lo ajuste",
       "keepAll": "Dejarlo todo como está",
       "tokens": "{count:grouped} tokens",
-      "followed": "{name} sigue ahora a su servidor. Tu valor anterior era {tokens:grouped} tokens: puedes volver a ponerlo en su página, en Avanzado, «Mi valor».",
+      "followed": "{name} sigue ahora a su servidor. El valor que usted tenía era {tokens:grouped} tokens: puede volver a ponerlo en la página de esta IA, en Avanzado, «Mi valor».",
       "capLifted": "{name} ya no tiene tope propio: Evermind guarda el espacio que hace falta.",
-      "kept": "Todo se queda como está. Encontrarás estas opciones en la página de {name}."
+      "kept": "Todo se queda como está. Encontrará estas opciones en la página de {name}."
     },
     "page": {
-      "others": "Tus otras IA",
+      "others": "Sus otras IA",
       "readAt": "Leído en el servidor · {age}",
       "notRead": "Aún sin leer",
       "reads": "Lee de una vez",
@@ -902,7 +902,7 @@
       "thinkingUnknown": "aún no se sabe",
       "price": "Precio",
       "freeHere": "gratis, en este PC",
-      "freeNetwork": "gratis, en tu red",
+      "freeNetwork": "gratis, en su red",
       "free": "gratis",
       "priceKnown": "{input:price} $ el millón de tokens leídos, {output:price} $ el millón escritos",
       "priceVaries": "según el modelo que elija el servicio",
@@ -910,10 +910,10 @@
       "reread": "Volver a leer",
       "benchmark": "Medir la velocidad",
       "benchmarkFailed": "No se ha podido medir la velocidad.",
-      "keyRefused": "{service} rechaza su clave: cámbiala en Avanzado, «Servicio», «Modificar».",
+      "keyRefused": "{service} rechaza su clave: cámbiela en Avanzado, «Servicio», «Modificar».",
       "noAnswer": "{service} no ha respondido.",
       "previousRead": "Son los valores de la lectura anterior.",
-      "priceLocalHint": "Opcional, para un servidor que alquilas o una pasarela de pago.",
+      "priceLocalHint": "Opcional, para un servidor que usted alquile o una pasarela de pago.",
       "name": "Nombre mostrado",
       "default": "IA por defecto",
       "defaultHint": "La de las conversaciones nuevas, y la de aquellas cuya IA se ha quitado.",
@@ -926,7 +926,7 @@
       "toType": "por escribir",
       "contextHint": "Lo que esta IA puede leer de una vez. Evermind coloca ahí la ficha, los recordatorios y los mensajes releídos.",
       "sizeUntold": "Este servidor no dice el tamaño que carga: Evermind cuenta {tokens:grouped} tokens.",
-      "sizeUntoldOwn": "Este servidor no dice el tamaño que carga: Evermind guarda tu valor.",
+      "sizeUntoldOwn": "Este servidor no dice el tamaño que carga: Evermind guarda el valor que usted indicó.",
       "assumed": "No se dice nada: Evermind cuenta {tokens:grouped} tokens, como antes.",
       "aboveReadWindow": "Más de lo que anuncia {service} ({tokens:grouped}): lo que sobra puede cortarse sin avisar.",
       "cap": "Tope de respuesta",
@@ -940,7 +940,7 @@
       "temperature": "Temperatura",
       "topP": "Top-p",
       "modelDefault": "Valor del modelo",
-      "samplingHint": "Temperatura: más baja, más sensata; más alta, más imprevisible. Top-p aparta las palabras menos probables. Cambia una u otra, no las dos.",
+      "samplingHint": "Temperatura: más baja, más sensata; más alta, más imprevisible. Top-p aparta las palabras menos probables. Cambie una u otra, no las dos.",
       "frequency": "Penalización por frecuencia",
       "presence": "Penalización por presencia",
       "penaltyHint": "La primera desanima a repetir las mismas palabras, la segunda empuja a tratar algo nuevo. Vacío: decide el modelo.",
@@ -957,8 +957,8 @@
       "removeAction": "Quitar",
       "removeMoves": "{count} conversaciones pasarán a {name}.",
       "removeMoves_one": "1 conversación pasará a {name}.",
-      "removeOrphans": "{count} conversaciones se quedarán sin IA hasta que añadas una.",
-      "removeOrphans_one": "1 conversación se quedará sin IA hasta que añadas una.",
+      "removeOrphans": "{count} conversaciones se quedarán sin IA hasta que usted añada una.",
+      "removeOrphans_one": "1 conversación se quedará sin IA hasta que usted añada una.",
       "removeKey": "Es la última IA de {service}: su clave también se olvidará.",
       "gone": "Esta IA ya no existe."
     },
@@ -970,8 +970,8 @@
       "noKey": "Sin clave",
       "noKeyHint": "Para un servidor que no pide ninguna: la clave registrada se olvida.",
       "type": "Tipo de API",
-      "forAll": "Lo que cambies aquí vale para las {count} IA de este servicio.",
-      "forAll_one": "Lo que cambies aquí vale para la única IA de este servicio.",
+      "forAll": "Lo que cambie aquí vale para las {count} IA de este servicio.",
+      "forAll_one": "Lo que cambie aquí vale para la única IA de este servicio.",
       "save": "Guardar"
     }
   }
