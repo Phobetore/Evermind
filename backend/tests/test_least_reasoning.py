@@ -32,13 +32,17 @@ class OpenRouter:
         self.bodies: list[dict] = []
 
     async def handler(self, request: httpx.Request) -> httpx.Response:
+        if request.method == "GET" and request.url.path.endswith("/key"):
+            # OpenRouter's check of the key, which goes with each read of its list.
+            return httpx.Response(200, json={"data": {}})
         if request.method == "GET":
             assert request.url.path.endswith("/models")
             self.lists += 1
             await asyncio.sleep(self.list_takes)
             if self.models is None:
                 return httpx.Response(503, json={"error": {"message": "busy"}})
-            return httpx.Response(200, json={"data": self.models})
+            # As OpenRouter answers: every model on one page, and no page after it.
+            return httpx.Response(200, json={"data": self.models, "links": {"next": None}})
         body = json.loads(request.content)
         self.bodies.append(body)
         if self.refuse_all:
@@ -77,6 +81,8 @@ def listed(reasoning: dict | None, model: str = MODEL) -> list[dict]:
 def clock(monkeypatch):
     now = [1000.0]
     monkeypatch.setattr("app.providers.openai_compat._now", lambda: now[0])
+    # The list itself is kept by the catalog, on its own clock.
+    monkeypatch.setattr("app.providers.catalog._now", lambda: now[0])
     return now
 
 

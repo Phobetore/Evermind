@@ -9,7 +9,7 @@ from typing import Literal
 
 import httpx
 
-from ..errors import MODEL_ERROR, MODEL_ONLY_THOUGHT, MODEL_UNREADABLE, MODEL_WITHHELD, AppError
+from ..errors import MODEL_ERROR, MODEL_ONLY_THOUGHT, MODEL_WITHHELD, AppError
 from ..prompting.engine import PromptPayload
 
 # Local generation can be slow: generous read timeout, snappy connect timeout.
@@ -183,21 +183,6 @@ class Provider:
         read = await read_catalog(self.connection, probes=False,
                                   client_factory=self._client_factory)
         return [m.id for m in read.models]
-
-    async def _model_objects(self) -> list[dict]:
-        """The models the server lists, each as it describes itself, all of them with an id."""
-        try:
-            async with self._client_factory() as client:
-                response = await client.get(self.base_url + "/models", headers=self._headers())
-        except (httpx.HTTPError, httpx.InvalidURL) as exc:
-            raise self._lost(exc)
-        if response.status_code >= 400:
-            raise _refusal(response.status_code, response.content, self.api_key)
-        try:
-            models = response.json().get("data") or []
-            return [m for m in models if isinstance(m, dict) and m.get("id")]
-        except (ValueError, AttributeError, TypeError):
-            raise ProviderError("The list of models could not be read.", MODEL_UNREADABLE)
 
     async def _sse(self, path: str, body: dict) -> AsyncIterator[dict]:
         """The objects of the server's event stream, until it says [DONE] or ends."""

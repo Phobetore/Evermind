@@ -11,7 +11,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from app.providers import catalog
+from app.providers import catalog, complete_answer
 from app.providers.base import (
     AUTH_REFUSED,
     LIST_TIMEOUT,
@@ -34,6 +34,7 @@ from app.providers.catalog import (
     service_name,
     whole,
 )
+from app.providers.openai_compat import OpenAICompatProvider
 
 from .conftest import PAYLOAD, anth_provider, collect, oai_provider, sse
 
@@ -319,6 +320,63 @@ async def test_a_list_that_failed_is_not_kept():
     with pytest.raises(ProviderError):
         await server.read(svc, probes=False, fresh=False)
     assert [m.id for m in (await server.read(svc, probes=False, fresh=False)).models] == ["a"]
+
+
+async def test_a_memory_pass_reads_its_reasoning_through_the_catalog(monkeypatch):
+    """One reader of OpenRouter's list: the least reasoning a memory pass asks for comes from the
+    list a probe has just read, kept six hours for it, and a list that failed waits five minutes."""
+    now = [1000.0]
+    monkeypatch.setattr("app.providers.catalog._now", lambda: now[0])
+    monkeypatch.setattr("app.providers.openai_compat._now", lambda: now[0])
+    model = "deepseek/deepseek-v4.1-flash"
+    listing = {"data": [{"id": model, "reasoning": {
+        "mandatory": False, "default_enabled": True, "supported_efforts": ["high", "low", "none"]}}],
+        "links": {"next": None}}
+    chats: list[dict] = []
+
+    def chat(request: httpx.Request):
+        chats.append(json.loads(request.content))
+        return httpx.Response(200, content=sse([
+            json.dumps({"choices": [{"delta": {"content": "{}"}, "finish_reason": "stop"}]}),
+            "[DONE]"]))
+
+    server = Server({"/api/v1/models": lambda _: listing, "/api/v1/key": OPENROUTER_KEY_OK,
+                     "/api/v1/chat/completions": chat})
+    monkeypatch.setattr(catalog, "client_factory", server.factory)
+    svc = service(OPENROUTER, model=model)
+
+    def lists() -> int:
+        return server.paths().count("/api/v1/models")
+
+    async def memory_pass() -> dict:
+        provider = OpenAICompatProvider({**svc, "least_reasoning": True})
+        provider._client_factory = server.factory
+        assert (await complete_answer(provider, PAYLOAD)).text == "{}"
+        return chats[-1]
+
+    probed = await read_catalog(svc)
+    assert all("reasoning" not in shown for shown in relayed(probed))
+    assert (await memory_pass())["reasoning"] == {"effort": "none"}
+    assert lists() == 1
+
+    now[0] += 6 * HOURS - 1 * MINUTES
+    assert (await memory_pass())["reasoning"] == {"effort": "none"}
+    assert lists() == 1
+    now[0] += 2 * MINUTES
+    assert (await memory_pass())["reasoning"] == {"effort": "none"}
+    assert lists() == 2
+
+    server.routes["/api/v1/models"] = lambda _: httpx.Response(503)
+    now[0] += 7 * HOURS
+    assert "reasoning" not in await memory_pass()
+    assert lists() == 3
+    now[0] += 4 * MINUTES
+    assert "reasoning" not in await memory_pass()
+    assert lists() == 3
+    server.routes["/api/v1/models"] = lambda _: listing
+    now[0] += 2 * MINUTES
+    assert (await memory_pass())["reasoning"] == {"effort": "none"}
+    assert lists() == 4
 
 
 # Prices and odd values

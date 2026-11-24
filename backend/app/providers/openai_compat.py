@@ -13,6 +13,7 @@ from contextlib import aclosing
 from urllib.parse import urlsplit
 
 from ..prompting.engine import PromptPayload
+from . import catalog
 from .base import REFUSED_AS_WRITTEN, Provider, ProviderError, ProviderEvent, scrub, words_of
 
 logger = logging.getLogger(__name__)
@@ -26,9 +27,9 @@ FAILED_LIST_KEPT_S = 300  # how long a list that could not be read waits to be a
 LIST_TIMEOUT_S = 10
 
 _now = time.monotonic
-# Per base_url: when its list was read, and each model's "reasoning" object (None: none given),
-# or None for a list that could not be read.
-_model_lists: dict[str, tuple[float, dict[str, dict | None] | None]] = {}
+# Per list, as the catalog keeps them: when it last could not be read. The catalog keeps only the
+# lists it read, so this is what spares a failing server a request in front of every pass.
+_failed_lists: dict[tuple[str, str, str], float] = {}
 # The (base_url, model) pairs whose server refused a "reasoning" field: never sent again to them.
 _refused: set[tuple[str, str]] = set()
 
@@ -114,24 +115,29 @@ class OpenAICompatProvider(Provider):
         return least_reasoning(models.get(model))
 
     async def _reasoning_of_models(self) -> dict[str, dict | None] | None:
-        kept = _model_lists.get(self.base_url)
-        if kept:
-            read_at, models = kept
-            if _now() - read_at < (LIST_KEPT_S if models is not None else FAILED_LIST_KEPT_S):
-                return models
+        """Each listed model's "reasoning" object (None: none given), or None for a list that
+        could not be read. Read by the catalog, which keeps one list for every reader of it."""
+        # The host already says OpenRouter, a subdomain included: its list is read as one.
+        service = {**self.connection, "family": "openrouter", "family_url": self.base_url}
+        key = catalog.cache_key(service)
+        failed_at = _failed_lists.get(key)
+        if failed_at is not None and _now() - failed_at < FAILED_LIST_KEPT_S:
+            return None
         try:
-            listed = await asyncio.wait_for(self._model_objects(), LIST_TIMEOUT_S)
-            models = {str(m["id"]): m.get("reasoning") for m in listed}
+            async with asyncio.timeout(LIST_TIMEOUT_S):
+                read = await catalog.read_catalog(service, probes=False, max_age=LIST_KEPT_S,
+                                                  client_factory=self._client_factory)
         except ProviderError as exc:
             logger.warning("the list of models of %s could not be read: %s",
                            self.base_url, exc.message)
-            models = None
         except TimeoutError:
             logger.warning("the list of models of %s did not come within %d seconds",
                            self.base_url, LIST_TIMEOUT_S)
-            models = None
-        _model_lists[self.base_url] = (_now(), models)
-        return models
+        else:
+            _failed_lists.pop(key, None)
+            return {m.id: m.reasoning for m in read.models}
+        _failed_lists[key] = _now()
+        return None
 
     async def _events(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
         body = self._build_body(payload)
