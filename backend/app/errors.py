@@ -23,6 +23,8 @@ MODEL_ONLY_THOUGHT = "model_only_thought"
 # A reply with nothing in it, which the model's server ended with a word of its own, in `reason`.
 MODEL_WITHHELD = "model_withheld"
 NO_CONNECTION = "no_connection"
+# What it says in English, wherever an AI is wanted and none is set up: the page says it in its own words.
+NO_AI_MESSAGE = "No AI is set up. Add one in Settings, My AIs."
 NOT_FOUND = "not_found"
 # A turn was asked for while a different one was being written.
 TURN_RUNNING = "turn_running"
@@ -36,7 +38,7 @@ TOO_FEW_FACTS = "too_few_facts"
 # A text refused for its length, with the bound and its own length in `params`.
 TEXT_TOO_LONG = "text_too_long"
 TEXT_TOO_SHORT = "text_too_short"
-# A brief for the card assistant that the connection's context cannot hold with the card.
+# A brief for the card assistant that the AI's reading capacity cannot hold with the card.
 BRIEF_TOO_LONG = "brief_too_long"
 # The same, where the card's own fields sent along outgrow the context whatever the brief.
 CARD_TOO_LONG = "card_too_long"

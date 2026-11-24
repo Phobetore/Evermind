@@ -20,6 +20,7 @@ from ..errors import (
     FACTS_CHANGED,
     MEMORY_BUSY,
     MODEL_UNREADABLE,
+    NO_AI_MESSAGE,
     NO_CONNECTION,
     NOT_FOUND,
     TOO_FEW_FACTS,
@@ -244,7 +245,7 @@ async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
 async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
     resolved = await models_repo.resolve(db, convo.get("model_id"))
     if resolved is None:
-        raise AppError("No LLM connection configured.", kind=NO_CONNECTION)
+        raise AppError(NO_AI_MESSAGE, kind=NO_CONNECTION)
     model, service = resolved
     settings = await settings_repo.get_all(db)
     # Its prompts are not the engine's: the provider is given the call itself.
@@ -288,11 +289,11 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
         except ProviderError as exc:
             if exc.status not in REFUSED_AS_WRITTEN:
                 raise
-            # Its server's limit came down since: the connection's own ceiling is where to start,
+            # Its server's limit came down since: this AI's own reply ceiling is where to start,
             # and this ask is the pass's second, so it is not followed by another.
             _learned.pop(key, None)
             logger.warning("%s: max_tokens %d, learned on an earlier pass, was refused (%s); "
-                           "asking with the connection's own.", what, first, exc.message)
+                           "asking with this AI's own.", what, first, exc.message)
             return await complete_answer(get_provider(connection), payload)
     if reads(answer.text):
         return answer
@@ -307,7 +308,7 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
     if room <= first or (not first and room < MORE_ROOM_TOKENS):
         return answer
     logger.warning("%s: the model ran out of room (%d characters of reasoning, stopped with %r, "
-                   "max_tokens %s); asking again with %d. Raising the connection's max tokens "
+                   "max_tokens %s); asking again with %d. Raising this AI's reply ceiling "
                    "avoids the second call.", what, answer.thought, answer.stop, first or "unset",
                    room)
     try:
@@ -328,8 +329,8 @@ def _unreadable(answer: Answer, what: str, said: str) -> AppError:
                    what, describe_answer(answer.text), answer.thought, answer.stop)
     if answer.text.strip():
         return AppError(said, 502, kind=MODEL_UNREADABLE)
-    only_thought = ("The model only thought, and wrote no memory. Give its connection more max "
-                    "tokens, or use a model that thinks less.")
+    only_thought = ("The model only thought, and wrote no memory. Raise this AI's reply "
+                    "ceiling, or use a model that thinks less.")
     return unwritten(answer, only_thought) or AppError("The model returned no text.", 502,
                                                        kind=NO_TEXT)
 

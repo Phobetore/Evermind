@@ -140,14 +140,14 @@ async def test_a_model_that_only_thinks_twice_is_told_so_after_two_requests(stor
         resp = await story.extract()
     assert resp.status_code == 502
     assert resp.json()["kind"] == MODEL_ONLY_THOUGHT
-    assert "more max tokens" in resp.json()["error"]
+    assert "reply ceiling" in resp.json()["error"]
     assert len(server.bodies) == 2
     # A warning, as the server's console shows no less, and one that says what to change.
     lines = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert lines[0] == (
         "memory extraction: the model ran out of room (5120 characters of reasoning, stopped "
-        "with 'length', max_tokens 2048); asking again with 8192. Raising the connection's max "
-        "tokens avoids the second call.")
+        "with 'length', max_tokens 2048); asking again with 8192. Raising this AI's reply "
+        "ceiling avoids the second call.")
     failure = next(r.getMessage() for r in caplog.records if "unreadable answer" in r.getMessage())
     assert "9000 characters of reasoning" in failure and "'length'" in failure
 
@@ -366,7 +366,7 @@ async def test_a_remember_whose_asker_left_wants_the_least_reasoning_and_more_ro
     server = story.serve(thinking(5120), thinking(9000))
     after = await asked_then_left(story, monkeypatch)
     assert after["memory_error"]["kind"] == MODEL_ONLY_THOUGHT
-    assert "more max tokens" in after["memory_error"]["error"]
+    assert "reply ceiling" in after["memory_error"]["error"]
     assert server.asked() == [2048, 8192]
     assert [c["least_reasoning"] for c in server.connections] == [True, True]
 

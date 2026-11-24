@@ -96,15 +96,10 @@
   },
   "settings": {
     "subtitle": "Deine Modelle, deine Regeln: Evermind verbindet sich mit der KI deiner Wahl.",
-    "connectionsTitle": "LLM-Verbindungen",
-    "emptyState": {
-      "title": "Keine Verbindungen",
-      "body": "Verbinde ein lokales Modell (Ollama, LM Studio, llama.cpp, KoboldCpp) oder eine API (OpenRouter, OpenAI, Anthropic…). Ohne Verbindung bleiben die Charaktere stumm."
-    },
     "defaultTag": "Standard",
-    "defaultConnectionLabel": "Standardverbindung",
+    "defaultConnectionLabel": "Standard-KI",
     "replyLengthLabel": "Antwortlänge",
-    "replyLengthHint": "Gilt für alle Unterhaltungen. Denke daran, „Max. Antwort (Tokens)“ deiner Verbindung für lange Antworten zu erhöhen.",
+    "replyLengthHint": "Gilt für alle Unterhaltungen. Evermind hält den nötigen Platz für KIs frei, die es selbst einstellt; eine KI mit fester Obergrenze kann lange Antworten abschneiden: siehe Meine KIs.",
     "replyLengthOptions": {
       "short": "Kurz: ein dichter Absatz",
       "medium": "Mittel: 1 bis 3 Absätze",
@@ -158,9 +153,7 @@
     }
   },
   "connections": {
-    "modelLabel": "Modell",
-    "benchmarkResult": "{tokensPerSecond} T/s · erstes Token in {firstTokenSeconds}\u00a0s",
-    "temperatureHint": "Niedriger = kohärenter. 0,8 ist eine gute Balance fürs Rollenspiel."
+    "modelLabel": "Modell"
   },
   "chat": {
     "openingScene": "Die Szene wird eröffnet…",
@@ -244,7 +237,7 @@
         "ooc": "Anweisung"
       },
       "interrupted": "unterbrochen",
-      "cutAtCeiling": "Abgeschnitten: Die Antwort hat die Grenze der Verbindung von {tokens:grouped} Tokens erreicht, und das Nachdenken des Modells zählt mit. Setze die Antwort fort, um weiterzumachen.",
+      "cutAtCeiling": "Abgeschnitten: Die Antwort hat die Obergrenze dieser KI von {tokens:grouped} Tokens erreicht, und ihr Nachdenken zählt mit. Setze die Antwort fort, um weiterzumachen.",
       "cutAtCeilingUnset": "Abgeschnitten: Die Antwort hat das Höchstmaß erreicht, das der Server des Modells schreiben lässt, und das Nachdenken des Modells zählt mit. Setze die Antwort fort, um weiterzumachen.",
       "cutAtCeilingShort": "am Limit abgeschnitten",
       "regenerateTitle": "Neu generieren",
@@ -334,7 +327,7 @@
     "modelSilent": {
       "title": "Keine Antwort vom Modell.",
       "hint": "Der KI-Server hinter dieser Unterhaltung läuft vielleicht nicht.",
-      "settingsLink": "Verbindungen",
+      "settingsLink": "Meine KIs",
       "retry": "Nochmal"
     }
   },
@@ -613,8 +606,8 @@
       "title": "Mit {name} spielen",
       "personaHint": "Verwalte deine Identitäten im Tab „Personas“.",
       "noPersonaOption": "Keine Persona",
-      "noConnectionOption": "Keine Verbindung konfiguriert",
-      "noConnectionWarning": "Richte zuerst in den Einstellungen eine LLM-Verbindung ein (Ollama, LM Studio, OpenRouter, Anthropic…). Du entscheidest.",
+      "noConnectionOption": "Keine KI",
+      "noConnectionWarning": "Füge zuerst in den Einstellungen unter Meine KIs eine KI hinzu (Ollama, LM Studio, OpenRouter, Anthropic…). Du entscheidest.",
       "startError": "Konnte nicht gestartet werden",
       "enterButton": "Die Geschichte betreten"
     },
@@ -652,9 +645,9 @@
     "textTooLong": "Dieser Text ist zu lang: Er hat {length} Zeichen, erlaubt sind höchstens {limit}.",
     "textTooShort": "Dieser Text ist zu kurz: Er braucht mindestens {limit} Zeichen.",
     "textTooShort_one": "Dieser Text darf nicht leer bleiben.",
-    "briefTooLong": "Dieser Text ist zu lang für dieses Modell: Mit den Anweisungen des Assistenten, dem, was die Karte schon enthält, und Platz für die Antwort braucht er etwa {needed:grouped} Tokens, die Verbindung fasst {context:grouped}. Kürze ihn, erhöhe den Kontext der Verbindung in den Einstellungen, wenn das Modell mehr verkraftet, oder wähle eine Verbindung mit größerem Kontext.",
-    "cardTooLong": "Was die Karte schon enthält, ist zu lang für dieses Modell: Mit den Anweisungen des Assistenten und Platz für die Antwort braucht es etwa {needed:grouped} Tokens, die Verbindung fasst {context:grouped}. Kürze die längsten Felder der Karte, erhöhe den Kontext der Verbindung in den Einstellungen, wenn das Modell mehr verkraftet, oder wähle eine Verbindung mit größerem Kontext.",
-    "contextTooSmall": "Der Kontext dieses Modells ist zu klein für den Kartenassistenten: Seine Anweisungen und Platz für eine Karte brauchen allein etwa {needed:grouped} Tokens, die Verbindung fasst {context:grouped}. Erhöhe den Kontext der Verbindung in den Einstellungen, wenn das Modell mehr verkraftet, oder wähle eine Verbindung mit größerem Kontext.",
+    "briefTooLong": "Dieser Text ist zu lang für dieses Modell: Mit den Anweisungen des Assistenten, dem, was die Karte schon enthält, und Platz für die Antwort braucht er etwa {needed:grouped} Tokens, und diese KI liest {context:grouped} auf einmal. Kürze ihn, erhöhe ihren Leseumfang unter Meine KIs, Erweitert, wenn das Modell mehr verkraftet, oder wähle eine KI, die mehr liest.",
+    "cardTooLong": "Was die Karte schon enthält, ist zu lang für dieses Modell: Mit den Anweisungen des Assistenten und Platz für die Antwort braucht es etwa {needed:grouped} Tokens, und diese KI liest {context:grouped} auf einmal. Kürze die längsten Felder der Karte, erhöhe ihren Leseumfang unter Meine KIs, Erweitert, wenn das Modell mehr verkraftet, oder wähle eine KI, die mehr liest.",
+    "contextTooSmall": "Der Kontext dieses Modells ist zu klein für den Kartenassistenten: Seine Anweisungen und Platz für eine Karte brauchen allein etwa {needed:grouped} Tokens, und diese KI liest {context:grouped} auf einmal. Erhöhe ihren Leseumfang unter Meine KIs, Erweitert, wenn das Modell mehr verkraftet, oder wähle eine KI, die mehr liest.",
     "locked": "Deine Sitzung ist beendet. Melde dich erneut an.",
     "wrongPassword": "Zugriff verweigert.",
     "tooLarge": "Zu lang für das Passwort, oder ein Reverse-Proxy hat die Anmeldung ohne Längenangabe weitergereicht.",
@@ -666,7 +659,7 @@
       "conversation": "Diese Unterhaltung gibt es nicht mehr.",
       "message": "Diese Nachricht gibt es nicht mehr.",
       "persona": "Diese Persona gibt es nicht mehr.",
-      "connection": "Diese Verbindung gibt es nicht mehr.",
+      "connection": "Diesen Dienst gibt es nicht mehr.",
       "fact": "Diesen Fakt gibt es nicht mehr.",
       "model": "Diese KI gibt es nicht mehr.",
       "other": "Dieses Element gibt es nicht mehr."
@@ -684,16 +677,16 @@
     "fileTooLarge": "Diese Datei ist zu groß (höchstens 15 MB).",
     "unsupportedImage": "Dieses Bildformat wird nicht unterstützt. Nimm PNG, JPEG oder WebP.",
     "conversationEmpty": "Diese Unterhaltung enthält noch keine Nachrichten.",
-    "noConnection": "Es ist keine LLM-Verbindung eingerichtet. Füge in den Einstellungen unter LLM-Verbindungen eine hinzu.",
+    "noConnection": "Es ist keine KI eingerichtet. Füge in den Einstellungen unter Meine KIs eine hinzu.",
     "modelError": "Das Modell hat einen Fehler gemeldet: {message}",
-    "modelUnreachable": "Evermind erreicht den Server des Modells unter {message} nicht. Prüfe, ob er läuft und ob die Adresse in der Verbindung stimmt.",
+    "modelUnreachable": "Evermind erreicht den Server der KI unter {message} nicht. Prüfe, ob er läuft und ob die Adresse unter Meine KIs stimmt.",
     "turnRunning": "Es wird bereits eine Antwort geschrieben, deshalb wurde das nicht gesendet.",
     "modelEmpty": "Das Modell hat eine leere Antwort geliefert. Versuch es noch einmal oder wechsle das Modell.",
     "modelUnreadable": "Die Antwort des Modells ließ sich nicht lesen. Versuch es noch einmal.",
-    "modelOnlyThought": "Das Modell hat seine ganze Antwort mit Nachdenken verbraucht und nichts geschrieben. Erhöhe in der Verbindung die maximale Tokenzahl oder nimm ein Modell, das nicht so lange nachdenkt.",
+    "modelOnlyThought": "Die KI hat ihre ganze Antwort mit Nachdenken verbraucht und nichts geschrieben. Versuche es noch einmal: Evermind weiß jetzt, dass sie nachdenkt, und lässt ihr Platz, außer ihre Obergrenze für Antworten ist von Hand festgelegt (Meine KIs, unter Erweitert). Wenn es wieder passiert, nimm eine KI, die nicht so lange nachdenkt.",
     "modelWithheld": "Der Server des Modells hat die Antwort zurückgehalten („{reason}“). Versuch es noch einmal oder wechsle das Modell oder den Anbieter.",
-    "modelAuthRefused": "Der Server des Modells hat den API-Schlüssel abgelehnt. Prüfe den Schlüssel in der Verbindung. Der Server meldet: {message}",
-    "modelNotFound": "Der Server des Modells kennt diese Adresse oder dieses Modell nicht. Prüfe die URL und den Modellnamen in der Verbindung. Der Server meldet: {message}",
+    "modelAuthRefused": "Der Dienst hat den Schlüssel abgelehnt. Prüfe ihn unter Meine KIs. Er meldet: {message}",
+    "modelNotFound": "Der Dienst kennt diese Adresse oder dieses Modell nicht. Prüfe sie unter Meine KIs. Er meldet: {message}",
     "modelRateLimited": "Der Server des Modells hat sein Anfragelimit erreicht. Versuch es gleich noch einmal. Der Server meldet: {message}",
     "modelNetworkError": "Das Modell hat zu lange für die Antwort gebraucht, oder die Verbindung zu seinem Server ist abgebrochen.",
     "modelNoText": "Das Modell hat keinen Text erzeugt. Versuch es noch einmal oder wähle ein anderes Modell.",
@@ -865,7 +858,7 @@
       "useAsIsHint": "Für ein Modell, das die Liste noch nicht hat: Der Dienst sagt es, wenn er es nicht kennt.",
       "reread": "Neu lesen"
     },
-    "benchmarkResult": "{tokensPerSecond} T/s · erstes Token in {firstTokenSeconds} s",
+    "benchmarkResult": "{tokensPerSecond} T/s · erstes Token in {firstTokenSeconds}\u00a0s",
     "empty": {
       "title": "Noch keine KI",
       "body": "Verbinde ein Modell auf diesem PC (Ollama, LM Studio, llama.cpp, KoboldCpp) oder einen Online-Dienst (OpenRouter, OpenAI, Anthropic…). Ohne KI bleiben die Figuren stumm."

@@ -96,15 +96,10 @@
   },
   "settings": {
     "subtitle": "Vos modèles, vos règles\u00a0: Evermind se branche sur l'IA que vous choisissez.",
-    "connectionsTitle": "Connexions LLM",
-    "emptyState": {
-      "title": "Aucune connexion",
-      "body": "Branchez un modèle local (Ollama, LM Studio, llama.cpp, KoboldCpp) ou une API (OpenRouter, OpenAI, Anthropic…). Sans connexion, les personnages restent muets."
-    },
     "defaultTag": "Par défaut",
-    "defaultConnectionLabel": "Connexion par défaut",
+    "defaultConnectionLabel": "IA par défaut",
     "replyLengthLabel": "Longueur des réponses",
-    "replyLengthHint": "S'applique à toutes les conversations. Pensez à monter le «\u00a0Réponse max (tokens)\u00a0» de votre connexion pour les réponses longues.",
+    "replyLengthHint": "S'applique à toutes les conversations. Evermind garde la place nécessaire aux IA réglées par lui\u00a0; une IA à plafond fixe peut couper les réponses longues\u00a0: voir Mes IA.",
     "replyLengthOptions": {
       "short": "Courtes\u00a0: un paragraphe dense",
       "medium": "Moyennes\u00a0: 1 à 3 paragraphes",
@@ -158,9 +153,7 @@
     }
   },
   "connections": {
-    "modelLabel": "Modèle",
-    "benchmarkResult": "{tokensPerSecond} t/s · 1er token en {firstTokenSeconds}\u202fs",
-    "temperatureHint": "Plus bas = plus cohérent. 0,8 est un bon équilibre en roleplay."
+    "modelLabel": "Modèle"
   },
   "chat": {
     "openingScene": "Ouverture de la scène…",
@@ -244,7 +237,7 @@
         "ooc": "instruction"
       },
       "interrupted": "interrompu",
-      "cutAtCeiling": "Réponse coupée : elle a atteint la limite de la connexion, {tokens:grouped} tokens, et la réflexion du modèle compte dedans. Prolongez la réponse pour continuer.",
+      "cutAtCeiling": "Réponse coupée\u00a0: elle a atteint le plafond de réponse de cette IA, {tokens:grouped} tokens, et sa réflexion compte dedans. Prolongez la réponse pour continuer.",
       "cutAtCeilingUnset": "Réponse coupée : elle a atteint le maximum que le serveur du modèle laisse écrire, et la réflexion du modèle compte dedans. Prolongez la réponse pour continuer.",
       "cutAtCeilingShort": "coupé à la limite",
       "regenerateTitle": "Régénérer",
@@ -334,7 +327,7 @@
     "modelSilent": {
       "title": "Le modèle n'a pas répondu.",
       "hint": "Le serveur d'IA derrière cette conversation n'est peut-être pas lancé.",
-      "settingsLink": "Connexions",
+      "settingsLink": "Mes IA",
       "retry": "Réessayer"
     }
   },
@@ -613,8 +606,8 @@
       "title": "Rejoindre {name}",
       "personaHint": "Gérez vos identités dans l'onglet Personas.",
       "noPersonaOption": "Sans persona",
-      "noConnectionOption": "Aucune connexion configurée",
-      "noConnectionWarning": "Configurez d'abord une connexion LLM dans Paramètres (Ollama, LM Studio, OpenRouter, Anthropic…). C'est vous qui choisissez.",
+      "noConnectionOption": "Aucune IA",
+      "noConnectionWarning": "Ajoutez d'abord une IA dans Paramètres, Mes IA (Ollama, LM Studio, OpenRouter, Anthropic…). C'est vous qui choisissez.",
       "startError": "Impossible de démarrer",
       "enterButton": "Entrer dans l'histoire"
     },
@@ -652,9 +645,9 @@
     "textTooLong": "Ce texte est trop long\u00a0: il fait {length} caractères, pour {limit} au plus.",
     "textTooShort": "Ce texte est trop court\u00a0: il lui faut au moins {limit} caractères.",
     "textTooShort_one": "Ce texte ne peut pas rester vide.",
-    "briefTooLong": "Ce texte est trop long pour ce modèle\u00a0: avec les consignes de l'assistant, ce que la fiche contient déjà et la place pour sa réponse, il faut environ {needed:grouped} tokens, et la connexion en accepte {context:grouped}. Raccourcissez-le, augmentez le contexte de la connexion dans les Paramètres si le modèle en accepte davantage, ou choisissez une connexion au contexte plus grand.",
-    "cardTooLong": "Ce que la fiche contient déjà est trop long pour ce modèle\u00a0: avec les consignes de l'assistant et la place pour sa réponse, il faut environ {needed:grouped} tokens, et la connexion en accepte {context:grouped}. Raccourcissez les champs les plus longs de la fiche, augmentez le contexte de la connexion dans les Paramètres si le modèle en accepte davantage, ou choisissez une connexion au contexte plus grand.",
-    "contextTooSmall": "Le contexte de ce modèle est trop petit pour l'assistant de fiche\u00a0: ses consignes et la place pour une fiche demandent à elles seules environ {needed:grouped} tokens, et la connexion en accepte {context:grouped}. Augmentez le contexte de la connexion dans les Paramètres si le modèle en accepte davantage, ou choisissez une connexion au contexte plus grand.",
+    "briefTooLong": "Ce texte est trop long pour ce modèle\u00a0: avec les consignes de l'assistant, ce que la fiche contient déjà et la place pour sa réponse, il faut environ {needed:grouped} tokens, et cette IA en lit {context:grouped} à la fois. Raccourcissez-le, augmentez sa capacité de lecture dans Mes IA, sous Avancé, si le modèle en accepte davantage, ou choisissez une IA qui lit davantage.",
+    "cardTooLong": "Ce que la fiche contient déjà est trop long pour ce modèle\u00a0: avec les consignes de l'assistant et la place pour sa réponse, il faut environ {needed:grouped} tokens, et cette IA en lit {context:grouped} à la fois. Raccourcissez les champs les plus longs de la fiche, augmentez sa capacité de lecture dans Mes IA, sous Avancé, si le modèle en accepte davantage, ou choisissez une IA qui lit davantage.",
+    "contextTooSmall": "Le contexte de ce modèle est trop petit pour l'assistant de fiche\u00a0: ses consignes et la place pour une fiche demandent à elles seules environ {needed:grouped} tokens, et cette IA en lit {context:grouped} à la fois. Augmentez sa capacité de lecture dans Mes IA, sous Avancé, si le modèle en accepte davantage, ou choisissez une IA qui lit davantage.",
     "locked": "Votre session est terminée. Reconnectez-vous.",
     "wrongPassword": "Accès refusé.",
     "tooLarge": "Trop long pour être le mot de passe, ou un proxy inverse l'a transmis sans en indiquer la longueur.",
@@ -666,7 +659,7 @@
       "conversation": "Cette conversation n'existe plus.",
       "message": "Ce message n'existe plus.",
       "persona": "Ce persona n'existe plus.",
-      "connection": "Cette connexion n'existe plus.",
+      "connection": "Ce service n'existe plus.",
       "fact": "Ce fait n'existe plus.",
       "model": "Cette IA n'existe plus.",
       "other": "Cet élément n'existe plus."
@@ -684,16 +677,16 @@
     "fileTooLarge": "Ce fichier est trop volumineux (15 Mo au maximum).",
     "unsupportedImage": "Ce format d'image n'est pas pris en charge. Utilisez PNG, JPEG ou WebP.",
     "conversationEmpty": "Cette conversation ne contient pas encore de message.",
-    "noConnection": "Aucune connexion LLM n'est configurée. Ajoutez-en une dans Paramètres → Connexions LLM.",
+    "noConnection": "Aucune IA n'est branchée. Ajoutez-en une dans Paramètres, Mes IA.",
     "modelError": "Le modèle a signalé une erreur\u00a0: {message}",
-    "modelUnreachable": "Evermind n'arrive pas à joindre le serveur du modèle à l'adresse {message}. Vérifiez qu'il est lancé et que l'adresse de la connexion est correcte.",
+    "modelUnreachable": "Evermind n'arrive pas à joindre le serveur de l'IA à l'adresse {message}. Vérifiez qu'il est lancé, et son adresse dans Mes IA.",
     "turnRunning": "Une réponse est déjà en cours d'écriture\u00a0: ceci n'a pas été envoyé.",
     "modelEmpty": "Le modèle a renvoyé une réponse vide. Réessayez ou changez de modèle.",
     "modelUnreadable": "La réponse du modèle n'a pas pu être lue. Réessayez.",
-    "modelOnlyThought": "Le modèle a passé toute sa réponse à réfléchir et n'a rien écrit. Augmentez le nombre maximal de tokens de la connexion, ou prenez un modèle qui réfléchit moins longtemps.",
+    "modelOnlyThought": "L'IA a passé toute sa réponse à réfléchir et n'a rien écrit. Réessayez\u00a0: Evermind sait maintenant qu'elle réfléchit et lui laisse la place, sauf si son plafond de réponse est fixé à la main (Mes IA, sous Avancé). Si cela recommence, prenez une IA qui réfléchit moins longtemps.",
     "modelWithheld": "Le serveur du modèle a retenu la réponse (« {reason} »). Réessayez, ou changez de modèle ou de fournisseur.",
-    "modelAuthRefused": "Le serveur du modèle a refusé la clé d'API. Vérifiez la clé dans la connexion. Le serveur a indiqué\u00a0: {message}",
-    "modelNotFound": "Le serveur du modèle ne connaît ni cette adresse ni ce modèle. Vérifiez l'URL et le nom du modèle dans la connexion. Le serveur a indiqué\u00a0: {message}",
+    "modelAuthRefused": "Le service a refusé la clé. Vérifiez-la dans Mes IA. Il a indiqué\u00a0: {message}",
+    "modelNotFound": "Le service ne connaît ni cette adresse ni ce modèle. Vérifiez-les dans Mes IA. Il a indiqué\u00a0: {message}",
     "modelRateLimited": "Le serveur du modèle a atteint sa limite de requêtes. Réessayez dans un instant. Le serveur a indiqué\u00a0: {message}",
     "modelNetworkError": "Le modèle a mis trop de temps à répondre, ou la connexion à son serveur a été coupée.",
     "modelNoText": "Le modèle n'a produit aucun texte. Réessayez, ou choisissez un autre modèle.",
@@ -865,7 +858,7 @@
       "useAsIsHint": "Pour un modèle que la liste n'a pas encore\u00a0: le service dira s'il ne le connaît pas.",
       "reread": "Relire"
     },
-    "benchmarkResult": "{tokensPerSecond} t/s · 1er token en {firstTokenSeconds} s",
+    "benchmarkResult": "{tokensPerSecond} t/s · 1er token en {firstTokenSeconds}\u202fs",
     "empty": {
       "title": "Aucune IA pour l'instant",
       "body": "Branchez un modèle sur ce PC (Ollama, LM Studio, llama.cpp, KoboldCpp) ou un service en ligne (OpenRouter, OpenAI, Anthropic…). Sans IA, les personnages restent muets."

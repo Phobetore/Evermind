@@ -226,7 +226,7 @@ async def test_assist_without_connection_fails_readably_at_the_start(client, fak
     resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
     assert resp.status_code == 400
     assert resp.json()["kind"] == "no_connection"
-    assert "connection" in resp.json()["error"].lower()
+    assert resp.json()["error"] == "No AI is set up. Add one in Settings, My AIs."
     assert card_assistant._jobs == {}
 
 

@@ -97,10 +97,10 @@ test("the start window says nothing of a missing connection before it has read t
   await page.getByRole("button", { name: "Start a conversation" }).click();
   const model = page.getByRole("dialog").getByLabel("Model");
   await expect(model.locator("option:checked")).toHaveText("Loading…");
-  expect(await page.getByText("Set up an LLM connection in Settings first").count()).toBe(0);
+  expect(await page.getByText("Add an AI first in Settings, My AIs").count()).toBe(0);
 
   await expect(model.locator("option:checked")).toContainText("e2e");
-  await expect(page.getByText("Set up an LLM connection in Settings first")).toHaveCount(0);
+  await expect(page.getByText("Add an AI first in Settings, My AIs")).toHaveCount(0);
 });
 
 test("when the personas cannot be had, the start window says so and cannot start until it can", async ({

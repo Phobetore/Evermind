@@ -24,6 +24,7 @@ from ..errors import (
     MODEL_EMPTY,
     MODEL_ONLY_THOUGHT,
     MODEL_UNREADABLE,
+    NO_AI_MESSAGE,
     NO_CONNECTION,
     AppError,
     NotFoundError,
@@ -77,9 +78,7 @@ async def _resolve_connection(db: aiosqlite.Connection, model_id: str | None) ->
     asked = await models_repo.by_any_id(db, model_id)
     resolved = await models_repo.resolve(db, asked["id"] if asked else None)
     if resolved is None:
-        raise AppError(
-            "No LLM connection configured. Add one in Settings → LLM connections.",
-            kind=NO_CONNECTION)
+        raise AppError(NO_AI_MESSAGE, kind=NO_CONNECTION)
     model, service = resolved
     # No conversation: the room of the reply length set for every one.
     return call_for(model, service, room=reply_room(None, await settings_repo.get_all(db)))
@@ -167,9 +166,9 @@ def _check_fits(connection: dict, payload: PromptPayload, request: CardAssistReq
         needed = floor
     elif existing_fields(request.existing) and (
             needed - estimate_tokens(request.prompt.strip()) > context):
-        kind, what = CARD_TOO_LONG, "card is too long for this connection"
+        kind, what = CARD_TOO_LONG, "card is too long for this AI"
     else:
-        kind, what = BRIEF_TOO_LONG, "brief is too long for this connection"
+        kind, what = BRIEF_TOO_LONG, "brief is too long for this AI"
     # An estimate, told as one: to the hundred above, so that it never reads as fitting.
     about = -(-needed // 100) * 100
     raise AppError(

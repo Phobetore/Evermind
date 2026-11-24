@@ -74,3 +74,31 @@ describe("who a sentence speaks to", () => {
     expect(formal.map(([k]) => k)).toEqual([]);
   });
 });
+
+describe("the words that spoke of a connection", () => {
+  // What a person reads when an AI cannot be reached, is missing or refuses: each is about an AI
+  // or its service now, never about "the connection" of the form that no longer exists.
+  const words = /connexion|connection|verbindung|conexi/i;
+  const keys = [
+    "errors.noConnection", "errors.modelUnreachable", "errors.modelOnlyThought", "errors.modelAuthRefused",
+    "errors.modelNotFound", "errors.notFound.connection", "errors.briefTooLong", "errors.cardTooLong",
+    "errors.contextTooSmall", "chat.message.cutAtCeiling", "chat.modelSilent.settingsLink",
+    "cards.startChatModal.noConnectionOption", "cards.startChatModal.noConnectionWarning",
+    "settings.defaultConnectionLabel", "settings.replyLengthHint",
+  ];
+
+  it.each([["en", en], ["fr", fr], ["de", de], ["es", es]])("are gone from the sentences about an AI, in %s", (_name, locale) => {
+    const entries = new Map(flatten(locale));
+    expect(keys.filter((k) => words.test(String(entries.get(k))))).toEqual([]);
+  });
+
+  it("send the person to My AIs by that name", () => {
+    expect(new Map(flatten(en)).get("chat.modelSilent.settingsLink")).toBe("My AIs");
+    expect(new Map(flatten(fr)).get("chat.modelSilent.settingsLink")).toBe("Mes IA");
+  });
+
+  it("leave nothing of the old form behind", () => {
+    const left = flatten(en).map(([k]) => k).filter((k) => /^connections\.(benchmarkResult|temperatureHint)$|^settings\.(connectionsTitle|emptyState)/.test(k));
+    expect(left).toEqual([]);
+  });
+});

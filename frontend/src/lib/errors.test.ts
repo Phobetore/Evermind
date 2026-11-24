@@ -149,10 +149,10 @@ describe("a text refused for its length", () => {
   });
 
   test.each([
-    ["en", "about 31,000 tokens", "holds 16,384"],
-    ["fr", "environ 31 000 tokens", "en accepte 16 384"],
-    ["de", "etwa 31.000 Tokens", "fasst 16.384"],
-    ["es", "unos 31.000 tokens", "admite 16.384"],
+    ["en", "about 31,000 tokens", "reads 16,384"],
+    ["fr", "environ 31 000 tokens", "en lit 16 384"],
+    ["de", "etwa 31.000 Tokens", "liest 16.384"],
+    ["es", "unos 31.000 tokens", "lee 16.384"],
   ] as const)("in %s, the tokens a brief needs are grouped as the language groups them", (locale, needed, context) => {
     for (const kind of ["brief_too_long", "card_too_long", "context_too_small"]) {
       const error = new DataError("words", { kind, status: 422, params: { needed: 31000, context: 16384 } });

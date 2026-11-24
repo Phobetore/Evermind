@@ -96,15 +96,10 @@
   },
   "settings": {
     "subtitle": "Your models, your rules: Evermind connects to the AI you choose.",
-    "connectionsTitle": "LLM connections",
-    "emptyState": {
-      "title": "No connections",
-      "body": "Connect a local model (Ollama, LM Studio, llama.cpp, KoboldCpp) or an API (OpenRouter, OpenAI, Anthropic…). Without a connection, characters stay silent."
-    },
     "defaultTag": "Default",
-    "defaultConnectionLabel": "Default connection",
+    "defaultConnectionLabel": "Default AI",
     "replyLengthLabel": "Reply length",
-    "replyLengthHint": "Applies to every conversation. Remember to raise your connection's \"Max response (tokens)\" for long replies.",
+    "replyLengthHint": "Applies to every conversation. Evermind keeps the room that the AIs it sets itself need; an AI with a fixed ceiling may cut long replies: see My AIs.",
     "replyLengthOptions": {
       "short": "Short: one dense paragraph",
       "medium": "Medium: 1 to 3 paragraphs",
@@ -158,9 +153,7 @@
     }
   },
   "connections": {
-    "modelLabel": "Model",
-    "benchmarkResult": "{tokensPerSecond} t/s · first token in {firstTokenSeconds}s",
-    "temperatureHint": "Lower = more coherent. 0.8 is a good balance for roleplay."
+    "modelLabel": "Model"
   },
   "chat": {
     "openingScene": "Opening the scene…",
@@ -244,7 +237,7 @@
         "ooc": "instruction"
       },
       "interrupted": "interrupted",
-      "cutAtCeiling": "Cut short: this reply reached the connection's limit of {tokens:grouped} tokens, and the model's thinking counts toward it. Continue the reply to carry on.",
+      "cutAtCeiling": "Cut short: this reply reached this AI's reply ceiling of {tokens:grouped} tokens, and its thinking counts toward it. Continue the reply to carry on.",
       "cutAtCeilingUnset": "Cut short: this reply reached the most the model's server lets it write, and the model's thinking counts toward it. Continue the reply to carry on.",
       "cutAtCeilingShort": "cut at the limit",
       "regenerateTitle": "Regenerate",
@@ -334,7 +327,7 @@
     "modelSilent": {
       "title": "No answer from the model.",
       "hint": "The AI server behind this conversation may not be running.",
-      "settingsLink": "Connections",
+      "settingsLink": "My AIs",
       "retry": "Try again"
     }
   },
@@ -613,8 +606,8 @@
       "title": "Join {name}",
       "personaHint": "Manage your identities in the Personas tab.",
       "noPersonaOption": "No persona",
-      "noConnectionOption": "No connection configured",
-      "noConnectionWarning": "Set up an LLM connection in Settings first (Ollama, LM Studio, OpenRouter, Anthropic…). You choose.",
+      "noConnectionOption": "No AI",
+      "noConnectionWarning": "Add an AI first in Settings, My AIs (Ollama, LM Studio, OpenRouter, Anthropic…). You choose.",
       "startError": "Could not start",
       "enterButton": "Enter the story"
     },
@@ -652,9 +645,9 @@
     "textTooLong": "This text is too long: it has {length} characters and the limit is {limit}.",
     "textTooShort": "This text is too short: it needs at least {limit} characters.",
     "textTooShort_one": "This text cannot be left empty.",
-    "briefTooLong": "This text is too long for this model: with the assistant's instructions, what the card already holds and room for its answer, it needs about {needed:grouped} tokens, and the connection holds {context:grouped}. Shorten it, raise the connection's context in Settings if the model can take more, or choose a connection with a larger context.",
-    "cardTooLong": "What this card already holds is too long for this model: with the assistant's instructions and room for its answer, it needs about {needed:grouped} tokens, and the connection holds {context:grouped}. Shorten the card's longest fields, raise the connection's context in Settings if the model can take more, or choose a connection with a larger context.",
-    "contextTooSmall": "This model's context is too small for the card assistant: its instructions and room for a card alone need about {needed:grouped} tokens, and the connection holds {context:grouped}. Raise the connection's context in Settings if the model can take more, or choose a connection with a larger context.",
+    "briefTooLong": "This text is too long for this model: with the assistant's instructions, what the card already holds and room for its answer, it needs about {needed:grouped} tokens, and this AI reads {context:grouped} at a time. Shorten it, raise its reading capacity in My AIs, under Advanced, if the model can take more, or choose an AI that reads more.",
+    "cardTooLong": "What this card already holds is too long for this model: with the assistant's instructions and room for its answer, it needs about {needed:grouped} tokens, and this AI reads {context:grouped} at a time. Shorten the card's longest fields, raise its reading capacity in My AIs, under Advanced, if the model can take more, or choose an AI that reads more.",
+    "contextTooSmall": "This model's context is too small for the card assistant: its instructions and room for a card alone need about {needed:grouped} tokens, and this AI reads {context:grouped} at a time. Raise its reading capacity in My AIs, under Advanced, if the model can take more, or choose an AI that reads more.",
     "locked": "Your session has ended. Sign in again.",
     "wrongPassword": "Access denied.",
     "tooLarge": "Too long to be the password, or a reverse proxy passed it on without saying its length.",
@@ -666,7 +659,7 @@
       "conversation": "This conversation no longer exists.",
       "message": "This message no longer exists.",
       "persona": "This persona no longer exists.",
-      "connection": "This connection no longer exists.",
+      "connection": "This service no longer exists.",
       "fact": "This fact no longer exists.",
       "model": "This AI no longer exists.",
       "other": "This item no longer exists."
@@ -684,16 +677,16 @@
     "fileTooLarge": "This file is too large (15 MB at most).",
     "unsupportedImage": "This image format is not supported. Use PNG, JPEG or WebP.",
     "conversationEmpty": "This conversation has no messages yet.",
-    "noConnection": "No LLM connection is set up. Add one in Settings → LLM connections.",
+    "noConnection": "No AI is set up. Add one in Settings, My AIs.",
     "modelError": "The model reported an error: {message}",
-    "modelUnreachable": "Evermind cannot reach the model's server at {message}. Check that it is running and that the address in the connection is right.",
+    "modelUnreachable": "Evermind cannot reach the AI's server at {message}. Check that it is running, and its address in My AIs.",
     "turnRunning": "A reply is already being written, so this was not sent.",
     "modelEmpty": "The model returned an empty reply. Try again or switch models.",
     "modelUnreadable": "The model's answer could not be read. Try again.",
-    "modelOnlyThought": "The model spent its whole answer thinking and wrote nothing. Raise the connection's max tokens, or use a model that does not think as long.",
+    "modelOnlyThought": "The model spent its whole answer thinking and wrote nothing. Try again: Evermind now knows it thinks first and leaves it room, unless its reply ceiling is set by hand (My AIs, under Advanced). If it happens again, use an AI that does not think as long.",
     "modelWithheld": "The model's server withheld the answer (\"{reason}\"). Try again, or change the model or the provider.",
-    "modelAuthRefused": "The model's server refused the API key. Check the key in the connection. The server said: {message}",
-    "modelNotFound": "The model's server does not know this address or this model. Check the URL and the model name in the connection. The server said: {message}",
+    "modelAuthRefused": "The service refused the key. Check it in My AIs. It said: {message}",
+    "modelNotFound": "The service does not know this address or this model. Check them in My AIs. It said: {message}",
     "modelRateLimited": "The model's server has reached its rate limit. Try again shortly. The server said: {message}",
     "modelNetworkError": "The model took too long to answer, or the connection to its server broke.",
     "modelNoText": "The model did not produce any text. Try again, or choose another model.",

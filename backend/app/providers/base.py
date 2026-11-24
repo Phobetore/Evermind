@@ -257,8 +257,8 @@ class Answer:
 
 # How a model stops when it simply has nothing more to say, whatever its server calls it.
 _ORDINARY_ENDS = ("stop", "end_turn", "stop_sequence")
-ONLY_THOUGHT = ("The model spent its whole answer thinking and wrote nothing. Raise the "
-                "connection's max tokens, or use a model that does not think as long.")
+ONLY_THOUGHT = ("The model spent its whole answer thinking and wrote nothing. Raise this AI's "
+                "reply ceiling, or use a model that does not think as long.")
 
 
 def unwritten(answer: Answer, only_thought: str = ONLY_THOUGHT) -> AppError | None:

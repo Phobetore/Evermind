@@ -13,6 +13,9 @@ from app.providers.base import ProviderError, ProviderEvent
 from .conftest import FakeProvider, assist, send, setup_conversation
 from .helpers import add_model
 
+# What every refusal for want of an AI says, whoever asked: the page says it in its own words.
+NO_AI = "No AI is set up. Add one in Settings, My AIs."
+
 
 @pytest.fixture()
 def provider(monkeypatch):
@@ -121,7 +124,7 @@ async def test_no_connection_for_the_card_assistant(client, provider):
     resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
     assert resp.status_code == 400
     assert resp.json()["kind"] == "no_connection"
-    assert "connection" in resp.json()["error"].lower()
+    assert resp.json()["error"] == NO_AI
 
 
 async def test_no_connection_for_the_story_tools(client, provider):
@@ -129,7 +132,7 @@ async def test_no_connection_for_the_story_tools(client, provider):
     convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
     resp = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert resp.status_code == 400
-    assert resp.json()["kind"] == "no_connection"
+    assert resp.json() == {"error": NO_AI, "kind": "no_connection"}
 
 
 async def test_an_empty_conversation_for_the_story_tools(client, provider):
@@ -174,7 +177,7 @@ async def test_a_memory_pass_without_a_connection(client, provider, route):
     # The same status as everywhere else that finds no connection: it is for the person
     # to add one, which is no fault of a model's server.
     assert resp.status_code == 400
-    assert resp.json()["kind"] == "no_connection"
+    assert resp.json() == {"error": NO_AI, "kind": "no_connection"}
 
 
 async def test_a_turn_that_cannot_be_had_is_refused_by_name(client, provider):
@@ -184,6 +187,7 @@ async def test_a_turn_that_cannot_be_had_is_refused_by_name(client, provider):
 
     resp = await client.post("/api/chat", json={"conversation_id": convo["id"], "content": "Hi"})
     assert (resp.status_code, resp.json()["kind"]) == (400, "no_connection")
+    assert resp.json()["error"] == NO_AI
 
     resp = await client.post("/api/chat", json={"conversation_id": "nope", "content": "Hi"})
     assert resp.status_code == 404

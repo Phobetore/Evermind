@@ -58,7 +58,7 @@ test("nothing running, nothing waits", () => {
 
 test("a failure found on opening is told, with a way to try again", () => {
   const html = opened({ memory_error: { error: "http://localhost:1234/v1", kind: "unreachable" } });
-  expect(html).toContain("Evermind cannot reach the model&#x27;s server at http://localhost:1234/v1.");
+  expect(html).toContain("Evermind cannot reach the AI&#x27;s server at http://localhost:1234/v1.");
   expect(button(html, "Try again")).toEqual({ disabled: false, spinning: false });
 });
 

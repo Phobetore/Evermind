@@ -29,7 +29,7 @@ describe("a number", () => {
     ["de", "54,1 T/s · erstes Token in 0,23\u00a0s", "19\u00a0%"],
     ["es", "54,1 t/s · primer token en 0,23\u00a0s", "19\u00a0%"],
   ] as const)("is written in %s as the language writes it", (locale, speed, share) => {
-    expect(translate(locale, "connections.benchmarkResult", { tokensPerSecond: 54.1, firstTokenSeconds: 0.23 }))
+    expect(translate(locale, "ai.benchmarkResult", { tokensPerSecond: 54.1, firstTokenSeconds: 0.23 }))
       .toBe(speed);
     expect(translate(locale, "chat.context.percent", { pct: 19 })).toBe(share);
   });
@@ -64,10 +64,6 @@ describe("a number", () => {
   ] as const)("of a card's entries is grouped in %s", (locale, report, banner) => {
     expect(translate(locale, "cards.report.lore", { count: 1500 })).toContain(report);
     expect(translate(locale, "characters.reread.lore", { count: 12000 })).toContain(banner);
-  });
-
-  it.each(["fr", "de", "es"] as const)("written into a sentence in %s has its decimal comma", (locale) => {
-    expect(translate(locale, "connections.temperatureHint")).toMatch(/\b0,8\b/);
   });
 });
 

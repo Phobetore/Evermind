@@ -20,7 +20,7 @@ from contextlib import aclosing
 
 import aiosqlite
 
-from ..errors import MODEL_EMPTY, MODEL_ERROR, NO_CONNECTION, AppError, NotFoundError
+from ..errors import MODEL_EMPTY, MODEL_ERROR, NO_AI_MESSAGE, NO_CONNECTION, AppError, NotFoundError
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval
 from ..prompting.engine import (
@@ -88,8 +88,7 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
     persona = await personas_repo.for_conversation(db, convo)
     resolved = await models_repo.resolve(db, convo.get("model_id"))
     if resolved is None:
-        raise AppError("No LLM connection configured. Add one in Settings → LLM connections.",
-                       kind=NO_CONNECTION)
+        raise AppError(NO_AI_MESSAGE, kind=NO_CONNECTION)
     settings = await settings_repo.get_all(db)
     model, service = resolved
     # What the provider sends, and what the engine keeps for the reply, from one place.

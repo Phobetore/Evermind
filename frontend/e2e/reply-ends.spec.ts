@@ -52,7 +52,7 @@ test("a model that only reasoned says so, with what to change", { tag: "@desktop
 
   const said = page.getByRole("alert");
   await expect(said).toHaveText(
-    "The model spent its whole answer thinking and wrote nothing. Raise the connection's max tokens, or use a model that does not think as long.",
+    "The model spent its whole answer thinking and wrote nothing. Try again: Evermind now knows it thinks first and leaves it room, unless its reply ceiling is set by hand (My AIs, under Advanced). If it happens again, use an AI that does not think as long.",
   );
   await expect(page.getByText("The model returned an empty reply.")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
@@ -76,10 +76,10 @@ test("a reply cut by the max tokens says why under it, and Continue carries it t
   const reply = page.locator("[data-message-id]").last();
   const line = reply.locator("[data-ceiling]");
   await expect(line).toHaveText(
-    "Cut short: this reply reached the connection's limit of 1,024 tokens, and the model's thinking counts toward it. Continue the reply to carry on.",
+    "Cut short: this reply reached this AI's reply ceiling of 1,024 tokens, and its thinking counts toward it. Continue the reply to carry on.",
   );
   // Said once as the reply comes in, with the reply; not a failure, and not "interrupted".
-  await expect(page.getByRole("status")).toContainText("reached the connection's limit of 1,024 tokens");
+  await expect(page.getByRole("status")).toContainText("reached this AI's reply ceiling of 1,024 tokens");
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(reply).not.toContainText("interrupted");
   await noSidewaysScroll(page);
