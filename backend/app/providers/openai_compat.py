@@ -177,7 +177,7 @@ class OpenAICompatProvider(Provider):
         async with aclosing(self._sse("/chat/completions", body)) as events:
             async for event in events:
                 if event.get("error"):
-                    raise ProviderError(scrub(words_of(event), self.api_key))
+                    raise ProviderError(words_of(event, self.api_key))
                 usage = event.get("usage") or usage
                 choice = (event.get("choices") or [{}])[0]
                 if not isinstance(choice, dict):

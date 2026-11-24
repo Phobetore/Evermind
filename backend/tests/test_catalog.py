@@ -822,6 +822,35 @@ async def test_a_server_that_echoes_the_key_does_not_show_it():
         assert "sk-test-SECRET" not in raised.value.message
 
 
+async def test_a_key_echoed_where_its_words_are_cut_shows_none_of_itself():
+    """The words of an error are cut to a length: the key is taken out of the whole of them
+    first, so that a key that straddles the cut leaves nothing of itself behind."""
+    key = "sk-or-v1-" + "0123456789abcdef" * 4  # 73 characters, as OpenRouter's
+    said = {"error": {"message": "x" * 250 + f" key {key} is not valid"}}
+
+    def shows_none_of_the_key(message: str) -> None:
+        assert all(key[n:n + 8] not in message for n in range(len(key) - 8)), message
+        assert f"…{key[-4:]}" in message
+
+    server = Server({"/v1/models": httpx.Response(401, json=said)})
+    with pytest.raises(ProviderError) as raised:
+        await server.read(service("https://proxy.example.com/v1", api_key=key), probes=False)
+    shows_none_of_the_key(raised.value.message)
+
+    refused = sse([json.dumps(said)])
+    for make, answer in [
+        (oai_provider, httpx.Response(401, json=said)),
+        (anth_provider, httpx.Response(401, json=said)),
+        (oai_provider, httpx.Response(200, content=refused)),
+        (anth_provider, httpx.Response(200, content=sse([json.dumps({"type": "error", **said})]))),
+    ]:
+        provider = make(lambda _, answer=answer: answer)
+        provider.api_key = key
+        with pytest.raises(ProviderError) as raised:
+            await collect(provider, PAYLOAD)
+        shows_none_of_the_key(raised.value.message)
+
+
 # Families, addresses and names
 
 

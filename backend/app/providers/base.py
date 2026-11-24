@@ -92,17 +92,20 @@ class ProviderError(AppError):
         self.status = status
 
 
-def words_of(said: object) -> str:
-    """What a model's server said of an error, from the JSON it sent: its message, if it gave one.
+def words_of(said: object, api_key: str | None) -> str:
+    """What a model's server said of an error, from the JSON it sent: its message, if it gave one,
+    without the key it was asked with.
 
-    Its words are shown and saved like the reply, so they leave whole too: a half of a character
-    it sent with no pair becomes U+FFFD.
+    The key is taken out of the whole text before it is cut: cut first, a key that straddles the
+    cut would leave most of itself behind, out of scrub's reach. Its words are shown and saved
+    like the reply, so they leave whole too: a half of a character it sent with no pair becomes
+    U+FFFD.
     """
     if isinstance(said, dict):
         said = said.get("error", said)
     if isinstance(said, dict):
         said = said.get("message") or said
-    return well_formed(str(said)[:300]) if said else ""
+    return well_formed(scrub(str(said), api_key)[:300]) if said else ""
 
 
 def scrub(message: str, api_key: str | None) -> str:
@@ -117,12 +120,12 @@ def scrub(message: str, api_key: str | None) -> str:
 
 def _refusal(status: int, body: bytes, api_key: str | None = None) -> ProviderError:
     try:
-        words = words_of(json.loads(body))
+        words = words_of(json.loads(body), api_key)
     except (ValueError, RecursionError):
         # Not JSON, or nested deeper than the parser follows: the status alone.
         words = ""
     kind = {401: AUTH_REFUSED, 404: MODEL_NOT_FOUND, 429: RATE_LIMITED}.get(status, MODEL_ERROR)
-    return ProviderError(scrub(words, api_key) or f"HTTP {status}", kind, status)
+    return ProviderError(words or f"HTTP {status}", kind, status)
 
 
 def lost(exc: Exception, base_url: str) -> ProviderError:
