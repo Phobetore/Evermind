@@ -55,7 +55,7 @@ when Evermind starts, and a copy of it is kept first, as
   model can write) says so, and offers to top up or to give the AI a ceiling.
 - **The AIs you add after the update** have a reply ceiling "Set by Evermind":
   the room your "Reply length" asks for (512, 1,024 or 2,048 tokens), and no
-  ceiling for an AI that thinks. Their reading capacity "Follows the server".
+  ceiling for an AI that thinks. Their reading capacity is "Follow the server".
   Evermind never keeps for the reply more than half of what the AI reads at
   once: on a local server that does not say the size it loads, the card and the
   story keep their room.
@@ -90,6 +90,14 @@ when Evermind starts, and a copy of it is kept first, as
   service's default. It cannot create, save or delete a connection that carries
   AIs, nor measure the speed: each refusal says so ("reload this page"), and
   nothing is lost.
+- **For a script that calls the API**: AIs live under `/api/models`, and a
+  service (`/api/connections`) is now only a server's address, key and type.
+  `POST /api/connections` answers `410` (`page_outdated`): a service is created
+  with its AIs by `POST /api/models`. `PUT /api/connections/{id}` with the whole
+  old body answers `422`: send only the service's own fields. `GET
+  /api/connections` no longer carries `model`, `context_size` or `max_tokens`.
+  Conversations carry `model_id` (`connection_id` stays only as an alias for a
+  page from before).
 
 ## From 3.5.x to 3.6.0
 

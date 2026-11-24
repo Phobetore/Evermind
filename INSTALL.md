@@ -262,16 +262,18 @@ In Evermind, go to **Settings**, then **My AIs**, then **Add**.
    not answer at http://localhost:1234/v1". Inside the box, `localhost` is the
    box itself. Under that sentence, change the **Server address** to
    `http://host.docker.internal:1234/v1` and click **Try again**.
-4. Evermind then shows the whole list of the server's models. Search it, and
-   tick the ones you want. You do not type the model's name, and you do not set
+4. Evermind then shows the whole list of the server's models (a search field
+   appears above it when it is long, 12 models or more). Tick the ones you want. You do not type the
+   model's name, and you do not set
    its size: Evermind reads what the server says about each model, among other
    things how much it can read at once (the size loaded, for LM Studio).
 5. Click **Add 1 AI** (**Add 2 AIs**, and so on, as many as you ticked). They
    appear under **My AIs**. Your first AI answers new conversations; you can
    change that on an AI's page.
 
-If the list does not have a model you know exists, type its exact name in the
-search field and choose **Use "name" as it is**.
+If the list does not have a model you know exists, and your server is a local
+one, load that model in the server first (in LM Studio, load it, then start the
+server), then click your server's button again: Evermind asks it afresh.
 
 ---
 
@@ -384,7 +386,7 @@ that file along when you report a problem.
 
 | What you see | What it usually means |
 |---|---|
-| "Evermind cannot reach the model's server at http://localhost:1234/v1" | Your AI is not running. Go back to LM Studio and check the server is started. On Docker, check you used `host.docker.internal` instead of `localhost`, and on Linux read **One thing to remember with Docker**, in Step 2. |
+| "Evermind cannot reach the AI's server at http://localhost:1234/v1" | Your AI is not running. Go back to LM Studio and check the server is started. If it is, the address may be wrong: change it on the AI's page, under **Advanced**, **Service**, **Edit**. On Docker, check you used `host.docker.internal` instead of `localhost`, and on Linux read **One thing to remember with Docker**, in Step 2. |
 | "No AI is set up" | Step 3 has not been done, or no AI was added. |
 | Replies are cut off mid-sentence | The **Reply ceiling** of the AI is too low. Open it in **Settings**, **My AIs**, and under **Advanced** choose **Set by Evermind**. |
 | The character forgets things, or repeats itself | The **Reading capacity** of the AI is probably set higher than your AI really offers. Open it in **Settings**, **My AIs**, and under **Advanced** choose **Follow the server**. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |

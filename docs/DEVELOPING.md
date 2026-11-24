@@ -144,8 +144,10 @@ can move the buttons from under the click.
 - `POST /api/chat`: modes `send` / `regenerate` / `continue`, answered once the message is saved;
   `GET /api/conversations/{id}/turn` says how the reply stands and the messages' `revision`, which
   the conversation carries too, `.../turn/stream` follows it (SSE) and `DELETE .../turn` stops it
-- CRUD on `characters` (each with its whole lorebook), `personas`, `connections` (the
-  services), `models` (the AIs), `conversations`, `memories`
+- CRUD on `characters` (each with its whole lorebook), `personas`, `models` (the AIs),
+  `conversations`, `memories`; services are read, changed and removed under
+  `/api/connections` and created with their first AIs by `POST /api/models`;
+  `POST /api/connections/probe` reads a server's list of models
 - `POST /api/characters/assist`: drafts a card from a free-form brief
 - `POST /api/conversations/{id}/memories/extract`, `.../memories/consolidate`: run by a task
   of the server's own, as a reply is, and answered at its end; a client that goes away cancels
@@ -181,11 +183,11 @@ through.
 
 An error is `{"error": "<English sentence>", "kind": "<name>"}`, and a `not_found`
 adds `"resource"` (`character`, `conversation`, `message`, `persona`,
-`connection`, `fact`, `illustration`, `file`). An error may also carry
+`connection`, `model`, `fact`, `illustration`, `file`). An error may also carry
 `"params"`, the numbers its sentence is made of: the card assistant's refusals
 before the model is asked, `brief_too_long`, `card_too_long` and
 `context_too_small`, carry `needed` (the tokens the request would take, to the
-hundred above) and `context` (what the connection holds). The sentence is for
+hundred above) and `context` (what the AI reads). The sentence is for
 whoever reads the API; the interface shows its own text for the `kind`, and for how a reply
 failed, which `GET /api/conversations/{id}/turn` tells, in the person's language
 (`frontend/src/lib/errors.ts`, sentences under `errors` in the locale files). A
@@ -201,7 +203,7 @@ nothing), the address that could not be reached, or how the connection broke.
 The interface frames the first two in a sentence of its own, and does not show
 the third. A model that answers with nothing is `model_empty` (`model_no_text`
 for the benchmark), and an answer that cannot be read is `model_unreadable`. The
-connection test and the benchmark fail the same way.
+speed test of an AI (`/api/models/{id}/benchmark`) fails the same way.
 
 FastAPI's own answers have no `kind`: `{"detail": ...}` for a route that does not
 exist (`404`), a method a route does not take (`405`) or a body that does not
@@ -324,9 +326,9 @@ should.
 - **`providers/catalog.py` reads each family's list and limits.** Everything it
   reads goes through `catalog.client_factory`, which `conftest.py` replaces with
   a transport that refuses every address: no test reaches a real server. A test
-  that wants an answer sets its own transport, and awaits `limits.drain()`
-  before its database is closed, since `services/limits.py` reads again in the
-  background.
+  that wants an answer sets its own transport. `conftest.py` awaits
+  `limits.drain()` after every test, so that a read started in the background
+  by `services/limits.py` ends before its database is closed.
 - **A read replaces what was read before only where it says more**
   (`repositories/models.store_read`). It is kept only while the AI still names
   the model that was read. A size is never replaced by a less sure one (served,
