@@ -65,11 +65,14 @@ export function ModelPickList({
   const [focused, setFocused] = useState(false);
   // Once the field is typed in, the list holds at least the height of the box it scrolls in: with a
   // single result, the box could not stay scrolled, and the field, then the row under the finger,
-  // would drop. Kept after the field lets go, for the same row.
+  // would drop. Kept after the field lets go, for the same row; given back when the sort or a chip
+  // changes the view, never sooner: given back under a lone row, the row would drop.
   const [room, setRoom] = useState<number | null>(null);
   const shownAgain = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The first row under the stuck block, and where it was, as the sort and the count come back.
+  // The row kept in place as the sort and the count come back, and where it was.
   const held = useRef<{ row: Element; at: number } | null>(null);
+  // The row last pressed: on a phone a tapped box does not always take the focus (Safari gives none).
+  const touched = useRef<Element | null>(null);
   const whole = useRef<HTMLDivElement>(null);
   const rowList = useRef<HTMLUListElement>(null);
   const top = useRef<HTMLDivElement>(null);
@@ -137,16 +140,18 @@ export function ModelPickList({
   }
 
   // The sort and the count come back above the rows: the box scrolls by what they push down, so no row
-  // moves under the finger. The browser does not do it here: the dialog follows no line (Modal's `tall`).
+  // moves under the finger, unless the block back on top would cover it: then it sits just under the
+  // block. The browser does not do it here: the dialog follows no line (Modal's `tall`).
   useLayoutEffect(() => {
     const was = held.current;
     if (focused || !was) return;
     const box = scroller();
-    if (!box || !whole.current || !was.row.isConnected) {
+    const block = top.current?.nextElementSibling;
+    if (!box || !block || !whole.current || !was.row.isConnected) {
       held.current = null;
       return;
     }
-    const by = was.row.getBoundingClientRect().top - was.at;
+    const by = was.row.getBoundingClientRect().top - Math.max(was.at, block.getBoundingClientRect().bottom);
     const short = box.scrollTop + by - (box.scrollHeight - box.clientHeight);
     // Not enough below to scroll that far: the list first takes the room it lacks.
     if (short > 0.5) {
@@ -157,13 +162,22 @@ export function ModelPickList({
     box.scrollTop += by;
   }, [focused, room]);
 
-  /** The first row whose top is under the stuck block, and where it is now. */
+  /** The row to keep in place, and where it is now: the one just touched, else the one with the focus,
+   *  else the first whose top is under the stuck block. */
   function holdRow() {
     held.current = null;
+    const noted = touched.current;
+    touched.current = null;
+    const list = rowList.current;
     const block = top.current?.nextElementSibling;
-    if (!block || !rowList.current) return;
-    const edge = block.getBoundingClientRect().bottom;
-    const row = [...rowList.current.children].find((li) => li.getBoundingClientRect().top >= edge);
+    if (!block || !list) return;
+    const focusedRow = document.activeElement?.closest("li");
+    let row: Element | null | undefined = noted?.isConnected ? noted
+      : focusedRow && list.contains(focusedRow) ? focusedRow : null;
+    if (!row) {
+      const edge = block.getBoundingClientRect().bottom;
+      row = [...list.children].find((li) => li.getBoundingClientRect().top >= edge);
+    }
     held.current = row ? { row, at: row.getBoundingClientRect().top } : null;
   }
 
@@ -175,6 +189,12 @@ export function ModelPickList({
     if (!mark || !box) return;
     const past = mark.getBoundingClientRect().top - box.getBoundingClientRect().top;
     if (always ? past !== 0 : past < 0) box.scrollTop += past;
+  }
+
+  /** The sort or a chip shows other rows: the room kept for the search goes, and the view goes back up. */
+  function otherView() {
+    setRoom(null);
+    toTop();
   }
 
   function changeQuery(value: string) {
@@ -206,7 +226,7 @@ export function ModelPickList({
           value={sort}
           onChange={(e) => {
             setSort(e.target.value as SortKey);
-            toTop();
+            otherView();
           }}
         >
           <option value="service">{t("ai.list.sortService")}</option>
@@ -222,7 +242,7 @@ export function ModelPickList({
             className={clsx("btn !px-3 !py-1.5 text-sm", freeShown ? "btn-primary" : "btn-ghost")}
             onClick={() => {
               setFreeShown(!freeShown);
-              toTop();
+              otherView();
             }}
           >
             {t("ai.list.free")}
@@ -235,7 +255,7 @@ export function ModelPickList({
           disabled={picked.length === 0 && !tickedShown}
           onClick={() => {
             setTickedOnly(tickedShown ? null : new Set(picked));
-            toTop();
+            otherView();
           }}
         >
           {t("ai.list.ticked", { count: picked.length })}
@@ -267,6 +287,7 @@ export function ModelPickList({
               onChange={(e) => changeQuery(e.target.value)}
               onFocus={() => {
                 if (shownAgain.current) clearTimeout(shownAgain.current);
+                touched.current = null;
                 setFocused(true);
                 setRoom(scroller()?.clientHeight ?? null);
                 // After the browser's own move of a focused field into sight, which would undo this one.
@@ -295,7 +316,13 @@ export function ModelPickList({
 
       {list === null && <p className="mb-3 text-sm text-mist">{t("ai.add.byHandHint")}</p>}
 
-      <ul ref={rowList} className="flex flex-col gap-2">
+      <ul
+        ref={rowList}
+        className="flex flex-col gap-2"
+        onPointerDown={(e) => {
+          touched.current = (e.target as Element).closest("li");
+        }}
+      >
         {visible.map((row) => (
           <Row
             key={row.id}

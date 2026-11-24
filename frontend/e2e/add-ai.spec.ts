@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
 import { MOCK_ROOT, forgetServices, routeServiceTo } from "./fixtures";
 
@@ -251,52 +251,130 @@ test.describe("adding AIs", () => {
     expect((await aisOn(request, "/many/")).map((ai) => ai.model).sort()).toEqual([eclair.id, last.id, "zz-absent"].sort());
   });
 
+  /** The list of the mock's many models, its search field focused and the box scrolled to it. */
+  async function searching(page: Page) {
+    const box = dialog(page);
+    const search = box.getByRole("searchbox");
+    await openAdd(page);
+    await chip(page, "OpenRouter");
+    await withKey(page, "sk-e2e-any");
+    await expect(box.getByRole("checkbox")).toHaveCount(30);
+    await search.click();
+    await frames(page);
+    return {
+      box, search, panel: box.locator(".panel"), boxes: box.getByRole("checkbox"),
+      // The field and, once it lets go, the sort and the count under it.
+      block: search.locator("xpath=../.."),
+      foot: box.getByRole("button", { name: "Back", exact: true }).locator("xpath=../.."),
+    };
+  }
+
+  const frames = (page: Page) => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
+  const edges = async (of: Locator) => {
+    const { y, height } = (await of.boundingBox())!;
+    return { top: y, bottom: y + height };
+  };
+  /** Past the moment the sort and the count come back. */
+  const settled = (page: Page) => page.waitForTimeout(600);
+  // Phones of today, and the smallest one still sold.
+  const PHONES = [{ width: 390, height: 844 }, { width: 320, height: 640 }];
+
   test("a row tapped while the field lets go stays under the finger", async ({ page, request }) => {
     test.setTimeout(120_000);
     await forgetServices(request, "/many/");
     await routeServiceTo(page, OPENROUTER, MANY);
-    const box = dialog(page);
-    const panel = box.locator(".panel");
-    const search = box.getByRole("searchbox");
-    const boxes = box.getByRole("checkbox");
-    const frames = () => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
 
-    /** Taps a row's box, and says where it was just after and once the sort and count are back. */
-    async function tapped(which: ReturnType<typeof boxes.nth>) {
-      await which.tap();
-      const after = (await which.boundingBox())!.y;
-      // Past the moment the sort and the count come back.
-      await page.waitForTimeout(600);
-      return [after, (await which.boundingBox())!.y];
-    }
-
-    // Phones of today, and the smallest one still sold.
-    for (const size of [null, { width: 390, height: 844 }, { width: 320, height: 640 }]) {
+    for (const size of [null, ...PHONES]) {
       if (size) await page.setViewportSize(size);
-      await openAdd(page);
-      await chip(page, "OpenRouter");
-      await withKey(page, "sk-e2e-any");
-      await expect(boxes).toHaveCount(30);
+      const { box, search, panel, boxes, block } = await searching(page);
 
       // Deep in the results: the rows come back under the sort, and none moves.
-      await search.click();
-      await frames();
       await search.press("a");
       await expect(boxes).toHaveCount(30);
       await panel.evaluate((scrolled) => scrolled.scrollBy(0, 400));
-      await frames();
-      const [deep, deepLater] = await tapped(boxes.nth(6));
+      await frames(page);
+      const tappedRow = box.locator("li").nth(6);
+      await boxes.nth(6).tap();
+      const deep = (await boxes.nth(6).boundingBox())!.y;
+      await settled(page);
       await expect(boxes.nth(6)).toBeChecked();
-      expect(Math.abs(deepLater - deep)).toBeLessThan(1);
+      expect(Math.abs((await boxes.nth(6).boundingBox())!.y - deep)).toBeLessThan(1);
+      expect((await edges(tappedRow)).top).toBeGreaterThanOrEqual((await edges(block)).bottom - 0.5);
 
-      // One result, the list shorter than the box: still nothing moves.
-      await search.click();
+      await box.getByRole("button", { name: "Close" }).click();
+      await expect(box).toHaveCount(0);
+    }
+  });
+
+  test("a lone result tapped is never left under the sort and the count", async ({ page, request }) => {
+    test.setTimeout(120_000);
+    await forgetServices(request, "/many/");
+    await routeServiceTo(page, OPENROUTER, MANY);
+
+    for (const size of PHONES) {
+      await page.setViewportSize(size);
+      const { box, search, panel, boxes, block, foot } = await searching(page);
       await search.fill("eclair");
       await expect(boxes).toHaveCount(1);
-      await frames();
-      const [alone, aloneLater] = await tapped(boxes.first());
+      await frames(page);
+      await boxes.first().tap();
+      await settled(page);
       await expect(boxes.first()).toBeChecked();
-      expect(Math.abs(aloneLater - alone)).toBeLessThan(1);
+      const lone = await edges(box.locator("li").first());
+      expect(lone.top).toBeGreaterThanOrEqual((await edges(block)).bottom - 0.5);
+      // In sight: inside the box that scrolls, above the foot that covers its bottom.
+      expect(lone.top).toBeGreaterThanOrEqual((await edges(panel)).top);
+      expect(lone.bottom).toBeLessThanOrEqual((await edges(foot)).top + 0.5);
+
+      // The room kept for the search is given back once the view changes: no screen of empty
+      // space under the one ticked row.
+      await box.getByRole("button", { name: "Ticked · 1" }).click();
+      await expect(boxes).toHaveCount(1);
+      await frames(page);
+      expect(await block.locator("xpath=..").evaluate((whole: HTMLElement) => whole.style.minHeight)).toBe("");
+      const [scrollable, shown] = await panel.evaluate((scrolled) => [scrolled.scrollHeight, scrolled.clientHeight]);
+      expect(scrollable - shown).toBeLessThan(shown / 2);
+
+      await box.getByRole("button", { name: "Close" }).click();
+      await expect(box).toHaveCount(0);
+    }
+  });
+
+  test("the field left with Enter leaves the first result in sight", async ({ page, request }) => {
+    test.setTimeout(120_000);
+    await forgetServices(request, "/many/");
+    await routeServiceTo(page, OPENROUTER, MANY);
+
+    for (const size of PHONES) {
+      await page.setViewportSize(size);
+      const { box, search, boxes, block } = await searching(page);
+      await search.press("a");
+      await expect(boxes).toHaveCount(30);
+      await search.press("Enter");
+      await settled(page);
+      await expect(box.getByRole("combobox")).toBeVisible();
+      expect((await edges(box.locator("li").first())).top).toBeGreaterThanOrEqual((await edges(block)).bottom - 0.5);
+
+      await box.getByRole("button", { name: "Close" }).click();
+      await expect(box).toHaveCount(0);
+    }
+  });
+
+  test("the first of many results tapped is not left under the sort and the count", async ({ page, request }) => {
+    test.setTimeout(120_000);
+    await forgetServices(request, "/many/");
+    await routeServiceTo(page, OPENROUTER, MANY);
+
+    for (const size of PHONES) {
+      await page.setViewportSize(size);
+      const { box, search, boxes, block } = await searching(page);
+      await search.press("a");
+      await expect(boxes).toHaveCount(30);
+      await frames(page);
+      await boxes.first().tap();
+      await settled(page);
+      await expect(boxes.first()).toBeChecked();
+      expect((await edges(box.locator("li").first())).top).toBeGreaterThanOrEqual((await edges(block)).bottom - 0.5);
 
       await box.getByRole("button", { name: "Close" }).click();
       await expect(box).toHaveCount(0);
