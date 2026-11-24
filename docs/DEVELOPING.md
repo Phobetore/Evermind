@@ -144,8 +144,8 @@ can move the buttons from under the click.
 - `POST /api/chat`: modes `send` / `regenerate` / `continue`, answered once the message is saved;
   `GET /api/conversations/{id}/turn` says how the reply stands and the messages' `revision`, which
   the conversation carries too, `.../turn/stream` follows it (SSE) and `DELETE .../turn` stops it
-- CRUD on `characters` (each with its whole lorebook), `personas`, `connections`,
-  `conversations`, `memories`
+- CRUD on `characters` (each with its whole lorebook), `personas`, `connections` (the
+  services), `models` (the AIs), `conversations`, `memories`
 - `POST /api/characters/assist`: drafts a card from a free-form brief
 - `POST /api/conversations/{id}/memories/extract`, `.../memories/consolidate`: run by a task
   of the server's own, as a reply is, and answered at its end; a client that goes away cancels
@@ -302,6 +302,49 @@ Three things are worth knowing before changing it:
   with the player. It is the weaker shape, since the model reads its own opening
   as instruction rather than as its voice, so it is only ever a fallback.
   Observed on `rocinante-x-12b-v1`; `snowpiercer-15b-v4` handles either.
+
+## Services and AIs
+
+A **service** is a server: its address, its key, its API type and its family
+(`connections` table, `repositories/connections.py`). An **AI** is a model
+chosen on a service, with its reading capacity, its reply ceiling, its settings
+and its price (`models` table, `repositories/models.py`). Conversations and the
+card assistant name an AI (`model_id`). The old columns of `connections` stay,
+frozen, for the release before: nothing reads or writes them, and no new code
+should.
+
+- **`services/ai_call.py` is the one place that decides how an AI is asked.** It
+  is pure. `ceiling` says what is sent as the reply ceiling and what the prompt
+  keeps for the reply, `window` what the AI is counted to read, and `call_for`
+  gives a provider and the services all they take. `reply_room(conversation,
+  settings)` is the one function `auto` asks for the room a reply needs: a way
+  of playing that changes it changes this function only. Nothing else may
+  compute a ceiling or a window, or the prompt and the request drift apart.
+  The engine in `prompting/` is unchanged: it only receives the reserve.
+- **`providers/catalog.py` reads each family's list and limits.** Everything it
+  reads goes through `catalog.client_factory`, which `conftest.py` replaces with
+  a transport that refuses every address: no test reaches a real server. A test
+  that wants an answer sets its own transport, and awaits `limits.drain()`
+  before its database is closed, since `services/limits.py` reads again in the
+  background.
+- **A read replaces what was read before only where it says more**
+  (`repositories/models.store_read`). It is kept only while the AI still names
+  the model that was read. A size is never replaced by a less sure one (served,
+  then configured, then observed, then the trained maximum), reasoning is never
+  unlearned, and a model no longer listed, or a read that failed, keeps all it
+  had. A figure the person typed (`context_own`, `price_own_in`, ...) is never
+  overwritten: a read is stored beside it.
+- **A key is lent to its own address only.** `routers/connections.held_service`
+  is the one function that returns a service with its key. A draft with no key
+  typed takes the saved key only while its API type and its address are those
+  the key was given for. A key never leaves in an answer, a log or an error: only
+  its end (`…4f2a`) does, and `providers/base.scrub` takes the key out of what a
+  server wrote back.
+- **`tests/test_requests_before.py` holds what an update must not change**: the
+  requests each connection sent before 3.7.0, recorded on the code before it
+  (`requests_before.json`), compared byte for byte with what an AI sends now.
+  When the engine, a provider or a service that builds a request changes,
+  record the file again on the code of `main` itself, not on a branch.
 
 ## Recorded cases
 

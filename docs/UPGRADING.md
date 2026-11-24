@@ -8,6 +8,89 @@ program, and your data lives somewhere of its own (the `data` folder, or the
 If you are installing for the first time, you want [INSTALL.md](../INSTALL.md)
 instead. Coming from further back, read every section from your version up.
 
+## From 3.6.x to 3.7.0
+
+This update asks for a restart and a reload of your pages. The database changes
+when Evermind starts, and a copy of it is kept first, as
+`evermind.before-3.7.0.db` in the data folder. Read this to know what changes.
+
+- **Reload Evermind on every device that had it open**, a phone above all.
+- **To go back to the previous release, put back `evermind.before-3.7.0.db`.**
+  What you did since the update is lost. See "Going back" below for the other
+  way.
+- **None of your settings moves.** Each connection becomes an AI, with its name,
+  its model, its reading capacity (the old "Context") and its reply ceiling (the
+  old "Max response") as they were. Each AI is sent exactly the request it was
+  sent before, for replies, the pen, automatic memory and the card assistant,
+  and Evermind keeps the same room for it.
+  **One thing changes without your choosing it.** An AI whose name would be its
+  service's chip name, or another AI's name (a connection called "OpenRouter",
+  as the old form suggested), takes the name of its model ("aurore-large"), so
+  that two AIs are not mistaken for each other. A name you chose ("Living-room
+  PC") stays as it is. If it meets a name taken from a model, the model's one
+  gets "(2)".
+- **Two connections on the same server with the same key become one service.**
+  The key is kept once, and changing it changes it for all its AIs. Known
+  services take their chip's name ("OpenRouter", "LM Studio"...). Two keys on one
+  server make "OpenRouter" and "OpenRouter (2)".
+- **Your conversations keep their AI**, including those that named none: they
+  are fixed on the one that answered them. **This too changes without your
+  choosing it**: they no longer follow a change of the default AI made later. A
+  new conversation takes the default AI of the moment it is created. When an AI
+  is removed, its conversations are fixed on the default AI of that moment, and
+  say so once.
+- **Evermind now reads what each server says**: the whole list of its models
+  (not only the first 8), how much each reads at once, the longest reply it can
+  write, its price and whether it thinks before it writes. It reads this when
+  you add an AI, after each AI's first reply every time Evermind starts, then at
+  most once a day, and when you open the AI's page. Reading changes no setting.
+  When a number you typed long ago works against you, "My AIs" says so, with a
+  button ("Follow the server", "Let Evermind set it") and "Keep everything as it
+  is".
+- **An AI that thinks** is recognised the first time it thinks. This is kept,
+  and counts for its ceiling when that ceiling is "Set by Evermind". The AIs
+  brought over keep their value. Under a reply cut short by a ceiling you set by
+  hand, a button, "Let Evermind set it", lifts it for that AI. A service that
+  refuses for lack of credit (OpenRouter then counts on the longest reply the
+  model can write) says so, and offers to top up or to give the AI a ceiling.
+- **The AIs you add after the update** have a reply ceiling "Set by Evermind":
+  the room your "Reply length" asks for (512, 1,024 or 2,048 tokens), and no
+  ceiling for an AI that thinks. Their reading capacity "Follows the server".
+  Evermind never keeps for the reply more than half of what the AI reads at
+  once: on a local server that does not say the size it loads, the card and the
+  story keep their room.
+- **Under the typing area**, the help sentence gives way to the name of the AI
+  that answers: one tap for the list (each AI with its price), one tap to
+  choose. With a keyboard, the shortcuts sentence stays at its right. "Draft
+  restored" and the pen's error show just above the area for a few seconds; the
+  advice of a pen that only thought stays under the area until the next try, as
+  before. The choice of the model leaves the conversation's panel.
+- **A reading capacity or a reply ceiling has no maximum any more.** A value
+  above what the server announces is kept, with a sentence.
+- **Going back.** Besides putting the copy back, the previous release also
+  starts on the migrated database, for one release. It finds its connections
+  with their figures of the day of the update, under their service's name. The
+  AIs added since are not there (a service added there is a connection with no
+  model), nor are merged connections (their conversations move to the default
+  connection there), and conversations created since answer with its default
+  connection. Its "Delete" fails on a connection that carries AIs: the database
+  refuses and nothing is removed. **Coming back to this release** replays
+  nothing. A connection created meanwhile is a service with no AI, its key kept
+  ("Already connected · no AI in your list"), and recognised as OpenRouter,
+  OpenAI and so on when its address is a chip's. A conversation created meanwhile
+  follows the default AI. What the previous release changed on a connection's
+  **model, context, ceiling or settings**, or on a **conversation's model**, is
+  not seen here. What it changed on a **name, address, key or API type** is seen,
+  and holds for all that service's AIs; an address changed there is read here as
+  a new address, and its family with it.
+- **A page open before the update** must be reloaded. Meanwhile the model choice
+  in its panel looks empty (nothing was removed). Its list shows the services,
+  and choosing one gives the conversation (or the assistant) an AI of that
+  service: the one with the same id for a service brought over, else the
+  service's default. It cannot create, save or delete a connection that carries
+  AIs, nor measure the speed: each refusal says so ("reload this page"), and
+  nothing is lost.
+
 ## From 3.5.x to 3.6.0
 
 This update asks for a restart and a reload of your pages. The database gains
