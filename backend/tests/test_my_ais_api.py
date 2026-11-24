@@ -372,6 +372,26 @@ async def test_a_local_gateway_is_not_called_free(client):
         False, True, False, True]
 
 
+async def test_an_ai_read_as_reasoning_is_left_its_own_settings(client):
+    made = (await add(client, {"provider": "openai-compatible", "base_url": HOSTED},
+                      {"model": "ponder", "read": {"id": "ponder", "reasons": True}},
+                      {"model": "plain", "read": {"id": "plain", "reasons": False}})).json()
+    settings = ("temperature", "top_p", "frequency_penalty", "presence_penalty")
+    ponder, plain = made["models"]
+    assert [ponder[key] for key in settings] == [None, None, None, None]
+    assert [plain[key] for key in settings] == [0.8, 0.95, 0.15, 0.15]
+
+
+async def test_a_name_already_taken_is_followed_by_its_service(client):
+    first = (await add(client, {"provider": "openai-compatible", "base_url": HOSTED,
+                                "name": "Home"}, {"model": "a/brume", "name": "Brume"})).json()
+    second = (await add(client, {"provider": "openai-compatible", "base_url": OPENROUTER,
+                                 "api_key": KEY, "name": "Rented"},
+                        {"model": "b/brume", "name": "Brume"})).json()
+    assert first["models"][0]["name"] == "Brume"
+    assert second["models"][0]["name"] == "Brume (Rented)"
+
+
 async def test_an_ollama_model_reads_its_size_when_added(client, lists, monkeypatch):
     shown = []
     lists.routes.update({
@@ -397,6 +417,23 @@ async def test_an_ollama_model_reads_its_size_when_added(client, lists, monkeypa
     assert typed.status_code == 201, typed.text
     assert time.monotonic() - started < 3
     ai = typed.json()["models"][0]
+    assert ai["context"]["read"] is None
+    assert ai["context"]["used"] == 4096
+
+
+async def test_a_local_server_that_never_answers_does_not_hold_the_add(client, lists):
+    never = asyncio.Event()
+
+    async def silent(_):
+        await never.wait()
+
+    lists.routes.update({"/v1/models": silent, "/api/ps": silent, "/api/show": silent})
+    started = time.monotonic()
+    made = await asyncio.wait_for(add(client, {"provider": "openai-compatible",
+                                               "base_url": OLLAMA}, {"model": "brume:12b"}), 10)
+    assert made.status_code == 201, made.text
+    assert time.monotonic() - started < 3
+    ai = made.json()["models"][0]
     assert ai["context"]["read"] is None
     assert ai["context"]["used"] == 4096
 
@@ -717,6 +754,34 @@ async def test_the_card_assistant_learns_that_a_model_thinks(client, monkeypatch
     assert "max_tokens" not in model.bodies[-1]
 
 
+@pytest.mark.parametrize("route", ["extract", "consolidate"])
+async def test_a_memory_pass_that_thinks_teaches_that_the_model_reasons(client, monkeypatch,
+                                                                        route):
+    ai = await add_model(client, base_url=HOSTED, model="ponder", as_added=True)
+    convo = await conversation_on(client, ai["id"])
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    await send(client, convo["id"])
+    assert model.bodies[-1]["max_tokens"] > 0
+    url = f"/api/conversations/{convo['id']}/memories"
+    for n in range(8):
+        await client.post(url, json={"content": f"Fact number {n}."})
+    conn = await open_db()
+    try:
+        await conn.execute("UPDATE memories SET source = 'auto'")
+        await conn.commit()
+    finally:
+        await conn.close()
+
+    # It thought, then wrote what is not JSON: the pass fails, and still learns.
+    model.answers = [thinking_then("Not a memory at all.")]
+    failed = await client.post(f"{url}/{route}")
+    assert (failed.status_code, failed.json()["kind"]) == (502, "model_unreadable")
+    assert (await model_of(client, ai["id"]))["reasons"] is True
+    model.answers = [writing("*She speaks.*")]
+    await send(client, convo["id"])
+    assert "max_tokens" not in model.bodies[-1]
+
+
 async def test_a_local_model_is_read_again_after_its_first_reply(client, lists, monkeypatch):
     native = {"models": [{"key": "brume", "type": "llm", "max_context_length": 131072}]}
     lists.routes.update({"/v1/models": {"data": [{"id": "brume"}]}, "/api/v1/models": native})
@@ -738,6 +803,22 @@ async def test_a_local_model_is_read_again_after_its_first_reply(client, lists, 
     await send(client, convo["id"])
     await limits.drain()
     assert lists.asked("/v1/models") == 1
+
+
+async def test_a_local_model_that_never_says_its_size_is_read_once_after_a_reply(
+        client, lists, monkeypatch):
+    # LM Studio with the model not loaded: only its largest size, never what it serves.
+    lists.routes.update({"/v1/models": {"data": [{"id": "brume"}]}, "/api/v1/models": {
+        "models": [{"key": "brume", "type": "llm", "max_context_length": 131072}]}})
+    ai = await add_model(client, base_url=LMSTUDIO, model="brume", as_added=True)
+    convo = await conversation_on(client, ai["id"])
+    Model(writing("*She nods.*")).serve(monkeypatch)
+    lists.requests.clear()
+    for _ in range(2):
+        await send(client, convo["id"])
+        await limits.drain()
+    assert lists.asked("/v1/models") == 1
+    assert (await model_of(client, ai["id"]))["context"]["read_kind"] == "max"
 
 
 async def test_a_hosted_ai_read_after_its_first_reply_uses_the_cached_list(
