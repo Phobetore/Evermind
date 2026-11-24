@@ -44,6 +44,21 @@ async def _connect() -> aiosqlite.Connection:
 connect = _connect
 
 
+async def _write_copy(conn: aiosqlite.Connection, copy: Path) -> None:
+    """The database as it is, at ``copy``, put there only once whole: a copy that cannot be
+    written (a full disk) leaves the one already there, from a start whose update failed, as it
+    was. VACUUM INTO refuses a file that exists, so a half-written one left by a stop is removed
+    first."""
+    partial = copy.with_name(copy.name + ".partial")
+    partial.unlink(missing_ok=True)
+    try:
+        await conn.execute("VACUUM INTO ?", (str(partial),))
+        partial.replace(copy)
+    except BaseException:
+        partial.unlink(missing_ok=True)
+        raise
+
+
 async def init_db() -> None:
     if sqlite3.sqlite_version_info < (3, 35):
         raise RuntimeError(
@@ -63,9 +78,7 @@ async def init_db() -> None:
         }
         pending = [p for p in sorted(MIGRATIONS_DIR.glob("*.sql")) if p.name not in applied]
         if applied and pending:
-            backup = db_path().with_name(f"evermind.before-{__version__}.db")
-            backup.unlink(missing_ok=True)
-            await conn.execute("VACUUM INTO ?", (str(backup),))
+            await _write_copy(conn, db_path().with_name(f"evermind.before-{__version__}.db"))
         if pending:
             script = "".join(
                 f"{path.read_text(encoding='utf-8')}\n;\n"

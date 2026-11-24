@@ -1,7 +1,9 @@
 """Starting on a database: the copy an update keeps, and all of its files running as one."""
 
 import sqlite3
+from pathlib import Path
 
+import aiosqlite
 import pytest
 
 from app import __version__, db
@@ -49,6 +51,30 @@ async def test_an_update_whose_second_file_fails_changes_nothing_and_keeps_a_cop
     assert read("evermind.db", "SELECT name FROM schema_migrations ORDER BY name") == [
         ("001.sql",), ("002.sql",), ("003.sql",)]
     assert read(copy, "SELECT x FROM t") == [("old",)]
+
+
+async def test_a_copy_that_cannot_be_written_leaves_the_one_before_it(start, monkeypatch):
+    await start({"001.sql": "CREATE TABLE t (x); INSERT INTO t VALUES ('old');"})
+    with pytest.raises(sqlite3.OperationalError):
+        await start({"002.sql": "INSERT INTO nowhere VALUES (1);"})
+    copy = db_path().with_name(f"evermind.before-{__version__}.db")
+    assert read(copy.name, "SELECT x FROM t") == [("old",)]
+
+    execute = aiosqlite.Connection.execute
+
+    async def full_disk(self, sql, *args, **kwargs):
+        if sql.startswith("VACUUM INTO"):
+            Path(args[0][0]).write_bytes(b"half a copy")
+            raise sqlite3.OperationalError("database or disk is full")
+        return await execute(self, sql, *args, **kwargs)
+
+    monkeypatch.setattr(aiosqlite.Connection, "execute", full_disk)
+    with pytest.raises(sqlite3.OperationalError, match="disk is full"):
+        await start({"002.sql": "UPDATE t SET x = 'new';"})
+
+    assert read(copy.name, "SELECT x FROM t") == [("old",)]
+    assert list(db_path().parent.glob("evermind.before-*")) == [copy]
+    assert read("evermind.db", "SELECT x FROM t") == [("old",)]
 
 
 async def test_a_migration_cut_short_leaves_nothing_and_runs_whole_on_the_next_start(start):
