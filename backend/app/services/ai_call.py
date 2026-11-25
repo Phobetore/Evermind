@@ -102,11 +102,16 @@ def _auto(model: dict, *, anthropic: bool, family: Family, room: int | None,
           window: int | None, allowance: int) -> Ceiling:
     out = model.get("output_read")
     if room is None:
-        # No room asked: nothing is sent but what Anthropic requires, and the prompt keeps what
-        # a long reply could take, never more than a quarter of what the AI reads.
+        if anthropic:
+            # It must be sent a ceiling, and refuses a prompt and a ceiling that do not fit the
+            # window together: what is sent is all kept.
+            sent = _at_most(ANTHROPIC_FLOOR, out)
+            return Ceiling(sent, sent)
+        # No room asked: nothing is sent, and the prompt keeps what a long reply could take,
+        # never more than a quarter of what the AI reads.
         kept = min(b for b in (OPEN_ROOM, out, None if window is None else window // 4)
                    if b is not None)
-        return Ceiling((ANTHROPIC_FLOOR if out is None else out) if anthropic else None, kept)
+        return Ceiling(None, kept)
     if model.get("reasons") == 1:
         # Its thinking comes out of the same ceiling: leave room for it, or send none.
         reserve = _at_most(room + allowance, out)

@@ -2445,6 +2445,24 @@
     "allowance": 3072
    },
    "expected": 4096
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a room left open on Anthropic keeps what it sends in a small window",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 0,
+     "output_read": null
+    },
+    "family": "anthropic",
+    "anthropic": true,
+    "room": null,
+    "window": 8192,
+    "allowance": 3072
+   },
+   "expected": 4096
   }
  ]
 }

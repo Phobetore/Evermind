@@ -29,7 +29,12 @@ function autoReserve(
   allowance: number,
 ): number {
   const out = model.output_read;
-  if (room === null) return Math.min(OPEN_ROOM, ...(out === null ? [] : [out]), Math.floor(window / 4));
+  if (room === null) {
+    // Anthropic must be sent a ceiling and refuses a prompt and a ceiling that do not fit the
+    // window together: what is sent is all kept.
+    if (anthropic) return atMost(ANTHROPIC_FLOOR, out);
+    return Math.min(OPEN_ROOM, ...(out === null ? [] : [out]), Math.floor(window / 4));
+  }
   if (model.reasons === 1) {
     // Its thinking comes out of the same ceiling: what Anthropic is sent is all kept.
     if (anthropic) return atMost(Math.max(room + allowance, ANTHROPIC_FLOOR), out);

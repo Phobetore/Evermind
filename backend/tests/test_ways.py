@@ -245,6 +245,16 @@ def test_the_reserve_with_no_room_of_its_own():
     assert reserve(16384, reply_cap_mode="fixed", reply_cap_tokens=700) == 700
 
 
+@pytest.mark.parametrize("output_read, window", [(64000, 200000), (None, 8192), (2500, 200000)])
+def test_a_room_left_open_on_anthropic_keeps_what_it_sends(output_read, window):
+    # Anthropic refuses a prompt and a ceiling that do not fit the window together.
+    model = {"reply_cap_mode": "auto", "reply_cap_tokens": None, "reasons": 0,
+             "output_read": output_read}
+    got = ai_call.ceiling(model, anthropic=True, family="anthropic", room=None, window=window)
+    assert got.sent == got.reserve
+    assert got.sent <= ai_call.ANTHROPIC_FLOOR
+
+
 def test_the_allowance_given_replaces_the_assumed_one():
     model = {"reply_cap_mode": "auto", "reasons": 1, "output_read": None}
     assumed = ai_call.ceiling(model, anthropic=False, family="generic", room=1024).reserve
