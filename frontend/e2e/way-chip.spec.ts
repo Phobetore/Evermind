@@ -511,6 +511,33 @@ test("a new conversation is made with the way chosen", async ({ page, request })
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Light. Change.");
 });
 
+// A laptop at the largest text with the side panel open leaves the conversation a column of about
+// 190px: the chip's word breaks where it must rather than run over its chevron and out of its pill.
+test("the chip's word stays in its pill in a narrow column at the largest text @desktop", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.addInitScript(rootAt, "32px");
+  for (const [locale, name] of [["fr", "Équilibré"], ["de", "Ausgewogen"]]) {
+    await inLocale(page, locale);
+    await page.goto("about:blank");
+    await page.goto(`/#/chat/${convo.id}`);
+    const chip = statusRow(page).locator("[data-way-chip]");
+    await expect(chip).toHaveText(name);
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+    const fit = await chip.evaluate((pill) => {
+      // The text itself, which runs past its box where it cannot break.
+      const range = document.createRange();
+      range.selectNodeContents(pill.children[1]);
+      const right = Math.max(...[...range.getClientRects()].map((line) => line.right));
+      const chevron = pill.children[2].getBoundingClientRect();
+      const box = pill.getBoundingClientRect();
+      return { pill: Math.round(box.width), past: Math.round(right - chevron.left), out: Math.round(pill.scrollWidth - pill.clientWidth) };
+    });
+    expect(fit.past, `the word over its chevron in ${locale}, in a pill of ${fit.pill}px`).toBeLessThanOrEqual(0);
+    expect(fit.out, `the word out of its pill in ${locale}`).toBeLessThanOrEqual(0);
+  }
+});
+
 test("the chip row wraps rather than hide", async ({ page, request }) => {
   const long = await anAi(request, "Obsidienne R1 Distill Llama 70B Instruct", { context_own: 4096 });
   try {

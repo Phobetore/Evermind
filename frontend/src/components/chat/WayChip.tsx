@@ -40,7 +40,8 @@ export function WayChip({ current, playStyle, onOpen, capacityTold = true, playO
       aria-label={aria}
     >
       <BookOpen className="size-[14px] shrink-0 text-ember-300" aria-hidden />
-      <span className="min-w-0">{text}</span>
+      {/* Broken anywhere only where it must: a column of 190px at the largest text. */}
+      <span className="min-w-0 [overflow-wrap:anywhere]">{text}</span>
       <ChevronDown className="size-[14px] shrink-0" aria-hidden />
     </button>
   );
