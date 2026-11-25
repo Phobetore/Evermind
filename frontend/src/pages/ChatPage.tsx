@@ -776,9 +776,11 @@ function ChatView({ id }: { id: string }) {
   // The last reply was read by an AI that saw only the end of the story: said over the input, where
   // it is seen, until the next reply. Only for the version shown, and the AI that answers now under
   // the model it was counted for: what another read says nothing of what this one reads.
-  // On a short screen with large text its sentence gives way first and scrolls in its own part, so
-  // the story keeps a line of its own (see the story's box); its button never gives way, the only
-  // thing to do about it. Both parts sit in the column itself, so the story yields before the button.
+  // On a short screen with large text, what gives way, in this order: the keyboard's sentence under
+  // the input; the line's sentence, down to one whole line of its text, scrolling in its own part
+  // with its shade at the foot; then the story's own line (see the story's box). Its button never
+  // gives way, the only thing to do about it. Both parts sit in the column itself, so the story
+  // yields before the button.
   const truncated = !busy && last?.role === "assistant" ? readOnlyTheEnd(last, answeringAi) : null;
   const truncatedAi = truncated ? answeringAi : null;
   const truncatedLine = truncated && truncatedAi && data.connections && (
@@ -786,16 +788,18 @@ function ChatView({ id }: { id: string }) {
       <p
         ref={setSentenceNode}
         data-truncated-text
-        className="scroll-cue min-h-0 shrink-[1000] overflow-y-auto border-t border-ink-700 px-4 pt-2 text-center text-xs text-parchment-dim [overflow-wrap:anywhere]"
+        // At least one line of its text (text-xs: 1rem) under its padding and its border.
+        className="scroll-cue min-h-[calc(1.5rem+1px)] shrink-[1000] overflow-y-auto border-t border-ink-700 px-4 pt-2 text-center text-xs text-parchment-dim [overflow-wrap:anywhere]"
       >
         <span className="mx-auto block max-w-3xl">
           {t("chat.truncated.text", { name: truncatedAi.name, read: truncated.read, window: truncated.window })}
         </span>
       </p>
-      <div className="flex shrink-0 justify-center bg-ink-900 px-4 pb-2 pt-1">
+      {/* In a column narrower than any phone's, thinner sides, so that its words stand whole. */}
+      <div className="flex shrink-0 justify-center bg-ink-900 px-4 pb-2 pt-1 @max-[240px]/column:px-[8px]">
         <button
           type="button"
-          className="btn btn-ghost touch-target max-w-full whitespace-normal !py-1 text-xs"
+          className="btn btn-ghost touch-target max-w-full whitespace-normal !py-1 text-xs @max-[240px]/column:!px-[8px]"
           disabled={shrinking}
           onClick={() => void shrink(truncatedAi, truncated.read)}
         >
@@ -912,7 +916,8 @@ function ChatView({ id }: { id: string }) {
         {/* The picture takes the story's box exactly, under the part that scrolls: it stays put while
             the text moves, and follows the column as the keyboard opens or the panel takes a share.
             It starts from a line of its text over its bottom padding: the line over the input, which
-            gives way a thousand times faster, leaves it that much before the story yields anything. */}
+            gives way a thousand times faster, leaves it that much until its sentence is down to a
+            line of its own; then the story yields. */}
         <div className="relative min-h-0 flex-[1_1_calc(1.8rem*var(--chat-scale,1)+1.5rem)]">
           <Backdrop shown={shown} />
           <div

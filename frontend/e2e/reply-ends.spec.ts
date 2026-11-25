@@ -600,8 +600,8 @@ for (const locale of ["fr", "de"]) {
 
 // German has the longest of these lines. Also in a window with a keyboard, whose sentence under the
 // input takes room a phone does not give it.
-for (const locale of ["en", "de"]) {
-  test(`the lines of a cut reply and of a story read from its end fit a phone, whatever the size of its text, in ${locale}`, { tag: "@desktop" }, async ({ page, request }) => {
+for (const [locale, root] of [["en", "16px"], ["en", "32px"], ["de", "16px"], ["de", "32px"]]) {
+  test(`the lines of a cut reply and of a story read from its end fit a phone, in ${locale} at a root of ${root}`, { tag: "@desktop" }, async ({ page, request }) => {
     const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
     await chat(request, { conversation_id: convo.id, mode: "send", content: "What now?" });
     const ceiling = { "0": 1024 };
@@ -615,7 +615,7 @@ for (const locale of ["en", "de"]) {
       },
     };
     await inLocale(page, locale);
-    await page.addInitScript(rootAt, "32px");
+    await page.addInitScript(rootAt, root);
     for (const [cause, meta] of Object.entries(cases)) {
       await page.unrouteAll();
       await withCause(page, convo.id, meta);
@@ -623,17 +623,18 @@ for (const locale of ["en", "de"]) {
         await page.setViewportSize(size);
         await page.goto("about:blank");
         await page.goto(`/#/chat/${convo.id}`);
-        expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+        expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(root);
         const reply = page.locator("[data-message-id]").last();
         await expect(reply.locator("[data-cut-actions] button").first()).toBeVisible();
         if (cause === "room") {
           await expect(page.locator("[data-truncated]")).toBeVisible();
-          // The line over the input never takes the whole screen: the story keeps a line of its text
-          // seen over the room left under the last message.
-          const room = await page.locator("[data-story]").evaluate((story) => story.clientHeight);
-          const under = await page.locator("[data-story] > div").evaluate((inner) => parseFloat(getComputedStyle(inner).paddingBottom));
-          const line = await reply.locator(".min-w-0 > .mt-1").evaluate((text) => parseFloat(getComputedStyle(text).lineHeight));
-          expect(room, `the story's room at ${size.width}`).toBeGreaterThanOrEqual(line + under);
+          // Room running short, the line's sentence keeps at least a whole line of its text: the
+          // keyboard's sentence steps aside first, then the story's own line gives way.
+          const sentence = await page.locator("[data-truncated-text]").evaluate((part) => ({
+            shown: part.clientHeight - parseFloat(getComputedStyle(part).paddingTop),
+            line: parseFloat(getComputedStyle(part.firstElementChild!).lineHeight),
+          }));
+          expect(sentence.shown, `the sentence's room at ${size.width}`).toBeGreaterThanOrEqual(sentence.line - 0.5);
           // Its sentence may scroll in its own part, but its button is whole and seen without
           // scrolling anything: a phone shows no scrollbar to say it is there.
           const shrink = page.locator("[data-truncated]").getByRole("button", { name: SHRINK[locale] });
@@ -651,7 +652,7 @@ for (const locale of ["en", "de"]) {
           // Where the sentence scrolls, a shade at its foot says there is more, and goes at its end.
           const part = page.locator("[data-truncated-text]");
           const scrolls = await part.evaluate((text) => text.scrollHeight > text.clientHeight + 1);
-          if (size.width === 320) expect(scrolls, "the sentence scrolls at 320").toBe(true);
+          if (size.width === 320 && root === "32px") expect(scrolls, "the sentence scrolls at 320").toBe(true);
           expect(await shadeAtFoot(page), `the shade at ${size.width}`).toBe(scrolls);
           if (scrolls) {
             await part.evaluate((text) => { text.scrollTop = text.scrollHeight; });
@@ -660,7 +661,12 @@ for (const locale of ["en", "de"]) {
           }
         }
         await reply.locator("[data-ceiling]").scrollIntoViewIfNeeded();
-        expect(await misfits(page), `${cause} at ${size.width}`).toEqual([]);
+        // The page slides nowhere, and nothing of the reply or of the line runs out of its box. At
+        // 16px the header's title is narrower than its words on a phone, apart from what is held here.
+        const parts = ["[data-story]", ...(cause === "room" ? ["[data-truncated]"] : [])];
+        for (const within of root === "32px" ? ["body"] : parts) {
+          expect(await misfits(page, within), `${cause} at ${size.width} in ${within}`).toEqual([]);
+        }
       }
     }
   });
