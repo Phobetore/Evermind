@@ -87,12 +87,32 @@ def _far_under(prompt: int, estimate: int, ratio: float) -> bool:
     return prompt < TRUNCATED_BELOW * round(estimate * ratio)
 
 
+def _rate_shown(earlier: list[tuple[int, int]]) -> float | None:
+    """The rate the server counted this story at, when its last two counts moved with the
+    estimate: the estimate changed by more than 5 %, the count by more than PLATEAU the same
+    way, and neither count is far under the other's rate. That server reads what it is sent.
+    None when there is no such proof."""
+    if len(earlier) < 2:
+        return None
+    (p1, e1), (p2, e2) = earlier[-2:]
+    if min(p1, p2, e1, e2) <= 0:
+        return None
+    moved = e2 > e1 * _GROWN or e1 > e2 * _GROWN
+    followed = abs(p2 - p1) > PLATEAU * max(p1, p2) and (p2 > p1) == (e2 > e1)
+    rates = (p1 / e1, p2 / e2)
+    alike = min(rates) >= TRUNCATED_BELOW * max(rates)
+    return _bounded(rates[1]) if moved and followed and alike else None
+
+
 def truncated(*, prompt: int, estimate: int, ratio: float, model: dict,
               earlier: list[tuple[int, int]]) -> bool:
     """prompt < 0.7 × round(estimate × ratio), and either it sits within 2 % under a power of two
     from 2048 to 2^21, or under the model's context_read when its kind is configured or max; or
     the two earlier (prompt, estimate) of this conversation and this one are within 1 % of each
-    other in prompt while this estimate is above the oldest one's by more than 5 %."""
+    other in prompt while this estimate is above the oldest one's by more than 5 %. When the two
+    earlier counts moved with the story, the rate they show stands for ``ratio``: a ratio stored
+    before (another script, a refusal's guess) would make a count at that rate look cut."""
+    ratio = _rate_shown(earlier) or ratio
     if not _far_under(prompt, estimate, ratio):
         return False
     if any(_just_under(prompt, size) for size in _ROUND_SIZES):
@@ -174,8 +194,11 @@ async def after_whole_reply(db: aiosqlite.Connection, call: dict, model: dict, *
             cut = {"read": prompt, "window": call["context_size"]}
         # A count far under the estimate teaches no ratio even unproved: it may be a story read
         # only from its end that no round size shows, and that the plateau shows by the third
-        # reply only if no ratio learned from the first two has hidden it.
-        elif estimate > 0 and not _far_under(prompt, estimate, ratio):
+        # reply only if no ratio learned from the first two has hidden it. Far under is judged
+        # at the rate this story's counts showed, else at no more than 1.0: judged at a ratio
+        # stored too high, every count would be held back and that ratio never come down.
+        elif estimate > 0 and not _far_under(prompt, estimate,
+                                             _rate_shown(earlier) or min(ratio, 1.0)):
             ratio, n = next_ratio(current, prompt / estimate)
             # What was measured replaces what a refusal had to guess.
             sets.update(token_ratio=ratio, token_ratio_n=n, fit_margin=None)

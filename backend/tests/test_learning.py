@@ -195,6 +195,19 @@ def test_truncation_needs_a_round_size_or_a_plateau():
                                   model={"context_read": 6100, "context_read_kind": "served"})
     # The estimate is corrected by the ratio measured before it is compared.
     assert not learning.truncated(prompt=4090, estimate=9000, ratio=0.6, model=model, earlier=[])
+    # Two counts of this story that grew with it say what the server counts better than a ratio
+    # stored before: one just under a round size at that rate is no cut.
+    assert learning.truncated(prompt=8100, estimate=9500, ratio=1.4, model=model, earlier=[])
+    grew = [(6800, 8000), (7480, 8800)]
+    assert not learning.truncated(prompt=8100, estimate=9500, ratio=1.4, model=model,
+                                  earlier=grew)
+    # A count far under the rate they show is still a cut.
+    assert learning.truncated(prompt=4090, estimate=9500, ratio=1.4, model=model, earlier=grew)
+    # Counts that did not move with the estimate, or moved against it, prove nothing.
+    for unproved in ([(7400, 8000), (7420, 8800)], [(7480, 8000), (6800, 8800)],
+                     [(6800, 8000), (7480, 8200)], [(3000, 8000), (7480, 8800)]):
+        assert learning.truncated(prompt=8100, estimate=9500, ratio=1.4, model=model,
+                                  earlier=unproved), unproved
 
 
 def test_the_ratio_is_kept_between_half_and_double():
@@ -322,6 +335,43 @@ async def test_a_story_read_only_from_its_end_is_seen_on_the_third_turn(client, 
     first, last = reading.seen[0][1], reading.seen[-1][1]
     assert last > first * 1.05 and all(p < 0.7 * e for p, e in reading.seen)
     assert meta["truncated"] == {"read": 3015, "window": 16384}
+
+
+async def test_a_ratio_stored_too_high_comes_down(client, counting, monkeypatch):
+    ai, convo = await a_story(client)
+    await long_story(convo["id"], 12, 1300)
+    # Learned on a story in another script, or clamped by a refusal: the server counts what it is
+    # sent as the engine estimates it, far under what the ratio stored says.
+    await set_row(ai["id"], token_ratio=1.6, token_ratio_n=8)
+    monkeypatch.setattr(counting, "times", 1.0)
+    for turn in range(3):
+        if turn:
+            await grown(convo["id"])
+        assert await send(client, convo["id"]) is None
+        assert "truncated" not in (await last_reply(client, convo))["meta"]
+
+    assert all(p < 0.7 * 1.6 * e for p, e in counting.seen)
+    row = await row_of(ai["id"])
+    assert row["token_ratio"] < 1.5 and row["token_ratio_n"] == 11
+
+
+async def test_a_count_that_grew_with_the_story_is_not_a_truncation(
+        client, counting, monkeypatch):
+    ai, convo = await a_story(client)
+    await long_story(convo["id"], 6, 1290)
+    await set_row(ai["id"], token_ratio=1.4, token_ratio_n=8)
+    monkeypatch.setattr(counting, "times", 0.85)
+    for turn in range(3):
+        if turn:
+            await grown(convo["id"])
+        assert await send(client, convo["id"]) is None
+        assert "truncated" not in (await last_reply(client, convo))["meta"], turn
+
+    # The third count lands just under 4096, far under the estimate at the ratio stored, but the
+    # two before it grew with the story: the server reads what it is sent.
+    (_, e1), (_, e2), (p3, e3) = counting.seen
+    assert 4096 * 0.98 <= p3 <= 4096 and e3 > e2 > e1 * 1.05
+    assert p3 < 0.7 * counting.calls[-1]["token_ratio"] * e3
 
 
 async def test_a_new_version_is_not_one_of_the_counts_before_it(client, reading):
