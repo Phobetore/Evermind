@@ -418,10 +418,17 @@ async def discard(row_id: str | None) -> None:
 
 async def after_start() -> None:
     """Rows a process left 'running' (killed, or stopped before their end was written) ended
-    then: stopped, with the prompt estimated at their start and nothing known of what came."""
+    then: stopped, with the prompt estimated at their start and nothing known of what came.
+    Away from home, the whole price copied at their start prices that prompt, as cost_of would
+    have; a price typed later must not. When they ended is not known: their start stands for it."""
     try:
         await _write("UPDATE calls SET outcome = 'stopped', tokens_out = 0,"
-                     " tokens_source = 'estimated' WHERE outcome = 'running'", ())
+                     " tokens_source = 'estimated', ended_at = started_at,"
+                     " cost = CASE WHEN price_source IS NOT NULL AND local = 0"
+                     " THEN tokens_in * price_in / 1e6 END,"
+                     " cost_source = CASE WHEN price_source IS NOT NULL AND local = 0"
+                     " THEN 'computed' ELSE 'none' END"
+                     " WHERE outcome = 'running'", ())
     except Exception as exc:  # noqa: BLE001
         _warn("calls left running could not be stopped", exc)
 

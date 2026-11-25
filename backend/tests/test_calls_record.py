@@ -591,5 +591,29 @@ async def test_the_server_s_stop_writes_the_ends_after_the_operations(database, 
     assert stopped == ["memory", "calls"]
 
 
+async def test_a_row_left_running_is_priced_as_it_was_sent(database):
+    conn = sqlite3.connect(db_path())
+    try:
+        columns = ("id, started_at, purpose, outcome, tokens_in, local, price_in, price_out,"
+                   " price_source")
+        for row in (("priced", 0, 1.0, 2.0, "read"), ("typed", 0, 3.0, 4.0, "typed"),
+                    ("home", 1, 1.0, 2.0, "read"), ("unpriced", 0, None, None, None)):
+            conn.execute(f"INSERT INTO calls ({columns}) VALUES (?, ?, 'reply', 'running', 1500,"
+                         " ?, ?, ?, ?)", (row[0], calls.instant(), *row[1:]))
+        conn.commit()
+    finally:
+        conn.close()
+    await calls.after_start()
+    found = {r["id"]: r for r in rows()}
+    assert {key: (r["cost"], r["cost_source"]) for key, r in found.items()} == {
+        "priced": (pytest.approx(1500 * 1.0 / 1e6), "computed"),
+        "typed": (pytest.approx(1500 * 3.0 / 1e6), "computed"),
+        "home": (None, "none"),
+        "unpriced": (None, "none"),
+    }
+    # When it ended is not known: its start is the one instant there is.
+    assert all(r["ended_at"] == r["started_at"] for r in found.values())
+
+
 async def _nothing() -> None:
     pass
