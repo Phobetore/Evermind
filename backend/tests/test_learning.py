@@ -9,12 +9,12 @@ from typing import ClassVar
 import pytest
 
 from app.providers.base import CallFigures, ProviderError, ProviderEvent
-from app.services import ai_call, learning, turns
+from app.services import ai_call, learning, limits, turns
 
 from .conftest import messages_of, send
 from .helpers import add_model
 from .test_memory_room import chunk, finish, writing
-from .test_my_ais_api import HOSTED, Model, conversation_on, open_db
+from .test_my_ais_api import HOSTED, Model, conversation_on, lists, model_of, open_db  # noqa: F401
 
 # The refusals of a prompt too long as servers word them (their figures changed): OpenAI's, which
 # DeepSeek and vLLM's 0.6 also send.
@@ -865,7 +865,7 @@ async def test_a_too_long_refusal_with_both_figures_is_learned_and_asked_again_o
     assert [call["context_size"] for call in model.calls] == [16384, 8192]
     row = await row_of(ai["id"])
     assert (row["context_read"], row["context_read_kind"], row["context_own"]) == (
-        8192, "served", None)
+        8192, "observed", None)
     # The messages' part of what was requested, the reply's room left out.
     assert 0.5 < 8476 / estimates[0] < 2.0
     assert row["token_ratio"] == pytest.approx(8476 / estimates[0])
@@ -982,7 +982,7 @@ async def test_a_refusal_that_leaves_no_prompt_widens_the_margin(client, monkeyp
     assert await send(client, story["id"]) is None
     row = await row_of(other["id"])
     assert (row["fit_margin"], row["token_ratio"], row["context_read"],
-            row["context_read_kind"]) == (None, None, 8192, "served")
+            row["context_read_kind"]) == (None, None, 8192, "observed")
 
 
 async def test_a_refusal_on_a_story_opening_on_the_greeting_does_not_fold_it(client, monkeypatch):
@@ -1103,7 +1103,7 @@ async def test_the_figures_of_a_refusal_s_body_are_learned(client, monkeypatch):
     assert await send(client, convo["id"]) is None
     assert [call["context_size"] for call in model.calls] == [16384, 8192]
     row = await row_of(ai["id"])
-    assert (row["context_read"], row["context_read_kind"]) == (8192, "served")
+    assert (row["context_read"], row["context_read_kind"]) == (8192, "observed")
     assert (row["token_ratio"], row["token_ratio_n"]) == (pytest.approx(9000 / estimates[0]), 1)
 
 
@@ -1262,3 +1262,26 @@ async def test_what_was_observed_dates_the_ai(client):
     resp = await client.post(f"/api/models/{ai['id']}/observed", json={"tokens": 4096})
     assert resp.json()["updated_at"] > "2026-11-01T10:00:00+00:00"
     assert (await row_of(ai["id"]))["updated_at"] == resp.json()["updated_at"]
+
+
+async def test_a_size_taught_by_a_refusal_holds_against_a_read_made_by_itself(
+        client, monkeypatch, lists):
+    ai, convo = await a_long_story(client, context_own=None)
+    # The list says more than the server takes.
+    lists.routes["/v1/models"] = {"data": [{"id": "mock", "context_length": 32768}]}
+    Model((400, {"error": {"message": OPENAI_TOO_LONG}}), writing("*She nods.*")
+          ).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    await limits.drain()
+    taught = (await model_of(client, ai["id"]))["context"]
+    assert taught["read"] == 8192
+
+    limits.schedule_refresh(ai["id"], fresh=False)
+    await limits.drain()
+    after = (await model_of(client, ai["id"]))["context"]
+    assert (after["read"], after["read_kind"]) == (8192, taught["read_kind"])
+
+    # Read again on the AI's page, at the person's asking: what the server says is taken.
+    resp = await client.post(f"/api/models/{ai['id']}/refresh", json={"fresh": True})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["model"]["context"]["read"] == 32768

@@ -353,7 +353,9 @@ def lesson(call: dict, current: dict, *, message: str, estimate: int,
     limit, prompt = too_long_figures(message, sent=call.get("max_tokens"), said=said)
     sets: dict = {}
     if limit is not None and limit != call["context_size"]:
-        sets.update(context_read=limit, context_read_kind="served")
+        # What the server showed it takes, as a reply cut at its size shows it: a read of its
+        # list made by itself, which may say more, does not undo it (models.store_read).
+        sets.update(context_read=limit, context_read_kind="observed")
     if limit is not None and prompt is not None and prompt > 0 and estimate > 0:
         # A count of the whole prompt, as a reply's is: it moves the average, not replaces it.
         ratio, n = next_ratio(current, prompt / estimate)
