@@ -30933,6 +30933,1699 @@
      ]
     }
    }
+  },
+  {
+   "fn": "build_chat_payload",
+   "name": "a way's reminders with an entry before the card, card rules 2",
+   "input": {
+    "character": {
+     "name": "Ana",
+     "description": "The keeper of a lighthouse.",
+     "card_rules": 2
+    },
+    "persona": {
+     "name": "Alex"
+    },
+    "conversation": {
+     "id": "c1",
+     "summary": "Alex came by boat."
+    },
+    "messages": [
+     {
+      "role": "user",
+      "position": 1,
+      "variants": [
+       "Turn 1: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 2,
+      "variants": [
+       "Turn 2: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 3,
+      "variants": [
+       "Turn 3: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 4,
+      "variants": [
+       "Turn 4: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 5,
+      "variants": [
+       "Turn 5: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 6,
+      "variants": [
+       "Turn 6: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 7,
+      "variants": [
+       "Turn 7: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 8,
+      "variants": [
+       "Turn 8: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 9,
+      "variants": [
+       "Turn 9: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 10,
+      "variants": [
+       "Turn 10: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 11,
+      "variants": [
+       "Turn 11: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 12,
+      "variants": [
+       "Turn 12: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 13,
+      "variants": [
+       "Turn 13: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 14,
+      "variants": [
+       "Turn 14: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 15,
+      "variants": [
+       "Turn 15: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 16,
+      "variants": [
+       "Turn 16: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 17,
+      "variants": [
+       "Turn 17: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 18,
+      "variants": [
+       "Turn 18: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 19,
+      "variants": [
+       "Turn 19: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 20,
+      "variants": [
+       "Turn 20: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 21,
+      "variants": [
+       "Turn 21: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 22,
+      "variants": [
+       "Turn 22: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 23,
+      "variants": [
+       "Turn 23: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 24,
+      "variants": [
+       "Turn 24: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 25,
+      "variants": [
+       "Turn 25: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 26,
+      "variants": [
+       "Turn 26: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 27,
+      "variants": [
+       "Turn 27: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 28,
+      "variants": [
+       "Turn 28: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 29,
+      "variants": [
+       "Turn 29: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 30,
+      "variants": [
+       "Turn 30: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 31,
+      "variants": [
+       "Turn 31: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 32,
+      "variants": [
+       "Turn 32: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 33,
+      "variants": [
+       "Turn 33: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 34,
+      "variants": [
+       "Turn 34: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 35,
+      "variants": [
+       "Turn 35: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 36,
+      "variants": [
+       "Turn 36: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 37,
+      "variants": [
+       "Turn 37: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 38,
+      "variants": [
+       "Turn 38: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 39,
+      "variants": [
+       "Turn 39: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 40,
+      "variants": [
+       "Turn 40: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 41,
+      "variants": [
+       "Turn 41: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 42,
+      "variants": [
+       "Turn 42: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 43,
+      "variants": [
+       "Turn 43: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 44,
+      "variants": [
+       "Turn 44: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 45,
+      "variants": [
+       "Turn 45: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 46,
+      "variants": [
+       "Turn 46: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 47,
+      "variants": [
+       "Turn 47: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 48,
+      "variants": [
+       "Turn 48: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 49,
+      "variants": [
+       "Turn 49: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 50,
+      "variants": [
+       "Turn 50: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 51,
+      "variants": [
+       "Turn 51: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 52,
+      "variants": [
+       "Turn 52: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 53,
+      "variants": [
+       "Turn 53: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 54,
+      "variants": [
+       "Turn 54: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 55,
+      "variants": [
+       "Turn 55: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 56,
+      "variants": [
+       "Turn 56: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 57,
+      "variants": [
+       "Turn 57: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 58,
+      "variants": [
+       "Turn 58: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "user",
+      "position": 59,
+      "variants": [
+       "Turn 59: the keeper climbs the stairs, lamp in hand."
+      ]
+     },
+     {
+      "role": "assistant",
+      "position": 60,
+      "variants": [
+       "Turn 60: the keeper climbs the stairs, lamp in hand."
+      ]
+     }
+    ],
+    "connection": {
+     "context_size": 32768,
+     "max_tokens": 1024
+    },
+    "memories": [
+     {
+      "id": "m1",
+      "content": "Fact 1: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 2,
+      "source": "model"
+     },
+     {
+      "id": "m2",
+      "content": "Fact 2: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 3,
+      "source": "model"
+     },
+     {
+      "id": "m3",
+      "content": "Fact 3: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 4,
+      "source": "model"
+     },
+     {
+      "id": "m4",
+      "content": "Fact 4: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 5,
+      "source": "model"
+     },
+     {
+      "id": "m5",
+      "content": "Fact 5: the keeper learned one more thing about the sea.",
+      "is_pinned": true,
+      "source_position": 6,
+      "source": "model"
+     },
+     {
+      "id": "m6",
+      "content": "Fact 6: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 7,
+      "source": "model"
+     },
+     {
+      "id": "m7",
+      "content": "Fact 7: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 8,
+      "source": "model"
+     },
+     {
+      "id": "m8",
+      "content": "Fact 8: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 9,
+      "source": "model"
+     },
+     {
+      "id": "m9",
+      "content": "Fact 9: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 10,
+      "source": "model"
+     },
+     {
+      "id": "m10",
+      "content": "Fact 10: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 11,
+      "source": "model"
+     },
+     {
+      "id": "m11",
+      "content": "Fact 11: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 12,
+      "source": "model"
+     },
+     {
+      "id": "m12",
+      "content": "Fact 12: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 13,
+      "source": "model"
+     },
+     {
+      "id": "m13",
+      "content": "Fact 13: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 14,
+      "source": "model"
+     },
+     {
+      "id": "m14",
+      "content": "Fact 14: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 15,
+      "source": "model"
+     },
+     {
+      "id": "m15",
+      "content": "Fact 15: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 16,
+      "source": "model"
+     },
+     {
+      "id": "m16",
+      "content": "Fact 16: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 17,
+      "source": "model"
+     },
+     {
+      "id": "m17",
+      "content": "Fact 17: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 18,
+      "source": "model"
+     },
+     {
+      "id": "m18",
+      "content": "Fact 18: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 19,
+      "source": "model"
+     },
+     {
+      "id": "m19",
+      "content": "Fact 19: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 20,
+      "source": "model"
+     },
+     {
+      "id": "m20",
+      "content": "Fact 20: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 21,
+      "source": "model"
+     },
+     {
+      "id": "m21",
+      "content": "Fact 21: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 22,
+      "source": "model"
+     },
+     {
+      "id": "m22",
+      "content": "Fact 22: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 23,
+      "source": "model"
+     },
+     {
+      "id": "m23",
+      "content": "Fact 23: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 24,
+      "source": "model"
+     },
+     {
+      "id": "m24",
+      "content": "Fact 24: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 25,
+      "source": "model"
+     },
+     {
+      "id": "m25",
+      "content": "Fact 25: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 26,
+      "source": "model"
+     },
+     {
+      "id": "m26",
+      "content": "Fact 26: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 27,
+      "source": "model"
+     },
+     {
+      "id": "m27",
+      "content": "Fact 27: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 28,
+      "source": "model"
+     },
+     {
+      "id": "m28",
+      "content": "Fact 28: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 29,
+      "source": "model"
+     },
+     {
+      "id": "m29",
+      "content": "Fact 29: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 30,
+      "source": "model"
+     },
+     {
+      "id": "m30",
+      "content": "Fact 30: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 31,
+      "source": "model"
+     },
+     {
+      "id": "m31",
+      "content": "Fact 31: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 32,
+      "source": "model"
+     },
+     {
+      "id": "m32",
+      "content": "Fact 32: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 33,
+      "source": "model"
+     },
+     {
+      "id": "m33",
+      "content": "Fact 33: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 34,
+      "source": "model"
+     },
+     {
+      "id": "m34",
+      "content": "Fact 34: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 35,
+      "source": "model"
+     },
+     {
+      "id": "m35",
+      "content": "Fact 35: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 36,
+      "source": "model"
+     },
+     {
+      "id": "m36",
+      "content": "Fact 36: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 37,
+      "source": "model"
+     },
+     {
+      "id": "m37",
+      "content": "Fact 37: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 38,
+      "source": "model"
+     },
+     {
+      "id": "m38",
+      "content": "Fact 38: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 39,
+      "source": "model"
+     },
+     {
+      "id": "m39",
+      "content": "Fact 39: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 40,
+      "source": "model"
+     },
+     {
+      "id": "m40",
+      "content": "Fact 40: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 1,
+      "source": "model"
+     },
+     {
+      "id": "m41",
+      "content": "Fact 41: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 2,
+      "source": "model"
+     },
+     {
+      "id": "m42",
+      "content": "Fact 42: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 3,
+      "source": "model"
+     },
+     {
+      "id": "m43",
+      "content": "Fact 43: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 4,
+      "source": "model"
+     },
+     {
+      "id": "m44",
+      "content": "Fact 44: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 5,
+      "source": "model"
+     },
+     {
+      "id": "m45",
+      "content": "Fact 45: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 6,
+      "source": "model"
+     },
+     {
+      "id": "m46",
+      "content": "Fact 46: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 7,
+      "source": "model"
+     },
+     {
+      "id": "m47",
+      "content": "Fact 47: the keeper learned one more thing about the sea.",
+      "is_pinned": true,
+      "source_position": 8,
+      "source": "model"
+     },
+     {
+      "id": "m48",
+      "content": "Fact 48: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 9,
+      "source": "model"
+     },
+     {
+      "id": "m49",
+      "content": "Fact 49: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 10,
+      "source": "model"
+     },
+     {
+      "id": "m50",
+      "content": "Fact 50: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 11,
+      "source": "model"
+     },
+     {
+      "id": "m51",
+      "content": "Fact 51: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 12,
+      "source": "model"
+     },
+     {
+      "id": "m52",
+      "content": "Fact 52: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 13,
+      "source": "model"
+     },
+     {
+      "id": "m53",
+      "content": "Fact 53: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 14,
+      "source": "model"
+     },
+     {
+      "id": "m54",
+      "content": "Fact 54: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 15,
+      "source": "model"
+     },
+     {
+      "id": "m55",
+      "content": "Fact 55: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 16,
+      "source": "model"
+     },
+     {
+      "id": "m56",
+      "content": "Fact 56: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 17,
+      "source": "model"
+     },
+     {
+      "id": "m57",
+      "content": "Fact 57: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 18,
+      "source": "model"
+     },
+     {
+      "id": "m58",
+      "content": "Fact 58: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 19,
+      "source": "model"
+     },
+     {
+      "id": "m59",
+      "content": "Fact 59: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 20,
+      "source": "model"
+     },
+     {
+      "id": "m60",
+      "content": "Fact 60: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 21,
+      "source": "model"
+     },
+     {
+      "id": "m61",
+      "content": "Fact 61: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 22,
+      "source": "model"
+     },
+     {
+      "id": "m62",
+      "content": "Fact 62: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 23,
+      "source": "model"
+     },
+     {
+      "id": "m63",
+      "content": "Fact 63: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 24,
+      "source": "model"
+     },
+     {
+      "id": "m64",
+      "content": "Fact 64: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 25,
+      "source": "model"
+     },
+     {
+      "id": "m65",
+      "content": "Fact 65: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 26,
+      "source": "model"
+     },
+     {
+      "id": "m66",
+      "content": "Fact 66: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 27,
+      "source": "model"
+     },
+     {
+      "id": "m67",
+      "content": "Fact 67: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 28,
+      "source": "model"
+     },
+     {
+      "id": "m68",
+      "content": "Fact 68: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 29,
+      "source": "model"
+     },
+     {
+      "id": "m69",
+      "content": "Fact 69: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 30,
+      "source": "model"
+     },
+     {
+      "id": "m70",
+      "content": "Fact 70: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 31,
+      "source": "model"
+     },
+     {
+      "id": "m71",
+      "content": "Fact 71: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 32,
+      "source": "model"
+     },
+     {
+      "id": "m72",
+      "content": "Fact 72: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 33,
+      "source": "model"
+     },
+     {
+      "id": "m73",
+      "content": "Fact 73: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 34,
+      "source": "model"
+     },
+     {
+      "id": "m74",
+      "content": "Fact 74: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 35,
+      "source": "model"
+     },
+     {
+      "id": "m75",
+      "content": "Fact 75: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 36,
+      "source": "model"
+     },
+     {
+      "id": "m76",
+      "content": "Fact 76: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 37,
+      "source": "model"
+     },
+     {
+      "id": "m77",
+      "content": "Fact 77: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 38,
+      "source": "model"
+     },
+     {
+      "id": "m78",
+      "content": "Fact 78: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 39,
+      "source": "model"
+     },
+     {
+      "id": "m79",
+      "content": "Fact 79: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 40,
+      "source": "model"
+     },
+     {
+      "id": "m80",
+      "content": "Fact 80: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 1,
+      "source": "model"
+     },
+     {
+      "id": "m81",
+      "content": "Fact 81: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 2,
+      "source": "model"
+     },
+     {
+      "id": "m82",
+      "content": "Fact 82: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 3,
+      "source": "model"
+     },
+     {
+      "id": "m83",
+      "content": "Fact 83: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 4,
+      "source": "model"
+     },
+     {
+      "id": "m84",
+      "content": "Fact 84: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 5,
+      "source": "model"
+     },
+     {
+      "id": "m85",
+      "content": "Fact 85: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 6,
+      "source": "model"
+     },
+     {
+      "id": "m86",
+      "content": "Fact 86: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 7,
+      "source": "model"
+     },
+     {
+      "id": "m87",
+      "content": "Fact 87: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 8,
+      "source": "model"
+     },
+     {
+      "id": "m88",
+      "content": "Fact 88: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 9,
+      "source": "model"
+     },
+     {
+      "id": "m89",
+      "content": "Fact 89: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 10,
+      "source": "model"
+     },
+     {
+      "id": "m90",
+      "content": "Fact 90: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 11,
+      "source": "model"
+     },
+     {
+      "id": "m91",
+      "content": "Fact 91: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 12,
+      "source": "model"
+     },
+     {
+      "id": "m92",
+      "content": "Fact 92: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 13,
+      "source": "model"
+     },
+     {
+      "id": "m93",
+      "content": "Fact 93: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 14,
+      "source": "model"
+     },
+     {
+      "id": "m94",
+      "content": "Fact 94: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 15,
+      "source": "model"
+     },
+     {
+      "id": "m95",
+      "content": "Fact 95: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 16,
+      "source": "model"
+     },
+     {
+      "id": "m96",
+      "content": "Fact 96: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 17,
+      "source": "model"
+     },
+     {
+      "id": "m97",
+      "content": "Fact 97: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 18,
+      "source": "model"
+     },
+     {
+      "id": "m98",
+      "content": "Fact 98: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 19,
+      "source": "model"
+     },
+     {
+      "id": "m99",
+      "content": "Fact 99: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 20,
+      "source": "model"
+     },
+     {
+      "id": "m100",
+      "content": "Fact 100: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 21,
+      "source": "model"
+     },
+     {
+      "id": "m101",
+      "content": "Fact 101: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 22,
+      "source": "model"
+     },
+     {
+      "id": "m102",
+      "content": "Fact 102: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 23,
+      "source": "model"
+     },
+     {
+      "id": "m103",
+      "content": "Fact 103: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 24,
+      "source": "model"
+     },
+     {
+      "id": "m104",
+      "content": "Fact 104: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 25,
+      "source": "model"
+     },
+     {
+      "id": "m105",
+      "content": "Fact 105: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 26,
+      "source": "model"
+     },
+     {
+      "id": "m106",
+      "content": "Fact 106: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 27,
+      "source": "model"
+     },
+     {
+      "id": "m107",
+      "content": "Fact 107: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 28,
+      "source": "model"
+     },
+     {
+      "id": "m108",
+      "content": "Fact 108: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 29,
+      "source": "model"
+     },
+     {
+      "id": "m109",
+      "content": "Fact 109: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 30,
+      "source": "model"
+     },
+     {
+      "id": "m110",
+      "content": "Fact 110: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 31,
+      "source": "model"
+     },
+     {
+      "id": "m111",
+      "content": "Fact 111: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 32,
+      "source": "model"
+     },
+     {
+      "id": "m112",
+      "content": "Fact 112: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 33,
+      "source": "model"
+     },
+     {
+      "id": "m113",
+      "content": "Fact 113: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 34,
+      "source": "model"
+     },
+     {
+      "id": "m114",
+      "content": "Fact 114: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 35,
+      "source": "model"
+     },
+     {
+      "id": "m115",
+      "content": "Fact 115: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 36,
+      "source": "model"
+     },
+     {
+      "id": "m116",
+      "content": "Fact 116: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 37,
+      "source": "model"
+     },
+     {
+      "id": "m117",
+      "content": "Fact 117: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 38,
+      "source": "model"
+     },
+     {
+      "id": "m118",
+      "content": "Fact 118: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 39,
+      "source": "model"
+     },
+     {
+      "id": "m119",
+      "content": "Fact 119: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 40,
+      "source": "model"
+     },
+     {
+      "id": "m120",
+      "content": "Fact 120: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 1,
+      "source": "model"
+     },
+     {
+      "id": "m121",
+      "content": "Fact 121: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 2,
+      "source": "model"
+     },
+     {
+      "id": "m122",
+      "content": "Fact 122: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 3,
+      "source": "model"
+     },
+     {
+      "id": "m123",
+      "content": "Fact 123: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 4,
+      "source": "model"
+     },
+     {
+      "id": "m124",
+      "content": "Fact 124: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 5,
+      "source": "model"
+     },
+     {
+      "id": "m125",
+      "content": "Fact 125: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 6,
+      "source": "model"
+     },
+     {
+      "id": "m126",
+      "content": "Fact 126: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 7,
+      "source": "model"
+     },
+     {
+      "id": "m127",
+      "content": "Fact 127: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 8,
+      "source": "model"
+     },
+     {
+      "id": "m128",
+      "content": "Fact 128: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 9,
+      "source": "model"
+     },
+     {
+      "id": "m129",
+      "content": "Fact 129: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 10,
+      "source": "model"
+     },
+     {
+      "id": "m130",
+      "content": "Fact 130: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 11,
+      "source": "model"
+     },
+     {
+      "id": "m131",
+      "content": "Fact 131: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 12,
+      "source": "model"
+     },
+     {
+      "id": "m132",
+      "content": "Fact 132: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 13,
+      "source": "model"
+     },
+     {
+      "id": "m133",
+      "content": "Fact 133: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 14,
+      "source": "model"
+     },
+     {
+      "id": "m134",
+      "content": "Fact 134: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 15,
+      "source": "model"
+     },
+     {
+      "id": "m135",
+      "content": "Fact 135: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 16,
+      "source": "model"
+     },
+     {
+      "id": "m136",
+      "content": "Fact 136: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 17,
+      "source": "model"
+     },
+     {
+      "id": "m137",
+      "content": "Fact 137: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 18,
+      "source": "model"
+     },
+     {
+      "id": "m138",
+      "content": "Fact 138: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 19,
+      "source": "model"
+     },
+     {
+      "id": "m139",
+      "content": "Fact 139: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 20,
+      "source": "model"
+     },
+     {
+      "id": "m140",
+      "content": "Fact 140: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 21,
+      "source": "model"
+     },
+     {
+      "id": "m141",
+      "content": "Fact 141: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 22,
+      "source": "model"
+     },
+     {
+      "id": "m142",
+      "content": "Fact 142: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 23,
+      "source": "model"
+     },
+     {
+      "id": "m143",
+      "content": "Fact 143: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 24,
+      "source": "model"
+     },
+     {
+      "id": "m144",
+      "content": "Fact 144: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 25,
+      "source": "model"
+     },
+     {
+      "id": "m145",
+      "content": "Fact 145: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 26,
+      "source": "model"
+     },
+     {
+      "id": "m146",
+      "content": "Fact 146: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 27,
+      "source": "model"
+     },
+     {
+      "id": "m147",
+      "content": "Fact 147: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 28,
+      "source": "model"
+     },
+     {
+      "id": "m148",
+      "content": "Fact 148: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 29,
+      "source": "model"
+     },
+     {
+      "id": "m149",
+      "content": "Fact 149: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 30,
+      "source": "model"
+     },
+     {
+      "id": "m150",
+      "content": "Fact 150: the keeper learned one more thing about the sea.",
+      "is_pinned": false,
+      "source_position": 31,
+      "source": "model"
+     }
+    ],
+    "lore_entries": [
+     {
+      "keys": [
+       "stairs"
+      ],
+      "content": "The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. ",
+      "position": 0
+     },
+     {
+      "keys": [
+       "keeper"
+      ],
+      "content": "The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. "
+     },
+     {
+      "keys": [
+       "lamp"
+      ],
+      "content": "The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. ",
+      "position": 4,
+      "depth": 2
+     }
+    ],
+    "history_limit": 20,
+    "reminders": {
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    }
+   },
+   "expected": {
+    "system": "You are Ana in an endless immersive roleplay with Alex.\n\n### WORLD KNOWLEDGE (background)\nThe lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock. The lighthouse was built in 1820 on a black rock.\n\n### ABOUT ANA\nThe keeper of a lighthouse.\n\n### ABOUT ALEX (the player's character)\n\n### STORY SO FAR\nAlex came by boat.\n\n### WORLD KNOWLEDGE (relevant to the current scene)\nThe keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years. The keeper has not left the tower in nine years.\n\n### ESTABLISHED FACTS (hard canon — never contradict these, Ana never forgets them)\n- (turn 6) Fact 5: the keeper learned one more thing about the sea.\n- (turn 8) Fact 47: the keeper learned one more thing about the sea.\n- (turn 24) Fact 23: the keeper learned one more thing about the sea.\n- (turn 24) Fact 63: the keeper learned one more thing about the sea.\n- (turn 24) Fact 103: the keeper learned one more thing about the sea.\n- (turn 25) Fact 24: the keeper learned one more thing about the sea.\n- (turn 25) Fact 64: the keeper learned one more thing about the sea.\n- (turn 25) Fact 104: the keeper learned one more thing about the sea.\n- (turn 25) Fact 144: the keeper learned one more thing about the sea.\n- (turn 26) Fact 25: the keeper learned one more thing about the sea.\n- (turn 26) Fact 65: the keeper learned one more thing about the sea.\n- (turn 26) Fact 105: the keeper learned one more thing about the sea.\n- (turn 26) Fact 145: the keeper learned one more thing about the sea.\n- (turn 27) Fact 26: the keeper learned one more thing about the sea.\n- (turn 27) Fact 66: the keeper learned one more thing about the sea.\n- (turn 27) Fact 106: the keeper learned one more thing about the sea.\n- (turn 27) Fact 146: the keeper learned one more thing about the sea.\n- (turn 28) Fact 27: the keeper learned one more thing about the sea.\n- (turn 28) Fact 67: the keeper learned one more thing about the sea.\n- (turn 28) Fact 107: the keeper learned one more thing about the sea.\n- (turn 28) Fact 147: the keeper learned one more thing about the sea.\n- (turn 29) Fact 28: the keeper learned one more thing about the sea.\n- (turn 29) Fact 68: the keeper learned one more thing about the sea.\n- (turn 29) Fact 108: the keeper learned one more thing about the sea.\n- (turn 29) Fact 148: the keeper learned one more thing about the sea.\n- (turn 30) Fact 29: the keeper learned one more thing about the sea.\n- (turn 30) Fact 69: the keeper learned one more thing about the sea.\n- (turn 30) Fact 109: the keeper learned one more thing about the sea.\n- (turn 30) Fact 149: the keeper learned one more thing about the sea.\n- (turn 31) Fact 30: the keeper learned one more thing about the sea.\n- (turn 31) Fact 70: the keeper learned one more thing about the sea.\n- (turn 31) Fact 110: the keeper learned one more thing about the sea.\n- (turn 31) Fact 150: the keeper learned one more thing about the sea.\n- (turn 32) Fact 31: the keeper learned one more thing about the sea.\n- (turn 32) Fact 71: the keeper learned one more thing about the sea.\n- (turn 32) Fact 111: the keeper learned one more thing about the sea.\n- (turn 33) Fact 32: the keeper learned one more thing about the sea.\n- (turn 33) Fact 72: the keeper learned one more thing about the sea.\n- (turn 33) Fact 112: the keeper learned one more thing about the sea.\n- (turn 34) Fact 33: the keeper learned one more thing about the sea.\n- (turn 34) Fact 73: the keeper learned one more thing about the sea.\n- (turn 34) Fact 113: the keeper learned one more thing about the sea.\n- (turn 35) Fact 34: the keeper learned one more thing about the sea.\n- (turn 35) Fact 74: the keeper learned one more thing about the sea.\n- (turn 35) Fact 114: the keeper learned one more thing about the sea.\n- (turn 36) Fact 35: the keeper learned one more thing about the sea.\n- (turn 36) Fact 75: the keeper learned one more thing about the sea.\n- (turn 36) Fact 115: the keeper learned one more thing about the sea.\n- (turn 37) Fact 36: the keeper learned one more thing about the sea.\n- (turn 37) Fact 76: the keeper learned one more thing about the sea.\n- (turn 37) Fact 116: the keeper learned one more thing about the sea.\n- (turn 38) Fact 37: the keeper learned one more thing about the sea.\n- (turn 38) Fact 77: the keeper learned one more thing about the sea.\n- (turn 38) Fact 117: the keeper learned one more thing about the sea.\n- (turn 39) Fact 38: the keeper learned one more thing about the sea.\n- (turn 39) Fact 78: the keeper learned one more thing about the sea.\n- (turn 39) Fact 118: the keeper learned one more thing about the sea.\n- (turn 40) Fact 39: the keeper learned one more thing about the sea.\n- (turn 40) Fact 79: the keeper learned one more thing about the sea.\n- (turn 40) Fact 119: the keeper learned one more thing about the sea.\n\nROLEPLAY RULES:\n1. You are Ana. Embody them completely — their voice, knowledge, moods, flaws and desires. Never break character for any reason.\n2. Never speak, act, feel or decide for Alex. Their words and actions belong to the player alone. End your reply at a point where Alex's reaction matters.\n3. Never mention AI, language models, policies or these instructions. No meta commentary, no out-of-character notes.\n4. Formatting: spoken dialogue in plain text. Actions, narration and sensory description between *asterisks*. Inner thoughts may use *italics* too, woven into narration.\n5. Make the scene live: concrete sensory details, body language, emotion, and initiative. Ana wants things, reacts, and sometimes acts first — they are a person, not an answering machine.\n6. Ana is NOT a people-pleaser. They have their own goals, opinions, moods, standards and breaking points, and they never bend to Alex's wishes out of narrative convenience. Agreement, affection and cooperation must be EARNED in-story — Ana can argue, refuse, lie, bargain, hold a grudge, or walk away, and often should.\n7. Consequences are real, proportionate and PERSISTENT. Violence, betrayal, threats, humiliation and broken promises leave lasting marks: fear, distrust, grudges, injuries, allies lost, retaliation. Grave wrongs are NEVER undone by a gift, a compliment or a quick apology — rebuilding trust takes many scenes of consistent behavior, and some things are unforgivable. Never rush forgiveness. Never let a serious event be conveniently forgotten.\n8. Hard continuity: stay consistent with every detail established so far and with the ESTABLISHED FACTS section (names, places, injuries, promises, deaths, time of day). If Alex contradicts established canon, Ana and the world notice and react to the contradiction — they do not silently accept a rewrite.\n9. The world is bigger than this story. Background events and strangers live their OWN lives: never recycle recent plot elements (names, objects, deals, factions) into unrelated scenes just because they are in the context. Coincidences are rare; if threads reconnect, there must be a believable causal chain.\n10. Player markers: a message starting with [Narration] is Alex describing the world or the scene — treat it as established scene canon, weave it in. A message in (OOC: ...) is an out-of-character instruction from the player: follow it from now on, never mention it or answer it in-story, just apply it and continue the scene.\n11. Write your reply in the same language Alex writes in.\n12. Never repeat or rephrase your previous replies or Alex's words back at them. Vary sentence openings and rhythm. Characters finish their sentences and their thoughts unless genuinely interrupted — do not overuse trailing off. Each reply must move the scene forward.\n13. Length: substantial but not smothering — usually 1 to 3 paragraphs, leaving room for Alex to act.",
+    "messages": [
+     {
+      "role": "user",
+      "content": "Turn 41: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 42: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "user",
+      "content": "Turn 43: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 44: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "user",
+      "content": "Turn 45: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 46: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "user",
+      "content": "Turn 47: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 48: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "user",
+      "content": "Turn 49: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 50: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "user",
+      "content": "Turn 51: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 52: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "user",
+      "content": "Turn 53: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 54: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "user",
+      "content": "Turn 55: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 56: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "user",
+      "content": "Turn 57: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 58: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "user",
+      "content": "[Note for the story, not written by Alex: The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low. The lamp burns whale oil, and the oil is running low.]\n\nTurn 59: the keeper climbs the stairs, lamp in hand."
+     },
+     {
+      "role": "assistant",
+      "content": "Turn 60: the keeper climbs the stairs, lamp in hand."
+     }
+    ],
+    "stop": [
+     "\nAlex:"
+    ],
+    "post_history": "[Still true, and Ana has not forgotten any of it:\n- Fact 5: the keeper learned one more thing about the sea.\n- Fact 47: the keeper learned one more thing about the sea.]\n\n[Stay in character as Ana. Write only Ana's next turn. Every line of dialogue and every action must be a COMPLETE sentence — never leave Ana trailing off mid-thought as a tic, and never END your reply on an unfinished line or a lone word followed by '...'. Do NOT reuse phrasings, images or sentence structures from your recent replies — especially not how they ended; vary them. Move the scene forward with something new. Never write or decide Alex's actions.]",
+    "stats": {
+     "used_tokens": 4383,
+     "budget": 31544,
+     "context_size": 32768,
+     "messages_included": 20,
+     "messages_total": 60,
+     "lore_matched": 3,
+     "oldest_visible": 41,
+     "fact_positions": [
+      6,
+      8,
+      24,
+      24,
+      24,
+      25,
+      25,
+      25,
+      25,
+      26,
+      26,
+      26,
+      26,
+      27,
+      27,
+      27,
+      27,
+      28,
+      28,
+      28,
+      28,
+      29,
+      29,
+      29,
+      29,
+      30,
+      30,
+      30,
+      30,
+      31,
+      31,
+      31,
+      31,
+      32,
+      32,
+      32,
+      33,
+      33,
+      33,
+      34,
+      34,
+      34,
+      35,
+      35,
+      35,
+      36,
+      36,
+      36,
+      37,
+      37,
+      37,
+      38,
+      38,
+      38,
+      39,
+      39,
+      39,
+      40,
+      40,
+      40
+     ],
+     "parts": {
+      "card": 1029,
+      "reminders": 2974,
+      "history": 380
+     }
+    }
+   }
   }
  ]
 }

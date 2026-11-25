@@ -2549,6 +2549,62 @@
     "passage_share": null,
     "adjusted": true
    }
+  },
+  {
+   "fn": "way_of",
+   "name": "a name an object has of its own is no way",
+   "input": {
+    "play_styles": {},
+    "way_id": "constructor",
+    "default_id": "light"
+   },
+   "expected": {
+    "id": "light",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 16,
+    "reply_length": "short",
+    "reply_room": 512,
+    "facts_cap": 700,
+    "max_facts": 60,
+    "lore_cap": 400,
+    "lore_share": 0.06,
+    "passage_cap": 0,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "level_of",
+   "name": "a field left out reads as none",
+   "input": {
+    "fields": {
+     "max_facts": null,
+     "lore_cap": null,
+     "lore_share": 0.06,
+     "passage_cap": null,
+     "passage_share": 0.1
+    }
+   },
+   "expected": "all"
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a model that reasons on Anthropic with a small allowance keeps the floor",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 1,
+     "output_read": null
+    },
+    "family": "anthropic",
+    "anthropic": true,
+    "room": 1024,
+    "window": 200000,
+    "allowance": 600
+   },
+   "expected": 4096
   }
  ]
 }
