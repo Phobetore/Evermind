@@ -151,7 +151,8 @@ export function SettingsPage() {
                 <li key={ai.id}>
                   <Link
                     to={`/settings/ai/${ai.id}`}
-                    className="panel flex items-center justify-between gap-3 px-5 py-4 hover:border-ink-600"
+                    // As the ways' lines: gutters in pixels at most, or the largest text squeezes the words.
+                    className="panel flex items-center justify-between gap-[min(0.75rem,12px)] px-[min(1.25rem,20px)] py-4 hover:border-ink-600"
                   >
                     <AiLine ai={ai} extra={ways && <EstimateLine reader={readerOfAi(ai)} way={offeredWay(ways)} />} />
                     <ChevronRight className="h-4 w-4 shrink-0 text-mist" aria-hidden="true" />

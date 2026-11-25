@@ -749,6 +749,32 @@ test.describe("settings at very large text keep to the screen", () => {
   }
 });
 
+// The lines of My AIs keep the gutters of the ways' lines under them, capped in pixels: at the
+// largest text, gutters in rem would squeeze the words; at the text's own size, nothing moves.
+test("my ais' lines keep the ways' gutters, whatever the size of the text", async ({ page, request }) => {
+  // The suite's own AI, made with a character, gives the list a line.
+  await makeCharacter(request);
+  const gutters = (selector: string) => page.locator(selector).first().evaluate((line) => {
+    const style = getComputedStyle(line);
+    return { left: style.paddingLeft, right: style.paddingRight, gap: style.columnGap };
+  });
+  for (const root of ["16px", "32px"]) {
+    if (root === "32px") await page.addInitScript(rootAt, root);
+    for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+      const at = `at ${size.width}px, a root of ${root}`;
+      await page.setViewportSize(size);
+      await page.goto("about:blank");
+      await page.goto("/#/settings");
+      await expect(page.locator("main a[href^='#/settings/ai/']").first()).toBeVisible();
+      await expect(page.locator("main a[href^='#/settings/way/']").first()).toBeVisible();
+      expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(root);
+      const ai = await gutters("main a[href^='#/settings/ai/']");
+      expect(ai, at).toEqual({ left: "20px", right: "20px", gap: "12px" });
+      expect(ai, at).toEqual(await gutters("main a[href^='#/settings/way/']"));
+    }
+  }
+});
+
 // What 100 messages of an AI cost, under its line in Settings and on its page: the line goes to the
 // next line rather than slide the page, at the text's own size and at the largest, on two phones.
 test.describe("an ai's estimate per 100 messages keeps to the screen", () => {
