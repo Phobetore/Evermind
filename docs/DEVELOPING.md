@@ -398,8 +398,10 @@ Balanced is the engine as it was, figure for figure.
   the estimate grew by more than 5% (a server that drops the beginning of a
   story that grows), or when its count is far under the estimate and just
   under a round size or the size the server is set to load.
-- **A refusal for a prompt too long** (`learning.is_too_long`) teaches the size
-  and the count it names, else a wider `fit_margin`, and the turn asks once more,
+- **A refusal for a prompt too long** (`learning.is_too_long`: its words, or the
+  `code` and `type` its error body keeps, `ProviderError.said`) teaches the size
+  and the count it names (in its words, or llama.cpp's `n_ctx` and
+  `n_prompt_tokens`), else a wider `fit_margin`, and the turn asks once more,
   only when the prompt rebuilt with that is shorter: otherwise nothing is learned
   and the server's refusal is told. A wider margin is kept only when the second
   ask was answered. A refusal whose prompt is under the limit while the reply's

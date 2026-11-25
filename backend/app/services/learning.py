@@ -41,21 +41,65 @@ _GROWN = 1.05
 _FOLLOWED = 0.5
 # The statuses a server refuses a prompt too long with.
 _TOO_LONG_STATUSES = (400, 413, 422)
-# A refusal that names the context, or a count of tokens.
-_TOO_LONG = re.compile(r"\bcontext\b|\bprompt is too long\b|\d[\d,]*\s+tokens\b", re.IGNORECASE)
+# What a server's error body names a prompt too long by, where it keeps it beside its words.
+_TOO_LONG_CODE, _TOO_LONG_TYPE = "context_length_exceeded", "exceed_context_size_error"
+# A refusal that names what the server reads at once, or a prompt too long or too large for it.
+_TOO_LONG = re.compile(r"\bcontext (?:length|window|size|limit)\b|\bprompt is too long\b"
+                       r"|\btoo large for model\b", re.IGNORECASE)
+# Not a prompt too long, whatever else they say: a reply's ceiling above what the model writes
+# or reads ("max_tokens is too large", "max_tokens: 10000 > 4096", "Invalid max_tokens value",
+# "max_tokens=40000 cannot be greater than max_model_len"), or a rate of tokens a minute.
+_CEILING_REFUSED = re.compile(
+    r"\bmax_(?:completion_|new_)?tokens\W*(?:or\W+max_completion_tokens\W*)?"
+    r"(?:is too large|cannot be greater|[:=]\s*\d[\d,]*\s*(?:>|cannot))|\binvalid max_tokens\b",
+    re.IGNORECASE)
+_RATE_LIMITED = re.compile(r"\brate limit|\bper minute\b|\(TPM\)", re.IGNORECASE)
 _NUMBER = r"(\d[\d,]*)"
+# The forms a refusal gives its figures in, each read as (limit, prompt); a None group is a
+# figure it does not give. Read in this order: the first that matches is the refusal's.
+_LIMIT = rf"maximum context length is {_NUMBER} tokens"
+_FORMS: tuple[tuple[re.Pattern, int, int | None], ...] = tuple(
+    (re.compile(pattern, re.IGNORECASE | re.DOTALL), limit, prompt) for pattern, limit, prompt in (
+        # OpenAI's and vLLM's 0.6: "you requested 40000 tokens in the messages".
+        (rf"{_LIMIT}.*?requested {_NUMBER} tokens in the messages", 1, 2),
+        # OpenAI's: "your messages resulted in 7403 tokens".
+        (rf"{_LIMIT}.*?resulted in {_NUMBER} tokens", 1, 2),
+        # vLLM's: "your prompt contains 40000 input tokens", "your request has 40000 input tokens".
+        (rf"{_LIMIT}.*?(?:contains|has) {_NUMBER} input tokens", 1, 2),
+        # Anthropic's: "prompt is too long: 203073 tokens > 200000 maximum", and "input length and
+        # `max_tokens` exceed context limit: 198882 + 21333 > 200000".
+        (rf"{_NUMBER} tokens\s*>\s*{_NUMBER}", 2, 1),
+        (rf"context limit:\s*{_NUMBER}\s*\+\s*\d[\d,]*\s*>\s*{_NUMBER}", 2, 1),
+        # llama.cpp's: "request (9000 tokens) exceeds the available context size (8192 tokens)",
+        # and "input (9000 tokens) is larger than the max context size (8192 tokens)".
+        ((rf"\({_NUMBER} tokens\) (?:exceeds|is larger than) the .{{0,20}}?context size "
+          rf"\({_NUMBER} tokens\)"), 2, 1),
+        # Mistral's: "Prompt contains 277504 tokens and 0 draft tokens, too large for model with
+        # 131072 maximum context length".
+        (rf"prompt contains {_NUMBER} tokens.*?too large for model with {_NUMBER} maximum", 2, 1),
+        # Ollama's service: "The prompt is too long: 297754, model maximum context length: 262144".
+        (rf"prompt is too long:\s*{_NUMBER}\s*,\s*model maximum context length:\s*{_NUMBER}", 2, 1),
+        # vLLM's: "Input length (40000) exceeds model's maximum context length (32768)".
+        (rf"input length \({_NUMBER}\) exceeds .{{0,20}}?maximum context length \({_NUMBER}\)",
+         2, 1),
+        # The size alone: "context size (8192 tokens)", "context limit (1048568 tokens)", and LM
+        # Studio's "loaded with context length of only 4096 tokens".
+        (rf"context (?:size|limit|length) \({_NUMBER} tokens\)", 1, None),
+        (rf"context length of only {_NUMBER} tokens", 1, None),
+    ))
 # OpenAI's says what was requested, its reply's room counted in, and OpenRouter's "about" it.
-_LIMIT_THEN_ASKED = re.compile(
-    rf"maximum context length is {_NUMBER} tokens.*?requested (?:[a-z]+ )?{_NUMBER} tokens",
-    re.IGNORECASE | re.DOTALL)
+_LIMIT_THEN_ASKED = re.compile(rf"{_LIMIT}.*?requested (?:[a-z]+ )?{_NUMBER} tokens",
+                               re.IGNORECASE | re.DOTALL)
+# A maximum context length whose prompt is counted in characters, or not at all.
+_LIMIT_ALONE = re.compile(_LIMIT, re.IGNORECASE)
 # The messages' part of it, when the refusal goes on to give it.
 _PROMPT_PART = re.compile(rf"\(\s*{_NUMBER} (?:in the messages|of text input)", re.IGNORECASE)
-# The reply's part of what was requested, when the refusal gives it.
-_REPLY_PART = re.compile(rf"{_NUMBER} in the (?:completion|output)\b", re.IGNORECASE)
+# The reply's part of what was requested, when the refusal gives it: OpenAI's and OpenRouter's,
+# and Anthropic's "198882 + 21333 > 200000".
+_REPLY_PART = re.compile(rf"{_NUMBER} in the (?:completion|output)\b"
+                         rf"|context limit:\s*\d[\d,]*\s*\+\s*{_NUMBER}\s*>", re.IGNORECASE)
 # The least the engine gives the story, whatever the reply keeps (engine.build_chat_payload).
 _LEAST_BUDGET = 512
-_ASKED_OVER_LIMIT =re.compile(rf"{_NUMBER} tokens\s*>\s*{_NUMBER}", re.IGNORECASE)
-_CONTEXT_SIZE = re.compile(rf"context size \({_NUMBER} tokens\)", re.IGNORECASE)
 
 
 def _whole(value: object) -> int | None:
@@ -179,33 +223,47 @@ def _figure(text: str) -> int:
     return int(text.replace(",", ""))
 
 
-def too_long_figures(message: str, *, sent: int | None = None) -> tuple[int | None, int | None]:
-    """(limit, prompt) read from a refusal: "maximum context length is 8192 tokens. However,
-    you requested 9500 tokens (8476 in the messages, 1024 in the completion)", "prompt is too
-    long: 205000 tokens > 200000 maximum", "exceeds the available context size (4096 tokens)"
-    (limit only). What OpenAI's form requested holds the reply's room: the prompt is the
-    messages' part when it is given, else what is left once ``sent``, the max_tokens the request
-    carried, is taken away."""
+def too_long_figures(message: str, *, sent: int | None = None,
+                     said: dict | None = None) -> tuple[int | None, int | None]:
+    """(limit, prompt) read from a refusal: from the error body's own figures when it keeps them
+    (llama.cpp's n_ctx and n_prompt_tokens, in ``said``), else from its words, in each form a
+    server words them (_FORMS). What OpenAI's form requested holds the reply's room: the prompt
+    is the messages' part when it is given, else what is left once ``sent``, the max_tokens the
+    request carried, is taken away. A maximum context length alone is the limit alone."""
+    said = said or {}
+    if isinstance(said.get("n_ctx"), int) and isinstance(said.get("n_prompt_tokens"), int):
+        return said["n_ctx"], said["n_prompt_tokens"]
+    for pattern, limit, prompt in _FORMS:
+        if found := pattern.search(message):
+            return (_figure(found.group(limit)),
+                    None if prompt is None else _figure(found.group(prompt)))
     if found := _LIMIT_THEN_ASKED.search(message):
         if part := _PROMPT_PART.search(message, found.end()):
             return _figure(found.group(1)), _figure(part.group(1))
         return _figure(found.group(1)), _figure(found.group(2)) - (sent or 0)
-    if found := _ASKED_OVER_LIMIT.search(message):
-        return _figure(found.group(2)), _figure(found.group(1))
-    if found := _CONTEXT_SIZE.search(message):
+    if found := _LIMIT_ALONE.search(message):
         return _figure(found.group(1)), None
     return None, None
 
 
 def _reply_part(message: str) -> int | None:
     found = _REPLY_PART.search(message)
-    return _figure(found.group(1)) if found else None
+    return _figure(found.group(1) or found.group(2)) if found else None
 
 
 def is_too_long(error: object) -> bool:
-    """A server that refused the request for a prompt longer than it reads."""
-    return (isinstance(error, ProviderError) and error.status in _TOO_LONG_STATUSES
-            and bool(_TOO_LONG.search(error.message or "")))
+    """A server that refused the request for a prompt longer than it reads: its error body's
+    code (context_length_exceeded) or type (exceed_context_size_error) says so, or its words
+    do. Never a ceiling above what the model writes, nor a rate of tokens a minute."""
+    if not isinstance(error, ProviderError) or error.status not in _TOO_LONG_STATUSES:
+        return False
+    message = error.message or ""
+    said = getattr(error, "said", None) or {}
+    if (_CEILING_REFUSED.search(message) or _RATE_LIMITED.search(message)
+            or said.get("code") == "rate_limit_exceeded"):
+        return False
+    return (said.get("code") == _TOO_LONG_CODE or said.get("type") == _TOO_LONG_TYPE
+            or bool(_TOO_LONG.search(message)))
 
 
 async def after_whole_reply(db: aiosqlite.Connection, call: dict, model: dict, *,
@@ -270,14 +328,15 @@ def _entry(entry: object, sample: float) -> dict:
     return {"avg": average, "n": n}
 
 
-def reply_takes_the_room(message: str, *, sent: int | None = None) -> bool:
+def reply_takes_the_room(message: str, *, sent: int | None = None,
+                         said: dict | None = None) -> bool:
     """A refusal whose figures say the prompt alone is under the limit, and the reply's room
     leaves less than the engine's least budget (512) for any story: "you requested about
     140000 tokens (2000 of text input, 138000 in the output)" from a server reading 131072. No
     shorter story would be answered: it is not a story too long. One whose room leaves a story
     its place (DeepSeek's "99645 in the messages, 8192 in the completion" of 102400) is: the
     prompt is longer than the server counts it is given."""
-    limit, prompt = too_long_figures(message, sent=sent)
+    limit, prompt = too_long_figures(message, sent=sent, said=said)
     room = _reply_part(message)
     if room is None:
         room = sent
@@ -285,12 +344,13 @@ def reply_takes_the_room(message: str, *, sent: int | None = None) -> bool:
             and limit - room < _LEAST_BUDGET)
 
 
-def lesson(call: dict, current: dict, *, message: str, estimate: int) -> dict:
+def lesson(call: dict, current: dict, *, message: str, estimate: int,
+           said: dict | None = None) -> dict:
     """What a refusal for a prompt too long teaches, against the AI as it is stored now: the size
     it names, when it differs from the one counted, and its count against the estimate when it
     gives both; else a wider margin, a share of the window more each time, up to
     FIT_MARGIN_MOST."""
-    limit, prompt = too_long_figures(message, sent=call.get("max_tokens"))
+    limit, prompt = too_long_figures(message, sent=call.get("max_tokens"), said=said)
     sets: dict = {}
     if limit is not None and limit != call["context_size"]:
         sets.update(context_read=limit, context_read_kind="served")
@@ -305,16 +365,16 @@ def lesson(call: dict, current: dict, *, message: str, estimate: int) -> dict:
 
 
 async def after_too_long(db: aiosqlite.Connection, call: dict, model: dict, *, message: str,
-                         estimate: int) -> None:
+                         estimate: int, said: dict | None = None) -> None:
     """Writes the ``lesson`` of a refusal for a prompt too long, once the prompt it makes is
     known to be shorter. What the person typed is never written."""
 
     def change(current: dict) -> dict:
-        return lesson(call, current, message=message, estimate=estimate)
+        return lesson(call, current, message=message, estimate=estimate, said=said)
 
     if await models_repo.measure(db, call["model_id"], call["model"], change):
         logger.info("%s refused a prompt too long (%s): asked again", call["model_name"],
-                    "its figures learned" if too_long_figures(message)[0] is not None
+                    "its figures learned" if too_long_figures(message, said=said)[0] is not None
                     else "a wider margin kept")
 
 

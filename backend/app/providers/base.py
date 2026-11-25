@@ -132,11 +132,16 @@ def well_formed(text: str) -> str:
 
 class ProviderError(AppError):
     """A model's server that failed: ``message`` is what it said, or the address it could not be
-    reached at, and ``status`` the error status it answered with, if it did."""
+    reached at, and ``status`` the error status it answered with, if it did. ``said`` keeps what
+    its error's body gave beside the words, for whoever reads why it refused: its ``code`` and
+    ``type`` when they are text, and ``n_prompt_tokens`` and ``n_ctx`` (llama.cpp's) when they
+    are whole numbers."""
 
-    def __init__(self, message: str, kind: str = MODEL_ERROR, status: int | None = None):
+    def __init__(self, message: str, kind: str = MODEL_ERROR, status: int | None = None,
+                 said: dict | None = None):
         super().__init__(message, 502, kind=kind)
         self.status = status
+        self.said = said or {}
 
 
 def words_of(said: object, api_key: str | None) -> str:
@@ -197,15 +202,31 @@ def scrub(message: str, api_key: str | None) -> str:
     return message.replace(api_key, f"…{api_key[-4:]}")
 
 
+_SAID_TEXT = ("code", "type")
+_SAID_WHOLE = ("n_prompt_tokens", "n_ctx")
+
+
+def _said(body: object) -> dict:
+    """What an error's body says beside its words (see ProviderError.said)."""
+    error = body.get("error", body) if isinstance(body, dict) else None
+    if not isinstance(error, dict):
+        return {}
+    said = {k: error[k] for k in _SAID_TEXT if isinstance(error.get(k), str)}
+    said.update({k: error[k] for k in _SAID_WHOLE
+                 if isinstance(error.get(k), int) and not isinstance(error.get(k), bool)})
+    return said
+
+
 def _refusal(status: int, body: bytes, api_key: str | None = None) -> ProviderError:
     try:
-        words = words_of(json.loads(body), api_key)
+        parsed = json.loads(body)
+        words = words_of(parsed, api_key)
     except (ValueError, RecursionError):
         # Not JSON, or nested deeper than the parser follows: the status alone.
-        words = ""
+        parsed, words = None, ""
     kind = {401: AUTH_REFUSED, 402: MODEL_NO_CREDIT, 404: MODEL_NOT_FOUND,
             429: RATE_LIMITED}.get(status, MODEL_ERROR)
-    return ProviderError(words or f"HTTP {status}", kind, status)
+    return ProviderError(words or f"HTTP {status}", kind, status, said=_said(parsed))
 
 
 def lost(exc: Exception, base_url: str) -> ProviderError:

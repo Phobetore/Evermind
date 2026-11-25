@@ -407,13 +407,15 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
                 if widened:
                     await learning.take_back_margin(db, call, margin_before)
                 break
-            if learning.reply_takes_the_room(error.message, sent=call.get("max_tokens")):
+            if learning.reply_takes_the_room(error.message, sent=call.get("max_tokens"),
+                                             said=error.said):
                 break  # no shorter story would be answered: the server's refusal is told
             current = await models_repo.get_row(db, call["model_id"])
             if current is None:
                 break
             estimate = payload.stats["used_tokens"]
-            taught = learning.lesson(call, current, message=error.message, estimate=estimate)
+            taught = learning.lesson(call, current, message=error.message, estimate=estimate,
+                                    said=error.said)
             # The size and the count it said, or a wider margin, make the prompt shorter.
             refused = call
             call = call_for({**current, **taught}, ai[1], room=reply_room(convo, settings))
@@ -424,7 +426,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
                 call = refused
                 break
             await learning.after_too_long(db, refused, ai[0], message=error.message,
-                                          estimate=estimate)
+                                          estimate=estimate, said=error.said)
             margin_before = current.get("fit_margin")
             widened = (taught.get("fit_margin") or 0) > (margin_before or 0)
             asked_shorter = True
@@ -442,7 +444,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         payload = _build(passages, fold_leading_assistant=True)
     if asked_shorter and not chunks and learning.is_too_long(error):
         # Refused again once what the first refusal said was learned: the person is told so.
-        error = ProviderError(error.message, MODEL_TOO_LONG, error.status)
+        error = ProviderError(error.message, MODEL_TOO_LONG, error.status, said=error.said)
 
     # However the turn ends: a model whose reasoning ate its whole ceiling wrote nothing, and is
     # the one whose next ceiling must leave room for it.

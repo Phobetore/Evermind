@@ -16,21 +16,136 @@ from .helpers import add_model
 from .test_memory_room import chunk, finish, writing
 from .test_my_ais_api import HOSTED, Model, conversation_on, open_db
 
-# shape unverified: the three refusals are written from the servers' documentation, not read
-# from a server.
+# The refusals of a prompt too long as servers word them (their figures changed): OpenAI's, which
+# DeepSeek and vLLM's 0.6 also send.
 OPENAI_TOO_LONG = ("This model's maximum context length is 8192 tokens. However, you requested "
                    "9500 tokens (8476 in the messages, 1024 in the completion). Please reduce the "
                    "length of the messages or completion.")
+# Evermind's fake model's (scripts/mock_llm.py), no server's: what was requested, its parts
+# untold.
 OPENAI_TOO_LONG_BARE = ("This model's maximum context length is 8192 tokens. However, you "
                         "requested 9500 tokens. Please reduce the length of the messages.")
-# shape unverified: OpenRouter's, as it is remembered.
-OPENROUTER_TOO_LONG = ("This endpoint's maximum context length is 163840 tokens. However, you "
-                       "requested about 170000 tokens (168500 of text input, 2000 in the output). "
+# OpenRouter's.
+OPENROUTER_TOO_LONG = ("This endpoint's maximum context length is 131072 tokens. However, you "
+                       "requested about 140000 tokens (130000 of text input, 10000 in the output). "
                        "Please reduce the length of either one, or use the \"middle-out\" "
                        "transform to compress your prompt automatically.")
-ANTHROPIC_TOO_LONG = "prompt is too long: 205000 tokens > 200000 maximum"
-LLAMA_TOO_LONG = "the request exceeds the available context size (4096 tokens), try increasing it"
-NO_FIGURES = "The input is too long for this model's context window."
+# Anthropic's.
+ANTHROPIC_TOO_LONG = "prompt is too long: 203073 tokens > 200000 maximum"
+# llama.cpp's, today; its body also says n_prompt_tokens and n_ctx.
+LLAMA_TOO_LONG = ("request (9000 tokens) exceeds the available context size (8192 tokens), try "
+                  "increasing it")
+# LM Studio's, before it took OpenAI's form: the size it loaded, and no count.
+LMSTUDIO_TOO_LONG = (" Trying to keep the first 15857 tokens when context the overflows. However, "
+                     "the model is loaded with context length of only 4096 tokens, which is not "
+                     "enough. Try to load the model with a larger context length, or provide a "
+                     "shorter input. Error Data: n/a, Additional Data: n/a")
+# OpenAI's today, with code context_length_exceeded: no figure.
+NO_FIGURES = ("Your input exceeds the context window of this model. Please adjust your input and "
+              "try again.")
+
+# Each as the server sends it (status, body), what is read of it, and the service it is from:
+# (limit, prompt), with the max_tokens sent taken as 1024.
+TOO_LONG_BODIES = [
+    ("OpenAI, its reply's room too large", 400, {"error": {"message": (
+        "This model's maximum context length is 8192 tokens. However, you requested 29973 tokens "
+        "(68 in the messages, 29905 in the completion). Please reduce the length of the messages "
+        "or completion."), "code": "context_length_exceeded"}}, (8192, 68)),
+    ("OpenAI, its messages", 400, {"error": {"message": (
+        "This model's maximum context length is 4097 tokens. However, your messages resulted in "
+        "7403 tokens. Please reduce the length of the messages.")}}, (4097, 7403)),
+    ("OpenAI, today", 400, {"error": {"message": NO_FIGURES, "code": "context_length_exceeded"}},
+     (None, None)),
+    ("OpenRouter", 400, {"error": {"message": OPENROUTER_TOO_LONG, "code": 400}}, (131072, 130000)),
+    ("Anthropic, the prompt", 400, {"type": "error", "error": {
+        "type": "invalid_request_error", "message": ANTHROPIC_TOO_LONG}}, (200000, 203073)),
+    ("Anthropic, the prompt and its ceiling", 400, {"type": "error", "error": {
+        "type": "invalid_request_error", "message": (
+            "input length and `max_tokens` exceed context limit: 198882 + 21333 > 200000, "
+            "decrease input length or `max_tokens` and try again")}}, (200000, 198882)),
+    ("DeepSeek", 400, {"error": {"message": (
+        "This model's maximum context length is 102400 tokens. However, you requested 107837 "
+        "tokens (99645 in the messages, 8192 in the completion). Please reduce the length of the "
+        "messages or completion."), "code": "invalid_request_error"}}, (102400, 99645)),
+    ("Mistral", 400, {"object": "error", "message": (
+        "Prompt contains 277504 tokens and 0 draft tokens, too large for model with 131072 "
+        "maximum context length"), "type": "invalid_request_error"}, (131072, 277504)),
+    ("Groq", 400, {"error": {"message": "Please reduce the length of the messages or completion.",
+                             "code": "context_length_exceeded"}}, (None, None)),
+    ("llama.cpp", 400, {"error": {"code": 400, "message": LLAMA_TOO_LONG,
+                                  "type": "exceed_context_size_error", "n_prompt_tokens": 9000,
+                                  "n_ctx": 8192}}, (8192, 9000)),
+    ("llama.cpp, before", 400, {"error": {
+        "code": 400, "message": "the request exceeds the available context size, try increasing it",
+        "type": "exceed_context_size_error", "n_prompt_tokens": 9000, "n_ctx": 8192}}, (8192, 9000)),
+    ("llama.cpp, before its figures", 400, {"error": {
+        "code": 400, "message": "the request exceeds the available context size, try increasing it",
+        "type": "exceed_context_size_error"}}, (None, None)),
+    ("llama.cpp's server, input", 400, {"error": {"code": 400, "message": (
+        "input (9000 tokens) is larger than the max context size (8192 tokens). skipping"),
+        "type": "exceed_context_size_error"}}, (8192, 9000)),
+    ("Ollama", 400, {"error": {"message": (
+        "the prompt is longer than the context length currently available to the model; shorten "
+        "the prompt, adjust the context length in settings, or use a model with a longer context "
+        "length")}}, (None, None)),
+    ("Ollama's service", 400, {"error": (
+        "The prompt is too long: 297754, model maximum context length: 262144")}, (262144, 297754)),
+    ("LM Studio, before", 400, {"error": LMSTUDIO_TOO_LONG}, (4096, None)),
+    ("vLLM", 400, {"error": {"message": (
+        "This model's maximum context length is 32768 tokens. However, your prompt contains 40000 "
+        "input tokens, which exceeds this limit even without any output tokens. Please reduce the "
+        "length of the input prompt."), "type": "BadRequestError", "code": 400}}, (32768, 40000)),
+    ("vLLM, in characters", 400, {"error": {"message": (
+        "This model's maximum context length is 32768 tokens. However, your prompt contains "
+        "200000 characters (more than 131072 characters, which is the upper bound for 32768 input "
+        "tokens). Please reduce the length of the input prompt."), "code": 400}}, (32768, None)),
+    ("vLLM 0.11", 400, {"object": "error", "message": (
+        "This model's maximum context length is 32768 tokens. However, your request has 40000 "
+        "input tokens. Please reduce the length of the input messages."), "code": 400},
+     (32768, 40000)),
+    ("vLLM 0.6, the messages", 400, {"object": "error", "message": (
+        "This model's maximum context length is 32768 tokens. However, you requested 40000 tokens "
+        "in the messages, Please reduce the length of the messages."), "code": 400},
+     (32768, 40000)),
+    ("vLLM 0.6", 400, {"object": "error", "message": (
+        "This model's maximum context length is 32768 tokens. However, you requested 41024 tokens "
+        "(40000 in the messages, 1024 in the completion). Please reduce the length of the messages "
+        "or completion."), "code": 400}, (32768, 40000)),
+    ("vLLM, its input", 400, {"error": {"message": (
+        "Input length (40000) exceeds model's maximum context length (32768).")}}, (32768, 40000)),
+]
+# Refusals that are no prompt too long, whatever words they share with one.
+NOT_TOO_LONG_BODIES = [
+    ("OpenAI, a ceiling above the model's", 400, {"error": {"message": (
+        "max_tokens is too large: 8000. This model supports at most 4096 completion tokens, "
+        "whereas you provided 8000.")}}),
+    ("Anthropic, a ceiling above the model's", 400, {"type": "error", "error": {
+        "type": "invalid_request_error", "message": (
+            "max_tokens: 10000 > 4096, which is the maximum allowed number of output tokens for "
+            "claude-3-5-sonnet-20240620")}}),
+    ("vLLM, a ceiling above what is left", 400, {"object": "error", "message": (
+        "'max_tokens' or 'max_completion_tokens' is too large: 30000. This model's maximum context "
+        "length is 32768 tokens and your request has 4000 input tokens (30000 > 32768 - 4000)."),
+        "code": 400}),
+    ("vLLM, a ceiling above the model's", 400, {"error": {"message": (
+        "max_tokens=40000 cannot be greater than max_model_len=32768. Please request fewer output "
+        "tokens."), "code": 400}}),
+    ("Groq, tokens a minute", 413, {"error": {"message": (
+        "Request too large for model `llama-3.1-8b-instant` in organization `xxxx` service tier "
+        "`on_demand` on tokens per minute (TPM): Limit 6000, Requested 6294, please reduce your "
+        "message size and try again. Visit https://console.groq.com/docs/rate-limits for more "
+        "information."), "type": "tokens", "code": "rate_limit_exceeded"}}),
+    ("a rate of tokens a minute", 400, {"error": {"message": (
+        "Rate limit reached on tokens per minute: Limit 10000, Used 9000, Requested 4000 tokens."
+        )}}),
+    ("DeepSeek, a ceiling out of range", 400, {"error": {"message": (
+        "Invalid max_tokens value, the valid range of max_tokens is [1, 393216]")}}),
+    ("OpenRouter, credits", 402, {"error": {"message": (
+        "This request requires more credits, or fewer max_tokens. You requested up to 16000 "
+        "tokens, but can only afford 15154.")}}),
+    ("a parameter refused", 400, {"error": {"message": (
+        "Unrecognized request argument supplied: context")}}),
+]
 
 
 def counted(prompt, completion=40) -> str:
@@ -243,14 +358,15 @@ def test_the_three_refusal_forms_are_read():
     assert learning.too_long_figures(OPENAI_TOO_LONG_BARE, sent=1024) == (8192, 8476)
     assert learning.too_long_figures(OPENAI_TOO_LONG_BARE) == (8192, 9500)
     # Its parts need not add up to the whole: the text input is read, not what is left.
-    assert learning.too_long_figures(OPENROUTER_TOO_LONG, sent=2000) == (163840, 168500)
+    assert learning.too_long_figures(OPENROUTER_TOO_LONG, sent=2000) == (131072, 130000)
     # A request no larger than the room it asked for the reply leaves no prompt to count.
     assert learning.too_long_figures(OPENAI_TOO_LONG_BARE, sent=9500) == (8192, 0)
-    assert learning.too_long_figures(ANTHROPIC_TOO_LONG, sent=4096) == (200000, 205000)
-    assert learning.too_long_figures(LLAMA_TOO_LONG, sent=1024) == (4096, None)
+    assert learning.too_long_figures(ANTHROPIC_TOO_LONG, sent=4096) == (200000, 203073)
+    assert learning.too_long_figures(LLAMA_TOO_LONG, sent=1024) == (8192, 9000)
+    assert learning.too_long_figures(LMSTUDIO_TOO_LONG, sent=1024) == (4096, None)
     assert learning.too_long_figures(NO_FIGURES) == (None, None)
     for message in (OPENAI_TOO_LONG, OPENAI_TOO_LONG_BARE, OPENROUTER_TOO_LONG,
-                    ANTHROPIC_TOO_LONG, LLAMA_TOO_LONG, NO_FIGURES):
+                    ANTHROPIC_TOO_LONG, LLAMA_TOO_LONG, LMSTUDIO_TOO_LONG, NO_FIGURES):
         assert learning.is_too_long(ProviderError(message, status=400)), message
         assert not learning.is_too_long(ProviderError(message, status=500)), message
     assert learning.is_too_long(ProviderError(ANTHROPIC_TOO_LONG, status=413))
@@ -258,6 +374,38 @@ def test_the_three_refusal_forms_are_read():
                   "Invalid API key", "max_tokens must be at least 1"):
         assert not learning.is_too_long(ProviderError(other, status=400)), other
     assert not learning.is_too_long(None)
+
+
+@pytest.mark.parametrize("service,status,body,figures", TOO_LONG_BODIES,
+                         ids=[case[0] for case in TOO_LONG_BODIES])
+def test_a_refusal_of_a_prompt_too_long_is_read_as_its_server_sends_it(
+        service, status, body, figures):
+    from app.providers.base import _refusal
+
+    error = _refusal(status, json.dumps(body).encode())
+    assert learning.is_too_long(error), service
+    assert learning.too_long_figures(error.message, sent=1024, said=error.said) == figures
+
+
+@pytest.mark.parametrize("service,status,body", NOT_TOO_LONG_BODIES,
+                         ids=[case[0] for case in NOT_TOO_LONG_BODIES])
+def test_a_refusal_of_something_else_is_no_prompt_too_long(service, status, body):
+    from app.providers.base import _refusal
+
+    assert not learning.is_too_long(_refusal(status, json.dumps(body).encode())), service
+
+
+def test_the_room_of_the_reply_is_read_where_a_refusal_gives_it():
+    # OpenRouter's, its prompt under the limit and a room that leaves no story its place.
+    room = OPENROUTER_TOO_LONG.replace("130000 of text input, 10000", "2000 of text input, 138000")
+    assert learning.reply_takes_the_room(room)
+    assert learning.reply_takes_the_room(TOO_LONG_BODIES[0][2]["error"]["message"])
+    # Anthropic's and DeepSeek's: under the limit, the reply's room leaves a story its place.
+    for _, _, body, _ in TOO_LONG_BODIES[5:7]:
+        assert not learning.reply_takes_the_room(body["error"]["message"]), body
+    # Over the limit, whatever the room.
+    assert not learning.reply_takes_the_room(OPENAI_TOO_LONG)
+    assert not learning.reply_takes_the_room(NO_FIGURES, sent=10 ** 6)
 
 
 def test_the_thinking_allowance_is_measured_once_there_is_one():
@@ -704,9 +852,9 @@ async def test_a_too_long_refusal_with_both_figures_is_learned_and_asked_again_o
     estimates = []
     learn = learning.after_too_long
 
-    async def spied(db, call, model, *, message, estimate):
+    async def spied(db, call, model, *, message, estimate, **said):
         estimates.append(estimate)
-        await learn(db, call, model, message=message, estimate=estimate)
+        await learn(db, call, model, message=message, estimate=estimate, **said)
 
     monkeypatch.setattr(learning, "after_too_long", spied)
     model = Model((400, {"error": {"message": OPENAI_TOO_LONG}}), writing("*She nods.*")
@@ -740,9 +888,9 @@ def spy_on_refusals(monkeypatch) -> list[int]:
     estimates = []
     learn = learning.after_too_long
 
-    async def spied(db, call, model, *, message, estimate):
+    async def spied(db, call, model, *, message, estimate, **said):
         estimates.append(estimate)
-        await learn(db, call, model, message=message, estimate=estimate)
+        await learn(db, call, model, message=message, estimate=estimate, **said)
 
     monkeypatch.setattr(learning, "after_too_long", spied)
     return estimates
@@ -806,7 +954,7 @@ async def test_a_refusal_with_both_figures_replaces_the_margin_it_widened(client
 
 async def test_a_refusal_naming_the_size_counted_widens_the_margin(client, monkeypatch):
     ai, convo = await a_long_story(client)
-    same = LLAMA_TOO_LONG.replace("4096", "16384")
+    same = LMSTUDIO_TOO_LONG.replace("4096", "16384")
     model = Model((400, {"error": {"message": same}}), writing("*She nods.*")).serve(monkeypatch)
     assert await send(client, convo["id"]) is None
     assert model.calls[0]["context_size"] == 16384
@@ -942,6 +1090,44 @@ async def test_a_prompt_under_the_limit_whose_room_leaves_a_story_its_place_is_t
     assert await send(client, convo["id"]) is None
     assert len(model.bodies) == 2
     assert (await row_of(ai["id"]))["token_ratio_n"] == 1
+
+
+async def test_the_figures_of_a_refusal_s_body_are_learned(client, monkeypatch):
+    ai, convo = await a_long_story(client, context_own=None)
+    estimates = spy_on_refusals(monkeypatch)
+    # llama.cpp before its words gave figures: its body still did.
+    body = {"error": {"code": 400, "type": "exceed_context_size_error",
+                      "message": "the request exceeds the available context size, try increasing it",
+                      "n_prompt_tokens": 9000, "n_ctx": 8192}}
+    model = Model((400, body), writing("*She nods.*")).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    assert [call["context_size"] for call in model.calls] == [16384, 8192]
+    row = await row_of(ai["id"])
+    assert (row["context_read"], row["context_read_kind"]) == (8192, "served")
+    assert (row["token_ratio"], row["token_ratio_n"]) == (pytest.approx(9000 / estimates[0]), 1)
+
+
+async def test_a_refusal_known_by_its_code_alone_widens_the_margin(client, monkeypatch):
+    ai, convo = await a_long_story(client)
+    # Groq's: no figure, and no word of a context.
+    body = {"error": {"message": "Please reduce the length of the messages or completion.",
+                      "code": "context_length_exceeded"}}
+    model = Model((400, body), writing("*She nods.*")).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    assert len(model.bodies) == 2
+    assert (await row_of(ai["id"]))["fit_margin"] == pytest.approx(0.10)
+
+
+@pytest.mark.parametrize("service,status,body", NOT_TOO_LONG_BODIES,
+                         ids=[case[0] for case in NOT_TOO_LONG_BODIES])
+async def test_a_refusal_of_something_else_is_told_and_teaches_nothing(
+        client, monkeypatch, service, status, body):
+    ai, convo = await a_long_story(client)
+    untouched = await row_of(ai["id"])
+    model = Model((status, body), writing("*She nods.*")).serve(monkeypatch)
+    outcome = await send(client, convo["id"])
+    assert outcome["kind"] != "model_too_long" and len(model.bodies) == 1, service
+    assert await row_of(ai["id"]) == untouched
 
 
 async def test_another_refusal_is_not_asked_again(client, monkeypatch):
