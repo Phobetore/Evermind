@@ -123,7 +123,7 @@ test("a small ai under immersive says it rereads n of 60 on the chip and in the 
     const convo = await story(request, small.id, "immersive", 40);
     await page.goto(`/#/chat/${convo.id}`);
     await expect(chipOf(page)).toHaveText(/^Immersive · rereads \d+ of 60$/);
-    await expect(chipOf(page)).toHaveAccessibleName(/^Way to play: Immersive\. Its reading capacity is full: it rereads \d+ messages of 60\. Change\.$/);
+    await expect(chipOf(page)).toHaveAccessibleName(/^Way to play: Immersive\. Its reading capacity is full: it rereads \d+ messages? of 60\. Change\.$/);
 
     const sheet = await openSheet(page);
     await expect(sheet).toContainText(/rereads \d+ of the 60 asked/);
