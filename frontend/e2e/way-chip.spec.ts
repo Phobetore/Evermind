@@ -138,25 +138,37 @@ test("a small ai under immersive says it rereads n of 60 on the chip and in the 
 });
 
 test("the current ai costs the same in both sheets", async ({ page, request }) => {
-  // A short name, which the sheet does not cut in the middle.
-  const priced = await anAi(request, `Dear ${Math.random().toString(36).slice(2, 6)}`, { price_own_in: 3, price_own_out: 15 });
+  // A short name, which the sheet does not cut in the middle; a capacity said, so that pages are.
+  const priced = await anAi(request, `Dear ${Math.random().toString(36).slice(2, 6)}`, {
+    price_own_in: 3, price_own_out: 15, context_own: 32768,
+  });
   try {
     const convo = await makeConversation(request);
     await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: priced.id } });
     await page.goto(`/#/chat/${convo.id}`);
 
+    // The way as it is, then adjusted: longer replies cost more, and both sheets count the adjusted.
+    let sheet = await openSheet(page);
+    const plain = await rowOf(page, "Balanced").locator("[data-estimate]").textContent();
+    expect(plain).toContain("per 100 messages");
+    await sheet.getByText("Adjust for this conversation").click();
+    await sheet.getByRole("group", { name: "Reply length to aim for" }).getByRole("button", { name: "Long", exact: true }).click();
+    await expect(chipOf(page)).toHaveText("Balanced · adjusted");
+    await expect(rowOf(page, "Balanced").locator("[data-estimate]")).not.toHaveText(plain!);
+    const adjusted = await rowOf(page, "Balanced").locator("[data-estimate]").textContent();
+    await sheet.getByRole("button", { name: "Close" }).click();
+    await expect(sheet).toHaveCount(0);
+
     await aiChipOf(page).click();
     const aiRow = aiSheetOf(page).getByRole("radio", { name: new RegExp(`^${priced.name}`) });
-    const inAiSheet = aiRow.locator("[data-estimate]");
-    await expect(inAiSheet).toContainText("per 100 messages");
     // Under the conversation's way: the row also says what this AI rereads of it.
     await expect(aiRow).toContainText(/Rereads 1 of the 1 messages · ≈ \d+ pages? sent/);
-    const said = await inAiSheet.textContent();
+    await expect(aiRow.locator("[data-estimate]")).toHaveText(adjusted!);
     await aiSheetOf(page).getByRole("button", { name: "Close" }).click();
 
-    await openSheet(page);
-    const inWaySheet = rowOf(page, "Balanced").locator("[data-estimate]");
-    await expect(inWaySheet).toHaveText(said!);
+    // Opened again, the way's sheet still says the adjusted figure for the way played.
+    sheet = await openSheet(page);
+    await expect(rowOf(page, "Balanced").locator("[data-estimate]")).toHaveText(adjusted!);
   } finally {
     await removeAi(request, priced.id);
   }
@@ -192,6 +204,30 @@ test("an ai whose capacity is not said is given no pages in either sheet", async
     await expect(aiRow).not.toContainText("pages");
   } finally {
     await removeAi(request, untold.id);
+  }
+});
+
+test("the notices under the list say only what holds", async ({ page, request }) => {
+  const unsent = await anAi(request, `Open ${stamp()}`, { reply_cap: { mode: "unsent" } });
+  const fixed = await anAi(request, `Fixed ${stamp()}`, { reply_cap: { mode: "fixed", tokens: 2048 } });
+  try {
+    // Balanced keeps 1,024 for a reply: what an AI sent no ceiling has already.
+    const underBalanced = await makeConversation(request);
+    await request.patch(`${API}/api/conversations/${underBalanced.id}`, { data: { model_id: unsent.id } });
+    // A ceiling of 2,048 cuts no reply a way asks for.
+    const underImmersive = await makeConversation(request);
+    await request.patch(`${API}/api/conversations/${underImmersive.id}`, { data: { model_id: fixed.id, play_style: "immersive" } });
+    for (const [convo, ai] of [[underBalanced, unsent], [underImmersive, fixed]] as const) {
+      await page.goto(`/#/chat/${convo.id}`);
+      await expect(aiChipOf(page)).toHaveAccessibleName(`AI: ${ai.name}. Change.`);
+      const sheet = await openSheet(page);
+      await expect(sheet).not.toContainText("is sent no ceiling");
+      await expect(sheet).not.toContainText("keeps a ceiling of");
+      await expect(sheet.getByRole("button", { name: "Keep the room long replies need" })).toHaveCount(0);
+      await expect(sheet.getByRole("button", { name: "Let Evermind set it" })).toHaveCount(0);
+    }
+  } finally {
+    for (const ai of [unsent, fixed]) await removeAi(request, ai.id);
   }
 });
 
