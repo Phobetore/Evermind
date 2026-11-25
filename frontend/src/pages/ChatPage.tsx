@@ -31,6 +31,7 @@ import { clsx } from "clsx";
 import type { Ai, Character, Conversation, Message, Outlook, Persona, TurnFailure } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import { Link, useNavigate, useParams } from "react-router";
 
 /** How many messages are drawn at first, and more each time more are asked for. */
@@ -528,6 +529,29 @@ function ChatView({ id }: { id: string }) {
     return () => watch.disconnect();
   }, [storyNode, keepPlace]);
 
+  // The keyboard's sentence under the input steps aside while the line over the input is said, only
+  // where the three do not fit: the line's sentence whole, a line of the story over its padding (the
+  // flex-basis of the story's box), and the keyboard's sentence. Aside, it is measured at no height in
+  // its place, and comes back only where the story keeps that line with it: the two answers never
+  // undo each other. Decided before the frame is painted.
+  const [sentenceNode, setSentenceNode] = useState<HTMLParagraphElement | null>(null);
+  const [hintAside, setHintAside] = useState(false);
+  useEffect(() => {
+    if (!storyNode || !sentenceNode || !hasKeyboard()) return;
+    const check = () => {
+      const hint = document.querySelector<HTMLElement>("[data-status-row] [data-keyboard-hint]");
+      if (!hint) return;
+      const line = parseFloat(getComputedStyle(storyNode.parentElement!).flexBasis) || 0;
+      const whole = sentenceNode.scrollHeight <= sentenceNode.clientHeight + 1;
+      const room = storyNode.clientHeight + 1 - (hint.dataset.aside !== undefined ? hint.scrollHeight : 0);
+      flushSync(() => setHintAside(!(whole && room >= line)));
+    };
+    const watch = new ResizeObserver(check);
+    watch.observe(storyNode);
+    watch.observe(sentenceNode);
+    return () => watch.disconnect();
+  }, [storyNode, sentenceNode]);
+
   /** Settles at the server's answer or at patience's end; either way the page then finds out how things stand. */
   function ask(request: Omit<TurnRequest, "conversation_id">) {
     keepFocus.current = true;
@@ -749,6 +773,7 @@ function ChatView({ id }: { id: string }) {
   const truncatedLine = truncated && truncatedAi && data.connections && (
     <div data-truncated className="contents">
       <p
+        ref={setSentenceNode}
         data-truncated-text
         className="scroll-cue min-h-0 shrink-[1000] overflow-y-auto border-t border-ink-700 px-4 pt-2 text-center text-xs text-parchment-dim [overflow-wrap:anywhere]"
       >
@@ -968,10 +993,9 @@ function ChatView({ id }: { id: string }) {
           say={toast}
           above={<>{toastNode}{lostLine}</>}
           status={
-            // On a touch screen the chips take the place of the keyboard's sentence.
-            // The keyboard's sentence steps aside while the line over the input is said, until the next
-            // reply: in a narrow window with large text there is no room for both and a line of the story.
-            <ChatStatusRow keyboardHint={hasKeyboard() && !truncatedLine ? t("chat.input.hintDefault") : null}>
+            // On a touch screen the chips take the place of the keyboard's sentence. It steps aside while
+            // the line over the input is said, where there is no room for both and a line of the story.
+            <ChatStatusRow keyboardHint={hasKeyboard() ? t("chat.input.hintDefault") : null} hintAside={Boolean(truncatedLine) && hintAside}>
               {data.connections && (chipShown
                 ? <AiChip ai={answeringAi} onOpen={() => (answeringAi ? openAiSheet() : setAddingAi(true))} />
                 : aisUnread && <AiUnread onRetry={readAis} />)}

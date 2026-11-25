@@ -438,6 +438,23 @@ async function shadeAtFoot(page: Page): Promise<boolean> {
   return lightness(foot) - lightness(plain) > 6;
 }
 
+test("the keyboard's sentence stays beside the line over the input where there is room", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
+  await withCause(page, convo.id, { truncated: { read: 4090, window: 131072 }, usage: { prompt: 4090, completion: 40, model_id: aiId } });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`/#/chat/${convo.id}`);
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("16px");
+  await expect(page.locator("[data-truncated]")).toBeVisible();
+  const hint = page.locator("[data-status-row]").getByText("Enter to send · Shift+Enter for a new line · quill: the AI drafts your reply");
+  // A keyboard's: a touch screen has none, line or not.
+  if (test.info().project.name === "desktop") await expect(hint).toBeVisible();
+  else await expect(hint).toHaveCount(0);
+  // The whole sentence shows: no shade says there is more.
+  expect(await page.locator("[data-truncated-text]").evaluate((part) => part.scrollHeight <= part.clientHeight)).toBe(true);
+  expect(await shadeAtFoot(page), "a shade under a whole sentence").toBe(false);
+});
+
 // German has the longest of these lines. Also in a window with a keyboard, whose sentence under the
 // input takes room a phone does not give it.
 for (const locale of ["en", "de"]) {
