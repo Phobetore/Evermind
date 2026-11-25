@@ -38,34 +38,48 @@ def mock():
     server.server_close()
 
 
-def ask(url: str, system: str, said: str) -> dict:
+def ask(url: str, system: str, said: str, *, usage: bool = False) -> dict:
     """What the mock answered a request whose story says ``said``: its status, words, reasoning,
-    how it ended, and how long it took."""
+    how it ended, its count, and how long it took. ``usage`` asks for its count, as Evermind
+    does."""
     began = time.monotonic()
     body = {"model": "evermind-demo", "stream": True, "messages": [
         {"role": "system", "content": system}, {"role": "user", "content": f"(turn 3) {said}"}]}
+    if usage:
+        body["stream_options"] = {"include_usage": True}
     text = reasoning = ""
-    finish = None
+    finish = counted = None
     # Read as the server does, to its last line: the stream sends no length, and stays open.
     with httpx.stream("POST", url, json=body, timeout=10) as response:
         if response.status_code != 200:
-            return {"status": response.status_code, "took": time.monotonic() - began}
+            return {"status": response.status_code, "took": time.monotonic() - began,
+                    "error": json.loads(response.read())["error"]["message"]}
         for line in response.iter_lines():
             if line == "data: [DONE]":
                 break
             if not line.startswith("data: "):
                 continue
-            choice = json.loads(line[6:])["choices"][0]
+            event = json.loads(line[6:])
+            counted = event.get("usage", counted)
+            choice = event["choices"][0]
             text += choice["delta"].get("content", "")
             reasoning += choice["delta"].get("reasoning_content", "")
             finish = choice.get("finish_reason") or finish
     took = time.monotonic() - began
-    return {"status": 200, "text": text.strip(), "reasoning": bool(reasoning), "finish": finish,
-            "took": took}
+    return {"status": 200, "text": text, "reasoning": reasoning, "finish": finish,
+            "usage": counted, "took": took, "read": len(system) + len(f"(turn 3) {said}")}
 
 
 def an_ordinary_reply(answer: dict) -> bool:
     return answer["status"] == 200 and len(answer["text"].split()) > 10 and answer["finish"] == "stop"
+
+
+def counted_as_read(answer: dict) -> bool:
+    """The count a server gives when asked: what it read and wrote, a third of their characters."""
+    written = len(answer["text"]) + len(answer["reasoning"])
+    prompt, completion = answer["read"] // 3, written // 3
+    return answer["usage"] == {"prompt_tokens": prompt, "completion_tokens": completion,
+                               "total_tokens": prompt + completion}
 
 
 def facts_of(answer: dict) -> list[str]:
@@ -78,7 +92,8 @@ def a_quick_memory(answer: dict) -> bool:
 
 
 def reasons_only(answer):
-    return answer["status"] == 200 and answer["text"] == "" and answer["reasoning"] and answer["finish"] == "length"
+    return (answer["status"] == 200 and answer["text"] == "" and bool(answer["reasoning"])
+            and answer["finish"] == "length")
 
 
 def hits_ceiling(answer):
@@ -131,3 +146,40 @@ def test_a_switch_of_the_replies_and_one_of_the_memory_each_do_their_own(mock, s
     else:
         assert extracted["took"] >= SLOW
         assert facts_of(extracted) == ["Turn 3 happened (MOCK_SLOW_MEMORY)."]
+
+
+def test_a_count_is_given_only_when_asked_for(mock):
+    asked = ask(mock, CHAT, "Hello", usage=True)
+    assert an_ordinary_reply(asked) and counted_as_read(asked)
+    assert ask(mock, CHAT, "Hello")["usage"] == {"total_tokens": 42}
+    thought = ask(mock, CHAT, "MOCK_REASONS_ONLY", usage=True)
+    assert thought["usage"]["completion_tokens"] == len(thought["reasoning"]) // 3 > 0
+
+
+def test_a_server_that_never_counts(mock):
+    for usage in (True, False):
+        answer = ask(mock, CHAT, "MOCK_NO_USAGE", usage=usage)
+        assert an_ordinary_reply(answer) and answer["usage"] is None
+
+
+def test_a_server_that_refuses_to_be_asked_for_its_count(mock):
+    refused = ask(mock, CHAT, "MOCK_REFUSES_USAGE_OPTION", usage=True)
+    assert refused["status"] == 400
+    assert refused["error"] == "Unrecognized request argument supplied: stream_options"
+    assert an_ordinary_reply(ask(mock, CHAT, "MOCK_REFUSES_USAGE_OPTION"))
+
+
+def test_a_server_that_says_how_much_it_read(mock):
+    answer = ask(mock, CHAT, "MOCK_READS_4090", usage=True)
+    assert an_ordinary_reply(answer) and answer["usage"]["prompt_tokens"] == 4090
+    assert answer["usage"]["total_tokens"] == 4090 + answer["usage"]["completion_tokens"]
+
+
+def test_a_server_that_refuses_a_prompt_longer_than_it_reads(mock):
+    long = ask(mock, CHAT, "MOCK_TOO_LONG_10", usage=True)
+    read = ask(mock, CHAT, "MOCK_TOO_LONG_10 MOCK_READS_9000", usage=True)["status"]
+    assert long["status"] == 400 and read == 400
+    words = ask(mock, CHAT, "MOCK_TOO_LONG_10 MOCK_READS_9500")["error"]
+    assert words == ("This model's maximum context length is 10 tokens. However, you requested "
+                     "9500 tokens.")
+    assert an_ordinary_reply(ask(mock, CHAT, "MOCK_TOO_LONG_100000", usage=True))
