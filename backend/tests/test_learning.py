@@ -114,6 +114,41 @@ def counting(monkeypatch):
     return Counting
 
 
+class Reading:
+    """A model's server that reads the next of ``counts`` whatever it is sent, as one that drops
+    the beginning of a story longer than it loads; keeps each (prompt, estimate)."""
+
+    counts: ClassVar[list[int]] = []
+    seen: ClassVar[list] = []
+    during: ClassVar = None  # what happens on the server while it writes
+
+    def __init__(self, call):
+        self.call = call
+        self.figures = CallFigures()
+
+    async def stream_chat(self, payload):
+        self.figures.reset()
+        prompt = Reading.counts[min(len(Reading.seen), len(Reading.counts) - 1)]
+        Reading.seen.append((prompt, payload.stats["used_tokens"]))
+        if Reading.during is not None:
+            await Reading.during(self.call)
+        self.figures.take_usage({"prompt_tokens": prompt, "completion_tokens": 40}, final=True)
+        yield ProviderEvent(type="delta", text="*She nods.*")
+        yield ProviderEvent(type="done", stop="stop")
+
+
+@pytest.fixture()
+def reading(monkeypatch):
+    Reading.counts, Reading.seen, Reading.during = [], [], None
+    monkeypatch.setattr("app.services.chat_service.get_provider", Reading)
+    return Reading
+
+
+async def grown(convo_id: str) -> None:
+    """Two more long messages: the story the engine estimates grows by about 750 tokens."""
+    await long_story(convo_id, 2, 1300)
+
+
 # The pure rules.
 
 
@@ -122,6 +157,8 @@ def test_the_counts_are_read_from_either_shape():
     assert learning.counts_of({"input_tokens": 10, "cache_read_input_tokens": 800,
                                "cache_creation_input_tokens": 90, "output_tokens": 7}) == (900, 7)
     assert learning.counts_of({"prompt_tokens": 900}) == (900, None)
+    assert learning.counts_of({"prompt_tokens": 900, "completion_tokens": -3}) == (900, None)
+    assert learning.counts_of({"input_tokens": 900, "output_tokens": -1}) == (900, None)
     for wrong in ({"prompt_tokens": 0}, {"prompt_tokens": -5}, {"prompt_tokens": "12"},
                   {"completion_tokens": 10}, {"prompt_tokens": True}, {}):
         assert learning.counts_of(wrong) is None, wrong
@@ -141,6 +178,9 @@ def test_truncation_needs_a_round_size_or_a_plateau():
     assert not cut(3000, 8000)
     assert not cut(3010, 8500, [(3000, 8000)])
     assert cut(3020, 9000, [(3000, 8000), (3010, 8500)])
+    # A count that stands still while the story does too is a story that did not grow.
+    assert not cut(3020, 8000, [(3000, 8000), (3010, 8000)])
+    assert not cut(3020, 8400, [(3000, 8000), (3010, 8200)])
     # A size the server is set to load counts as round.
     assert learning.truncated(prompt=6000, estimate=12000, ratio=1.0, earlier=[],
                               model={"context_read": 6100, "context_read_kind": "configured"})
@@ -248,6 +288,59 @@ async def test_a_truncated_reply_says_so_and_feeds_nothing(client, monkeypatch):
     assert reply["meta"]["usage"]["prompt"] == 4090
     row = await row_of(ai["id"])
     assert (row["token_ratio"], row["token_ratio_n"], row["usage_seen"]) == (None, 0, 1)
+
+
+async def test_a_story_read_only_from_its_end_is_seen_on_the_third_turn(client, reading):
+    ai, convo = await a_story(client)
+    await long_story(convo["id"], 12, 1300)
+    reading.counts = [3005, 3010, 3015]
+    for turn in range(3):
+        if turn:
+            await grown(convo["id"])
+        assert await send(client, convo["id"]) is None
+        meta = (await last_reply(client, convo))["meta"]
+        assert ("truncated" in meta) == (turn == 2), (turn, meta)
+        assert meta["usage"]["prompt"] == reading.counts[turn]
+        row = await row_of(ai["id"])
+        # Read far under the estimate, no reply teaches a ratio, though none is proved cut yet.
+        assert (row["token_ratio"], row["token_ratio_n"], row["usage_seen"]) == (None, 0, 1)
+
+    first, last = reading.seen[0][1], reading.seen[-1][1]
+    assert last > first * 1.05 and all(p < 0.7 * e for p, e in reading.seen)
+    assert meta["truncated"] == {"read": 3015, "window": 16384}
+
+
+async def test_a_new_version_is_not_one_of_the_counts_before_it(client, reading):
+    _, convo = await a_story(client)
+    await long_story(convo["id"], 12, 1300)
+    reading.counts = [3000, 3010, 3020]
+    assert await send(client, convo["id"]) is None
+    await grown(convo["id"])
+    assert await send(client, convo["id"]) is None
+
+    # The version rewritten would make the third point of a plateau with the reply before it.
+    assert await send(client, convo["id"], mode="regenerate") is None
+    assert reading.seen[-1][1] > reading.seen[0][1] * 1.05
+    assert "truncated" not in (await last_reply(client, convo))["meta"]
+
+
+async def test_another_ais_counts_are_not_this_ones(client, reading):
+    _, convo = await a_story(client)
+    await long_story(convo["id"], 12, 1300)
+    reading.counts = [3000, 3010, 3020]
+    for turn in range(2):
+        if turn:
+            await grown(convo["id"])
+        assert await send(client, convo["id"]) is None
+
+    other = await add_model(client, base_url=HOSTED, model="other")
+    resp = await client.patch(f"/api/conversations/{convo['id']}", json={"model_id": other["id"]})
+    assert resp.status_code == 200, resp.text
+    await grown(convo["id"])
+    assert await send(client, convo["id"]) is None
+    assert reading.seen[-1][1] > reading.seen[0][1] * 1.05
+    meta = (await last_reply(client, convo))["meta"]
+    assert meta["usage"]["model_id"] == other["id"] and "truncated" not in meta
 
 
 async def test_a_new_version_does_not_keep_the_truncation_of_the_one_before(client, monkeypatch):

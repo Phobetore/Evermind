@@ -80,13 +80,17 @@ def _just_under(prompt: int, size: int) -> bool:
     return size * (1 - ROUND_SIZE_SLACK) <= prompt <= size
 
 
+def _far_under(prompt: int, estimate: int, ratio: float) -> bool:
+    return prompt < TRUNCATED_BELOW * round(estimate * ratio)
+
+
 def truncated(*, prompt: int, estimate: int, ratio: float, model: dict,
               earlier: list[tuple[int, int]]) -> bool:
     """prompt < 0.7 × round(estimate × ratio), and either it sits within 2 % under a power of two
     from 2048 to 2^21, or under the model's context_read when its kind is configured or max; or
     the two earlier (prompt, estimate) of this conversation and this one are within 1 % of each
     other in prompt while this estimate is above the oldest one's by more than 5 %."""
-    if not prompt < TRUNCATED_BELOW * round(estimate * ratio):
+    if not _far_under(prompt, estimate, ratio):
         return False
     if any(_just_under(prompt, size) for size in _ROUND_SIZES):
         return True
@@ -157,10 +161,13 @@ async def after_whole_reply(db: aiosqlite.Connection, call: dict, model: dict, *
             return {"usage_seen": 0}
         prompt, completion = counts
         sets: dict = {}
-        if truncated(prompt=prompt, estimate=estimate, ratio=call.get("token_ratio") or 1.0,
-                     model=model, earlier=earlier):
+        ratio = call.get("token_ratio") or 1.0
+        if truncated(prompt=prompt, estimate=estimate, ratio=ratio, model=model, earlier=earlier):
             cut = {"read": prompt, "window": call["context_size"]}
-        elif estimate > 0:
+        # A count far under the estimate teaches no ratio even unproved: it may be a story read
+        # only from its end that no round size shows, and that the plateau shows by the third
+        # reply only if no ratio learned from the first two has hidden it.
+        elif estimate > 0 and not _far_under(prompt, estimate, ratio):
             ratio, n = next_ratio(current, prompt / estimate)
             # What was measured replaces what a refusal had to guess.
             sets.update(token_ratio=ratio, token_ratio_n=n, fit_margin=None)
