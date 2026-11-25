@@ -86,6 +86,11 @@ describe("the reading line", () => {
   test("french elides before a vowel, the other languages say it as they always do", () => {
     expect(readingLine(entry(), "Aube", fr)).toBe("Ce qu'Aube lit : ≈ 18 pages · relit 24 messages, tous ceux demandés");
     expect(readingLine(entry(), "élan", fr)).toBe("Ce qu'élan lit : ≈ 18 pages · relit 24 messages, tous ceux demandés");
+    // A "y" before a consonant is said as a vowel (Yves), before a vowel as a consonant (Yann).
+    expect(readingLine(entry(), "Yves", fr)).toBe("Ce qu'Yves lit : ≈ 18 pages · relit 24 messages, tous ceux demandés");
+    expect(readingLine(entry(), "Yvonne", fr)).toMatch(/^Ce qu'Yvonne lit/);
+    expect(readingLine(entry(), "Yann", fr)).toBe("Ce que Yann lit : ≈ 18 pages · relit 24 messages, tous ceux demandés");
+    expect(readingLine(entry(), "yasmine", fr)).toMatch(/^Ce que yasmine lit/);
     expect(readingLine(entry(), "Aube", (key, vars) => translate("de", key, vars))).toBe("Was Aube liest: ≈ 18 Seiten · liest 24 Nachrichten, alle verlangten");
   });
 

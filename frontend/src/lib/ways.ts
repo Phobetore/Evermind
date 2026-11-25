@@ -56,9 +56,10 @@ export function pagesPart(tokens: number, t: T, sent = false): string {
 /** None, one and more each have their own sentence when the AI rereads all it was asked. */
 const howMany = (read: number) => (read === 0 ? "None" : read === 1 ? "One" : "");
 
-/** French writes "qu'" before a name that begins with a vowel; the other languages hold the same
- *  sentence under both keys. */
-const ELIDED = /^[aeiouyàâäéèêëîïôöùûü]/i;
+/** French writes "qu'" before a name that begins with a vowel, and with a "y" said as one: before a
+ *  consonant (Yves), not before a vowel (Yann). The other languages hold the same sentence under
+ *  both keys. */
+const ELIDED = /^(?:[aeiouàâäéèêëîïôöùûü]|y(?=[b-df-hj-np-tv-xzç]))/i;
 
 /** The first line of what the AI reads: the pages sent and the messages reread. `name` null: no AI,
  *  or no capacity said, and then the messages alone. */
