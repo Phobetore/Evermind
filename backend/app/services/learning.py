@@ -50,7 +50,11 @@ _LIMIT_THEN_ASKED = re.compile(
     re.IGNORECASE | re.DOTALL)
 # The messages' part of it, when the refusal goes on to give it.
 _PROMPT_PART = re.compile(rf"\(\s*{_NUMBER} (?:in the messages|of text input)", re.IGNORECASE)
-_ASKED_OVER_LIMIT = re.compile(rf"{_NUMBER} tokens\s*>\s*{_NUMBER}", re.IGNORECASE)
+# The reply's part of what was requested, when the refusal gives it.
+_REPLY_PART = re.compile(rf"{_NUMBER} in the (?:completion|output)\b", re.IGNORECASE)
+# The least the engine gives the story, whatever the reply keeps (engine.build_chat_payload).
+_LEAST_BUDGET = 512
+_ASKED_OVER_LIMIT =re.compile(rf"{_NUMBER} tokens\s*>\s*{_NUMBER}", re.IGNORECASE)
 _CONTEXT_SIZE = re.compile(rf"context size \({_NUMBER} tokens\)", re.IGNORECASE)
 
 
@@ -193,6 +197,11 @@ def too_long_figures(message: str, *, sent: int | None = None) -> tuple[int | No
     return None, None
 
 
+def _reply_part(message: str) -> int | None:
+    found = _REPLY_PART.search(message)
+    return _figure(found.group(1)) if found else None
+
+
 def is_too_long(error: object) -> bool:
     """A server that refused the request for a prompt longer than it reads."""
     return (isinstance(error, ProviderError) and error.status in _TOO_LONG_STATUSES
@@ -261,26 +270,55 @@ def _entry(entry: object, sample: float) -> dict:
     return {"avg": average, "n": n}
 
 
+def reply_takes_the_room(message: str, *, sent: int | None = None) -> bool:
+    """A refusal whose figures say the prompt alone is under the limit, and the reply's room
+    leaves less than the engine's least budget (512) for any story: "you requested about
+    140000 tokens (2000 of text input, 138000 in the output)" from a server reading 131072. No
+    shorter story would be answered: it is not a story too long. One whose room leaves a story
+    its place (DeepSeek's "99645 in the messages, 8192 in the completion" of 102400) is: the
+    prompt is longer than the server counts it is given."""
+    limit, prompt = too_long_figures(message, sent=sent)
+    room = _reply_part(message)
+    if room is None:
+        room = sent
+    return (limit is not None and prompt is not None and room is not None and prompt < limit
+            and limit - room < _LEAST_BUDGET)
+
+
+def lesson(call: dict, current: dict, *, message: str, estimate: int) -> dict:
+    """What a refusal for a prompt too long teaches, against the AI as it is stored now: the size
+    it names, when it differs from the one counted, and its count against the estimate when it
+    gives both; else a wider margin, a share of the window more each time, up to
+    FIT_MARGIN_MOST."""
+    limit, prompt = too_long_figures(message, sent=call.get("max_tokens"))
+    sets: dict = {}
+    if limit is not None and limit != call["context_size"]:
+        sets.update(context_read=limit, context_read_kind="served")
+    if limit is not None and prompt is not None and prompt > 0 and estimate > 0:
+        # A count of the whole prompt, as a reply's is: it moves the average, not replaces it.
+        ratio, n = next_ratio(current, prompt / estimate)
+        sets.update(token_ratio=ratio, token_ratio_n=n, fit_margin=None)
+    if not sets:
+        sets["fit_margin"] = min(FIT_MARGIN_MOST,
+                                 (current.get("fit_margin") or 0) + FIT_MARGIN_STEP)
+    return sets
+
+
 async def after_too_long(db: aiosqlite.Connection, call: dict, model: dict, *, message: str,
                          estimate: int) -> None:
-    """A refusal for a prompt too long: the size it names, when it differs from the one counted,
-    and its count against the estimate when it gives both; else a wider margin, a share of the
-    window more each time, up to FIT_MARGIN_MOST. What the person typed is never written."""
-    limit, prompt = too_long_figures(message, sent=call.get("max_tokens"))
+    """Writes the ``lesson`` of a refusal for a prompt too long, once the prompt it makes is
+    known to be shorter. What the person typed is never written."""
 
     def change(current: dict) -> dict:
-        sets: dict = {}
-        if limit is not None and limit != call["context_size"]:
-            sets.update(context_read=limit, context_read_kind="served")
-        if limit is not None and prompt is not None and prompt > 0 and estimate > 0:
-            # A count of the whole prompt, as a reply's is: it moves the average, not replaces it.
-            ratio, n = next_ratio(current, prompt / estimate)
-            sets.update(token_ratio=ratio, token_ratio_n=n, fit_margin=None)
-        if not sets:
-            sets["fit_margin"] = min(FIT_MARGIN_MOST,
-                                     (current.get("fit_margin") or 0) + FIT_MARGIN_STEP)
-        return sets
+        return lesson(call, current, message=message, estimate=estimate)
 
     if await models_repo.measure(db, call["model_id"], call["model"], change):
         logger.info("%s refused a prompt too long (%s): asked again", call["model_name"],
-                    "its figures learned" if limit is not None else "a wider margin kept")
+                    "its figures learned" if too_long_figures(message)[0] is not None
+                    else "a wider margin kept")
+
+
+async def take_back_margin(db: aiosqlite.Connection, call: dict, before: float | None) -> None:
+    """The shorter prompt was refused too: the margin that turn added cured nothing."""
+    await models_repo.measure(db, call["model_id"], call["model"],
+                              lambda current: {"fit_margin": before})

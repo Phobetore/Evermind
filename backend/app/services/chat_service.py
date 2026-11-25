@@ -387,7 +387,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     # same question would get the same answer, and its tokens are paid for. And a server that
     # refuses the prompt as too long is asked once more, with what its refusal taught.
     error = None
-    folded = asked_shorter = False
+    folded = asked_shorter = widened = False
+    margin_before = None  # the AI's fit_margin before a refusal widened it
     for _attempt in range(3):
         if turn.stopped:
             break
@@ -401,16 +402,34 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
                 await save()
         error = None if turn.reading.cancelled() else turn.reading.exception()
         if not chunks and not turn.stopped and learning.is_too_long(error):
-            await learning.after_too_long(db, call, ai[0], message=error.message,
-                                          estimate=payload.stats["used_tokens"])
-            model = None if asked_shorter else await models_repo.get_row(db, call["model_id"])
-            if model is None:
+            if asked_shorter:
+                # Refused again: the margin this turn added cured nothing, and is not kept.
+                if widened:
+                    await learning.take_back_margin(db, call, margin_before)
                 break
-            asked_shorter = True
+            if learning.reply_takes_the_room(error.message, sent=call.get("max_tokens")):
+                break  # no shorter story would be answered: the server's refusal is told
+            current = await models_repo.get_row(db, call["model_id"])
+            if current is None:
+                break
+            estimate = payload.stats["used_tokens"]
+            taught = learning.lesson(call, current, message=error.message, estimate=estimate)
             # The size and the count it said, or a wider margin, make the prompt shorter.
-            ai = (model, ai[1])
-            call = call_for(model, ai[1], room=reply_room(convo, settings))
-            payload = _build(passages, fold_leading_assistant=folded)
+            refused = call
+            call = call_for({**current, **taught}, ai[1], room=reply_room(convo, settings))
+            shorter = _build(passages, fold_leading_assistant=folded)
+            if shorter.stats["used_tokens"] >= estimate:
+                # The story already fitted: the refusal was about something else. Nothing is
+                # learned, and the server's own refusal is told.
+                call = refused
+                break
+            await learning.after_too_long(db, refused, ai[0], message=error.message,
+                                          estimate=estimate)
+            margin_before = current.get("fit_margin")
+            widened = (taught.get("fit_margin") or 0) > (margin_before or 0)
+            asked_shorter = True
+            ai = ({**current, **taught}, ai[1])
+            payload = shorter
             continue
         # Refusing the greeting may be said in the stream rather than by silence.
         refused = isinstance(error, ProviderError) and error.kind == MODEL_ERROR and not error.status

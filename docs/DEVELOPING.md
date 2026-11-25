@@ -398,6 +398,13 @@ Balanced is the engine as it was, figure for figure.
   the estimate grew by more than 5% (a server that drops the beginning of a
   story that grows), or when its count is far under the estimate and just
   under a round size or the size the server is set to load.
+- **A refusal for a prompt too long** (`learning.is_too_long`) teaches the size
+  and the count it names, else a wider `fit_margin`, and the turn asks once more,
+  only when the prompt rebuilt with that is shorter: otherwise nothing is learned
+  and the server's refusal is told. A wider margin is kept only when the second
+  ask was answered. A refusal whose prompt is under the limit while the reply's
+  room leaves no story its place (`learning.reply_takes_the_room`) is not a
+  story too long.
 - **`CallFigures`** (`providers/base.py`) is what each provider hands back of its
   call: the server's usage, the id of the generation, the model and upstream that
   answered, the stop reason, the characters received, and whether the request

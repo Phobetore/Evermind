@@ -88,6 +88,13 @@ async def a_story(client, **fields) -> tuple[dict, dict]:
     return ai, await conversation_on(client, ai["id"])
 
 
+async def a_long_story(client, **fields) -> tuple[dict, dict]:
+    """A story longer than what its AI reads, whatever the margin: a shorter prompt drops more."""
+    ai, convo = await a_story(client, **fields)
+    await long_story(convo["id"], 30, 3000)
+    return ai, convo
+
+
 async def last_reply(client, convo: dict) -> dict:
     return (await messages_of(client, convo["id"]))[-1]
 
@@ -772,7 +779,7 @@ async def test_a_refusal_moves_the_ratio_measured_and_is_kept_between_half_and_d
         pytest.approx(1.2 + (sample - 1.2) / 4), 4)
 
     # A count ten times the estimate is kept at double.
-    other, story = await a_story(client, context_own=None, model="second")
+    other, story = await a_long_story(client, context_own=None, model="second")
     estimates.clear()
     model.answers, model.bodies = [(400, {"error": {"message": (
         "This model's maximum context length is 8192 tokens. However, you requested 900000 "
@@ -784,7 +791,7 @@ async def test_a_refusal_moves_the_ratio_measured_and_is_kept_between_half_and_d
 
 
 async def test_a_refusal_with_both_figures_replaces_the_margin_it_widened(client, monkeypatch):
-    ai, convo = await a_story(client, context_own=None)
+    ai, convo = await a_long_story(client, context_own=None)
     model = Model((400, {"error": {"message": NO_FIGURES}}), writing("*She nods.*")
                   ).serve(monkeypatch)
     assert await send(client, convo["id"]) is None
@@ -798,7 +805,7 @@ async def test_a_refusal_with_both_figures_replaces_the_margin_it_widened(client
 
 
 async def test_a_refusal_naming_the_size_counted_widens_the_margin(client, monkeypatch):
-    ai, convo = await a_story(client)
+    ai, convo = await a_long_story(client)
     same = LLAMA_TOO_LONG.replace("4096", "16384")
     model = Model((400, {"error": {"message": same}}), writing("*She nods.*")).serve(monkeypatch)
     assert await send(client, convo["id"]) is None
@@ -809,7 +816,7 @@ async def test_a_refusal_naming_the_size_counted_widens_the_margin(client, monke
 
 
 async def test_a_refusal_that_leaves_no_prompt_widens_the_margin(client, monkeypatch):
-    ai, convo = await a_story(client, reply_cap={"mode": "auto"})
+    ai, convo = await a_long_story(client, reply_cap={"mode": "auto"})
     # What was requested is no more than the room sent for the reply.
     bare = "This model's maximum context length is 16384 tokens. However, you requested 500 tokens."
     model = Model((400, {"error": {"message": bare}}), writing("*She nods.*")).serve(monkeypatch)
@@ -820,8 +827,8 @@ async def test_a_refusal_that_leaves_no_prompt_widens_the_margin(client, monkeyp
         pytest.approx(0.10), None, 0, None)
 
     # A size apart from the one counted is all such a refusal teaches.
-    other, story = await a_story(client, context_own=None, model="second",
-                                 reply_cap={"mode": "auto"})
+    other, story = await a_long_story(client, context_own=None, model="second",
+                                      reply_cap={"mode": "auto"})
     model.answers, model.bodies = [(400, {"error": {"message": bare.replace("16384", "8192")}}),
                                    writing("*She nods.*")], []
     assert await send(client, story["id"]) is None
@@ -831,24 +838,32 @@ async def test_a_refusal_that_leaves_no_prompt_widens_the_margin(client, monkeyp
 
 
 async def test_a_refusal_on_a_story_opening_on_the_greeting_does_not_fold_it(client, monkeypatch):
-    _, convo = await a_story(client)
+    ai, convo = await a_story(client)
     model = Model((400, {"error": {"message": NO_FIGURES}}), writing("*She nods.*")
                   ).serve(monkeypatch)
-    assert await send(client, convo["id"]) is None
-    first, again = (body["messages"] for body in model.bodies)
+    outcome = await send(client, convo["id"])
+    # The story fits whatever the margin: it is not asked again, folded or not.
+    (first,) = (body["messages"] for body in model.bodies)
     assert first[1]["role"] == "assistant" and "She stirs" in first[1]["content"]
-    assert again == first
+    assert (outcome["kind"], outcome["message"]) == ("model_error", NO_FIGURES)
+    assert (await row_of(ai["id"]))["fit_margin"] is None
 
 
 async def test_a_too_long_refusal_without_figures_widens_the_margin(client, monkeypatch):
-    ai, convo = await a_story(client)
+    ai, convo = await a_long_story(client)
     refusal = (400, {"error": {"message": NO_FIGURES}})
     model = Model().serve(monkeypatch)
-    for widened in (0.10, 0.20, 0.30, 0.40, 0.40):
+    for widened in (0.10, 0.20, 0.30, 0.40):
         model.answers, model.bodies = [refusal, writing("*She nods.*")], []
         assert await send(client, convo["id"]) is None
         assert (await row_of(ai["id"]))["fit_margin"] == pytest.approx(widened)
     assert model.calls[-1]["margin"] == int(16384 * 0.06) + int(0.40 * 16384)
+
+    # At the widest, no shorter prompt is made: the server's refusal is told as it is.
+    model.answers, model.bodies = [refusal, writing("*She nods.*")], []
+    outcome = await send(client, convo["id"])
+    assert (outcome["kind"], len(model.bodies)) == ("model_error", 1)
+    assert (await row_of(ai["id"]))["fit_margin"] == pytest.approx(0.40)
 
     model.answers, model.bodies = [answer("*She nods.*", usage={"prompt_tokens": 5000})], []
     assert await send(client, convo["id"]) is None
@@ -857,7 +872,8 @@ async def test_a_too_long_refusal_without_figures_widens_the_margin(client, monk
 
 
 async def test_a_second_refusal_ends_the_turn_saying_so(client, monkeypatch):
-    _, convo = await a_story(client)
+    ai, convo = await a_long_story(client)
+    await set_row(ai["id"], fit_margin=0.1)
     before = len(await messages_of(client, convo["id"]))
     model = Model((400, {"error": {"message": NO_FIGURES}})).serve(monkeypatch)
     outcome = await send(client, convo["id"])
@@ -865,9 +881,67 @@ async def test_a_second_refusal_ends_the_turn_saying_so(client, monkeypatch):
     assert outcome["kind"] == "model_too_long"
     assert outcome["message"] == NO_FIGURES
     assert len(model.bodies) == 2
+    assert len(json.dumps(model.bodies[1])) < len(json.dumps(model.bodies[0]))
     messages = await messages_of(client, convo["id"])
     assert len(messages) == before + 1 and messages[-1]["role"] == "user"
     assert messages[-1]["meta"]["unanswered"]["kind"] == "model_too_long"
+    # The wider margin cured nothing: what the turn added is taken back.
+    assert (await row_of(ai["id"]))["fit_margin"] == pytest.approx(0.1)
+
+
+async def test_a_second_refusal_keeps_the_figures_it_learned(client, monkeypatch):
+    ai, convo = await a_long_story(client, context_own=None)
+    await set_row(ai["id"], fit_margin=0.2)
+    Model((400, {"error": {"message": OPENAI_TOO_LONG}})).serve(monkeypatch)
+    assert (await send(client, convo["id"]))["kind"] == "model_too_long"
+    row = await row_of(ai["id"])
+    # What the server said of its size and its count is so, answered or not.
+    assert (row["context_read"], row["token_ratio_n"], row["fit_margin"]) == (8192, 1, None)
+
+
+async def test_a_refusal_of_a_story_that_already_fitted_is_not_asked_again(client, monkeypatch):
+    ai, convo = await a_story(client)
+    await long_story(convo["id"], 16, 1300)
+    untouched = await row_of(ai["id"])
+    # As OpenAI words a refusal with no figure: the story fits, a wider margin changes nothing
+    # of it, and the same body would be refused again.
+    said = ("Your input exceeds the context window of this model. Please adjust your input and "
+            "try again.")
+    model = Model((400, {"error": {"message": said}}), writing("*She nods.*")).serve(monkeypatch)
+    outcome = await send(client, convo["id"])
+    assert (outcome["kind"], outcome["message"], len(model.bodies)) == ("model_error", said, 1)
+    assert await row_of(ai["id"]) == untouched
+
+
+async def test_a_refusal_of_the_reply_s_room_is_not_a_story_too_long(client, monkeypatch):
+    ai, convo = await a_long_story(client, context_own=None)
+    untouched = await row_of(ai["id"])
+    # The prompt alone is under the limit, and the room asked for the reply leaves none for any
+    # story: no shorter story would be answered.
+    said = ("This endpoint's maximum context length is 8192 tokens. However, you requested "
+            "about 10000 tokens (2000 of text input, 8000 in the output). Please reduce the "
+            "length of either one, or use the \"middle-out\" transform to compress your prompt "
+            "automatically.")
+    assert learning.reply_takes_the_room(said.replace("8192", "131072").replace(
+        "10000", "140000").replace("8000 in", "138000 in"), sent=138000)
+    model = Model((400, {"error": {"message": said}}), writing("*She nods.*")).serve(monkeypatch)
+    outcome = await send(client, convo["id"])
+    assert (outcome["kind"], outcome["message"], len(model.bodies)) == ("model_error", said, 1)
+    assert await row_of(ai["id"]) == untouched
+
+
+async def test_a_prompt_under_the_limit_whose_room_leaves_a_story_its_place_is_too_long(
+        client, monkeypatch):
+    ai, convo = await a_long_story(client, context_own=None)
+    # DeepSeek's form: the prompt alone is under the limit, but longer than the room the reply
+    # leaves it. A shorter story is the cure.
+    said = ("This model's maximum context length is 16384 tokens. However, you requested 16824 "
+            "tokens (15800 in the messages, 1024 in the completion). Please reduce the length of "
+            "the messages or completion.")
+    model = Model((400, {"error": {"message": said}}), writing("*She nods.*")).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    assert len(model.bodies) == 2
+    assert (await row_of(ai["id"]))["token_ratio_n"] == 1
 
 
 async def test_another_refusal_is_not_asked_again(client, monkeypatch):
