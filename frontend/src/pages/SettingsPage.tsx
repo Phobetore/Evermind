@@ -4,6 +4,7 @@ import { EstimateLine } from "@/components/ai/EstimateLine";
 import { MigrationNotice } from "@/components/ai/MigrationNotice";
 import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
+import { WaysList } from "@/components/ways/WaysList";
 import { LanguageSelect } from "@/components/layout/LanguageSelect";
 import { DisplayControls } from "@/components/display/DisplayControls";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -25,7 +26,8 @@ export function SettingsPage() {
   const t = useT();
   const { status: accessStatus } = useAccess();
   const [ais, setAis] = useState<Ai[] | null>(null);
-  // Read with the AIs: each line's estimate weighs the way offered to new conversations.
+  // Read with the AIs: each line's estimate weighs the way offered to new conversations. Read in
+  // every edition: the ways to play are in both.
   const [ways, setWays] = useState<Ways | null>(null);
   const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -40,7 +42,7 @@ export function SettingsPage() {
   const load = useCallback(() => {
     Promise.all([
       data.connections?.models.list().then(setAis),
-      data.connections && data.ways.list().then(setWays),
+      data.ways.list().then(setWays),
       data.settings.get().then(setSettings),
     ]).then(() => setLoadFailure(null), (error) => setLoadFailure({ error }));
   }, []);
@@ -160,6 +162,8 @@ export function SettingsPage() {
           )}
         </section>
       )}
+
+      {ways && <WaysList ways={ways} ais={ais} />}
 
       {/* Kept on this device, not on the server: shown even when the server's settings could not be read. */}
       <section className="mb-10 max-w-xl" aria-labelledby={displayTitle}>

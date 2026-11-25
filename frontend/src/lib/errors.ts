@@ -87,6 +87,7 @@ const NOT_FOUND_KEYS: Record<string, string> = {
   connection: "errors.notFound.connection",
   model: "errors.notFound.model",
   fact: "errors.notFound.fact",
+  way: "errors.notFound.way",
 };
 
 /** The sentence to show for a failure, in the person's language. */

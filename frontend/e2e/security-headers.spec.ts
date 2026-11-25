@@ -76,6 +76,15 @@ test("no page of the app breaks the policy it is served with @desktop", async ({
   await expect(page.getByText(/^Read from the server|^Not read yet/)).toBeVisible();
   await noViolations(page, "an AI's page");
 
+  // A way's page, its card's bar drawn and its exact values open.
+  await page.goto("/#/settings");
+  await page.locator('main a[href="#/settings/way/balanced"]').click();
+  await expect(page.getByRole("heading", { level: 1, name: "Balanced" })).toBeVisible();
+  await expect(page.getByText(/pages sent with each message$/)).toBeVisible();
+  await page.getByText("Advanced: the exact values").click();
+  await expect(page.getByRole("textbox", { name: "Room kept for the reply (tokens)" })).toBeVisible();
+  await noViolations(page, "a way's page");
+
   await page.goto("/#/personas");
   await expect(page.getByRole("button", { name: "New persona" })).toBeVisible();
   await noViolations(page, "the personas");

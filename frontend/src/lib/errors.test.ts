@@ -84,6 +84,7 @@ describe("a missing thing", () => {
     ["connection", "errors.notFound.connection"],
     ["fact", "errors.notFound.fact"],
     ["model", "errors.notFound.model"],
+    ["way", "errors.notFound.way"],
   ])("a %s is said as %s", (resource, key) => {
     const error = new DataError("English words", { kind: "not_found", resource, status: 404 });
     expect(describeError(error, t)).toBe(key);

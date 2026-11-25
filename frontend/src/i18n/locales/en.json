@@ -97,17 +97,6 @@
   "settings": {
     "subtitle": "Your models, your rules: Evermind connects to the AI you choose.",
     "defaultConnectionLabel": "Default AI",
-    "replyLengthLabel": "Reply length",
-    "replyLengthHint": "Applies to every conversation. Evermind keeps the room needed by the AIs it sets itself; an AI with a fixed ceiling may cut long replies: see My AIs.",
-    "replyLengthOptions": {
-      "short": "Short: one dense paragraph",
-      "medium": "Medium: 1 to 3 paragraphs",
-      "long": "Long: 3 to 5 rich paragraphs"
-    },
-    "historyLimitLabel": "Recent messages sent to the model",
-    "historyLimitHint": "Beyond this, older turns only live on in the summary and established facts. Short window (16–30): the model stays focused on instructions instead of imitating its own replies. Long window: more raw continuity, but small models start to ramble.",
-    "passageBudgetLabel": "Passage recall (tokens)",
-    "passageBudgetHint": "Retrieves verbatim excerpts from older messages that are semantically related to the current scene (requires the \"semantic\" extra). ~1500 ≈ 10% of a 16k context. Set to 0 to disable. Every recall token is one less token of recent history.",
     "autoMemoryTitle": "Automatic memory",
     "autoMemoryHint": {
       "before": "The model automatically extracts",
@@ -660,6 +649,7 @@
       "connection": "This service no longer exists.",
       "fact": "This fact no longer exists.",
       "model": "This AI no longer exists.",
+      "way": "This way to play no longer exists.",
       "other": "This item no longer exists."
     },
     "pngWithoutCard": "This PNG image does not contain a character card.",
@@ -987,8 +977,84 @@
       "maximum": "Maximum",
       "mine": "My settings"
     },
+    "title": "Ways to play",
+    "summary": {
+      "light": "Short replies, rereads the last 16 messages, reminders kept to the essentials. Quick and thrifty: for a small AI or a tight budget.",
+      "balanced": "Replies of 1 to 3 paragraphs, rereads the last 24 messages. Evermind's original setting, figure for figure.",
+      "immersive": "Long replies, rereads the last 60 messages, more reminders. For AIs that read a lot at once.",
+      "maximum": "Rereads the whole story, as much as the AI can read at once. Long replies, rich reminders. The most faithful, and the dearest on a paid AI.",
+      "custom": "Your own values."
+    },
+    "defaultTag": "Default",
+    "count": "{count} conversations",
+    "count_one": "1 conversation",
+    "usage": "{count} conversations play in {name}. What you change here changes for all of them.",
+    "usage_one": "1 conversation plays in {name}. What you change here changes for it.",
+    "usageNone": "No conversation plays in {name} yet.",
+    "history": {
+      "label": "Messages reread before each reply",
+      "hint": "The AI rereads this many recent messages word for word; anything older reaches it through the summary and the remembered facts.",
+      "all": "All"
+    },
+    "length": {
+      "label": "Reply length to aim for",
+      "hint": "How long the AI tries to write; Evermind keeps the room it needs, with nothing else to set.",
+      "short": "Short",
+      "medium": "Medium",
+      "long": "Long"
+    },
+    "reminders": {
+      "label": "Reminders of the world and of what happened",
+      "hint": "What Evermind slips to the AI on top: the remembered facts, the pages of the world and old passages of the story.",
+      "essential": "Essentials",
+      "normal": "Normal",
+      "rich": "Rich",
+      "all": "No cap",
+      "custom": "Custom"
+    },
+    "bar": {
+      "card": "card",
+      "reminders": "reminders",
+      "history": "messages reread",
+      "room": "room for the reply"
+    },
+    "advanced": "Advanced: the exact values",
+    "exact": {
+      "history": "Messages reread (0: all)",
+      "room": "Room kept for the reply (tokens)",
+      "roomHint": "Empty: none of its own. Evermind then sends it no ceiling.",
+      "factsCap": "Remembered facts: at most (tokens)",
+      "maxFacts": "Remembered facts: how many at most",
+      "loreCap": "Pages of the world: at most (tokens)",
+      "share": "or share of what it reads (%)",
+      "passages": "Old passages brought back",
+      "passagesHint": "When the scene echoes an earlier moment, Evermind puts that passage back in front of the AI, exactly as it was written.",
+      "noLimit": "Empty: no limit."
+    },
+    "unavailable": "Not available on this install: the search-by-meaning module is not installed.",
+    "reset": "Original values",
+    "copy": "Make a copy",
+    "copyName": "{name} (copy)",
+    "nameLabel": "Name",
+    "makeDefault": "Offer {name} to new conversations",
+    "isDefault": "Offered to new conversations.",
+    "remove": "Delete this way to play",
+    "removeConfirm": "{count} conversations will move to {name}.",
+    "removeConfirm_one": "1 conversation will move to {name}.",
+    "removeConfirmNone": "No conversation plays it.",
+    "saved": "Saved.",
     "card": {
-      "lighter": "In {name}, it would reread {count}."
+      "lighter": "In {name}, it would reread {count}.",
+      "title": "What the AI reads",
+      "with": "With",
+      "sent": "≈ {pages:grouped} pages sent with each message",
+      "reads": "{name} can read ≈ {pages:grouped} at once",
+      "full": "Its reading capacity is full: it rereads {read} of the {asked} messages asked. That is the model's limit, not Evermind's.",
+      "fullAll": "Its reading capacity is full: it rereads {read} messages, all that fits. That is the model's limit, not Evermind's.",
+      "reference": "On a long story.",
+      "noAi": "Add an AI to see what it would read.",
+      "askedOnly": "Rereads up to {count} messages.",
+      "askedAll": "Rereads the whole story."
     },
     "chip": {
       "aria": "Way to play: {label}. Change.",

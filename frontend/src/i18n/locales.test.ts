@@ -54,7 +54,7 @@ describe("a sentence reads right where it is shown", () => {
     ["fr", "characters.assist.missing", "Il manque encore : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque."],
     // A feminine and a masculine noun together take the masculine plural.
     ["es", "errors.modelNotFound", "El servicio no reconoce esta dirección ni este modelo. Compruébelos en Mis IA. Ha indicado: {message}"],
-    ["en", "settings.replyLengthHint", "Applies to every conversation. Evermind keeps the room needed by the AIs it sets itself; an AI with a fixed ceiling may cut long replies: see My AIs."],
+    ["en", "ways.length.hint", "How long the AI tries to write; Evermind keeps the room it needs, with nothing else to set."],
     // Every command shown starts Evermind itself.
     ["en", "settings.about.updateHint", "Stop Evermind, then run this from the folder you installed it in."],
     ["fr", "settings.about.updateHint", "Arrêtez Evermind, puis lancez ceci depuis le dossier où vous l'avez installé."],
@@ -103,7 +103,7 @@ describe("the words that spoke of a connection", () => {
     "errors.modelNotFound", "errors.notFound.connection", "errors.briefTooLong", "errors.cardTooLong",
     "errors.contextTooSmall", "chat.message.cutAtCeiling", "chat.modelSilent.settingsLink",
     "cards.startChatModal.noConnectionOption", "cards.startChatModal.noConnectionWarning",
-    "settings.defaultConnectionLabel", "settings.replyLengthHint",
+    "settings.defaultConnectionLabel",
   ];
 
   it.each([["en", en], ["fr", fr], ["de", de], ["es", es]])("are gone from the sentences about an AI, in %s", (_name, locale) => {

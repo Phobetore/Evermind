@@ -97,17 +97,6 @@
   "settings": {
     "subtitle": "Vos modèles, vos règles\u00a0: Evermind se branche sur l'IA que vous choisissez.",
     "defaultConnectionLabel": "IA par défaut",
-    "replyLengthLabel": "Longueur des réponses",
-    "replyLengthHint": "S'applique à toutes les conversations. Evermind garde la place nécessaire aux IA réglées par lui\u00a0; une IA à plafond fixe peut couper les réponses longues\u00a0: voir Mes IA.",
-    "replyLengthOptions": {
-      "short": "Courtes\u00a0: un paragraphe dense",
-      "medium": "Moyennes\u00a0: 1 à 3 paragraphes",
-      "long": "Longues\u00a0: 3 à 5 paragraphes riches"
-    },
-    "historyLimitLabel": "Messages récents envoyés au modèle",
-    "historyLimitHint": "Au-delà, les tours ne vivent plus que dans le résumé et les faits établis. Fenêtre courte (16–30)\u00a0: le modèle reste attentif aux consignes au lieu d'imiter ses propres réponses. Fenêtre longue\u00a0: plus de continuité brute, mais les petits modèles se mettent à radoter.",
-    "passageBudgetLabel": "Rappel de passages (tokens)",
-    "passageBudgetHint": "Repêche des extraits verbatim d'anciens messages sémantiquement liés à la scène en cours (nécessite l'extra «\u00a0semantic\u00a0»). ~1500 ≈ 10 % d'un contexte 16k. Mettez 0 pour désactiver. Chaque token de rappel est un token d'historique récent en moins.",
     "autoMemoryTitle": "Mémoire automatique",
     "autoMemoryHint": {
       "before": "Le modèle extrait automatiquement les",
@@ -660,6 +649,7 @@
       "connection": "Ce service n'existe plus.",
       "fact": "Ce fait n'existe plus.",
       "model": "Cette IA n'existe plus.",
+      "way": "Cette façon de jouer n'existe plus.",
       "other": "Cet élément n'existe plus."
     },
     "pngWithoutCard": "Cette image PNG ne contient pas de fiche de personnage.",
@@ -987,8 +977,84 @@
       "maximum": "Au maximum",
       "mine": "Mes réglages"
     },
+    "title": "Façons de jouer",
+    "summary": {
+      "light": "Réponses courtes, relit les 16 derniers messages, rappels réduits à l'essentiel. Rapide et économe\u00a0: pour une petite IA ou un budget serré.",
+      "balanced": "Réponses de 1 à 3 paragraphes, relit les 24 derniers messages. Le réglage d'origine d'Evermind, chiffre pour chiffre.",
+      "immersive": "Longues réponses, relit les 60 derniers messages, davantage de rappels. Pour les IA qui lisent beaucoup à la fois.",
+      "maximum": "Relit toute l'histoire, autant que l'IA peut en lire à la fois. Longues réponses, rappels riches. Le plus fidèle, et le plus cher sur une IA payante.",
+      "custom": "Vos valeurs."
+    },
+    "defaultTag": "Par défaut",
+    "count": "{count} conversations",
+    "count_one": "1 conversation",
+    "usage": "{count} conversations jouent en {name}. Ce que vous changez ici change pour toutes.",
+    "usage_one": "1 conversation joue en {name}. Ce que vous changez ici change pour elle.",
+    "usageNone": "Aucune conversation ne joue en {name} pour l'instant.",
+    "history": {
+      "label": "Messages relus avant chaque réponse",
+      "hint": "L'IA relit mot pour mot ce nombre de messages récents\u00a0; ce qui est plus ancien lui arrive par le résumé et les faits retenus.",
+      "all": "Tout"
+    },
+    "length": {
+      "label": "Longueur visée des réponses",
+      "hint": "La longueur que l'IA cherche à écrire\u00a0; Evermind lui garde la place nécessaire, sans autre réglage.",
+      "short": "Courtes",
+      "medium": "Moyennes",
+      "long": "Longues"
+    },
+    "reminders": {
+      "label": "Rappels de l'univers et des souvenirs",
+      "hint": "Ce qu'Evermind glisse en plus à l'IA\u00a0: les faits retenus, les pages de l'univers et d'anciens passages de l'histoire.",
+      "essential": "L'essentiel",
+      "normal": "Normal",
+      "rich": "Riche",
+      "all": "Sans plafond",
+      "custom": "Sur mesure"
+    },
+    "bar": {
+      "card": "fiche",
+      "reminders": "rappels",
+      "history": "messages relus",
+      "room": "place pour la réponse"
+    },
+    "advanced": "Avancé\u00a0: les valeurs exactes",
+    "exact": {
+      "history": "Messages relus (0\u00a0: tous)",
+      "room": "Place gardée pour la réponse (tokens)",
+      "roomHint": "Vide\u00a0: aucune à elle. Evermind ne lui envoie alors pas de plafond.",
+      "factsCap": "Faits retenus\u00a0: au plus (tokens)",
+      "maxFacts": "Faits retenus\u00a0: nombre au plus",
+      "loreCap": "Pages de l'univers\u00a0: au plus (tokens)",
+      "share": "ou part de ce qu'elle lit (%)",
+      "passages": "Anciens passages retrouvés",
+      "passagesHint": "Quand la scène rappelle un moment plus ancien, Evermind remet ce passage, tel qu'il a été écrit, sous les yeux de l'IA.",
+      "noLimit": "Vide\u00a0: pas de limite."
+    },
+    "unavailable": "Indisponible sur cette installation\u00a0: le module de recherche par le sens n'est pas installé.",
+    "reset": "Valeurs d'origine",
+    "copy": "En faire une copie",
+    "copyName": "{name} (copie)",
+    "nameLabel": "Nom",
+    "makeDefault": "Proposer {name} aux nouvelles conversations",
+    "isDefault": "Proposée aux nouvelles conversations.",
+    "remove": "Supprimer cette façon de jouer",
+    "removeConfirm": "{count} conversations passeront à {name}.",
+    "removeConfirm_one": "1 conversation passera à {name}.",
+    "removeConfirmNone": "Aucune conversation ne la joue.",
+    "saved": "Enregistré.",
     "card": {
-      "lighter": "En {name}, elle en relirait {count}."
+      "lighter": "En {name}, elle en relirait {count}.",
+      "title": "Ce que l'IA lit",
+      "with": "Avec",
+      "sent": "≈ {pages:grouped} pages envoyées à chaque message",
+      "reads": "{name} peut en lire ≈ {pages:grouped} à la fois",
+      "full": "Sa capacité de lecture est pleine\u00a0: elle relit {read} messages sur les {asked} demandés. C'est la limite du modèle, pas celle d'Evermind.",
+      "fullAll": "Sa capacité de lecture est pleine\u00a0: elle relit {read} messages, tout ce qui tient. C'est la limite du modèle, pas celle d'Evermind.",
+      "reference": "Sur une longue histoire.",
+      "noAi": "Ajoutez une IA pour voir ce qu'elle lirait.",
+      "askedOnly": "Relit jusqu'à {count} messages.",
+      "askedAll": "Relit toute l'histoire."
     },
     "chip": {
       "aria": "Façon de jouer\u00a0: {label}. Changer.",
