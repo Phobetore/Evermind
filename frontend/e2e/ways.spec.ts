@@ -332,3 +332,63 @@ test.describe("nothing scrolls sideways at 390, 320 and a 32 px root, the four c
     });
   }
 });
+
+/** The side gutters of the fold of exact values, its title's and its body's, in pixels: layout,
+ *  not text, so they do not grow with the text and leave its words one to a line. */
+const foldGutters = (page: Page) => page.locator("main details > summary, main details > div").evaluateAll((all) => all
+  .flatMap((el) => [getComputedStyle(el).paddingLeft, getComputedStyle(el).paddingRight])
+  .map((width) => parseFloat(width)));
+
+/** How many pixels the card's select lacks to show the name chosen in it whole, where its row has
+ *  that room to give: a select never wraps, so a name squeezed beside its label is cut. */
+const selectShortBy = (page: Page, label: string) => page.getByLabel(label, { exact: true }).evaluate((select: HTMLSelectElement) => {
+  const alone = select.cloneNode(false) as HTMLSelectElement;
+  alone.append(select.selectedOptions[0].cloneNode(true));
+  for (const [property, value] of [["width", "max-content"], ["min-width", "0"], ["max-width", "none"], ["position", "absolute"], ["visibility", "hidden"]]) {
+    alone.style.setProperty(property, value, "important");
+  }
+  select.parentElement!.append(alone);
+  const needs = alone.getBoundingClientRect().width;
+  alone.remove();
+  const row = select.parentElement!;
+  const style = getComputedStyle(row);
+  const room = row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  return Math.max(0, Math.round(Math.min(needs, room) - select.getBoundingClientRect().width));
+});
+
+// The fold's gutters and the AI named on the card, at the largest text on the narrowest phone: a
+// gutter in rem would leave the fold's words one to a line, a select beside its label would cut the name.
+test.describe("the exact values keep their gutters and the card's ai its name at 390, 320 and a 32 px root", () => {
+  for (const locale of ["en", "fr"]) {
+    test(`in ${locale}`, async ({ page, request }) => {
+      const stamp = Date.now();
+      const ais = [
+        await addModel(request, { base_url: MOCK, model: `big-${stamp}`, name: "Big priced" }),
+        await addModel(request, { base_url: MOCK, model: `long-${stamp}`, name: "Small one with a rather long name for its line" }),
+      ];
+      await inLocale(page, locale);
+      try {
+        for (const root of ["16px", "32px"]) {
+          if (root === "32px") await page.addInitScript(rootAt, root);
+          for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+            const at = `at ${size.width}px, a root of ${root}`;
+            await page.setViewportSize(size);
+            await page.goto("about:blank");
+            await page.goto("/#/settings/way/balanced");
+            await expect(page.locator("main [role=group]:has(button[aria-pressed])")).toHaveCount(3);
+            expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(root);
+            for (const ai of ais) {
+              await page.getByLabel(locale === "fr" ? "Avec" : "With", { exact: true }).selectOption({ label: ai.name });
+              expect(await selectShortBy(page, locale === "fr" ? "Avec" : "With"), `${ai.name} on the card ${at}`).toBe(0);
+            }
+            await page.locator("main details summary").click();
+            await expect(page.locator("main details[open]")).toHaveCount(1);
+            expect(Math.max(...await foldGutters(page)), `the exact values' gutters ${at}`).toBeLessThanOrEqual(16);
+          }
+        }
+      } finally {
+        for (const ai of ais) await request.delete(`${API}/api/models/${ai.id}`);
+      }
+    });
+  }
+});

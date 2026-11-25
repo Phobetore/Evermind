@@ -76,11 +76,13 @@ export function ReadingCard({ way, ais, hostWindow }: { way: WayFields; ais: Ai[
     <section className="panel flex flex-col gap-3 px-[min(1.25rem,20px)] py-4" aria-labelledby={`${ids}-title`}>
       <h2 id={`${ids}-title`} className="ui-label">{t("ways.card.title")}</h2>
       {listed && listed.length > 0 && ai && (
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+        // The select under its label, the card's whole width to itself: a select never wraps, and
+        // beside the label a long name, or any at a large text size, would be cut.
+        <div className="flex min-w-0 flex-col gap-1.5">
           <label htmlFor={`${ids}-ai`} className="text-sm text-mist">{t("ways.card.with")}</label>
           <select
             id={`${ids}-ai`}
-            className="field !w-auto min-h-11 min-w-0 max-w-full flex-1 !py-1.5 text-sm"
+            className="field min-h-11 !py-1.5 text-sm"
             value={ai.id}
             onChange={(e) => setChosen(e.target.value)}
           >

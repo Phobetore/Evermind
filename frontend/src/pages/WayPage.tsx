@@ -19,6 +19,8 @@ import { Link, useNavigate, useParams } from "react-router";
 const SAVED_MS = 2000;
 /** The page's side gutters: layout, not text, so in pixels at most (as on an AI's page). */
 const GUTTER = "px-[min(1.5rem,24px)]";
+/** The fold's own gutters, capped the same way: in rem, the largest text would leave its words one to a line. */
+const FOLD_GUTTER = "px-[min(1rem,16px)]";
 
 type Change = Partial<WayFields> & { name?: string };
 
@@ -211,11 +213,11 @@ function WayView({ id }: { id: string }) {
       </div>
 
       <details className="group mb-8 rounded-xl border border-ink-700">
-        <summary className="ui-label flex min-h-11 cursor-pointer list-none items-center gap-1.5 px-4 [&::-webkit-details-marker]:hidden">
+        <summary className={clsx("ui-label flex min-h-11 cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden", FOLD_GUTTER)}>
           <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden="true" />
           {t("ways.advanced")}
         </summary>
-        <div className="flex flex-col gap-6 border-t border-ink-700 px-4 py-4">
+        <div className={clsx("flex flex-col gap-6 border-t border-ink-700 py-[min(1rem,16px)]", FOLD_GUTTER)}>
           <ExactValues way={way} passages={ways.passages_available} save={save} said={said} />
         </div>
       </details>
