@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import { API } from "../playwright.config";
 import {
   MOCK, addModel, chat, conversation, conversationWithReply, inLocale, makeCharacter, makeConversation, misfits, replyEnds,
-  rootAt, stopTurn,
+  rootAt, stopTurn, wordPieces,
 } from "./fixtures";
 
 /**
@@ -33,14 +33,14 @@ const chipOf = (page: Page) => statusRow(page).getByRole("button", { name: /^Way
 const aiChipOf = (page: Page) => statusRow(page).locator("[data-ai-chip]");
 const sheetOf = (page: Page) => page.getByRole("dialog", { name: "Way to play" });
 const aiSheetOf = (page: Page) => page.getByRole("dialog", { name: "Which AI answers?" });
-const rowOf = (page: Page, name: string) => sheetOf(page).getByRole("radio", { name: new RegExp(`^${name}`) });
+const rowOf = (page: Page, name: string) => sheetOf(page).getByRole("list").getByRole("button", { name: new RegExp(`^${name}`) });
 const toastOf = (page: Page) => page.locator("[data-chat-toast]");
 
 async function openSheet(page: Page) {
   await chipOf(page).click();
   await expect(sheetOf(page)).toBeVisible();
   // The rows come with the whole outlook, read as the sheet opens.
-  await expect(sheetOf(page).getByRole("radio")).toHaveCount(4);
+  await expect(sheetOf(page).getByRole("listitem")).toHaveCount(4);
   return sheetOf(page);
 }
 
@@ -78,7 +78,7 @@ test("switching the way is two taps and the next turn plays it @desktop", async 
 
   const sheet = await openSheet(page);
   await expect(sheet).toContainText("For this conversation only.");
-  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-checked", "true");
+  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-current", "true");
   await rowOf(page, "Light").click();
   await expect(sheet).toHaveCount(0);
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Light. Change.");
@@ -116,7 +116,33 @@ test("adjusted for this conversation only", async ({ page, request }) => {
   expect((await conversation(request, other.id)).play_overrides).toBeNull();
 });
 
-test("a small ai under immersive says it rereads n of 60 on the chip and in the sheet", async ({ page, request }) => {
+test("the link to change the way for every conversation is a thumb's height", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await page.goto(`/#/chat/${convo.id}`);
+  const sheet = await openSheet(page);
+  await sheet.getByText("Adjust for this conversation").click();
+  const link = sheet.getByRole("link", { name: "Change Balanced for every conversation…" });
+  await expect(link).toBeVisible();
+  expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+});
+
+test("an adjustment from another tab is kept when this one adjusts too", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await page.goto(`/#/chat/${convo.id}`);
+  const sheet = await openSheet(page);
+  await sheet.getByText("Adjust for this conversation").click();
+  // Another tab, which this one has not heard from, makes the replies long.
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { play_overrides: { reply_length: "long" } } });
+  await sheet.getByRole("group", { name: "Messages reread before each reply" }).getByRole("button", { name: "60", exact: true }).click();
+  await expect(chipOf(page)).toHaveText("Balanced · adjusted");
+  await expect.poll(async () => (await conversation(request, convo.id)).play_overrides)
+    .toEqual({ reply_length: "long", history_limit: 60 });
+  // The sheet shows both, as the server holds them.
+  await expect(sheet.getByRole("group", { name: "Reply length to aim for" }).getByRole("button", { name: "Long", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+});
+
+test("a small ai under immersive says it rereads n of 60 on the chip and in the sheet",async ({ page, request }) => {
   test.setTimeout(180_000);
   const small = await anAi(request, `Small ${stamp()}`, { context_own: 4096 });
   try {
@@ -165,7 +191,7 @@ test("the current ai costs the same in both sheets", async ({ page, request }) =
     await expect(sheet).toHaveCount(0);
 
     await aiChipOf(page).click();
-    const aiRow = aiSheetOf(page).getByRole("radio", { name: new RegExp(`^${priced.name}`) });
+    const aiRow = aiSheetOf(page).getByRole("list").getByRole("button", { name: new RegExp(`^${priced.name}`) });
     // Under the conversation's way: the row also says what this AI rereads of it.
     await expect(aiRow).toContainText(/Rereads the only message · ≈ \d+ pages? sent/);
     await expect(aiRow.locator("[data-estimate]")).toHaveText(adjusted!);
@@ -203,7 +229,7 @@ test("an ai whose capacity is not said is given no pages in either sheet", async
     await sheet.getByRole("button", { name: "Close" }).click();
 
     await aiChipOf(page).click();
-    const aiRow = aiSheetOf(page).getByRole("radio", { checked: true });
+    const aiRow = aiSheetOf(page).getByRole("list").locator("[aria-current=true]");
     await expect(aiRow).toContainText(untold.name);
     await expect(aiRow).toContainText("reading capacity not given");
     await expect(aiRow).toContainText("Rereads the only message");
@@ -279,8 +305,8 @@ test("a way removed on another device leaves the chip on the default", async ({ 
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Harbour mornings. Change.");
   await request.delete(`${API}/api/ways/${again.id}`);
   await chipOf(page).click();
-  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-checked", "true");
-  await expect(sheetOf(page).getByRole("radio", { name: /^Harbour/ })).toHaveCount(0);
+  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-current", "true");
+  await expect(sheetOf(page).getByRole("list").getByRole("button", { name: /^Harbour/ })).toHaveCount(0);
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Balanced. Change.");
 });
 
@@ -311,7 +337,7 @@ test("a turn that ends with the sheet open leaves it its rows, counted again", a
   // The reply ends while the sheet is open: the turn's end reads it all again.
   await stopTurn(request, convo.id);
   await expect(rowOf(page, "Balanced")).toContainText("Rereads 5 of the 5 messages");
-  await expect(sheetOf(page).getByRole("radio")).toHaveCount(4);
+  await expect(sheetOf(page).getByRole("listitem")).toHaveCount(4);
 });
 
 test("a turn that ends with the ais' sheet open leaves its rows their figures, counted again", async ({ page, request }) => {
@@ -321,7 +347,7 @@ test("a turn that ends with the ais' sheet open leaves its rows their figures, c
   await page.locator('button[title="Send"]').click();
   await expect(page.locator('button[title="Stop generation"]')).toBeVisible();
   await aiChipOf(page).click();
-  const row = aiSheetOf(page).getByRole("radio", { checked: true });
+  const row = aiSheetOf(page).getByRole("list").locator("[aria-current=true]");
   await expect(row).toContainText("Rereads 4 of the 4 messages");
   await stopTurn(request, convo.id);
   await expect(row).toContainText("Rereads 5 of the 5 messages");
@@ -345,8 +371,8 @@ test("the sheet answers the touch before anything it shows has come", async ({ p
   await expect(sheet.locator("[aria-busy=true]")).toHaveCount(1);
   expect(await misfits(page, "dialog")).toEqual([]);
   release();
-  await expect(sheet.getByRole("radio")).toHaveCount(4);
-  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-checked", "true");
+  await expect(sheet.getByRole("listitem")).toHaveCount(4);
+  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-current", "true");
 });
 
 test("a failed switch keeps the sheet open and the chip as it was", async ({ page, request }) => {
@@ -360,7 +386,7 @@ test("a failed switch keeps the sheet open and the chip as it was", async ({ pag
   await rowOf(page, "Light").click();
   await expect(sheet.getByRole("alert")).not.toBeEmpty();
   await expect(sheet).toBeVisible();
-  await expect(rowOf(page, "Light")).toHaveAttribute("aria-checked", "false");
+  await expect(rowOf(page, "Light")).not.toHaveAttribute("aria-current", "true");
   await expect(rowOf(page, "Light")).not.toHaveAttribute("aria-busy", "true");
   await sheet.getByRole("button", { name: "Close" }).click();
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Balanced. Change.");
@@ -378,7 +404,7 @@ test("the long room notice lets evermind set it", async ({ page, request }) => {
       `${unsent.name} is sent no ceiling, and Evermind keeps it only 1,024 tokens: a long reply may not fit in what it reads.`,
     );
     await expect(notice).toBeVisible();
-    const list = (await sheet.getByRole("radiogroup").boundingBox())!;
+    const list = (await sheet.getByRole("list").boundingBox())!;
     expect((await notice.boundingBox())!.y, "the notice is not under the list").toBeGreaterThan(list.y + list.height - 1);
 
     await sheet.getByRole("button", { name: "Keep the room long replies need" }).click();
@@ -454,7 +480,7 @@ test("at very large text the four ways stay in reach", async ({ page, request })
         await page.reload();
         await statusRow(page).locator("[data-way-chip]").click();
         const dialog = page.getByRole("dialog");
-        await expect(dialog.getByRole("radio")).toHaveCount(4);
+        await expect(dialog.getByRole("listitem")).toHaveCount(4);
         const cut = await dialog.evaluate((sheet) => [...sheet.querySelectorAll("summary")]
           .filter((summary) => summary.scrollWidth > summary.clientWidth)
           .map((summary) => `"${summary.textContent}" ${summary.scrollWidth} wide in ${summary.clientWidth}`));
@@ -493,6 +519,49 @@ test("a new conversation is made with the way chosen", async ({ page, request })
   const id = new URL(page.url()).hash.split("/").at(-1)!;
   expect((await conversation(request, id)).play_style).toBe("light");
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Light. Change.");
+});
+
+test("the sheet's german title is cut between its syllables at 320 and a 32 px root", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await inLocale(page, "de");
+  await page.addInitScript(rootAt, "32px");
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  await statusRow(page).locator("[data-way-chip]").click();
+  const sheet = page.getByRole("dialog", { name: "Spielweise" });
+  await expect(sheet).toBeVisible();
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+  const pieces = await wordPieces(page, "dialog[open] h2", "Spielweise");
+  // Whole, or Spiel-weise.
+  expect([["Spielweise"], ["Spiel", "weise"]], `"Spielweise" drawn as ${pieces.join(" / ")}`).toContainEqual(pieces);
+});
+
+// A laptop at the largest text with the side panel open leaves the conversation a column of about
+// 190px: the chip's word breaks where it must rather than run over its chevron and out of its pill.
+test("the chip's word stays in its pill in a narrow column at the largest text @desktop", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.addInitScript(rootAt, "32px");
+  for (const [locale, name] of [["fr", "Équilibré"], ["de", "Ausgewogen"]]) {
+    await inLocale(page, locale);
+    await page.goto("about:blank");
+    await page.goto(`/#/chat/${convo.id}`);
+    const chip = statusRow(page).locator("[data-way-chip]");
+    await expect(chip).toHaveText(name);
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+    const fit = await chip.evaluate((pill) => {
+      // The text itself, which runs past its box where it cannot break.
+      const range = document.createRange();
+      range.selectNodeContents(pill.children[1]);
+      const right = Math.max(...[...range.getClientRects()].map((line) => line.right));
+      const chevron = pill.children[2].getBoundingClientRect();
+      const box = pill.getBoundingClientRect();
+      return { pill: Math.round(box.width), past: Math.round(right - chevron.left), out: Math.round(pill.scrollWidth - pill.clientWidth) };
+    });
+    expect(fit.past, `the word over its chevron in ${locale}, in a pill of ${fit.pill}px`).toBeLessThanOrEqual(0);
+    expect(fit.out, `the word out of its pill in ${locale}`).toBeLessThanOrEqual(0);
+  }
 });
 
 test("the chip row wraps rather than hide", async ({ page, request }) => {

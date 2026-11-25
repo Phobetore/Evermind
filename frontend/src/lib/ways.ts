@@ -37,15 +37,25 @@ export function isFull(entry: OutlookEntry): boolean {
   return entry.messages_included < asked(entry);
 }
 
+/** What is sent, with what the turn keeps for the reply, is more than the AI reads at once: its card
+ *  and reminders do not fit (the engine never cuts a card). From a server that does not say what it
+ *  keeps, what is sent alone counts: the way's room is not what is kept, and a reply's room squeezed
+ *  to fit is not this. */
+export function overflows(entry: OutlookEntry): boolean {
+  return entry.used_tokens + (entry.reply_kept ?? 0) > entry.context_size;
+}
+
 /** The chip of a conversation's way: its name, adjusted when it is, and how much it rereads when
- *  its reading capacity is full. */
-export function wayLabel(entry: Outlook["current"], t: T): { text: string; aria: string; full: boolean } {
+ *  its reading capacity is full. `told` false: an AI whose capacity nobody told, read aloud as what
+ *  is counted, with nothing said of a capacity. */
+export function wayLabel(entry: Outlook["current"], t: T, told = true): { text: string; aria: string; full: boolean } {
   const name = wayName(entry.way, t);
   const label = entry.way.adjusted ? t("ways.chip.adjusted", { name }) : name;
   const full = isFull(entry);
   if (!full) return { text: label, aria: t("ways.chip.aria", { label }), full };
   const counts = { label, read: entry.messages_included, asked: asked(entry) };
-  return { text: t("ways.chip.full", counts), aria: t("ways.chip.fullAria", { ...counts, count: counts.read }), full };
+  const aria = t(told ? "ways.chip.fullAria" : "ways.chip.untoldAria", { ...counts, count: counts.read });
+  return { text: t("ways.chip.full", counts), aria, full };
 }
 
 /** The pages a prompt takes, "sent" for a row that says what goes with each message. */
@@ -56,9 +66,10 @@ export function pagesPart(tokens: number, t: T, sent = false): string {
 /** None, one and more each have their own sentence when the AI rereads all it was asked. */
 const howMany = (read: number) => (read === 0 ? "None" : read === 1 ? "One" : "");
 
-/** French writes "qu'" before a name that begins with a vowel; the other languages hold the same
- *  sentence under both keys. */
-const ELIDED = /^[aeiouyàâäéèêëîïôöùûü]/i;
+/** French writes "qu'" before a name that begins with a vowel, and with a "y" said as one: before a
+ *  consonant (Yves), not before a vowel (Yann). The other languages hold the same sentence under
+ *  both keys. */
+const ELIDED = /^(?:[aeiouàâäéèêëîïôöùûü]|y(?=[b-df-hj-np-tv-xzç]))/i;
 
 /** The first line of what the AI reads: the pages sent and the messages reread. `name` null: no AI,
  *  or no capacity said, and then the messages alone. */

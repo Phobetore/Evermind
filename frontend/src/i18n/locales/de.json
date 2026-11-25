@@ -995,9 +995,9 @@
     "defaultTag": "Standard",
     "count": "{count} Unterhaltungen",
     "count_one": "1 Unterhaltung",
-    "usage": "{count} Unterhaltungen nutzen {name}. Was Sie hier ändern, ändert sich für alle.",
-    "usage_one": "1 Unterhaltung nutzt {name}. Was Sie hier ändern, ändert sich für sie.",
-    "usageNone": "Noch keine Unterhaltung nutzt {name}.",
+    "usage": "{count} Unterhaltungen nutzen diese Spielweise. Was Sie hier ändern, ändert sich für alle.",
+    "usage_one": "1 Unterhaltung nutzt diese Spielweise. Was Sie hier ändern, ändert sich für sie.",
+    "usageNone": "Noch keine Unterhaltung nutzt diese Spielweise.",
     "history": {
       "label": "Vor jeder Antwort erneut gelesene Nachrichten",
       "hint": "Die KI liest so viele der letzten Nachrichten Wort für Wort; Älteres erreicht sie über die Zusammenfassung und die gemerkten Fakten.",
@@ -1055,13 +1055,14 @@
       "title": "Was die KI liest",
       "with": "Mit",
       "sent": "≈ {pages:grouped} Seiten mit jeder Nachricht gesendet",
-      "reads": "{name} kann ≈ {pages:grouped} auf einmal lesen",
+      "reads": "{name} kann ≈ {pages:grouped} Seiten auf einmal lesen",
       "full": "Ihr Leseumfang ist voll: Die KI liest {read} der {asked} verlangten Nachrichten erneut. Das ist die Grenze des Modells, nicht die von Evermind.",
       "full_one": "Ihr Leseumfang ist voll: Die KI liest {count} der {asked} verlangten Nachrichten erneut. Das ist die Grenze des Modells, nicht die von Evermind.",
       "fullAll": "Ihr Leseumfang ist voll: Die KI liest {read} Nachrichten erneut, alles, was hineinpasst. Das ist die Grenze des Modells, nicht die von Evermind.",
       "fullAll_one": "Ihr Leseumfang ist voll: Die KI liest {count} Nachricht erneut, alles, was hineinpasst. Das ist die Grenze des Modells, nicht die von Evermind.",
       "reference": "Bei einer langen Geschichte.",
       "noAi": "Fügen Sie eine KI hinzu, um zu sehen, was sie lesen würde.",
+      "untold": "{name} sagt nicht, wie viel sie auf einmal liest: Was sie erneut lesen würde, lässt sich nicht zeigen.",
       "askedOnly": "Liest bis zu {count} Nachrichten erneut.",
       "askedOnly_one": "Liest bis zu {count} Nachricht erneut.",
       "askedAll": "Liest die ganze Geschichte erneut."
@@ -1069,17 +1070,19 @@
     "chip": {
       "aria": "Spielweise: {label}. Ändern.",
       "adjusted": "{name} · angepasst",
-      "full": "{label} · liest {read} von {asked}",
+      "full": "{label} · liest {read} von {asked} erneut",
       "fullAria": "Spielweise: {label}. Ihr Leseumfang ist voll: Die KI liest {read} von {asked} Nachrichten erneut. Ändern.",
+      "untoldAria": "Spielweise: {label}. Die KI liest {read} von {asked} Nachrichten erneut. Ändern.",
+      "untoldAria_one": "Spielweise: {label}. Die KI liest {count} von {asked} Nachrichten erneut. Ändern.",
       "fullAria_one": "Spielweise: {label}. Ihr Leseumfang ist voll: Die KI liest {count} von {asked} Nachrichten erneut. Ändern."
     },
     "sheet": {
       "title": "Spielweise",
       "hint": "Nur für diese Unterhaltung.",
       "row": "{messages} · {pages}",
-      "rowNoSize": "Liest {read} der {total} Nachrichten",
+      "rowNoSize": "Liest {read} der {total} Nachrichten erneut",
       "rowNone": "Noch keine Nachricht zu lesen",
-      "rowOnly": "Liest die einzige Nachricht",
+      "rowOnly": "Liest die einzige Nachricht erneut",
       "adjust": "Für diese Unterhaltung anpassen",
       "backTo": "Zurück zu {name} ohne Anpassungen",
       "editAll": "{name} für alle Unterhaltungen ändern…"
@@ -1092,6 +1095,7 @@
       "lineNoSizeOne": "Liest 1 Nachricht erneut, mehr ist nicht verlangt",
       "lineNoSizeFull": "Liest {read} der {asked} verlangten erneut",
       "full": "Ihr Leseumfang ist voll ({capacity}): {sent}, der Rest bleibt für ihre Antwort frei.",
+      "over": "Was gesendet wird ({sent}), ist mehr, als diese KI auf einmal liest ({capacity}): Karte und Erinnerungen passen nicht hinein. Wählen Sie eine leichtere Spielweise oder eine KI, die mehr liest.",
       "why": "Warum",
       "limit": "Das ist die Grenze des Modells, nicht die von Evermind; der Rest erreicht die KI über die Zusammenfassung und die Fakten.",
       "legend": "In Tokens: Karte {card:grouped} · Erinnerungen {reminders:grouped} · erneut gelesene Nachrichten {history:grouped} · Platz für die Antwort {room:grouped} · Leseumfang {capacity:grouped}",
@@ -1100,9 +1104,9 @@
       "pagesSent": "≈ {count:grouped} Seiten gesendet",
       "pagesSent_one": "≈ {count:grouped} Seite gesendet",
       "rereadNone": "noch keine Nachricht zu lesen",
-      "rereadOne": "liest 1 Nachricht, mehr ist nicht verlangt",
-      "rereadAll": "liest {read} Nachrichten, alle verlangten",
-      "rereadSome": "liest {read} der {asked} verlangten"
+      "rereadOne": "liest 1 Nachricht erneut, mehr ist nicht verlangt",
+      "rereadAll": "liest {read} Nachrichten erneut, alle verlangten",
+      "rereadSome": "liest {read} der {asked} verlangten erneut"
     },
     "longRoom": {
       "text": "{name} erhält keine Obergrenze, und Evermind hält ihr nur {tokens:grouped} Tokens frei: Eine lange Antwort passt vielleicht nicht in das, was die KI liest.",

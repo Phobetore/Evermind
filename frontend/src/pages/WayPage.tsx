@@ -137,7 +137,7 @@ function WayView({ id }: { id: string }) {
     return (
       <div className={clsx("mx-auto flex max-w-3xl flex-col items-start gap-4 py-10", GUTTER)}>
         <p className="font-display text-xl font-semibold">{t("errors.notFound.way")}</p>
-        <Link to="/settings" className="btn btn-ghost">{t("ai.add.backToSettings")}</Link>
+        <Link to="/settings" className="btn btn-ghost max-w-full whitespace-normal">{t("ai.add.backToSettings")}</Link>
       </div>
     );
   }
@@ -199,8 +199,8 @@ function WayView({ id }: { id: string }) {
         )}
         <p className="mt-3 text-sm leading-relaxed text-parchment-dim">
           {way.conversations === 0
-            ? t("ways.usageNone", { name })
-            : t("ways.usage", { count: way.conversations, name })}
+            ? t("ways.usageNone")
+            : t("ways.usage", { count: way.conversations })}
         </p>
       </header>
 

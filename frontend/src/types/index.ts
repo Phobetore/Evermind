@@ -280,6 +280,9 @@ export interface OutlookEntry {
   messages_total: number;
   history_limit: number;
   reply_room: number;
+  /** What the turn keeps for the reply: the way's room as this AI is sent it, with its thinking,
+   *  under its own ceiling or none. Absent from a server that does not say it. */
+  reply_kept?: number;
   parts: { card: number; reminders: number; history: number };
   /** The ceiling of its own that keeps the reply under the way's room; null when none does. */
   cap_short: number | null;

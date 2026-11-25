@@ -60,6 +60,29 @@ describe("a sentence reads right where it is shown", () => {
     ["fr", "settings.about.updateHint", "Arrêtez Evermind, puis lancez ceci depuis le dossier où vous l'avez installé."],
     ["de", "settings.about.updateHint", "Halten Sie Evermind an und führen Sie dann das hier in dem Ordner aus, in dem Sie es installiert haben."],
     ["es", "settings.about.updateHint", "Detenga Evermind y luego ejecute esto en la carpeta donde lo instaló."],
+    // One action, one name: "Continuar la respuesta" everywhere else.
+    ["es", "chat.message.extend", "Continuar"],
+    // What an AI reads at once is said in pages, in every language.
+    ["en", "ways.card.reads", "{name} can read ≈ {pages:grouped} pages at once"],
+    ["de", "ways.card.reads", "{name} kann ≈ {pages:grouped} Seiten auf einmal lesen"],
+    ["es", "ways.card.reads", "{name} puede leer ≈ {pages:grouped} páginas de una vez"],
+    // A way's name is a name: it does not go into every sentence, so it reads as one alone.
+    ["fr", "ways.names.maximum", "Maximum"],
+    ["es", "ways.names.maximum", "Máximo"],
+    ["en", "ways.usage", "{count} conversations play this way. What you change here changes for all of them."],
+    ["fr", "ways.usage", "{count} conversations jouent de cette façon. Ce que vous changez ici change pour toutes."],
+    ["de", "ways.usage", "{count} Unterhaltungen nutzen diese Spielweise. Was Sie hier ändern, ändert sich für alle."],
+    ["es", "ways.usage", "{count} conversaciones usan esta forma de jugar. Lo que cambie aquí cambia para todas."],
+    ["en", "ways.usage_one", "1 conversation plays this way. What you change here changes for it."],
+    ["fr", "ways.usage_one", "1 conversation joue de cette façon. Ce que vous changez ici change pour elle."],
+    ["de", "ways.usage_one", "1 Unterhaltung nutzt diese Spielweise. Was Sie hier ändern, ändert sich für sie."],
+    ["es", "ways.usage_one", "1 conversación usa esta forma de jugar. Lo que cambie aquí cambia para ella."],
+    ["en", "ways.usageNone", "No conversation plays this way yet."],
+    ["fr", "ways.usageNone", "Aucune conversation ne joue de cette façon pour l'instant."],
+    ["de", "ways.usageNone", "Noch keine Unterhaltung nutzt diese Spielweise."],
+    ["es", "ways.usageNone", "Ninguna conversación usa esta forma de jugar por ahora."],
+    ["fr", "ways.sheet.backTo", "Revenir à {name} sans ajustement"],
+    ["es", "ways.sheet.backTo", "Volver a {name} sin ajustes"],
   ] as const)("in %s, %s", (locale, key, said) => {
     expect(new Map(flatten({ en, fr, de, es }[locale])).get(key)).toBe(said);
   });

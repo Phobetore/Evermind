@@ -235,7 +235,7 @@
         "long": "Respuesta cortada: llenó el espacio reservado para una respuesta larga."
       },
       "cutThought": "La IA razonó mucho tiempo y no le quedó espacio para escribir.",
-      "extend": "Prolongar",
+      "extend": "Continuar",
       "retry": "Reintentar",
       "longHere": "Respuestas largas aquí",
       "longHereDone": "Respuestas largas en esta conversación."
@@ -981,7 +981,7 @@
       "light": "Ligero",
       "balanced": "Equilibrado",
       "immersive": "Inmersivo",
-      "maximum": "Al máximo",
+      "maximum": "Máximo",
       "mine": "Mis ajustes"
     },
     "title": "Formas de jugar",
@@ -995,9 +995,9 @@
     "defaultTag": "Predeterminada",
     "count": "{count} conversaciones",
     "count_one": "1 conversación",
-    "usage": "{count} conversaciones usan {name}. Lo que cambie aquí cambia para todas.",
-    "usage_one": "1 conversación usa {name}. Lo que cambie aquí cambia para ella.",
-    "usageNone": "Ninguna conversación usa {name} por ahora.",
+    "usage": "{count} conversaciones usan esta forma de jugar. Lo que cambie aquí cambia para todas.",
+    "usage_one": "1 conversación usa esta forma de jugar. Lo que cambie aquí cambia para ella.",
+    "usageNone": "Ninguna conversación usa esta forma de jugar por ahora.",
     "history": {
       "label": "Mensajes releídos antes de cada respuesta",
       "hint": "La IA relee palabra por palabra esta cantidad de mensajes recientes; lo anterior le llega por el resumen y los hechos recordados.",
@@ -1055,13 +1055,14 @@
       "title": "Lo que la IA lee",
       "with": "Con",
       "sent": "≈ {pages:grouped} páginas enviadas con cada mensaje",
-      "reads": "{name} puede leer ≈ {pages:grouped} de una vez",
+      "reads": "{name} puede leer ≈ {pages:grouped} páginas de una vez",
       "full": "Su capacidad de lectura está llena: relee {read} de los {asked} mensajes pedidos. Es el límite del modelo, no el de Evermind.",
       "full_one": "Su capacidad de lectura está llena: relee {count} de los {asked} mensajes pedidos. Es el límite del modelo, no el de Evermind.",
       "fullAll": "Su capacidad de lectura está llena: relee {read} mensajes, todo lo que cabe. Es el límite del modelo, no el de Evermind.",
       "fullAll_one": "Su capacidad de lectura está llena: relee {count} mensaje, todo lo que cabe. Es el límite del modelo, no el de Evermind.",
       "reference": "En una historia larga.",
       "noAi": "Añada una IA para ver lo que leería.",
+      "untold": "{name} no dice cuánto lee de una vez: no se puede mostrar lo que releería.",
       "askedOnly": "Relee hasta {count} mensajes.",
       "askedOnly_one": "Relee hasta {count} mensaje.",
       "askedAll": "Relee toda la historia."
@@ -1071,6 +1072,8 @@
       "adjusted": "{name} · ajustado",
       "full": "{label} · relee {read} de {asked}",
       "fullAria": "Forma de jugar: {label}. Su capacidad de lectura está llena: relee {read} mensajes de {asked}. Cambiar.",
+      "untoldAria": "Forma de jugar: {label}. Relee {read} mensajes de {asked}. Cambiar.",
+      "untoldAria_one": "Forma de jugar: {label}. Relee {count} mensaje de {asked}. Cambiar.",
       "fullAria_one": "Forma de jugar: {label}. Su capacidad de lectura está llena: relee {count} mensaje de {asked}. Cambiar."
     },
     "sheet": {
@@ -1081,7 +1084,7 @@
       "rowNone": "Aún no hay mensajes que releer",
       "rowOnly": "Relee el único mensaje",
       "adjust": "Ajustar para esta conversación",
-      "backTo": "Volver a {name} tal cual",
+      "backTo": "Volver a {name} sin ajustes",
       "editAll": "Modificar {name} para todas las conversaciones…"
     },
     "reading": {
@@ -1092,6 +1095,7 @@
       "lineNoSizeOne": "Relee 1 mensaje, el único pedido",
       "lineNoSizeFull": "Relee {read} de los {asked} pedidos",
       "full": "Su capacidad de lectura está llena ({capacity}): {sent}, el resto queda para su respuesta.",
+      "over": "Lo que se envía ({sent}) supera lo que esta IA lee de una vez ({capacity}): su ficha y sus recordatorios no caben. Elija una forma más ligera, o una IA que lea más.",
       "why": "Por qué",
       "limit": "Es el límite del modelo, no el de Evermind; el resto le llega por el resumen y los hechos.",
       "legend": "En tokens: ficha {card:grouped} · recordatorios {reminders:grouped} · mensajes releídos {history:grouped} · espacio para la respuesta {room:grouped} · capacidad {capacity:grouped}",

@@ -1,5 +1,5 @@
 import { Bolded } from "@/components/ai/MigrationNotice";
-import { Sheet } from "@/components/ui/Sheet";
+import { Sheet, SheetWait } from "@/components/ui/Sheet";
 import { WayChoices, type WayChange } from "@/components/ways/WayChoices";
 import { data, type ConversationPatch } from "@/data";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -46,11 +46,7 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
   const asked = useRef(0);
   const [huge] = useState(() => parseFloat(getComputedStyle(document.documentElement).fontSize) >= HUGE_ROOT_PX);
 
-  const waiting = (
-    <div className="flex justify-center py-6" aria-busy="true">
-      <Loader2 className="size-[20px] animate-spin text-mist" aria-hidden />
-    </div>
-  );
+  const waiting = <SheetWait />;
   // The same sheet as the one with its figures, so that it stays open as they come.
   if (!outlook) {
     return <Sheet title={t("ways.sheet.title")} hint={t("ways.sheet.hint")} onClose={onClose}>{waiting}</Sheet>;
@@ -83,15 +79,28 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
     onPicked(saved);
   }
 
-  async function adjust(changes: ConversationPatch) {
+  /** `changes` sent, or worked out from the conversation as the server holds it now. */
+  async function adjust(changes: ConversationPatch | ((held: Conversation) => ConversationPatch)) {
     setAdjusting(true);
-    const saved = await send(changes);
+    let patch: ConversationPatch | null = null;
+    if (typeof changes === "function") {
+      try {
+        patch = changes(await data.conversations.withoutMessages(conversation.id));
+      } catch (error) {
+        setFailed(describeError(error, t));
+      }
+    } else {
+      patch = changes;
+    }
+    const saved = patch && await send(patch);
     setAdjusting(false);
     if (saved) onPicked(saved);
   }
 
-  /** The key changed, with those adjusted before: the server drops one equal to the way's own. */
-  const adjusted = (change: WayChange) => adjust({ play_overrides: { ...(conversation.play_overrides ?? {}), ...change } });
+  /** The key changed, on those adjusted before as the server holds them, read again first: another
+   *  tab may have adjusted since this page last heard, and the server replaces them whole. It drops
+   *  one equal to the way's own. */
+  const adjusted = (change: WayChange) => adjust((held) => ({ play_overrides: { ...(held.play_overrides ?? {}), ...change } }));
 
   const reader = ai && readerOfAi(ai);
   const priced = (way: WayFields) => {
@@ -105,6 +114,10 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
     : null;
   const longRoom = ai && ai.reply_cap.mode === "unsent" && current.reply_room > UNSENT_ROOM;
   const wayShown = wayName(current.way, t);
+  // The way played: as the conversation plays it, adjustments in, as the AI's sheet counts it.
+  const shownOf = (entry: Outlook["ways"][number]) => (entry.way.id === current.way.id ? current : entry);
+  // The rows' estimates are of a long story, as everywhere an AI or a way is chosen: said once.
+  const anyPriced = outlook.ways.some((entry) => priced(shownOf(entry).way) !== null);
 
   return (
     <Sheet title={t("ways.sheet.title")} hint={t("ways.sheet.hint")} alert={failed} onClose={onClose}>
@@ -112,46 +125,49 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
         <ReadingBlock entry={current} name={name} outlook={outlook} compact={huge} part={huge ? "top" : "whole"} />
 
         {outlook.ways.length === 0 ? waiting : (
-          <div role="radiogroup" aria-label={t("ways.sheet.title")} className="flex flex-col gap-1.5">
-            {outlook.ways.map((entry) => {
-              const chosen = entry.way.id === current.way.id;
-              // The way played: as the conversation plays it, adjustments in, as the AI's sheet counts it.
-              const shown = chosen ? current : entry;
-              const estimate = priced(shown.way);
-              return (
-                <button
-                  key={entry.way.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={chosen}
-                  aria-busy={pending === entry.way.id}
-                  onClick={() => pick(entry.way.id)}
-                  className={clsx(
-                    "flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
-                    chosen ? "border-ember-500/50 bg-ember-glow" : "border-ink-700 hover:border-ink-500 hover:bg-ink-800/60",
-                  )}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-                      <span className="min-w-0 font-display text-sm font-medium text-parchment [overflow-wrap:anywhere]">
-                        {wayName(entry.way, t)}
+          <div className="flex flex-col gap-2">
+            {/* A button for each, that chooses and closes: the one in use is the current one, as a list says it. */}
+            <ul aria-label={t("ways.sheet.title")} className="flex flex-col gap-1.5">
+              {outlook.ways.map((entry) => {
+                const chosen = entry.way.id === current.way.id;
+                const shown = shownOf(entry);
+                const estimate = priced(shown.way);
+                return (
+                  <li key={entry.way.id}>
+                    <button
+                      type="button"
+                      aria-current={chosen ? "true" : undefined}
+                      aria-busy={pending === entry.way.id}
+                      onClick={() => pick(entry.way.id)}
+                      className={clsx(
+                        "flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
+                        chosen ? "border-ember-500/50 bg-ember-glow" : "border-ink-700 hover:border-ink-500 hover:bg-ink-800/60",
+                      )}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                          <span className="min-w-0 font-display text-sm font-medium text-parchment [overflow-wrap:anywhere]">
+                            {wayName(entry.way, t)}
+                          </span>
+                          {estimate && <span data-estimate className="text-xs text-mist">{estimate}</span>}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-mist">
+                          {sheetRow(shown.messages_included, shown.messages_total, name !== null ? shown.used_tokens : null, t)}
+                        </span>
                       </span>
-                      {estimate && <span data-estimate className="text-xs text-mist">{estimate}</span>}
-                    </span>
-                    <span className="mt-0.5 block text-xs leading-relaxed text-mist">
-                      {sheetRow(shown.messages_included, shown.messages_total, name !== null ? shown.used_tokens : null, t)}
-                    </span>
-                  </span>
-                  <span className="mt-0.5 size-[18px] shrink-0" aria-hidden>
-                    {pending === entry.way.id ? (
-                      <Loader2 className="size-[18px] animate-spin text-mist" />
-                    ) : (
-                      chosen && <Check className="size-[18px] text-ember-300" />
-                    )}
-                  </span>
-                </button>
-              );
-            })}
+                      <span className="mt-0.5 size-[18px] shrink-0" aria-hidden>
+                        {pending === entry.way.id ? (
+                          <Loader2 className="size-[18px] animate-spin text-mist" />
+                        ) : (
+                          chosen && <Check className="size-[18px] text-ember-300" />
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {anyPriced && <p className="text-xs text-mist">{t("ways.card.reference")}</p>}
           </div>
         )}
 
@@ -200,7 +216,11 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
                 {t("ways.sheet.backTo", { name: wayShown })}
               </button>
             )}
-            <Link to={`/settings/way/${encodeURIComponent(current.way.id)}`} className="text-sm text-ember-300 underline-offset-2 hover:underline">
+            {/* A thumb's height, as the sheet's other controls. */}
+            <Link
+              to={`/settings/way/${encodeURIComponent(current.way.id)}`}
+              className="inline-flex min-h-11 max-w-full items-center self-start text-sm text-ember-300 underline-offset-2 hover:underline"
+            >
               {t("ways.sheet.editAll", { name: wayShown })}
             </Link>
           </div>

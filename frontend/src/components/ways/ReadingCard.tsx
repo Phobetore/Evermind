@@ -1,6 +1,7 @@
 import { useI18n } from "@/i18n/I18nProvider";
+import { sizeTold } from "@/lib/ai";
 import { estimateOf, estimateText, pages, readerOfAi, readingOf, type Reader, type Reading } from "@/lib/estimate";
-import { wayName } from "@/lib/ways";
+import { pagesPart, wayName } from "@/lib/ways";
 import type { Ai, WayFields } from "@/types";
 import { useId, useState } from "react";
 
@@ -49,9 +50,32 @@ export function ReadingCard({ way, light, ais, hostWindow }: {
   const listed = ais && inOrder(ais);
   const ai = listed && (listed.find((each) => each.id === chosen) ?? listed[0] ?? null);
 
+  // What the way asks, as said where no AI tells what it reads.
+  const askedLine = (
+    <p className="text-sm text-parchment-dim">
+      {way.history_limit === 0 ? t("ways.card.askedAll") : t("ways.card.askedOnly", { count: way.history_limit })}
+    </p>
+  );
+  // What 100 messages of a long story cost with the AI under the way.
+  const estimate = ai && (
+    <p className="text-sm text-parchment-dim">
+      {estimateText(estimateOf(readerOfAi(ai), way), locale, t)}{" "}
+      <small className="text-xs text-mist">{t("ways.card.reference")}</small>
+    </p>
+  );
   let body: React.ReactNode;
   if (listed && listed.length === 0) {
     body = <p className="text-sm text-mist">{t("ways.card.noAi")}</p>;
+  } else if (ai && !sizeTold(ai)) {
+    // A capacity nobody told is not said in pages, nor said full, as the two sheets do: the line
+    // of the AI says it is not given. Its estimate stays, the one every screen compares.
+    body = (
+      <>
+        <p className="text-sm text-parchment-dim">{t("ways.card.untold", { name: ai.name })}</p>
+        {askedLine}
+        {estimate}
+      </>
+    );
   } else if (ai) {
     const reader = readerOfAi(ai);
     const reading = readingOf(reader, way);
@@ -64,20 +88,13 @@ export function ReadingCard({ way, light, ais, hostWindow }: {
             {t("ways.card.lighter", { name: wayName({ id: "light", name: null }, t), count: lighter.reread ?? 0 })}
           </p>
         )}
-        <p className="text-sm text-parchment-dim">
-          {estimateText(estimateOf(reader, way), locale, t)}{" "}
-          <small className="text-xs text-mist">{t("ways.card.reference")}</small>
-        </p>
+        {estimate}
       </>
     );
   } else if (hostWindow !== null) {
     body = <Lines reading={readingOf(readerOfWindow(hostWindow), way)} window={hostWindow} name={null} />;
   } else {
-    body = (
-      <p className="text-sm text-parchment-dim">
-        {way.history_limit === 0 ? t("ways.card.askedAll") : t("ways.card.askedOnly", { count: way.history_limit })}
-      </p>
-    );
+    body = askedLine;
   }
 
   return (
@@ -103,10 +120,13 @@ export function ReadingCard({ way, light, ais, hostWindow }: {
   );
 }
 
-/** The pages sent and read, the bar of the parts and its key, and the sentence of a full capacity. */
+/** The pages sent and read, the bar of the parts and its key, and the sentence of a full capacity,
+ *  or, in its place, of what is sent and kept for the reply not fitting what the AI reads at once. */
 function Lines({ reading, window, name }: { reading: Reading; window: number; name: string | null }) {
   const { t } = useI18n();
   const { parts } = reading;
+  const sent = parts.card + parts.reminders + parts.history;
+  const over = sent + parts.room > window;
   const width = (tokens: number) => `${Math.min(100, (tokens / window) * 100).toFixed(2)}%`;
   const segments = [
     { key: "card", tokens: parts.card, className: PART_CLASS.card },
@@ -132,7 +152,11 @@ function Lines({ reading, window, name }: { reading: Reading; window: number; na
           </li>
         ))}
       </ul>
-      {reading.full && (
+      {over ? (
+        <p className="text-sm text-parchment-dim">
+          {t("ways.reading.over", { sent: pagesPart(sent, t), capacity: pagesPart(window, t) })}
+        </p>
+      ) : reading.full && (
         <p className="text-sm text-parchment-dim">
           {reading.asked === null
             ? t("ways.card.fullAll", { read: reading.reread ?? 0, count: reading.reread ?? 0 })

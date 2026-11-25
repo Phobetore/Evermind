@@ -1,6 +1,6 @@
 import { useT } from "@/i18n/useT";
 import { clsx } from "clsx";
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 
 /** A sheet that rises from the bottom edge: the browser's modal dialog, as Modal is. Below md,
@@ -70,8 +70,9 @@ export function Sheet({
       >
         <div className="flex shrink-0 items-start justify-between gap-4 px-4 pt-3 sm:px-5">
           <div className="min-w-0 pt-2">
-            {/* A title can be a name, whatever its owner typed: a handle is one long word. */}
-            <h2 className="break-words font-display text-lg font-semibold">{title}</h2>
+            {/* A title can be a name, whatever its owner typed: a handle is one long word. A long word
+                is cut as its language cuts it (the page's lang), and anywhere only past that. */}
+            <h2 className="break-words hyphens-auto font-display text-lg font-semibold">{title}</h2>
             {hint && <p id={hintId} className="mt-0.5 text-xs text-mist">{hint}</p>}
           </div>
           <button
@@ -93,5 +94,14 @@ export function Sheet({
         )}
       </div>
     </dialog>
+  );
+}
+
+/** In a sheet, in place of what is on its way: a spinner, its rows drawn only once they can stay. */
+export function SheetWait() {
+  return (
+    <div className="flex justify-center py-6" aria-busy="true">
+      <Loader2 className="size-[20px] animate-spin text-mist" aria-hidden />
+    </div>
   );
 }

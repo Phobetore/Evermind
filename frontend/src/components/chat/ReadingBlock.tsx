@@ -1,6 +1,6 @@
 import { HATCHED, PART_CLASS } from "@/components/ways/ReadingCard";
 import { useT } from "@/i18n/useT";
-import { isFull, lighterSaying, pagesPart, readingLine } from "@/lib/ways";
+import { isFull, lighterSaying, overflows, pagesPart, readingLine } from "@/lib/ways";
 import type { Outlook } from "@/types";
 import { ChevronDown } from "lucide-react";
 
@@ -23,11 +23,14 @@ export function ReadingBlock({ entry, name, outlook, compact, part }: {
   const rest = name !== null && (part === "bottom" || (part === "whole" && !compact));
   if (!line && !rest) return null;
   const full = isFull(entry);
+  const over = overflows(entry);
   const tokens = {
     card: entry.parts.card,
     reminders: entry.parts.reminders,
     history: entry.parts.history,
-    room: entry.reply_room,
+    // What the turn keeps, as the card in Settings draws it; the way's room from a server that
+    // does not say it.
+    room: entry.reply_kept ?? entry.reply_room,
   };
   const width = (count: number) => `${Math.min(100, (count / entry.context_size) * 100).toFixed(2)}%`;
   const lighter = full ? lighterSaying(outlook, t) : null;
@@ -36,9 +39,12 @@ export function ReadingBlock({ entry, name, outlook, compact, part }: {
       {line && <p className="text-sm leading-relaxed text-parchment">{readingLine(entry, name, t)}</p>}
       {rest && (
         <>
-          {full && (
+          {/* What does not fit at all is said in place of a capacity full. */}
+          {(over || full) && (
             <p className="text-sm leading-relaxed text-parchment-dim">
-              {t("ways.reading.full", { capacity: pagesPart(entry.context_size, t), sent: pagesPart(entry.used_tokens, t, true) })}
+              {over
+                ? t("ways.reading.over", { sent: pagesPart(entry.used_tokens, t), capacity: pagesPart(entry.context_size, t) })
+                : t("ways.reading.full", { capacity: pagesPart(entry.context_size, t), sent: pagesPart(entry.used_tokens, t, true) })}
             </p>
           )}
           {/* The words are in the key under it and in the fold: the bar only draws them. */}

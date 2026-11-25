@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { MOCK, addModel, answer, chat, conversation, conversationWithReply, inLocale, makeConversation, misfits, rootAt } from "./fixtures";
+import { MOCK, addModel, answer, chat, conversation, conversationWithReply, inLocale, makeConversation, misfits, rootAt, wordPieces } from "./fixtures";
 
 /**
  * The ways to play in Settings, and the page of each. The ways are the server's, shared by every
@@ -379,6 +379,49 @@ test.describe("nothing scrolls sideways at 390, 320 and a 32 px root, the four c
       }
     });
   }
+});
+
+// The page of a way that no longer exists: its link back wraps at the largest text, as the other
+// buttons of a way's page do.
+test.describe("a way gone keeps its link back on the screen at 390, 320 and a 32 px root", () => {
+  for (const locale of ["fr", "de"]) {
+    test(`in ${locale}`, async ({ page }) => {
+      await inLocale(page, locale);
+      await page.addInitScript(rootAt, "32px");
+      for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+        await page.setViewportSize(size);
+        await page.goto("about:blank");
+        await page.goto("/#/settings/way/gone-way");
+        await expect(page.locator("main a.btn[href='#/settings']")).toBeVisible();
+        expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+        expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+      }
+    });
+  }
+});
+
+/** Where a German word may be cut at the end of a line: between its syllables. */
+const SYLLABLES: Record<string, number[]> = { Ausgewogen: [3, 5, 7] };
+const cuts = (pieces: string[]) => pieces.slice(0, -1).map((_, i) => pieces.slice(0, i + 1).join("").length);
+
+test("the box confirming a removal cuts a long german word between its syllables at 320 and a 32 px root", async ({ page, request }) => {
+  const copy = await (await request.post(`${API}/api/ways`, { data: { from: "balanced", name: "Kopie" } })).json();
+  const convo = await makeConversation(request);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { play_style: copy.id } });
+  await inLocale(page, "de");
+  await page.addInitScript(rootAt, "32px");
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto(`/#/settings/way/${encodeURIComponent(copy.id)}`);
+  // Hyphenation reads the page's language.
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  await page.getByRole("button", { name: "Diese Spielweise löschen" }).click();
+  const box = page.getByRole("alertdialog");
+  await expect(box).toContainText("1 Unterhaltung wechselt zu Ausgewogen.");
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+  const pieces = await wordPieces(page, "[role=alertdialog] h2", "Ausgewogen");
+  for (const at of cuts(pieces)) expect(SYLLABLES.Ausgewogen, `"Ausgewogen" drawn as ${pieces.join(" / ")}`).toContain(at);
+  await box.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(box).toHaveCount(0);
 });
 
 /** The side gutters of the fold of exact values, its title's and its body's, in pixels: layout,

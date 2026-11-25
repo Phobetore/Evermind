@@ -981,7 +981,7 @@
       "light": "Léger",
       "balanced": "Équilibré",
       "immersive": "Immersif",
-      "maximum": "Au maximum",
+      "maximum": "Maximum",
       "mine": "Mes réglages"
     },
     "title": "Façons de jouer",
@@ -995,9 +995,9 @@
     "defaultTag": "Par défaut",
     "count": "{count} conversations",
     "count_one": "{count} conversation",
-    "usage": "{count} conversations jouent en {name}. Ce que vous changez ici change pour toutes.",
-    "usage_one": "1 conversation joue en {name}. Ce que vous changez ici change pour elle.",
-    "usageNone": "Aucune conversation ne joue en {name} pour l'instant.",
+    "usage": "{count} conversations jouent de cette façon. Ce que vous changez ici change pour toutes.",
+    "usage_one": "1 conversation joue de cette façon. Ce que vous changez ici change pour elle.",
+    "usageNone": "Aucune conversation ne joue de cette façon pour l'instant.",
     "history": {
       "label": "Messages relus avant chaque réponse",
       "hint": "L'IA relit mot pour mot ce nombre de messages récents\u00a0; ce qui est plus ancien lui arrive par le résumé et les faits retenus.",
@@ -1062,6 +1062,7 @@
       "fullAll_one": "Sa capacité de lecture est pleine\u00a0: elle relit {count} message, tout ce qui tient. C'est la limite du modèle, pas celle d'Evermind.",
       "reference": "Sur une longue histoire.",
       "noAi": "Ajoutez une IA pour voir ce qu'elle lirait.",
+      "untold": "{name} ne dit pas combien elle lit à la fois\u00a0: ce qu'elle relirait ne peut pas être montré.",
       "askedOnly": "Relit jusqu'à {count} messages.",
       "askedOnly_one": "Relit jusqu'à {count} message.",
       "askedAll": "Relit toute l'histoire."
@@ -1071,6 +1072,8 @@
       "adjusted": "{name} · ajusté",
       "full": "{label} · relit {read} sur {asked}",
       "fullAria": "Façon de jouer\u00a0: {label}. Sa capacité de lecture est pleine\u00a0: elle relit {read} messages sur {asked}. Changer.",
+      "untoldAria": "Façon de jouer\u00a0: {label}. Elle relit {read} messages sur {asked}. Changer.",
+      "untoldAria_one": "Façon de jouer\u00a0: {label}. Elle relit {count} message sur {asked}. Changer.",
       "fullAria_one": "Façon de jouer\u00a0: {label}. Sa capacité de lecture est pleine\u00a0: elle relit {count} message sur {asked}. Changer."
     },
     "sheet": {
@@ -1081,7 +1084,7 @@
       "rowNone": "Aucun message à relire pour l'instant",
       "rowOnly": "Relit le seul message",
       "adjust": "Ajuster pour cette conversation",
-      "backTo": "Revenir à {name} tel quel",
+      "backTo": "Revenir à {name} sans ajustement",
       "editAll": "Modifier {name} pour toutes les conversations…"
     },
     "reading": {
@@ -1092,6 +1095,7 @@
       "lineNoSizeOne": "Relit 1 message, le seul demandé",
       "lineNoSizeFull": "Relit {read} des {asked} demandés",
       "full": "Sa capacité de lecture est pleine ({capacity})\u00a0: {sent}, le reste est gardé pour sa réponse.",
+      "over": "Ce qui est envoyé ({sent}) dépasse ce que cette IA lit à la fois ({capacity})\u00a0: sa fiche et ses rappels n'y tiennent pas. Choisissez une façon plus légère, ou une IA qui lit davantage.",
       "why": "Pourquoi",
       "limit": "C'est la limite du modèle, pas celle d'Evermind\u00a0; le reste lui arrive par le résumé et les faits.",
       "legend": "En tokens\u00a0: fiche {card:grouped} · rappels {reminders:grouped} · messages relus {history:grouped} · place pour la réponse {room:grouped} · capacité {capacity:grouped}",
