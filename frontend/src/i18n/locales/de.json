@@ -153,14 +153,6 @@
       "aboutAriaLabel": "Über {name}",
       "openButton": "Karte öffnen"
     },
-    "context": {
-      "tooltipUsage": "Kontext: {used} / {budget} Tokens (Fenster {size})",
-      "tooltipMessages": "{included}/{total} Nachrichten im Kontext",
-      "tooltipOlderInMemory": "(ältere sind durch das Gedächtnis abgedeckt)",
-      "tooltipLore": "{count} aktive Lorebook-Einträge",
-      "percent": "{pct}\u00a0%",
-      "perSecond": "{tps} T/s"
-    },
     "stream": {
       "assistantTyping": "{name} schreibt…",
       "replied": "{name} hat geantwortet."
@@ -1061,6 +1053,31 @@
       "adjusted": "{name} · angepasst",
       "full": "{label} · liest {read} von {asked}",
       "fullAria": "Spielweise: {label}. Ihr Leseumfang ist voll: Die KI liest {read} von {asked} Nachrichten erneut. Ändern."
+    },
+    "sheet": {
+      "title": "Spielweise",
+      "hint": "Nur für diese Unterhaltung.",
+      "row": "Liest {read} der {total} Nachrichten · ≈ {pages:grouped} Seiten gesendet",
+      "rowNoSize": "Liest {read} der {total} Nachrichten",
+      "adjust": "Für diese Unterhaltung anpassen",
+      "backTo": "Zurück zu {name} ohne Anpassungen",
+      "editAll": "{name} für alle Unterhaltungen ändern…"
+    },
+    "reading": {
+      "line": "Was {name} liest: ≈ {pages:grouped} Seiten · liest {read} Nachrichten, alle verlangten",
+      "lineVowel": "Was {name} liest: ≈ {pages:grouped} Seiten · liest {read} Nachrichten, alle verlangten",
+      "lineFull": "Was {name} liest: ≈ {pages:grouped} Seiten · liest {read} der {asked} verlangten",
+      "lineFullVowel": "Was {name} liest: ≈ {pages:grouped} Seiten · liest {read} der {asked} verlangten",
+      "lineNoSize": "Liest {read} Nachrichten erneut, alle verlangten",
+      "lineNoSizeFull": "Liest {read} der {asked} verlangten erneut",
+      "full": "Ihr Leseumfang ist voll (≈ {capacity:grouped} Seiten): ≈ {sent:grouped} Seiten gesendet, der Rest bleibt für ihre Antwort frei.",
+      "why": "Warum",
+      "limit": "Das ist die Grenze des Modells, nicht die von Evermind; der Rest erreicht die KI über die Zusammenfassung und die Fakten.",
+      "legend": "In Tokens: Karte {card:grouped} · Erinnerungen {reminders:grouped} · erneut gelesene Nachrichten {history:grouped} · Platz für die Antwort {room:grouped} · Leseumfang {capacity:grouped}"
+    },
+    "longRoom": {
+      "text": "{name} erhält keine Obergrenze, und Evermind hält ihr nur {tokens:grouped} Tokens frei: Eine lange Antwort passt vielleicht nicht in das, was die KI liest.",
+      "button": "Platz für lange Antworten freihalten"
     }
   }
 }

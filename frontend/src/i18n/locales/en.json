@@ -153,14 +153,6 @@
       "aboutAriaLabel": "About {name}",
       "openButton": "Open the card"
     },
-    "context": {
-      "tooltipUsage": "Context: {used} / {budget} tokens (window {size})",
-      "tooltipMessages": "{included}/{total} messages in context",
-      "tooltipOlderInMemory": "(older ones are covered by memory)",
-      "tooltipLore": "{count} active lorebook entries",
-      "percent": "{pct}%",
-      "perSecond": "{tps} t/s"
-    },
     "stream": {
       "assistantTyping": "{name} is typing…",
       "replied": "{name} replied."
@@ -1061,6 +1053,31 @@
       "adjusted": "{name} · adjusted",
       "full": "{label} · rereads {read} of {asked}",
       "fullAria": "Way to play: {label}. Its reading capacity is full: it rereads {read} messages of {asked}. Change."
+    },
+    "sheet": {
+      "title": "Way to play",
+      "hint": "For this conversation only.",
+      "row": "Rereads {read} of the {total} messages · ≈ {pages:grouped} pages sent",
+      "rowNoSize": "Rereads {read} of the {total} messages",
+      "adjust": "Adjust for this conversation",
+      "backTo": "Back to {name} as it is",
+      "editAll": "Change {name} for every conversation…"
+    },
+    "reading": {
+      "line": "What {name} reads: ≈ {pages:grouped} pages · rereads {read} messages, all it was asked",
+      "lineVowel": "What {name} reads: ≈ {pages:grouped} pages · rereads {read} messages, all it was asked",
+      "lineFull": "What {name} reads: ≈ {pages:grouped} pages · rereads {read} of the {asked} asked",
+      "lineFullVowel": "What {name} reads: ≈ {pages:grouped} pages · rereads {read} of the {asked} asked",
+      "lineNoSize": "Rereads {read} messages, all it was asked",
+      "lineNoSizeFull": "Rereads {read} of the {asked} asked",
+      "full": "Its reading capacity is full (≈ {capacity:grouped} pages): ≈ {sent:grouped} pages sent, the rest is kept for its reply.",
+      "why": "Why",
+      "limit": "That is the model's limit, not Evermind's; the rest reaches it through the summary and the facts.",
+      "legend": "In tokens: card {card:grouped} · reminders {reminders:grouped} · messages reread {history:grouped} · room for the reply {room:grouped} · capacity {capacity:grouped}"
+    },
+    "longRoom": {
+      "text": "{name} is sent no ceiling, and Evermind keeps it only {tokens:grouped} tokens: a long reply may not fit in what it reads.",
+      "button": "Keep the room long replies need"
     }
   }
 }

@@ -153,14 +153,6 @@
       "aboutAriaLabel": "En savoir plus sur {name}",
       "openButton": "Voir la fiche"
     },
-    "context": {
-      "tooltipUsage": "Contexte\u00a0: {used} / {budget} tokens (fenêtre {size})",
-      "tooltipMessages": "{included}/{total} messages dans le contexte",
-      "tooltipOlderInMemory": "(les plus anciens sont couverts par la mémoire)",
-      "tooltipLore": "{count} entrée(s) de lorebook active(s)",
-      "percent": "{pct}\u00a0%",
-      "perSecond": "{tps} t/s"
-    },
     "stream": {
       "assistantTyping": "{name} écrit…",
       "replied": "{name} a répondu."
@@ -1061,6 +1053,31 @@
       "adjusted": "{name} · ajusté",
       "full": "{label} · relit {read} sur {asked}",
       "fullAria": "Façon de jouer\u00a0: {label}. Sa capacité de lecture est pleine\u00a0: elle relit {read} messages sur {asked}. Changer."
+    },
+    "sheet": {
+      "title": "Façon de jouer",
+      "hint": "Pour cette conversation seulement.",
+      "row": "Relit {read} des {total} messages · ≈ {pages:grouped} pages envoyées",
+      "rowNoSize": "Relit {read} des {total} messages",
+      "adjust": "Ajuster pour cette conversation",
+      "backTo": "Revenir à {name} tel quel",
+      "editAll": "Modifier {name} pour toutes les conversations…"
+    },
+    "reading": {
+      "line": "Ce que {name} lit\u00a0: ≈ {pages:grouped} pages · relit {read} messages, tous ceux demandés",
+      "lineVowel": "Ce qu'{name} lit\u00a0: ≈ {pages:grouped} pages · relit {read} messages, tous ceux demandés",
+      "lineFull": "Ce que {name} lit\u00a0: ≈ {pages:grouped} pages · relit {read} des {asked} demandés",
+      "lineFullVowel": "Ce qu'{name} lit\u00a0: ≈ {pages:grouped} pages · relit {read} des {asked} demandés",
+      "lineNoSize": "Relit {read} messages, tous ceux demandés",
+      "lineNoSizeFull": "Relit {read} des {asked} demandés",
+      "full": "Sa capacité de lecture est pleine (≈ {capacity:grouped} pages)\u00a0: ≈ {sent:grouped} pages envoyées, le reste est gardé pour sa réponse.",
+      "why": "Pourquoi",
+      "limit": "C'est la limite du modèle, pas celle d'Evermind\u00a0; le reste lui arrive par le résumé et les faits.",
+      "legend": "En tokens\u00a0: fiche {card:grouped} · rappels {reminders:grouped} · messages relus {history:grouped} · place pour la réponse {room:grouped} · capacité {capacity:grouped}"
+    },
+    "longRoom": {
+      "text": "{name} ne reçoit pas de plafond, et Evermind ne lui garde que {tokens:grouped} tokens\u00a0: une réponse longue peut ne pas tenir dans ce qu'elle lit.",
+      "button": "Garder la place des réponses longues"
     }
   }
 }

@@ -39,7 +39,7 @@ describe("a number", () => {
   ] as const)("is written in %s as the language writes it", (locale, speed, share) => {
     expect(translate(locale, "ai.benchmarkResult", { tokensPerSecond: 54.1, firstTokenSeconds: 0.23 }))
       .toBe(speed);
-    expect(translate(locale, "chat.context.percent", { pct: 19 })).toBe(share);
+    expect(translate(locale, "display.scale", { pct: 19 })).toBe(share);
   });
 
   it.each([

@@ -1,6 +1,6 @@
 import type { Translate as T } from "@/i18n/I18nProvider";
 import { translate } from "@/i18n/translate";
-import type { Ai, Conversation, ProbeModel } from "@/types";
+import type { Ai, ProbeModel } from "@/types";
 import { pages } from "./estimate";
 import { timeAgo } from "./utils";
 
@@ -8,14 +8,9 @@ import { timeAgo } from "./utils";
 // files; offered here still, where every line of an AI finds them.
 export { PAGE_TOKENS, pages } from "./estimate";
 
-/** The room a reply needs by its length, as the server's ways count it. */
-export const REPLY_ROOM = { short: 512, medium: 1024, long: 2048 } as const;
-
-/** The room a conversation's reply needs, until the page reads its way: right under Balanced and
- *  under a length the conversation adjusted, which is all a sheet's warning weighs for now. */
-export function roomFor(conversation: Pick<Conversation, "play_overrides">): number {
-  return REPLY_ROOM[conversation.play_overrides?.reply_length ?? "medium"];
-}
+/** What Evermind keeps for the reply of an AI sent no ceiling, whatever the way asks
+ *  (engine/reserve.ts, ai_call.UNSENT_RESERVE). */
+export const UNSENT_ROOM = 1024;
 
 const SEPARATOR = /[ \-_/:]/;
 const WHOLE_NAME = 14;

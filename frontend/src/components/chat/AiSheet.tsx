@@ -1,11 +1,13 @@
 import { AiLine } from "@/components/ai/AiLine";
+import { EstimateLine } from "@/components/ai/EstimateLine";
 import { Bolded } from "@/components/ai/MigrationNotice";
 import { Sheet } from "@/components/ui/Sheet";
 import { data, DataError, type AiSaved } from "@/data";
 import { useT } from "@/i18n/useT";
 import { answering, cappedUnder, splitName } from "@/lib/ai";
 import { describeError } from "@/lib/errors";
-import type { Ai, Conversation } from "@/types";
+import { pages, readerOfAi } from "@/lib/estimate";
+import type { Ai, Conversation, Outlook } from "@/types";
 import { clsx } from "clsx";
 import { Bot, Check, ChevronDown, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useRef, useState } from "react";
@@ -20,7 +22,7 @@ export function AiChip({ ai, onOpen }: { ai: Ai | null; onOpen(): void }) {
     "touch-target inline-flex h-[32px] min-w-0 max-w-max flex-[1_1_11em] items-center gap-1.5 rounded-full border border-ink-600 bg-ink-800/60 px-3 text-xs text-parchment-dim transition-colors hover:border-ink-500 hover:text-parchment";
   if (!ai) {
     return (
-      <button type="button" className={shape} onClick={onOpen} aria-haspopup="dialog">
+      <button type="button" data-ai-chip className={shape} onClick={onOpen} aria-haspopup="dialog">
         <Plus className="size-[14px] shrink-0 text-ember-300" />
         <span className="truncate">{t("chat.ai.addOne")}</span>
       </button>
@@ -30,6 +32,7 @@ export function AiChip({ ai, onOpen }: { ai: Ai | null; onOpen(): void }) {
   return (
     <button
       type="button"
+      data-ai-chip
       className={shape}
       onClick={onOpen}
       aria-haspopup="dialog"
@@ -68,11 +71,13 @@ export function AiUnread({ onRetry }: { onRetry(): void }) {
  *  where one is changed. A row touched is sent at once and the sheet closes only at the answer, so
  *  that nobody believes the AI changed when it did not. `onCapLifted`: the AI answering now no longer
  *  keeps a ceiling of its own, a setting of the AI's, saved from here; the page closes the sheet to say so.
- *  `onGone`: the AI picked no longer exists on the server (removed on another device). */
-export function AiSheet({ conversation, ais, room, onPick, onGone, onAddOther, onClose, onCapLifted }: {
+ *  `onGone`: the AI picked no longer exists on the server (removed on another device). `outlook`:
+ *  what each AI would read under the conversation's way, read as the sheet opens; null until it
+ *  comes, and until then the sheet warns of no ceiling and gives no row its figures. */
+export function AiSheet({ conversation, ais, outlook, onPick, onGone, onAddOther, onClose, onCapLifted }: {
   conversation: Conversation;
   ais: Ai[];
-  room: number;
+  outlook: Outlook | null;
   onPick(ai: Ai): void;
   onGone(ai: Ai): void;
   onAddOther(): void;
@@ -116,6 +121,8 @@ export function AiSheet({ conversation, ais, room, onPick, onGone, onAddOther, o
     }
   }
 
+  // The room the conversation's way keeps for a reply, adjustments in.
+  const room = outlook?.current.reply_room ?? 0;
   const capped = current && cappedUnder(current, room);
   return (
     <Sheet title={t("chat.ai.sheetTitle")} hint={t("chat.ai.sheetHint")} alert={failed} onClose={onClose}>
@@ -136,6 +143,7 @@ export function AiSheet({ conversation, ais, room, onPick, onGone, onAddOther, o
           const chosen = ai.id === current?.id;
           const busy = ai.id === pending;
           const cut = chosen ? null : cappedUnder(ai, room);
+          const reading = outlook?.models.find((entry) => entry.model_id === ai.id);
           return (
             <button
               key={ai.id}
@@ -152,8 +160,21 @@ export function AiSheet({ conversation, ais, room, onPick, onGone, onAddOther, o
               <div className="min-w-0 flex-1">
                 <AiLine
                   ai={ai}
-                  extra={cut !== null && (
-                    <span className="mt-1 block text-xs text-ember-300">{t("chat.ai.cappedOther", { tokens: cut })}</span>
+                  extra={(
+                    <>
+                      {reading && (
+                        <span className="mt-0.5 block text-xs leading-relaxed text-mist">
+                          {t("ways.sheet.row", {
+                            read: reading.messages_included, total: reading.messages_total, pages: pages(reading.used_tokens),
+                          })}
+                        </span>
+                      )}
+                      {/* Under the conversation's way as it plays it, as its row in the sheet of the ways. */}
+                      {outlook && <EstimateLine reader={readerOfAi(ai)} way={outlook.current.way} />}
+                      {cut !== null && (
+                        <span className="mt-1 block text-xs text-ember-300">{t("chat.ai.cappedOther", { tokens: cut })}</span>
+                      )}
+                    </>
                   )}
                 />
               </div>

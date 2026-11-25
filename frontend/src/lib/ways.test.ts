@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { BUILT_IN } from "@/engine";
 import { translate } from "@/i18n/translate";
 import type { Outlook, OutlookEntry, Way } from "@/types";
-import { asked, isFull, lighterSaying, offeredWay, wayLabel, wayName } from "./ways";
+import { asked, isFull, lighterSaying, nameOfId, offeredWay, readingLine, wayLabel, wayName } from "./ways";
 
 const en = (key: string, vars?: Record<string, string | number>) => translate("en", key, vars);
 const fr = (key: string, vars?: Record<string, string | number>) => translate("fr", key, vars);
@@ -67,6 +67,37 @@ describe("the way's chip", () => {
     expect(lighterSaying(outlook(small, [light(14)]), fr)).toBe("En Léger, elle en relirait 14.");
     expect(lighterSaying(outlook(small, [light(8)]), en)).toBeNull();
     expect(lighterSaying(outlook(small, []), en)).toBeNull();
+  });
+
+  test("a way known by its id alone is named only when the interface names it", () => {
+    expect(nameOfId("light", fr)).toBe("Léger");
+    expect(nameOfId("mine", en)).toBe("My settings");
+    expect(nameOfId("w1", en)).toBeNull();
+  });
+});
+
+describe("the reading line", () => {
+  test("says the pages sent and the messages reread, all of those asked", () => {
+    expect(readingLine(entry(), "Aube", en)).toBe("What Aube reads: ≈ 18 pages · rereads 24 messages, all it was asked");
+    expect(readingLine(entry({ messages_total: 10, messages_included: 10 }), "Brume", fr))
+      .toBe("Ce que Brume lit : ≈ 18 pages · relit 10 messages, tous ceux demandés");
+  });
+
+  test("french elides before a vowel, the other languages say it as they always do", () => {
+    expect(readingLine(entry(), "Aube", fr)).toBe("Ce qu'Aube lit : ≈ 18 pages · relit 24 messages, tous ceux demandés");
+    expect(readingLine(entry(), "élan", fr)).toBe("Ce qu'élan lit : ≈ 18 pages · relit 24 messages, tous ceux demandés");
+    expect(readingLine(entry(), "Aube", (key, vars) => translate("de", key, vars))).toBe("Was Aube liest: ≈ 18 Seiten · liest 24 Nachrichten, alle verlangten");
+  });
+
+  test("a full capacity says what it rereads of what was asked", () => {
+    const full = entry({ history_limit: 60, messages_included: 33, used_tokens: 3_400 });
+    expect(readingLine(full, "Obsidienne", fr)).toBe("Ce qu'Obsidienne lit : ≈ 7 pages · relit 33 des 60 demandés");
+    expect(readingLine(full, "Small", en)).toBe("What Small reads: ≈ 7 pages · rereads 33 of the 60 asked");
+  });
+
+  test("with no ai or no size said, the messages alone", () => {
+    expect(readingLine(entry(), null, en)).toBe("Rereads 24 messages, all it was asked");
+    expect(readingLine(entry({ history_limit: 60, messages_included: 33 }), null, fr)).toBe("Relit 33 des 60 demandés");
   });
 });
 

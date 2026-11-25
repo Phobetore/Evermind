@@ -10,7 +10,7 @@ export function EstimateLine({ reader, way }: { reader: Reader; way: WayFields }
   const estimate = estimateOf(reader, way);
   if (estimate.kind !== "amount") return null;
   return (
-    <span className="mt-0.5 block text-xs leading-relaxed text-mist [overflow-wrap:anywhere]">
+    <span data-estimate className="mt-0.5 block text-xs leading-relaxed text-mist [overflow-wrap:anywhere]">
       {estimateText(estimate, locale, t)}
     </span>
   );

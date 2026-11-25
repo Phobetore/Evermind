@@ -25,7 +25,10 @@ function readerOfWindow(window: number): Reader {
 }
 
 /** The room kept for the reply: hatched, as it is room left, not text read. */
-const HATCHED = { background: "repeating-linear-gradient(135deg, var(--color-mist-dim) 0 3px, transparent 3px 6px)" };
+export const HATCHED = { background: "repeating-linear-gradient(135deg, var(--color-mist-dim) 0 3px, transparent 3px 6px)" };
+
+/** The colour of each part of what is read, here and in the conversation's sheet. */
+export const PART_CLASS = { card: "bg-arcane-500", reminders: "bg-arcane-300", history: "bg-mist", room: "" } as const;
 
 /** The default first, then the others as listed. */
 const inOrder = (ais: Ai[]) => [...ais.filter((ai) => ai.is_default), ...ais.filter((ai) => !ai.is_default)];
@@ -101,10 +104,10 @@ function Lines({ reading, window, name }: { reading: Reading; window: number; na
   const { parts } = reading;
   const width = (tokens: number) => `${Math.min(100, (tokens / window) * 100).toFixed(2)}%`;
   const segments = [
-    { key: "card", tokens: parts.card, className: "bg-arcane-500" },
-    { key: "reminders", tokens: parts.reminders, className: "bg-arcane-300" },
-    { key: "history", tokens: parts.history, className: "bg-mist" },
-    { key: "room", tokens: parts.room, className: "" },
+    { key: "card", tokens: parts.card, className: PART_CLASS.card },
+    { key: "reminders", tokens: parts.reminders, className: PART_CLASS.reminders },
+    { key: "history", tokens: parts.history, className: PART_CLASS.history },
+    { key: "room", tokens: parts.room, className: PART_CLASS.room },
   ] as const;
   return (
     <>

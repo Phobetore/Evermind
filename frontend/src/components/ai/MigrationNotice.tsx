@@ -1,6 +1,7 @@
 import { data, type AiSaved, type ModelUpdate } from "@/data";
 import type { Translate } from "@/i18n/I18nProvider";
 import { useT } from "@/i18n/useT";
+import { UNSENT_ROOM } from "@/lib/ai";
 import { describeError } from "@/lib/errors";
 import type { Ai } from "@/types";
 import { useState } from "react";
@@ -118,6 +119,22 @@ export function MigrationNotice({ ais, onChanged, own = false }: {
                       onClick={() => act(ai, { reply_cap: { mode: "auto" } }, t("ai.notice.capLifted", { name: ai.name }))}
                     >
                       {t("ai.notice.letEvermind")}
+                    </button>
+                  </li>
+                )}
+                {/* Sent no ceiling, it keeps 1,024 tokens whatever the way offered asks. */}
+                {ai.notices.includes("long_room") && (
+                  <li>
+                    <p>
+                      <Bolded text={t("ways.longRoom.text", { name: ai.name, tokens: UNSENT_ROOM })} bold={ai.name} />
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-ghost mt-2 max-w-full whitespace-normal !py-1.5 text-sm"
+                      disabled={busy !== null}
+                      onClick={() => act(ai, { reply_cap: { mode: "auto" } }, t("ai.notice.capLifted", { name: ai.name }))}
+                    >
+                      {t("ways.longRoom.button")}
                     </button>
                   </li>
                 )}

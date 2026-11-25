@@ -15,7 +15,6 @@ import {
   pages,
   priceLine,
   readsLine,
-  roomFor,
   search,
   searchable,
   serviceLine,
@@ -101,14 +100,6 @@ describe("pages and room", () => {
   test("a page is never fewer than one", () => {
     expect(pages(1)).toBe(1);
     expect(pages(0)).toBe(1);
-  });
-
-  test("the room a reply needs follows the length a conversation adjusted, else balanced's", () => {
-    expect(roomFor({ play_overrides: { reply_length: "short" } })).toBe(512);
-    expect(roomFor({ play_overrides: { reply_length: "medium" } })).toBe(1024);
-    expect(roomFor({ play_overrides: { reply_length: "long" } })).toBe(2048);
-    expect(roomFor({ play_overrides: { history_limit: 4 } })).toBe(1024);
-    expect(roomFor({ play_overrides: null })).toBe(1024);
   });
 });
 

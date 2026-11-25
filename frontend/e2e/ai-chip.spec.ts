@@ -19,7 +19,8 @@ const HINT_TOUCH = "Tap send when you are ready. The quill drafts your reply.";
 /** An AI of its own word, on the mock's plain address: added once, the same one after. */
 const sylve = (request: APIRequestContext) => addModel(request, { base_url: MOCK, model: "MOCK_SAYS_Sylve", name: "Sylve" });
 
-const chipOf = (page: Page) => page.locator("[data-status-row]").getByRole("button").first();
+// The AI's own chip: the way's chip shares the row, and is there before the AIs are read.
+const chipOf = (page: Page) => page.locator("[data-status-row] [data-ai-chip]");
 const sheetOf = (page: Page) => page.getByRole("dialog", { name: "Which AI answers?" });
 const toastOf = (page: Page) => page.locator("[data-chat-toast]");
 const addDialog = (page: Page) => page.getByRole("dialog", { name: "Add an AI" });

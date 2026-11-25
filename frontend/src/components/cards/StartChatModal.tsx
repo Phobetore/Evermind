@@ -5,7 +5,8 @@ import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
 import { newId } from "@/lib/utils";
-import type { Ai, Character, Persona } from "@/types";
+import { wayName } from "@/lib/ways";
+import type { Ai, Character, Persona, Ways } from "@/types";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -23,6 +24,8 @@ export function StartChatModal({
   const [ais, setAis] = useState<Ai[]>([]);
   const [personaId, setPersonaId] = useState<string>("");
   const [aiId, setAiId] = useState<string>("");
+  const [ways, setWays] = useState<Ways | null>(null);
+  const [wayId, setWayId] = useState<string>("");
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
@@ -34,12 +37,15 @@ export function StartChatModal({
     Promise.all([
       data.personas.list(),
       data.connections ? data.connections.models.list() : Promise.resolve<Ai[]>([]),
+      data.ways.list(),
     ])
-      .then(([p, c]) => {
+      .then(([p, c, w]) => {
         setPersonas(p);
         setAis(c);
+        setWays(w);
         setPersonaId(p.find((x) => x.is_default)?.id ?? "");
         setAiId(c.find((x) => x.is_default)?.id ?? "");
+        setWayId(w.default);
       })
       // An empty list would say there is no persona to play, when there may be one
       // that a conversation started now would be played as.
@@ -59,6 +65,8 @@ export function StartChatModal({
         character_id: character.id,
         persona_id: personaId || null,
         model_id: aiId || null,
+        // Not given: the server's own way offered, as it was before the list came.
+        play_style: wayId || undefined,
         client_id: clientId,
       });
       navigate(`/chat/${convo.id}`);
@@ -122,6 +130,26 @@ export function StartChatModal({
                 </select>
               </Field>
             )}
+
+            {/* Under the AI's: the one it plays with, chosen apart from it. */}
+            <Field label={t("ways.sheet.title")}>
+              <select
+                className="field"
+                disabled={ways === null}
+                value={wayId}
+                onChange={(e) => {
+                  setWayId(e.target.value);
+                  setClientId(newId());
+                }}
+              >
+                {ways === null && <option value="">{t("common.loading")}</option>}
+                {(ways?.ways ?? []).map((way) => (
+                  <option key={way.id} value={way.id}>
+                    {wayName(way, t)}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
             {personas !== null && data.connections && ais.length === 0 && (
               <p className="rounded-lg border border-ember-600/40 bg-ember-glow px-4 py-2.5 text-sm text-ember-300">
