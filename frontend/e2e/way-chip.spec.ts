@@ -1,8 +1,8 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
 import {
-  MOCK, addModel, chat, conversation, conversationWithReply, makeCharacter, makeConversation, misfits, replyEnds, rootAt,
-  stopTurn,
+  MOCK, addModel, chat, conversation, conversationWithReply, inLocale, makeCharacter, makeConversation, misfits, replyEnds,
+  rootAt, stopTurn,
 } from "./fixtures";
 
 /**
@@ -335,6 +335,23 @@ test("at very large text the four ways stay in reach", async ({ page, request })
     });
     expect(sideways, "the sheet slides sideways at 320px").toBeLessThanOrEqual(0);
     expect(await misfits(page, "dialog")).toEqual([]);
+
+    // Each fold's title whole in each language, German's words the longest, on both phones.
+    for (const locale of ["en", "fr", "de", "es"]) {
+      await inLocale(page, locale);
+      for (const [width, height] of [[390, 844], [320, 640]]) {
+        await page.setViewportSize({ width, height });
+        await page.reload();
+        await statusRow(page).locator("[data-way-chip]").click();
+        const dialog = page.getByRole("dialog");
+        await expect(dialog.getByRole("radio")).toHaveCount(4);
+        const cut = await dialog.evaluate((sheet) => [...sheet.querySelectorAll("summary")]
+          .filter((summary) => summary.scrollWidth > summary.clientWidth)
+          .map((summary) => `"${summary.textContent}" ${summary.scrollWidth} wide in ${summary.clientWidth}`));
+        expect(cut, `in ${locale} at ${width}px`).toEqual([]);
+        expect(await misfits(page, "dialog"), `in ${locale} at ${width}px`).toEqual([]);
+      }
+    }
   } finally {
     await removeAi(request, small.id);
   }

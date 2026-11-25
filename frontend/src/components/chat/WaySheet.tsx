@@ -171,8 +171,15 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
         )}
 
         <details className="group rounded-xl border border-ink-700">
-          {/* The chevron and its gap in pixels too: at the largest text "conversation" needs them. */}
-          <summary className={clsx("ui-label flex min-h-11 cursor-pointer list-none items-center gap-[6px] [&::-webkit-details-marker]:hidden", FOLD_GUTTER)}>
+          {/* The chevron and its gap in pixels too, and at a very large text no spacing between the
+              letters: "conversation" and "Unterhaltung" are one word each, too wide at 320px otherwise. */}
+          <summary
+            className={clsx(
+              "ui-label flex min-h-11 cursor-pointer list-none items-center gap-[6px] [&::-webkit-details-marker]:hidden",
+              FOLD_GUTTER,
+              huge && "tracking-normal",
+            )}
+          >
             <ChevronRight className="size-[16px] shrink-0 transition-transform group-open:rotate-90" aria-hidden="true" />
             {t("ways.sheet.adjust")}
           </summary>

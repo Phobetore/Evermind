@@ -25,6 +25,7 @@ export function WayChip({ current, playStyle, onOpen }: {
   return (
     <button
       type="button"
+      data-way-chip
       className="touch-target inline-flex min-h-[32px] min-w-0 max-w-full items-center gap-1.5 rounded-full border border-ink-600 bg-ink-800/60 px-3 py-1 text-left text-xs text-parchment-dim transition-colors hover:border-ink-500 hover:text-parchment"
       onClick={onOpen}
       aria-haspopup="dialog"
