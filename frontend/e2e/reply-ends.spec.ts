@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { addModel, chat, conversationWithReply, makeConversation, misfits, MOCK, replyEnds, rootAt } from "./fixtures";
+import { addModel, chat, conversationWithReply, inLocale, makeConversation, misfits, MOCK, replyEnds, rootAt } from "./fixtures";
 
 /**
  * A reply that ends without what was asked for says why, as a person on a phone reads it
@@ -337,34 +337,46 @@ function withCause(page: Page, id: string, meta: Record<string, unknown>) {
   });
 }
 
-test("the lines of a cut reply and of a story read from its end fit a phone, whatever the size of its text", async ({ page, request }) => {
-  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
-  await chat(request, { conversation_id: convo.id, mode: "send", content: "What now?" });
-  const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
-  const ceiling = { "0": 1024 };
-  const cases = {
-    fixed: { ceiling, cut: { "0": { mode: "fixed", length: "medium", thought: false } } },
-    thought: { ceiling, cut: { "0": { mode: "auto", length: "medium", thought: true } } },
-    room: {
-      ceiling, cut: { "0": { mode: "auto", length: "short", thought: false } },
-      // Beside it, the line over the input.
-      truncated: { read: 4090, window: 131072 }, usage: { prompt: 4090, completion: 40, model_id: aiId },
-    },
-  };
-  await page.addInitScript(rootAt, "32px");
-  for (const [cause, meta] of Object.entries(cases)) {
-    await page.unrouteAll();
-    await withCause(page, convo.id, meta);
-    for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
-      await page.setViewportSize(size);
-      await page.goto("about:blank");
-      await page.goto(`/#/chat/${convo.id}`);
-      expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
-      const reply = page.locator("[data-message-id]").last();
-      await expect(reply.locator("[data-cut-actions] button").first()).toBeVisible();
-      if (cause === "room") await expect(page.locator("[data-truncated]")).toBeVisible();
-      await reply.locator("[data-ceiling]").scrollIntoViewIfNeeded();
-      expect(await misfits(page), `${cause} at ${size.width}`).toEqual([]);
+// German has the longest of these lines.
+for (const locale of ["en", "de"]) {
+  test(`the lines of a cut reply and of a story read from its end fit a phone, whatever the size of its text, in ${locale}`, async ({ page, request }) => {
+    const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
+    await chat(request, { conversation_id: convo.id, mode: "send", content: "What now?" });
+    const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
+    const ceiling = { "0": 1024 };
+    const cases = {
+      fixed: { ceiling, cut: { "0": { mode: "fixed", length: "medium", thought: false } } },
+      thought: { ceiling, cut: { "0": { mode: "auto", length: "medium", thought: true } } },
+      room: {
+        ceiling, cut: { "0": { mode: "auto", length: "short", thought: false } },
+        // Beside it, the line over the input.
+        truncated: { read: 4090, window: 131072 }, usage: { prompt: 4090, completion: 40, model_id: aiId },
+      },
+    };
+    await inLocale(page, locale);
+    await page.addInitScript(rootAt, "32px");
+    for (const [cause, meta] of Object.entries(cases)) {
+      await page.unrouteAll();
+      await withCause(page, convo.id, meta);
+      for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+        await page.setViewportSize(size);
+        await page.goto("about:blank");
+        await page.goto(`/#/chat/${convo.id}`);
+        expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+        const reply = page.locator("[data-message-id]").last();
+        await expect(reply.locator("[data-cut-actions] button").first()).toBeVisible();
+        if (cause === "room") {
+          await expect(page.locator("[data-truncated]")).toBeVisible();
+          // The line over the input never takes the whole screen: the story keeps a line of its text
+          // seen over the room left under the last message.
+          const room = await page.locator("[data-story]").evaluate((story) => story.clientHeight);
+          const under = await page.locator("[data-story] > div").evaluate((inner) => parseFloat(getComputedStyle(inner).paddingBottom));
+          const line = await reply.locator(".min-w-0 > .mt-1").evaluate((text) => parseFloat(getComputedStyle(text).lineHeight));
+          expect(room, `the story's room at ${size.width}`).toBeGreaterThanOrEqual(line + under);
+        }
+        await reply.locator("[data-ceiling]").scrollIntoViewIfNeeded();
+        expect(await misfits(page), `${cause} at ${size.width}`).toEqual([]);
+      }
     }
-  }
-});
+  });
+}

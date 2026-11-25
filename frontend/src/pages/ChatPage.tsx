@@ -740,25 +740,26 @@ function ChatView({ id }: { id: string }) {
   );
   // The last reply was read by an AI that saw only the end of the story: said over the input, where
   // it is seen, until the next reply. Only for the AI that answers now, the one it was counted for.
+  // On a short screen with large text it gives way first and scrolls in its own box, so the story
+  // keeps a line of its own (see the story's box).
   const truncated = !busy && last?.role === "assistant" ? readOnlyTheEnd(last) : null;
   const truncatedAi = truncated && answeringAi
     && (truncated.modelId === null || truncated.modelId === answeringAi.id) ? answeringAi : null;
   const truncatedLine = truncated && truncatedAi && data.connections && (
-    <div
-      data-truncated
-      className="mx-auto mb-2.5 flex max-w-3xl flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-parchment-dim"
-    >
-      <span className="min-w-0 [overflow-wrap:anywhere]">
-        {t("chat.truncated.text", { name: truncatedAi.name, read: truncated.read, window: truncated.window })}
-      </span>
-      <button
-        type="button"
-        className="btn btn-ghost touch-target max-w-full whitespace-normal !py-1 text-xs"
-        disabled={shrinking}
-        onClick={() => void shrink(truncatedAi, truncated.read)}
-      >
-        {t("chat.truncated.button")}
-      </button>
+    <div data-truncated className="min-h-0 shrink-[1000] overflow-y-auto border-t border-ink-700 bg-ink-900 px-4 py-2">
+      <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-parchment-dim">
+        <span className="min-w-0 [overflow-wrap:anywhere]">
+          {t("chat.truncated.text", { name: truncatedAi.name, read: truncated.read, window: truncated.window })}
+        </span>
+        <button
+          type="button"
+          className="btn btn-ghost touch-target max-w-full whitespace-normal !py-1 text-xs"
+          disabled={shrinking}
+          onClick={() => void shrink(truncatedAi, truncated.read)}
+        >
+          {t("chat.truncated.button")}
+        </button>
+      </div>
     </div>
   );
 
@@ -867,8 +868,10 @@ function ChatView({ id }: { id: string }) {
         </header>
 
         {/* The picture takes the story's box exactly, under the part that scrolls: it stays put while
-            the text moves, and follows the column as the keyboard opens or the panel takes a share. */}
-        <div className="relative min-h-0 flex-1">
+            the text moves, and follows the column as the keyboard opens or the panel takes a share.
+            It starts from a line of its text over its bottom padding: the line over the input, which
+            gives way a thousand times faster, leaves it that much before the story yields anything. */}
+        <div className="relative min-h-0 flex-[1_1_calc(1.8rem*var(--chat-scale,1)+1.5rem)]">
           <Backdrop shown={shown} />
           <div
             ref={storyRef}
@@ -948,6 +951,7 @@ function ChatView({ id }: { id: string }) {
             {describeError(writeError.error, t)}
           </p>
         )}
+        {truncatedLine}
         <ChatInput
           conversationId={conversation.id}
           onSend={sendMessage}
@@ -956,7 +960,7 @@ function ChatView({ id }: { id: string }) {
           characterName={character.name}
           stopRef={stopButton}
           say={toast}
-          above={<>{toastNode}{lostLine}{truncatedLine}</>}
+          above={<>{toastNode}{lostLine}</>}
           status={
             // On a touch screen the chips take the place of the keyboard's sentence.
             <ChatStatusRow keyboardHint={hasKeyboard() ? t("chat.input.hintDefault") : null}>
