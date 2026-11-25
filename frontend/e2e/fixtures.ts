@@ -328,3 +328,34 @@ export async function misfits(page: Page, within = "body"): Promise<string[]> {
     return found;
   }, within);
 }
+
+/** The pieces a word is drawn in, one for each line it spans, within the element `within` selects:
+ *  ["Spielweise"] whole, ["Spiel", "weise"] where it breaks. A word hyphenated by the browser is cut
+ *  where the language allows; one broken anywhere, where the line ran out. Its first occurrence. */
+export async function wordPieces(page: Page, within: string, word: string): Promise<string[]> {
+  await page.evaluate(() => document.fonts.ready);
+  return page.evaluate(([selector, wanted]) => {
+    const scope = document.querySelector(selector)!;
+    const texts = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+    for (let node = texts.nextNode(); node; node = texts.nextNode()) {
+      const at = (node.textContent ?? "").indexOf(wanted);
+      if (at < 0) continue;
+      const pieces: string[] = [];
+      let top: number | null = null;
+      for (let i = 0; i < wanted.length; i++) {
+        const range = document.createRange();
+        range.setStart(node, at + i);
+        range.setEnd(node, at + i + 1);
+        // The last of its boxes: the letter after a hyphen the browser put in is also given the
+        // hyphen's box, on the line before.
+        const boxes = range.getClientRects();
+        const line = Math.round(boxes[boxes.length - 1].top);
+        if (line !== top) pieces.push("");
+        top = line;
+        pieces[pieces.length - 1] += wanted[i];
+      }
+      return pieces;
+    }
+    throw new Error(`no ${wanted} in ${selector}`);
+  }, [within, word] as const);
+}

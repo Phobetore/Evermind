@@ -70,8 +70,9 @@ export function Sheet({
       >
         <div className="flex shrink-0 items-start justify-between gap-4 px-4 pt-3 sm:px-5">
           <div className="min-w-0 pt-2">
-            {/* A title can be a name, whatever its owner typed: a handle is one long word. */}
-            <h2 className="break-words font-display text-lg font-semibold">{title}</h2>
+            {/* A title can be a name, whatever its owner typed: a handle is one long word. A long word
+                is cut as its language cuts it (the page's lang), and anywhere only past that. */}
+            <h2 className="break-words hyphens-auto font-display text-lg font-semibold">{title}</h2>
             {hint && <p id={hintId} className="mt-0.5 text-xs text-mist">{hint}</p>}
           </div>
           <button

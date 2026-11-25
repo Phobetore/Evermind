@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import { API } from "../playwright.config";
 import {
   MOCK, addModel, chat, conversation, conversationWithReply, inLocale, makeCharacter, makeConversation, misfits, replyEnds,
-  rootAt, stopTurn,
+  rootAt, stopTurn, wordPieces,
 } from "./fixtures";
 
 /**
@@ -509,6 +509,22 @@ test("a new conversation is made with the way chosen", async ({ page, request })
   const id = new URL(page.url()).hash.split("/").at(-1)!;
   expect((await conversation(request, id)).play_style).toBe("light");
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Light. Change.");
+});
+
+test("the sheet's german title is cut between its syllables at 320 and a 32 px root", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await inLocale(page, "de");
+  await page.addInitScript(rootAt, "32px");
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  await statusRow(page).locator("[data-way-chip]").click();
+  const sheet = page.getByRole("dialog", { name: "Spielweise" });
+  await expect(sheet).toBeVisible();
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+  const pieces = await wordPieces(page, "dialog[open] h2", "Spielweise");
+  // Whole, or Spiel-weise.
+  expect([["Spielweise"], ["Spiel", "weise"]], `"Spielweise" drawn as ${pieces.join(" / ")}`).toContainEqual(pieces);
 });
 
 // A laptop at the largest text with the side panel open leaves the conversation a column of about
