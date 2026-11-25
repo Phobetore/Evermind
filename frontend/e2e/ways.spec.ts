@@ -253,6 +253,30 @@ test("the reading card says when the capacity is full and what light would do", 
   }
 });
 
+test("the reading card weighs light as it is now, and says nothing of it on its own page", async ({ page, request }) => {
+  const small = await addModel(request, {
+    base_url: MOCK, model: `small-${Date.now()}`, name: `Small ${Date.now()}`, changes: { context_own: 8192 },
+  });
+  try {
+    // Light made to reread fewer than Immersive fits: as shipped, it would reread more.
+    await request.put(`${API}/api/ways/light`, { data: { history_limit: 4 } });
+    await openWay(page, "immersive");
+    await page.getByLabel("With", { exact: true }).selectOption({ label: small.name });
+    await expect(page.getByText(/^Its reading capacity is full: it rereads \d+ of the 60 messages asked\./)).toBeVisible();
+    await expect(page.getByText(/^In Light, it would reread/)).toHaveCount(0);
+
+    // Light made to ask more than fits and to keep long replies: full, it rereads fewer than as
+    // shipped, which its own page does not compare it with.
+    await request.put(`${API}/api/ways/light`, { data: { history_limit: 60, reply_length: "long" } });
+    await openWay(page, "light");
+    await page.getByLabel("With", { exact: true }).selectOption({ label: small.name });
+    await expect(page.getByText(/^Its reading capacity is full: it rereads \d+ of the 60 messages asked\./)).toBeVisible();
+    await expect(page.getByText(/^In Light, it would reread/)).toHaveCount(0);
+  } finally {
+    await request.delete(`${API}/api/models/${small.id}`);
+  }
+});
+
 test("old passages say when they cannot work", async ({ page }) => {
   await page.route("**/api/ways", async (route) => {
     if (route.request().method() !== "GET") return route.continue();

@@ -1,4 +1,3 @@
-import { BUILT_IN } from "@/engine";
 import { useI18n } from "@/i18n/I18nProvider";
 import { estimateOf, estimateText, pages, readerOfAi, readingOf, type Reader, type Reading } from "@/lib/estimate";
 import { wayName } from "@/lib/ways";
@@ -36,8 +35,14 @@ const inOrder = (ais: Ai[]) => [...ais.filter((ai) => ai.is_default), ...ais.fil
 /** What an AI would read of a long story under a way: the pages sent with each message, the
  *  share of each part, whether its capacity is full and what Light would do then, and what 100
  *  messages would cost. `ais` null: an edition with no AIs of its own, which says only what the
- *  way asks, unless the source says a capacity (`hostWindow`). */
-export function ReadingCard({ way, ais, hostWindow }: { way: WayFields; ais: Ai[] | null; hostWindow: number | null }) {
+ *  way asks, unless the source says a capacity (`hostWindow`). `light`: Light as it is now, edited
+ *  or not; null on Light's own page, which has nothing to weigh it against. */
+export function ReadingCard({ way, light, ais, hostWindow }: {
+  way: WayFields;
+  light: WayFields | null;
+  ais: Ai[] | null;
+  hostWindow: number | null;
+}) {
   const { t, locale } = useI18n();
   const ids = useId();
   const [chosen, setChosen] = useState<string | null>(null);
@@ -50,13 +55,13 @@ export function ReadingCard({ way, ais, hostWindow }: { way: WayFields; ais: Ai[
   } else if (ai) {
     const reader = readerOfAi(ai);
     const reading = readingOf(reader, way);
-    const light = readingOf(reader, BUILT_IN.light as WayFields);
+    const lighter = light && readingOf(reader, light);
     body = (
       <>
         <Lines reading={reading} window={ai.context.used} name={ai.name} />
-        {reading.full && (reading.reread ?? 0) < (light.reread ?? 0) && (
+        {lighter && reading.full && (reading.reread ?? 0) < (lighter.reread ?? 0) && (
           <p className="text-sm text-ember-300">
-            {t("ways.card.lighter", { name: wayName({ id: "light", name: null }, t), count: light.reread ?? 0 })}
+            {t("ways.card.lighter", { name: wayName({ id: "light", name: null }, t), count: lighter.reread ?? 0 })}
           </p>
         )}
         <p className="text-sm text-parchment-dim">

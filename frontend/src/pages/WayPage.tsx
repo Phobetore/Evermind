@@ -5,7 +5,7 @@ import { TextField } from "@/components/ui/TextField";
 import { ReadingCard } from "@/components/ways/ReadingCard";
 import { WayChoices, type WayChange, type WayChoice } from "@/components/ways/WayChoices";
 import { data, DataError } from "@/data";
-import { LEVELS, REPLY_ROOM } from "@/engine";
+import { BUILT_IN, LEVELS, REPLY_ROOM } from "@/engine";
 import { useI18n } from "@/i18n/I18nProvider";
 import { describeError } from "@/lib/errors";
 import { wayName } from "@/lib/ways";
@@ -209,7 +209,12 @@ function WayView({ id }: { id: string }) {
       </section>
 
       <div className="mb-6">
-        <ReadingCard way={way} ais={ais} hostWindow={null} />
+        <ReadingCard
+          way={way}
+          light={id === "light" ? null : ways.ways.find((each) => each.id === "light") ?? (BUILT_IN.light as WayFields)}
+          ais={ais}
+          hostWindow={null}
+        />
       </div>
 
       <details className="group mb-8 rounded-xl border border-ink-700">
