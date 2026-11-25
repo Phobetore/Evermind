@@ -18,7 +18,7 @@ from app.config import db_path
 from app.providers import CallFigures, ProviderError, complete_answer
 from app.providers.base import UNREACHABLE
 from app.providers.openai_compat import OpenAICompatProvider
-from app.services import calls
+from app.services import calls, memory_service
 
 from .conftest import OAI_CONN, PAYLOAD, sse, within
 
@@ -208,6 +208,31 @@ def test_a_byok_call_keeps_the_upstream_apart():
         0.0, 0.0123, "reported")
 
 
+async def test_a_ratio_seen_on_no_reply_is_not_applied(database):
+    provider = serve(lambda request: httpx.Response(
+        200, content=sse([json.dumps(chunk("Hi.")), "[DONE]"])))
+    ai = (model(token_ratio=1.2, token_ratio_n=0), SERVICE)
+    async with calls.recording(provider, ai, WHO, prompt_estimate=5000):
+        await complete_answer(provider, PAYLOAD)
+    [row] = rows()
+    assert (row["tokens_in"], row["tokens_source"]) == (5000, "estimated")
+
+
+async def test_a_model_that_only_thought_wrote_nothing(database):
+    def thinking(text: str) -> str:
+        return json.dumps({"id": "gen-1", "choices": [{"delta": {"reasoning": text}}]})
+
+    provider = serve(lambda request: httpx.Response(
+        200, content=sse([thinking("Let me see"), thinking(" what she wants."), "[DONE]"])))
+    async with calls.recording(provider, (MODEL, SERVICE), WHO, prompt_estimate=50):
+        async for _ in provider.stream_chat(PAYLOAD):
+            pass
+    assert provider.figures.thought_chars > 0
+    [row] = rows()
+    assert (row["outcome"], row["tokens_out"]) == (
+        "empty", calls.estimated_out(provider.figures.thought_chars))
+
+
 def test_a_cost_that_is_not_a_number_is_not_reported():
     tokens = calls.Tokens(1000, 1000, None, None, None, "server")
     pricing = calls.Pricing(1.0, 2.0, None, None, "read")
@@ -223,6 +248,55 @@ def test_at_home_nothing_is_ever_money():
     none = calls.Pricing(None, None, None, None, None)
     assert calls.cost_of(figures, tokens, none, outcome="whole", local=True) == (
         None, None, "none")
+
+
+def test_the_cache_s_own_prices_are_read():
+    pricing = calls.Pricing(2.0, 8.0, 0.5, 2.5, "read")
+    tokens = calls.Tokens(1000, 100, 600, 100, None, "server")
+    assert calls.money_of(tokens, pricing) == pytest.approx(
+        (300 * 2 + 600 * 0.5 + 100 * 2.5 + 100 * 8) / 1e6)
+
+
+def test_more_from_the_cache_than_was_read_costs_the_cache_alone():
+    pricing = calls.Pricing(2.0, 8.0, 0.5, None, "read")
+    tokens = calls.Tokens(1000, 0, 1500, None, None, "server")
+    assert calls.money_of(tokens, pricing) == pytest.approx(1500 * 0.5 / 1e6)
+
+
+def test_one_typed_half_makes_the_price_typed():
+    mixed = model(price_in=1.0, price_out=2.0, price_own_in=3.0,
+                  price_cache_read=0.1, price_cache_write=1.25)
+    assert calls.pricing_of(mixed) == calls.Pricing(3.0, 2.0, None, None, "typed")
+
+
+def test_a_cost_reported_at_home_is_kept_and_a_price_there_is_not_money():
+    tokens = calls.Tokens(1000, 100, None, None, None, "server")
+    whole = calls.Pricing(1.0, 2.0, None, None, "read")
+    reported = CallFigures(usage={"prompt_tokens": 1000, "cost": 0.01})
+    assert calls.cost_of(reported, tokens, whole, outcome="whole", local=True) == (
+        0.01, None, "reported")
+    assert calls.cost_of(CallFigures(), tokens, whole, outcome="whole", local=True) == (
+        None, None, "none")
+
+
+def test_what_was_thought_is_counted_out():
+    assert calls.estimated_out(0) == 0
+    figures = CallFigures(thought_chars=70)
+    assert calls.tokens_of(figures, outcome="whole", prompt_estimate=500) == calls.Tokens(
+        500, 21, None, None, None, "estimated")
+
+
+def test_a_final_count_with_no_output_count_estimates_what_arrived():
+    figures = CallFigures(usage={"prompt_tokens": 300}, usage_final=True, chars_out=35)
+    tokens = calls.tokens_of(figures, outcome="whole", prompt_estimate=1)
+    assert (tokens.tokens_in, tokens.tokens_out, tokens.source) == (300, 11, "server")
+
+
+def test_an_openai_cache_write_is_read():
+    figures = CallFigures(usage={"prompt_tokens": 300, "completion_tokens": 10,
+                                 "prompt_tokens_details": {"cache_write_tokens": 20}},
+                          usage_final=True)
+    assert calls.tokens_of(figures, outcome="whole", prompt_estimate=1).cache_write == 20
 
 
 def test_a_typed_price_wins_and_one_half_prices_nothing():
@@ -324,6 +398,54 @@ async def test_a_cancel_is_written_stopped_on_its_own_connection(database, monke
         await callers.close()
     assert [r["outcome"] for r in rows()] == ["stopped"]
     assert [(r["id"], r["outcome"]) for r in ended] == [(row["id"], "stopped")]
+
+
+def slowed(monkeypatch, *, id_write: asyncio.Event | None = None) -> asyncio.Event:
+    """Every end write takes 0.3 s; an id write waits for ``id_write``, when given. Returns an
+    event set once an end write has begun."""
+    real, began = calls._write, asyncio.Event()
+
+    async def write(sql: str, params) -> None:
+        if "ended_at" in sql:
+            began.set()
+            await asyncio.sleep(0.3)
+        elif id_write is not None and sql.startswith("UPDATE calls SET generation_id"):
+            await id_write.wait()
+        await real(sql, params)
+
+    monkeypatch.setattr(calls, "_write", write)
+    return began
+
+
+async def test_a_second_cancel_does_not_cut_the_end_write(database, monkeypatch):
+    began = slowed(monkeypatch)
+    provider = serve(lambda request: httpx.Response(200, stream=Held()))
+    reading = await read_until_two_pieces(provider, [])
+    reading.cancel()
+    await within(2, began.wait())
+    reading.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await reading
+    await within(2, calls.drain())
+    [row] = rows()
+    assert row["outcome"] == "stopped"
+    assert (row["generation_id"], row["ended_at"] is not None) == ("gen-1", True)
+
+
+async def test_the_server_s_stop_waits_for_an_end_and_cancels_an_id_write(database,
+                                                                          monkeypatch):
+    began = slowed(monkeypatch, id_write=asyncio.Event())  # never set: held until cancelled
+    provider = serve(lambda request: httpx.Response(200, stream=Held()))
+    reading = await read_until_two_pieces(provider, [])
+    assert calls._id_writes
+    reading.cancel()
+    await within(2, began.wait())
+    await within(2, calls.stop())
+    assert not calls._tasks
+    [row] = rows()
+    assert (row["outcome"], row["generation_id"]) == ("stopped", "gen-1")
+    with pytest.raises(asyncio.CancelledError):
+        await reading
 
 
 async def test_an_unreachable_server_is_refused_with_no_status(database, monkeypatch):
@@ -445,6 +567,28 @@ async def test_the_server_s_start_stops_what_a_process_left_running(database, mo
         conn.close()
     async with lifespan(None):
         assert [(r["outcome"], r["tokens_in"]) for r in rows()] == [("stopped", 300)]
+
+
+async def test_the_server_s_stop_writes_the_ends_after_the_operations(database, monkeypatch):
+    from app.main import lifespan
+
+    monkeypatch.setattr("app.services.memory_service.fill_vectors", _nothing)
+    stopped: list[str] = []
+    real_memory, real_calls = memory_service.stop, calls.stop
+
+    async def memory_stop() -> None:
+        await real_memory()
+        stopped.append("memory")
+
+    async def calls_stop() -> None:
+        await real_calls()
+        stopped.append("calls")
+
+    monkeypatch.setattr("app.services.memory_service.stop", memory_stop)
+    monkeypatch.setattr(calls, "stop", calls_stop)
+    async with lifespan(None):
+        pass
+    assert stopped == ["memory", "calls"]
 
 
 async def _nothing() -> None:
