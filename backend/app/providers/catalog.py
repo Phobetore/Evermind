@@ -446,9 +446,9 @@ def _listed(entry: dict, family: Family, provider: str, base_url: str = "") -> L
         max_output = _first(entry, ("max_completion_tokens", "max_output_tokens",
                                     "max_output_length"))
         if _at(base_url, DEEPINFRA):
-            metadata = _object_at(entry, "metadata")
-            served = served or whole(metadata.get("context_length"))
-            max_output = max_output or whole(metadata.get("max_tokens"))
+            # Its metadata's max_tokens is not read: undocumented, and equal to the window on
+            # every entry of its list, it tells nothing of a reply.
+            served = served or whole(_object_at(entry, "metadata").get("context_length"))
         meta = entry.get("meta")
         if isinstance(meta, dict):
             served = served or whole(meta.get("n_ctx"))

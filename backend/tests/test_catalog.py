@@ -942,7 +942,7 @@ async def test_deepinfra_says_everything_under_metadata_and_lists_what_cannot_ch
     models = by_id(read)
     brume = models["brume/Brume-70B-Instruct"]
     assert prices(brume) == (0.36, 0.4, 0.18, None)
-    assert (brume.served, brume.max_output) == (131072, 131072)
+    assert (brume.served, brume.max_output) == (131072, None)
     assert prices(models["givre/Givre-VL-12B"]) == (0.08, 0.16, None, None)
     assert len(read.models) == 6
     assert [m["id"] for m in relayed(read)] == ["brume/Brume-70B-Instruct", "givre/Givre-VL-12B"]
@@ -975,7 +975,7 @@ async def test_metadata_is_read_only_at_deepinfra_s_address():
                                        "pricing": {"input_tokens": 1, "output_tokens": 2}}}
     for base in ("https://deepinfra.com/v1/openai", "https://api.deepinfra.com/v1/openai"):
         listed = (await read_entries(base, [entry], route="/v1/openai/models"))["v/a"]
-        assert (listed.served, listed.max_output, listed.price_in) == (4096, 512, 1.0), base
+        assert (listed.served, listed.max_output, listed.price_in) == (4096, None, 1.0), base
 
 
 async def test_featherless_is_read_as_it_was():
@@ -1024,8 +1024,10 @@ async def test_the_longest_reply_is_read_under_each_of_its_names_in_order():
     assert {i: m.max_output for i, m in models.items()} == {
         "completion": 100, "output": 200, "length": 300, "all": 100, "output-length": 200,
         "first-told": 300, "metadata": None, "metadata-after": 300}
+    # DeepInfra's metadata.max_tokens equals its window on every entry and is described nowhere:
+    # it says nothing of a reply, even at its own address.
     models = await read_entries(DEEPINFRA, entries, route="/v1/openai/models")
-    assert (models["metadata"].max_output, models["metadata-after"].max_output) == (400, 300)
+    assert (models["metadata"].max_output, models["metadata-after"].max_output) == (None, 300)
     # OpenRouter's own provider still says it first.
     entries = [openrouter_entry("v/top", top_provider={"max_completion_tokens": 16384},
                                 max_output_tokens=999),
