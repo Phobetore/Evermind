@@ -2,6 +2,7 @@
 starts, and a database the release before still runs on."""
 
 import json
+import re
 import shutil
 import sqlite3
 from datetime import UTC, datetime
@@ -76,12 +77,12 @@ def everything(*, apart: tuple[str, ...] = ()) -> dict:
     conn = sqlite3.connect(db_path())
     try:
         tables = [t for t in conn.execute(
-            "SELECT type, name, sql FROM sqlite_master ORDER BY type, name").fetchall()
-            if t[1] not in apart and "calls" not in t[1]]
+            "SELECT type, name, sql, tbl_name FROM sqlite_master ORDER BY type, name").fetchall()
+            if t[1] not in apart and t[3] != "calls"]
         return {"schema": tables, **{
             name: [r for r in conn.execute(f"SELECT * FROM {name} ORDER BY rowid").fetchall()
                    if not (name == "settings" and r[0] in apart)]
-            for kind, name, _ in tables if kind == "table"}}
+            for kind, name, *_ in tables if kind == "table"}}
     finally:
         conn.close()
 
@@ -105,7 +106,7 @@ async def test_counting_starts_at_the_update(start):
     await start(MIGRATION)
 
     stored = json.loads(rows("SELECT value FROM settings WHERE key = 'spending_since'")[0]["value"])
-    assert stored.endswith("+00:00")
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}\+00:00", stored)
     assert abs((datetime.fromisoformat(stored) - before).total_seconds()) < 5
 
 
