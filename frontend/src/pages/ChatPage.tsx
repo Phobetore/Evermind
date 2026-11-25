@@ -162,6 +162,7 @@ function ChatView({ id }: { id: string }) {
     setAis(change);
   }, []);
   const [aiSheet, setAiSheet] = useState(false);
+  const aiSheetShown = useRef(false);
   const [addingAi, setAddingAi] = useState(false);
 
   // What the conversation's AI reads of it under its way, for the way's chip: read as the story is
@@ -186,11 +187,11 @@ function ChatView({ id }: { id: string }) {
   const waySheetShown = useRef(false);
   // The read of the whole, for what runs outside a render (a turn's end, a read of the story).
   const rereadWhole = useRef<() => void>(() => {});
-  /** What the next turn would read may have changed: an open sheet of the ways reads the whole
-   *  again, as it has nothing to show without it; otherwise the chip's pair is read, and the whole
-   *  waits for a sheet to open. */
+  /** What the next turn would read may have changed: an open sheet reads the whole again, keeping
+   *  its figures meanwhile, as nothing else reads them while it stays open; otherwise the chip's
+   *  pair is read, and the whole waits for a sheet to open. */
   const outlookChanged = useCallback(() => {
-    if (waySheetShown.current) return rereadWhole.current();
+    if (waySheetShown.current || aiSheetShown.current) return rereadWhole.current();
     setWhole(null);
     readGlance();
   }, [readGlance]);
@@ -223,9 +224,15 @@ function ChatView({ id }: { id: string }) {
 
   function openAiSheet() {
     // What the page holds at once, and the list as it is now once it comes.
+    aiSheetShown.current = true;
     setAiSheet(true);
     readAis();
     readWhole();
+  }
+
+  function closeAiSheet() {
+    aiSheetShown.current = false;
+    setAiSheet(false);
   }
 
   function openWaySheet() {
@@ -589,7 +596,7 @@ function ChatView({ id }: { id: string }) {
   /** The AI answering from now on, as the server took it; the last reply can be redone by it while
    *  nothing is being written, the reply before kept beside it. */
   function switched(ai: Ai) {
-    setAiSheet(false);
+    closeAiSheet();
     // Another AI chosen: the line saying one was removed goes with it, as on the server.
     setConversation((c) => (c ? { ...c, model_id: ai.id, model_lost: null } : c));
     outlookChanged();
@@ -943,14 +950,14 @@ function ChatView({ id }: { id: string }) {
           onPick={switched}
           onGone={aiGone}
           onAddOther={() => {
-            setAiSheet(false);
+            closeAiSheet();
             setAddingAi(true);
           }}
-          onClose={() => setAiSheet(false)}
+          onClose={closeAiSheet}
           onCapLifted={(saved) => {
             tookAi(saved);
             // Closed, so that the line saying it is read: on a phone the sheet covers it.
-            setAiSheet(false);
+            closeAiSheet();
             toast(t("ai.notice.capLifted", { name: saved.name }));
           }}
         />

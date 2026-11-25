@@ -308,6 +308,19 @@ test("a turn that ends with the sheet open leaves it its rows, counted again", a
   await expect(sheetOf(page).getByRole("radio")).toHaveCount(4);
 });
 
+test("a turn that ends with the ais' sheet open leaves its rows their figures, counted again", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { slowly: true });
+  await page.goto(`/#/chat/${convo.id}`);
+  await page.locator("textarea").first().fill("Slowly now.");
+  await page.locator('button[title="Send"]').click();
+  await expect(page.locator('button[title="Stop generation"]')).toBeVisible();
+  await aiChipOf(page).click();
+  const row = aiSheetOf(page).getByRole("radio", { checked: true });
+  await expect(row).toContainText("Rereads 4 of the 4 messages");
+  await stopTurn(request, convo.id);
+  await expect(row).toContainText("Rereads 5 of the 5 messages");
+});
+
 test("a failed switch keeps the sheet open and the chip as it was", async ({ page, request }) => {
   const convo = await makeConversation(request);
   await page.route(`**/api/conversations/${convo.id}`, (route) =>
