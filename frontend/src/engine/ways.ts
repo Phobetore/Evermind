@@ -124,10 +124,41 @@ const int = (n: number) => Math.trunc(n) + 0;
 const own = <T>(record: Record<string, T> | null | undefined, key: string): T | undefined =>
   record && Object.hasOwn(record, key) ? record[key] : undefined;
 
-function picked(stored: Partial<WayFields> | null | undefined): Partial<WayFields> {
+// The largest whole number JSON and JavaScript both hold exactly.
+const WHOLE = 2 ** 53 - 1;
+// What each field may hold, as the API takes it: [least whole number, null allowed], or "share"
+// (a number from 0 to 1, or null), or "length".
+const KINDS: Readonly<Record<(typeof FIELDS)[number], readonly [number, boolean] | "share" | "length">> = {
+  history_limit: [0, false],
+  reply_length: "length",
+  reply_room: [1, true],
+  facts_cap: [0, true],
+  max_facts: [1, true],
+  lore_cap: [0, true],
+  lore_share: "share",
+  passage_cap: [0, true],
+  passage_share: "share",
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Whether a stored value is what the field holds: one written by hand may be anything. */
+function readable(field: (typeof FIELDS)[number], value: unknown): boolean {
+  const kind = KINDS[field];
+  if (kind === "length") return isLength(value);
+  if (value === null) return kind === "share" || kind[1];
+  if (typeof value !== "number") return false;
+  if (kind === "share") return value >= 0 && value <= 1;
+  return Number.isInteger(value) && value >= kind[0] && value <= WHOLE;
+}
+
+/** The fields of what was stored that a way can play; any other is left out. */
+function picked(stored: unknown): Partial<WayFields> {
   const fields: Record<string, unknown> = {};
+  if (!isRecord(stored)) return fields as Partial<WayFields>;
   for (const field of FIELDS) {
-    if (stored && Object.hasOwn(stored, field)) fields[field] = stored[field];
+    if (Object.hasOwn(stored, field) && readable(field, stored[field])) fields[field] = stored[field];
   }
   return fields as Partial<WayFields>;
 }
@@ -136,18 +167,22 @@ function found(playStyles: PlayStyles, wayId: string | null | undefined): Way | 
   if (wayId == null) return null;
   const original = own(BUILT_IN, wayId);
   if (original) {
-    const edits = picked(own(playStyles.overrides ?? {}, wayId));
+    // An edit that cannot be played is no edit: the way keeps its own value.
+    const overrides: unknown = playStyles.overrides;
+    const edits = picked(isRecord(overrides) ? own(overrides, wayId) : undefined);
     const overridden = Object.entries(edits).some(
       ([field, value]) => original[field as keyof WayFields] !== value,
     );
     return { id: wayId, name: null, built_in: true, overridden, ...original, ...edits };
   }
-  for (const custom of playStyles.custom ?? []) {
-    if (custom.id === wayId) {
-      // A field missing from what was stored plays as balanced, never as nothing.
+  const customs: unknown = playStyles.custom;
+  for (const custom of Array.isArray(customs) ? (customs as unknown[]) : []) {
+    if (isRecord(custom) && custom.id === wayId) {
+      // A field missing from what was stored, or one that cannot be played, plays as balanced,
+      // never as nothing.
       return {
         id: wayId,
-        name: custom.name ?? null,
+        name: typeof custom.name === "string" ? custom.name : null,
         built_in: false,
         overridden: false,
         ...BUILT_IN.balanced,
@@ -166,7 +201,7 @@ export function wayOf(
   wayId: string | null | undefined,
   defaultId: string | null | undefined,
 ): Way {
-  const styles = playStyles ?? {};
+  const styles: PlayStyles = isRecord(playStyles) ? playStyles : {};
   return (found(styles, wayId) ?? found(styles, defaultId) ?? found(styles, "balanced")) as Way;
 }
 

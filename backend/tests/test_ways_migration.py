@@ -184,8 +184,82 @@ async def test_a_setting_that_is_not_json_does_not_stop_the_update(start):
 
     await start(MIGRATION)
 
+    # 3.7 read a value that is not JSON as nothing, and int(nothing or 0) is no limit.
+    assert stored("default_play_style") == "mine"
+    assert stored("play_styles")["custom"][0]["history_limit"] == 0
+    assert played() == {ids[0]: ("mine", None)}
+
+
+WHOLE = 2 ** 53 - 1
+# Each stored form of the three settings (as the settings table holds it: JSON, or not), and the
+# figure of "mine" that plays what 3.7 played with it; None: 3.7 played balanced's figures (the
+# default, or a value it could not read, which stopped every turn).
+STORED_FORMS = [
+    # history_limit: int(value or 0), 0 rereading the whole story.
+    ("history_limit", "30", 30), ("history_limit", '"30"', 30), ("history_limit", '" 30 "', 30),
+    ("history_limit", '"+30"', 30), ("history_limit", "30.5", 30), ("history_limit", "30.0", 30),
+    ("history_limit", "-0.5", 0), ("history_limit", "null", 0), ("history_limit", "not json", 0),
+    ("history_limit", "", 0), ("history_limit", '""', 0), ("history_limit", "{}", 0),
+    ("history_limit", "[]", 0), ("history_limit", "false", 0), ("history_limit", "0", 0),
+    ("history_limit", "true", 1), ("history_limit", "1e300", 0),
+    ("history_limit", "99999999999999999999", 0), ("history_limit", '"99999999999999999999"', 0),
+    ("history_limit", "24", None), ("history_limit", '"24"', None),
+    ("history_limit", '"thirty"', None), ("history_limit", '"30.5"', None),
+    ("history_limit", '"  "', None), ("history_limit", '"+"', None), ("history_limit", '"3-0"', None),
+    ("history_limit", '{"a": 1}', None), ("history_limit", "[1]", None),
+    ("history_limit", "-5", None), ("history_limit", '"-3"', None), ("history_limit", "NaN", None),
+    # passage_budget: the same reading, 0 sending no passage.
+    ("passage_budget", "800", 800), ("passage_budget", '"800"', 800), ("passage_budget", "2.9", 2),
+    ("passage_budget", "null", 0), ("passage_budget", "not json", 0), ("passage_budget", "[]", 0),
+    ("passage_budget", "-5", 0), ("passage_budget", "true", 1), ("passage_budget", "1e300", WHOLE),
+    ("passage_budget", "1500", None), ("passage_budget", '"x"', None),
+    ("passage_budget", '{"a": 1}', None), ("passage_budget", "Infinity", None),
+    # reply_length: a length 3.7 did not know played medium, with no instruction and its room.
+    ("reply_length", '"long"', "long"), ("reply_length", '"short"', "short"),
+    ("reply_length", '"medium"', None), ("reply_length", '"huge"', None),
+    ("reply_length", '"Long"', None), ("reply_length", "5", None), ("reply_length", "null", None),
+    ("reply_length", "not json", None), ("reply_length", '["long"]', None),
+    ("reply_length", '{"a": 1}', None),
+]
+_FIELD = {"history_limit": "history_limit", "passage_budget": "passage_cap",
+          "reply_length": "reply_length"}
+
+
+@pytest.mark.parametrize("key,value,figure", STORED_FORMS)
+async def test_each_stored_form_plays_what_3_7_played(start, key, value, figure):
+    await start()
+    run("INSERT INTO settings (key, value) VALUES (?, ?)", (key, value))
+    ids = conversations(1)
+
+    await start(MIGRATION)
+
+    if figure is None:
+        assert stored("default_play_style") == "balanced"
+        assert stored("play_styles") == {"overrides": {}, "custom": []}
+        assert played() == {ids[0]: ("balanced", None)}
+        return
+    assert stored("default_play_style") == "mine"
+    mine = stored("play_styles")["custom"][0]
+    assert mine[_FIELD[key]] == figure
+    expected = {"history_limit": 24, "reply_length": "medium", "passage_cap": 1500}
+    expected[_FIELD[key]] = figure
+    assert {k: mine[k] for k in expected} == expected
+    assert mine["reply_room"] == {"short": 512, "medium": 1024, "long": 2048}[mine["reply_length"]]
+    assert played() == {ids[0]: ("mine", None)}
+    # What the update wrote, the engine plays as it is.
+    from app.prompting import ways
+    assert {k: v for k, v in ways.way_of(stored("play_styles"), "mine", None).items()
+            if k in mine} == {**mine}
+
+
+async def test_a_value_of_each_setting_at_its_default_plays_balanced(start):
+    await start()
+    run("INSERT INTO settings (key, value) VALUES ('reply_length', '\"medium\"')")
+    run("INSERT INTO settings (key, value) VALUES ('history_limit', '\"24\"')")
+    run("INSERT INTO settings (key, value) VALUES ('passage_budget', '1500.0')")
+    await start(MIGRATION)
     assert stored("default_play_style") == "balanced"
-    assert played() == {ids[0]: ("balanced", None)}
+    assert stored("play_styles") == {"overrides": {}, "custom": []}
 
 
 async def test_a_model_has_not_said_what_it_counts_yet(start):

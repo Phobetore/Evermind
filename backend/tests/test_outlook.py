@@ -297,6 +297,31 @@ async def test_with_no_ai_the_outlook_still_counts_messages(client):
     assert counted["reply_room"] == current["reply_room"]
 
 
+async def test_a_way_written_by_hand_stops_neither_a_turn_nor_the_outlook(client, monkeypatch):
+    no_passages(monkeypatch)
+    await no_memory_pass(client)
+    ai = await an_ai(client)
+    convo = await conversation_on(client, ai["id"])
+    await story(convo["id"], 39)
+    # As a person may write them with sqlite: a count as text, an object, a length unknown.
+    styles = {"overrides": {"light": {"history_limit": {"a": 1}}},
+              "custom": [{"id": "mine", "name": None, "history_limit": "30",
+                          "reply_length": "huge", "reply_room": "2048", "passage_cap": "800",
+                          "facts_cap": [1], "lore_share": "0.1"}]}
+    await sql("INSERT INTO settings (key, value) VALUES ('play_styles', ?) ON CONFLICT(key)"
+              " DO UPDATE SET value = excluded.value", (json.dumps(styles),))
+    await sql("UPDATE conversations SET play_style = 'mine' WHERE id = ?", (convo["id"],))
+
+    outlook = await outlook_of(client, convo["id"])
+    # Each field it cannot play plays balanced's figure.
+    assert way_entry(outlook, "mine")["history_limit"] == 24
+    assert way_entry(outlook, "light")["history_limit"] == 16
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    context = await next_turn_context(client, convo["id"], model)
+    assert (context["history_limit"], context["messages_included"]) == (24, 24)
+    assert context["reply_room"] == 1024
+
+
 async def test_an_unknown_conversation_has_no_outlook(client):
     resp = await client.get("/api/conversations/gone/outlook")
     assert resp.status_code == 404

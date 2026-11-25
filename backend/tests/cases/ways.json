@@ -2575,6 +2575,314 @@
    }
   },
   {
+   "fn": "way_of",
+   "name": "a way of one's own written by hand plays balanced for each field it cannot play",
+   "input": {
+    "play_styles": {
+     "overrides": {},
+     "custom": [
+      {
+       "id": "mine",
+       "name": null,
+       "history_limit": "30",
+       "reply_length": "huge",
+       "reply_room": -5,
+       "facts_cap": null,
+       "max_facts": 0,
+       "lore_cap": {
+        "a": 1
+       },
+       "lore_share": 2,
+       "passage_cap": "800",
+       "passage_share": true
+      }
+     ]
+    },
+    "way_id": "mine",
+    "default_id": null
+   },
+   "expected": {
+    "id": "mine",
+    "name": null,
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": null,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a way of one's own written by hand keeps the fields it can play",
+   "input": {
+    "play_styles": {
+     "custom": [
+      {
+       "id": "mine",
+       "history_limit": 30,
+       "reply_length": 5,
+       "reply_room": null,
+       "passage_cap": 800,
+       "lore_share": 0.5,
+       "max_facts": [
+        60
+       ]
+      }
+     ]
+    },
+    "way_id": "mine",
+    "default_id": null
+   },
+   "expected": {
+    "id": "mine",
+    "name": null,
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 30,
+    "reply_length": "medium",
+    "reply_room": null,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": 0.5,
+    "passage_cap": 800,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a history written as a whole float plays as that whole number",
+   "input": {
+    "play_styles": {
+     "custom": [
+      {
+       "id": "mine",
+       "history_limit": 30.0,
+       "facts_cap": 900.0
+      }
+     ]
+    },
+    "way_id": "mine",
+    "default_id": null
+   },
+   "expected": {
+    "id": "mine",
+    "name": null,
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 30,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 900,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a fraction or a negative history is not played",
+   "input": {
+    "play_styles": {
+     "custom": [
+      {
+       "id": "a",
+       "history_limit": 30.5
+      },
+      {
+       "id": "b",
+       "history_limit": -4
+      }
+     ]
+    },
+    "way_id": "a",
+    "default_id": "b"
+   },
+   "expected": {
+    "id": "a",
+    "name": null,
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a built-in way's edit written by hand is no edit",
+   "input": {
+    "play_styles": {
+     "overrides": {
+      "light": {
+       "history_limit": {
+        "a": 1
+       },
+       "reply_length": "huge",
+       "passage_share": "0.1",
+       "lore_cap": 300,
+       "reply_room": 0
+      }
+     }
+    },
+    "way_id": "light",
+    "default_id": null
+   },
+   "expected": {
+    "id": "light",
+    "name": null,
+    "built_in": true,
+    "overridden": true,
+    "history_limit": 16,
+    "reply_length": "short",
+    "reply_room": 512,
+    "facts_cap": 700,
+    "max_facts": 60,
+    "lore_cap": 300,
+    "lore_share": 0.06,
+    "passage_cap": 0,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a built-in way plays the edit it can read beside one written by hand",
+   "input": {
+    "play_styles": {
+     "overrides": {
+      "immersive": {
+       "history_limit": "60",
+       "max_facts": null
+      }
+     }
+    },
+    "way_id": "immersive",
+    "default_id": null
+   },
+   "expected": {
+    "id": "immersive",
+    "name": null,
+    "built_in": true,
+    "overridden": true,
+    "history_limit": 60,
+    "reply_length": "long",
+    "reply_room": 2048,
+    "facts_cap": 4000,
+    "max_facts": null,
+    "lore_cap": 1600,
+    "lore_share": 0.06,
+    "passage_cap": 3000,
+    "passage_share": 0.1
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "ways stored as something else than an object play balanced",
+   "input": {
+    "play_styles": [
+     {
+      "id": "mine",
+      "history_limit": 30
+     }
+    ],
+    "way_id": "mine",
+    "default_id": "mine"
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "overrides and ways of one's own stored as something else are none",
+   "input": {
+    "play_styles": {
+     "overrides": "light",
+     "custom": {
+      "id": "mine"
+     }
+    },
+    "way_id": "light",
+    "default_id": "mine"
+   },
+   "expected": {
+    "id": "light",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 16,
+    "reply_length": "short",
+    "reply_room": 512,
+    "facts_cap": 700,
+    "max_facts": 60,
+    "lore_cap": 400,
+    "lore_share": 0.06,
+    "passage_cap": 0,
+    "passage_share": null
+   }
+  },
+  {
+   "fn": "way_of",
+   "name": "a way of one's own among values that are no ways",
+   "input": {
+    "play_styles": {
+     "custom": [
+      "mine",
+      null,
+      7,
+      {
+       "id": "mine",
+       "name": 12,
+       "history_limit": 8
+      }
+     ]
+    },
+    "way_id": "mine",
+    "default_id": null
+   },
+   "expected": {
+    "id": "mine",
+    "name": null,
+    "built_in": false,
+    "overridden": false,
+    "history_limit": 8,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null
+   }
+  },
+  {
    "fn": "level_of",
    "name": "a field left out reads as none",
    "input": {

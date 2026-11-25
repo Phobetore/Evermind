@@ -46,30 +46,72 @@ _LORE_BEFORE = 800
 _PASSAGES_BEFORE = 1500
 
 
+# The largest whole number JSON and JavaScript both hold exactly.
+_WHOLE = 2 ** 53 - 1
+# What each field may hold, as the API takes it: (least whole number, None allowed), or "share"
+# (a number from 0 to 1, or None), or "length".
+_KINDS: dict[str, tuple[int, bool] | str] = {
+    "history_limit": (0, False), "reply_length": "length", "reply_room": (1, True),
+    "facts_cap": (0, True), "max_facts": (1, True), "lore_cap": (0, True),
+    "lore_share": "share", "passage_cap": (0, True), "passage_share": "share",
+}
+_UNREADABLE = object()
+
+
+def _readable(field: str, value):
+    """The value as a way plays it, or _UNREADABLE when it is not what the field holds (written
+    by hand): a whole number as a whole, 30.0 as 30."""
+    kind = _KINDS[field]
+    if kind == "length":
+        return value if isinstance(value, str) and value in REPLY_ROOM else _UNREADABLE
+    if value is None:
+        return None if kind == "share" or kind[1] else _UNREADABLE
+    if kind == "share":
+        number = (isinstance(value, int | float) and not isinstance(value, bool)
+                  and 0 <= value <= 1)
+        return value if number else _UNREADABLE
+    whole = _whole(value)
+    return whole if whole is not None and kind[0] <= whole <= _WHOLE else _UNREADABLE
+
+
+def _readable_fields(stored: object) -> dict:
+    """The fields of what was stored that a way can play; any other is left out."""
+    if not isinstance(stored, dict):
+        return {}
+    fields = {k: _readable(k, stored[k]) for k in FIELDS if k in stored}
+    return {k: v for k, v in fields.items() if v is not _UNREADABLE}
+
+
 def _found(play_styles: dict, way_id: str | None) -> dict | None:
     if way_id is None:
         return None
     if way_id in BUILT_IN:
         original = BUILT_IN[way_id]
-        stored = (play_styles.get("overrides") or {}).get(way_id) or {}
-        edits = {k: stored[k] for k in FIELDS if k in stored}
+        overrides = play_styles.get("overrides")
+        # An edit that cannot be played is no edit: the way keeps its own value.
+        edits = _readable_fields(overrides.get(way_id) if isinstance(overrides, dict) else None)
         return {"id": way_id, "name": None, "built_in": True,
                 "overridden": any(original[k] != v for k, v in edits.items()),
                 **original, **edits}
-    for custom in play_styles.get("custom") or []:
-        if custom.get("id") == way_id:
-            # A field missing from what was stored plays as balanced, never as nothing.
-            fields = {**BUILT_IN["balanced"], **{k: custom[k] for k in FIELDS if k in custom}}
-            return {"id": way_id, "name": custom.get("name"), "built_in": False,
-                    "overridden": False, **fields}
+    customs = play_styles.get("custom")
+    for custom in customs if isinstance(customs, list) else []:
+        if isinstance(custom, dict) and custom.get("id") == way_id:
+            # A field missing from what was stored, or one that cannot be played, plays as
+            # balanced, never as nothing.
+            fields = {**BUILT_IN["balanced"], **_readable_fields(custom)}
+            name = custom.get("name")
+            return {"id": way_id, "name": name if isinstance(name, str) else None,
+                    "built_in": False, "overridden": False, **fields}
     return None
 
 
 def way_of(play_styles: dict | None, way_id: str | None, default_id: str | None) -> dict:
     """{"id", "name", "built_in", "overridden", **the nine FIELDS}: a built-in with its stored
     overrides merged (only the fields stored), else a custom way; an unknown id resolves to
-    default_id, then to "balanced". name is None for a built-in and for "mine"."""
-    styles = play_styles or {}
+    default_id, then to "balanced". name is None for a built-in and for "mine". A field stored
+    that is not what it must hold (written by hand) is never played: a built-in keeps its own
+    value, a custom way plays balanced's."""
+    styles = play_styles if isinstance(play_styles, dict) else {}
     return (_found(styles, way_id) or _found(styles, default_id)
             or _found(styles, "balanced"))
 
