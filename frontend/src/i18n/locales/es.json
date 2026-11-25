@@ -958,7 +958,8 @@
       "removeOrphans": "{count} conversaciones se quedarán sin IA hasta que usted añada una.",
       "removeOrphans_one": "1 conversación se quedará sin IA hasta que usted añada una.",
       "removeKey": "Es la última IA de {service}: su clave también se olvidará.",
-      "gone": "Esta IA ya no existe."
+      "gone": "Esta IA ya no existe.",
+      "noUsage": "Este servidor no dice lo que cuenta: Evermind deja un margen más amplio."
     },
     "service": {
       "title": "Modificar {name}",
@@ -971,6 +972,29 @@
       "forAll": "Lo que cambie aquí vale para las {count} IA de este servicio.",
       "forAll_one": "Lo que cambie aquí vale para la única IA de este servicio.",
       "save": "Guardar"
+    }
+  },
+  "money": {
+    "estimate": "≈ {amount} cada 100 mensajes",
+    "atLeast": "al menos {amount} cada 100 mensajes (≈ {fuller} con su razonamiento)",
+    "underACent": "menos de {amount} cada 100 mensajes"
+  },
+  "ways": {
+    "names": {
+      "light": "Ligero",
+      "balanced": "Equilibrado",
+      "immersive": "Inmersivo",
+      "maximum": "Al máximo",
+      "mine": "Mis ajustes"
+    },
+    "card": {
+      "lighter": "Con {name}, releería {count}."
+    },
+    "chip": {
+      "aria": "Forma de jugar: {label}. Cambiar.",
+      "adjusted": "{name} · ajustado",
+      "full": "{label} · relee {read} de {asked}",
+      "fullAria": "Forma de jugar: {label}. Su capacidad de lectura está llena: relee {read} mensajes de {asked}. Cambiar."
     }
   }
 }

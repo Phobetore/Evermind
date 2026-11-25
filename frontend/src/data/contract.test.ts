@@ -3,9 +3,9 @@ import { data } from "@/data";
 import type { DataSource } from "@/data";
 
 test("an edition may come without connections, a password or an update check", () => {
-  const { characters, personas, conversations, messages, memories, turns, library, settings, file, device } = data;
+  const { characters, personas, conversations, messages, memories, turns, library, settings, ways, file, device } = data;
   const bare: DataSource = {
-    characters, personas, conversations, messages, memories, turns, library, settings, file, device,
+    characters, personas, conversations, messages, memories, turns, library, settings, ways, file, device,
     remoteImages: false,
   };
   expect(bare.connections).toBeUndefined();

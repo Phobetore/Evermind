@@ -958,7 +958,8 @@
       "removeOrphans": "{count} conversations n'auront plus d'IA jusqu'à ce que vous en ajoutiez une.",
       "removeOrphans_one": "1 conversation n'aura plus d'IA jusqu'à ce que vous en ajoutiez une.",
       "removeKey": "C'est la dernière IA de {service} : sa clé sera oubliée aussi.",
-      "gone": "Cette IA n'existe plus."
+      "gone": "Cette IA n'existe plus.",
+      "noUsage": "Ce serveur ne dit pas ce qu'il compte : Evermind garde une marge plus large."
     },
     "service": {
       "title": "Modifier {name}",
@@ -971,6 +972,29 @@
       "forAll": "Ce que vous changez ici vaut pour les {count} IA de ce service.",
       "forAll_one": "Ce que vous changez ici vaut pour la seule IA de ce service.",
       "save": "Enregistrer"
+    }
+  },
+  "money": {
+    "estimate": "≈ {amount} les 100 messages",
+    "atLeast": "au moins {amount} les 100 messages (≈ {fuller} avec sa réflexion)",
+    "underACent": "moins de {amount} les 100 messages"
+  },
+  "ways": {
+    "names": {
+      "light": "Léger",
+      "balanced": "Équilibré",
+      "immersive": "Immersif",
+      "maximum": "Au maximum",
+      "mine": "Mes réglages"
+    },
+    "card": {
+      "lighter": "En {name}, elle en relirait {count}."
+    },
+    "chip": {
+      "aria": "Façon de jouer : {label}. Changer.",
+      "adjusted": "{name} · ajusté",
+      "full": "{label} · relit {read} sur {asked}",
+      "fullAria": "Façon de jouer : {label}. Sa capacité de lecture est pleine : elle relit {read} messages sur {asked}. Changer."
     }
   }
 }

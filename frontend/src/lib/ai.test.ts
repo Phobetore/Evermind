@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { BUILT_IN } from "@/engine";
 import { translate } from "@/i18n/translate";
 import type { Ai, ProbeModel } from "@/types";
 import {
@@ -7,7 +8,6 @@ import {
   ageLine,
   answering,
   cappedUnder,
-  cheapestKey,
   freeOnly,
   isNew,
   near,
@@ -25,6 +25,7 @@ import {
   suggestions,
   warningsOf,
 } from "./ai";
+import { cheapestKey } from "./estimate";
 
 const fr = (key: string, vars?: Record<string, string | number>) => translate("fr", key, vars);
 const en = (key: string, vars?: Record<string, string | number>) => translate("en", key, vars);
@@ -73,6 +74,13 @@ function ai(over: Partial<Ai> = {}): Ai {
     presence_penalty: null,
     migrated: false,
     notices: [],
+    margin: 983,
+    token_ratio: null,
+    reply_tokens: { short: null, medium: null, long: null },
+    thinking_allowance: 3072,
+    thinking_measured: false,
+    usage_seen: null,
+    anthropic: false,
     conversation_count: 0,
     created_at: "2026-11-01T10:00:00Z",
     updated_at: "2026-11-01T10:00:00Z",
@@ -268,7 +276,9 @@ describe("sorting", () => {
     ({ input, output, varies: false, cache_read: null, cache_write: null });
   const hit = (r: ProbeModel, score = 0): Hit => ({ row: r, score });
   const ctx = (served: number | null) => ({ served, configured: null, max: null });
-  const order = (hits: Hit[], key: Parameters<typeof sortRows>[1]) => sortRows(hits, key, collator).map((r) => r.name);
+  // What 100 messages of the reference story cost under balanced, on an OpenRouter row.
+  const cheapest = (r: ProbeModel) => cheapestKey(r, "openrouter", BUILT_IN.balanced);
+  const order = (hits: Hit[], key: Parameters<typeof sortRows>[1]) => sortRows(hits, key, collator, cheapest).map((r) => r.name);
 
   test("the service's order is kept", () => {
     expect(order([hit(row("b")), hit(row("a")), hit(row("c"))], "service")).toEqual(["b", "a", "c"]);
@@ -282,8 +292,9 @@ describe("sorting", () => {
   test("cheapest first; as dear, the one that reads more", () => {
     const hits = [
       row("dear", { price: price(3, 15) }),
-      row("cheap-small", { price: price(1, 1), context: ctx(1_000) }),
-      row("cheap-big", { price: price(1, 1), context: ctx(9_000) }),
+      // Both wide enough to read the whole reference story: the same price for a message.
+      row("cheap-small", { price: price(1, 1), context: ctx(20_000) }),
+      row("cheap-big", { price: price(1, 1), context: ctx(90_000) }),
       row("unknown"),
     ].map((r) => hit(r));
     expect(order(hits, "cheapest")).toEqual(["cheap-big", "cheap-small", "dear", "unknown"]);
@@ -317,12 +328,14 @@ describe("sorting", () => {
     expect(order(hits, "cheapest")).toEqual(["b-dear", "a-cheap"]);
   });
 
-  test("cheapest key weighs a message of the reference story", () => {
-    expect(cheapestKey(row("x", { price: price(3, 15) }))).toBeCloseTo(3.75);
-    expect(cheapestKey(row("x", { price: price(0, 0) }))).toBe(0);
-    expect(cheapestKey(row("x", { price: price(null, null) }))).toBeNull();
-    expect(cheapestKey(row("x", { price: price(1, null) }))).toBeNull();
-    expect(cheapestKey(row("x", { price: { ...price(1, 1), varies: true } }))).toBeNull();
+  test("cheapest key weighs 100 messages of the reference story", () => {
+    // Nothing said of its size: 16,384, so a budget of 14,377, facts of 1,725 (12 % of it) and the
+    // whole story, 12,445 read and 450 written: 12,445 x 3 + 450 x 15 = 44,085 a message, per million.
+    expect(cheapest(row("x", { price: price(3, 15) }))).toBeCloseTo(4.4085, 10);
+    expect(cheapest(row("x", { price: price(0, 0) }))).toBe(0);
+    expect(cheapest(row("x", { price: price(null, null) }))).toBeNull();
+    expect(cheapest(row("x", { price: price(1, null) }))).toBeNull();
+    expect(cheapest(row("x", { price: { ...price(1, 1), varies: true } }))).toBeNull();
   });
 });
 

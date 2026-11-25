@@ -1,4 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { API } from "../playwright.config";
 import { MOCK_ROOT, answer, boxHears, inLocale, makeCharacter, misfits, rootAt } from "./fixtures";
 
@@ -714,6 +716,50 @@ test.describe("settings at very large text keep to the screen", () => {
         await page.waitForLoadState("networkidle");
         expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
         expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+      }
+    });
+  }
+});
+
+// What 100 messages of an AI cost, under its line in Settings and on its page: the line goes to the
+// next line rather than slide the page, at the text's own size and at the largest, on two phones.
+test.describe("an ai's estimate per 100 messages keeps to the screen", () => {
+  for (const locale of ["en", "fr", "de", "es"]) {
+    test(`in ${locale}`, async ({ page, request }) => {
+      const words = JSON.parse(readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`), "utf8"));
+      const per100 = (words.money.estimate as string).split("{amount}")[1];
+      // A price typed: an AI at home with none is free, and its line says so instead.
+      const priced = await lmstudioAi(request, "priced");
+      await request.put(`${API}/api/models/${priced.id}`, { data: { price_own_in: 0.2, price_own_out: 0.6 } });
+      const waysRead: string[] = [];
+      page.on("request", (sent) => {
+        if (new URL(sent.url()).pathname === "/api/ways") waysRead.push(sent.method());
+      });
+      await inLocale(page, locale);
+      try {
+        for (const root of ["16px", "32px"]) {
+          // Set once, for every page after it: the text's own size is measured first.
+          if (root === "32px") await page.addInitScript(rootAt, root);
+          for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+            const at = `at ${size.width}px, a root of ${root}`;
+            await page.setViewportSize(size);
+            // Loaded afresh: from the AI's page, a move within the app would not run the root's script.
+            await page.goto("about:blank");
+            waysRead.length = 0;
+            await page.goto("/#/settings");
+            await expect(lineOf(page, priced.id).getByText(per100)).toBeVisible();
+            await page.waitForLoadState("networkidle");
+            expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(root);
+            expect(await misfits(page), `settings ${at}`).toEqual([]);
+            // The ways are read once by the page, with the AIs.
+            expect(waysRead).toEqual(["GET"]);
+            await openPage(page, priced.id);
+            await expect(page.locator("header").getByText(per100)).toBeVisible();
+            expect(await misfits(page), `its page ${at}`).toEqual([]);
+          }
+        }
+      } finally {
+        await request.delete(`${API}/api/models/${priced.id}`);
       }
     });
   }

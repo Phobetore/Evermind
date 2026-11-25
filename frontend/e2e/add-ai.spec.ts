@@ -2,6 +2,9 @@ import { expect, test, type APIRequestContext, type Locator, type Page } from "@
 import { API } from "../playwright.config";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { cheapestKey } from "../src/lib/estimate";
+import { offeredWay } from "../src/lib/ways";
+import type { ProbeModel, Ways } from "../src/types";
 import { MOCK_ROOT, forgetServices, inLocale, makeConversation, misfits, rootAt, routeServiceTo } from "./fixtures";
 
 /**
@@ -115,9 +118,10 @@ test.describe("adding AIs", () => {
     const last = rows[rows.length - 1];
     const eclair = rows.find((r) => r.name === "Eclair Mini")!;
     const free = rows.filter((r) => r.price.input === 0 && r.price.output === 0);
-    // The page's own rule (lib/ai.ts): the price of a message of the reference story, then what it reads.
-    const weight = (r: Row) => (r.price.varies || r.price.input === null || r.price.output === null
-      ? Infinity : r.price.input + r.price.output * 0.05);
+    // The page's own rule (lib/estimate.ts): 100 messages of the reference story under the way
+    // offered, then what it reads.
+    const way = offeredWay(await (await request.get(`${API}/api/ways`)).json() as Ways);
+    const weight = (r: Row) => cheapestKey(r as ProbeModel, "openrouter", way) ?? Infinity;
     const reads = (r: Row) => r.context.served ?? r.context.configured ?? r.context.max ?? -Infinity;
     const cheapest = [...rows].sort((a, b) => weight(a) - weight(b) || reads(b) - reads(a))[0];
     await routeServiceTo(page, OPENROUTER, MANY);
@@ -784,6 +788,9 @@ test.describe("adding AIs", () => {
           await key.fill("sk-e2e-any");
           await box.getByRole("button", { name: words.ai.add.seeModels }).click();
           await expect(box.getByRole("checkbox")).toHaveCount(30);
+          // Measured with each row's estimate under it.
+          const per100 = (words.money.estimate as string).split("{amount}")[1];
+          await expect(box.getByText(per100).first()).toBeVisible();
           expect(await misfits(page, "dialog[open]"), `the list, at ${width}px`).toEqual([]);
         }
       });

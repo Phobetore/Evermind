@@ -1,6 +1,7 @@
 import type {
   Ai, Character, CharacterTile, CharacterWithLore, Conversation, Installation, LibraryItem, Memory,
-  Message, Persona, ProbeResult, Service, Settings, TurnEvent, TurnState,
+  Message, Outlook, Persona, ProbeResult, Service, Settings, TurnEvent, TurnState, WayFields, WayListed,
+  Ways,
 } from "@/types";
 import type { DataSource } from "../contract";
 import { device } from "./device";
@@ -106,6 +107,9 @@ export const data: DataSource = {
     setWallpaper: (id: string, file: File) =>
       upload<Conversation>(`api/conversations/${seg(id)}/wallpaper`, file),
     clearWallpaper: (id: string) => del<Conversation>(`api/conversations/${seg(id)}/wallpaper`),
+    // Past the cache: it changes with every message, and with a way changed on another device.
+    outlook: (id: string, options?: { only?: "current" }) =>
+      fresh<Outlook>(`api/conversations/${seg(id)}/outlook` + (options?.only ? `?only=${seg(options.only)}` : "")),
   },
 
   messages: {
@@ -157,6 +161,15 @@ export const data: DataSource = {
     update: (input: Partial<Settings>) => put<Settings>("api/settings", input),
   },
 
+  ways: {
+    list: () => get<Ways>("api/ways"),
+    update: (id: string, changes: Partial<WayFields> & { name?: string }) => put<WayListed>(`api/ways/${seg(id)}`, changes),
+    copy: (from: string, name: string) => post<WayListed>("api/ways", { from, name }),
+    remove: (id: string) => del<{ moved: number; to: string }>(`api/ways/${seg(id)}`),
+    reset: (id: string) => post<WayListed>(`api/ways/${seg(id)}/reset`),
+    setDefault: (id: string) => put<Ways>("api/ways/default", { id }),
+  },
+
   /** An image the server serves, such as a portrait, as a file to draw or to send back. */
   async file(url: string, asking?: Asking) {
     // The same signal cuts the reading of the body: a fetch aborted after its headers stops there too.
@@ -185,6 +198,7 @@ export const data: DataSource = {
         post<{ model: Ai; read_ok: boolean; error: { kind: string; message: string } | null }>(
           `api/models/${seg(id)}/refresh`, { fresh: options.fresh ?? false }),
       benchmark: (id: string) => post<BenchmarkResult>(`api/models/${seg(id)}/benchmark`),
+      observed: (id: string, tokens: number) => post<AiSaved>(`api/models/${seg(id)}/observed`, { tokens }),
     },
     // Saves nothing; a list of hundreds of models on a slow link, which "Cancel" gives up on.
     probe: (ref: SavedRef | ServiceDraft, options: { fresh?: boolean; asking?: Asking } = {}) =>

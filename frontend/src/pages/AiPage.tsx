@@ -1,4 +1,5 @@
 import { AiLine } from "@/components/ai/AiLine";
+import { EstimateLine } from "@/components/ai/EstimateLine";
 import { LOCAL_FAMILIES } from "@/components/ai/addFlow";
 import { MigrationNotice } from "@/components/ai/MigrationNotice";
 import { ServiceForm } from "@/components/ai/ServiceForm";
@@ -9,8 +10,10 @@ import type { Translate } from "@/i18n/I18nProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { pages, successorOf, warningsOf } from "@/lib/ai";
 import { describeError, describeFailure } from "@/lib/errors";
+import { readerOfAi } from "@/lib/estimate";
 import { timeAgo } from "@/lib/utils";
-import type { Ai, Service } from "@/types";
+import { offeredWay } from "@/lib/ways";
+import type { Ai, Service, Ways } from "@/types";
 import { clsx } from "clsx";
 import { ArrowLeft, ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -46,6 +49,8 @@ function AiView({ id }: { id: string }) {
   const confirm = useConfirm();
   const connections = data.connections as NonNullable<typeof data.connections>;
   const [ais, setAis] = useState<Ai[] | null>(null);
+  // For its estimate, under the way offered to new conversations.
+  const [ways, setWays] = useState<Ways | null>(null);
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
   const [readFailure, setReadFailure] = useState<ReadError | null>(null);
   const [reading, setReading] = useState(false);
@@ -84,6 +89,8 @@ function AiView({ id }: { id: string }) {
   }, [connections, id, replace, gone, t]);
 
   const load = useCallback(() => {
+    // Beside the AIs, not in their way: without it the page lacks only its estimate.
+    data.ways.list().then(setWays, () => {});
     connections.models.list().then(
       (listed) => {
         setAis(listed);
@@ -237,7 +244,7 @@ function AiView({ id }: { id: string }) {
       <header className="mb-6 animate-rise">
         <h1 className="font-display text-3xl font-semibold [overflow-wrap:anywhere]">{ai.name}</h1>
         <div className="mt-2">
-          <AiLine ai={ai} />
+          <AiLine ai={ai} extra={ways && <EstimateLine reader={readerOfAi(ai)} way={offeredWay(ways)} />} />
         </div>
       </header>
 
@@ -401,6 +408,8 @@ function ServerRead({ ai, t, reading, failure, onReread, bench, benching, onBenc
         <dt className="text-mist">{t("ai.page.price")}</dt>
         <dd className="text-parchment-dim">{price}</dd>
       </dl>
+      {/* Said once a reply has come without the server's counts: until then nothing is known. */}
+      {ai.usage_seen === false && <p className="mt-3 text-sm text-mist">{t("ai.page.noUsage")}</p>}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {/* At the largest text the icon takes a line of its own, and the words the whole width: a word
             is broken only when it alone is wider. The padding is layout: in pixels at most. */}

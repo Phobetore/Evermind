@@ -1,6 +1,7 @@
 import type {
   Ai, Character, CharacterTile, CharacterWithLore, Conversation, Installation, LibraryItem, Memory,
-  Message, Persona, ProbeResult, Service, Settings, TurnEvent, TurnState,
+  Message, Outlook, Persona, ProbeResult, Service, Settings, TurnEvent, TurnState, WayFields, WayListed,
+  Ways,
 } from "@/types";
 import type {
   AiSaved, Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConsolidateResult,
@@ -87,6 +88,9 @@ export interface DataSource {
     remove(id: string): Promise<void>;
     setWallpaper(id: string, file: File): Promise<Conversation>;
     clearWallpaper(id: string): Promise<Conversation>;
+    /** What its AI and every other would read of it under its way, and its AI under every way,
+     *  worked out without asking a model. `only: "current"`: its own pair alone. */
+    outlook(id: string, options?: { only?: "current" }): Promise<Outlook>;
   };
 
   messages: {
@@ -129,6 +133,19 @@ export interface DataSource {
     update(input: Partial<Settings>): Promise<Settings>;
   };
 
+  /** The ways of playing, each written field by field: two devices changing two ways keep both. */
+  ways: {
+    list(): Promise<Ways>;
+    /** `name` only for a way a person made. */
+    update(id: string, changes: Partial<WayFields> & { name?: string }): Promise<WayListed>;
+    copy(from: string, name: string): Promise<WayListed>;
+    /** Only a way a person made: the conversations that play it move to the way offered. */
+    remove(id: string): Promise<{ moved: number; to: string }>;
+    /** A built-in way back to its own figures. */
+    reset(id: string): Promise<WayListed>;
+    setDefault(id: string): Promise<Ways>;
+  };
+
   /** An image the source serves, such as a portrait, as a file to draw or to send back. */
   file(url: string, asking?: Asking): Promise<File>;
 
@@ -159,6 +176,8 @@ export interface DataSource {
        *  past the list the server keeps for ten minutes. */
       refresh(id: string, options?: { fresh?: boolean }): Promise<{ model: Ai; read_ok: boolean; error: { kind: string; message: string } | null }>;
       benchmark(id: string): Promise<BenchmarkResult>;
+      /** A reply seen read only from its end, at this size: the AI is counted at it from now on. */
+      observed(id: string, tokens: number): Promise<AiSaved>;
     };
     /** Saves nothing. A SavedRef: the saved service as it is. `fresh`: past the server's cache. */
     probe(ref: SavedRef | ServiceDraft, options?: { fresh?: boolean; asking?: Asking }): Promise<ProbeResult>;

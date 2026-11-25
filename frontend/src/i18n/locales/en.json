@@ -958,7 +958,8 @@
       "removeOrphans": "{count} conversations will have no AI until you add one.",
       "removeOrphans_one": "1 conversation will have no AI until you add one.",
       "removeKey": "It is the last AI of {service}: its key will be forgotten too.",
-      "gone": "This AI no longer exists."
+      "gone": "This AI no longer exists.",
+      "noUsage": "This server does not say what it counts: Evermind keeps a wider margin."
     },
     "service": {
       "title": "Edit {name}",
@@ -971,6 +972,29 @@
       "forAll": "What you change here applies to the {count} AIs of this service.",
       "forAll_one": "What you change here applies to the one AI of this service.",
       "save": "Save"
+    }
+  },
+  "money": {
+    "estimate": "≈ {amount} per 100 messages",
+    "atLeast": "at least {amount} per 100 messages (≈ {fuller} with its thinking)",
+    "underACent": "less than {amount} per 100 messages"
+  },
+  "ways": {
+    "names": {
+      "light": "Light",
+      "balanced": "Balanced",
+      "immersive": "Immersive",
+      "maximum": "Maximum",
+      "mine": "My settings"
+    },
+    "card": {
+      "lighter": "In {name}, it would reread {count}."
+    },
+    "chip": {
+      "aria": "Way to play: {label}. Change.",
+      "adjusted": "{name} · adjusted",
+      "full": "{label} · rereads {read} of {asked}",
+      "fullAria": "Way to play: {label}. Its reading capacity is full: it rereads {read} messages of {asked}. Change."
     }
   }
 }

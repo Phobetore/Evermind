@@ -958,7 +958,8 @@
       "removeOrphans": "{count} Unterhaltungen haben keine KI, bis Sie eine hinzufügen.",
       "removeOrphans_one": "1 Unterhaltung hat keine KI, bis Sie eine hinzufügen.",
       "removeKey": "Es ist die letzte KI von {service}: Sein Schlüssel wird ebenfalls vergessen.",
-      "gone": "Diese KI gibt es nicht mehr."
+      "gone": "Diese KI gibt es nicht mehr.",
+      "noUsage": "Dieser Server sagt nicht, was er zählt: Evermind hält einen größeren Spielraum frei."
     },
     "service": {
       "title": "{name} bearbeiten",
@@ -971,6 +972,29 @@
       "forAll": "Was Sie hier ändern, gilt für die {count} KIs dieses Dienstes.",
       "forAll_one": "Was Sie hier ändern, gilt für die einzige KI dieses Dienstes.",
       "save": "Speichern"
+    }
+  },
+  "money": {
+    "estimate": "≈ {amount} pro 100 Nachrichten",
+    "atLeast": "mindestens {amount} pro 100 Nachrichten (≈ {fuller} mit Nachdenken)",
+    "underACent": "weniger als {amount} pro 100 Nachrichten"
+  },
+  "ways": {
+    "names": {
+      "light": "Leicht",
+      "balanced": "Ausgewogen",
+      "immersive": "Immersiv",
+      "maximum": "Maximum",
+      "mine": "Meine Einstellungen"
+    },
+    "card": {
+      "lighter": "Mit {name} würde die KI {count} erneut lesen."
+    },
+    "chip": {
+      "aria": "Spielweise: {label}. Ändern.",
+      "adjusted": "{name} · angepasst",
+      "full": "{label} · liest {read} von {asked}",
+      "fullAria": "Spielweise: {label}. Ihr Leseumfang ist voll: Die KI liest {read} von {asked} Nachrichten erneut. Ändern."
     }
   }
 }

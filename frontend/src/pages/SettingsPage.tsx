@@ -1,5 +1,6 @@
 import { AddAiFlow } from "@/components/ai/AddAiFlow";
 import { AiLine } from "@/components/ai/AiLine";
+import { EstimateLine } from "@/components/ai/EstimateLine";
 import { MigrationNotice } from "@/components/ai/MigrationNotice";
 import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
@@ -11,9 +12,11 @@ import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
+import { readerOfAi } from "@/lib/estimate";
 import { usePlaceholderRoom } from "@/lib/placeholderRoom";
 import { isNewer, latestRelease, type Release } from "@/lib/releases";
-import type { Ai, Installation, Settings } from "@/types";
+import { offeredWay } from "@/lib/ways";
+import type { Ai, Installation, Settings, Ways } from "@/types";
 import { Cable, ChevronRight, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
@@ -22,6 +25,8 @@ export function SettingsPage() {
   const t = useT();
   const { status: accessStatus } = useAccess();
   const [ais, setAis] = useState<Ai[] | null>(null);
+  // Read with the AIs: each line's estimate weighs the way offered to new conversations.
+  const [ways, setWays] = useState<Ways | null>(null);
   const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -35,6 +40,7 @@ export function SettingsPage() {
   const load = useCallback(() => {
     Promise.all([
       data.connections?.models.list().then(setAis),
+      data.connections && data.ways.list().then(setWays),
       data.settings.get().then(setSettings),
     ]).then(() => setLoadFailure(null), (error) => setLoadFailure({ error }));
   }, []);
@@ -145,7 +151,7 @@ export function SettingsPage() {
                     to={`/settings/ai/${ai.id}`}
                     className="panel flex items-center justify-between gap-3 px-5 py-4 hover:border-ink-600"
                   >
-                    <AiLine ai={ai} />
+                    <AiLine ai={ai} extra={ways && <EstimateLine reader={readerOfAi(ai)} way={offeredWay(ways)} />} />
                     <ChevronRight className="h-4 w-4 shrink-0 text-mist" aria-hidden="true" />
                   </Link>
                 </li>

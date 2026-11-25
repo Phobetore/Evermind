@@ -4,7 +4,8 @@ import {
   ageLine, freeOnly, isNew, pages, priceLine, readsLine, search, searchable, sortRows, suggestions,
   type SortKey,
 } from "@/lib/ai";
-import type { Family, ProbeModel, ProbeResult } from "@/types";
+import { cheapestKey } from "@/lib/estimate";
+import type { Family, ProbeModel, ProbeResult, WayFields } from "@/types";
 import { clsx } from "clsx";
 import { RefreshCw } from "lucide-react";
 import { useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -39,11 +40,13 @@ function typedRow(id: string): ProbeModel {
 const priced = (row: ProbeModel) => row.price.input !== null && row.price.output !== null;
 
 export function ModelPickList({
-  list, service, have, picked, typed, answers, onPick, onUseAsIs, onAnswer, onReread, extra,
+  list, service, way, have, picked, typed, answers, onPick, onUseAsIs, onAnswer, onReread, extra,
 }: {
   /** Null when the name is typed by hand: no row, no sort, no filter, the search field alone. */
   list: ProbeResult | null;
   service: { name: string; family: Family };
+  /** The way offered to new conversations: « Cheapest » sorts on what 100 messages cost under it. */
+  way: WayFields;
   have: Set<string>;
   picked: string[];
   typed: string[];
@@ -52,7 +55,7 @@ export function ModelPickList({
   onUseAsIs(id: string): void;
   onAnswer(id: string, answer: Answer): void;
   onReread(): void;
-  /** Room under a row for what a later plan adds (its estimate of a message's cost). */
+  /** Under a row: what 100 messages of it would cost. */
   extra?(row: ProbeModel): React.ReactNode;
 }) {
   const { t, locale } = useI18n();
@@ -97,6 +100,11 @@ export function ModelPickList({
   const typedMade = useMemo(() => typed.map((id) => searchable(typedRow(id), "", t)), [typed, t]);
   const collator = useMemo(() => new Intl.Collator(locale, { sensitivity: "base", numeric: true }), [locale]);
   const ticked = useMemo(() => new Set(picked), [picked]);
+  // Worked out once per list and way: a sort asks for each row many times.
+  const cheapest = useMemo(() => {
+    const keys = new Map(rows.map((row) => [row, cheapestKey(row, service.family, way)]));
+    return (row: ProbeModel) => keys.get(row) ?? null;
+  }, [rows, service.family, way]);
 
   // The list follows the field a frame late, so that typing never waits for it.
   const asked = useDeferredValue(query);
@@ -108,10 +116,10 @@ export function ModelPickList({
     // « Ticked » shows every ticked row, whatever was searched before: typing turns it off.
     const sought = tickedOnly !== null ? "" : asked;
     const found = search(made, sought);
-    const listed = sortRows(found, sort, collator).filter(keep);
+    const listed = sortRows(found, sort, collator, cheapest).filter(keep);
     const typedFound = search(typedMade, sought).map((hit) => hit.row).filter(keep);
     return { found: found.length, listed, all: [...typedFound, ...listed] };
-  }, [made, typedMade, asked, sort, collator, freeShown, tickedOnly]);
+  }, [made, typedMade, asked, sort, collator, cheapest, freeShown, tickedOnly]);
 
   // Every change of what is shown starts again from the first slice.
   const viewKey = `${asked}\u0000${sort}\u0000${freeShown}\u0000${tickedShown}\u0000${list?.read_at ?? ""}`;
