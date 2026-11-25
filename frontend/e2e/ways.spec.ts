@@ -267,6 +267,30 @@ test("old passages say when they cannot work", async ({ page }) => {
   await expect(page.getByRole("textbox", { name: "Pages of the world: at most (tokens)" })).toBeVisible();
 });
 
+test("an ai sent no ceiling, with immersive offered, is told on its page and lets evermind keep the room", async ({ page, request }) => {
+  const open = await addModel(request, {
+    base_url: MOCK, model: `open-${Date.now()}`, name: "Open Harbour", changes: { reply_cap: { mode: "unsent" } },
+  });
+  try {
+    await request.put(`${API}/api/ways/default`, { data: { id: "immersive" } });
+    await page.goto(`/#/settings/ai/${open.id}`);
+    const main = page.locator("main");
+    const sentence = main.getByText(
+      "Open Harbour is sent no ceiling, and Evermind keeps it only 1,024 tokens: a long reply may not fit in what it reads.",
+    );
+    await expect(sentence).toBeVisible();
+    await main.getByRole("button", { name: "Keep the room long replies need" }).click();
+    await expect(main.getByText("Open Harbour no longer has a ceiling of its own: Evermind keeps the room it needs.")).toBeVisible();
+    await expect(sentence).toHaveCount(0);
+    const ais = await (await request.get(`${API}/api/models`)).json();
+    const saved = ais.find((ai: { id: string }) => ai.id === open.id);
+    expect(saved.reply_cap.mode).toBe("auto");
+    expect(saved.notices).toEqual([]);
+  } finally {
+    await request.delete(`${API}/api/models/${open.id}`);
+  }
+});
+
 test("a number typed sets the cap and clears the share", async ({ page, request }) => {
   const copy = await (await request.post(`${API}/api/ways`, { data: { from: "immersive", name: "Wide" } })).json() as Way;
   // Immersive keeps both a cap and a share of the lorebook.
