@@ -4,6 +4,7 @@ Pure: no database, no network. It is the one place where the way a reply is aske
 so that what a prompt keeps for the reply and what the server is told never drift apart.
 """
 
+import json
 from dataclasses import dataclass
 from typing import Literal
 
@@ -40,8 +41,23 @@ def reply_room(conversation: dict | None, settings: dict) -> int | None:
     return ways.way_for(conversation, settings)["reply_room"]
 
 
+def reply_averages(model: dict) -> dict:
+    """What its whole replies measured (reply_tokens_avg): by length, and its thinking, each
+    {"avg", "n"}. Empty when nothing was, or what is stored cannot be read."""
+    try:
+        averages = json.loads(model.get("reply_tokens_avg") or "{}")
+    except ValueError:
+        return {}
+    return averages if isinstance(averages, dict) else {}
+
+
 def thinking_allowance(model: dict) -> int:
-    """What a model that reasons is given on top of the reply, until it is measured."""
+    """What a model that reasons is given on top of the reply: what its thinking took, once a
+    reply has measured it."""
+    thinking = reply_averages(model).get("thinking")
+    if (isinstance(thinking, dict) and isinstance(thinking.get("n"), int) and thinking["n"] >= 1
+            and isinstance(thinking.get("avg"), int | float)):
+        return round(thinking["avg"])
     return THINKING_ALLOWANCE
 
 

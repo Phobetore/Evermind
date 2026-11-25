@@ -20,7 +20,15 @@ from contextlib import aclosing
 
 import aiosqlite
 
-from ..errors import MODEL_EMPTY, MODEL_ERROR, NO_AI_MESSAGE, NO_CONNECTION, AppError, NotFoundError
+from ..errors import (
+    MODEL_EMPTY,
+    MODEL_ERROR,
+    MODEL_TOO_LONG,
+    NO_AI_MESSAGE,
+    NO_CONNECTION,
+    AppError,
+    NotFoundError,
+)
 from ..models.schemas import ChatRequest
 from ..prompting import embeddings, retrieval, ways
 from ..prompting.engine import (
@@ -33,7 +41,7 @@ from ..prompting.engine import (
 from ..prompting.payloads import build_impersonate_payload
 from ..prompting.tokens import estimate_tokens
 from ..providers import Answer, ProviderError, complete_answer, get_provider, max_tokens_sent
-from ..providers.base import STOPPED_FOR_LENGTH, unwritten
+from ..providers.base import STOPPED_FOR_LENGTH, CallFigures, unwritten
 from ..repositories import characters as characters_repo
 from ..repositories import conversations as convo_repo
 from ..repositories import lore as lore_repo
@@ -42,7 +50,7 @@ from ..repositories import models as models_repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
 from ..repositories.base import new_id
-from . import limits, memory_service
+from . import learning, limits, memory_service
 from .ai_call import call_for, for_engine, reply_room
 from .llm_json import describe_answer
 
@@ -99,6 +107,23 @@ async def _resolve(db: aiosqlite.Connection, convo_id: str):
 async def learned_it_reasons(db: aiosqlite.Connection, call: dict) -> None:
     """A reply showed reasoning: kept on its AI, so that its next ceiling leaves room for it."""
     await models_repo.learn_reasons(db, call["model_id"], call["model"])
+
+
+def _counted_before(messages: list[dict], model_id: str, leaving: dict | None) -> list[tuple[int, int]]:
+    """The last two whole replies of the story that this AI's server counted, oldest first: what
+    it read of each, and what the engine had estimated. ``leaving``, the reply being rewritten,
+    is not one of them."""
+    found = []
+    for message in messages:
+        meta = message.get("meta") or {}
+        usage, context = meta.get("usage"), meta.get("context")
+        if (message is leaving or message["role"] != "assistant" or not isinstance(usage, dict)
+                or not isinstance(context, dict) or usage.get("model_id") != model_id):
+            continue
+        prompt, estimate = usage.get("prompt"), context.get("used_tokens")
+        if isinstance(prompt, int) and isinstance(estimate, int):
+            found.append((prompt, estimate))
+    return found[-2:]
 
 
 def _cut_short(message: dict) -> list[int]:
@@ -270,8 +295,9 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         if not body:
             return
         marks = sorted(others if ending is not None else others | {index})
+        # What the server counted of a version, and whether it read it whole, are that version's.
         meta = {k: v for k, v in (target["meta"] if target else {}).items()
-                if k not in ("interrupted", "ceiling")}
+                if k not in ("interrupted", "ceiling", "usage", "truncated")}
         meta.update(ending or {})
         if marks:
             meta["interrupted"] = marks
@@ -301,12 +327,14 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
                 await say_unanswered(None)
         written = True
 
-    # At most two passes: a model that answers nothing to a story opening on the greeting is asked
-    # again with it folded into the system prompt (see build_chat_payload). Not one that said why
-    # it wrote nothing, by reasoning, running out of room or a word of its server's: the same
-    # question would get the same answer, and its tokens are paid for.
+    # At most three passes. A model that answers nothing to a story opening on the greeting is
+    # asked again with it folded into the system prompt (see build_chat_payload). Not one that
+    # said why it wrote nothing, by reasoning, running out of room or a word of its server's: the
+    # same question would get the same answer, and its tokens are paid for. And a server that
+    # refuses the prompt as too long is asked once more, with what its refusal taught.
     error = None
-    for attempt in (0, 1):
+    folded = asked_shorter = False
+    for _attempt in range(3):
         if turn.stopped:
             break
         # Built out here so that what its server said, in provider.figures, outlives the read,
@@ -318,14 +346,30 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             if not turn.reading.done():
                 await save()
         error = None if turn.reading.cancelled() else turn.reading.exception()
+        if not chunks and not turn.stopped and learning.is_too_long(error):
+            await learning.after_too_long(db, call, ai[0], message=error.message,
+                                          estimate=payload.stats["used_tokens"])
+            model = None if asked_shorter else await models_repo.get_row(db, call["model_id"])
+            if model is None:
+                break
+            asked_shorter = True
+            # The size and the count it said, or a wider margin, make the prompt shorter.
+            ai = (model, ai[1])
+            call = call_for(model, ai[1], room=reply_room(convo, settings))
+            payload = _build(passages, fold_leading_assistant=folded)
+            continue
         # Refusing the greeting may be said in the stream rather than by silence.
         refused = isinstance(error, ProviderError) and error.kind == MODEL_ERROR and not error.status
         silent = error is None and unwritten(Answer("", thought, stop)) is None
-        if not (attempt == 0 and not chunks and not continue_mode and not turn.stopped
+        if not (not folded and not chunks and not continue_mode and not turn.stopped
                 and (silent or refused)
                 and payload.messages and payload.messages[0]["role"] == "assistant"):
             break
+        folded = True
         payload = _build(passages, fold_leading_assistant=True)
+    if asked_shorter and not chunks and learning.is_too_long(error):
+        # Refused again once what the first refusal said was learned: the person is told so.
+        error = ProviderError(error.message, MODEL_TOO_LONG, error.status)
 
     # However the turn ends: a model whose reasoning ate its whole ceiling wrote nothing, and is
     # the one whose next ceiling must leave room for it.
@@ -376,7 +420,23 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     }
     context = {key: payload.stats[key] for key in _CONTEXT_SHOWN}
     context.update(reply_room=call["reserve"], history_limit=way["history_limit"])
-    await save({"perf": perf, "context": context}, at_ceiling=stop == STOPPED_FOR_LENGTH)
+    ending = {"perf": perf, "context": context}
+    at_ceiling = stop == STOPPED_FOR_LENGTH
+    # Only a whole reply teaches: what its server counted, against what the engine estimated.
+    figures = getattr(provider, "figures", None) or CallFigures()
+    estimate = payload.stats["used_tokens"]
+    cut = await learning.after_whole_reply(
+        db, call, ai[0], figures=figures, estimate=estimate,
+        # One cut at its ceiling, or a continuation, has no length of its own.
+        length=None if at_ceiling or continue_mode else way["reply_length"],
+        visible="".join(chunks),
+        earlier=_counted_before(messages, call["model_id"], target))
+    if counts := learning.counts_of(figures.usage):
+        ending["usage"] = {"prompt": counts[0], "completion": counts[1],
+                           "model_id": call["model_id"]}
+    if cut is not None:
+        ending["truncated"] = cut
+    await save(ending, at_ceiling=at_ceiling)
     await convo_repo.touch(db, convo["id"])
     memory_service.schedule_if_due(convo["id"])
     return None

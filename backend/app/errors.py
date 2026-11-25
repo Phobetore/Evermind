@@ -55,6 +55,9 @@ PAGE_OUTDATED = "page_outdated"
 WAY_BUILT_IN = "way_built_in"
 # A model's server that refused for want of credit (402).
 MODEL_NO_CREDIT = "model_no_credit"
+# A model's server that refused the prompt as longer than it reads, again once what it said was
+# learned and the turn asked again.
+MODEL_TOO_LONG = "model_too_long"
 RELOAD = "Evermind has been updated: reload this page."
 
 _LENGTH_BOUNDS = {"string_too_long": (TEXT_TOO_LONG, "max_length"),
