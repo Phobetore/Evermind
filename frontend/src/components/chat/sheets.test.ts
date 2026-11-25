@@ -1,0 +1,47 @@
+import { createElement } from "react";
+import { describe, expect, test } from "vitest";
+import { AiSheet } from "./AiSheet";
+import { aiOf, conversationOf, drawn, outlookOf, words } from "./sheets.fixture";
+import { WaySheet } from "./WaySheet";
+
+const none = () => {};
+
+function aiSheet(props: Partial<Parameters<typeof AiSheet>[0]> & { ais: Parameters<typeof AiSheet>[0]["ais"] }) {
+  return drawn(createElement(AiSheet, {
+    conversation: conversationOf(), outlook: outlookOf(props.ais),
+    onPick: none, onGone: none, onAddOther: none, onClose: none, onCapLifted: none, ...props,
+  }));
+}
+
+function waySheet(props: Partial<Parameters<typeof WaySheet>[0]> & { ais: Parameters<typeof WaySheet>[0]["ais"] }) {
+  return drawn(createElement(WaySheet, {
+    conversation: conversationOf(), outlook: outlookOf(props.ais ?? []),
+    onPicked: none, onClose: none, onLetEvermind: none, ...props,
+  }));
+}
+
+const count = (html: string, said: string) => words(html).split(said).length - 1;
+
+describe("per 100 messages, in a conversation's two sheets", () => {
+  test("is said to be of a long story once, under the list, where a row shows an estimate", () => {
+    const priced = [aiOf(), aiOf({ id: "m2", name: "Aube" })];
+    const ais = aiSheet({ ais: priced });
+    expect(count(ais, "On a long story.")).toBe(1);
+    // Under the rows: after the last row's estimate.
+    const text = words(ais);
+    expect(text.indexOf("On a long story.")).toBeGreaterThan(text.lastIndexOf("per 100 messages"));
+    const ways = waySheet({ ais: priced });
+    expect(count(ways, "On a long story.")).toBe(1);
+    expect(words(ways).indexOf("On a long story.")).toBeGreaterThan(words(ways).lastIndexOf("per 100 messages"));
+  });
+
+  test("is not said where no row shows one", () => {
+    const free = [aiOf({ free: true, price: { read_in: 0, read_out: 0, own_in: null, own_out: null, varies: false } })];
+    expect(count(aiSheet({ ais: free }), "On a long story.")).toBe(0);
+    expect(count(waySheet({ ais: free }), "On a long story.")).toBe(0);
+    // Before the figures come, the AIs' rows show none.
+    expect(count(aiSheet({ ais: [aiOf()], outlook: null }), "On a long story.")).toBe(0);
+    // An edition with no AIs of its own prices nothing.
+    expect(count(waySheet({ ais: null }), "On a long story.")).toBe(0);
+  });
+});

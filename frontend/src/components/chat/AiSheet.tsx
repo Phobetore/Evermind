@@ -6,7 +6,7 @@ import { data, DataError, type AiSaved } from "@/data";
 import { useT } from "@/i18n/useT";
 import { answering, cappedUnder, sizeTold, splitName } from "@/lib/ai";
 import { describeError } from "@/lib/errors";
-import { readerOfAi } from "@/lib/estimate";
+import { estimateOf, readerOfAi } from "@/lib/estimate";
 import { sheetRow } from "@/lib/ways";
 import type { Ai, Conversation, Outlook } from "@/types";
 import { clsx } from "clsx";
@@ -125,6 +125,8 @@ export function AiSheet({ conversation, ais, outlook, onPick, onGone, onAddOther
   // The room the conversation's way keeps for a reply, adjustments in.
   const room = outlook?.current.reply_room ?? 0;
   const capped = current && cappedUnder(current, room);
+  // The rows' estimates are of a long story, as everywhere an AI or a way is chosen: said once.
+  const priced = outlook !== null && ais.some((ai) => estimateOf(readerOfAi(ai), outlook.current.way).kind === "amount");
   return (
     <Sheet title={t("chat.ai.sheetTitle")} hint={t("chat.ai.sheetHint")} alert={failed} onClose={onClose}>
       {current && capped !== null && (
@@ -189,6 +191,7 @@ export function AiSheet({ conversation, ais, outlook, onPick, onGone, onAddOther
           );
         })}
       </div>
+      {priced && <p className="mt-2 text-xs text-mist">{t("ways.card.reference")}</p>}
       <div className="mt-4 flex flex-wrap gap-2">
         <button type="button" className="btn btn-ghost flex-1 whitespace-normal" onClick={onAddOther}>
           {t("chat.ai.otherModel")}
