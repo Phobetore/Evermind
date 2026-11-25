@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { inflateSync } from "node:zlib";
 import { API } from "../playwright.config";
 import { addModel, chat, conversationWithReply, inLocale, makeConversation, misfits, MOCK, replyEnds, rootAt, stopTurn } from "./fixtures";
 
@@ -387,6 +388,56 @@ test("neither line stays while the reply is written again", async ({ page, reque
 
 const SHRINK: Record<string, string> = { en: "Shrink and try again", de: "Verkleinern und erneut versuchen" };
 
+/** How light a screenshot is, its channels averaged: the PNG's own rows, unfiltered. */
+function lightness(png: Buffer): number {
+  let at = 8;
+  let width = 0;
+  let height = 0;
+  let channels = 4;
+  const data: Buffer[] = [];
+  while (at < png.length) {
+    const size = png.readUInt32BE(at);
+    const kind = png.toString("latin1", at + 4, at + 8);
+    if (kind === "IHDR") {
+      width = png.readUInt32BE(at + 8);
+      height = png.readUInt32BE(at + 12);
+      channels = png[at + 17] === 2 ? 3 : 4;
+    }
+    if (kind === "IDAT") data.push(png.subarray(at + 8, at + 8 + size));
+    at += size + 12;
+  }
+  const raw = inflateSync(Buffer.concat(data));
+  const stride = width * channels;
+  let previous = Buffer.alloc(stride);
+  let sum = 0;
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)];
+    const line = Buffer.from(raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1)));
+    for (let x = 0; x < stride; x++) {
+      const a = x >= channels ? line[x - channels] : 0;
+      const b = previous[x];
+      const c = x >= channels ? previous[x - channels] : 0;
+      const p = a + b - c;
+      const paeth = Math.abs(p - a) <= Math.abs(p - b) && Math.abs(p - a) <= Math.abs(p - c) ? a : Math.abs(p - b) <= Math.abs(p - c) ? b : c;
+      line[x] = (line[x] + [0, a, b, (a + b) >> 1, paeth][filter]) & 255;
+      if (x % channels < 3) sum += line[x];
+    }
+    previous = line;
+  }
+  return sum / (width * height * 3);
+}
+
+/** Whether the shade at the foot of the line's sentence is drawn: a strip of its side padding, where
+ *  no text is, against one of the button's row under it, which is the page's colour. The page has a
+ *  grain of a few levels; the shade lifts the strip by some twenty. */
+async function shadeAtFoot(page: Page): Promise<boolean> {
+  const part = (await page.locator("[data-truncated-text]").boundingBox())!;
+  const row = (await page.locator("[data-truncated] > div").boundingBox())!;
+  const foot = await page.screenshot({ clip: { x: part.x + 4, y: part.y + part.height - 6, width: 8, height: 4 } });
+  const plain = await page.screenshot({ clip: { x: row.x + 4, y: row.y + 1, width: 8, height: 4 } });
+  return lightness(foot) - lightness(plain) > 6;
+}
+
 // German has the longest of these lines. Also in a window with a keyboard, whose sentence under the
 // input takes room a phone does not give it.
 for (const locale of ["en", "de"]) {
@@ -438,6 +489,16 @@ for (const locale of ["en", "de"]) {
             };
           });
           expect(seen, `the button at ${size.width}`).toEqual({ between: true, reached: true });
+          // Where the sentence scrolls, a shade at its foot says there is more, and goes at its end.
+          const part = page.locator("[data-truncated-text]");
+          const scrolls = await part.evaluate((text) => text.scrollHeight > text.clientHeight + 1);
+          if (size.width === 320) expect(scrolls, "the sentence scrolls at 320").toBe(true);
+          expect(await shadeAtFoot(page), `the shade at ${size.width}`).toBe(scrolls);
+          if (scrolls) {
+            await part.evaluate((text) => { text.scrollTop = text.scrollHeight; });
+            expect(await shadeAtFoot(page), `the shade at the sentence's end at ${size.width}`).toBe(false);
+            await part.evaluate((text) => { text.scrollTop = 0; });
+          }
         }
         await reply.locator("[data-ceiling]").scrollIntoViewIfNeeded();
         expect(await misfits(page), `${cause} at ${size.width}`).toEqual([]);
