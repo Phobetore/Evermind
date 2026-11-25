@@ -557,7 +557,9 @@ test.describe("adding AIs", () => {
     await expect(ticked.getByRole("group", { name: "How much can it read at once?" })).toBeVisible();
     await expect(ticked.getByRole("radio")).toHaveCount(4);
     await expect(ticked.getByRole("radio", { name: "I don't know" })).toBeChecked();
-    await expect(ticked.getByText("Evermind then counts 16,384 tokens (≈ 33 pages), as today.")).toBeVisible();
+    await expect(ticked.getByText(
+      "Evermind then counts 16,384 tokens (≈ 33 pages), as today, and tells you if the AI actually reads only part of it.",
+    )).toBeVisible();
     await ticked.getByRole("radio", { name: /^Medium/ }).check();
     await expect(ticked.getByText("Noted. Can be changed at any time on the AI's page.")).toBeVisible();
     await expect(ticked.getByText("Its price, if you know it ($ per million tokens)")).toBeVisible();
