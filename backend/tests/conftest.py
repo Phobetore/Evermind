@@ -15,7 +15,7 @@ from app.providers import catalog, openai_compat
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import ProviderEvent
 from app.providers.openai_compat import OpenAICompatProvider
-from app.services import card_assistant, limits, memory_service, turns
+from app.services import calls, card_assistant, limits, memory_service, turns
 
 from .helpers import add_model
 
@@ -75,6 +75,13 @@ async def _no_read_left_running():
     # ends before the test's folder goes.
     yield
     await limits.drain()
+
+
+@pytest.fixture(autouse=True)
+async def _no_call_record_left_running():
+    # A call's row is written beside it, on the test's database: written before the folder goes.
+    yield
+    await calls.drain()
 
 
 def _unreachable(request: httpx.Request) -> httpx.Response:

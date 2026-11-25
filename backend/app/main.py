@@ -20,8 +20,10 @@ async def lifespan(_: FastAPI):
 
     from .db import connect
     from .repositories import connections
-    from .services import limits, memory_service
+    from .services import calls, limits, memory_service
 
+    # Before any request: a call this process starts must not be taken for one left running.
+    await calls.after_start()
     db = await connect()
     try:
         # The release before may have made a service, or moved one, since this one last ran.
@@ -37,6 +39,8 @@ async def lifespan(_: FastAPI):
     await limits.drain(cancel=True)
     # A Remember or a consolidation outlives its request, not the server: ended whole, not half-written.
     await memory_service.stop()
+    # After the operations above: the ends of their calls are written, not left running.
+    await calls.stop()
     # A task cancelled leaves its thread running: the semantic model loading, a vector being worked
     # out. Ctrl+Break ends the process as soon as this returns, without waiting for them as Ctrl+C
     # does, and a thread ended in the middle of loading a library leaves the process unable to end.
