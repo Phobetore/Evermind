@@ -79,15 +79,28 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
     onPicked(saved);
   }
 
-  async function adjust(changes: ConversationPatch) {
+  /** `changes` sent, or worked out from the conversation as the server holds it now. */
+  async function adjust(changes: ConversationPatch | ((held: Conversation) => ConversationPatch)) {
     setAdjusting(true);
-    const saved = await send(changes);
+    let patch: ConversationPatch | null = null;
+    if (typeof changes === "function") {
+      try {
+        patch = changes(await data.conversations.withoutMessages(conversation.id));
+      } catch (error) {
+        setFailed(describeError(error, t));
+      }
+    } else {
+      patch = changes;
+    }
+    const saved = patch && await send(patch);
     setAdjusting(false);
     if (saved) onPicked(saved);
   }
 
-  /** The key changed, with those adjusted before: the server drops one equal to the way's own. */
-  const adjusted = (change: WayChange) => adjust({ play_overrides: { ...(conversation.play_overrides ?? {}), ...change } });
+  /** The key changed, on those adjusted before as the server holds them, read again first: another
+   *  tab may have adjusted since this page last heard, and the server replaces them whole. It drops
+   *  one equal to the way's own. */
+  const adjusted = (change: WayChange) => adjust((held) => ({ play_overrides: { ...(held.play_overrides ?? {}), ...change } }));
 
   const reader = ai && readerOfAi(ai);
   const priced = (way: WayFields) => {

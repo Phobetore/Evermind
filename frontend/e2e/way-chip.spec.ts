@@ -116,7 +116,23 @@ test("adjusted for this conversation only", async ({ page, request }) => {
   expect((await conversation(request, other.id)).play_overrides).toBeNull();
 });
 
-test("a small ai under immersive says it rereads n of 60 on the chip and in the sheet", async ({ page, request }) => {
+test("an adjustment from another tab is kept when this one adjusts too", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await page.goto(`/#/chat/${convo.id}`);
+  const sheet = await openSheet(page);
+  await sheet.getByText("Adjust for this conversation").click();
+  // Another tab, which this one has not heard from, makes the replies long.
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { play_overrides: { reply_length: "long" } } });
+  await sheet.getByRole("group", { name: "Messages reread before each reply" }).getByRole("button", { name: "60", exact: true }).click();
+  await expect(chipOf(page)).toHaveText("Balanced · adjusted");
+  await expect.poll(async () => (await conversation(request, convo.id)).play_overrides)
+    .toEqual({ reply_length: "long", history_limit: 60 });
+  // The sheet shows both, as the server holds them.
+  await expect(sheet.getByRole("group", { name: "Reply length to aim for" }).getByRole("button", { name: "Long", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+});
+
+test("a small ai under immersive says it rereads n of 60 on the chip and in the sheet",async ({ page, request }) => {
   test.setTimeout(180_000);
   const small = await anAi(request, `Small ${stamp()}`, { context_own: 4096 });
   try {
