@@ -6,7 +6,9 @@ import { BUILT_IN } from "../src/engine";
 import { cheapestKey } from "../src/lib/estimate";
 import { offeredWay } from "../src/lib/ways";
 import type { ProbeModel, WayFields, Ways } from "../src/types";
-import { MOCK_ROOT, forgetServices, inLocale, makeConversation, misfits, rootAt, routeServiceTo } from "./fixtures";
+import {
+  MOCK, MOCK_ROOT, addModel, forgetServices, inLocale, makeConversation, misfits, rootAt, routeServiceTo,
+} from "./fixtures";
 
 /**
  * Adding AIs from Settings. The chips name the real services' addresses: OpenRouter's is sent to
@@ -776,6 +778,17 @@ test.describe("adding AIs", () => {
         test.setTimeout(120_000);
         const words = JSON.parse(readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`), "utf8"));
         await forgetServices(request, "/many/");
+        // A service added by its address is named after it: one long word, on a row of its own.
+        await addModel(request, { base_url: MOCK, model: "evermind-demo", name: "e2e" });
+        // And one with no AI, which the release before can leave: its row also holds the button that removes it.
+        await page.route("**/api/connections", async (route) => {
+          if (route.request().method() !== "GET") return route.continue();
+          const listed = await route.fetch();
+          const services = await listed.json();
+          const held = services.find((s: { base_url: string }) => s.base_url === MOCK);
+          const empty = { ...held, id: "e2e-empty-service", base_url: `${MOCK_ROOT}/emptied/v1`, model_count: 0 };
+          await route.fulfill({ response: listed, json: [...services, empty] });
+        });
         await routeServiceTo(page, OPENROUTER, MANY);
         await inLocale(page, locale);
         await page.addInitScript(rootAt, "32px");
@@ -790,6 +803,26 @@ test.describe("adding AIs", () => {
           await page.reload();
           await page.getByRole("button", { name: words.ai.add.open, exact: true }).click();
           await expect(box.getByRole("button", { name: "OpenRouter", exact: true })).toBeVisible();
+          // A saved service's name and sentence break where their column ends, and do not run on
+          // under the arrow beside them; the button that removes one stays inside its row.
+          for (const address of [MOCK, "/emptied/"]) {
+            const saved = box.locator("li").filter({ hasText: address }).first();
+            await expect(saved).toBeVisible();
+            expect(
+              await saved.evaluate((row) => {
+                const room = row.getBoundingClientRect();
+                return [
+                  ...[...row.querySelectorAll("span")]
+                    .filter((part) => part.scrollWidth > part.clientWidth + 1)
+                    .map((part) => `"${part.textContent}" ${part.scrollWidth} wide in ${part.clientWidth}`),
+                  ...[...row.querySelectorAll("button")].map((button) => button.getBoundingClientRect())
+                    .filter((button) => button.left < room.left - 0.5 || button.right > room.right + 0.5)
+                    .map((button) => `a button at ${Math.round(button.left)}..${Math.round(button.right)} of ${Math.round(room.left)}..${Math.round(room.right)}`),
+                ];
+              }),
+              `the row of ${address}, at ${width}px`,
+            ).toEqual([]);
+          }
           expect(await misfits(page, "dialog[open]"), `where, at ${width}px`).toEqual([]);
           await box.getByRole("button", { name: words.ai.add.other }).click();
           await expect(box.getByRole("button", { name: words.ai.add.paste })).toBeVisible();
