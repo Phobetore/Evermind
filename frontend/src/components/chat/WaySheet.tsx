@@ -215,7 +215,11 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
                 {t("ways.sheet.backTo", { name: wayShown })}
               </button>
             )}
-            <Link to={`/settings/way/${encodeURIComponent(current.way.id)}`} className="text-sm text-ember-300 underline-offset-2 hover:underline">
+            {/* A thumb's height, as the sheet's other controls. */}
+            <Link
+              to={`/settings/way/${encodeURIComponent(current.way.id)}`}
+              className="inline-flex min-h-11 max-w-full items-center self-start text-sm text-ember-300 underline-offset-2 hover:underline"
+            >
               {t("ways.sheet.editAll", { name: wayShown })}
             </Link>
           </div>

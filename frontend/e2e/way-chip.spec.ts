@@ -116,6 +116,16 @@ test("adjusted for this conversation only", async ({ page, request }) => {
   expect((await conversation(request, other.id)).play_overrides).toBeNull();
 });
 
+test("the link to change the way for every conversation is a thumb's height", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  await page.goto(`/#/chat/${convo.id}`);
+  const sheet = await openSheet(page);
+  await sheet.getByText("Adjust for this conversation").click();
+  const link = sheet.getByRole("link", { name: "Change Balanced for every conversation…" });
+  await expect(link).toBeVisible();
+  expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+});
+
 test("an adjustment from another tab is kept when this one adjusts too", async ({ page, request }) => {
   const convo = await makeConversation(request);
   await page.goto(`/#/chat/${convo.id}`);
