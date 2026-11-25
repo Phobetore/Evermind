@@ -144,6 +144,16 @@ async def test_characters_are_counted_as_they_leave_whole():
     assert provider.figures.chars_out == len(text) == 5
 
 
+async def test_reasoning_characters_are_counted_as_they_leave_whole():
+    # The reasoning is joined on its own before it is counted, as the reply is.
+    handler, _ = answering(openrouter_chunk(reasoning="Hm \ud83d"),
+                           openrouter_chunk(reasoning="\ude00"))
+    provider = serve("openai", handler)
+    events = await drain(provider)
+    assert sum(e.count for e in events if e.type == "thought") == 4
+    assert provider.figures.thought_chars == 4
+
+
 async def test_anthropic_gives_its_stop_as_it_said_it():
     events = [*ANTHROPIC[:4], {"type": "message_delta", "delta": {"stop_reason": "max_tokens"},
                                "usage": {"output_tokens": 256}}]
