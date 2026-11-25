@@ -352,6 +352,57 @@ test("a story read only from its end says so and shrinks", { tag: "@desktop" }, 
   await expect(line).toHaveCount(0);
 });
 
+test("a story read from its end by a model its ai no longer runs is not said", { tag: "@desktop" }, async ({ page, request }) => {
+  const name = `Changed reader ${Date.now()}`;
+  const ai = await aiOfItsOwn(request, name, { context_own: 16384 });
+  const convo = await longStory(request, ai.id, 8);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "MOCK_READS_4090" } });
+  await sendFromTheBox(page, convo.id);
+  const line = page.locator("[data-truncated]");
+  await expect(line).toBeVisible();
+
+  // Another model under the same AI: what the first read says nothing of what this one reads.
+  expect((await request.put(`${API}/api/models/${ai.id}`, { data: { model: `${ai.name}-other-model` } })).ok()).toBe(true);
+  const observed: string[] = [];
+  page.on("request", (sent) => {
+    if (sent.method() === "POST" && sent.url().endsWith("/observed")) observed.push(sent.url());
+  });
+  await page.reload();
+  await expect(page.locator("[data-message-id]").last()).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expect(line).toHaveCount(0);
+  expect(observed).toEqual([]);
+});
+
+test("a story read from its end is said under the version that was, not another", { tag: "@desktop" }, async ({ page, request }) => {
+  const name = `Swiped reader ${Date.now()}`;
+  const ai = await aiOfItsOwn(request, name, { context_own: 16384 });
+  // Its last reply read whole.
+  const convo = await longStory(request, ai.id, 8);
+  await page.goto(`/#/chat/${convo.id}`);
+  const reply = page.locator("[data-message-id]").last();
+  await expect(reply).toBeVisible();
+  const line = page.locator("[data-truncated]");
+  await expect(line).toHaveCount(0);
+
+  // Written again, and read only from its end.
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "MOCK_READS_4090" } });
+  await page.waitForLoadState("networkidle");
+  const ends = replyEnds(page, convo.id);
+  await reply.locator('button[title="Regenerate"]').click({ force: true });
+  await ends;
+  await expect(reply).toContainText("2/2");
+  await expect(line).toBeVisible();
+
+  // Back to the version read whole: nothing to say; forward again: said.
+  await reply.getByRole("button", { name: "Previous variant" }).click();
+  await expect(reply).toContainText("1/2");
+  await expect(line).toHaveCount(0);
+  await reply.getByRole("button", { name: "Next variant or regenerate" }).click();
+  await expect(reply).toContainText("2/2");
+  await expect(line).toBeVisible();
+});
+
 test("too long is said with its button", { tag: "@desktop" }, async ({ page, request }) => {
   const name = `Narrow ${Date.now()}`;
   const convo = await conversationWithReply(request);
@@ -391,12 +442,23 @@ function withCause(page: Page, id: string, meta: Record<string, unknown>) {
   });
 }
 
+/** What the server stores of the conversation's last reply, first version, when the AI that answers
+ *  it read only the end of the story: the version, the AI and the model it was read by. */
+async function readFromItsEnd(request: APIRequestContext, id: string) {
+  const named = (await (await request.get(`${API}/api/conversations/${id}`)).json()).model_id;
+  const ais = await (await request.get(`${API}/api/models`)).json();
+  const ai = ais.find((one: { id: string; is_default: boolean }) => (named ? one.id === named : one.is_default));
+  return {
+    truncated: { read: 4090, window: 131072, version: 0, model_id: ai.id, model: ai.model },
+    usage: { prompt: 4090, completion: 40, model_id: ai.id, model: ai.model },
+  };
+}
+
 test("neither line stays while the reply is written again", async ({ page, request }) => {
   const convo = await conversationWithReply(request, { slowly: true });
-  const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
   await withCause(page, convo.id, {
     ceiling: { "0": null }, cut: { "0": { mode: "auto", length: "medium", thought: false } },
-    truncated: { read: 4090, window: 131072 }, usage: { prompt: 4090, completion: 40, model_id: aiId },
+    ...await readFromItsEnd(request, convo.id),
   });
   await page.goto(`/#/chat/${convo.id}`);
   const reply = page.locator("[data-message-id]").last();
@@ -483,8 +545,7 @@ async function shadeAtFoot(page: Page): Promise<boolean> {
 
 test("the keyboard's sentence stays beside the line over the input where there is room", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await conversationWithReply(request);
-  const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
-  await withCause(page, convo.id, { truncated: { read: 4090, window: 131072 }, usage: { prompt: 4090, completion: 40, model_id: aiId } });
+  await withCause(page, convo.id, await readFromItsEnd(request, convo.id));
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(`/#/chat/${convo.id}`);
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("16px");
@@ -504,7 +565,6 @@ for (const locale of ["en", "de"]) {
   test(`the lines of a cut reply and of a story read from its end fit a phone, whatever the size of its text, in ${locale}`, { tag: "@desktop" }, async ({ page, request }) => {
     const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
     await chat(request, { conversation_id: convo.id, mode: "send", content: "What now?" });
-    const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
     const ceiling = { "0": 1024 };
     const cases = {
       fixed: { ceiling, cut: { "0": { mode: "fixed", length: "medium", thought: false } } },
@@ -512,7 +572,7 @@ for (const locale of ["en", "de"]) {
       room: {
         ceiling, cut: { "0": { mode: "auto", length: "short", thought: false } },
         // Beside it, the line over the input.
-        truncated: { read: 4090, window: 131072 }, usage: { prompt: 4090, completion: 40, model_id: aiId },
+        ...await readFromItsEnd(request, convo.id),
       },
     };
     await inLocale(page, locale);

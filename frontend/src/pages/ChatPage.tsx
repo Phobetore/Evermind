@@ -51,13 +51,15 @@ export function ChatPage() {
   return <ChatView key={id} id={id} />;
 }
 
-/** What the server counted the AI read of a reply, when it read only the end of the story
- *  (`meta.truncated`), and the AI it counted it for; null for any other reply. */
-function readOnlyTheEnd(message: Message): { read: number; window: number; modelId: string | null } | null {
-  const said = message.meta?.truncated as { read?: unknown; window?: unknown } | undefined;
-  if (!said || typeof said.read !== "number" || typeof said.window !== "number") return null;
-  const usage = message.meta?.usage as { model_id?: unknown } | undefined;
-  return { read: said.read, window: said.window, modelId: typeof usage?.model_id === "string" ? usage.model_id : null };
+/** What the server counted `ai` read of a reply, when it read only the end of the story
+ *  (`meta.truncated`): only for the version on screen, read by that AI under the model it runs now,
+ *  as the mark names them. Null for any other reply, and for a mark that names none of them. */
+function readOnlyTheEnd(message: Message, ai: Ai | null): { read: number; window: number } | null {
+  const said = message.meta?.truncated as
+    { read?: unknown; window?: unknown; version?: unknown; model_id?: unknown; model?: unknown } | undefined;
+  if (!said || !ai || typeof said.read !== "number" || typeof said.window !== "number") return null;
+  if (said.version !== message.active_index || said.model_id !== ai.id || said.model !== ai.model) return null;
+  return { read: said.read, window: said.window };
 }
 
 /** The reply being written: the only thing on screen that follows its words. */
@@ -764,13 +766,13 @@ function ChatView({ id }: { id: string }) {
     </div>
   );
   // The last reply was read by an AI that saw only the end of the story: said over the input, where
-  // it is seen, until the next reply. Only for the AI that answers now, the one it was counted for.
+  // it is seen, until the next reply. Only for the version shown, and the AI that answers now under
+  // the model it was counted for: what another read says nothing of what this one reads.
   // On a short screen with large text its sentence gives way first and scrolls in its own part, so
   // the story keeps a line of its own (see the story's box); its button never gives way, the only
   // thing to do about it. Both parts sit in the column itself, so the story yields before the button.
-  const truncated = !busy && last?.role === "assistant" ? readOnlyTheEnd(last) : null;
-  const truncatedAi = truncated && answeringAi
-    && (truncated.modelId === null || truncated.modelId === answeringAi.id) ? answeringAi : null;
+  const truncated = !busy && last?.role === "assistant" ? readOnlyTheEnd(last, answeringAi) : null;
+  const truncatedAi = truncated ? answeringAi : null;
   const truncatedLine = truncated && truncatedAi && data.connections && (
     <div data-truncated className="contents">
       <p
