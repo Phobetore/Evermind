@@ -381,9 +381,23 @@ Balanced is the engine as it was, figure for figure.
   `UNSENT_RESERVE` (1,024) under every way.
 - **Margin and ratio.** The prompt leaves `max(200, 6%)` of the window unused
   until an AI has measured its own counts, `max(200, 3%)` after
-  (`ai_call.margin_for`). `services/learning.py` keeps each AI's `token_ratio`
-  (between half and double of the estimate) from whole replies only, and tells a
-  server that read the story from its end alone.
+  (`ai_call.margin_for`), plus `fit_margin`, a share of the window a refusal for
+  a prompt too long may add. `services/learning.py` keeps each AI's
+  `token_ratio`, the server's count over the engine's estimate, as a moving
+  average of the last eight whole replies, between half and double; the engine
+  divides the budget by it, so that what is sent fills the window as the server
+  counts it. A count teaches no ratio when it is far under the estimate (until
+  two counts that grew with the story prove the server reads what it is sent),
+  or when it stood still against the AI's last count while the estimate grew.
+- **Thinking.** A model that reasons is given room for its thinking on top of
+  the reply's (`ai_call.thinking_allowance`): 3,072 tokens until a whole reply
+  has measured it, then twice its average, never under 1,024. On Anthropic,
+  which must be sent a ceiling, it is in what is sent.
+- **A story read from its end.** A reply is marked `meta.truncated` when its
+  count and the AI's two counts before it stand within 1% of each other while
+  the estimate grew by more than 5% (a server that drops the beginning of a
+  story that grows), or when its count is far under the estimate and just
+  under a round size or the size the server is set to load.
 - **`CallFigures`** (`providers/base.py`) is what each provider hands back of its
   call: the server's usage, the id of the generation, the model and upstream that
   answered, the stop reason, the characters received, and whether the request

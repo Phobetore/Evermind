@@ -24,8 +24,8 @@ when Evermind starts, and a copy of it is kept first, as
   way to play. It is **Balanced** if you never touched them (the figures are the
   same), and **My settings** otherwise, which keeps your exact values. Each
   existing conversation plays it, and it is offered to the new ones. Each AI is
-  sent the same request as before, but for two things (see "Two things change
-  without your choosing them" below).
+  sent the same request as before, but for three things (see "Three things
+  change without your choosing them" below).
 - **The way to play is chosen apart from the AI**, under the typing area, next
   to the name of the AI: one tap for the list of ways, one tap to choose. The
   choice holds for that conversation only, and it can be adjusted for that
@@ -54,14 +54,22 @@ when Evermind starts, and a copy of it is kept first, as
 - **An AI that is sent no reply ceiling** keeps 1,024 tokens for its reply,
   whatever the way, as before. Under a way with long replies, a notice offers
   "Keep the room long replies need".
-- **Two things change without your choosing them: Evermind counts better.** It
-  asks the server how many tokens it counted (one field more in each request to
-  an OpenAI-compatible server, `stream_options`; a server that refuses it is
-  asked again without) and trusts the answer. Until it has measured an AI, it
-  keeps a wider margin under what the AI reads: 6% of it, 3% once measured, and
-  never under the 200 tokens it was before. On a story that already fills what
-  the AI reads, a message or two more or fewer may be reread, and the facts and
-  the lorebook of a community card, which take a share of that room, follow.
+- **Three things change without your choosing them: Evermind counts better.**
+  It asks the server how many tokens it counted (one field more in each request
+  to an OpenAI-compatible server, `stream_options`; a server that refuses it is
+  asked again without) and trusts the answer: once an AI has answered, what
+  Evermind sends it is measured the way its server counts, no longer by
+  Evermind's own estimate. On a story that already fills what the AI reads,
+  more or fewer messages are then reread than before: fewer when the server
+  counts more tokens than Evermind estimated (the story was then longer than
+  the AI could read), more when it counts fewer. Until it has measured an AI,
+  Evermind keeps a wider margin under what the AI reads: 6% of it, 3% once
+  measured, and never under the 200 tokens it was before. And for an AI that
+  reasons, the room kept for its thinking is no longer always 3,072 tokens:
+  once a reply has measured its thinking, it is twice what that took on
+  average, and never under 1,024 tokens. On Anthropic, which must be sent a
+  ceiling, the ceiling sent follows it. The facts and the lorebook of a
+  community card, which take a share of what is left, follow.
 - **Going back.** Besides putting the copy back, the previous release also
   starts on the migrated database. It finds your three old settings as they were
   the day of the update, and knows nothing of the ways to play. **Coming back to
