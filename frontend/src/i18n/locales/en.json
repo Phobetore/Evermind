@@ -1092,6 +1092,7 @@
       "lineNoSizeOne": "Rereads 1 message, all it was asked",
       "lineNoSizeFull": "Rereads {read} of the {asked} asked",
       "full": "Its reading capacity is full ({capacity}): {sent}, the rest is kept for its reply.",
+      "over": "What is sent ({sent}) is more than this AI reads at once ({capacity}): its card and reminders do not fit. Choose a lighter way, or an AI that reads more.",
       "why": "Why",
       "limit": "That is the model's limit, not Evermind's; the rest reaches it through the summary and the facts.",
       "legend": "In tokens: card {card:grouped} · reminders {reminders:grouped} · messages reread {history:grouped} · room for the reply {room:grouped} · capacity {capacity:grouped}",

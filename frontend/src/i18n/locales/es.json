@@ -1092,6 +1092,7 @@
       "lineNoSizeOne": "Relee 1 mensaje, el único pedido",
       "lineNoSizeFull": "Relee {read} de los {asked} pedidos",
       "full": "Su capacidad de lectura está llena ({capacity}): {sent}, el resto queda para su respuesta.",
+      "over": "Lo que se envía ({sent}) supera lo que esta IA lee de una vez ({capacity}): su ficha y sus recordatorios no caben. Elija una forma más ligera, o una IA que lea más.",
       "why": "Por qué",
       "limit": "Es el límite del modelo, no el de Evermind; el resto le llega por el resumen y los hechos.",
       "legend": "En tokens: ficha {card:grouped} · recordatorios {reminders:grouped} · mensajes releídos {history:grouped} · espacio para la respuesta {room:grouped} · capacidad {capacity:grouped}",

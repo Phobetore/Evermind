@@ -1,6 +1,6 @@
 import { useI18n } from "@/i18n/I18nProvider";
 import { estimateOf, estimateText, pages, readerOfAi, readingOf, type Reader, type Reading } from "@/lib/estimate";
-import { wayName } from "@/lib/ways";
+import { pagesPart, wayName } from "@/lib/ways";
 import type { Ai, WayFields } from "@/types";
 import { useId, useState } from "react";
 
@@ -103,10 +103,13 @@ export function ReadingCard({ way, light, ais, hostWindow }: {
   );
 }
 
-/** The pages sent and read, the bar of the parts and its key, and the sentence of a full capacity. */
+/** The pages sent and read, the bar of the parts and its key, and the sentence of a full capacity,
+ *  or, in its place, of what is sent and kept for the reply not fitting what the AI reads at once. */
 function Lines({ reading, window, name }: { reading: Reading; window: number; name: string | null }) {
   const { t } = useI18n();
   const { parts } = reading;
+  const sent = parts.card + parts.reminders + parts.history;
+  const over = sent + parts.room > window;
   const width = (tokens: number) => `${Math.min(100, (tokens / window) * 100).toFixed(2)}%`;
   const segments = [
     { key: "card", tokens: parts.card, className: PART_CLASS.card },
@@ -132,7 +135,11 @@ function Lines({ reading, window, name }: { reading: Reading; window: number; na
           </li>
         ))}
       </ul>
-      {reading.full && (
+      {over ? (
+        <p className="text-sm text-parchment-dim">
+          {t("ways.reading.over", { sent: pagesPart(sent, t), capacity: pagesPart(window, t) })}
+        </p>
+      ) : reading.full && (
         <p className="text-sm text-parchment-dim">
           {reading.asked === null
             ? t("ways.card.fullAll", { read: reading.reread ?? 0, count: reading.reread ?? 0 })

@@ -1092,6 +1092,7 @@
       "lineNoSizeOne": "Relit 1 message, le seul demandé",
       "lineNoSizeFull": "Relit {read} des {asked} demandés",
       "full": "Sa capacité de lecture est pleine ({capacity})\u00a0: {sent}, le reste est gardé pour sa réponse.",
+      "over": "Ce qui est envoyé ({sent}) dépasse ce que cette IA lit à la fois ({capacity})\u00a0: sa fiche et ses rappels n'y tiennent pas. Choisissez une façon plus légère, ou une IA qui lit davantage.",
       "why": "Pourquoi",
       "limit": "C'est la limite du modèle, pas celle d'Evermind\u00a0; le reste lui arrive par le résumé et les faits.",
       "legend": "En tokens\u00a0: fiche {card:grouped} · rappels {reminders:grouped} · messages relus {history:grouped} · place pour la réponse {room:grouped} · capacité {capacity:grouped}",

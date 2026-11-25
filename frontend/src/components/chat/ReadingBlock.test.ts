@@ -56,3 +56,40 @@ describe("the room kept for the reply", () => {
     expect(roomWidth(old)).toBeCloseTo((1_024 / 32_768) * 100, 1);
   });
 });
+
+describe("what is sent past what the AI reads at once", () => {
+  // An AI told to read 4,096, a card of about 3,600, way Maximum: 7,392 sent.
+  const over = { context_size: 4_096, used_tokens: 7_392, messages_included: 0, messages_total: 40, history_limit: 0 };
+
+  test("is said in place of a full capacity, the pages sent against the pages it reads", () => {
+    const said = shown(entry({ ...over, reply_room: 2_048, reply_kept: 2_048 }));
+    expect(said).toContain("What is sent (≈ 15 pages) is more than this AI reads at once (≈ 8 pages): its card and reminders do not fit. Choose a lighter way, or an AI that reads more.");
+    expect(said).not.toContain("Its reading capacity is full");
+  });
+
+  test("counts the room kept for the reply with what is sent", () => {
+    const said = shown(entry({ context_size: 4_096, used_tokens: 3_500, messages_included: 3, history_limit: 24, reply_kept: 1_024 }));
+    expect(said).toContain("What is sent (≈ 7 pages) is more than this AI reads at once (≈ 8 pages)");
+  });
+
+  test("from a server that does not say what it keeps, only what is sent alone counts", () => {
+    expect(shown(entry({ ...over, reply_room: 2_048 }))).toContain("What is sent (≈ 15 pages)");
+    // The room squeezed for the reply, no more: the sentence of a full capacity.
+    const squeezed = shown(entry({ context_size: 4_096, used_tokens: 3_500, messages_included: 3, history_limit: 24, reply_room: 2_048 }));
+    expect(squeezed).toContain("Its reading capacity is full (≈ 8 pages): ≈ 7 pages sent, the rest is kept for its reply.");
+    expect(squeezed).not.toContain("What is sent");
+  });
+
+  test.each([
+    ["fr", "Ce qui est envoyé (≈ 15 pages) dépasse ce que cette IA lit à la fois (≈ 8 pages)\u00a0: sa fiche et ses rappels n'y tiennent pas. Choisissez une façon plus légère, ou une IA qui lit davantage."],
+    ["de", "Was gesendet wird (≈ 15 Seiten), ist mehr, als diese KI auf einmal liest (≈ 8 Seiten): Karte und Erinnerungen passen nicht hinein. Wählen Sie eine leichtere Spielweise oder eine KI, die mehr liest."],
+    ["es", "Lo que se envía (≈ 15 páginas) supera lo que esta IA lee de una vez (≈ 8 páginas): su ficha y sus recordatorios no caben. Elija una forma más ligera, o una IA que lea más."],
+  ] as const)("in %s", (locale, sentence) => {
+    const current = entry({ ...over, reply_kept: 2_048 });
+    const html = renderToStaticMarkup(createElement(I18nProvider, {
+      initialLocale: locale,
+      children: createElement(ReadingBlock, { entry: current, name: "Aube", outlook: { current, models: [], ways: [] }, compact: false, part: "whole" }),
+    }));
+    expect(html.replace(/&#x27;/g, "'")).toContain(sentence);
+  });
+});

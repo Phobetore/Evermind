@@ -1092,6 +1092,7 @@
       "lineNoSizeOne": "Liest 1 Nachricht erneut, mehr ist nicht verlangt",
       "lineNoSizeFull": "Liest {read} der {asked} verlangten erneut",
       "full": "Ihr Leseumfang ist voll ({capacity}): {sent}, der Rest bleibt für ihre Antwort frei.",
+      "over": "Was gesendet wird ({sent}), ist mehr, als diese KI auf einmal liest ({capacity}): Karte und Erinnerungen passen nicht hinein. Wählen Sie eine leichtere Spielweise oder eine KI, die mehr liest.",
       "why": "Warum",
       "limit": "Das ist die Grenze des Modells, nicht die von Evermind; der Rest erreicht die KI über die Zusammenfassung und die Fakten.",
       "legend": "In Tokens: Karte {card:grouped} · Erinnerungen {reminders:grouped} · erneut gelesene Nachrichten {history:grouped} · Platz für die Antwort {room:grouped} · Leseumfang {capacity:grouped}",

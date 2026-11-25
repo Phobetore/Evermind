@@ -37,6 +37,14 @@ export function isFull(entry: OutlookEntry): boolean {
   return entry.messages_included < asked(entry);
 }
 
+/** What is sent, with what the turn keeps for the reply, is more than the AI reads at once: its card
+ *  and reminders do not fit (the engine never cuts a card). From a server that does not say what it
+ *  keeps, what is sent alone counts: the way's room is not what is kept, and a reply's room squeezed
+ *  to fit is not this. */
+export function overflows(entry: OutlookEntry): boolean {
+  return entry.used_tokens + (entry.reply_kept ?? 0) > entry.context_size;
+}
+
 /** The chip of a conversation's way: its name, adjusted when it is, and how much it rereads when
  *  its reading capacity is full. */
 export function wayLabel(entry: Outlook["current"], t: T): { text: string; aria: string; full: boolean } {
