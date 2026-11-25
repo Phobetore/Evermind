@@ -827,7 +827,7 @@
       "free": "Gratuits",
       "ticked": "Cochés · {count}",
       "count": "{count:grouped} modèles",
-      "count_one": "1 modèle",
+      "count_one": "{count:grouped} modèle",
       "batch": " · {count:grouped} copies «\u00a0batch\u00a0» non listées",
       "batch_one": " · 1 copie «\u00a0batch\u00a0» non listée",
       "shown": "{shown:grouped} sur {count:grouped}",

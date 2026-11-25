@@ -25,6 +25,13 @@ describe("a count", () => {
     expect(translate("es", "ways.count", { count: 0 })).toBe("0 conversaciones");
   });
 
+  // A list read again can come back empty: the line under it then counts none.
+  it("of a service's models says none as none, never as one", () => {
+    expect(translate("fr", "ai.list.count", { count: 0 })).toBe("0 modèle");
+    expect(translate("fr", "ai.list.count", { count: 1 })).toBe("1 modèle");
+    expect(translate("en", "ai.list.count", { count: 0 })).toBe("0 models");
+  });
+
   it("with no form of its own keeps the sentence there is", () => {
     expect(translate("en", "time.minutesAgo", { count: 1 })).toBe("1 min ago");
   });
