@@ -57,6 +57,14 @@ def is_free(model: dict, service: dict) -> bool:
             and _price(model, "price_out", "price_own_out") == 0)
 
 
+def _measured(average) -> int | None:
+    """A length its replies measured, rounded; None until one has."""
+    if (isinstance(average, dict) and isinstance(average.get("n"), int) and average["n"] >= 1
+            and isinstance(average.get("avg"), int | float)):
+        return round(average["avg"])
+    return None
+
+
 def to_out(model_row, service_row, conversation_count: int = 0,
            room: int | None = None) -> dict:
     """Public shape: the key never leaves, only its end. ``room`` is the reply room of the way
@@ -64,6 +72,7 @@ def to_out(model_row, service_row, conversation_count: int = 0,
     model, service = dict(model_row), dict(service_row)
     family = _family(service)
     counted = ai_call.window(model, family=family)
+    averages = ai_call.reply_averages(model)
     return {
         "id": model["id"],
         "service": {
@@ -89,6 +98,14 @@ def to_out(model_row, service_row, conversation_count: int = 0,
         **{key: model[key] for key in SAMPLING},
         "migrated": bool(model["migrated"]),
         "notices": ai_call.notices(model, room),
+        # What the page counts with as the server does, never worked out again there.
+        "margin": ai_call.margin_for(model, counted.tokens),
+        "token_ratio": model["token_ratio"] if model["token_ratio_n"] else None,
+        "reply_tokens": {length: _measured(averages.get(length)) for length in ways.REPLY_ROOM},
+        "thinking_allowance": ai_call.thinking_allowance(model),
+        "thinking_measured": _measured(averages.get("thinking")) is not None,
+        "usage_seen": None if model["usage_seen"] is None else bool(model["usage_seen"]),
+        "anthropic": service["provider"] == "anthropic",
         "conversation_count": conversation_count,
         "created_at": model["created_at"], "updated_at": model["updated_at"],
     }
@@ -112,6 +129,14 @@ async def list_all(db: aiosqlite.Connection) -> list[dict]:
     if out:
         out[0]["is_default"] = True
     return out
+
+
+async def every_row(db: aiosqlite.Connection) -> list[tuple[dict, dict]]:
+    """Every AI with its service, key included, in the order `list_all` gives them."""
+    rows = await (await db.execute(
+        f"SELECT m.* FROM models m ORDER BY {_DEFAULT_FIRST}")).fetchall()
+    services = await _services(db)
+    return [(dict(r), services[r["connection_id"]]) for r in rows]
 
 
 async def get_row(db: aiosqlite.Connection, model_id: str) -> dict | None:

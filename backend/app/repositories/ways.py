@@ -68,6 +68,17 @@ async def plays(db: aiosqlite.Connection, way_id: str | None) -> dict:
     return ways.way_of(styles, way_id, default_id)
 
 
+def _ids(styles: dict) -> list[str]:
+    """The four built in first in their order, then the person's own by creation."""
+    return [*ways.BUILT_IN, *(c["id"] for c in styles["custom"] if c.get("id"))]
+
+
+def every(settings: dict) -> list[dict]:
+    """Every way as the listing gives it, without its conversations, from settings read."""
+    styles = _styles(settings)
+    return [ways.way_of(styles, way_id, None) for way_id in _ids(styles)]
+
+
 async def listing(db: aiosqlite.Connection) -> dict:
     styles, default_id = await _read(db)
     default = _default_of(styles, default_id)
@@ -78,7 +89,7 @@ async def listing(db: aiosqlite.Connection) -> dict:
         # An id no longer known plays the way offered: it is counted there.
         way_id = row["play_style"] if _known(styles, row["play_style"]) else default
         counts[way_id] = counts.get(way_id, 0) + row["n"]
-    ids = [*ways.BUILT_IN, *(c["id"] for c in styles["custom"] if c.get("id"))]
+    ids = _ids(styles)
     return {
         "default": default,
         "passages_available": embeddings.installed(),

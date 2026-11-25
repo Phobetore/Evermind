@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Awaitable, Callable
+from typing import Literal
 
 import aiosqlite
 from fastapi import APIRouter, Depends, UploadFile
@@ -14,7 +15,7 @@ from ..repositories import conversations as repo
 from ..repositories import models as models_repo
 from ..repositories import personas as personas_repo
 from ..repositories import ways as ways_repo
-from ..services import media, memory_service, turns
+from ..services import media, memory_service, outlook, turns
 
 router = APIRouter(prefix="/api", tags=["conversations"])
 
@@ -106,6 +107,14 @@ async def get_conversation(convo_id: str, messages: bool = True,
     return {**convo, "memory_error": memory_service.failure_of(convo_id),
             "memory_running": memory_service.is_running(convo_id),
             "memory_operation": memory_service.operation_of(convo_id)}
+
+
+@router.get("/conversations/{convo_id}/outlook")
+async def conversation_outlook(convo_id: str, only: Literal["current"] | None = None,
+                               db: aiosqlite.Connection = Depends(get_db)):
+    """What the next turn would read, worked out without asking a model: for the page's
+    counts, and what another AI or another way would read."""
+    return await outlook.outlook(db, convo_id, only_current=only == "current")
 
 
 @router.patch("/conversations/{convo_id}")

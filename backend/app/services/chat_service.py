@@ -86,22 +86,52 @@ def _auto_title(content: str) -> str:
     return text[:60]
 
 
-async def _resolve(db: aiosqlite.Connection, convo_id: str):
+async def _conversation(db: aiosqlite.Connection, convo_id: str) -> dict:
     convo = await convo_repo.get(db, convo_id, with_messages=False)
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
+    return convo
+
+
+async def _character(db: aiosqlite.Connection, convo: dict) -> dict:
     character = await characters_repo.get(db, convo["character_id"])
     if not character:
         raise NotFoundError("Character not found.", "character")
-    persona = await personas_repo.for_conversation(db, convo)
+    return character
+
+
+async def _ai(db: aiosqlite.Connection, convo: dict, settings: dict):
     resolved = await models_repo.resolve(db, convo.get("model_id"))
     if resolved is None:
         raise AppError(NO_AI_MESSAGE, kind=NO_CONNECTION)
-    settings = await settings_repo.get_all(db)
     model, service = resolved
     # What the provider sends, and what the engine keeps for the reply, from one place.
     call = call_for(model, service, room=reply_room(convo, settings))
-    return convo, character, persona, call, settings, (model, service)
+    return call, (model, service)
+
+
+async def _resolve(db: aiosqlite.Connection, convo_id: str):
+    convo = await _conversation(db, convo_id)
+    character = await _character(db, convo)
+    persona = await personas_repo.for_conversation(db, convo)
+    settings = await settings_repo.get_all(db)
+    call, ai = await _ai(db, convo, settings)
+    return convo, character, persona, call, settings, ai
+
+
+async def prepare(db: aiosqlite.Connection, convo: dict) -> dict:
+    """What a turn reads of a conversation to build its prompt, and what an outlook reads to
+    build the same one ahead of it: the character, the persona, the messages, the facts, the
+    lorebook and the settings. No AI: an outlook counts one that has none."""
+    character = await _character(db, convo)
+    return {
+        "character": character,
+        "persona": await personas_repo.for_conversation(db, convo),
+        "settings": await settings_repo.get_all(db),
+        "messages": await convo_repo.list_messages(db, convo["id"]),
+        "memories": await memories_repo.list_for_conversation(db, convo["id"]),
+        "lore_entries": await lore_repo.list_for_character(db, character["id"]),
+    }
 
 
 async def learned_it_reasons(db: aiosqlite.Connection, call: dict) -> None:
@@ -141,13 +171,16 @@ def _cut_at_ceiling(message: dict) -> dict[str, int | None]:
 async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict | None:
     """Writes one reply, and says how it ended if it failed or added nothing. A request it cannot
     run raises before anything is saved."""
-    convo, character, persona, call, settings, ai = await _resolve(db, request.conversation_id)
+    convo = await _conversation(db, request.conversation_id)
+    story = await prepare(db, convo)
+    character, persona, settings = story["character"], story["persona"], story["settings"]
+    messages = story["messages"]
+    call, ai = await _ai(db, convo, settings)
     # Read with the turn: a way changed on another device plays from the next one.
     way = ways.way_for(convo, settings)
     reminders = {key: way[key] for key in ways.REMINDER_FIELDS}
     char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
-    messages = await convo_repo.list_messages(db, convo["id"])
 
     answering = None  # the person's message, when the reply is a new one
     target = None  # the reply that gets a new version, or more of the one it has
@@ -208,8 +241,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     turn.text = existing
     turn.accepted.set()
 
-    memories = await memories_repo.list_for_conversation(db, convo["id"])
-    lore_entries = await lore_repo.list_for_character(db, character["id"])
+    memories, lore_entries = story["memories"], story["lore_entries"]
 
     # Facts ranked by relevance to the last two turns; without semantic memory, by recency.
     scene = "\n".join(active_content(m) for m in history[-2:])
