@@ -631,3 +631,63 @@ async def test_a_reply_cut_at_its_ceiling_teaches_no_length(client, monkeypatch)
     row = await row_of(ai["id"])
     assert row["token_ratio_n"] == 1
     assert "medium" not in json.loads(row["reply_tokens_avg"] or "{}")
+
+
+async def test_thinking_shorter_than_the_reply_is_counted_as_none(client, monkeypatch):
+    ai, convo = await a_story(client, read={"reasons": True}, reply_cap={"mode": "auto"})
+    Model(answer("*She nods.* " * 40, usage={"prompt_tokens": 5000, "completion_tokens": 3})
+          ).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    averages = json.loads((await row_of(ai["id"]))["reply_tokens_avg"])
+    assert averages["thinking"] == {"avg": 0, "n": 1}
+
+
+async def test_a_continuation_teaches_no_reply_length(client, monkeypatch):
+    ai, convo = await a_story(client)
+    model = Model(answer("*She nods.*", usage={"prompt_tokens": 5000, "completion_tokens": 300})
+                  ).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    model.answers = [answer(" And smiles.", usage={"prompt_tokens": 5100,
+                                                    "completion_tokens": 900})]
+    assert await send(client, convo["id"], mode="continue") is None
+    row = await row_of(ai["id"])
+    assert json.loads(row["reply_tokens_avg"])["medium"] == {"avg": 300, "n": 1}
+    assert row["token_ratio_n"] == 2
+
+
+async def test_an_ai_that_names_another_model_by_the_end_of_the_reply_learns_nothing(
+        client, reading):
+    ai, convo = await a_story(client)
+    reading.counts = [5000]
+
+    async def renamed(call):
+        await set_row(call["model_id"], model="another")
+
+    reading.during = renamed
+    assert await send(client, convo["id"]) is None
+    row = await row_of(ai["id"])
+    assert (row["model"], row["usage_seen"], row["token_ratio"], row["reply_tokens_avg"]) == (
+        "another", None, None, None)
+
+
+async def test_the_ratio_measured_is_what_the_estimate_is_read_against(client, monkeypatch):
+    ai, convo = await a_story(client)
+    await long_story(convo["id"], 22, 1300)
+    # A server that counts much less than the engine estimates, and has said so before.
+    await set_row(ai["id"], token_ratio=0.55, token_ratio_n=8)
+    Model(answer("*She nods.*", usage={"prompt_tokens": 4090})).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+
+    meta = (await last_reply(client, convo))["meta"]
+    estimate = meta["context"]["used_tokens"]
+    assert 4090 < 0.7 * estimate and not 4090 < 0.7 * round(estimate * 0.55)
+    assert "truncated" not in meta
+    assert (await row_of(ai["id"]))["token_ratio_n"] == 9
+
+
+async def test_what_was_observed_dates_the_ai(client):
+    ai = await add_model(client, base_url=HOSTED)
+    await set_row(ai["id"], updated_at="2026-11-01T10:00:00+00:00")
+    resp = await client.post(f"/api/models/{ai['id']}/observed", json={"tokens": 4096})
+    assert resp.json()["updated_at"] > "2026-11-01T10:00:00+00:00"
+    assert (await row_of(ai["id"]))["updated_at"] == resp.json()["updated_at"]
