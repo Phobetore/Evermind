@@ -157,6 +157,16 @@ can move the buttons from under the click.
   (automatic, or a Remember) or a Condense last failed, with the `operation` that did, until
   that work succeeds; a Condense that succeeds says nothing of a failed pass, and neither a
   Remember nor a Condense shortens the wait of an automatic pass that failed
+- `GET /api/ways`, `PUT /api/ways/{id}`, `POST /api/ways`, `DELETE /api/ways/{id}`,
+  `POST /api/ways/{id}/reset`, `PUT /api/ways/default`: the ways of playing, written field
+  by field so that two devices changing two ways do not overwrite each other;
+  `GET /api/settings` no longer carries the three settings they replace, and writing them
+  answers `410` (`page_outdated`)
+- `GET /api/conversations/{id}/outlook`: what each AI and each way would read of a
+  conversation, worked out without asking a model; the page does the money
+  (`frontend/src/lib/estimate.ts`), the server never
+- `POST /api/models/{id}/observed`: records the size an AI really reads when its server
+  cut a story without saying so; the conversation then plays again with it
 - `GET /api/library`: the cards in `library/`. The browser reads and writes card
   files itself (`frontend/src/lib/cards.ts`), and installs or imports a card by
   creating a character
@@ -354,6 +364,48 @@ should.
   (`requests_before.json`), compared byte for byte with what an AI sends now.
   When the engine, a provider or a service that builds a request changes,
   record the file again on the code of `main` itself, not on a branch.
+
+## Ways of playing
+
+A way of playing is nine fields: `history_limit`, `reply_length`, `reply_room`,
+`facts_cap`, `max_facts`, `lore_cap`, `lore_share`, `passage_cap` and
+`passage_share`. The four built in (Light, Balanced, Immersive, Maximum) are
+constants of `prompting/ways.py`, with the rules that turn them into budgets, and
+the same module exists in TypeScript (`frontend/src/engine/ways.ts`). Only what a
+person changed, and the ways they made, are stored (`settings`: `play_styles`,
+`default_play_style`). A conversation carries `play_style` and `play_overrides`.
+Balanced is the engine as it was, figure for figure.
+
+- **The one seam is `ai_call.reply_room`**, with `chat_service` for what the
+  engine rereads. A way never reaches a call anywhere else. `unsent` keeps
+  `UNSENT_RESERVE` (1,024) under every way.
+- **Margin and ratio.** The prompt leaves `max(200, 6%)` of the window unused
+  until an AI has measured its own counts, `max(200, 3%)` after
+  (`ai_call.margin_for`). `services/learning.py` keeps each AI's `token_ratio`
+  (between half and double of the estimate) from whole replies only, and tells a
+  server that read the story from its end alone.
+- **`CallFigures`** (`providers/base.py`) is what each provider hands back of its
+  call: the server's usage, the id of the generation, the model and upstream that
+  answered, the stop reason, the characters received, and whether the request
+  was sent and a stream opened. It stays readable after a stop or an error.
+  `Answer.figures` carries it out of `complete_answer`. The spending plan reads
+  these without opening the providers again; `on_id` is where its recorder
+  hooks in.
+- **What an update must not change** is held by three things, run before every
+  commit that touches the engine, a provider or a service that builds a request,
+  from `backend/`:
+
+  ```bash
+  .venv/Scripts/python tests/cases_kept.py <commit before the ways>
+  .venv/Scripts/python -m pytest -q tests/test_requests_before.py tests/test_requests_3_7.py
+  ```
+
+  `cases_kept.py` says that no recorded case of that commit changed its input or
+  its expected output. `test_requests_3_7.py` replays the requests 3.7.0 sent
+  (`fixtures/requests_3_7.json`, recorded on the code of 3.7.0, never by hand) and
+  allows two exceptions only, each removed by name and checked on its own:
+  `stream_options: {"include_usage": true}` in an OpenAI-compatible body, and the
+  wider margin of an AI that has measured nothing.
 
 ## Recorded cases
 
